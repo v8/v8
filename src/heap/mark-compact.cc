@@ -2153,7 +2153,16 @@ void MarkCompactCollector::RetainMaps() {
         // be created. Do not retain this map.
         continue;
       }
-      new_age = age - 1;
+      Object* prototype = map->prototype();
+      if (prototype->IsHeapObject() &&
+          !Marking::MarkBitFrom(HeapObject::cast(prototype)).Get()) {
+        // The prototype is not marked, age the map.
+        new_age = age - 1;
+      } else {
+        // The prototype and the constructor are marked, this map keeps only
+        // transition tree alive, not JSObjects. Do not age the map.
+        new_age = age;
+      }
       MarkObject(map, map_mark);
     } else {
       new_age = FLAG_retain_maps_for_n_gc;

@@ -5101,6 +5101,11 @@ void CheckMapRetainingFor(int n) {
   {
     HandleScope inner_scope(isolate);
     Handle<Map> map = Map::Create(isolate, 1);
+    v8::Local<v8::Value> result =
+        CompileRun("(function () { return {x : 10}; })();");
+    Handle<JSObject> proto =
+        v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+    map->set_prototype(*proto);
     heap->AddRetainedMap(map);
     weak_cell = inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
   }
