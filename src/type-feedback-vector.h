@@ -12,17 +12,43 @@
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 class FeedbackVectorSpec {
  public:
-  FeedbackVectorSpec() : slots_(0), ic_slots_(0) {}
-  FeedbackVectorSpec(int slots, int ic_slots)
-      : slots_(slots), ic_slots_(ic_slots) {
-    if (FLAG_vector_ics) ic_slot_kinds_.resize(ic_slots);
+  FeedbackVectorSpec() : slots_(0), has_ic_slot_(false) {}
+  explicit FeedbackVectorSpec(int slots) : slots_(slots), has_ic_slot_(false) {}
+  FeedbackVectorSpec(int slots, Code::Kind ic_slot_kind)
+      : slots_(slots), has_ic_slot_(true), ic_kind_(ic_slot_kind) {}
+
+  int slots() const { return slots_; }
+
+  int ic_slots() const { return has_ic_slot_ ? 1 : 0; }
+
+  Code::Kind GetKind(int ic_slot) const {
+    DCHECK(FLAG_vector_ics && has_ic_slot_ && ic_slot == 0);
+    return ic_kind_;
   }
+
+ private:
+  int slots_;
+  bool has_ic_slot_;
+  Code::Kind ic_kind_;
+};
+
+
+class ZoneFeedbackVectorSpec {
+ public:
+  explicit ZoneFeedbackVectorSpec(Zone* zone)
+      : slots_(0), ic_slots_(0), ic_slot_kinds_(zone) {}
+
+  ZoneFeedbackVectorSpec(Zone* zone, int slots, int ic_slots)
+      : slots_(slots),
+        ic_slots_(ic_slots),
+        ic_slot_kinds_(FLAG_vector_ics ? ic_slots : 0, zone) {}
 
   int slots() const { return slots_; }
   void increase_slots(int count) { slots_ += count; }
@@ -46,7 +72,7 @@ class FeedbackVectorSpec {
  private:
   int slots_;
   int ic_slots_;
-  std::vector<unsigned char> ic_slot_kinds_;
+  ZoneVector<unsigned char> ic_slot_kinds_;
 };
 
 
@@ -161,8 +187,9 @@ class TypeFeedbackVector : public FixedArray {
   // IC slots need metadata to recognize the type of IC.
   Code::Kind GetKind(FeedbackVectorICSlot slot) const;
 
+  template <typename Spec>
   static Handle<TypeFeedbackVector> Allocate(Isolate* isolate,
-                                             const FeedbackVectorSpec& spec);
+                                             const Spec* spec);
 
   static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
                                          Handle<TypeFeedbackVector> vector);

@@ -3124,10 +3124,9 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   if (FLAG_vector_ics) {
-    FeedbackVectorSpec spec(0, 1);
-    spec.SetKind(0, Code::KEYED_LOAD_IC);
+    FeedbackVectorSpec spec(0, Code::KEYED_LOAD_IC);
     Handle<TypeFeedbackVector> dummy_vector =
-        factory->NewTypeFeedbackVector(spec);
+        factory->NewTypeFeedbackVector(&spec);
     dummy_vector->Set(FeedbackVectorICSlot(0),
                       *TypeFeedbackVector::MegamorphicSentinel(isolate()),
                       SKIP_WRITE_BARRIER);

@@ -75,11 +75,18 @@ void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot, Code::Kind kind) {
 }
 
 
+template Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
+    Isolate* isolate, const FeedbackVectorSpec* spec);
+template Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
+    Isolate* isolate, const ZoneFeedbackVectorSpec* spec);
+
+
 // static
-Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
-    Isolate* isolate, const FeedbackVectorSpec& spec) {
-  const int slot_count = spec.slots();
-  const int ic_slot_count = spec.ic_slots();
+template <typename Spec>
+Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
+                                                        const Spec* spec) {
+  const int slot_count = spec->slots();
+  const int ic_slot_count = spec->ic_slots();
   const int index_count =
       FLAG_vector_ics ? VectorICComputer::word_count(ic_slot_count) : 0;
   const int length = slot_count + (ic_slot_count * elements_per_ic_slot()) +
@@ -113,7 +120,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
   Handle<TypeFeedbackVector> vector = Handle<TypeFeedbackVector>::cast(array);
   if (FLAG_vector_ics) {
     for (int i = 0; i < ic_slot_count; i++) {
-      vector->SetKind(FeedbackVectorICSlot(i), spec.GetKind(i));
+      vector->SetKind(FeedbackVectorICSlot(i), spec->GetKind(i));
     }
   }
   return vector;

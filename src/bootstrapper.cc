@@ -2143,10 +2143,9 @@ bool Genesis::InstallNatives() {
     if (FLAG_vector_ics) {
       // Apply embeds an IC, so we need a type vector of size 1 in the shared
       // function info.
-      FeedbackVectorSpec spec(0, 1);
-      spec.SetKind(0, Code::CALL_IC);
+      FeedbackVectorSpec spec(0, Code::CALL_IC);
       Handle<TypeFeedbackVector> feedback_vector =
-          factory()->NewTypeFeedbackVector(spec);
+          factory()->NewTypeFeedbackVector(&spec);
       apply->shared()->set_feedback_vector(*feedback_vector);
     }
 

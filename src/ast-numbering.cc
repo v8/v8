@@ -17,6 +17,7 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   explicit AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
+        properties_(zone),
         ic_slot_cache_(FLAG_vector_ics ? 4 : 0),
         dont_optimize_reason_(kNoReason) {
     InitializeAstVisitor(isolate, zone);

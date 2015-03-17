@@ -188,7 +188,7 @@ class AstProperties FINAL BASE_EMBEDDED {
  public:
   class Flags : public EnumSet<AstPropertiesFlag, int> {};
 
-  AstProperties() : node_count_(0) {}
+  explicit AstProperties(Zone* zone) : node_count_(0), spec_(zone) {}
 
   Flags* flags() { return &flags_; }
   int node_count() { return node_count_; }
@@ -200,12 +200,12 @@ class AstProperties FINAL BASE_EMBEDDED {
   int ic_slots() const { return spec_.ic_slots(); }
   void increase_ic_slots(int count) { spec_.increase_ic_slots(count); }
   void SetKind(int ic_slot, Code::Kind kind) { spec_.SetKind(ic_slot, kind); }
-  const FeedbackVectorSpec& get_spec() const { return spec_; }
+  const ZoneFeedbackVectorSpec* get_spec() const { return &spec_; }
 
  private:
   Flags flags_;
   int node_count_;
-  FeedbackVectorSpec spec_;
+  ZoneFeedbackVectorSpec spec_;
 };
 
 
@@ -2555,7 +2555,7 @@ class FunctionLiteral FINAL : public Expression {
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
-  const FeedbackVectorSpec& feedback_vector_spec() const {
+  const ZoneFeedbackVectorSpec* feedback_vector_spec() const {
     return ast_properties_.get_spec();
   }
   bool dont_optimize() { return dont_optimize_reason_ != kNoReason; }
@@ -2579,6 +2579,7 @@ class FunctionLiteral FINAL : public Expression {
         scope_(scope),
         body_(body),
         raw_inferred_name_(ast_value_factory->empty_string()),
+        ast_properties_(zone),
         dont_optimize_reason_(kNoReason),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
