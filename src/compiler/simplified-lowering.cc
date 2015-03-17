@@ -438,18 +438,8 @@ class RepresentationSelector {
     return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
   }
 
-  bool IsSafeIntAdditiveOperand(Node* node) {
-    Type* type = NodeProperties::GetBounds(node).upper;
-    // TODO(jarin): Unfortunately, bitset types are not subtypes of larger
-    // range types, so we have to explicitly check for Integral32 here
-    // (in addition to the safe integer range). Once we fix subtyping for
-    // ranges, we should simplify this.
-    return type->Is(safe_int_additive_range_) || type->Is(Type::Integral32());
-  }
-
   bool CanLowerToInt32AdditiveBinop(Node* node, MachineTypeUnion use) {
-    return IsSafeIntAdditiveOperand(node->InputAt(0)) &&
-           IsSafeIntAdditiveOperand(node->InputAt(1)) &&
+    return BothInputsAre(node, safe_int_additive_range_) &&
            !CanObserveNonInt32(use);
   }
 
@@ -458,8 +448,7 @@ class RepresentationSelector {
   }
 
   bool CanLowerToUint32AdditiveBinop(Node* node, MachineTypeUnion use) {
-    return IsSafeIntAdditiveOperand(node->InputAt(0)) &&
-           IsSafeIntAdditiveOperand(node->InputAt(1)) &&
+    return BothInputsAre(node, safe_int_additive_range_) &&
            !CanObserveNonUint32(use);
   }
 
