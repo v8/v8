@@ -1372,7 +1372,9 @@ TEST(SerializeToplevelFlagChange) {
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
   v8::Isolate* isolate2 = v8::Isolate::New();
+
   FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
+  FlagList::EnforceFlagImplications();
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
