@@ -429,10 +429,7 @@ class MaybeLocal {
     return !IsEmpty();
   }
 
-  V8_INLINE Local<T> ToLocalChecked() {
-    // TODO(dcarney): add DCHECK.
-    return Local<T>(val_);
-  }
+  V8_INLINE Local<T> ToLocalChecked();
 
   template <class S>
   V8_INLINE Local<S> FromMaybe(Local<S> default_value) const {
@@ -5893,9 +5890,12 @@ class V8_EXPORT V8 {
   static Local<Value> GetEternal(Isolate* isolate, int index);
 
   static void CheckIsJust(bool is_just);
+  static void ToLocalEmpty();
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
+  template <class T>
+  friend class MaybeLocal;
   template <class T>
   friend class Maybe;
   template <class T> friend class Eternal;
@@ -6722,6 +6722,15 @@ void Eternal<T>::Set(Isolate* isolate, Local<S> handle) {
 template<class T>
 Local<T> Eternal<T>::Get(Isolate* isolate) {
   return Local<T>(reinterpret_cast<T*>(*V8::GetEternal(isolate, index_)));
+}
+
+
+template <class T>
+Local<T> MaybeLocal<T>::ToLocalChecked() {
+#ifdef V8_ENABLE_CHECKS
+  if (val_ == nullptr) V8::ToLocalEmpty();
+#endif
+  return Local<T>(val_);
 }
 
 

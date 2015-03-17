@@ -617,6 +617,11 @@ void V8::CheckIsJust(bool is_just) {
 }
 
 
+void V8::ToLocalEmpty() {
+  Utils::ApiCheck(false, "v8::ToLocalChecked", "Empty MaybeLocal.");
+}
+
+
 // --- H a n d l e s ---
 
 
