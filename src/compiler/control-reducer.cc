@@ -15,6 +15,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define TRACE(...)                                       \
+  do {                                                   \
+    if (FLAG_trace_turbo_reduction) PrintF(__VA_ARGS__); \
+  } while (false)
+
 enum VisitState { kUnvisited = 0, kOnStack = 1, kRevisit = 2, kVisited = 3 };
 enum Decision { kFalse, kUnknown, kTrue };
 
@@ -41,9 +46,6 @@ class ReachabilityMarker : public NodeMarker<uint8_t> {
   enum Bit { kFromEnd = 1, kFromStart = 2, kFwStack = 4 };
 };
 
-
-#define TRACE(x) \
-  if (FLAG_trace_turbo_reduction) PrintF x
 
 class ControlReducerImpl {
  public:
@@ -112,7 +114,7 @@ class ControlReducerImpl {
 
     while (!fw_stack.empty()) {
       Node* node = fw_stack.back().first;
-      TRACE(("ControlFw: #%d:%s\n", node->id(), node->op()->mnemonic()));
+      TRACE("ControlFw: #%d:%s\n", node->id(), node->op()->mnemonic());
       bool pop = true;
       while (fw_stack.back().second != node->uses().end()) {
         Node* succ = *(fw_stack.back().second);
@@ -165,7 +167,7 @@ class ControlReducerImpl {
 
   // Connect {loop}, the header of a non-terminating loop, to the end node.
   Node* ConnectNTL(Node* loop) {
-    TRACE(("ConnectNTL: #%d:%s\n", loop->id(), loop->op()->mnemonic()));
+    TRACE("ConnectNTL: #%d:%s\n", loop->id(), loop->op()->mnemonic());
 
     Node* always = graph()->NewNode(common_->Always());
     // Mark the node as visited so that we can revisit later.
@@ -280,9 +282,9 @@ class ControlReducerImpl {
       for (Edge edge : node->use_edges()) {
         Node* use = edge.from();
         if (!marked.IsReachableFromEnd(use)) {
-          TRACE(("DeadLink: #%d:%s(%d) -> #%d:%s\n", use->id(),
-                 use->op()->mnemonic(), edge.index(), node->id(),
-                 node->op()->mnemonic()));
+          TRACE("DeadLink: #%d:%s(%d) -> #%d:%s\n", use->id(),
+                use->op()->mnemonic(), edge.index(), node->id(),
+                node->op()->mnemonic());
           edge.UpdateTo(NULL);
         }
       }
@@ -322,7 +324,7 @@ class ControlReducerImpl {
 
     if (node->IsDead()) return Pop();  // Node was killed while on stack.
 
-    TRACE(("ControlReduce: #%d:%s\n", node->id(), node->op()->mnemonic()));
+    TRACE("ControlReduce: #%d:%s\n", node->id(), node->op()->mnemonic());
 
     // Recurse on an input if necessary.
     for (Node* const input : node->inputs()) {
@@ -374,7 +376,7 @@ class ControlReducerImpl {
   void Revisit(Node* node) {
     size_t id = static_cast<size_t>(node->id());
     if (id < state_.size() && state_[id] == kVisited) {
-      TRACE(("  Revisit #%d:%s\n", node->id(), node->op()->mnemonic()));
+      TRACE("  Revisit #%d:%s\n", node->id(), node->op()->mnemonic());
       state_[id] = kRevisit;
       revisit_.push_back(node);
     }
@@ -398,7 +400,7 @@ class ControlReducerImpl {
       // If a node has only one control input and it is dead, replace with dead.
       Node* control = NodeProperties::GetControlInput(node);
       if (control->opcode() == IrOpcode::kDead) {
-        TRACE(("ControlDead: #%d:%s\n", node->id(), node->op()->mnemonic()));
+        TRACE("ControlDead: #%d:%s\n", node->id(), node->op()->mnemonic());
         return control;
       }
     }
@@ -507,8 +509,8 @@ class ControlReducerImpl {
       index++;
     }
 
-    TRACE(("ReduceMerge: #%d:%s (%d live)\n", node->id(),
-           node->op()->mnemonic(), live));
+    TRACE("ReduceMerge: #%d:%s (%d live)\n", node->id(), node->op()->mnemonic(),
+          live);
 
     if (live == 0) return dead();  // no remaining inputs.
 
@@ -530,8 +532,8 @@ class ControlReducerImpl {
     if (live < node->InputCount()) {
       // Edit phis in place, removing dead inputs and revisiting them.
       for (Node* const phi : phis) {
-        TRACE(("  PhiInMerge: #%d:%s (%d live)\n", phi->id(),
-               phi->op()->mnemonic(), live));
+        TRACE("  PhiInMerge: #%d:%s (%d live)\n", phi->id(),
+              phi->op()->mnemonic(), live);
         RemoveDeadInputs(node, phi);
         Revisit(phi);
       }
@@ -557,9 +559,9 @@ class ControlReducerImpl {
           // have users except for the Merge and the Merge has no Phi or
           // EffectPhi uses, so replace the Merge with the control input of the
           // diamond.
-          TRACE(("  DeadDiamond: #%d:%s #%d:%s #%d:%s\n", node0->id(),
-                 node0->op()->mnemonic(), node1->id(), node1->op()->mnemonic(),
-                 branch0->id(), branch0->op()->mnemonic()));
+          TRACE("  DeadDiamond: #%d:%s #%d:%s #%d:%s\n", node0->id(),
+                node0->op()->mnemonic(), node1->id(), node1->op()->mnemonic(),
+                branch0->id(), branch0->op()->mnemonic());
           return NodeProperties::GetControlInput(branch0);
         }
       }
@@ -575,8 +577,8 @@ class ControlReducerImpl {
     Decision result = DecideCondition(branch->InputAt(0));
     if (result == kTrue) {
       // fold a true branch by replacing IfTrue with the branch control.
-      TRACE(("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
-             branch->op()->mnemonic(), node->id(), node->op()->mnemonic()));
+      TRACE("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
+            branch->op()->mnemonic(), node->id(), node->op()->mnemonic());
       return branch->InputAt(1);
     }
     return result == kUnknown ? node : dead();
@@ -589,8 +591,8 @@ class ControlReducerImpl {
     Decision result = DecideCondition(branch->InputAt(0));
     if (result == kFalse) {
       // fold a false branch by replacing IfFalse with the branch control.
-      TRACE(("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
-             branch->op()->mnemonic(), node->id(), node->op()->mnemonic()));
+      TRACE("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
+            branch->op()->mnemonic(), node->id(), node->op()->mnemonic());
       return branch->InputAt(1);
     }
     return result == kUnknown ? node : dead();
@@ -622,9 +624,8 @@ class ControlReducerImpl {
   // Replace uses of {node} with {replacement} and revisit the uses.
   void ReplaceNode(Node* node, Node* replacement) {
     if (node == replacement) return;
-    TRACE(("  Replace: #%d:%s with #%d:%s\n", node->id(),
-           node->op()->mnemonic(), replacement->id(),
-           replacement->op()->mnemonic()));
+    TRACE("  Replace: #%d:%s with #%d:%s\n", node->id(), node->op()->mnemonic(),
+          replacement->id(), replacement->op()->mnemonic());
     for (Node* const use : node->uses()) {
       // Don't revisit this node if it refers to itself.
       if (use != node) Revisit(use);

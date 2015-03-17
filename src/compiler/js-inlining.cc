@@ -23,6 +23,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define TRACE(...)                                      \
+  do {                                                  \
+    if (FLAG_trace_turbo_inlining) PrintF(__VA_ARGS__); \
+  } while (false)
+
 
 // Provides convenience accessors for calls to JS functions.
 class JSCallFunctionAccessor {
@@ -322,21 +327,15 @@ Reduction JSInliner::Reduce(Node* node) {
 
   if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
     // For now do not inline functions that use their arguments array.
-    SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
-    if (FLAG_trace_turbo_inlining) {
-      PrintF(
-          "Not Inlining %s into %s because inlinee uses arguments "
-          "array\n",
-          name.get(), info_->shared_info()->DebugName()->ToCString().get());
-    }
+    TRACE("Not Inlining %s into %s because inlinee uses arguments array\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
 
-  if (FLAG_trace_turbo_inlining) {
-    SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
-    PrintF("Inlining %s into %s\n", name.get(),
-           info_->shared_info()->DebugName()->ToCString().get());
-  }
+  TRACE("Inlining %s into %s\n",
+        function->shared()->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get());
 
   Graph graph(info.zone());
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),

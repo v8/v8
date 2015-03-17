@@ -25,8 +25,10 @@ namespace internal {
 namespace compiler {
 
 // Macro for outputting trace information from representation inference.
-#define TRACE(x) \
-  if (FLAG_trace_representation) PrintF x
+#define TRACE(...)                                      \
+  do {                                                  \
+    if (FLAG_trace_representation) PrintF(__VA_ARGS__); \
+  } while (false)
 
 // Representation selection and lowering of {Simplified} operators to machine
 // operators are interwined. We use a fixpoint calculation to compute both the
@@ -85,7 +87,7 @@ class RepresentationSelector {
 
   void Run(SimplifiedLowering* lowering) {
     // Run propagation phase to a fixpoint.
-    TRACE(("--{Propagation phase}--\n"));
+    TRACE("--{Propagation phase}--\n");
     phase_ = PROPAGATE;
     Enqueue(jsgraph_->graph()->end());
     // Process nodes from the queue until it is empty.
@@ -94,20 +96,20 @@ class RepresentationSelector {
       NodeInfo* info = GetInfo(node);
       queue_.pop();
       info->queued = false;
-      TRACE((" visit #%d: %s\n", node->id(), node->op()->mnemonic()));
+      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       VisitNode(node, info->use, NULL);
-      TRACE(("  ==> output "));
+      TRACE("  ==> output ");
       PrintInfo(info->output);
-      TRACE(("\n"));
+      TRACE("\n");
     }
 
     // Run lowering and change insertion phase.
-    TRACE(("--{Simplified lowering phase}--\n"));
+    TRACE("--{Simplified lowering phase}--\n");
     phase_ = LOWER;
     // Process nodes from the collected {nodes_} vector.
     for (NodeVector::iterator i = nodes_.begin(); i != nodes_.end(); ++i) {
       Node* node = *i;
-      TRACE((" visit #%d: %s\n", node->id(), node->op()->mnemonic()));
+      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       // Reuse {VisitNode()} so the representation rules are in one place.
       if (FLAG_turbo_source_positions) {
         SourcePositionTable::Scope scope(
@@ -143,21 +145,21 @@ class RepresentationSelector {
       info->queued = true;
       nodes_.push_back(node);
       queue_.push(node);
-      TRACE(("  initial: "));
+      TRACE("  initial: ");
       info->use |= use;
       PrintUseInfo(node);
       return;
     }
-    TRACE(("   queue?: "));
+    TRACE("   queue?: ");
     PrintUseInfo(node);
     if ((info->use & use) != use) {
       // New usage information for the node is available.
       if (!info->queued) {
         queue_.push(node);
         info->queued = true;
-        TRACE(("   added: "));
+        TRACE("   added: ");
       } else {
-        TRACE((" inqueue: "));
+        TRACE(" inqueue: ");
       }
       info->use |= use;
       PrintUseInfo(node);
@@ -195,14 +197,14 @@ class RepresentationSelector {
       MachineTypeUnion output = GetInfo(input)->output;
       if ((output & (kRepBit | kRepWord8 | kRepWord16 | kRepWord32)) == 0) {
         // Output representation doesn't match usage.
-        TRACE(("  truncate-to-int32: #%d:%s(@%d #%d:%s) ", node->id(),
-               node->op()->mnemonic(), index, input->id(),
-               input->op()->mnemonic()));
-        TRACE((" from "));
+        TRACE("  truncate-to-int32: #%d:%s(@%d #%d:%s) ", node->id(),
+              node->op()->mnemonic(), index, input->id(),
+              input->op()->mnemonic());
+        TRACE(" from ");
         PrintInfo(output);
-        TRACE((" to "));
+        TRACE(" to ");
         PrintInfo(use);
-        TRACE(("\n"));
+        TRACE("\n");
         Node* n = changer_->GetTruncatedWord32For(input, output);
         node->ReplaceInput(index, n);
       }
@@ -220,14 +222,14 @@ class RepresentationSelector {
       MachineTypeUnion output = GetInfo(input)->output;
       if ((output & kRepMask & use) == 0) {
         // Output representation doesn't match usage.
-        TRACE(("  change: #%d:%s(@%d #%d:%s) ", node->id(),
-               node->op()->mnemonic(), index, input->id(),
-               input->op()->mnemonic()));
-        TRACE((" from "));
+        TRACE("  change: #%d:%s(@%d #%d:%s) ", node->id(),
+              node->op()->mnemonic(), index, input->id(),
+              input->op()->mnemonic());
+        TRACE(" from ");
         PrintInfo(output);
-        TRACE((" to "));
+        TRACE(" to ");
         PrintInfo(use);
-        TRACE(("\n"));
+        TRACE("\n");
         Node* n = changer_->GetRepresentationFor(input, output, use);
         node->ReplaceInput(index, n);
       }
@@ -1049,11 +1051,10 @@ class RepresentationSelector {
   }
 
   void DeferReplacement(Node* node, Node* replacement) {
-    if (FLAG_trace_representation) {
-      TRACE(("defer replacement #%d:%s with #%d:%s\n", node->id(),
-             node->op()->mnemonic(), replacement->id(),
-             replacement->op()->mnemonic()));
-    }
+    TRACE("defer replacement #%d:%s with #%d:%s\n", node->id(),
+          node->op()->mnemonic(), replacement->id(),
+          replacement->op()->mnemonic());
+
     if (replacement->id() < count_ &&
         GetInfo(replacement)->output == GetInfo(node)->output) {
       // Replace with a previously existing node eagerly only if the type is the
@@ -1071,9 +1072,9 @@ class RepresentationSelector {
   }
 
   void PrintUseInfo(Node* node) {
-    TRACE(("#%d:%-20s ", node->id(), node->op()->mnemonic()));
+    TRACE("#%d:%-20s ", node->id(), node->op()->mnemonic());
     PrintInfo(GetUseInfo(node));
-    TRACE(("\n"));
+    TRACE("\n");
   }
 
   void PrintInfo(MachineTypeUnion info) {
