@@ -170,6 +170,11 @@ Node* StateValuesCache::BuildTree(ValueArrayIterator* it, size_t max_height) {
 
 
 Node* StateValuesCache::GetNodeForValues(Node** values, size_t count) {
+#if DEBUG
+  for (size_t i = 0; i < count; i++) {
+    DCHECK_NE(values[i]->opcode(), IrOpcode::kStateValues);
+  }
+#endif
   if (count == 0) {
     return GetEmptyStateValues();
   }

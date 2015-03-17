@@ -478,6 +478,8 @@
         '../../src/compiler/linkage-impl.h',
         '../../src/compiler/linkage.cc',
         '../../src/compiler/linkage.h',
+        '../../src/compiler/liveness-analyzer.cc',
+        '../../src/compiler/liveness-analyzer.h',
         '../../src/compiler/load-elimination.cc',
         '../../src/compiler/load-elimination.h',
         '../../src/compiler/loop-analysis.cc',

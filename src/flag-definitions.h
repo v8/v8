@@ -297,6 +297,8 @@ DEFINE_BOOL(collect_megamorphic_maps_from_stub_cache, true,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_BOOL(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_BOOL(trace_check_elimination, false, "trace check elimination phase")
+DEFINE_BOOL(trace_environment_liveness, false,
+            "trace liveness of local variable slots")
 DEFINE_BOOL(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_STRING(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_BOOL(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")

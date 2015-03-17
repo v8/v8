@@ -7,6 +7,7 @@
 
 #include "src/ast.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"
 
 namespace v8 {
@@ -101,6 +102,9 @@ class AstGraphBuilder : public AstVisitor {
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
 
+  // Analyzer of local variable liveness.
+  LivenessAnalyzer liveness_analyzer_;
+
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
@@ -121,6 +125,7 @@ class AstGraphBuilder : public AstVisitor {
   Scope* current_scope() const;
   Node* current_context() const;
   Node* exit_control() const { return exit_control_; }
+  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
 
   void set_environment(Environment* env) { environment_ = env; }
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
@@ -211,6 +216,10 @@ class AstGraphBuilder : public AstVisitor {
   // Check if the given statement is an OSR entry.
   // If so, record the stack height into the compilation and return {true}.
   bool CheckOsrEntry(IterationStatement* stmt);
+
+  // Computes local variable liveness and replaces dead variables in
+  // frame states with the undefined values.
+  void ClearNonLiveSlotsInFrameStates();
 
   // Helper to wrap a Handle<T> into a Unique<T>.
   template <class T>
@@ -372,26 +381,10 @@ class AstGraphBuilder::Environment : public ZoneObject {
            locals_count_;
   }
 
-  // Operations on parameter or local variables. The parameter indices are
-  // shifted by 1 (receiver is parameter index -1 but environment index 0).
-  void Bind(Variable* variable, Node* node) {
-    DCHECK(variable->IsStackAllocated());
-    if (variable->IsParameter()) {
-      values()->at(variable->index() + 1) = node;
-    } else {
-      DCHECK(variable->IsStackLocal());
-      values()->at(variable->index() + parameters_count_) = node;
-    }
-  }
-  Node* Lookup(Variable* variable) {
-    DCHECK(variable->IsStackAllocated());
-    if (variable->IsParameter()) {
-      return values()->at(variable->index() + 1);
-    } else {
-      DCHECK(variable->IsStackLocal());
-      return values()->at(variable->index() + parameters_count_);
-    }
-  }
+  // Operations on parameter or local variables.
+  void Bind(Variable* variable, Node* node);
+  Node* Lookup(Variable* variable);
+  void MarkAllLocalsLive();
 
   Node* Context() const { return contexts_.back(); }
   void PushContext(Node* context) { contexts()->push_back(context); }
@@ -474,7 +467,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Copies this environment at a loop header control-flow point.
   Environment* CopyForLoop(BitVector* assigned, bool is_osr = false) {
     PrepareForLoop(assigned, is_osr);
-    return Copy();
+    return CopyAndShareLiveness();
   }
 
   int ContextStackDepth() { return static_cast<int>(contexts_.size()); }
@@ -483,6 +476,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
   AstGraphBuilder* builder_;
   int parameters_count_;
   int locals_count_;
+  LivenessAnalyzerBlock* liveness_block_;
   NodeVector values_;
   NodeVector contexts_;
   Node* control_dependency_;
@@ -491,8 +485,9 @@ class AstGraphBuilder::Environment : public ZoneObject {
   Node* locals_node_;
   Node* stack_node_;
 
-  explicit Environment(const Environment* copy);
+  explicit Environment(Environment* copy);
   Environment* Copy() { return new (zone()) Environment(this); }
+  Environment* CopyAndShareLiveness();
   void UpdateStateValues(Node** state_values, int offset, int count);
   void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
   Zone* zone() const { return builder_->local_zone(); }
@@ -501,6 +496,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
   CommonOperatorBuilder* common() { return builder_->common(); }
   NodeVector* values() { return &values_; }
   NodeVector* contexts() { return &contexts_; }
+  LivenessAnalyzerBlock* liveness_block() { return liveness_block_; }
 
   // Prepare environment to be used as loop header.
   void PrepareForLoop(BitVector* assigned, bool is_osr = false);

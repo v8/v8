@@ -8,6 +8,7 @@
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -394,7 +395,9 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       input_buffer_(nullptr),
       exit_control_(nullptr),
       loop_assignment_analysis_(loop),
-      state_values_cache_(jsgraph) {
+      state_values_cache_(jsgraph),
+      liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
+                         local_zone) {
   InitializeAstVisitor(info->isolate(), local_zone);
 }
 
@@ -480,6 +483,10 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   // Finish the basic structure of the graph.
   graph()->SetEnd(graph()->NewNode(common()->End(), exit_control()));
 
+  // Compute local variable liveness information and use it to relax
+  // frame states.
+  ClearNonLiveSlotsInFrameStates();
+
   // Failures indicated by stack overflow.
   return !HasStackOverflow();
 }
@@ -530,6 +537,24 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
 }
 
 
+void AstGraphBuilder::ClearNonLiveSlotsInFrameStates() {
+  if (!FLAG_analyze_environment_liveness) return;
+
+  NonLiveFrameStateSlotReplacer replacer(
+      &state_values_cache_, jsgraph()->UndefinedConstant(),
+      liveness_analyzer()->local_count(), local_zone());
+  Variable* arguments = info()->scope()->arguments();
+  if (arguments != nullptr && arguments->IsStackAllocated()) {
+    replacer.MarkPermanentlyLive(arguments->index());
+  }
+  liveness_analyzer()->Run(&replacer);
+  if (FLAG_trace_environment_liveness) {
+    OFStream os(stdout);
+    liveness_analyzer()->Print(os);
+  }
+}
+
+
 // Left-hand side can only be a property, a global or a variable slot.
 enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
 
@@ -552,6 +577,7 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
     : builder_(builder),
       parameters_count_(scope->num_parameters() + 1),
       locals_count_(scope->num_stack_slots()),
+      liveness_block_(builder_->liveness_analyzer()->NewBlock()),
       values_(builder_->local_zone()),
       contexts_(builder_->local_zone()),
       control_dependency_(control_dependency),
@@ -580,8 +606,7 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
 }
 
 
-AstGraphBuilder::Environment::Environment(
-    const AstGraphBuilder::Environment* copy)
+AstGraphBuilder::Environment::Environment(AstGraphBuilder::Environment* copy)
     : builder_(copy->builder_),
       parameters_count_(copy->parameters_count_),
       locals_count_(copy->locals_count_),
@@ -598,6 +623,65 @@ AstGraphBuilder::Environment::Environment(
   contexts_.reserve(copy->contexts_.size());
   contexts_.insert(contexts_.begin(), copy->contexts_.begin(),
                    copy->contexts_.end());
+
+  if (FLAG_analyze_environment_liveness) {
+    // Split the liveness blocks.
+    copy->liveness_block_ =
+        builder_->liveness_analyzer()->NewBlock(copy->liveness_block());
+    liveness_block_ =
+        builder_->liveness_analyzer()->NewBlock(copy->liveness_block());
+  }
+}
+
+
+void AstGraphBuilder::Environment::Bind(Variable* variable, Node* node) {
+  DCHECK(variable->IsStackAllocated());
+  if (variable->IsParameter()) {
+    // The parameter indices are shifted by 1 (receiver is parameter
+    // index -1 but environment index 0).
+    values()->at(variable->index() + 1) = node;
+  } else {
+    DCHECK(variable->IsStackLocal());
+    values()->at(variable->index() + parameters_count_) = node;
+    if (FLAG_analyze_environment_liveness) {
+      liveness_block()->Bind(variable->index());
+    }
+  }
+}
+
+
+Node* AstGraphBuilder::Environment::Lookup(Variable* variable) {
+  DCHECK(variable->IsStackAllocated());
+  if (variable->IsParameter()) {
+    // The parameter indices are shifted by 1 (receiver is parameter
+    // index -1 but environment index 0).
+    return values()->at(variable->index() + 1);
+  } else {
+    DCHECK(variable->IsStackLocal());
+    if (FLAG_analyze_environment_liveness) {
+      liveness_block()->Lookup(variable->index());
+    }
+    return values()->at(variable->index() + parameters_count_);
+  }
+}
+
+
+void AstGraphBuilder::Environment::MarkAllLocalsLive() {
+  if (FLAG_analyze_environment_liveness) {
+    for (int i = 0; i < locals_count_; i++) {
+      liveness_block()->Lookup(i);
+    }
+  }
+}
+
+
+AstGraphBuilder::Environment*
+AstGraphBuilder::Environment::CopyAndShareLiveness() {
+  Environment* env = new (zone()) Environment(this);
+  if (FLAG_analyze_environment_liveness) {
+    env->liveness_block_ = liveness_block();
+  }
+  return env;
 }
 
 
@@ -642,9 +726,13 @@ Node* AstGraphBuilder::Environment::Checkpoint(
 
   const Operator* op = common()->FrameState(JS_FRAME, ast_id, combine);
 
-  return graph()->NewNode(op, parameters_node_, locals_node_, stack_node_,
-                          builder()->current_context(),
-                          builder()->jsgraph()->UndefinedConstant());
+  Node* result = graph()->NewNode(op, parameters_node_, locals_node_,
+                                  stack_node_, builder()->current_context(),
+                                  builder()->jsgraph()->UndefinedConstant());
+  if (FLAG_analyze_environment_liveness) {
+    liveness_block()->Checkpoint(result);
+  }
+  return result;
 }
 
 
@@ -1333,6 +1421,7 @@ void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
   // TODO(turbofan): Do we really need a separate reloc-info for this?
   Node* node = NewNode(javascript()->CallRuntime(Runtime::kDebugBreak, 0));
   PrepareFrameState(node, stmt->DebugBreakId());
+  environment()->MarkAllLocalsLive();
 }
 
 
@@ -3174,6 +3263,7 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
   if (this->IsMarkedAsUnreachable()) {
     Node* other_control = other->control_dependency_;
     Node* inputs[] = {other_control};
+    liveness_block_ = other->liveness_block_;
     control_dependency_ =
         graph()->NewNode(common()->Merge(1), arraysize(inputs), inputs, true);
     effect_dependency_ = other->effect_dependency_;
@@ -3183,6 +3273,18 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
     contexts_ = other->contexts_;
     contexts_.resize(min, nullptr);
     return;
+  }
+
+  // Record the merge for the local variable liveness calculation.
+  // Unfortunately, we have to mirror the logic in the MergeControl method:
+  // connect before merge or loop, or create a new merge otherwise.
+  if (FLAG_analyze_environment_liveness) {
+    if (GetControlDependency()->opcode() != IrOpcode::kLoop &&
+        GetControlDependency()->opcode() != IrOpcode::kMerge) {
+      liveness_block_ =
+          builder_->liveness_analyzer()->NewBlock(liveness_block());
+    }
+    liveness_block()->AddPredecessor(other->liveness_block());
   }
 
   // Create a merge of the control dependencies of both environments and update
