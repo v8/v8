@@ -230,14 +230,50 @@ Address RelocInfo::target_external_reference() {
 
 
 Address RelocInfo::target_internal_reference() {
-  DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return Memory::Address_at(pc_);
+  if (rmode_ == INTERNAL_REFERENCE) {
+    return Memory::Address_at(pc_);
+  } else {
+    DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
+    Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
+    Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
+    Instr instr_ori2 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);
+    DCHECK(Assembler::IsLui(instr_lui));
+    DCHECK(Assembler::IsOri(instr_ori));
+    DCHECK(Assembler::IsOri(instr_ori2));
+    int64_t imm = (instr_lui & static_cast<int64_t>(kImm16Mask)) << 32;
+    imm |= (instr_ori & static_cast<int64_t>(kImm16Mask)) << 16;
+    imm |= (instr_ori2 & static_cast<int64_t>(kImm16Mask));
+    return reinterpret_cast<Address>(imm);
+  }
 }
 
 
 void RelocInfo::set_target_internal_reference(Address target) {
-  DCHECK(rmode_ == INTERNAL_REFERENCE);
-  Memory::Address_at(pc_) = target;
+  if (rmode_ == INTERNAL_REFERENCE) {
+    Memory::Address_at(pc_) = target;
+  } else {
+    // Encoded internal references are lui/ori load of 48-bit abolute address.
+    DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
+    Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
+    Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
+    Instr instr_ori2 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);
+    DCHECK(Assembler::IsLui(instr_lui));
+    DCHECK(Assembler::IsOri(instr_ori));
+    DCHECK(Assembler::IsOri(instr_ori2));
+    instr_lui &= ~kImm16Mask;
+    instr_ori &= ~kImm16Mask;
+    instr_ori2 &= ~kImm16Mask;
+    int64_t imm = reinterpret_cast<int64_t>(target);
+    DCHECK((imm & 3) == 0);
+    Assembler::instr_at_put(pc_ + 0 * Assembler::kInstrSize,
+                            instr_lui | ((imm >> 32) & kImm16Mask));
+    Assembler::instr_at_put(pc_ + 1 * Assembler::kInstrSize,
+                            instr_ori | ((imm >> 16) & kImm16Mask));
+    Assembler::instr_at_put(pc_ + 3 * Assembler::kInstrSize,
+                            instr_ori | (imm & kImm16Mask));
+    // Currently used only by deserializer, and all code will be flushed
+    // after complete deserialization, no need to flush on each reference.
+  }
 }
 
 
