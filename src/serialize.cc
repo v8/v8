@@ -508,9 +508,7 @@ void Deserializer::DecodeReservation(
   DCHECK_EQ(0, reservations_[NEW_SPACE].length());
   STATIC_ASSERT(NEW_SPACE == 0);
   int current_space = NEW_SPACE;
-  for (int i = 0; i < res.length(); i++) {
-    SerializedData::Reservation r(0);
-    memcpy(&r, res.start() + i, sizeof(r));
+  for (auto& r : res) {
     reservations_[current_space].Add({r.chunk_size(), NULL, NULL});
     if (r.is_last()) current_space++;
   }

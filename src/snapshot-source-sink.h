@@ -36,16 +36,18 @@ class SnapshotByteSource FINAL {
     return data_[position_++];
   }
 
-  int32_t GetUnalignedInt();
-
   void Advance(int by) { position_ += by; }
 
   void CopyRaw(byte* to, int number_of_bytes);
 
   inline int GetInt() {
-    // This way of variable-length encoding integers does not suffer from branch
-    // mispredictions.
-    uint32_t answer = GetUnalignedInt();
+    // This way of decoding variable-length encoded integers does not
+    // suffer from branch mispredictions.
+    DCHECK(position_ + 3 < length_);
+    uint32_t answer = data_[position_];
+    answer |= data_[position_ + 1] << 8;
+    answer |= data_[position_ + 2] << 16;
+    answer |= data_[position_ + 3] << 24;
     int bytes = (answer & 3) + 1;
     Advance(bytes);
     uint32_t mask = 0xffffffffu;

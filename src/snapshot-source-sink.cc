@@ -13,16 +13,6 @@
 namespace v8 {
 namespace internal {
 
-int32_t SnapshotByteSource::GetUnalignedInt() {
-  DCHECK(position_ < length_);  // Require at least one byte left.
-  int32_t answer = data_[position_];
-  answer |= data_[position_ + 1] << 8;
-  answer |= data_[position_ + 2] << 16;
-  answer |= data_[position_ + 3] << 24;
-  return answer;
-}
-
-
 void SnapshotByteSource::CopyRaw(byte* to, int number_of_bytes) {
   MemCopy(to, data_ + position_, number_of_bytes);
   position_ += number_of_bytes;
