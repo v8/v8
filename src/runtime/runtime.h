@@ -153,6 +153,7 @@ namespace internal {
   /* Regular expressions */                    \
   F(RegExpInitializeAndCompile, 3, 1)          \
   F(RegExpExecMultiple, 4, 1)                  \
+  F(RegExpExecReThrow, 4, 1)                   \
                                                \
   /* JSON */                                   \
   F(ParseJson, 1, 1)                           \

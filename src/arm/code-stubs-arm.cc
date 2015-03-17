@@ -938,60 +938,6 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-static void ThrowPendingException(MacroAssembler* masm) {
-  Isolate* isolate = masm->isolate();
-
-  ExternalReference pending_handler_context_address(
-      Isolate::kPendingHandlerContextAddress, isolate);
-  ExternalReference pending_handler_code_address(
-      Isolate::kPendingHandlerCodeAddress, isolate);
-  ExternalReference pending_handler_offset_address(
-      Isolate::kPendingHandlerOffsetAddress, isolate);
-  ExternalReference pending_handler_fp_address(
-      Isolate::kPendingHandlerFPAddress, isolate);
-  ExternalReference pending_handler_sp_address(
-      Isolate::kPendingHandlerSPAddress, isolate);
-
-  // Ask the runtime for help to determine the handler. This will set r0 to
-  // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate);
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(3, 0, r0);
-    __ mov(r0, Operand(0));
-    __ mov(r1, Operand(0));
-    __ mov(r2, Operand(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(find_handler, 3);
-  }
-
-  // Retrieve the handler context, SP and FP.
-  __ mov(cp, Operand(pending_handler_context_address));
-  __ ldr(cp, MemOperand(cp));
-  __ mov(sp, Operand(pending_handler_sp_address));
-  __ ldr(sp, MemOperand(sp));
-  __ mov(fp, Operand(pending_handler_fp_address));
-  __ ldr(fp, MemOperand(fp));
-
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
-  // or cp.
-  __ cmp(cp, Operand(0));
-  __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-
-  // Compute the handler entry address and jump to it.
-  ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-  __ mov(r1, Operand(pending_handler_code_address));
-  __ ldr(r1, MemOperand(r1));
-  __ mov(r2, Operand(pending_handler_offset_address));
-  __ ldr(r2, MemOperand(r2));
-  if (FLAG_enable_ool_constant_pool) {
-    __ ldr(pp, FieldMemOperand(r1, Code::kConstantPoolOffset));
-  }
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ add(pc, r1, r2);
-}
-
-
 void CEntryStub::Generate(MacroAssembler* masm) {
   // Called from JavaScript; parameters are on stack as if calling JS function.
   // r0: number of arguments including receiver
@@ -1098,7 +1044,55 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Handling of exception.
   __ bind(&exception_returned);
-  ThrowPendingException(masm);
+
+  ExternalReference pending_handler_context_address(
+      Isolate::kPendingHandlerContextAddress, isolate());
+  ExternalReference pending_handler_code_address(
+      Isolate::kPendingHandlerCodeAddress, isolate());
+  ExternalReference pending_handler_offset_address(
+      Isolate::kPendingHandlerOffsetAddress, isolate());
+  ExternalReference pending_handler_fp_address(
+      Isolate::kPendingHandlerFPAddress, isolate());
+  ExternalReference pending_handler_sp_address(
+      Isolate::kPendingHandlerSPAddress, isolate());
+
+  // Ask the runtime for help to determine the handler. This will set r0 to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate());
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(3, 0, r0);
+    __ mov(r0, Operand(0));
+    __ mov(r1, Operand(0));
+    __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
+    __ CallCFunction(find_handler, 3);
+  }
+
+  // Retrieve the handler context, SP and FP.
+  __ mov(cp, Operand(pending_handler_context_address));
+  __ ldr(cp, MemOperand(cp));
+  __ mov(sp, Operand(pending_handler_sp_address));
+  __ ldr(sp, MemOperand(sp));
+  __ mov(fp, Operand(pending_handler_fp_address));
+  __ ldr(fp, MemOperand(fp));
+
+  // If the handler is a JS frame, restore the context to the frame.
+  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
+  // or cp.
+  __ cmp(cp, Operand(0));
+  __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+
+  // Compute the handler entry address and jump to it.
+  ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+  __ mov(r1, Operand(pending_handler_code_address));
+  __ ldr(r1, MemOperand(r1));
+  __ mov(r2, Operand(pending_handler_offset_address));
+  __ ldr(r2, MemOperand(r2));
+  if (FLAG_enable_ool_constant_pool) {
+    __ ldr(pp, FieldMemOperand(r1, Code::kConstantPoolOffset));
+  }
+  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ add(pc, r1, r2);
 }
 
 
@@ -2236,8 +2230,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ b(eq, &runtime);
 
   // For exception, throw the exception again.
-  __ EnterExitFrame(false);
-  ThrowPendingException(masm);
+  __ TailCallRuntime(Runtime::kRegExpExecReThrow, 4, 1);
 
   __ bind(&failure);
   // For failure and exception return null.

@@ -865,55 +865,6 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
 }
 
 
-static void ThrowPendingException(MacroAssembler* masm) {
-  Isolate* isolate = masm->isolate();
-
-  ExternalReference pending_handler_context_address(
-      Isolate::kPendingHandlerContextAddress, isolate);
-  ExternalReference pending_handler_code_address(
-      Isolate::kPendingHandlerCodeAddress, isolate);
-  ExternalReference pending_handler_offset_address(
-      Isolate::kPendingHandlerOffsetAddress, isolate);
-  ExternalReference pending_handler_fp_address(
-      Isolate::kPendingHandlerFPAddress, isolate);
-  ExternalReference pending_handler_sp_address(
-      Isolate::kPendingHandlerSPAddress, isolate);
-
-  // Ask the runtime for help to determine the handler. This will set eax to
-  // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate);
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(3, eax);
-    __ mov(Operand(esp, 0 * kPointerSize), Immediate(0));  // argc.
-    __ mov(Operand(esp, 1 * kPointerSize), Immediate(0));  // argv.
-    __ mov(Operand(esp, 2 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(find_handler, 3);
-  }
-
-  // Retrieve the handler context, SP and FP.
-  __ mov(esi, Operand::StaticVariable(pending_handler_context_address));
-  __ mov(esp, Operand::StaticVariable(pending_handler_sp_address));
-  __ mov(ebp, Operand::StaticVariable(pending_handler_fp_address));
-
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (ebp == 0) == (esi == 0), so we could test either
-  // ebp or esi.
-  Label skip;
-  __ test(esi, esi);
-  __ j(zero, &skip, Label::kNear);
-  __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
-  __ bind(&skip);
-
-  // Compute the handler entry address and jump to it.
-  __ mov(edi, Operand::StaticVariable(pending_handler_code_address));
-  __ mov(edx, Operand::StaticVariable(pending_handler_offset_address));
-  __ lea(edi, FieldOperand(edi, edx, times_1, Code::kHeaderSize));
-  __ jmp(edi);
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -1197,8 +1148,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(equal, &runtime);
 
   // For exception, throw the exception again.
-  __ EnterExitFrame(false);
-  ThrowPendingException(masm);
+  __ TailCallRuntime(Runtime::kRegExpExecReThrow, 4, 1);
 
   __ bind(&failure);
   // For failure to match, return null.
@@ -2267,7 +2217,50 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Handling of exception.
   __ bind(&exception_returned);
-  ThrowPendingException(masm);
+
+  ExternalReference pending_handler_context_address(
+      Isolate::kPendingHandlerContextAddress, isolate());
+  ExternalReference pending_handler_code_address(
+      Isolate::kPendingHandlerCodeAddress, isolate());
+  ExternalReference pending_handler_offset_address(
+      Isolate::kPendingHandlerOffsetAddress, isolate());
+  ExternalReference pending_handler_fp_address(
+      Isolate::kPendingHandlerFPAddress, isolate());
+  ExternalReference pending_handler_sp_address(
+      Isolate::kPendingHandlerSPAddress, isolate());
+
+  // Ask the runtime for help to determine the handler. This will set eax to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate());
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(3, eax);
+    __ mov(Operand(esp, 0 * kPointerSize), Immediate(0));  // argc.
+    __ mov(Operand(esp, 1 * kPointerSize), Immediate(0));  // argv.
+    __ mov(Operand(esp, 2 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(isolate())));
+    __ CallCFunction(find_handler, 3);
+  }
+
+  // Retrieve the handler context, SP and FP.
+  __ mov(esi, Operand::StaticVariable(pending_handler_context_address));
+  __ mov(esp, Operand::StaticVariable(pending_handler_sp_address));
+  __ mov(ebp, Operand::StaticVariable(pending_handler_fp_address));
+
+  // If the handler is a JS frame, restore the context to the frame.
+  // (kind == ENTRY) == (ebp == 0) == (esi == 0), so we could test either
+  // ebp or esi.
+  Label skip;
+  __ test(esi, esi);
+  __ j(zero, &skip, Label::kNear);
+  __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
+  __ bind(&skip);
+
+  // Compute the handler entry address and jump to it.
+  __ mov(edi, Operand::StaticVariable(pending_handler_code_address));
+  __ mov(edx, Operand::StaticVariable(pending_handler_offset_address));
+  __ lea(edi, FieldOperand(edi, edx, times_1, Code::kHeaderSize));
+  __ jmp(edi);
 }
 
 

@@ -1110,6 +1110,15 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 4);
+  Object* exception = isolate->pending_exception();
+  isolate->clear_pending_exception();
+  return isolate->ReThrow(exception);
+}
+
+
 RUNTIME_FUNCTION(Runtime_IsRegExp) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
