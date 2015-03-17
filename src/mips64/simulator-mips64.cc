@@ -2976,7 +2976,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       alu_out = (rs < se_imm16) ? 1 : 0;
       break;
     case SLTIU:
-      alu_out = (rs_u < static_cast<uint32_t>(se_imm16)) ? 1 : 0;
+      alu_out = (rs_u < static_cast<uint64_t>(se_imm16)) ? 1 : 0;
       break;
     case ANDI:
         alu_out = rs & oe_imm16;
