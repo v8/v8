@@ -1901,15 +1901,6 @@ void Cell::set_value(Object* val, WriteBarrierMode ignored) {
 
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 
-Object* PropertyCell::type_raw() const {
-  return READ_FIELD(this, kTypeOffset);
-}
-
-
-void PropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
-  WRITE_FIELD(this, kTypeOffset, val);
-}
-
 
 Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
 

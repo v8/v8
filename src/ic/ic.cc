@@ -316,8 +316,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
     LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::ACCESS_CHECK) return false;
     if (!it.IsFound()) return false;
-    Handle<PropertyCell> cell = it.GetPropertyCell();
-    return cell->type()->IsConstant();
+    return it.property_details().cell_type() == PropertyCellType::kConstant;
   }
 
   return true;
@@ -1717,9 +1716,8 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 
 static Handle<Code> PropertyCellStoreHandler(
     Isolate* isolate, Handle<JSObject> receiver, Handle<GlobalObject> holder,
-    Handle<Name> name, Handle<PropertyCell> cell, Handle<Object> value) {
-  auto union_type = PropertyCell::UpdatedType(cell, value);
-  StoreGlobalStub stub(isolate, union_type->IsConstant(),
+    Handle<Name> name, Handle<PropertyCell> cell, PropertyCellType type) {
+  StoreGlobalStub stub(isolate, type == PropertyCellType::kConstant,
                        receiver->IsJSGlobalProxy());
   auto code = stub.GetCodeCopyFromTemplate(holder, cell);
   // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
@@ -1742,10 +1740,14 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::TRANSITION: {
       auto store_target = lookup->GetStoreTarget();
       if (store_target->IsGlobalObject()) {
-        auto cell = lookup->GetTransitionPropertyCell();
-        return PropertyCellStoreHandler(
+        // TODO(dcarney): this currently just deopts. Use the transition cell.
+        auto cell = isolate()->factory()->NewPropertyCell();
+        cell->set_value(*value);
+        auto code = PropertyCellStoreHandler(
             isolate(), store_target, Handle<GlobalObject>::cast(store_target),
-            lookup->name(), cell, value);
+            lookup->name(), cell, PropertyCellType::kConstant);
+        cell->set_value(isolate()->heap()->the_hole_value());
+        return code;
       }
       Handle<Map> transition = lookup->transition_map();
       // Currently not handled by CompileStoreTransition.
@@ -1816,9 +1818,11 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
           auto cell = lookup->GetPropertyCell();
+          auto union_type = PropertyCell::UpdatedType(
+              cell, value, lookup->property_details());
           return PropertyCellStoreHandler(isolate(), receiver,
                                           Handle<GlobalObject>::cast(holder),
-                                          lookup->name(), cell, value);
+                                          lookup->name(), cell, union_type);
         }
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();

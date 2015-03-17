@@ -1339,6 +1339,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
       StoreGlobalStub::property_cell_placeholder(isolate())));
   HValue* cell = Add<HLoadNamedField>(weak_cell, nullptr,
                                       HObjectAccess::ForWeakCellValue());
+  Add<HCheckHeapObject>(cell);
   HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
   HValue* cell_contents = Add<HLoadNamedField>(cell, nullptr, access);
 

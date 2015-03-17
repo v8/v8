@@ -5420,7 +5420,8 @@ class HLoadGlobalCell FINAL : public HTemplateInstruction<0> {
                                  PropertyDetails);
 
   Unique<Cell> cell() const { return cell_; }
-  bool RequiresHoleCheck() const;
+  // TODO(dcarney): remove this.
+  bool RequiresHoleCheck() const { return false; }
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
@@ -5447,7 +5448,7 @@ class HLoadGlobalCell FINAL : public HTemplateInstruction<0> {
     SetDependsOnFlag(kGlobalVars);
   }
 
-  bool IsDeletable() const OVERRIDE { return !RequiresHoleCheck(); }
+  bool IsDeletable() const OVERRIDE { return true; }
 
   Unique<Cell> cell_;
   PropertyDetails details_;
@@ -5811,7 +5812,8 @@ class HStoreGlobalCell FINAL : public HUnaryOperation {
                                  Handle<PropertyCell>, PropertyDetails);
 
   Unique<PropertyCell> cell() const { return cell_; }
-  bool RequiresHoleCheck() { return details_.IsConfigurable(); }
+  // TODO(dcarney): remove
+  bool RequiresHoleCheck() const { return false; }
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
   }

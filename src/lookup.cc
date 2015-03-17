@@ -102,7 +102,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (holder_map_->is_dictionary_map()) {
-    PropertyDetails details(attributes, v8::internal::DATA, 0);
+    PropertyDetails details(attributes, v8::internal::DATA, 0,
+                            PropertyCellType::kMutable);
     JSObject::SetNormalizedProperty(holder, name(), value, details);
   } else {
     holder_map_ = Map::ReconfigureExistingProperty(
@@ -182,14 +183,10 @@ void LookupIterator::TransitionToAccessorProperty(
 
   if (!holder_map_->is_dictionary_map()) return;
 
-  // We have to deoptimize since accesses to data properties may have been
-  // inlined without a corresponding map-check.
-  if (holder_map_->IsGlobalObjectMap()) {
-    Deoptimizer::DeoptimizeGlobalObject(*receiver);
-  }
 
   // Install the accessor into the dictionary-mode object.
-  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0);
+  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
+                          PropertyCellType::kMutable);
   Handle<AccessorPair> pair;
   if (state() == ACCESSOR && GetAccessors()->IsAccessorPair()) {
     pair = Handle<AccessorPair>::cast(GetAccessors());
@@ -316,11 +313,11 @@ Handle<Object> LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK_EQ(DATA, state_);
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (holder_map_->is_dictionary_map()) {
-    NameDictionary* property_dictionary = holder->property_dictionary();
+    Handle<NameDictionary> property_dictionary =
+        handle(holder->property_dictionary());
     if (holder->IsGlobalObject()) {
-      Handle<PropertyCell> cell(
-          PropertyCell::cast(property_dictionary->ValueAt(dictionary_entry())));
-      value = PropertyCell::SetValueInferType(cell, value);
+      value = PropertyCell::UpdateCell(property_dictionary, dictionary_entry(),
+                                       value, property_details_);
     } else {
       property_dictionary->ValueAtPut(dictionary_entry(), *value);
     }

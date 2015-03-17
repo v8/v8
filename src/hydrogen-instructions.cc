@@ -3632,16 +3632,6 @@ std::ostream& HLoadGlobalCell::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-bool HLoadGlobalCell::RequiresHoleCheck() const {
-  if (!details_.IsConfigurable()) return false;
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    if (!use->IsChange()) return true;
-  }
-  return false;
-}
-
-
 std::ostream& HLoadGlobalGeneric::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   return os << name()->ToCString().get() << " ";

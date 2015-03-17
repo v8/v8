@@ -643,7 +643,6 @@ void Cell::CellVerify() {
 void PropertyCell::PropertyCellVerify() {
   CHECK(IsPropertyCell());
   VerifyObjectField(kValueOffset);
-  VerifyObjectField(kTypeOffset);
 }
 
 

@@ -56,7 +56,7 @@ void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
     if (name == NULL) continue;
     Handle<NameDictionary> new_dict = NameDictionary::Add(
         dict, isolate->factory()->InternalizeUtf8String(name),
-        Handle<Smi>(Smi::FromInt(i), isolate), PropertyDetails(NONE, DATA, 0));
+        Handle<Smi>(Smi::FromInt(i), isolate), PropertyDetails::Empty());
     // The dictionary does not need to grow.
     CHECK(new_dict.is_identical_to(dict));
   }
