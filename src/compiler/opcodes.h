@@ -10,11 +10,11 @@
   V(Dead)                        \
   V(Loop)                        \
   V(Branch)                      \
+  V(Switch)                      \
   V(IfTrue)                      \
   V(IfFalse)                     \
   V(IfSuccess)                   \
   V(IfException)                 \
-  V(Switch)                      \
   V(IfValue)                     \
   V(IfDefault)                   \
   V(Merge)                       \
@@ -320,6 +320,10 @@ class IrOpcode {
 
   static bool IsMergeOpcode(Value value) {
     return value == kMerge || value == kLoop;
+  }
+
+  static bool IsIfProjectionOpcode(Value value) {
+    return kIfTrue <= value && value <= kIfDefault;
   }
 
   // Returns true if opcode for comparison operator.
