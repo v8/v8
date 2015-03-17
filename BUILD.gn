@@ -113,7 +113,7 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  # TODO(jochen): Add support for arm subarchs, mips, mipsel.
+  # TODO(jochen): Add support for arm subarchs, mips, mipsel, mips64el.
 
   if (v8_target_arch == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
@@ -149,6 +149,12 @@ config("toolchain") {
   }
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
+  }
+  if (v8_target_arch == "mipsel") {
+    defines += [ "V8_TARGET_ARCH_MIPS" ]
+  }
+  if (v8_target_arch == "mips64el") {
+    defines += [ "V8_TARGET_ARCH_MIPS64" ]
   }
   if (v8_target_arch == "x86") {
     defines += [ "V8_TARGET_ARCH_IA32" ]
