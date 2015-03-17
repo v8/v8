@@ -7979,6 +7979,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       Add<HEnterInlined>(return_id, target, context, arguments_count, function,
                          function_state()->inlining_kind(),
                          function->scope()->arguments(), arguments_object);
+  if (top_info()->is_tracking_positions()) {
+    enter_inlined->set_inlining_id(inlining_id);
+  }
   function_state()->set_entry(enter_inlined);
 
   VisitDeclarations(target_info.scope()->declarations());
