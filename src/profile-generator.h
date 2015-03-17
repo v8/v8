@@ -65,10 +65,12 @@ class CodeEntry {
   }
   const char* bailout_reason() const { return bailout_reason_; }
 
-  void set_deopt_info(const char* deopt_reason, SourcePosition position) {
+  void set_deopt_info(const char* deopt_reason, SourcePosition position,
+                      size_t pc_offset) {
     DCHECK(deopt_position_.IsUnknown());
     deopt_reason_ = deopt_reason;
     deopt_position_ = position;
+    pc_offset_ = pc_offset;
   }
   const char* deopt_reason() const { return deopt_reason_; }
   SourcePosition deopt_position() const { return deopt_position_; }
@@ -121,6 +123,7 @@ class CodeEntry {
   const char* bailout_reason_;
   const char* deopt_reason_;
   SourcePosition deopt_position_;
+  size_t pc_offset_;
   JITLineInfoTable* line_info_;
   Address instruction_start_;
 

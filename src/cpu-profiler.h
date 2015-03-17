@@ -80,6 +80,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   Address start;
   const char* deopt_reason;
   SourcePosition position;
+  size_t pc_offset;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
