@@ -694,28 +694,23 @@ class RandomLengthOneByteResource
 
 
 THREADED_TEST(NewExternalForVeryLongString) {
+  auto isolate = CcTest::isolate();
   {
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(isolate);
     v8::TryCatch try_catch;
     RandomLengthOneByteResource r(1 << 30);
-    v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
+    v8::Local<v8::String> str = v8::String::NewExternal(isolate, &r);
     CHECK(str.IsEmpty());
-    CHECK(try_catch.HasCaught());
-    String::Utf8Value exception_value(try_catch.Exception());
-    CHECK_EQ(0, strcmp("RangeError: Invalid string length", *exception_value));
+    CHECK(!try_catch.HasCaught());
   }
 
   {
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(isolate);
     v8::TryCatch try_catch;
     RandomLengthResource r(1 << 30);
-    v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
+    v8::Local<v8::String> str = v8::String::NewExternal(isolate, &r);
     CHECK(str.IsEmpty());
-    CHECK(try_catch.HasCaught());
-    String::Utf8Value exception_value(try_catch.Exception());
-    CHECK_EQ(0, strcmp("RangeError: Invalid string length", *exception_value));
+    CHECK(!try_catch.HasCaught());
   }
 }
 
@@ -21618,7 +21613,6 @@ TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
 TEST(NewStringRangeError) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  LocalContext env;
   const int length = i::String::kMaxLength + 1;
   const int buffer_size = length * sizeof(uint16_t);
   void* buffer = malloc(buffer_size);
@@ -21629,21 +21623,21 @@ TEST(NewStringRangeError) {
     char* data = reinterpret_cast<char*>(buffer);
     CHECK(v8::String::NewFromUtf8(isolate, data, v8::String::kNormalString,
                                   length).IsEmpty());
-    CHECK(try_catch.HasCaught());
+    CHECK(!try_catch.HasCaught());
   }
   {
     v8::TryCatch try_catch;
     uint8_t* data = reinterpret_cast<uint8_t*>(buffer);
     CHECK(v8::String::NewFromOneByte(isolate, data, v8::String::kNormalString,
                                      length).IsEmpty());
-    CHECK(try_catch.HasCaught());
+    CHECK(!try_catch.HasCaught());
   }
   {
     v8::TryCatch try_catch;
     uint16_t* data = reinterpret_cast<uint16_t*>(buffer);
     CHECK(v8::String::NewFromTwoByte(isolate, data, v8::String::kNormalString,
                                      length).IsEmpty());
-    CHECK(try_catch.HasCaught());
+    CHECK(!try_catch.HasCaught());
   }
   free(buffer);
 }

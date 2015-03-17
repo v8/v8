@@ -5671,9 +5671,9 @@ inline int StringLength(const uint16_t* string) {
 
 MUST_USE_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           String::NewStringType type,
+                                           v8::NewStringType type,
                                            i::Vector<const char> string) {
-  if (type == String::kInternalizedString) {
+  if (type == v8::NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
   return factory->NewStringFromUtf8(string);
@@ -5682,9 +5682,9 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 MUST_USE_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           String::NewStringType type,
+                                           v8::NewStringType type,
                                            i::Vector<const uint8_t> string) {
-  if (type == String::kInternalizedString) {
+  if (type == v8::NewStringType::kInternalized) {
     return factory->InternalizeOneByteString(string);
   }
   return factory->NewStringFromOneByte(string);
@@ -5693,35 +5693,32 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 MUST_USE_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           String::NewStringType type,
+                                           v8::NewStringType type,
                                            i::Vector<const uint16_t> string) {
-  if (type == String::kInternalizedString) {
+  if (type == v8::NewStringType::kInternalized) {
     return factory->InternalizeTwoByteString(string);
   }
   return factory->NewStringFromTwoByte(string);
 }
 
 
-template<typename Char>
-inline Local<String> NewString(Isolate* v8_isolate,
-                               const char* location,
-                               const char* env,
-                               const Char* data,
-                               String::NewStringType type,
-                               int length) {
+STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
+
+
+template <typename Char>
+inline MaybeLocal<String> NewString(Isolate* v8_isolate, const char* location,
+                                    const char* env, const Char* data,
+                                    v8::NewStringType type, int length) {
   i::Isolate* isolate = reinterpret_cast<internal::Isolate*>(v8_isolate);
-  LOG_API(isolate, env);
-  if (length == 0) {
-    return String::Empty(v8_isolate);
-  }
+  if (length == 0) return String::Empty(v8_isolate);
+  // TODO(dcarney): throw a context free exception.
+  if (length > i::String::kMaxLength) return MaybeLocal<String>();
   ENTER_V8(isolate);
-  if (length == -1) length = StringLength(data);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::String> result;
-  has_pending_exception =
-      !NewString(isolate->factory(), type, i::Vector<const Char>(data, length))
-           .ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
+  LOG_API(isolate, env);
+  if (length < 0) length = StringLength(data);
+  i::Handle<i::String> result =
+      NewString(isolate->factory(), type, i::Vector<const Char>(data, length))
+          .ToHandleChecked();
   return Utils::ToLocal(result);
 }
 
@@ -5732,12 +5729,17 @@ Local<String> String::NewFromUtf8(Isolate* isolate,
                                   const char* data,
                                   NewStringType type,
                                   int length) {
-  return NewString(isolate,
-                   "v8::String::NewFromUtf8()",
-                   "String::NewFromUtf8",
-                   data,
-                   type,
-                   length);
+  RETURN_TO_LOCAL_UNCHECKED(
+      NewString(isolate, "v8::String::NewFromUtf8()", "String::NewFromUtf8",
+                data, static_cast<v8::NewStringType>(type), length),
+      String);
+}
+
+
+MaybeLocal<String> String::NewFromUtf8(Isolate* isolate, const char* data,
+                                       v8::NewStringType type, int length) {
+  return NewString(isolate, "v8::String::NewFromUtf8()", "String::NewFromUtf8",
+                   data, type, length);
 }
 
 
@@ -5745,12 +5747,18 @@ Local<String> String::NewFromOneByte(Isolate* isolate,
                                      const uint8_t* data,
                                      NewStringType type,
                                      int length) {
-  return NewString(isolate,
-                   "v8::String::NewFromOneByte()",
-                   "String::NewFromOneByte",
-                   data,
-                   type,
-                   length);
+  RETURN_TO_LOCAL_UNCHECKED(
+      NewString(isolate, "v8::String::NewFromOneByte()",
+                "String::NewFromOneByte", data,
+                static_cast<v8::NewStringType>(type), length),
+      String);
+}
+
+
+MaybeLocal<String> String::NewFromOneByte(Isolate* isolate, const uint8_t* data,
+                                          v8::NewStringType type, int length) {
+  return NewString(isolate, "v8::String::NewFromOneByte()",
+                   "String::NewFromOneByte", data, type, length);
 }
 
 
@@ -5758,20 +5766,27 @@ Local<String> String::NewFromTwoByte(Isolate* isolate,
                                      const uint16_t* data,
                                      NewStringType type,
                                      int length) {
-  return NewString(isolate,
-                   "v8::String::NewFromTwoByte()",
-                   "String::NewFromTwoByte",
-                   data,
-                   type,
-                   length);
+  RETURN_TO_LOCAL_UNCHECKED(
+      NewString(isolate, "v8::String::NewFromTwoByte()",
+                "String::NewFromTwoByte", data,
+                static_cast<v8::NewStringType>(type), length),
+      String);
+}
+
+
+MaybeLocal<String> String::NewFromTwoByte(Isolate* isolate,
+                                          const uint16_t* data,
+                                          v8::NewStringType type, int length) {
+  return NewString(isolate, "v8::String::NewFromTwoByte()",
+                   "String::NewFromTwoByte", data, type, length);
 }
 
 
 Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
   i::Isolate* isolate = left_string->GetIsolate();
-  LOG_API(isolate, "String::New(char)");
   ENTER_V8(isolate);
+  LOG_API(isolate, "v8::String::Concat");
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   // If we are steering towards a range error, do not wait for the error to be
   // thrown, and return the null handle instead.
@@ -5784,32 +5799,51 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
 }
 
 
-static i::MaybeHandle<i::String> NewExternalStringHandle(
-    i::Isolate* isolate, v8::String::ExternalStringResource* resource) {
-  return isolate->factory()->NewExternalStringFromTwoByte(resource);
-}
-
-
-static i::MaybeHandle<i::String> NewExternalOneByteStringHandle(
-    i::Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  return isolate->factory()->NewExternalStringFromOneByte(resource);
+MaybeLocal<String> v8::String::NewExternalTwoByte(
+    Isolate* isolate, v8::String::ExternalStringResource* resource) {
+  CHECK(resource && resource->data());
+  // TODO(dcarney): throw a context free exception.
+  if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
+    return MaybeLocal<String>();
+  }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  LOG_API(i_isolate, "String::NewExternalTwoByte");
+  i::Handle<i::String> string = i_isolate->factory()
+                                    ->NewExternalStringFromTwoByte(resource)
+                                    .ToHandleChecked();
+  i_isolate->heap()->external_string_table()->AddString(*string);
+  return Utils::ToLocal(string);
 }
 
 
 Local<String> v8::String::NewExternal(
-    Isolate* isolate,
-    v8::String::ExternalStringResource* resource) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, "String::NewExternal");
-  ENTER_V8(i_isolate);
+    Isolate* isolate, v8::String::ExternalStringResource* resource) {
+  RETURN_TO_LOCAL_UNCHECKED(NewExternalTwoByte(isolate, resource), String);
+}
+
+
+MaybeLocal<String> v8::String::NewExternalOneByte(
+    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
   CHECK(resource && resource->data());
-  EXCEPTION_PREAMBLE(i_isolate);
-  i::Handle<i::String> string;
-  has_pending_exception =
-      !NewExternalStringHandle(i_isolate, resource).ToHandle(&string);
-  EXCEPTION_BAILOUT_CHECK(i_isolate, Local<String>());
+  // TODO(dcarney): throw a context free exception.
+  if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
+    return MaybeLocal<String>();
+  }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  LOG_API(i_isolate, "String::NewExternalOneByte");
+  i::Handle<i::String> string = i_isolate->factory()
+                                    ->NewExternalStringFromOneByte(resource)
+                                    .ToHandleChecked();
   i_isolate->heap()->external_string_table()->AddString(*string);
   return Utils::ToLocal(string);
+}
+
+
+Local<String> v8::String::NewExternal(
+    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
+  RETURN_TO_LOCAL_UNCHECKED(NewExternalOneByte(isolate, resource), String);
 }
 
 
@@ -5836,22 +5870,6 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
-}
-
-
-Local<String> v8::String::NewExternal(
-    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, "String::NewExternal");
-  ENTER_V8(i_isolate);
-  CHECK(resource && resource->data());
-  EXCEPTION_PREAMBLE(i_isolate);
-  i::Handle<i::String> string;
-  has_pending_exception =
-      !NewExternalOneByteStringHandle(i_isolate, resource).ToHandle(&string);
-  EXCEPTION_BAILOUT_CHECK(i_isolate, Local<String>());
-  i_isolate->heap()->external_string_table()->AddString(*string);
-  return Utils::ToLocal(string);
 }
 
 
