@@ -1497,17 +1497,17 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     environment()->Push(property->is_static() ? literal : proto);
 
     VisitForValue(property->key());
-    environment()->Push(
-        BuildToName(environment()->Pop(), expr->GetIdForProperty(i)));
+    Node* name = BuildToName(environment()->Pop(), expr->GetIdForProperty(i));
+    environment()->Push(name);
 
     // The static prototype property is read only. We handle the non computed
     // property name case in the parser. Since this is the only case where we
     // need to check for an own read only property we special case this so we do
     // not need to do this for every property.
     if (property->is_static() && property->is_computed_name()) {
-      Node* name = environment()->Pop();
-      environment()->Push(
-          BuildThrowIfStaticPrototype(name, expr->GetIdForProperty(i)));
+      Node* check = BuildThrowIfStaticPrototype(environment()->Pop(),
+                                                expr->GetIdForProperty(i));
+      environment()->Push(check);
     }
 
     VisitForValue(property->value());
