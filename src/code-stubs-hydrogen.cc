@@ -1340,7 +1340,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   HValue* cell = Add<HLoadNamedField>(weak_cell, nullptr,
                                       HObjectAccess::ForWeakCellValue());
   Add<HCheckHeapObject>(cell);
-  HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
+  HObjectAccess access = HObjectAccess::ForPropertyCellValue();
   HValue* cell_contents = Add<HLoadNamedField>(cell, nullptr, access);
 
   if (stub->is_constant()) {

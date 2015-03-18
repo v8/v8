@@ -4603,12 +4603,6 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map, int index,
 }
 
 
-HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
-  return HObjectAccess(kInobject, Cell::kValueOffset, Representation::Tagged(),
-                       isolate->factory()->cell_value_string());
-}
-
-
 void HObjectAccess::SetGVNFlags(HValue *instr, PropertyAccessType access_type) {
   // set the appropriate GVN flags for a given load or store instruction
   if (access_type == STORE) {

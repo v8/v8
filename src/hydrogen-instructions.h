@@ -6138,9 +6138,6 @@ class HObjectAccess FINAL {
                                 Representation representation,
                                 Handle<String> name);
 
-  // Create an access for the payload of a Cell or JSGlobalPropertyCell.
-  static HObjectAccess ForCellPayload(Isolate* isolate);
-
   static HObjectAccess ForJSTypedArrayLength() {
     return HObjectAccess::ForObservableJSObjectOffset(
         JSTypedArray::kLengthOffset);

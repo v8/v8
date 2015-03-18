@@ -2827,8 +2827,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     // root array to force relocation to be able to later patch with
     // the cached map.
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
-    __ mov(ip, Operand(Handle<Object>(cell)));
-    __ ldr(ip, FieldMemOperand(ip, PropertyCell::kValueOffset));
+    __ mov(ip, Operand(cell));
+    __ ldr(ip, FieldMemOperand(ip, Cell::kValueOffset));
     __ cmp(map, Operand(ip));
     __ b(ne, &cache_miss);
     __ bind(deferred->load_bool());  // Label for calculating code patching.
@@ -5198,7 +5198,7 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
   if (isolate()->heap()->InNewSpace(*object)) {
     Register reg = ToRegister(instr->value());
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    __ mov(ip, Operand(Handle<Object>(cell)));
+    __ mov(ip, Operand(cell));
     __ ldr(ip, FieldMemOperand(ip, Cell::kValueOffset));
     __ cmp(reg, ip);
   } else {

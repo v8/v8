@@ -2657,7 +2657,7 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
     UseScratchRegisterScope temps(masm());
     Register temp = temps.AcquireX();
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    __ Mov(temp, Operand(Handle<Object>(cell)));
+    __ Mov(temp, Operand(cell));
     __ Ldr(temp, FieldMemOperand(temp, Cell::kValueOffset));
     __ Cmp(reg, temp);
   } else {
@@ -3132,8 +3132,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     __ bind(&map_check);
     // Will be patched with the cached map.
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
-    __ ldr(scratch, Immediate(Handle<Object>(cell)));
-    __ ldr(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
+    __ ldr(scratch, Immediate(cell));
+    __ ldr(scratch, FieldMemOperand(scratch, Cell::kValueOffset));
     __ cmp(map, scratch);
     __ b(&cache_miss, ne);
     // The address of this instruction is computed relative to the map check

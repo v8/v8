@@ -625,11 +625,10 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
                                LookupIterator* it) {
   target_ = Handle<JSFunction>::null();
-  cell_ = Handle<Cell>::null();
   DCHECK(it->IsFound() && it->GetHolder<JSObject>().is_identical_to(global));
-  cell_ = it->GetPropertyCell();
-  if (cell_->value()->IsJSFunction()) {
-    Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
+  Handle<PropertyCell> cell = it->GetPropertyCell();
+  if (cell->value()->IsJSFunction()) {
+    Handle<JSFunction> candidate(JSFunction::cast(cell->value()));
     // If the function is in new space we assume it's more likely to
     // change and thus prefer the general IC code.
     if (!it->isolate()->heap()->InNewSpace(*candidate)) {

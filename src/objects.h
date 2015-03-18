@@ -122,7 +122,7 @@
 //       - Symbol
 //     - HeapNumber
 //     - Cell
-//       - PropertyCell
+//     - PropertyCell
 //     - Code
 //     - Map
 //     - Oddball
@@ -9724,7 +9724,7 @@ class Cell: public HeapObject {
 };
 
 
-class PropertyCell: public Cell {
+class PropertyCell : public HeapObject {
  public:
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
@@ -9754,6 +9754,7 @@ class PropertyCell: public Cell {
   DECLARE_VERIFIER(PropertyCell)
 
   // Layout description.
+  static const int kValueOffset = HeapObject::kHeaderSize;
   static const int kDependentCodeOffset = kValueOffset + kPointerSize;
   static const int kSize = kDependentCodeOffset + kPointerSize;
 

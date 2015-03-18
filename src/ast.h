@@ -1847,8 +1847,6 @@ class Call FINAL : public Expression {
 
   Handle<JSFunction> target() { return target_; }
 
-  Handle<Cell> cell() { return cell_; }
-
   Handle<AllocationSite> allocation_site() { return allocation_site_; }
 
   void set_target(Handle<JSFunction> target) { target_ = target; }
@@ -1910,7 +1908,6 @@ class Call FINAL : public Expression {
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   Handle<JSFunction> target_;
-  Handle<Cell> cell_;
   Handle<AllocationSite> allocation_site_;
   class IsUninitializedField : public BitField8<bool, 0, 1> {};
   uint8_t bit_field_;
