@@ -1497,6 +1497,14 @@ RUNTIME_FUNCTION(Runtime_SetValueOf) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_JSValueGetValue) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSValue, obj, 0);
+  return JSValue::cast(obj)->value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_ObjectEquals) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);

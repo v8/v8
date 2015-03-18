@@ -32,6 +32,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:
       return ReduceInlineIsInstanceType(node, JS_FUNCTION_TYPE);
+    case Runtime::kInlineJSValueGetValue:
+      return ReduceInlineJSValueGetValue(node);
     case Runtime::kInlineConstructDouble:
       return ReduceInlineConstructDouble(node);
     case Runtime::kInlineDoubleLo:
@@ -44,6 +46,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineMathFloor(node);
     case Runtime::kInlineMathSqrt:
       return ReduceInlineMathSqrt(node);
+    case Runtime::kInlineStringGetLength:
+      return ReduceInlineStringGetLength(node);
     case Runtime::kInlineValueOf:
       return ReduceInlineValueOf(node);
     default:
@@ -100,6 +104,15 @@ Reduction JSIntrinsicLowering::ReduceInlineIsSmi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceInlineIsNonNegativeSmi(Node* node) {
   return Change(node, simplified()->ObjectIsNonNegativeSmi());
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineJSValueGetValue(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(node, simplified()->LoadField(AccessBuilder::ForValue()), value,
+                effect, control);
 }
 
 
@@ -174,6 +187,15 @@ Reduction JSIntrinsicLowering::ReduceInlineMathFloor(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceInlineMathSqrt(Node* node) {
   return Change(node, machine()->Float64Sqrt());
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineStringGetLength(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(node, simplified()->LoadField(AccessBuilder::ForStringLength()),
+                value, effect, control);
 }
 
 
@@ -258,6 +280,7 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->TrimInputCount(3);
+  NodeProperties::ReplaceWithValue(node, node, node);
   return Changed(node);
 }
 

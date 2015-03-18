@@ -713,7 +713,11 @@ namespace internal {
   F(SetInitialize, 1, 1)                  \
   /* Arrays */                            \
   F(HasFastPackedElements, 1, 1)          \
-  F(GetPrototype, 1, 1)
+  F(GetPrototype, 1, 1)                   \
+  /* Strings */                           \
+  F(StringGetLength, 1, 1)                \
+  /* JSValue */                           \
+  F(JSValueGetValue, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \

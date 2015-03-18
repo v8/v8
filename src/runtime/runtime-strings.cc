@@ -1301,5 +1301,13 @@ RUNTIME_FUNCTION(Runtime_IsStringWrapperSafeForDefaultValueOf) {
   UNIMPLEMENTED();
   return NULL;
 }
+
+
+RUNTIME_FUNCTION(Runtime_StringGetLength) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  return Smi::FromInt(s->length());
+}
 }
 }  // namespace v8::internal

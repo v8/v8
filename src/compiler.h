@@ -163,6 +163,7 @@ class CompilationInfo {
   int num_parameters() const;
   int num_heap_slots() const;
   Code::Flags flags() const;
+  bool has_scope() const { return scope() != nullptr; }
 
   void set_parameter_count(int parameter_count) {
     DCHECK(IsStub());
@@ -268,6 +269,11 @@ class CompilationInfo {
     osr_ast_id_ = osr_ast_id;
     unoptimized_code_ = unoptimized;
     optimization_id_ = isolate()->NextOptimizationId();
+  }
+
+  void SetStub(CodeStub* code_stub) {
+    SetMode(STUB);
+    code_stub_ = code_stub;
   }
 
   // Deoptimization support.

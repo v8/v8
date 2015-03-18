@@ -694,3 +694,14 @@ function ToPositiveInteger(x, rangeErrorName) {
 // that is cloned when running the code.  It is essential that the
 // boilerplate gets the right prototype.
 %FunctionSetPrototype($Array, new $Array(0));
+
+
+/* -----------------------------------------------
+   - - -   J a v a S c r i p t   S t u b s   - - -
+   -----------------------------------------------
+*/
+
+function STRING_LENGTH_STUB(name) {
+  var receiver = this;  // implicit first parameter
+  return %_StringGetLength(%_JSValueGetValue(receiver));
+}

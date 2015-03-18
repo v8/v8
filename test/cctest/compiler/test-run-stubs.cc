@@ -2,19 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/raw-machine-assembler.h"
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
 #if V8_TURBOFAN_TARGET
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
+
+
+static Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
+  v8::ExtensionConfiguration no_extensions;
+  Handle<Context> ctx = isolate->bootstrapper()->CreateEnvironment(
+      MaybeHandle<JSGlobalProxy>(), v8::Handle<v8::ObjectTemplate>(),
+      &no_extensions);
+  Handle<JSBuiltinsObject> builtins = handle(ctx->builtins());
+  MaybeHandle<Object> fun = Object::GetProperty(isolate, builtins, name);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(fun.ToHandleChecked());
+  // Just to make sure nobody calls this...
+  function->set_code(isolate->builtins()->builtin(Builtins::kIllegal));
+  return function;
+}
 
 
 class StringLengthStubTF : public CodeStub {
@@ -28,18 +42,13 @@ class StringLengthStubTF : public CodeStub {
   };
 
   Handle<Code> GenerateCode() OVERRIDE {
-    CompilationInfoWithZone info(this, isolate());
-    Graph graph(info.zone());
-    CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
-    RawMachineAssembler m(isolate(), &graph, descriptor->GetMachineSignature());
-
-    Node* str = m.Load(kMachAnyTagged, m.Parameter(0),
-                       m.Int32Constant(JSValue::kValueOffset - kHeapObjectTag));
-    Node* len = m.Load(kMachAnyTagged, str,
-                       m.Int32Constant(String::kLengthOffset - kHeapObjectTag));
-    m.Return(len);
-
-    return Pipeline::GenerateCodeForTesting(&info, &graph, m.Export());
+    // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
+    CompilationInfoWithZone info(GetFunction(isolate(), "STRING_LENGTH_STUB"));
+    info.SetStub(this);
+    // Run a "mini pipeline", extracted from compiler.cc.
+    CHECK(Parser::ParseStatic(info.parse_info()));
+    CHECK(Compiler::Analyze(info.parse_info()));
+    return Pipeline(&info).GenerateCode();
   }
 
   Major MajorKey() const OVERRIDE { return StringLength; };

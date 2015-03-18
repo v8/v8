@@ -315,9 +315,9 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
 
-  bool CreateGraph(bool constant_context) {
+  bool CreateGraph(bool constant_context, bool stack_check) {
     SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
-    return AstGraphBuilder::CreateGraph(constant_context);
+    return AstGraphBuilder::CreateGraph(constant_context, stack_check);
   }
 
 #define DEF_VISIT(type)                                               \
@@ -420,7 +420,8 @@ struct GraphBuilderPhase {
     AstGraphBuilderWithPositions graph_builder(
         temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
         data->source_positions());
-    if (!graph_builder.CreateGraph(constant_context)) {
+    bool stack_check = !data->info()->IsStub();
+    if (!graph_builder.CreateGraph(constant_context, stack_check)) {
       data->set_compilation_failed();
     }
   }

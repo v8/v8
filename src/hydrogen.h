@@ -2231,7 +2231,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(SetInitialize)                     \
   /* Arrays */                         \
   F(HasFastPackedElements)             \
-  F(GetPrototype)
+  F(GetPrototype)                      \
+  /* Strings */                        \
+  F(StringGetLength)                   \
+  /* JSValue */                        \
+  F(JSValueGetValue)
 
 #define GENERATOR_DECLARATION(Name) void Generate##Name(CallRuntime* call);
   FOR_EACH_HYDROGEN_INTRINSIC(GENERATOR_DECLARATION)
