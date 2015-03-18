@@ -842,6 +842,8 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
@@ -869,6 +871,8 @@ void Code::CodeIterateBody(Heap* heap) {
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);

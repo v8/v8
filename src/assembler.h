@@ -581,10 +581,13 @@ class RelocInfo {
   // applies to; can only be called if rmode_ is EXTERNAL_REFERENCE.
   INLINE(Address target_external_reference());
 
-  // Read/modify the reference in the instruction this relocation
+  // Read the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is INTERNAL_REFERENCE.
   INLINE(Address target_internal_reference());
-  INLINE(void set_target_internal_reference(Address target));
+
+  // Return the reference address this relocation applies to;
+  // can only be called if rmode_ is INTERNAL_REFERENCE.
+  INLINE(Address target_internal_reference_address());
 
   // Read/modify the address of a call instruction. This is used to relocate
   // the break points where straight-line code is patched with a call

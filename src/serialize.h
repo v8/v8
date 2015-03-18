@@ -348,6 +348,9 @@ class SerializerDeserializer: public ObjectVisitor {
   };
 
   // Misc.
+
+  // 0x48, 0x88 and 0xc8 are unused.
+
   // Raw data to be copied from the snapshot.  This byte code does not advance
   // the current pointer, which is used for code objects, where we write the
   // entire code in one memcpy, then fix up stuff with kSkip and other byte
@@ -356,6 +359,9 @@ class SerializerDeserializer: public ObjectVisitor {
   // Some common raw lengths: 0x21-0x3f.
   // These autoadvance the current pointer.
   static const int kOnePointerRawData = 0x21;
+
+  // Internal reference encoded as offsets of pc and target from code entry.
+  static const int kInternalReference = 0x08;
 
   static const int kVariableRepeat = 0x60;
   // 0x61-0x6f   Repeat last word
@@ -611,23 +617,21 @@ class Serializer : public SerializerDeserializer {
  protected:
   class ObjectSerializer : public ObjectVisitor {
    public:
-    ObjectSerializer(Serializer* serializer,
-                     Object* o,
-                     SnapshotByteSink* sink,
-                     HowToCode how_to_code,
-                     WhereToPoint where_to_point)
-      : serializer_(serializer),
-        object_(HeapObject::cast(o)),
-        sink_(sink),
-        reference_representation_(how_to_code + where_to_point),
-        bytes_processed_so_far_(0),
-        code_object_(o->IsCode()),
-        code_has_been_output_(false) { }
+    ObjectSerializer(Serializer* serializer, Object* o, SnapshotByteSink* sink,
+                     HowToCode how_to_code, WhereToPoint where_to_point)
+        : serializer_(serializer),
+          object_(HeapObject::cast(o)),
+          sink_(sink),
+          reference_representation_(how_to_code + where_to_point),
+          bytes_processed_so_far_(0),
+          is_code_object_(o->IsCode()),
+          code_has_been_output_(false) {}
     void Serialize();
     void VisitPointers(Object** start, Object** end);
     void VisitEmbeddedPointer(RelocInfo* target);
     void VisitExternalReference(Address* p);
     void VisitExternalReference(RelocInfo* rinfo);
+    void VisitInternalReference(RelocInfo* rinfo);
     void VisitCodeTarget(RelocInfo* target);
     void VisitCodeEntry(Address entry_address);
     void VisitCell(RelocInfo* rinfo);
@@ -660,7 +664,7 @@ class Serializer : public SerializerDeserializer {
     SnapshotByteSink* sink_;
     int reference_representation_;
     int bytes_processed_so_far_;
-    bool code_object_;
+    bool is_code_object_;
     bool code_has_been_output_;
   };
 

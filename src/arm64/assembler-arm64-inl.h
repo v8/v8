@@ -654,6 +654,12 @@ void Assembler::deserialization_set_special_target_at(
 }
 
 
+void Assembler::deserialization_set_target_internal_reference_at(
+    Address pc, Address target) {
+  UNIMPLEMENTED();  // ARM64 does not use internal references.
+}
+
+
 void Assembler::set_target_address_at(Address pc,
                                       ConstantPoolArray* constant_pool,
                                       Address target,
@@ -741,13 +747,15 @@ Address RelocInfo::target_external_reference() {
 
 Address RelocInfo::target_internal_reference() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return Memory::Address_at(pc_);
+  UNIMPLEMENTED();  // ARM64 does not use internal references.
+  return NULL;
 }
 
 
-void RelocInfo::set_target_internal_reference(Address target) {
+Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  Memory::Address_at(pc_) = target;
+  UNIMPLEMENTED();  // ARM64 does not use internal references.
+  return NULL;
 }
 
 
@@ -838,11 +846,14 @@ void RelocInfo::set_call_address(Address target) {
 
 
 void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObject(rmode_) ||
-         IsCodeTarget(rmode_) ||
-         IsRuntimeEntry(rmode_) ||
-         IsExternalReference(rmode_));
-  Assembler::set_target_address_at(pc_, host_, NULL);
+  DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
+         IsInternalReference(rmode_));
+  if (IsInternalReference(rmode_)) {
+    UNIMPLEMENTED();  // ARM64 does not use internal references.
+  } else {
+    Assembler::set_target_address_at(pc_, host_, NULL);
+  }
 }
 
 
@@ -874,6 +885,8 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
+  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
+    UNIMPLEMENTED();  // ARM64 does not use internal references.
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
@@ -897,6 +910,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
+  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
+    UNIMPLEMENTED();  // ARM64 does not use internal references.
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||

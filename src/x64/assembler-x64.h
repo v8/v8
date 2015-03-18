@@ -570,6 +570,10 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, code, target);
   }
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address instruction, Address target);
+
   static inline RelocInfo::Mode RelocInfoNone() {
     if (kPointerSize == kInt64Size) {
       return RelocInfo::NONE64;

@@ -1484,6 +1484,9 @@ TEST(SerializeWithHarmonyScoping) {
 
 
 TEST(SerializeInternalReference) {
+#ifdef V8_TARGET_ARCH_ARM64
+  return;
+#endif  // V8_TARGET_ARCH_ARM64
   // Disable experimental natives that are loaded after deserialization.
   FLAG_turbo_deoptimization = false;
   FLAG_context_specialization = false;
@@ -1502,10 +1505,10 @@ TEST(SerializeInternalReference) {
       "      case 2:"
       "      case 3: j = 2; break;"
       "      case 4:"
-      "      case 5: j = 3; break;"
+      "      case 5: j = foo(3) + 1; break;"
       "      default: j = 0; break;"
       "    }"
-      "    return j|0;"
+      "    return j + 10;"
       "  }"
       "  return { foo: foo };"
       "})(this, {}, undefined).foo;"
@@ -1525,8 +1528,24 @@ TEST(SerializeInternalReference) {
     v8::Context::Scope c_scope(context);
     v8::Handle<v8::Function> foo =
         v8::Handle<v8::Function>::Cast(CompileRun("foo"));
+
+    // There are at least 6 internal references.
+    int mask = RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    RelocIterator it(v8::Utils::OpenHandle(*foo)->code(), mask);
+    for (int i = 0; i < 6; ++i) {
+      CHECK(!it.done());
+      it.next();
+    }
+
     CHECK(v8::Utils::OpenHandle(*foo)->code()->is_turbofanned());
-    CHECK_EQ(3, CompileRun("foo(4)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(11, CompileRun("foo(0)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(11, CompileRun("foo(1)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(12, CompileRun("foo(2)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(12, CompileRun("foo(3)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(23, CompileRun("foo(4)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(23, CompileRun("foo(5)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(10, CompileRun("foo(6)")->ToInt32(isolate)->Int32Value());
   }
   isolate->Dispose();
 }

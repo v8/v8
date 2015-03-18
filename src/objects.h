@@ -10946,8 +10946,11 @@ class ObjectVisitor BASE_EMBEDDED {
   // Visits an external reference embedded into a code object.
   virtual void VisitExternalReference(RelocInfo* rinfo);
 
-  // Visits an external reference. The value may be modified on return.
+  // Visits an external reference.
   virtual void VisitExternalReference(Address* p) {}
+
+  // Visits an (encoded) internal reference.
+  virtual void VisitInternalReference(RelocInfo* rinfo) {}
 
   // Visits a handle that has an embedder-assigned class ID.
   virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {}
