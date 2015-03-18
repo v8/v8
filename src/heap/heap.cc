@@ -4543,11 +4543,12 @@ void Heap::IdleMarkCompact(const char* message) {
 bool Heap::TryFinalizeIdleIncrementalMarking(
     double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
-  if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-      (FLAG_overapproximate_weak_closure &&
-       mark_compact_collector_.marking_deque()->IsEmpty() &&
-       gc_idle_time_handler_.ShouldDoOverApproximateWeakClosure(
-           static_cast<size_t>(idle_time_in_ms)))) {
+  if (FLAG_overapproximate_weak_closure &&
+      (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
+       (!incremental_marking()->weak_closure_was_overapproximated() &&
+        mark_compact_collector_.marking_deque()->IsEmpty() &&
+        gc_idle_time_handler_.ShouldDoOverApproximateWeakClosure(
+            static_cast<size_t>(idle_time_in_ms))))) {
     OverApproximateWeakClosure(
         "Idle notification: overapproximate weak closure");
     return true;

@@ -2341,6 +2341,8 @@ TEST(IdleNotificationFinishMarking) {
     CHECK(!marking->IsIdleMarkingDelayCounterLimitReached());
   }
 
+  marking->SetWeakClosureWasOverApproximatedForTesting(true);
+
   // The next idle notification has to finish incremental marking.
   const int kLongIdleTime = 1000000;
   CcTest::isolate()->IdleNotification(kLongIdleTime);
@@ -4063,7 +4065,8 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   if (marking->IsStopped()) marking->Start();
   // This big step should be sufficient to mark the whole array.
   marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  DCHECK(marking->IsComplete());
+  DCHECK(marking->IsComplete() ||
+         marking->IsReadyToOverApproximateWeakClosure());
 }
 
 
