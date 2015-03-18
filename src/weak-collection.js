@@ -42,9 +42,7 @@ function WeakMapGet(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.get', this]);
   }
-  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
-    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
-  }
+  if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
   return %WeakCollectionGet(this, key);
 }
 
@@ -54,7 +52,7 @@ function WeakMapSet(key, value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.set', this]);
   }
-  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
+  if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakCollectionSet(this, key, value);
@@ -66,9 +64,7 @@ function WeakMapHas(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.has', this]);
   }
-  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
-    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
-  }
+  if (!IS_SPEC_OBJECT(key)) return false;
   return %WeakCollectionHas(this, key);
 }
 
@@ -78,9 +74,7 @@ function WeakMapDelete(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.delete', this]);
   }
-  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
-    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
-  }
+  if (!IS_SPEC_OBJECT(key)) return false;
   return %WeakCollectionDelete(this, key);
 }
 
@@ -135,7 +129,7 @@ function WeakSetAdd(value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakSet.prototype.add', this]);
   }
-  if (!(IS_SPEC_OBJECT(value) || IS_SYMBOL(value))) {
+  if (!IS_SPEC_OBJECT(value)) {
     throw %MakeTypeError('invalid_weakset_value', [this, value]);
   }
   return %WeakCollectionSet(this, value, true);
@@ -147,9 +141,7 @@ function WeakSetHas(value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakSet.prototype.has', this]);
   }
-  if (!(IS_SPEC_OBJECT(value) || IS_SYMBOL(value))) {
-    throw %MakeTypeError('invalid_weakset_value', [this, value]);
-  }
+  if (!IS_SPEC_OBJECT(value)) return false;
   return %WeakCollectionHas(this, value);
 }
 
@@ -159,9 +151,7 @@ function WeakSetDelete(value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakSet.prototype.delete', this]);
   }
-  if (!(IS_SPEC_OBJECT(value) || IS_SYMBOL(value))) {
-    throw %MakeTypeError('invalid_weakset_value', [this, value]);
-  }
+  if (!IS_SPEC_OBJECT(value)) return false;
   return %WeakCollectionDelete(this, value);
 }
 
