@@ -365,9 +365,11 @@ class Typer::Visitor : public Reducer {
     if (NodeProperties::IsTyped(node)) {
       // Widen the bounds of a previously typed node.
       Bounds previous = NodeProperties::GetBounds(node);
-      // Speed up termination in the presence of range types:
-      current.upper = Weaken(current.upper, previous.upper);
-      current.lower = Weaken(current.lower, previous.lower);
+      if (node->opcode() == IrOpcode::kPhi) {
+        // Speed up termination in the presence of range types:
+        current.upper = Weaken(current.upper, previous.upper);
+        current.lower = Weaken(current.lower, previous.lower);
+      }
 
       // Types should not get less precise.
       DCHECK(previous.lower->Is(current.lower));
@@ -1309,15 +1311,13 @@ Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
     return current_type;
   }
 
-  Type* previous_number =
-      Type::Intersect(previous_type, typer_->integer, zone());
-  Type* current_number = Type::Intersect(current_type, typer_->integer, zone());
-  if (!current_number->IsRange() || !previous_number->IsRange()) {
+  Type::RangeType* previous =
+      Type::Intersect(previous_type, typer_->integer, zone())->GetRange();
+  Type::RangeType* current =
+      Type::Intersect(current_type, typer_->integer, zone())->GetRange();
+  if (current == nullptr || previous == nullptr) {
     return current_type;
   }
-
-  Type::RangeType* previous = previous_number->AsRange();
-  Type::RangeType* current = current_number->AsRange();
 
   double current_min = current->Min();
   double new_min = current_min;
