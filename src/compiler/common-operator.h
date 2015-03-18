@@ -199,8 +199,8 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* HeapConstant(const Unique<HeapObject>&);
 
   const Operator* Select(MachineType, BranchHint = BranchHint::kNone);
-  const Operator* Phi(MachineType type, int arguments);
-  const Operator* EffectPhi(int arguments);
+  const Operator* Phi(MachineType type, int value_input_count);
+  const Operator* EffectPhi(int effect_input_count);
   const Operator* EffectSet(int arguments);
   const Operator* ValueEffect(int arguments);
   const Operator* Finish(int arguments);
