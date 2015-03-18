@@ -1143,7 +1143,7 @@ void Isolate::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
-  PropagatePendingExceptionToExternalTryCatch();
+  ReportPendingMessages();
   if (has_pending_exception()) {
     thread_local_top()->scheduled_exception_ = pending_exception();
     thread_local_top()->external_caught_exception_ = false;
@@ -1410,31 +1410,49 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
 void Isolate::ReportPendingMessages() {
   Object* exception = pending_exception();
 
-  // Try to propagate the exception to an external v8::TryCatch handler. If
-  // propagation was unsuccessful, then we will get another chance at reporting
-  // the pending message if the exception is re-thrown.
-  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
-  if (!has_been_propagated) return;
+  // Propagation is unsuccessful because there still is a JavaScript handler on
+  // top that might catch the exception and hence prevent message reporting.
+  if (IsJavaScriptHandlerOnTop(exception)) {
+    thread_local_top_.external_caught_exception_ = false;
+    return;
+  }
+
+  // Determine whether the message needs to be reported to all message handlers
+  // depending on whether an external v8::TryCatch handler is on top.
+  bool should_report_exception;
+  Object* message_obj = thread_local_top_.pending_message_obj_;
+  DCHECK(message_obj->IsJSMessageObject() || message_obj->IsTheHole());
+  if (IsExternalHandlerOnTop(exception)) {
+    // Propagate the exception to an external v8::TryCatch handler.
+    if (!is_catchable_by_javascript(exception)) {
+      try_catch_handler()->can_continue_ = false;
+      try_catch_handler()->has_terminated_ = true;
+      try_catch_handler()->exception_ = heap()->null_value();
+    } else {
+      try_catch_handler()->can_continue_ = true;
+      try_catch_handler()->has_terminated_ = false;
+      try_catch_handler()->exception_ = exception;
+      // Propagate to the external try-catch only if we got an actual message.
+      if (!message_obj->IsTheHole()) {
+        try_catch_handler()->message_obj_ = message_obj;
+      }
+    }
+
+    // Only report the exception if the external handler is verbose.
+    thread_local_top_.external_caught_exception_ = true;
+    should_report_exception = try_catch_handler()->is_verbose_;
+  } else {
+    // Report the exception because it cannot be caught by JavaScript code.
+    thread_local_top_.external_caught_exception_ = false;
+    should_report_exception = true;
+  }
 
   // Clear the pending message object early to avoid endless recursion.
-  Object* message_obj = thread_local_top_.pending_message_obj_;
   clear_pending_message();
 
   // For uncatchable exceptions we do nothing. If needed, the exception and the
   // message have already been propagated to v8::TryCatch.
   if (!is_catchable_by_javascript(exception)) return;
-
-  // Determine whether the message needs to be reported to all message handlers
-  // depending on whether and external v8::TryCatch or an internal JavaScript
-  // handler is on top.
-  bool should_report_exception;
-  if (IsExternalHandlerOnTop(exception)) {
-    // Only report the exception if the external handler is verbose.
-    should_report_exception = try_catch_handler()->is_verbose_;
-  } else {
-    // Report the exception if it isn't caught by JavaScript code.
-    should_report_exception = !IsJavaScriptHandlerOnTop(exception);
-  }
 
   // Actually report the pending message to all message handlers.
   if (!message_obj->IsTheHole() && should_report_exception) {
@@ -1470,7 +1488,7 @@ MessageLocation Isolate::GetMessageLocation() {
 
 bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   DCHECK(has_pending_exception());
-  PropagatePendingExceptionToExternalTryCatch();
+  ReportPendingMessages();
 
   bool is_termination_exception =
       pending_exception() == heap_.termination_exception();
@@ -1947,40 +1965,6 @@ Isolate::~Isolate() {
 void Isolate::InitializeThreadLocal() {
   thread_local_top_.isolate_ = this;
   thread_local_top_.Initialize();
-}
-
-
-bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
-  Object* exception = pending_exception();
-
-  if (IsJavaScriptHandlerOnTop(exception)) {
-    thread_local_top_.external_caught_exception_ = false;
-    return false;
-  }
-
-  if (!IsExternalHandlerOnTop(exception)) {
-    thread_local_top_.external_caught_exception_ = false;
-    return true;
-  }
-
-  thread_local_top_.external_caught_exception_ = true;
-  if (!is_catchable_by_javascript(exception)) {
-    try_catch_handler()->can_continue_ = false;
-    try_catch_handler()->has_terminated_ = true;
-    try_catch_handler()->exception_ = heap()->null_value();
-  } else {
-    v8::TryCatch* handler = try_catch_handler();
-    DCHECK(thread_local_top_.pending_message_obj_->IsJSMessageObject() ||
-           thread_local_top_.pending_message_obj_->IsTheHole());
-    handler->can_continue_ = true;
-    handler->has_terminated_ = false;
-    handler->exception_ = pending_exception();
-    // Propagate to the external try-catch only if we got an actual message.
-    if (thread_local_top_.pending_message_obj_->IsTheHole()) return true;
-
-    handler->message_obj_ = thread_local_top_.pending_message_obj_;
-  }
-  return true;
 }
 
 

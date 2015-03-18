@@ -767,13 +767,16 @@ class Isolate {
   // finally clause will behave as if the exception were consumed.
   bool PredictWhetherExceptionIsCaught(Object* exception);
 
+  // Propagate pending exception message to potential v8::TryCatch. Also call
+  // message handlers when the exception is guaranteed not to be caught.
+  void ReportPendingMessages();
+
   void ScheduleThrow(Object* exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
   void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
   // Un-schedule an exception that was caught by a TryCatch handler.
   void CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler);
-  void ReportPendingMessages();
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();
 
@@ -1214,11 +1217,6 @@ class Isolate {
                            ThreadLocalTop* archived_thread_data);
 
   void FillCache();
-
-  // Propagate pending exception message to the v8::TryCatch.
-  // If there is no external try-catch or message was successfully propagated,
-  // then return true.
-  bool PropagatePendingExceptionToExternalTryCatch();
 
   // Traverse prototype chain to find out whether the object is derived from
   // the Error object.
