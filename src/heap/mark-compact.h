@@ -603,11 +603,7 @@ class MarkCompactCollector {
     // to other evacuation candidates thus we have to
     // rescan the page after evacuation to discover and update all
     // pointers to evacuated objects.
-    if (page->owner()->identity() == OLD_DATA_SPACE) {
-      evacuation_candidates_.RemoveElement(page);
-    } else {
-      page->SetFlag(Page::RESCAN_ON_EVACUATION);
-    }
+    page->SetFlag(Page::RESCAN_ON_EVACUATION);
   }
 
   void RecordRelocSlot(RelocInfo* rinfo, Object* target);
@@ -907,8 +903,7 @@ class MarkCompactCollector {
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
 
-  SmartPointer<FreeList> free_list_old_data_space_;
-  SmartPointer<FreeList> free_list_old_pointer_space_;
+  SmartPointer<FreeList> free_list_old_space_;
 
   friend class Heap;
 };

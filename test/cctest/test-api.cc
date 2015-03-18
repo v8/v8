@@ -608,7 +608,7 @@ TEST(MakingExternalUnalignedOneByteString) {
       "slice('abcdefghijklmnopqrstuvwxyz');"));
 
   // Trigger GCs so that the newly allocated string moves to old gen.
-  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  SimulateFullSpace(CcTest::heap()->old_space());
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
@@ -728,11 +728,10 @@ THREADED_TEST(ScavengeExternalString) {
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     in_new_space = CcTest::heap()->InNewSpace(*istring);
-    CHECK(in_new_space || CcTest::heap()->old_data_space()->Contains(*istring));
+    CHECK(in_new_space || CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
   }
-  CcTest::heap()->CollectGarbage(
-      in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
+  CcTest::heap()->CollectGarbage(in_new_space ? i::NEW_SPACE : i::OLD_SPACE);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -751,11 +750,10 @@ THREADED_TEST(ScavengeExternalOneByteString) {
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     in_new_space = CcTest::heap()->InNewSpace(*istring);
-    CHECK(in_new_space || CcTest::heap()->old_data_space()->Contains(*istring));
+    CHECK(in_new_space || CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
   }
-  CcTest::heap()->CollectGarbage(
-      in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
+  CcTest::heap()->CollectGarbage(in_new_space ? i::NEW_SPACE : i::OLD_SPACE);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -15918,8 +15916,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
       CompileRun("'Romeo Montague ' + 'Juliet Capulet'")->ToString(isolate);
   CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK(CcTest::heap()->old_pointer_space()->Contains(
-            *v8::Utils::OpenHandle(*cons)));
+  CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
   TestResource* resource = new TestResource(
       AsciiToTwoByteString("Romeo Montague Juliet Capulet"));
@@ -15941,8 +15938,7 @@ TEST(ExternalizeOldSpaceOneByteCons) {
       CompileRun("'Romeo Montague ' + 'Juliet Capulet'")->ToString(isolate);
   CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK(CcTest::heap()->old_pointer_space()->Contains(
-            *v8::Utils::OpenHandle(*cons)));
+  CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
   TestOneByteResource* resource =
       new TestOneByteResource(i::StrDup("Romeo Montague Juliet Capulet"));

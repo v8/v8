@@ -183,7 +183,7 @@ TEST(Regress2060a) {
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
 
   // Start second old-space page so that values land on evacuation candidate.
-  Page* first_page = heap->old_pointer_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->anchor()->next_page();
   int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
   factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
 
@@ -222,7 +222,7 @@ TEST(Regress2060b) {
       factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  Page* first_page = heap->old_pointer_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->anchor()->next_page();
   int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
   factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
 

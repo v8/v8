@@ -135,16 +135,6 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
 }
 
 
-static inline void MarkBlackOrKeepGrey(HeapObject* heap_object,
-                                       MarkBit mark_bit, int size) {
-  DCHECK(!Marking::IsImpossible(mark_bit));
-  if (mark_bit.Get()) return;
-  mark_bit.Set();
-  MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(), size);
-  DCHECK(Marking::IsBlack(mark_bit));
-}
-
-
 static inline void MarkBlackOrKeepBlack(HeapObject* heap_object,
                                         MarkBit mark_bit, int size) {
   DCHECK(!Marking::IsImpossible(mark_bit));
@@ -357,8 +347,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
 
 
 void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
-  DeactivateIncrementalWriteBarrierForSpace(heap_->old_pointer_space());
-  DeactivateIncrementalWriteBarrierForSpace(heap_->old_data_space());
+  DeactivateIncrementalWriteBarrierForSpace(heap_->old_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->cell_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->property_cell_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->map_space());
@@ -392,8 +381,7 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
 
 
 void IncrementalMarking::ActivateIncrementalWriteBarrier() {
-  ActivateIncrementalWriteBarrier(heap_->old_pointer_space());
-  ActivateIncrementalWriteBarrier(heap_->old_data_space());
+  ActivateIncrementalWriteBarrier(heap_->old_space());
   ActivateIncrementalWriteBarrier(heap_->cell_space());
   ActivateIncrementalWriteBarrier(heap_->property_cell_space());
   ActivateIncrementalWriteBarrier(heap_->map_space());
@@ -657,9 +645,7 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
 
 void IncrementalMarking::MarkObject(Heap* heap, HeapObject* obj) {
   MarkBit mark_bit = Marking::MarkBitFrom(obj);
-  if (mark_bit.data_only()) {
-    MarkBlackOrKeepGrey(obj, mark_bit, obj->Size());
-  } else if (Marking::IsWhite(mark_bit)) {
+  if (Marking::IsWhite(mark_bit)) {
     heap->incremental_marking()->WhiteToGreyAndPush(obj, mark_bit);
   }
 }

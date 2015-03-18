@@ -105,18 +105,10 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::get_make_code_young_function(isolate).address(),
       "Code::MakeCodeYoung");
   Add(ExternalReference::cpu_features().address(), "cpu_features");
-  Add(ExternalReference::old_pointer_space_allocation_top_address(isolate)
-          .address(),
-      "Heap::OldPointerSpaceAllocationTopAddress");
-  Add(ExternalReference::old_pointer_space_allocation_limit_address(isolate)
-          .address(),
-      "Heap::OldPointerSpaceAllocationLimitAddress");
-  Add(ExternalReference::old_data_space_allocation_top_address(isolate)
-          .address(),
-      "Heap::OldDataSpaceAllocationTopAddress");
-  Add(ExternalReference::old_data_space_allocation_limit_address(isolate)
-          .address(),
-      "Heap::OldDataSpaceAllocationLimitAddress");
+  Add(ExternalReference::old_space_allocation_top_address(isolate).address(),
+      "Heap::OldSpaceAllocationTopAddress");
+  Add(ExternalReference::old_space_allocation_limit_address(isolate).address(),
+      "Heap::OldSpaceAllocationLimitAddress");
   Add(ExternalReference::allocation_sites_list_address(isolate).address(),
       "Heap::allocation_sites_list_address()");
   Add(ExternalReference::address_of_uint32_bias().address(), "uint32_bias");
@@ -852,12 +844,10 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
   // Write barrier support costs around 1% in startup time.  In fact there
   // are no new space objects in current boot snapshots, so it's not needed,
   // but that may change.
-  bool write_barrier_needed = (current_object_address != NULL &&
-                               source_space != NEW_SPACE &&
-                               source_space != CELL_SPACE &&
-                               source_space != PROPERTY_CELL_SPACE &&
-                               source_space != CODE_SPACE &&
-                               source_space != OLD_DATA_SPACE);
+  bool write_barrier_needed =
+      (current_object_address != NULL && source_space != NEW_SPACE &&
+       source_space != CELL_SPACE && source_space != PROPERTY_CELL_SPACE &&
+       source_space != CODE_SPACE);
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
@@ -963,8 +953,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 #define ALL_SPACES(where, how, within)                    \
   CASE_STATEMENT(where, how, within, NEW_SPACE)           \
   CASE_BODY(where, how, within, NEW_SPACE)                \
-  CASE_STATEMENT(where, how, within, OLD_DATA_SPACE)      \
-  CASE_STATEMENT(where, how, within, OLD_POINTER_SPACE)   \
+  CASE_STATEMENT(where, how, within, OLD_SPACE)           \
   CASE_STATEMENT(where, how, within, CODE_SPACE)          \
   CASE_STATEMENT(where, how, within, MAP_SPACE)           \
   CASE_STATEMENT(where, how, within, CELL_SPACE)          \
@@ -1720,7 +1709,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 
   AllocationSpace space = (allocation_size > Page::kMaxRegularHeapObjectSize)
                               ? LO_SPACE
-                              : OLD_DATA_SPACE;
+                              : OLD_SPACE;
   SerializePrologue(space, allocation_size, map);
 
   // Output the rest of the imaginary string.

@@ -308,10 +308,7 @@ TEST(MemoryAllocator) {
                                 heap->MaxExecutableSize()));
 
   int total_pages = 0;
-  OldSpace faked_space(heap,
-                       heap->MaxReserved(),
-                       OLD_POINTER_SPACE,
-                       NOT_EXECUTABLE);
+  OldSpace faked_space(heap, heap->MaxReserved(), OLD_SPACE, NOT_EXECUTABLE);
   Page* first_page = memory_allocator->AllocatePage(
       faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
 
@@ -380,9 +377,7 @@ TEST(OldSpace) {
                                 heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  OldSpace* s = new OldSpace(heap,
-                             heap->MaxOldGenerationSize(),
-                             OLD_POINTER_SPACE,
+  OldSpace* s = new OldSpace(heap, heap->MaxOldGenerationSize(), OLD_SPACE,
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
 

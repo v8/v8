@@ -4641,16 +4641,15 @@ typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 // --- Memory Allocation Callback ---
 enum ObjectSpace {
   kObjectSpaceNewSpace = 1 << 0,
-  kObjectSpaceOldPointerSpace = 1 << 1,
-  kObjectSpaceOldDataSpace = 1 << 2,
-  kObjectSpaceCodeSpace = 1 << 3,
-  kObjectSpaceMapSpace = 1 << 4,
-  kObjectSpaceCellSpace = 1 << 5,
-  kObjectSpacePropertyCellSpace = 1 << 6,
-  kObjectSpaceLoSpace = 1 << 7,
-  kObjectSpaceAll = kObjectSpaceNewSpace | kObjectSpaceOldPointerSpace |
-                    kObjectSpaceOldDataSpace | kObjectSpaceCodeSpace |
-                    kObjectSpaceMapSpace | kObjectSpaceLoSpace
+  kObjectSpaceOldSpace = 1 << 1,
+  kObjectSpaceCodeSpace = 1 << 2,
+  kObjectSpaceMapSpace = 1 << 3,
+  kObjectSpaceCellSpace = 1 << 4,
+  kObjectSpacePropertyCellSpace = 1 << 5,
+  kObjectSpaceLoSpace = 1 << 6,
+  kObjectSpaceAll = kObjectSpaceNewSpace | kObjectSpaceOldSpace |
+                    kObjectSpaceCodeSpace | kObjectSpaceMapSpace |
+                    kObjectSpaceLoSpace
 };
 
   enum AllocationAction {

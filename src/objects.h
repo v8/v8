@@ -763,7 +763,7 @@ enum InstanceType {
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
-  // Boundary for promotion to old data space/old pointer space.
+  // Boundary for promotion to old space.
   LAST_DATA_TYPE = FILLER_TYPE,
   // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
   // Note that there is no range for JSObject or JSProxy, since their subtypes
@@ -10266,8 +10266,6 @@ class JSDataView: public JSArrayBufferView {
 
 
 // Foreign describes objects pointing from JavaScript to C structures.
-// Since they cannot contain references to JS HeapObjects they can be
-// placed in old_data_space.
 class Foreign: public HeapObject {
  public:
   // [address]: field containing the address.
