@@ -3605,7 +3605,9 @@ class V8_EXPORT DataView : public ArrayBufferView {
  */
 class V8_EXPORT Date : public Object {
  public:
-  static Local<Value> New(Isolate* isolate, double time);
+  static V8_DEPRECATE_SOON("Use maybe version.",
+                           Local<Value> New(Isolate* isolate, double time));
+  static MaybeLocal<Value> New(Local<Context> context, double time);
 
   /**
    * A specialization of Value::NumberValue that is more efficient
@@ -6094,7 +6096,8 @@ class V8_EXPORT TryCatch {
    * Returns the .stack property of the thrown object.  If no .stack
    * property is present an empty handle is returned.
    */
-  Local<Value> StackTrace() const;
+  V8_DEPRECATE_SOON("Use maybe version.", Local<Value> StackTrace()) const;
+  MaybeLocal<Value> StackTrace(Local<Context> context) const;
 
   /**
    * Returns the message associated with this exception.  If there is

@@ -52,30 +52,12 @@
 #include "src/vm-state-inl.h"
 
 
-#define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
-
-#define ENTER_V8(isolate)             \
-  i::VMState<v8::OTHER> __state__((isolate))
-
 namespace v8 {
 
-#define EXCEPTION_PREAMBLE(isolate)                                         \
-  (isolate)->handle_scope_implementer()->IncrementCallDepth();              \
-  DCHECK(!(isolate)->external_caught_exception());                          \
-  bool has_pending_exception = false
+#define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
 
-#define EXCEPTION_BAILOUT_CHECK(isolate, value)                              \
-  do {                                                                       \
-    i::HandleScopeImplementer* handle_scope_implementer =                    \
-        (isolate)->handle_scope_implementer();                               \
-    handle_scope_implementer->DecrementCallDepth();                          \
-    if (has_pending_exception) {                                             \
-      bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero(); \
-      (isolate)->OptionalRescheduleException(call_depth_is_zero);            \
-      return value;                                                          \
-    }                                                                        \
-  } while (false)
+#define ENTER_V8(isolate) i::VMState<v8::OTHER> __state__((isolate))
 
 
 #define PREPARE_FOR_EXECUTION_GENERIC(isolate, context, function_name, \
@@ -2096,28 +2078,28 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 }
 
 
+MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
+  if (!HasCaught()) return v8::Local<Value>();
+  i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
+  if (!raw_obj->IsJSObject()) return v8::Local<Value>();
+  PREPARE_FOR_EXECUTION(context, "v8::TryCatch::StackTrace", Value);
+  i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
+  i::Handle<i::String> name = isolate->factory()->stack_string();
+  Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
+  has_pending_exception = !maybe.IsJust();
+  RETURN_ON_FAILED_EXECUTION(Value);
+  if (!maybe.FromJust()) return v8::Local<Value>();
+  Local<Value> result;
+  has_pending_exception =
+      !ToLocal<Value>(i::Object::GetProperty(obj, name), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+
 v8::Local<Value> v8::TryCatch::StackTrace() const {
-  if (HasCaught()) {
-    i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
-    if (!raw_obj->IsJSObject()) return v8::Local<Value>();
-    i::HandleScope scope(isolate_);
-    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
-    i::Handle<i::String> name = isolate_->factory()->stack_string();
-    {
-      EXCEPTION_PREAMBLE(isolate_);
-      Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
-      has_pending_exception = !maybe.IsJust();
-      EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
-      if (!maybe.FromJust()) return v8::Local<Value>();
-    }
-    i::Handle<i::Object> value;
-    EXCEPTION_PREAMBLE(isolate_);
-    has_pending_exception = !i::Object::GetProperty(obj, name).ToHandle(&value);
-    EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
-    return v8::Utils::ToLocal(scope.CloseAndEscape(value));
-  } else {
-    return v8::Local<Value>();
-  }
+  auto context = reinterpret_cast<v8::Isolate*>(isolate_)->GetCurrentContext();
+  RETURN_TO_LOCAL_UNCHECKED(StackTrace(context), Value);
 }
 
 
@@ -6004,20 +5986,23 @@ Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
 }
 
 
-Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, "Date::New");
+MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   if (std::isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     time = std::numeric_limits<double>::quiet_NaN();
   }
-  ENTER_V8(i_isolate);
-  EXCEPTION_PREAMBLE(i_isolate);
-  i::Handle<i::Object> obj;
-  has_pending_exception = !i::Execution::NewDate(
-      i_isolate, time).ToHandle(&obj);
-  EXCEPTION_BAILOUT_CHECK(i_isolate, Local<v8::Value>());
-  return Utils::ToLocal(obj);
+  PREPARE_FOR_EXECUTION(context, "Date::New", Value);
+  Local<Value> result;
+  has_pending_exception =
+      !ToLocal<Value>(i::Execution::NewDate(isolate, time), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+
+Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
+  auto context = isolate->GetCurrentContext();
+  RETURN_TO_LOCAL_UNCHECKED(New(context, time), Value);
 }
 
 
