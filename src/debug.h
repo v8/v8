@@ -425,7 +425,7 @@ class Debug {
   // Debug event triggers.
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
 
-  void OnThrow(Handle<Object> exception, bool uncaught);
+  void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<JSObject> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
@@ -595,8 +595,7 @@ class Debug {
     return break_disabled_ || in_debug_event_listener_;
   }
 
-  void OnException(Handle<Object> exception, bool uncaught,
-                   Handle<Object> promise);
+  void OnException(Handle<Object> exception, Handle<Object> promise);
 
   // Constructors for debug event objects.
   MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(

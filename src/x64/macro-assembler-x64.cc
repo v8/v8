@@ -2995,11 +2995,8 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
     Push(rsi);
   }
 
-  // Push the state.
-  unsigned state =
-      StackHandler::IndexField::encode(handler_index) |
-      StackHandler::KindField::encode(kind);
-  Push(Immediate(state));
+  // Push the index.
+  Push(Immediate(handler_index));
 
   // Link the current handler as the next handler.
   ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
