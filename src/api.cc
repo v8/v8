@@ -6799,6 +6799,18 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
     isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
                                            params.code_event_handler);
   }
+  if (params.counter_lookup_callback) {
+    v8_isolate->SetCounterFunction(params.counter_lookup_callback);
+  }
+
+  if (params.create_histogram_callback) {
+    v8_isolate->SetCreateHistogramFunction(params.create_histogram_callback);
+  }
+
+  if (params.add_histogram_sample_callback) {
+    v8_isolate->SetAddHistogramSampleFunction(
+        params.add_histogram_sample_callback);
+  }
   SetResourceConstraints(isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);

@@ -963,15 +963,9 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 
 void Shell::Initialize(Isolate* isolate) {
 #ifndef V8_SHARED
-  Shell::counter_map_ = new CounterMap();
   // Set up counters
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
-  if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {
-    isolate->SetCounterFunction(LookupCounter);
-    isolate->SetCreateHistogramFunction(CreateHistogram);
-    isolate->SetAddHistogramSampleFunction(AddHistogramSample);
-  }
 #endif  // !V8_SHARED
 }
 
@@ -1639,6 +1633,13 @@ int Shell::Main(int argc, char* argv[]) {
       base::SysInfo::AmountOfPhysicalMemory(),
       base::SysInfo::AmountOfVirtualMemory(),
       base::SysInfo::NumberOfProcessors());
+
+  Shell::counter_map_ = new CounterMap();
+  if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {
+    create_params.counter_lookup_callback = LookupCounter;
+    create_params.create_histogram_callback = CreateHistogram;
+    create_params.add_histogram_sample_callback = AddHistogramSample;
+  }
 #endif
   Isolate* isolate = Isolate::New(create_params);
   DumbLineEditor dumb_line_editor(isolate);
