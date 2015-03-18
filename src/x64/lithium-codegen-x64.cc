@@ -317,6 +317,8 @@ bool LCodeGen::GenerateJumpTable() {
       }
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
+    info()->LogDeoptCallPosition(masm()->pc_offset(),
+                                 table_entry->deopt_info.inlining_id);
   }
 
   if (needs_frame.is_linked()) {
@@ -358,7 +360,7 @@ bool LCodeGen::GenerateJumpTable() {
     __ Move(MemOperand(rsp, 2 * kPointerSize), Smi::FromInt(StackFrame::STUB));
 
     /* stack layout
-       4: old ebp
+       4: old rbp
        3: context pointer
        2: stub marker
        1: return address
@@ -811,6 +813,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
       !info()->saves_caller_doubles()) {
     DeoptComment(deopt_info);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
+    info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
     Deoptimizer::JumpTableEntry table_entry(entry, deopt_info, bailout_type,
                                             !frame_is_built_);

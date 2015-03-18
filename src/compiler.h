@@ -97,6 +97,7 @@ struct InlinedFunctionInfo {
   SourcePosition inline_position;
   int script_id;
   int start_position;
+  std::vector<int> deopt_pc_offsets;
 
   static const int kNoParentId = -1;
 };
@@ -342,6 +343,13 @@ class CompilationInfo {
   std::vector<InlinedFunctionInfo>* inlined_function_infos() {
     return inlined_function_infos_;
   }
+  std::vector<InlinedFunctionInfo>* ReleaseInlinedFunctionInfos() {
+    std::vector<InlinedFunctionInfo>* tmp = inlined_function_infos_;
+    inlined_function_infos_ = NULL;
+    return tmp;
+  }
+
+  void LogDeoptCallPosition(int pc_offset, int inlining_id);
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                            SourcePosition position, int pareint_id);
 

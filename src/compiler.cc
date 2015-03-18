@@ -322,6 +322,14 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
 }
 
 
+void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
+  if (!track_positions_ || IsStub()) return;
+  DCHECK_LT(static_cast<size_t>(inlining_id), inlined_function_infos_->size());
+  inlined_function_infos_->at(inlining_id)
+      .deopt_pc_offsets.push_back(pc_offset);
+}
+
+
 class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
  public:
   explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
