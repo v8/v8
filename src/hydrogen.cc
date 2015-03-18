@@ -5358,8 +5358,11 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
           HConstant* constant = New<HConstant>(constant_object);
           return ast_context()->ReturnInstruction(constant, expr->id());
         } else {
-          HLoadGlobalCell* instr =
-              New<HLoadGlobalCell>(cell, it.property_details());
+          HConstant* cell_constant = Add<HConstant>(cell);
+          HLoadNamedField* instr = New<HLoadNamedField>(
+              cell_constant, nullptr, HObjectAccess::ForPropertyCellValue());
+          instr->ClearDependsOnFlag(kInobjectFields);
+          instr->SetDependsOnFlag(kGlobalVars);
           return ast_context()->ReturnInstruction(instr, expr->id());
         }
       } else {
@@ -6538,8 +6541,11 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
         builder.End();
       }
     }
-    HInstruction* instr =
-        Add<HStoreGlobalCell>(value, cell, it.property_details());
+    HConstant* cell_constant = Add<HConstant>(cell);
+    HInstruction* instr = Add<HStoreNamedField>(
+        cell_constant, HObjectAccess::ForPropertyCellValue(), value);
+    instr->ClearChangesFlag(kInobjectFields);
+    instr->SetChangesFlag(kGlobalVars);
     if (instr->HasObservableSideEffects()) {
       Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
     }

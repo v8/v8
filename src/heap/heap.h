@@ -645,7 +645,6 @@ class Heap {
   OldSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   CellSpace* cell_space() { return cell_space_; }
-  PropertyCellSpace* property_cell_space() { return property_cell_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
   PagedSpace* paged_space(int idx) {
     switch (idx) {
@@ -655,8 +654,6 @@ class Heap {
         return map_space();
       case CELL_SPACE:
         return cell_space();
-      case PROPERTY_CELL_SPACE:
-        return property_cell_space();
       case CODE_SPACE:
         return code_space();
       case NEW_SPACE:
@@ -1566,7 +1563,6 @@ class Heap {
   OldSpace* code_space_;
   MapSpace* map_space_;
   CellSpace* cell_space_;
-  PropertyCellSpace* property_cell_space_;
   LargeObjectSpace* lo_space_;
   HeapState gc_state_;
   int gc_post_processing_depth_;
@@ -2185,8 +2181,6 @@ class HeapStats {
   int* size_per_type;                      // 20
   int* os_error;                           // 21
   int* end_marker;                         // 22
-  intptr_t* property_cell_space_size;      // 23
-  intptr_t* property_cell_space_capacity;  // 24
 };
 
 

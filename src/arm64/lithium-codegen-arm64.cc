@@ -3395,17 +3395,6 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
-  Register result = ToRegister(instr->result());
-  __ Mov(result, Operand(Handle<Object>(instr->hydrogen()->cell().handle())));
-  __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    DeoptimizeIfRoot(result, Heap::kTheHoleValueRootIndex, instr,
-                     Deoptimizer::kHole);
-  }
-}
-
-
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
@@ -5179,30 +5168,6 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               check_needed);
   }
   __ Bind(&skip_assignment);
-}
-
-
-void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
-  Register value = ToRegister(instr->value());
-  Register cell = ToRegister(instr->temp1());
-
-  // Load the cell.
-  __ Mov(cell, Operand(instr->hydrogen()->cell().handle()));
-
-  // If the cell we are storing to contains the hole it could have
-  // been deleted from the property dictionary. In that case, we need
-  // to update the property details in the property dictionary to mark
-  // it as no longer deleted. We deoptimize in that case.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    Register payload = ToRegister(instr->temp2());
-    __ Ldr(payload, FieldMemOperand(cell, Cell::kValueOffset));
-    DeoptimizeIfRoot(payload, Heap::kTheHoleValueRootIndex, instr,
-                     Deoptimizer::kHole);
-  }
-
-  // Store the value.
-  __ Str(value, FieldMemOperand(cell, Cell::kValueOffset));
-  // Cells are always rescanned, so no write barrier here.
 }
 
 

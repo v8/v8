@@ -1360,8 +1360,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     builder.Then();
     builder.Deopt(Deoptimizer::kUnexpectedCellContentsInGlobalStore);
     builder.Else();
-    HStoreNamedField* store = Add<HStoreNamedField>(cell, access, value);
-    store->MarkReceiverAsCell();
+    Add<HStoreNamedField>(cell, access, value);
     builder.End();
   }
 

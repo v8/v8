@@ -662,7 +662,6 @@ enum InstanceType {
   CODE_TYPE,
   ODDBALL_TYPE,
   CELL_TYPE,
-  PROPERTY_CELL_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
@@ -718,6 +717,7 @@ enum InstanceType {
   CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   WEAK_CELL_TYPE,
+  PROPERTY_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -9692,7 +9692,7 @@ class Oddball: public HeapObject {
 
 class Cell: public HeapObject {
  public:
-  // [value]: value of the global property.
+  // [value]: value of the cell.
   DECL_ACCESSORS(value, Object)
 
   DECLARE_CAST(Cell)
@@ -9726,6 +9726,8 @@ class Cell: public HeapObject {
 
 class PropertyCell: public Cell {
  public:
+  // [value]: value of the global property.
+  DECL_ACCESSORS(value, Object)
   // [dependent_code]: dependent code that depends on the type of the global
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)

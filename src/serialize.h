@@ -306,8 +306,8 @@ class SerializerDeserializer: public ObjectVisitor {
   // Where the pointed-to object can be found:
   enum Where {
     kNewObject = 0,  //              Object is next in snapshot.
-    // 1-7                           One per space.
-    // 0x8                           Unused.
+    // 1-6                           One per space.
+    // 0x7, 0x8                      Unused.
     kRootArray = 0x9,             // Object is found in root array.
     kPartialSnapshotCache = 0xa,  // Object is in the cache.
     kExternalReference = 0xb,     // Pointer to an external reference.
@@ -316,9 +316,11 @@ class SerializerDeserializer: public ObjectVisitor {
     kAttachedReference = 0xe,     // Object is described in an attached list.
     // 0xf                           Used by misc. See below.
     kBackref = 0x10,  //             Object is described relative to end.
-    // 0x11-0x17                     One per space.
+    // 0x11-0x16                     One per space.
+    // 0x17                          Unused.
     kBackrefWithSkip = 0x18,  //     Object is described relative to end.
-    // 0x19-0x1f                     One per space.
+    // 0x19-0x1e                     One per space.
+    // 0x1f                          Unused.
     // 0x20-0x3f                     Used by misc. See below.
     kPointedToMask = 0x3f
   };

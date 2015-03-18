@@ -1900,7 +1900,7 @@ void Cell::set_value(Object* val, WriteBarrierMode ignored) {
 }
 
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
-
+ACCESSORS(PropertyCell, value, Object, kValueOffset)
 
 Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
 

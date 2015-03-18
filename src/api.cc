@@ -249,10 +249,6 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.cell_space_size = &cell_space_size;
   intptr_t cell_space_capacity;
   heap_stats.cell_space_capacity = &cell_space_capacity;
-  intptr_t property_cell_space_size;
-  heap_stats.property_cell_space_size = &property_cell_space_size;
-  intptr_t property_cell_space_capacity;
-  heap_stats.property_cell_space_capacity = &property_cell_space_capacity;
   intptr_t lo_space_size;
   heap_stats.lo_space_size = &lo_space_size;
   int global_handle_count;

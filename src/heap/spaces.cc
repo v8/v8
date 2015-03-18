@@ -44,7 +44,6 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
   DCHECK(owner == page->heap()->old_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->cell_space() ||
-         owner == page->heap()->property_cell_space() ||
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner), page->area_start(),
              page->area_end(), kOnePageOnly, size_func);
@@ -927,9 +926,6 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
               ObjectSpace::kObjectSpaceCodeSpace);
 STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CELL_SPACE) ==
               ObjectSpace::kObjectSpaceCellSpace);
-STATIC_ASSERT(
-    static_cast<ObjectSpace>(1 << AllocationSpace::PROPERTY_CELL_SPACE) ==
-    ObjectSpace::kObjectSpacePropertyCellSpace);
 STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
               ObjectSpace::kObjectSpaceMapSpace);
 
@@ -2783,17 +2779,12 @@ void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 
 
 // -----------------------------------------------------------------------------
-// CellSpace and PropertyCellSpace implementation
+// CellSpace implementation
 // TODO(mvstanton): this is weird...the compiler can't make a vtable unless
 // there is at least one non-inlined virtual function. I would prefer to hide
 // the VerifyObject definition behind VERIFY_HEAP.
 
 void CellSpace::VerifyObject(HeapObject* object) { CHECK(object->IsCell()); }
-
-
-void PropertyCellSpace::VerifyObject(HeapObject* object) {
-  CHECK(object->IsPropertyCell());
-}
 
 
 // -----------------------------------------------------------------------------

@@ -871,7 +871,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kInvokeFunction:
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:
-    case HValue::kLoadGlobalCell:
     case HValue::kLoadKeyed:
     case HValue::kLoadKeyedGeneric:
     case HValue::kMathFloorOfDiv:
@@ -887,7 +886,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kSimulate:
     case HValue::kStackCheck:
     case HValue::kStoreContextSlot:
-    case HValue::kStoreGlobalCell:
     case HValue::kStoreKeyedGeneric:
     case HValue::kStringAdd:
     case HValue::kStringCompareAndBranch:
@@ -3624,14 +3622,6 @@ std::ostream& HTransitionElementsKind::PrintDataTo(
 }
 
 
-std::ostream& HLoadGlobalCell::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << "[" << *cell().handle() << "]";
-  if (details_.IsConfigurable()) os << " (configurable)";
-  if (details_.IsReadOnly()) os << " (read-only)";
-  return os;
-}
-
-
 std::ostream& HLoadGlobalGeneric::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   return os << name()->ToCString().get() << " ";
@@ -3642,14 +3632,6 @@ std::ostream& HInnerAllocatedObject::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   os << NameOf(base_object()) << " offset ";
   return offset()->PrintTo(os);
-}
-
-
-std::ostream& HStoreGlobalCell::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << "[" << *cell().handle() << "] = " << NameOf(value());
-  if (details_.IsConfigurable()) os << " (configurable)";
-  if (details_.IsReadOnly()) os << " (read-only)";
-  return os;
 }
 
 

@@ -104,12 +104,12 @@ class IC {
 
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
-    return state == UNINITIALIZED || state == PREMONOMORPHIC;
+    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
   static bool IsCleared(FeedbackNexus* nexus) {
     InlineCacheState state = nexus->StateFromFeedback();
-    return state == UNINITIALIZED || state == PREMONOMORPHIC;
+    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
   static bool ICUseVector(Code::Kind kind) {

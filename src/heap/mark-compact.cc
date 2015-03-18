@@ -138,7 +138,6 @@ static void VerifyMarking(Heap* heap) {
   VerifyMarking(heap->old_space());
   VerifyMarking(heap->code_space());
   VerifyMarking(heap->cell_space());
-  VerifyMarking(heap->property_cell_space());
   VerifyMarking(heap->map_space());
   VerifyMarking(heap->new_space());
 
@@ -217,7 +216,6 @@ static void VerifyEvacuation(Heap* heap) {
   VerifyEvacuation(heap, heap->old_space());
   VerifyEvacuation(heap, heap->code_space());
   VerifyEvacuation(heap, heap->cell_space());
-  VerifyEvacuation(heap, heap->property_cell_space());
   VerifyEvacuation(heap, heap->map_space());
   VerifyEvacuation(heap->new_space());
 
@@ -271,7 +269,6 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
     if (FLAG_trace_fragmentation) {
       TraceFragmentation(heap()->map_space());
       TraceFragmentation(heap()->cell_space());
-      TraceFragmentation(heap()->property_cell_space());
     }
 
     heap()->old_space()->EvictEvacuationCandidatesFromFreeLists();
@@ -364,7 +361,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->old_space());
   VerifyMarkbitsAreClean(heap_->code_space());
   VerifyMarkbitsAreClean(heap_->cell_space());
-  VerifyMarkbitsAreClean(heap_->property_cell_space());
   VerifyMarkbitsAreClean(heap_->map_space());
   VerifyMarkbitsAreClean(heap_->new_space());
 
@@ -422,7 +418,6 @@ void MarkCompactCollector::ClearMarkbits() {
   ClearMarkbitsInPagedSpace(heap_->map_space());
   ClearMarkbitsInPagedSpace(heap_->old_space());
   ClearMarkbitsInPagedSpace(heap_->cell_space());
-  ClearMarkbitsInPagedSpace(heap_->property_cell_space());
   ClearMarkbitsInNewSpace(heap_->new_space());
 
   LargeObjectIterator it(heap_->lo_space());
@@ -568,8 +563,6 @@ const char* AllocationSpaceName(AllocationSpace space) {
       return "MAP_SPACE";
     case CELL_SPACE:
       return "CELL_SPACE";
-    case PROPERTY_CELL_SPACE:
-      return "PROPERTY_CELL_SPACE";
     case LO_SPACE:
       return "LO_SPACE";
     default:
@@ -2034,10 +2027,6 @@ void MarkCompactCollector::RefillMarkingDeque() {
   DiscoverGreyObjectsInSpace(heap(), &marking_deque_, heap()->cell_space());
   if (marking_deque_.IsFull()) return;
 
-  DiscoverGreyObjectsInSpace(heap(), &marking_deque_,
-                             heap()->property_cell_space());
-  if (marking_deque_.IsFull()) return;
-
   LargeObjectIterator lo_it(heap()->lo_space());
   DiscoverGreyObjectsWithIterator(heap(), &marking_deque_, &lo_it);
   if (marking_deque_.IsFull()) return;
@@ -2239,17 +2228,6 @@ void MarkCompactCollector::MarkLiveObjects() {
           int offset = Cell::kValueOffset;
           MarkCompactMarkingVisitor::VisitPointer(
               heap(), reinterpret_cast<Object**>(cell->address() + offset));
-        }
-      }
-    }
-    {
-      HeapObjectIterator js_global_property_cell_iterator(
-          heap()->property_cell_space());
-      HeapObject* cell;
-      while ((cell = js_global_property_cell_iterator.Next()) != NULL) {
-        DCHECK(cell->IsPropertyCell());
-        if (IsMarked(cell)) {
-          MarkCompactMarkingVisitor::VisitPropertyCell(cell->map(), cell);
         }
       }
     }
@@ -2909,11 +2887,9 @@ void PointersUpdatingVisitor::CheckLayoutDescriptorAndDie(Heap* heap,
     space_owner_id = 5;
   } else if (heap->cell_space()->ContainsSafe(slot_address)) {
     space_owner_id = 6;
-  } else if (heap->property_cell_space()->ContainsSafe(slot_address)) {
-    space_owner_id = 7;
   } else {
     // Lo space or other.
-    space_owner_id = 8;
+    space_owner_id = 7;
   }
   data[index++] = space_owner_id;
   data[index++] = 0x20aaaaaaaaUL;
@@ -3710,15 +3686,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     }
   }
 
-  HeapObjectIterator js_global_property_cell_iterator(
-      heap_->property_cell_space());
-  for (HeapObject* cell = js_global_property_cell_iterator.Next(); cell != NULL;
-       cell = js_global_property_cell_iterator.Next()) {
-    if (cell->IsPropertyCell()) {
-      PropertyCell::BodyDescriptor::IterateBody(cell, &updating_visitor);
-    }
-  }
-
   heap_->string_table()->Iterate(&updating_visitor);
 
   // Update pointers from external string table.
@@ -4337,7 +4304,6 @@ void MarkCompactCollector::SweepSpaces() {
     GCTracer::Scope sweep_scope(heap()->tracer(),
                                 GCTracer::Scope::MC_SWEEP_CELL);
     SweepSpace(heap()->cell_space(), SEQUENTIAL_SWEEPING);
-    SweepSpace(heap()->property_cell_space(), SEQUENTIAL_SWEEPING);
   }
 
   EvacuateNewSpaceAndCandidates();

@@ -2675,31 +2675,6 @@ class CellSpace : public PagedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Old space for all global object property cell objects
-
-class PropertyCellSpace : public PagedSpace {
- public:
-  // Creates a property cell space object with a maximum capacity.
-  PropertyCellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {}
-
-  virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (base::bits::IsPowerOfTwo32(PropertyCell::kSize)) {
-      return RoundDown(size, PropertyCell::kSize);
-    } else {
-      return (size / PropertyCell::kSize) * PropertyCell::kSize;
-    }
-  }
-
- protected:
-  virtual void VerifyObject(HeapObject* obj);
-
- public:
-  TRACK_MEMORY("PropertyCellSpace")
-};
-
-
-// -----------------------------------------------------------------------------
 // Large objects ( > Page::kMaxHeapObjectSize ) are allocated and managed by
 // the large object space. A large object is allocated from OS heap with
 // extra padding bytes (Page::kPageSize + Page::kObjectStartOffset).

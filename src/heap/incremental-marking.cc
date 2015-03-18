@@ -303,7 +303,6 @@ void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
       chunk->SetFlag(MemoryChunk::RESCAN_ON_EVACUATION);
     }
   } else if (chunk->owner()->identity() == CELL_SPACE ||
-             chunk->owner()->identity() == PROPERTY_CELL_SPACE ||
              chunk->scan_on_scavenge()) {
     chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
@@ -349,7 +348,6 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
 void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   DeactivateIncrementalWriteBarrierForSpace(heap_->old_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->cell_space());
-  DeactivateIncrementalWriteBarrierForSpace(heap_->property_cell_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->map_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->code_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
@@ -383,7 +381,6 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
 void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->old_space());
   ActivateIncrementalWriteBarrier(heap_->cell_space());
-  ActivateIncrementalWriteBarrier(heap_->property_cell_space());
   ActivateIncrementalWriteBarrier(heap_->map_space());
   ActivateIncrementalWriteBarrier(heap_->code_space());
   ActivateIncrementalWriteBarrier(heap_->new_space());

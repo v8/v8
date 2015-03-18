@@ -2884,16 +2884,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
-  Register result = ToRegister(instr->result());
-  __ LoadGlobalCell(result, instr->hydrogen()->cell().handle());
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(equal, instr, Deoptimizer::kHole);
-  }
-}
-
-
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
@@ -2926,32 +2916,6 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode,
                                                        PREMONOMORPHIC).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
-void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
-  Register value = ToRegister(instr->value());
-  Handle<Cell> cell_handle = instr->hydrogen()->cell().handle();
-
-  // If the cell we are storing to contains the hole it could have
-  // been deleted from the property dictionary. In that case, we need
-  // to update the property details in the property dictionary to mark
-  // it as no longer deleted. We deoptimize in that case.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    // We have a temp because CompareRoot might clobber kScratchRegister.
-    Register cell = ToRegister(instr->temp());
-    DCHECK(!value.is(cell));
-    __ Move(cell, cell_handle, RelocInfo::CELL);
-    __ CompareRoot(Operand(cell, 0), Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(equal, instr, Deoptimizer::kHole);
-    // Store the value.
-    __ movp(Operand(cell, 0), value);
-  } else {
-    // Store the value.
-    __ Move(kScratchRegister, cell_handle, RelocInfo::CELL);
-    __ movp(Operand(kScratchRegister, 0), value);
-  }
-  // Cells are always rescanned, so no write barrier here.
 }
 
 
