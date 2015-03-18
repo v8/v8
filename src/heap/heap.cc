@@ -2899,7 +2899,7 @@ AllocationResult Heap::AllocatePropertyCell() {
 AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   int size = WeakCell::kSize;
   STATIC_ASSERT(WeakCell::kSize <= Page::kMaxRegularHeapObjectSize);
-  HeapObject* result;
+  HeapObject* result = NULL;
   {
     AllocationResult allocation =
         AllocateRaw(size, OLD_POINTER_SPACE, OLD_POINTER_SPACE);
@@ -4474,7 +4474,7 @@ AllocationResult Heap::AllocateExtendedConstantPoolArray(
 AllocationResult Heap::AllocateEmptyConstantPoolArray() {
   ConstantPoolArray::NumberOfEntries small(0, 0, 0, 0);
   int size = ConstantPoolArray::SizeFor(small);
-  HeapObject* result;
+  HeapObject* result = NULL;
   {
     AllocationResult allocation =
         AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
@@ -4490,7 +4490,7 @@ AllocationResult Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  HeapObject* result;
+  HeapObject* result = NULL;
   AllocationResult allocation =
       AllocateRaw(Symbol::kSize, OLD_POINTER_SPACE, OLD_POINTER_SPACE);
   if (!allocation.To(&result)) return allocation;

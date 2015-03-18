@@ -272,6 +272,9 @@
             },
           },
         }],
+        ['OS=="aix"', {
+          'ldflags': [ '-Wl,-bbigtoc' ],
+        }],
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to
           # depend on the underlying static target in that case.
