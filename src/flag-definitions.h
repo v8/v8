@@ -612,7 +612,7 @@ DEFINE_BOOL(age_code, true,
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_steps, true, "do incremental marking steps")
-DEFINE_BOOL(overapproximate_weak_closure, false,
+DEFINE_BOOL(overapproximate_weak_closure, true,
             "overapproximate weak closer to reduce atomic pause time")
 DEFINE_INT(min_progress_during_object_groups_marking, 128,
            "keep overapproximating the weak closure as long as we discover at "
