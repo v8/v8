@@ -64,14 +64,17 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   // The AllocateHeapNumberStub does not use the context, so we can safely pass
   // in Smi zero here.
   Callable callable = CodeFactory::AllocateHeapNumber(isolate());
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), jsgraph()->zone(), callable.descriptor(), 0,
-      CallDescriptor::kNoFlags);
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->NoContextConstant();
   Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
-  Node* heap_number = graph()->NewNode(common()->Call(descriptor), target,
-                                       context, effect, control);
+  if (!allocate_heap_number_operator_.is_set()) {
+    CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+        isolate(), jsgraph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNoFlags, Operator::kNoThrow);
+    allocate_heap_number_operator_.set(common()->Call(descriptor));
+  }
+  Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
+                                       target, context, effect, control);
   Node* store = graph()->NewNode(
       machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);

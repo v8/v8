@@ -16,6 +16,7 @@ class CommonOperatorBuilder;
 class JSGraph;
 class Linkage;
 class MachineOperatorBuilder;
+class Operator;
 
 class ChangeLowering FINAL : public Reducer {
  public:
@@ -54,7 +55,8 @@ class ChangeLowering FINAL : public Reducer {
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
 
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
+  SetOncePointer<const Operator> allocate_heap_number_operator_;
 };
 
 }  // namespace compiler
