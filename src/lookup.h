@@ -48,13 +48,15 @@ class LookupIterator FINAL BASE_EMBEDDED {
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         exotic_index_state_(ExoticIndexState::kUninitialized),
+        interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
         name_(name),
         receiver_(receiver),
+        holder_(GetRoot(receiver_, isolate_)),
+        holder_map_(holder_->map(), isolate_),
+        initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
-    holder_ = GetRoot();
-    holder_map_ = handle(holder_->map(), isolate_);
     Next();
   }
 
@@ -64,12 +66,14 @@ class LookupIterator FINAL BASE_EMBEDDED {
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         exotic_index_state_(ExoticIndexState::kUninitialized),
+        interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
         name_(name),
-        holder_map_(holder->map(), isolate_),
         receiver_(receiver),
         holder_(holder),
+        holder_map_(holder_->map(), isolate_),
+        initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
     Next();
   }
@@ -98,7 +102,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
     DCHECK(IsFound());
     return Handle<T>::cast(holder_);
   }
-  Handle<JSReceiver> GetRoot() const;
+  static Handle<JSReceiver> GetRoot(Handle<Object> receiver, Isolate* isolate);
   bool HolderIsReceiverOrHiddenPrototype() const;
 
   /* ACCESS_CHECK */
@@ -146,12 +150,21 @@ class LookupIterator FINAL BASE_EMBEDDED {
   void InternalizeName();
 
  private:
+  enum class InterceptorState {
+    kUninitialized,
+    kSkipNonMasking,
+    kProcessNonMasking
+  };
+
   Handle<Map> GetReceiverMap() const;
 
   MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
   inline State LookupInHolder(Map* map, JSReceiver* holder);
+  void RestartLookupForNonMaskingInterceptors();
+  State LookupNonMaskingInterceptorInHolder(Map* map, JSReceiver* holder);
   Handle<Object> FetchValue() const;
   void ReloadPropertyInformation();
+  bool SkipInterceptor(JSObject* holder);
 
   bool IsBootstrapping() const;
 
@@ -188,18 +201,19 @@ class LookupIterator FINAL BASE_EMBEDDED {
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.
-  Configuration configuration_;
+  const Configuration configuration_;
   State state_;
   bool has_property_;
   ExoticIndexState exotic_index_state_;
+  InterceptorState interceptor_state_;
   PropertyDetails property_details_;
-  Isolate* isolate_;
+  Isolate* const isolate_;
   Handle<Name> name_;
-  Handle<Map> holder_map_;
   Handle<Object> transition_;
-  Handle<Object> receiver_;
+  const Handle<Object> receiver_;
   Handle<JSReceiver> holder_;
-
+  Handle<Map> holder_map_;
+  const Handle<JSReceiver> initial_holder_;
   int number_;
 };
 

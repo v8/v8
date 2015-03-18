@@ -1280,10 +1280,12 @@ void ObjectTemplate::SetAccessor(v8::Handle<Name> name,
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
           typename Enumerator>
-static void ObjectTemplateSetNamedPropertyHandler(
-    ObjectTemplate* templ, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Handle<Value> data,
-    bool can_intercept_symbols, PropertyHandlerFlags flags) {
+static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
+                                                  Getter getter, Setter setter,
+                                                  Query query, Deleter remover,
+                                                  Enumerator enumerator,
+                                                  Handle<Value> data,
+                                                  PropertyHandlerFlags flags) {
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -1298,9 +1300,13 @@ static void ObjectTemplateSetNamedPropertyHandler(
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
   obj->set_flags(0);
-  obj->set_can_intercept_symbols(can_intercept_symbols);
+  obj->set_can_intercept_symbols(
+      !(static_cast<int>(flags) &
+        static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
   obj->set_all_can_read(static_cast<int>(flags) &
                         static_cast<int>(PropertyHandlerFlags::kAllCanRead));
+  obj->set_non_masking(static_cast<int>(flags) &
+                       static_cast<int>(PropertyHandlerFlags::kNonMasking));
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
@@ -1314,9 +1320,9 @@ void ObjectTemplate::SetNamedPropertyHandler(
     NamedPropertyGetterCallback getter, NamedPropertySetterCallback setter,
     NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
     NamedPropertyEnumeratorCallback enumerator, Handle<Value> data) {
-  ObjectTemplateSetNamedPropertyHandler(this, getter, setter, query, remover,
-                                        enumerator, data, false,
-                                        PropertyHandlerFlags::kNone);
+  ObjectTemplateSetNamedPropertyHandler(
+      this, getter, setter, query, remover, enumerator, data,
+      PropertyHandlerFlags::kOnlyInterceptStrings);
 }
 
 
@@ -1324,7 +1330,7 @@ void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
   ObjectTemplateSetNamedPropertyHandler(
       this, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.data, true, config.flags);
+      config.enumerator, config.data, config.flags);
 }
 
 

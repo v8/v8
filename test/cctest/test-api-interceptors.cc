@@ -3100,3 +3100,130 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
   ExpectInt32("checked[15]", intercept_data_1.value);
   CHECK_EQ(3, access_check_data.count);
 }
+
+
+THREADED_TEST(NonMaskingInterceptorOwnProperty) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor = interceptor_templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), interceptor);
+
+  ExpectInt32("obj.whatever", 239);
+
+  CompileRun("obj.whatever = 4;");
+  ExpectInt32("obj.whatever", 4);
+
+  CompileRun("delete obj.whatever;");
+  ExpectInt32("obj.whatever", 239);
+}
+
+
+THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor = interceptor_templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), interceptor);
+
+  ExpectInt32("obj.whatever", 239);
+
+  CompileRun("obj.__proto__ = {'whatever': 4};");
+  ExpectInt32("obj.whatever", 4);
+
+  CompileRun("delete obj.__proto__.whatever;");
+  ExpectInt32("obj.whatever", 239);
+}
+
+
+THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor = interceptor_templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), interceptor);
+
+  CompileRun(
+      "outer = {};"
+      "outer.__proto__ = obj;"
+      "function f(obj) {"
+      "  var x;"
+      "  for (var i = 0; i < 4; i++) {"
+      "    x = obj.whatever;"
+      "  }"
+      "  return x;"
+      "}");
+
+  // Receiver == holder.
+  CompileRun("obj.__proto__ = null;");
+  ExpectInt32("f(obj)", 239);
+  ExpectInt32("f(outer)", 239);
+
+  // Receiver != holder.
+  CompileRun("Object.setPrototypeOf(obj, {});");
+  ExpectInt32("f(obj)", 239);
+  ExpectInt32("f(outer)", 239);
+
+  // Masked value on prototype.
+  CompileRun("obj.__proto__.whatever = 4;");
+  CompileRun("obj.__proto__.__proto__ = { 'whatever' : 5 };");
+  ExpectInt32("f(obj)", 4);
+  ExpectInt32("f(outer)", 4);
+
+  // Masked value on prototype prototype.
+  CompileRun("delete obj.__proto__.whatever;");
+  ExpectInt32("f(obj)", 5);
+  ExpectInt32("f(outer)", 5);
+
+  // Reset.
+  CompileRun("delete obj.__proto__.__proto__.whatever;");
+  ExpectInt32("f(obj)", 239);
+  ExpectInt32("f(outer)", 239);
+
+  // Masked value on self.
+  CompileRun("obj.whatever = 4;");
+  ExpectInt32("f(obj)", 4);
+  ExpectInt32("f(outer)", 4);
+
+  // Reset.
+  CompileRun("delete obj.whatever;");
+  ExpectInt32("f(obj)", 239);
+  ExpectInt32("f(outer)", 239);
+
+  CompileRun("outer.whatever = 4;");
+  ExpectInt32("f(obj)", 239);
+  ExpectInt32("f(outer)", 4);
+}

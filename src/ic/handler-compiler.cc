@@ -312,10 +312,32 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
 
   Label miss;
   InterceptorVectorSlotPush(receiver());
+  bool lost_holder_register = false;
+  auto holder_orig = holder();
+  // non masking interceptors must check the entire chain, so temporarily reset
+  // the holder to be that last element for the FrontendHeader call.
+  if (holder()->GetNamedInterceptor()->non_masking()) {
+    DCHECK(!inline_followup);
+    JSObject* last = *holder();
+    PrototypeIterator iter(isolate(), last);
+    while (!iter.IsAtEnd()) {
+      lost_holder_register = true;
+      last = JSObject::cast(iter.GetCurrent());
+      iter.Advance();
+    }
+    auto last_handle = handle(last);
+    set_holder(last_handle);
+  }
   Register reg = FrontendHeader(receiver(), it->name(), &miss);
+  // Reset the holder so further calculations are correct.
+  set_holder(holder_orig);
+  if (lost_holder_register) {
+    // Reload lost holder register.
+    auto cell = isolate()->factory()->NewWeakCell(holder());
+    __ LoadWeakValue(reg, cell, &miss);
+  }
   FrontendFooter(it->name(), &miss);
   InterceptorVectorSlotPop(reg);
-
   if (inline_followup) {
     // TODO(368): Compile in the whole chain: all the interceptors in
     // prototypes and ultimate answer.

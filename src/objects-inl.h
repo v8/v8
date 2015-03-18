@@ -5452,6 +5452,7 @@ SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                kCanInterceptSymbolsBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
+BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)

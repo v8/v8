@@ -29,7 +29,13 @@ void LookupIterator::Next() {
   // Continue lookup if lookup on current holder failed.
   do {
     JSReceiver* maybe_holder = NextHolder(map);
-    if (maybe_holder == NULL) break;
+    if (maybe_holder == nullptr) {
+      if (interceptor_state_ == InterceptorState::kSkipNonMasking) {
+        RestartLookupForNonMaskingInterceptors();
+        return;
+      }
+      break;
+    }
     holder = maybe_holder;
     map = holder->map();
     state_ = LookupInHolder(map, holder);
@@ -42,10 +48,21 @@ void LookupIterator::Next() {
 }
 
 
-Handle<JSReceiver> LookupIterator::GetRoot() const {
-  if (receiver_->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver_);
-  Handle<Object> root =
-      handle(receiver_->GetRootMap(isolate_)->prototype(), isolate_);
+void LookupIterator::RestartLookupForNonMaskingInterceptors() {
+  interceptor_state_ = InterceptorState::kProcessNonMasking;
+  state_ = NOT_FOUND;
+  property_details_ = PropertyDetails::Empty();
+  number_ = DescriptorArray::kNotFound;
+  holder_ = initial_holder_;
+  holder_map_ = handle(holder_->map(), isolate_);
+  Next();
+}
+
+
+Handle<JSReceiver> LookupIterator::GetRoot(Handle<Object> receiver,
+                                           Isolate* isolate) {
+  if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+  auto root = handle(receiver->GetRootMap(isolate)->prototype(), isolate);
   CHECK(!root->IsNull());
   return Handle<JSReceiver>::cast(root);
 }
@@ -80,6 +97,7 @@ bool LookupIterator::HasAccess() const {
 
 void LookupIterator::ReloadPropertyInformation() {
   state_ = BEFORE_PROPERTY;
+  interceptor_state_ = InterceptorState::kUninitialized;
   state_ = LookupInHolder(*holder_map_, *holder_);
   DCHECK(IsFound() || holder_map_->is_dictionary_map());
 }
@@ -353,5 +371,23 @@ bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
 void LookupIterator::InternalizeName() {
   if (name_->IsUniqueName()) return;
   name_ = factory()->InternalizeString(Handle<String>::cast(name_));
+}
+
+
+bool LookupIterator::SkipInterceptor(JSObject* holder) {
+  auto info = holder->GetNamedInterceptor();
+  // TODO(dcarney): check for symbol/can_intercept_symbols here as well.
+  if (info->non_masking()) {
+    switch (interceptor_state_) {
+      case InterceptorState::kUninitialized:
+        interceptor_state_ = InterceptorState::kSkipNonMasking;
+      // Fall through.
+      case InterceptorState::kSkipNonMasking:
+        return true;
+      case InterceptorState::kProcessNonMasking:
+        return false;
+    }
+  }
+  return interceptor_state_ == InterceptorState::kProcessNonMasking;
 }
 } }  // namespace v8::internal

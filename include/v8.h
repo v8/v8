@@ -4188,7 +4188,17 @@ class V8_EXPORT FunctionTemplate : public Template {
 };
 
 
-enum class PropertyHandlerFlags { kNone = 0, kAllCanRead = 1 };
+enum class PropertyHandlerFlags {
+  kNone = 0,
+  // See ALL_CAN_READ above.
+  kAllCanRead = 1,
+  // Will not call into interceptor for properties on the receiver or prototype
+  // chain.  Currently only valid for named interceptors.
+  kNonMasking = 1 << 1,
+  // Will not call into interceptor for symbol lookup.  Only meaningful for
+  // named interceptors.
+  kOnlyInterceptStrings = 1 << 2,
+};
 
 
 struct NamedPropertyHandlerConfiguration {

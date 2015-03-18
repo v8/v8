@@ -2914,30 +2914,10 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
-  Handle<InterceptorInfo> interceptor_info(holder->GetNamedInterceptor());
-
-  if (name->IsSymbol() && !interceptor_info->can_intercept_symbols())
-    return isolate->heap()->no_interceptor_result_sentinel();
-
-  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::GenericNamedPropertyGetterCallback getter =
-      FUNCTION_CAST<v8::GenericNamedPropertyGetterCallback>(getter_address);
-  DCHECK(getter != NULL);
-
-  PropertyCallbackArguments callback_args(isolate, interceptor_info->data(),
-                                          *receiver, *holder);
-  {
-    // Use the interceptor getter.
-    v8::Handle<v8::Value> r =
-        callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-    if (!r.IsEmpty()) {
-      Handle<Object> result = v8::Utils::OpenHandle(*r);
-      result->VerifyApiCallResultType();
-      return *v8::Utils::OpenHandle(*r);
-    }
-  }
-
+  auto res = JSObject::GetPropertyWithInterceptor(holder, receiver, name);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  Handle<Object> result;
+  if (res.ToHandle(&result)) return *result;
   return isolate->heap()->no_interceptor_result_sentinel();
 }
 

@@ -31,10 +31,13 @@ JSReceiver* LookupIterator::NextHolder(Map* map) {
 }
 
 
-LookupIterator::State LookupIterator::LookupInHolder(Map* map,
-                                                     JSReceiver* holder) {
+LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
+                                                     JSReceiver* const holder) {
   STATIC_ASSERT(INTERCEPTOR == BEFORE_PROPERTY);
   DisallowHeapAllocation no_gc;
+  if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
+    return LookupNonMaskingInterceptorInHolder(map, holder);
+  }
   switch (state_) {
     case NOT_FOUND:
       if (map->IsJSProxyMap()) return JSPROXY;
@@ -48,7 +51,8 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
           IsIntegerIndexedExotic(holder)) {
         return INTEGER_INDEXED_EXOTIC;
       }
-      if (check_interceptor() && map->has_named_interceptor()) {
+      if (check_interceptor() && map->has_named_interceptor() &&
+          !SkipInterceptor(JSObject::cast(holder))) {
         return INTERCEPTOR;
       }
     // Fall through.
@@ -82,6 +86,23 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
     case JSPROXY:
     case TRANSITION:
       UNREACHABLE();
+  }
+  UNREACHABLE();
+  return state_;
+}
+
+
+LookupIterator::State LookupIterator::LookupNonMaskingInterceptorInHolder(
+    Map* const map, JSReceiver* const holder) {
+  switch (state_) {
+    case NOT_FOUND:
+      if (check_interceptor() && map->has_named_interceptor() &&
+          !SkipInterceptor(JSObject::cast(holder))) {
+        return INTERCEPTOR;
+      }
+    // Fall through.
+    default:
+      return NOT_FOUND;
   }
   UNREACHABLE();
   return state_;
