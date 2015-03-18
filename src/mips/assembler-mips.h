@@ -547,6 +547,10 @@ class Assembler : public AssemblerBase {
         target);
   }
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target);
+
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
 
