@@ -719,7 +719,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   Register result = StoreDescriptor::ValueRegister();
   Handle<WeakCell> weak_cell = factory()->NewWeakCell(cell);
   __ LoadWeakValue(result, weak_cell, &miss);
-  __ ld(result, FieldMemOperand(result, Cell::kValueOffset));
+  __ ld(result, FieldMemOperand(result, PropertyCell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
   if (is_configurable) {
