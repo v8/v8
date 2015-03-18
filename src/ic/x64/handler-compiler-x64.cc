@@ -209,7 +209,8 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
   Factory* factory = masm->isolate()->factory();
   Handle<WeakCell> weak_cell = factory->NewWeakCell(cell);
   __ LoadWeakValue(scratch, weak_cell, miss);
-  __ Cmp(FieldOperand(scratch, Cell::kValueOffset), factory->the_hole_value());
+  __ Cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
+         factory->the_hole_value());
   __ j(not_equal, miss);
 }
 
