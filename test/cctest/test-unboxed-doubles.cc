@@ -961,7 +961,7 @@ TEST(DoScavenge) {
   // a pointer to a from semi-space.
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
-  CHECK(isolate->heap()->old_space()->Contains(*obj));
+  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
 
   CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
 }
@@ -1195,7 +1195,7 @@ TEST(StoreBufferScanOnScavenge) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
-  CHECK(isolate->heap()->old_space()->Contains(*obj));
+  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
 
   // Create temp object in the new space.
   Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS, NOT_TENURED);
@@ -1297,7 +1297,7 @@ TEST(WriteBarriersInCopyJSObject) {
   AlwaysAllocateScope aa_scope(isolate);
   Object* clone_obj = heap->CopyJSObject(jsobject).ToObjectChecked();
   Handle<JSObject> clone(JSObject::cast(clone_obj));
-  CHECK(heap->old_space()->Contains(clone->address()));
+  CHECK(heap->old_pointer_space()->Contains(clone->address()));
 
   CcTest::heap()->CollectGarbage(NEW_SPACE, "boom");
 

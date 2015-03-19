@@ -1216,15 +1216,30 @@ ExternalReference ExternalReference::new_space_allocation_limit_address(
 }
 
 
-ExternalReference ExternalReference::old_space_allocation_top_address(
+ExternalReference ExternalReference::old_pointer_space_allocation_top_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationTopAddress());
+  return ExternalReference(
+      isolate->heap()->OldPointerSpaceAllocationTopAddress());
 }
 
 
-ExternalReference ExternalReference::old_space_allocation_limit_address(
+ExternalReference ExternalReference::old_pointer_space_allocation_limit_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
+  return ExternalReference(
+      isolate->heap()->OldPointerSpaceAllocationLimitAddress());
+}
+
+
+ExternalReference ExternalReference::old_data_space_allocation_top_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->heap()->OldDataSpaceAllocationTopAddress());
+}
+
+
+ExternalReference ExternalReference::old_data_space_allocation_limit_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->heap()->OldDataSpaceAllocationLimitAddress());
 }
 
 
