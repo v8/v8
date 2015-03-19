@@ -6288,6 +6288,13 @@ class V8_EXPORT Context {
   v8::Isolate* GetIsolate();
 
   /**
+   * The field at kDebugIdIndex is reserved for V8 debugger implementation.
+   * The value is propagated to the scripts compiled in given Context and
+   * can be used for filtering scripts.
+   */
+  enum EmbedderDataFields { kDebugIdIndex = 0 };
+
+  /**
    * Gets the embedder data with the given index, which must have been set by a
    * previous call to SetEmbedderData with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
