@@ -557,10 +557,6 @@ void Verifier::Visitor::Check(Node* node) {
 
     // Simplified operators
     // -------------------------------
-    case IrOpcode::kAnyToBoolean:
-      // Type is Boolean.
-      CheckUpperIs(node, Type::Boolean());
-      break;
     case IrOpcode::kBooleanNot:
       // Boolean -> Boolean
       CheckValueInputIs(node, 0, Type::Boolean());

@@ -538,24 +538,6 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       // Simplified operators.
       //------------------------------------------------------------------
-      case IrOpcode::kAnyToBoolean: {
-        VisitUnop(node, kMachAnyTagged, kTypeBool | kRepTagged);
-        if (lower()) {
-          // AnyToBoolean(x) => Call(ToBooleanStub, x, no-context)
-          Operator::Properties properties = node->op()->properties();
-          Callable callable = CodeFactory::ToBoolean(
-              jsgraph_->isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
-          CallDescriptor::Flags flags = CallDescriptor::kPatchableCallSite;
-          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
-              flags, properties);
-          node->set_op(jsgraph_->common()->Call(desc));
-          node->InsertInput(jsgraph_->zone(), 0,
-                            jsgraph_->HeapConstant(callable.code()));
-          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-        }
-        break;
-      }
       case IrOpcode::kBooleanNot: {
         if (lower()) {
           MachineTypeUnion input = GetInfo(node->InputAt(0))->output;

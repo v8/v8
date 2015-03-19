@@ -153,7 +153,6 @@
 
 #define SIMPLIFIED_OP_LIST(V)      \
   SIMPLIFIED_COMPARE_BINOP_LIST(V) \
-  V(AnyToBoolean)                  \
   V(BooleanNot)                    \
   V(BooleanToNumber)               \
   V(NumberAdd)                     \

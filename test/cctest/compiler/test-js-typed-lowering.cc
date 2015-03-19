@@ -507,42 +507,6 @@ TEST(JSToNumberOfNumberOrOtherPrimitive) {
 }
 
 
-TEST(JSToBoolean) {
-  JSTypedLoweringTester R;
-  const Operator* op = R.javascript.ToBoolean();
-
-  {  // ToBoolean(undefined)
-    Node* r = R.ReduceUnop(op, Type::Undefined());
-    R.CheckFalse(r);
-  }
-
-  {  // ToBoolean(null)
-    Node* r = R.ReduceUnop(op, Type::Null());
-    R.CheckFalse(r);
-  }
-
-  {  // ToBoolean(boolean)
-    Node* r = R.ReduceUnop(op, Type::Boolean());
-    CHECK_EQ(IrOpcode::kParameter, r->opcode());
-  }
-
-  {  // ToBoolean(object)
-    Node* r = R.ReduceUnop(op, Type::DetectableObject());
-    R.CheckTrue(r);
-  }
-
-  {  // ToBoolean(undetectable)
-    Node* r = R.ReduceUnop(op, Type::Undetectable());
-    R.CheckFalse(r);
-  }
-
-  {  // ToBoolean(object)
-    Node* r = R.ReduceUnop(op, Type::Object());
-    CHECK_EQ(IrOpcode::kAnyToBoolean, r->opcode());
-  }
-}
-
-
 TEST(JSToString1) {
   JSTypedLoweringTester R;
 
@@ -719,24 +683,6 @@ TEST(MixedComparison1) {
           CHECK_EQ(cmp, r);  // No reduction of mixed types.
         }
       }
-    }
-  }
-}
-
-
-TEST(UnaryNot) {
-  JSTypedLoweringTester R;
-  const Operator* opnot = R.javascript.UnaryNot();
-
-  for (size_t i = 0; i < arraysize(kJSTypes); i++) {
-    Node* orig = R.Unop(opnot, R.Parameter(kJSTypes[i]));
-    Node* r = R.reduce(orig);
-
-    if (r == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
-      // The original node was turned into a ToBoolean.
-      CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
-    } else if (r->opcode() != IrOpcode::kHeapConstant) {
-      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     }
   }
 }

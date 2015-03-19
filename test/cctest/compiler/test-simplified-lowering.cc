@@ -790,25 +790,6 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
 };
 
 
-#if V8_TURBOFAN_TARGET
-
-TEST(LowerAnyToBoolean_tagged_tagged) {
-  // AnyToBoolean(x: kRepTagged) used as kRepTagged
-  TestingGraph t(Type::Any());
-  Node* x = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->AnyToBoolean(), x);
-  Node* use = t.Use(cnv, kRepTagged);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(IrOpcode::kCall, cnv->opcode());
-  CHECK_EQ(IrOpcode::kHeapConstant, cnv->InputAt(0)->opcode());
-  CHECK_EQ(x, cnv->InputAt(1));
-  CHECK_EQ(t.jsgraph.NoContextConstant(), cnv->InputAt(2));
-}
-
-#endif
-
-
 TEST(LowerBooleanNot_bit_bit) {
   // BooleanNot(x: kRepBit) used as kRepBit
   TestingGraph t(Type::Boolean());

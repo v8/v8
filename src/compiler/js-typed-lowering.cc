@@ -526,39 +526,64 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
 
 
 Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
-  Node* input = node->InputAt(0);
-  Type* input_type = NodeProperties::GetBounds(input).upper;
+  Node* const input = node->InputAt(0);
+  Type* const input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Boolean())) {
-    // JSUnaryNot(x:boolean,context) => BooleanNot(x)
+    // JSUnaryNot(x:boolean) => BooleanNot(x)
     node->set_op(simplified()->BooleanNot());
     node->TrimInputCount(1);
     return Changed(node);
   } else if (input_type->Is(Type::OrderedNumber())) {
-    // JSUnaryNot(x:number,context) => NumberEqual(x,#0)
+    // JSUnaryNot(x:number) => NumberEqual(x,#0)
     node->set_op(simplified()->NumberEqual());
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    DCHECK_EQ(2, node->InputCount());
+    node->TrimInputCount(2);
+    return Changed(node);
+  } else if (input_type->Is(Type::String())) {
+    // JSUnaryNot(x:string) => NumberEqual(x.length,#0)
+    FieldAccess const access = AccessBuilder::ForStringLength();
+    // It is safe for the load to be effect-free (i.e. not linked into effect
+    // chain) because we assume String::length to be immutable.
+    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
+                                    graph()->start(), graph()->start());
+    node->set_op(simplified()->NumberEqual());
+    node->ReplaceInput(0, length);
+    node->ReplaceInput(1, jsgraph()->ZeroConstant());
+    node->TrimInputCount(2);
+    NodeProperties::ReplaceWithValue(node, node, length);
     return Changed(node);
   }
-  // JSUnaryNot(x,context) => BooleanNot(AnyToBoolean(x))
-  node->set_op(simplified()->BooleanNot());
-  node->ReplaceInput(0, graph()->NewNode(simplified()->AnyToBoolean(), input));
-  node->TrimInputCount(1);
-  return Changed(node);
+  return NoChange();
 }
 
 
 Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
-  Node* input = node->InputAt(0);
-  Type* input_type = NodeProperties::GetBounds(input).upper;
+  Node* const input = node->InputAt(0);
+  Type* const input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Boolean())) {
-    // JSToBoolean(x:boolean,context) => x
+    // JSToBoolean(x:boolean) => x
     return Replace(input);
+  } else if (input_type->Is(Type::OrderedNumber())) {
+    // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
+    node->set_op(simplified()->BooleanNot());
+    node->ReplaceInput(0, graph()->NewNode(simplified()->NumberEqual(), input,
+                                           jsgraph()->ZeroConstant()));
+    node->TrimInputCount(1);
+    return Changed(node);
+  } else if (input_type->Is(Type::String())) {
+    // JSToBoolean(x:string) => NumberLessThan(#0,x.length)
+    FieldAccess const access = AccessBuilder::ForStringLength();
+    // It is safe for the load to be effect-free (i.e. not linked into effect
+    // chain) because we assume String::length to be immutable.
+    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
+                                    graph()->start(), graph()->start());
+    node->set_op(simplified()->NumberLessThan());
+    node->ReplaceInput(0, jsgraph()->ZeroConstant());
+    node->ReplaceInput(1, length);
+    node->TrimInputCount(2);
+    return Changed(node);
   }
-  // JSToBoolean(x,context) => AnyToBoolean(x)
-  node->set_op(simplified()->AnyToBoolean());
-  node->TrimInputCount(1);
-  return Changed(node);
+  return NoChange();
 }
 
 
