@@ -97,6 +97,10 @@ class Operator : public ZoneObject {
   int EffectOutputCount() const { return effect_out_; }
   int ControlOutputCount() const { return control_out_; }
 
+  static size_t ZeroIfEliminatable(Properties properties) {
+    return (properties & kEliminatable) == kEliminatable ? 0 : 1;
+  }
+
   static size_t ZeroIfNoThrow(Properties properties) {
     return (properties & kNoThrow) == kNoThrow ? 0 : 2;
   }

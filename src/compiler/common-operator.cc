@@ -623,7 +623,7 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               IrOpcode::kCall, descriptor->properties(), mnemonic,
               descriptor->InputCount() + descriptor->FrameStateCount(),
               Operator::ZeroIfPure(descriptor->properties()),
-              Operator::ZeroIfPure(descriptor->properties()),
+              Operator::ZeroIfEliminatable(descriptor->properties()),
               descriptor->ReturnCount(),
               Operator::ZeroIfPure(descriptor->properties()),
               Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}

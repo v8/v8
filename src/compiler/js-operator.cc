@@ -254,8 +254,8 @@ struct JSOperatorGlobalCache FINAL {
     Name##Operator()                                                     \
         : Operator(IrOpcode::kJS##Name, properties, "JS" #Name,          \
                    value_input_count, Operator::ZeroIfPure(properties),  \
-                   Operator::ZeroIfPure(properties), value_output_count, \
-                   Operator::ZeroIfPure(properties),                     \
+                   Operator::ZeroIfEliminatable(properties),             \
+                   value_output_count, Operator::ZeroIfPure(properties), \
                    Operator::ZeroIfNoThrow(properties)) {}               \
   };                                                                     \
   Name##Operator k##Name##Operator;
