@@ -397,20 +397,13 @@
 
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
-['arch == ppc64', {
-  #issue 2857
-  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
-  #test has assumption that does not hold for larger PPC page sizes
-  'test-heap/FirstPageFitsStartup' : [SKIP],
-}],  # 'arch == ppc64'
-
 ##############################################################################
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading1': [SKIP],
-  'test-api/Threading2': [SKIP],
-  'test-api/ExternalArrays': [SKIP],
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run == True'
 ]

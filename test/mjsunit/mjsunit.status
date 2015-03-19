@@ -590,7 +590,6 @@
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
-  'asm/embenchen/box2d': [SKIP],
 
   # these two issues started after uplevel, believe they share common cause
   'debug-references': [SKIP],
