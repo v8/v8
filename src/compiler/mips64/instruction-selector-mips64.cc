@@ -968,7 +968,7 @@ void InstructionSelector::VisitSwitch(Node* node, BasicBlock* default_branch,
   // Determine whether to issue an ArchTableSwitch or an ArchLookupSwitch
   // instruction.
   size_t table_space_cost = 10 + 2 * value_range;
-  size_t table_time_cost = 10;
+  size_t table_time_cost = 3;
   size_t lookup_space_cost = 2 + 2 * case_count;
   size_t lookup_time_cost = case_count;
   if (case_count > 0 &&
