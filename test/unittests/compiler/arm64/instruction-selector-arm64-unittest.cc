@@ -472,6 +472,36 @@ TEST_P(InstructionSelectorAddSubTest, ShiftByImmediateOnRight) {
 }
 
 
+TEST_P(InstructionSelectorAddSubTest, ExtendByte) {
+  const AddSub dpi = GetParam();
+  const MachineType type = dpi.mi.machine_type;
+  StreamBuilder m(this, type, type, type);
+  m.Return((m.*dpi.mi.constructor)(
+      m.Parameter(0), m.Word32And(m.Parameter(1), m.Int32Constant(0xff))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Operand2_R_UXTB, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+
+TEST_P(InstructionSelectorAddSubTest, ExtendHalfword) {
+  const AddSub dpi = GetParam();
+  const MachineType type = dpi.mi.machine_type;
+  StreamBuilder m(this, type, type, type);
+  m.Return((m.*dpi.mi.constructor)(
+      m.Parameter(0), m.Word32And(m.Parameter(1), m.Int32Constant(0xffff))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Operand2_R_UXTH, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
                         ::testing::ValuesIn(kAddSubInstructions));
 
@@ -612,6 +642,58 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
       EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(2)));
       EXPECT_EQ(1U, s[0]->OutputCount());
     }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, AddExtendByteOnLeft) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Add(m.Word32And(m.Parameter(0), m.Int32Constant(0xff)),
+                        m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTB, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt64, kMachInt32, kMachInt64);
+    m.Return(m.Int64Add(m.Word32And(m.Parameter(0), m.Int32Constant(0xff)),
+                        m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTB, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, AddExtendHalfwordOnLeft) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Add(m.Word32And(m.Parameter(0), m.Int32Constant(0xffff)),
+                        m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTH, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt64, kMachInt32, kMachInt64);
+    m.Return(m.Int64Add(m.Word32And(m.Parameter(0), m.Int32Constant(0xffff)),
+                        m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTH, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(1U, s[0]->OutputCount());
   }
 }
 

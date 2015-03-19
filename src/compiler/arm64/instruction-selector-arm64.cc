@@ -167,6 +167,25 @@ static bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
 }
 
 
+static bool TryMatchAnyExtend(InstructionSelector* selector, Node* node,
+                              InstructionCode* opcode) {
+  NodeMatcher nm(node);
+  if (nm.IsWord32And()) {
+    Int32BinopMatcher m(node);
+    if (m.right().HasValue()) {
+      if (m.right().Value() == 0xff) {
+        *opcode |= AddressingModeField::encode(kMode_Operand2_R_UXTB);
+        return true;
+      } else if (m.right().Value() == 0xffff) {
+        *opcode |= AddressingModeField::encode(kMode_Operand2_R_UXTH);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+
 // Shared routine for multiple binary operations.
 template <typename Matcher>
 static void VisitBinop(InstructionSelector* selector, Node* node,
@@ -178,28 +197,38 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
-  bool try_ror_operand = true;
+  bool is_add_sub = false;
 
   if (m.IsInt32Add() || m.IsInt64Add() || m.IsInt32Sub() || m.IsInt64Sub()) {
-    try_ror_operand = false;
+    is_add_sub = true;
   }
 
   if (g.CanBeImmediate(m.right().node(), operand_mode)) {
     inputs[input_count++] = g.UseRegister(m.left().node());
     inputs[input_count++] = g.UseImmediate(m.right().node());
   } else if (TryMatchAnyShift(selector, m.right().node(), &opcode,
-                              try_ror_operand)) {
+                              !is_add_sub)) {
     Matcher m_shift(m.right().node());
     inputs[input_count++] = g.UseRegister(m.left().node());
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else if (m.HasProperty(Operator::kCommutative) &&
              TryMatchAnyShift(selector, m.left().node(), &opcode,
-                              try_ror_operand)) {
+                              !is_add_sub)) {
     Matcher m_shift(m.left().node());
     inputs[input_count++] = g.UseRegister(m.right().node());
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
+  } else if (is_add_sub &&
+             TryMatchAnyExtend(selector, m.right().node(), &opcode)) {
+    Matcher mright(m.right().node());
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(mright.left().node());
+  } else if (is_add_sub && m.HasProperty(Operator::kCommutative) &&
+             TryMatchAnyExtend(selector, m.left().node(), &opcode)) {
+    Matcher mleft(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
+    inputs[input_count++] = g.UseRegister(mleft.left().node());
   } else {
     inputs[input_count++] = g.UseRegister(m.left().node());
     inputs[input_count++] = g.UseRegister(m.right().node());
