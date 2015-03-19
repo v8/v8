@@ -2772,8 +2772,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                               isolate());
         DCHECK(!value->IsCell());
         if (value->IsPropertyCell()) {
-          value = Handle<Object>(PropertyCell::cast(*value)->value(),
-                                 isolate());
+          value = handle(PropertyCell::cast(*value)->value(), isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
         DCHECK_EQ(kData, details.kind());

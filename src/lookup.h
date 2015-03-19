@@ -138,10 +138,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   int GetAccessorIndex() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
-  Handle<PropertyCell> GetTransitionPropertyCell() const {
-    DCHECK_EQ(TRANSITION, state_);
-    return Handle<PropertyCell>::cast(transition_);
-  }
   Handle<Object> GetAccessors() const;
   Handle<Object> GetDataValue() const;
   // Usually returns the value that was passed in, but may perform

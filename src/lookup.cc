@@ -312,7 +312,7 @@ Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
   Object* value = global->property_dictionary()->ValueAt(dictionary_entry());
   DCHECK(value->IsPropertyCell());
-  return Handle<PropertyCell>(PropertyCell::cast(value));
+  return handle(PropertyCell::cast(value));
 }
 
 
