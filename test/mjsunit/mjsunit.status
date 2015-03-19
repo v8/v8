@@ -108,6 +108,7 @@
   'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
+  'debug-scripts-request': [PASS, NO_VARIANTS],
   'es6/debug-stepin-microtasks': [PASS, NO_VARIANTS],
   'es6/debug-stepnext-for': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
