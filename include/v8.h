@@ -411,6 +411,16 @@ template <class T> class Local : public Handle<T> {
 };
 
 
+/**
+ * A MaybeLocal<> is a wrapper around Local<> that enforces a check whether
+ * the Local<> is empty before it can be used.
+ *
+ * If an API method returns a MaybeLocal<>, the API method can potentially fail
+ * either because an exception is thrown, or because an exception is pending,
+ * e.g. because a previous API call threw an exception that hasn't been caught
+ * yet, or because a TerminateExecution exception was thrown. In that case, an
+ * empty MaybeLocal is returned.
+ */
 template <class T>
 class MaybeLocal {
  public:
@@ -429,6 +439,7 @@ class MaybeLocal {
     return !IsEmpty();
   }
 
+  // Will crash when checks are enabled if the MaybeLocal<> is empty.
   V8_INLINE Local<T> ToLocalChecked();
 
   template <class S>
@@ -5979,6 +5990,12 @@ class V8_EXPORT V8 {
 /**
  * A simple Maybe type, representing an object which may or may not have a
  * value, see https://hackage.haskell.org/package/base/docs/Data-Maybe.html.
+ *
+ * If an API method returns a Maybe<>, the API method can potentially fail
+ * either because an exception is thrown, or because an exception is pending,
+ * e.g. because a previous API call threw an exception that hasn't been caught
+ * yet, or because a TerminateExecution exception was thrown. In that case, a
+ * "Nothing" value is returned.
  */
 template <class T>
 class Maybe {
@@ -5986,6 +6003,7 @@ class Maybe {
   V8_INLINE bool IsNothing() const { return !has_value; }
   V8_INLINE bool IsJust() const { return has_value; }
 
+  // Will crash when checks are enabled if the Maybe<> is nothing.
   V8_INLINE T FromJust() const {
 #ifdef V8_ENABLE_CHECKS
     V8::CheckIsJust(IsJust());
