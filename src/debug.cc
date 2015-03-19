@@ -321,6 +321,10 @@ void BreakLocation::ClearDebugBreak() {
   } else {
     // Restore the IC call.
     rinfo().set_target_address(original_rinfo().target_address());
+    // Some ICs store data in the feedback vector. Clear this to ensure we
+    // won't miss future stepping requirements.
+    SharedFunctionInfo* shared = debug_info_->shared();
+    shared->feedback_vector()->ClearICSlots(shared);
   }
   DCHECK(!IsDebugBreak());
 }
@@ -2117,6 +2121,10 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
       !Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
+
+  // Make sure IC state is clean.
+  shared->code()->ClearInlineCaches();
+  shared->feedback_vector()->ClearICSlots(*shared);
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = isolate->factory()->NewDebugInfo(shared);
