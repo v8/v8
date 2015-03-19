@@ -303,120 +303,115 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
+  // ---------- byte code range 0x00..0x7f ----------
+  // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:
   enum Where {
-    kNewObject = 0,  //              Object is next in snapshot.
-    // 1-6                           One per space.
-    // 0x7, 0x8                      Unused.
-    kRootArray = 0x9,             // Object is found in root array.
-    kPartialSnapshotCache = 0xa,  // Object is in the cache.
-    kExternalReference = 0xb,     // Pointer to an external reference.
-    kSkip = 0xc,                  // Skip n bytes.
-    kBuiltin = 0xd,               // Builtin code object.
-    kAttachedReference = 0xe,     // Object is described in an attached list.
-    // 0xf                           Used by misc. See below.
-    kBackref = 0x10,  //             Object is described relative to end.
-    // 0x11-0x16                     One per space.
-    // 0x17                          Unused.
-    kBackrefWithSkip = 0x18,  //     Object is described relative to end.
-    // 0x19-0x1e                     One per space.
-    // 0x1f                          Unused.
-    // 0x20-0x3f                     Used by misc. See below.
-    kPointedToMask = 0x3f
+    // 0x00..0x05  Allocate new object, in specified space.
+    kNewObject = 0,
+    // 0x06        Unused (including 0x26, 0x46, 0x66).
+    // 0x07        Unused (including 0x27, 0x47, 0x67).
+    // 0x08..0x0d  Reference to previous object from space.
+    kBackref = 0x08,
+    // 0x0e        Unused (including 0x2e, 0x4e, 0x6e).
+    // 0x0f        Unused (including 0x2f, 0x4f, 0x6f).
+    // 0x10..0x15  Reference to previous object from space after skip.
+    kBackrefWithSkip = 0x10,
+    // 0x16        Unused (including 0x36, 0x56, 0x76).
+    // 0x17        Unused (including 0x37, 0x57, 0x77).
+    // 0x18        Root array item.
+    kRootArray = 0x18,
+    // 0x19        Object in the partial snapshot cache.
+    kPartialSnapshotCache = 0x19,
+    // 0x1a        External reference referenced by id.
+    kExternalReference = 0x1a,
+    // 0x1b        Object provided in the attached list.
+    kAttachedReference = 0x1b,
+    // 0x1c        Builtin code referenced by index.
+    kBuiltin = 0x1c
+    // 0x1d..0x1e  Misc (including 0x3d..0x3f, 0x5d..0x5f, 0x7d..0x7f)
+    // 0x1f        Unused (including 0x3f, 0x5f, 0x7f).
   };
+
+  static const int kWhereMask = 0x1f;
+  static const int kSpaceMask = 7;
+  STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
 
   // How to code the pointer to the object.
   enum HowToCode {
-    kPlain = 0,                          // Straight pointer.
-    // What this means depends on the architecture:
-    kFromCode = 0x40,                    // A pointer inlined in code.
-    kHowToCodeMask = 0x40
+    // Straight pointer.
+    kPlain = 0,
+    // A pointer inlined in code. What this means depends on the architecture.
+    kFromCode = 0x20
   };
 
-  // For kRootArrayConstants
-  enum WithSkip {
-    kNoSkipDistance = 0,
-    kHasSkipDistance = 0x40,
-    kWithSkipMask = 0x40
-  };
+  static const int kHowToCodeMask = 0x20;
 
   // Where to point within the object.
   enum WhereToPoint {
+    // Points to start of object
     kStartOfObject = 0,
-    kInnerPointer = 0x80,  // First insn in code object or payload of cell.
-    kWhereToPointMask = 0x80
+    // Points to instruction in code object or payload of cell.
+    kInnerPointer = 0x40
   };
 
-  // Misc.
+  static const int kWhereToPointMask = 0x40;
 
-  // 0x48, 0x88 and 0xc8 are unused.
-
-  // Raw data to be copied from the snapshot.  This byte code does not advance
-  // the current pointer, which is used for code objects, where we write the
-  // entire code in one memcpy, then fix up stuff with kSkip and other byte
-  // codes that overwrite data.
-  static const int kRawData = 0x20;
-  // Some common raw lengths: 0x21-0x3f.
-  // These autoadvance the current pointer.
-  static const int kOnePointerRawData = 0x21;
-
+  // ---------- Misc ----------
+  // Skip.
+  static const int kSkip = 0x1d;
   // Internal reference encoded as offsets of pc and target from code entry.
-  static const int kInternalReference = 0x08;
-
-  static const int kVariableRepeat = 0x60;
-  // 0x61-0x6f   Repeat last word
-  static const int kFixedRepeat = 0x61;
-  static const int kFixedRepeatBase = kFixedRepeat - 1;
-  static const int kLastFixedRepeat = 0x6f;
-  static const int kMaxFixedRepeats = kLastFixedRepeat - kFixedRepeatBase;
-  static int CodeForRepeats(int repeats) {
-    DCHECK(repeats >= 1 && repeats <= kMaxFixedRepeats);
-    return kFixedRepeatBase + repeats;
-  }
-  static int RepeatsForCode(int byte_code) {
-    DCHECK(byte_code > kFixedRepeatBase && byte_code <= kLastFixedRepeat);
-    return byte_code - kFixedRepeatBase;
-  }
-
-  // Hot objects are a small set of recently seen or back-referenced objects.
-  // They are represented by a single opcode to save space.
-  // We use 0x70..0x77 for 8 hot objects, and 0x78..0x7f to add skip.
-  static const int kHotObject = 0x70;
-  static const int kMaxHotObjectIndex = 0x77 - kHotObject;
-  static const int kHotObjectWithSkip = 0x78;
-  STATIC_ASSERT(HotObjectsList::kSize == kMaxHotObjectIndex + 1);
-  STATIC_ASSERT(0x7f - kHotObjectWithSkip == kMaxHotObjectIndex);
-  static const int kHotObjectIndexMask = 0x7;
-
-  static const int kRootArrayConstants = 0xa0;
-  // 0xa0-0xbf  Things from the first 32 elements of the root array.
-  static const int kRootArrayNumberOfConstantEncodings = 0x20;
-  static int RootArrayConstantFromByteCode(int byte_code) {
-    return byte_code & 0x1f;
-  }
-
+  static const int kInternalReference = 0x1e;
   // Do nothing, used for padding.
-  static const int kNop = 0xf;
-
+  static const int kNop = 0x3d;
   // Move to next reserved chunk.
-  static const int kNextChunk = 0x4f;
-
+  static const int kNextChunk = 0x3e;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
-  static const int kSynchronize = 0x8f;
-
+  static const int kSynchronize = 0x5d;
   // Used for the source code of the natives, which is in the executable, but
   // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0xcf;
+  static const int kNativesStringResource = 0x5e;
+  // Raw data of variable length.
+  static const int kVariableRawData = 0x7d;
+  // Repeats of variable length.
+  static const int kVariableRepeat = 0x7e;
 
+  // ---------- byte code range 0x80..0xff ----------
+  // First 32 root array items.
+  static const int kNumberOfRootArrayConstants = 0x20;
+  // 0x80..0x9f
+  static const int kRootArrayConstants = 0x80;
+  // 0xa0..0xbf
+  static const int kRootArrayConstantsWithSkip = 0xa0;
+  static const int kRootArrayConstantsMask = 0x1f;
+
+  // 8 hot (recently seen or back-referenced) objects with optional skip.
+  static const int kNumberOfHotObjects = 0x08;
+  // 0xc0..0xc7
+  static const int kHotObject = 0xc0;
+  // 0xc8..0xcf
+  static const int kHotObjectWithSkip = 0xc8;
+  static const int kHotObjectMask = 0x07;
+
+  // 32 common raw data lengths.
+  static const int kNumberOfFixedRawData = 0x20;
+  // 0xd0..0xef
+  static const int kFixedRawData = 0xd0;
+  static const int kOnePointerRawData = kFixedRawData;
+  static const int kFixedRawDataStart = kFixedRawData - 1;
+
+  // 16 repeats lengths.
+  static const int kNumberOfFixedRepeat = 0x10;
+  // 0xf0..0xff
+  static const int kFixedRepeat = 0xf0;
+  static const int kFixedRepeatStart = kFixedRepeat - 1;
+
+  // ---------- special values ----------
   static const int kAnyOldSpace = -1;
-
-  // A bitmask for getting the space out of an instruction.
-  static const int kSpaceMask = 7;
-  STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
 
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;
@@ -427,6 +422,7 @@ class SerializerDeserializer: public ObjectVisitor {
   // Used as index for the attached reference representing the global proxy.
   static const int kGlobalProxyReference = 0;
 
+  // ---------- member variable ----------
   HotObjectsList hot_objects_;
 };
 
