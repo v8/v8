@@ -292,12 +292,12 @@ struct CommonOperatorGlobalCache FINAL {
   template <size_t kIndex>
   struct ProjectionOperator FINAL : public Operator1<size_t> {
     ProjectionOperator()
-        : Operator1<size_t>(                             // --
-              IrOpcode::kProjection,                     // opcode
-              Operator::kFoldable | Operator::kNoThrow,  // flags
-              "Projection",                              // name
-              1, 0, 0, 1, 0, 0,                          // counts,
-              kIndex) {}                                 // parameter
+        : Operator1<size_t>(          // --
+              IrOpcode::kProjection,  // opcode
+              Operator::kPure,        // flags
+              "Projection",           // name
+              1, 0, 0, 1, 0, 0,       // counts,
+              kIndex) {}              // parameter
   };
 #define CACHED_PROJECTION(index) \
   ProjectionOperator<index> kProjection##index##Operator;

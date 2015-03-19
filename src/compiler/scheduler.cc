@@ -1401,6 +1401,8 @@ class ScheduleLateNodeVisitor {
   BasicBlock* SplitNode(BasicBlock* block, Node* node) {
     // For now, we limit splitting to pure nodes.
     if (!node->op()->HasProperty(Operator::kPure)) return block;
+    // TODO(titzer): fix the special case of splitting of projections.
+    if (node->opcode() == IrOpcode::kProjection) return block;
 
     // The {block} is common dominator of all uses of {node}, so we cannot
     // split anything unless the {block} has at least two successors.
@@ -1573,6 +1575,8 @@ class ScheduleLateNodeVisitor {
       inputs[index] = input;
     }
     Node* copy = scheduler_->graph_->NewNode(node->op(), input_count, inputs);
+    TRACE(("clone #%d:%s -> #%d\n"), node->id(), node->op()->mnemonic(),
+          copy->id());
     scheduler_->node_data_.resize(copy->id() + 1,
                                   scheduler_->DefaultSchedulerData());
     scheduler_->node_data_[copy->id()] = scheduler_->node_data_[node->id()];
