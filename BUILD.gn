@@ -1393,7 +1393,7 @@ source_set("v8_libbase") {
   if (is_linux) {
     sources += [ "src/base/platform/platform-linux.cc" ]
 
-    libs = [ "rt" ]
+    libs = [ "dl", "rt" ]
   } else if (is_android) {
     defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
 

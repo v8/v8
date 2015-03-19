@@ -1370,6 +1370,7 @@
               ['nacl_target_arch=="none"', {
                 'link_settings': {
                   'libraries': [
+                    '-ldl',
                     '-lrt'
                   ],
                 },
@@ -1389,6 +1390,11 @@
             'sources': [
               '../../src/base/platform/platform-posix.cc'
             ],
+            'link_settings': {
+              'libraries': [
+                '-ldl'
+              ]
+            },
             'conditions': [
               ['host_os=="mac"', {
                 'target_conditions': [
