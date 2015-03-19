@@ -61,7 +61,6 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
     CHECK(no_result.is_null());
-    // TODO(mstarzinger): Temporary workaround for issue chromium:362388.
     isolate->OptionalRescheduleException(true);
   }
 
@@ -72,10 +71,8 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
     CHECK(no_result.is_null());
-    // TODO(mstarzinger): Calling OptionalRescheduleException is a dirty hack,
-    // it's the only way to make Message() not to assert because an external
-    // exception has been caught by the try_catch.
     isolate->OptionalRescheduleException(true);
+    CHECK(!try_catch.Message().IsEmpty());
     return try_catch.Message();
   }
 
