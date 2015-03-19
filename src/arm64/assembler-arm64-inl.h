@@ -661,7 +661,7 @@ void Assembler::deserialization_set_special_target_at(
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target) {
-  UNIMPLEMENTED();  // ARM64 does not use internal references.
+  Memory::Address_at(pc) = target;
 }
 
 
@@ -752,15 +752,13 @@ Address RelocInfo::target_external_reference() {
 
 Address RelocInfo::target_internal_reference() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  UNIMPLEMENTED();  // ARM64 does not use internal references.
-  return NULL;
+  return Memory::Address_at(pc_);
 }
 
 
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  UNIMPLEMENTED();  // ARM64 does not use internal references.
-  return NULL;
+  return reinterpret_cast<Address>(pc_);
 }
 
 
@@ -855,7 +853,7 @@ void RelocInfo::WipeOut() {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_));
   if (IsInternalReference(rmode_)) {
-    UNIMPLEMENTED();  // ARM64 does not use internal references.
+    Memory::Address_at(pc_) = NULL;
   } else {
     Assembler::set_target_address_at(pc_, host_, NULL);
   }
@@ -891,7 +889,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
   } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    UNIMPLEMENTED();  // ARM64 does not use internal references.
+    visitor->VisitInternalReference(this);
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
@@ -916,7 +914,7 @@ void RelocInfo::Visit(Heap* heap) {
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
   } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    UNIMPLEMENTED();  // ARM64 does not use internal references.
+    StaticVisitor::VisitInternalReference(this);
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
