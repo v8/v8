@@ -105,10 +105,18 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::get_make_code_young_function(isolate).address(),
       "Code::MakeCodeYoung");
   Add(ExternalReference::cpu_features().address(), "cpu_features");
-  Add(ExternalReference::old_space_allocation_top_address(isolate).address(),
-      "Heap::OldSpaceAllocationTopAddress");
-  Add(ExternalReference::old_space_allocation_limit_address(isolate).address(),
-      "Heap::OldSpaceAllocationLimitAddress");
+  Add(ExternalReference::old_pointer_space_allocation_top_address(isolate)
+          .address(),
+      "Heap::OldPointerSpaceAllocationTopAddress");
+  Add(ExternalReference::old_pointer_space_allocation_limit_address(isolate)
+          .address(),
+      "Heap::OldPointerSpaceAllocationLimitAddress");
+  Add(ExternalReference::old_data_space_allocation_top_address(isolate)
+          .address(),
+      "Heap::OldDataSpaceAllocationTopAddress");
+  Add(ExternalReference::old_data_space_allocation_limit_address(isolate)
+          .address(),
+      "Heap::OldDataSpaceAllocationLimitAddress");
   Add(ExternalReference::allocation_sites_list_address(isolate).address(),
       "Heap::allocation_sites_list_address()");
   Add(ExternalReference::address_of_uint32_bias().address(), "uint32_bias");
@@ -834,7 +842,8 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
   // but that may change.
   bool write_barrier_needed =
       (current_object_address != NULL && source_space != NEW_SPACE &&
-       source_space != CELL_SPACE && source_space != CODE_SPACE);
+       source_space != CELL_SPACE && source_space != CODE_SPACE &&
+       source_space != OLD_DATA_SPACE);
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
@@ -937,14 +946,15 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
 // and one body.
-#define ALL_SPACES(where, how, within)                    \
-  CASE_STATEMENT(where, how, within, NEW_SPACE)           \
-  CASE_BODY(where, how, within, NEW_SPACE)                \
-  CASE_STATEMENT(where, how, within, OLD_SPACE)           \
-  CASE_STATEMENT(where, how, within, CODE_SPACE)          \
-  CASE_STATEMENT(where, how, within, MAP_SPACE)           \
-  CASE_STATEMENT(where, how, within, CELL_SPACE)          \
-  CASE_STATEMENT(where, how, within, LO_SPACE)            \
+#define ALL_SPACES(where, how, within)                  \
+  CASE_STATEMENT(where, how, within, NEW_SPACE)         \
+  CASE_BODY(where, how, within, NEW_SPACE)              \
+  CASE_STATEMENT(where, how, within, OLD_DATA_SPACE)    \
+  CASE_STATEMENT(where, how, within, OLD_POINTER_SPACE) \
+  CASE_STATEMENT(where, how, within, CODE_SPACE)        \
+  CASE_STATEMENT(where, how, within, MAP_SPACE)         \
+  CASE_STATEMENT(where, how, within, CELL_SPACE)        \
+  CASE_STATEMENT(where, how, within, LO_SPACE)          \
   CASE_BODY(where, how, within, kAnyOldSpace)
 
 #define FOUR_CASES(byte_code)             \
@@ -1659,7 +1669,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 
   AllocationSpace space = (allocation_size > Page::kMaxRegularHeapObjectSize)
                               ? LO_SPACE
-                              : OLD_SPACE;
+                              : OLD_DATA_SPACE;
   SerializePrologue(space, allocation_size, map);
 
   // Output the rest of the imaginary string.

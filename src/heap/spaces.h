@@ -43,11 +43,11 @@ class Isolate;
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
 // buffer overflow) iterate intergenerational pointers without decoding heap
-// object maps so if the page belongs to old space or large object space
-// it is essential to guarantee that the page does not contain any
+// object maps so if the page belongs to old pointer space or large object
+// space it is essential to guarantee that the page does not contain any
 // garbage pointers to new space: every pointer aligned word which satisfies
 // the Heap::InNewSpace() predicate must be a pointer to a live heap object in
-// new space. Thus objects in old space and large object spaces should have a
+// new space. Thus objects in old pointer and large object spaces should have a
 // special layout (e.g. no bare integer fields). This requirement does not
 // apply to map space which is iterated in a special fashion. However we still
 // require pointer fields of dead maps to be cleaned.
@@ -102,7 +102,8 @@ class MarkBit {
  public:
   typedef uint32_t CellType;
 
-  inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
+  inline MarkBit(CellType* cell, CellType mask, bool data_only)
+      : cell_(cell), mask_(mask), data_only_(data_only) {}
 
   inline CellType* cell() { return cell_; }
   inline CellType mask() { return mask_; }
@@ -117,19 +118,25 @@ class MarkBit {
   inline bool Get() { return (*cell_ & mask_) != 0; }
   inline void Clear() { *cell_ &= ~mask_; }
 
+  inline bool data_only() { return data_only_; }
 
   inline MarkBit Next() {
     CellType new_mask = mask_ << 1;
     if (new_mask == 0) {
-      return MarkBit(cell_ + 1, 1);
+      return MarkBit(cell_ + 1, 1, data_only_);
     } else {
-      return MarkBit(cell_, new_mask);
+      return MarkBit(cell_, new_mask, data_only_);
     }
   }
 
  private:
   CellType* cell_;
   CellType mask_;
+  // This boolean indicates that the object is in a data-only space with no
+  // pointers.  This enables some optimizations when marking.
+  // It is expected that this field is inlined and turned into control flow
+  // at the place where the MarkBit object is created.
+  bool data_only_;
 };
 
 
@@ -180,10 +187,10 @@ class Bitmap {
     return reinterpret_cast<Bitmap*>(addr);
   }
 
-  inline MarkBit MarkBitFromIndex(uint32_t index) {
+  inline MarkBit MarkBitFromIndex(uint32_t index, bool data_only = false) {
     MarkBit::CellType mask = 1 << (index & kBitIndexMask);
     MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
-    return MarkBit(cell, mask);
+    return MarkBit(cell, mask, data_only);
   }
 
   static inline void Clear(MemoryChunk* chunk);
@@ -363,6 +370,7 @@ class MemoryChunk {
     IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
+    CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
     NEVER_EVACUATE,  // May contain immortal immutables.
@@ -556,6 +564,8 @@ class MemoryChunk {
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
+
+  bool ContainsOnlyData() { return IsFlagSet(CONTAINS_ONLY_DATA); }
 
   bool InNewSpace() {
     return (flags_ & ((1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE))) != 0;
@@ -2586,7 +2596,7 @@ class NewSpace : public Space {
 
 
 // -----------------------------------------------------------------------------
-// Old object space (includes the old space of objects and code space)
+// Old object space (excluding map objects)
 
 class OldSpace : public PagedSpace {
  public:
@@ -2795,7 +2805,7 @@ class PointerChunkIterator BASE_EMBEDDED {
   // Return NULL when the iterator is done.
   MemoryChunk* next() {
     switch (state_) {
-      case kOldSpaceState: {
+      case kOldPointerState: {
         if (old_pointer_iterator_.has_next()) {
           return old_pointer_iterator_.next();
         }
@@ -2834,7 +2844,7 @@ class PointerChunkIterator BASE_EMBEDDED {
 
 
  private:
-  enum State { kOldSpaceState, kMapState, kLargeObjectState, kFinishedState };
+  enum State { kOldPointerState, kMapState, kLargeObjectState, kFinishedState };
   State state_;
   PageIterator old_pointer_iterator_;
   PageIterator map_iterator_;

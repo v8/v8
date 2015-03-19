@@ -215,10 +215,14 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.new_space_size = &new_space_size;
   int new_space_capacity;
   heap_stats.new_space_capacity = &new_space_capacity;
-  intptr_t old_space_size;
-  heap_stats.old_space_size = &old_space_size;
-  intptr_t old_space_capacity;
-  heap_stats.old_space_capacity = &old_space_capacity;
+  intptr_t old_pointer_space_size;
+  heap_stats.old_pointer_space_size = &old_pointer_space_size;
+  intptr_t old_pointer_space_capacity;
+  heap_stats.old_pointer_space_capacity = &old_pointer_space_capacity;
+  intptr_t old_data_space_size;
+  heap_stats.old_data_space_size = &old_data_space_size;
+  intptr_t old_data_space_capacity;
+  heap_stats.old_data_space_capacity = &old_data_space_capacity;
   intptr_t code_space_size;
   heap_stats.code_space_size = &code_space_size;
   intptr_t code_space_capacity;

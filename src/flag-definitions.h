@@ -596,7 +596,8 @@ DEFINE_BOOL(print_max_heap_committed, false,
             "in name=value format on exit")
 DEFINE_BOOL(trace_gc_verbose, false,
             "print more details following each garbage collection")
-DEFINE_BOOL(trace_fragmentation, false, "report fragmentation")
+DEFINE_BOOL(trace_fragmentation, false,
+            "report fragmentation for old pointer and data pages")
 DEFINE_BOOL(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_BOOL(weak_embedded_maps_in_optimized_code, true,

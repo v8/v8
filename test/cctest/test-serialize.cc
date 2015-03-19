@@ -1074,13 +1074,13 @@ TEST(SerializeToplevelThreeBigStrings) {
   Heap* heap = isolate->heap();
   CHECK(heap->InSpace(
       *v8::Utils::OpenHandle(*CompileRun("a")->ToString(CcTest::isolate())),
-      OLD_SPACE));
+      OLD_DATA_SPACE));
   CHECK(heap->InSpace(
       *v8::Utils::OpenHandle(*CompileRun("b")->ToString(CcTest::isolate())),
-      OLD_SPACE));
+      OLD_DATA_SPACE));
   CHECK(heap->InSpace(
       *v8::Utils::OpenHandle(*CompileRun("c")->ToString(CcTest::isolate())),
-      OLD_SPACE));
+      OLD_DATA_SPACE));
 
   delete cache;
   source_a.Dispose();

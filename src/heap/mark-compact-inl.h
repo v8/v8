@@ -15,7 +15,8 @@ namespace internal {
 
 MarkBit Marking::MarkBitFrom(Address addr) {
   MemoryChunk* p = MemoryChunk::FromAddress(addr);
-  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
+  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
+                                         p->ContainsOnlyData());
 }
 
 

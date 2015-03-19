@@ -55,7 +55,7 @@ Handle<Oddball> Factory::NewOddball(Handle<Map> map,
                                     const char* to_string,
                                     Handle<Object> to_number,
                                     byte kind) {
-  Handle<Oddball> oddball = New<Oddball>(map, OLD_SPACE);
+  Handle<Oddball> oddball = New<Oddball>(map, OLD_POINTER_SPACE);
   Oddball::Initialize(isolate(), oddball, to_string, to_number, kind);
   return oddball;
 }
@@ -926,7 +926,7 @@ Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
 
 Handle<AllocationSite> Factory::NewAllocationSite() {
   Handle<Map> map = allocation_site_map();
-  Handle<AllocationSite> site = New<AllocationSite>(map, OLD_SPACE);
+  Handle<AllocationSite> site = New<AllocationSite>(map, OLD_POINTER_SPACE);
   site->Initialize();
 
   // Link the site
@@ -1239,7 +1239,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         Handle<SharedFunctionInfo> info,
                                         Handle<Context> context,
                                         PretenureFlag pretenure) {
-  AllocationSpace space = pretenure == TENURED ? OLD_SPACE : NEW_SPACE;
+  AllocationSpace space = pretenure == TENURED ? OLD_POINTER_SPACE : NEW_SPACE;
   Handle<JSFunction> result = New<JSFunction>(map, space);
   InitializeFunction(result, info, context);
   return result;
@@ -1574,7 +1574,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   }
 
   // Allocate the global object and initialize it with the backing store.
-  Handle<GlobalObject> global = New<GlobalObject>(map, OLD_SPACE);
+  Handle<GlobalObject> global = New<GlobalObject>(map, OLD_POINTER_SPACE);
   isolate()->heap()->InitializeJSObjectFromMap(*global, *dictionary, *map);
 
   // Create a new map for the global object.
@@ -2062,7 +2062,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     MaybeHandle<Code> maybe_code) {
   Handle<Map> map = shared_function_info_map();
-  Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
+  Handle<SharedFunctionInfo> share =
+      New<SharedFunctionInfo>(map, OLD_POINTER_SPACE);
 
   // Set pointer fields.
   share->set_name(*name);
