@@ -18,7 +18,12 @@ bool CpuFeatures::SupportsCrankshaft() { return true; }
 
 
 void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
-  UNIMPLEMENTED();
+  // On arm64 only internal references need extra work.
+  DCHECK(RelocInfo::IsInternalReference(rmode_));
+
+  // Absolute code pointer inside code object moves with the code object.
+  intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
+  *p += delta;  // Relocate entry.
 }
 
 
