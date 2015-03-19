@@ -273,6 +273,8 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(gettid());
 #elif V8_OS_AIX
   return static_cast<int>(thread_self());
+#elif V8_OS_SOLARIS
+  return static_cast<int>(pthread_self());
 #else
   return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif
