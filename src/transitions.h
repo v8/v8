@@ -68,6 +68,7 @@ class TransitionArray: public FixedArray {
   }
   static inline Map* GetSimpleTransition(Object* raw_transition) {
     DCHECK(IsSimpleTransition(raw_transition));
+    DCHECK(raw_transition->IsWeakCell());
     return Map::cast(WeakCell::cast(raw_transition)->value());
   }
   static inline bool IsFullTransitionArray(Object* raw_transitions) {

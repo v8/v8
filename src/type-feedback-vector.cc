@@ -435,6 +435,7 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
     // [map, handler, map, handler, ... ]
     DCHECK(array->length() >= 2);
     for (int i = 0; i < array->length(); i += 2) {
+      DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* map = Map::cast(cell->value());
@@ -464,6 +465,7 @@ MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
     }
     FixedArray* array = FixedArray::cast(feedback);
     for (int i = 0; i < array->length(); i += 2) {
+      DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* array_map = Map::cast(cell->value());
@@ -502,6 +504,7 @@ bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
     // Be sure to skip handlers whose maps have been cleared.
     DCHECK(array->length() >= 2);
     for (int i = 0; i < array->length(); i += 2) {
+      DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Code* code = Code::cast(array->get(i + 1));

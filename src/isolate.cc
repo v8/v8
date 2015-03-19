@@ -2585,6 +2585,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
     int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+    DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
     WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
     if (!cell->cleared()) {
       detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
@@ -2598,6 +2599,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
       int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+      DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
       if (mark_sweeps > 3) {
         PrintF("detached context 0x%p\n survived %d GCs (leak?)\n",

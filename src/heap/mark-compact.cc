@@ -2098,6 +2098,7 @@ void MarkCompactCollector::RetainMaps() {
   int length = retained_maps->Length();
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
+    DCHECK(retained_maps->Get(i)->IsWeakCell());
     WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
     if (cell->cleared()) continue;
     int age = Smi::cast(retained_maps->Get(i + 1))->value();
@@ -2348,6 +2349,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     if (!table->IsKey(key)) continue;
     uint32_t value_index = table->EntryToValueIndex(i);
     Object* value = table->get(value_index);
+    DCHECK(key->IsWeakCell());
     if (WeakCell::cast(key)->cleared()) {
       have_code_to_deoptimize_ |=
           DependentCode::cast(value)->MarkCodeForDeoptimization(

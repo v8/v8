@@ -10364,6 +10364,7 @@ Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
 Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   if (!script->wrapper()->IsUndefined()) {
+    DCHECK(script->wrapper()->IsWeakCell());
     Handle<WeakCell> cell(WeakCell::cast(script->wrapper()));
     if (!cell->cleared()) {
       // Return a handle for the existing script wrapper from the cache.

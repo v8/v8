@@ -2349,6 +2349,7 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 Object* WeakFixedArray::Get(int index) const {
   Object* raw = FixedArray::cast(this)->get(index + kFirstIndex);
   if (raw->IsSmi()) return raw;
+  DCHECK(raw->IsWeakCell());
   return WeakCell::cast(raw)->value();
 }
 
