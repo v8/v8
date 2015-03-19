@@ -242,10 +242,6 @@
 
   # Issue 3723.
   'regress/regress-3717': [SKIP],
-  # Issue 3924.
-  'mjsunit/debug-clearbreakpointgroup': [SKIP],
-  # Issue 3969.
-  'mjsunit/debug-references': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################

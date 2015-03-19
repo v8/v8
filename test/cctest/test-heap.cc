@@ -5060,40 +5060,6 @@ TEST(NumberStringCacheSize) {
 }
 
 
-TEST(Regress3877) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
-  HandleScope scope(isolate);
-  CompileRun("function cls() { this.x = 10; }");
-  Handle<WeakCell> weak_prototype;
-  {
-    HandleScope inner_scope(isolate);
-    v8::Local<v8::Value> result = CompileRun("cls.prototype");
-    Handle<JSObject> proto =
-        v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
-    weak_prototype = inner_scope.CloseAndEscape(factory->NewWeakCell(proto));
-  }
-  CHECK(!weak_prototype->cleared());
-  CompileRun(
-      "var a = { };"
-      "a.x = new cls();"
-      "cls.prototype = null;");
-  for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
-  }
-  // The map of a.x keeps prototype alive
-  CHECK(!weak_prototype->cleared());
-  // Change the map of a.x and make the previous map garbage collectable.
-  CompileRun("a.x.__proto__ = {};");
-  for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
-  }
-  CHECK(weak_prototype->cleared());
-}
-
-
 void CheckMapRetainingFor(int n) {
   FLAG_retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
