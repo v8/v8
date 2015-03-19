@@ -266,6 +266,7 @@ action("js2c_experimental") {
     "src/harmony-tostring.js",
     "src/harmony-templates.js",
     "src/harmony-regexp.js",
+    "src/harmony-reflect.js"
   ]
 
   outputs = [

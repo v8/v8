@@ -52,6 +52,8 @@ var kMessages = {
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
   apply_non_function:            ["Function.prototype.apply was called on ", "%0", ", which is a ", "%1", " and not a function"],
   apply_wrong_args:              ["Function.prototype.apply: Arguments list has wrong type"],
+  reflect_apply_wrong_args:      ["Reflect.apply: Arguments list has wrong type"],
+  reflect_construct_wrong_args:  ["Reflect.construct: Arguments list has wrong type"],
   flags_getter_non_object:       ["RegExp.prototype.flags getter called on non-object ", "%0"],
   invalid_in_operator_use:       ["Cannot use 'in' operator to search for '", "%0", "' in ", "%1"],
   instanceof_function_expected:  ["Expecting a function in instanceof check, but got ", "%0"],

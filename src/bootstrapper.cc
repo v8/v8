@@ -1667,6 +1667,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_reflect)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1718,6 +1719,48 @@ void Genesis::InitializeGlobal_harmony_unicode_regexps() {
   Runtime::SetObjectProperty(isolate(), builtins,
                              factory()->harmony_unicode_regexps_string(), flag,
                              STRICT).Assert();
+}
+
+
+void Genesis::InitializeGlobal_harmony_reflect() {
+  if (!FLAG_harmony_reflect) return;
+  Handle<JSObject> builtins(native_context()->builtins());
+  // Install references to functions of the Reflect object
+  {
+    Handle<JSFunction> apply =
+        InstallFunction(builtins, "ReflectApply", JS_OBJECT_TYPE,
+                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+                        Builtins::kReflectApply);
+    Handle<JSFunction> construct =
+        InstallFunction(builtins, "ReflectConstruct", JS_OBJECT_TYPE,
+                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+                        Builtins::kReflectConstruct);
+    if (FLAG_vector_ics) {
+      // Apply embeds an IC, so we need a type vector of size 1 in the shared
+      // function info.
+      FeedbackVectorSpec spec(0, Code::CALL_IC);
+      Handle<TypeFeedbackVector> feedback_vector =
+          factory()->NewTypeFeedbackVector(&spec);
+      apply->shared()->set_feedback_vector(*feedback_vector);
+
+      feedback_vector = factory()->NewTypeFeedbackVector(&spec);
+      construct->shared()->set_feedback_vector(*feedback_vector);
+    }
+
+    apply->shared()->set_internal_formal_parameter_count(3);
+    apply->shared()->set_length(3);
+
+    construct->shared()->set_internal_formal_parameter_count(3);
+    construct->shared()->set_length(2);
+  }
+
+  Handle<JSGlobalObject> global(JSGlobalObject::cast(
+      native_context()->global_object()));
+  Handle<String> reflect_string =
+      factory()->NewStringFromStaticChars("Reflect");
+  Handle<Object> reflect =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
 }
 
 
@@ -2283,6 +2326,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_unicode_regexps_natives[] = {NULL};
   static const char* harmony_computed_property_names_natives[] = {NULL};
   static const char* harmony_rest_parameters_natives[] = {NULL};
+  static const char* harmony_reflect_natives[] = {"native harmony-reflect.js",
+                                                  NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
