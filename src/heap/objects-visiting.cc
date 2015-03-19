@@ -202,7 +202,6 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer,
   while (list != undefined) {
     // Check whether to keep the candidate in the list.
     T* candidate = reinterpret_cast<T*>(list);
-    T* original_candidate = candidate;
 
     Object* retained = retainer->RetainAs(list);
     if (retained != NULL) {
@@ -227,18 +226,6 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer,
       // tail is a live object, visit it.
       WeakListVisitor<T>::VisitLiveObject(heap, tail, retainer);
 
-      // The list of weak objects is usually order. It starts with objects
-      // recently allocated in the young generation followed by objects
-      // allocated in the old generation. When a migration failure happened,
-      // the list is not ordered until the next GC that has no migration
-      // failure.
-      // For young generation collections we just have to visit until the last
-      // young generation objects.
-      if (stop_after_young && !heap->migration_failure() &&
-          !heap->previous_migration_failure() &&
-          !heap->InNewSpace(original_candidate)) {
-        return head;
-      }
     } else {
       WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
     }
