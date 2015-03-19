@@ -48,6 +48,7 @@
   V(Finish)              \
   V(FrameState)          \
   V(StateValues)         \
+  V(TypedStateValues)    \
   V(Call)                \
   V(Parameter)           \
   V(OsrValue)            \

@@ -427,6 +427,7 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kStateValues:
+    case IrOpcode::kTypedStateValues:
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kCall:

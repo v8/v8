@@ -32,8 +32,8 @@ TEST_F(StateValuesIteratorTest, SimpleIteration) {
   }
   Node* state_values = StateValuesFromVector(&inputs);
   int i = 0;
-  for (Node* node : StateValuesAccess(state_values)) {
-    EXPECT_THAT(node, IsInt32Constant(i));
+  for (StateValuesAccess::TypedNode node : StateValuesAccess(state_values)) {
+    EXPECT_THAT(node.node, IsInt32Constant(i));
     i++;
   }
   EXPECT_EQ(count, i);
@@ -43,7 +43,7 @@ TEST_F(StateValuesIteratorTest, SimpleIteration) {
 TEST_F(StateValuesIteratorTest, EmptyIteration) {
   NodeVector inputs(zone());
   Node* state_values = StateValuesFromVector(&inputs);
-  for (Node* node : StateValuesAccess(state_values)) {
+  for (auto node : StateValuesAccess(state_values)) {
     USE(node);
     FAIL();
   }
@@ -82,8 +82,8 @@ TEST_F(StateValuesIteratorTest, NestedIteration) {
   }
   Node* state_values = StateValuesFromVector(&inputs);
   int i = 0;
-  for (Node* node : StateValuesAccess(state_values)) {
-    EXPECT_THAT(node, IsInt32Constant(i));
+  for (StateValuesAccess::TypedNode node : StateValuesAccess(state_values)) {
+    EXPECT_THAT(node.node, IsInt32Constant(i));
     i++;
   }
   EXPECT_EQ(count, i);
@@ -110,8 +110,8 @@ TEST_F(StateValuesIteratorTest, TreeFromVector) {
 
     // Check the tree contents with vector.
     int i = 0;
-    for (Node* node : StateValuesAccess(values_node)) {
-      EXPECT_THAT(node, IsInt32Constant(i));
+    for (StateValuesAccess::TypedNode node : StateValuesAccess(values_node)) {
+      EXPECT_THAT(node.node, IsInt32Constant(i));
       i++;
     }
     EXPECT_EQ(inputs.size(), static_cast<size_t>(i));

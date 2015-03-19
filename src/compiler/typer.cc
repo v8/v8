@@ -716,6 +716,11 @@ Bounds Typer::Visitor::TypeStateValues(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeTypedStateValues(Node* node) {
+  return Bounds(Type::None(zone()), Type::Internal(zone()));
+}
+
+
 Bounds Typer::Visitor::TypeCall(Node* node) {
   return Bounds::Unbounded(zone());
 }

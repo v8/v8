@@ -115,15 +115,15 @@ class LivenessAnalysisTest : public GraphTest {
         return false;
       }
       int i = 0;
-      for (Node* value : locals) {
+      for (StateValuesAccess::TypedNode value : locals) {
         if (liveness_[i] == 'L') {
           StringMatchResultListener value_listener;
-          if (value == replacement_) {
-            *listener << "whose local #" << i << " was " << value->opcode()
+          if (value.node == replacement_) {
+            *listener << "whose local #" << i << " was " << value.node->opcode()
                       << " but should have been 'undefined'";
             return false;
           } else if (!IsInt32Constant(first_const + i)
-                          .MatchAndExplain(value, &value_listener)) {
+                          .MatchAndExplain(value.node, &value_listener)) {
             *listener << "whose local #" << i << " does not match";
             if (value_listener.str() != "") {
               *listener << ", " << value_listener.str();
@@ -131,8 +131,8 @@ class LivenessAnalysisTest : public GraphTest {
             return false;
           }
         } else if (liveness_[i] == '.') {
-          if (value != replacement_) {
-            *listener << "whose local #" << i << " is " << value
+          if (value.node != replacement_) {
+            *listener << "whose local #" << i << " is " << value.node
                       << " but should have been " << replacement_
                       << " (undefined)";
             return false;

@@ -142,12 +142,12 @@ void NonLiveFrameStateSlotReplacer::ClearNonLiveFrameStateSlots(
 Node* NonLiveFrameStateSlotReplacer::ClearNonLiveStateValues(
     Node* values, BitVector* liveness) {
   DCHECK(inputs_buffer_.empty());
-  for (Node* node : StateValuesAccess(values)) {
+  for (StateValuesAccess::TypedNode node : StateValuesAccess(values)) {
     // Index of the next variable is its furure index in the inputs buffer,
     // i.e., the buffer's size.
     int var = static_cast<int>(inputs_buffer_.size());
     bool live = liveness->Contains(var) || permanently_live_.Contains(var);
-    inputs_buffer_.push_back(live ? node : replacement_node_);
+    inputs_buffer_.push_back(live ? node.node : replacement_node_);
   }
   Node* result = state_values_cache()->GetNodeForValues(
       inputs_buffer_.empty() ? nullptr : &(inputs_buffer_.front()),

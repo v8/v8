@@ -62,12 +62,18 @@ class StateValuesCache {
 
 class StateValuesAccess {
  public:
+  struct TypedNode {
+    Node* node;
+    MachineType type;
+    TypedNode(Node* node, MachineType type) : node(node), type(type) {}
+  };
+
   class iterator {
    public:
     // Bare minimum of operators needed for range iteration.
     bool operator!=(iterator& other);
     iterator& operator++();
-    Node* operator*();
+    TypedNode operator*();
 
    private:
     friend class StateValuesAccess;
@@ -76,6 +82,7 @@ class StateValuesAccess {
     explicit iterator(Node* node);
 
     Node* node();
+    MachineType type();
     bool done();
     void Advance();
 

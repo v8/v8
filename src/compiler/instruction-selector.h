@@ -173,7 +173,6 @@ class InstructionSelector FINAL {
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
   void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
                            FrameStateDescriptor* descriptor);
-  MachineType GetMachineType(Node* node);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============

@@ -173,6 +173,7 @@ Node* StateValuesCache::GetNodeForValues(Node** values, size_t count) {
 #if DEBUG
   for (size_t i = 0; i < count; i++) {
     DCHECK_NE(values[i]->opcode(), IrOpcode::kStateValues);
+    DCHECK_NE(values[i]->opcode(), IrOpcode::kTypedStateValues);
   }
 #endif
   if (count == 0) {
@@ -190,7 +191,8 @@ Node* StateValuesCache::GetNodeForValues(Node** values, size_t count) {
   Node* tree = BuildTree(&it, height);
 
   // If the 'tree' is a single node, equip it with a StateValues wrapper.
-  if (tree->opcode() != IrOpcode::kStateValues) {
+  if (tree->opcode() != IrOpcode::kStateValues &&
+      tree->opcode() != IrOpcode::kTypedStateValues) {
     tree = GetValuesNodeFromCache(&tree, 1);
   }
 
@@ -249,7 +251,8 @@ void StateValuesAccess::iterator::Advance() {
         return;
       }
       Top()->index++;
-    } else if (node->InputAt(index)->opcode() == IrOpcode::kStateValues) {
+    } else if (node->InputAt(index)->opcode() == IrOpcode::kStateValues ||
+               node->InputAt(index)->opcode() == IrOpcode::kTypedStateValues) {
       // Nested state, we need to push to the stack.
       Push(node->InputAt(index));
     } else {
@@ -262,6 +265,19 @@ void StateValuesAccess::iterator::Advance() {
 
 Node* StateValuesAccess::iterator::node() {
   return Top()->node->InputAt(Top()->index);
+}
+
+
+MachineType StateValuesAccess::iterator::type() {
+  Node* state = Top()->node;
+  if (state->opcode() == IrOpcode::kStateValues) {
+    return kMachAnyTagged;
+  } else {
+    DCHECK_EQ(IrOpcode::kTypedStateValues, state->opcode());
+    const ZoneVector<MachineType>* types =
+        OpParameter<const ZoneVector<MachineType>*>(state);
+    return (*types)[Top()->index];
+  }
 }
 
 
@@ -278,13 +294,16 @@ StateValuesAccess::iterator& StateValuesAccess::iterator::operator++() {
 }
 
 
-Node* StateValuesAccess::iterator::operator*() { return node(); }
+StateValuesAccess::TypedNode StateValuesAccess::iterator::operator*() {
+  return TypedNode(node(), type());
+}
 
 
 size_t StateValuesAccess::size() {
   size_t count = 0;
   for (int i = 0; i < node_->InputCount(); i++) {
-    if (node_->InputAt(i)->opcode() == IrOpcode::kStateValues) {
+    if (node_->InputAt(i)->opcode() == IrOpcode::kStateValues ||
+        node_->InputAt(i)->opcode() == IrOpcode::kTypedStateValues) {
       count += StateValuesAccess(node_->InputAt(i)).size();
     } else {
       count++;

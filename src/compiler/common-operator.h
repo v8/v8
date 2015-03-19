@@ -205,6 +205,7 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* ValueEffect(int arguments);
   const Operator* Finish(int arguments);
   const Operator* StateValues(int arguments);
+  const Operator* TypedStateValues(const ZoneVector<MachineType>* types);
   const Operator* FrameState(
       FrameStateType type, BailoutId bailout_id,
       OutputFrameStateCombine state_combine,

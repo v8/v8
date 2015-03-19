@@ -604,6 +604,15 @@ const Operator* CommonOperatorBuilder::StateValues(int arguments) {
 }
 
 
+const Operator* CommonOperatorBuilder::TypedStateValues(
+    const ZoneVector<MachineType>* types) {
+  return new (zone()) Operator1<const ZoneVector<MachineType>*>(  // --
+      IrOpcode::kTypedStateValues, Operator::kPure,               // opcode
+      "TypedStateValues",                                         // name
+      static_cast<int>(types->size()), 0, 0, 1, 0, 0, types);     // counts
+}
+
+
 const Operator* CommonOperatorBuilder::FrameState(
     FrameStateType type, BailoutId bailout_id,
     OutputFrameStateCombine state_combine, MaybeHandle<JSFunction> jsfunction) {
