@@ -171,7 +171,7 @@ TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
   const Operator* op = javascript.StoreProperty(mode);
 
   // TODO(jarin): Get rid of this hack.
-  const int frame_state_input_count = FLAG_turbo_deoptimization ? 1 : 0;
+  const int frame_state_input_count = FLAG_turbo_deoptimization ? 2 : 0;
   EXPECT_EQ(3, op->ValueInputCount());
   EXPECT_EQ(1, OperatorProperties::GetContextInputCount(op));
   EXPECT_EQ(frame_state_input_count,

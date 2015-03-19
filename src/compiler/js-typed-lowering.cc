@@ -803,9 +803,11 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
                  (OperatorProperties::GetFrameStateInputCount(
                       javascript()->ToNumber()) == 1));
           if (FLAG_turbo_deoptimization) {
+            Node* frame_state_for_to_number =
+                NodeProperties::GetFrameStateInput(node, 1);
             value = effect =
                 graph()->NewNode(javascript()->ToNumber(), value, context,
-                                 jsgraph()->EmptyFrameState(), effect, control);
+                                 frame_state_for_to_number, effect, control);
           } else {
             value = effect = graph()->NewNode(javascript()->ToNumber(), value,
                                               context, effect, control);

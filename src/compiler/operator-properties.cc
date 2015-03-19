@@ -64,11 +64,16 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
 
     // Properties
     case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSDeleteProperty:
       return 1;
+
+    // StoreProperty provides a second frame state just before
+    // the operation. This is used to lazy-deoptimize a to-number
+    // conversion for typed arrays.
+    case IrOpcode::kJSStoreProperty:
+      return 2;
 
     // Binary operators that can deopt in the middle the operation (e.g.,
     // as a result of lazy deopt in ToNumber conversion) need a second frame

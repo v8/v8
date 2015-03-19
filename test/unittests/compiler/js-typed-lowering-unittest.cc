@@ -8,6 +8,7 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -691,8 +692,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
-      if (FLAG_turbo_deoptimization) {
-        node->AppendInput(zone(), UndefinedConstant());
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
       }
       node->AppendInput(zone(), effect);
       node->AppendInput(zone(), control);
@@ -736,8 +738,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
-      if (FLAG_turbo_deoptimization) {
-        node->AppendInput(zone(), UndefinedConstant());
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
       }
       node->AppendInput(zone(), effect);
       node->AppendInput(zone(), control);
@@ -794,8 +797,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
-      if (FLAG_turbo_deoptimization) {
-        node->AppendInput(zone(), UndefinedConstant());
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
       }
       node->AppendInput(zone(), effect);
       node->AppendInput(zone(), control);
