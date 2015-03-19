@@ -62,6 +62,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         number_ = dict->FindEntry(name_);
         if (number_ == NameDictionary::kNotFound) return NOT_FOUND;
         if (holder->IsGlobalObject()) {
+          DCHECK(dict->ValueAt(number_)->IsPropertyCell());
           PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
           if (cell->value()->IsTheHole()) return NOT_FOUND;
         }

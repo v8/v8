@@ -256,6 +256,7 @@ Handle<Object> LookupIterator::FetchValue() const {
   if (holder_map_->is_dictionary_map()) {
     result = holder->property_dictionary()->ValueAt(number_);
     if (holder_map_->IsGlobalObjectMap()) {
+      DCHECK(result->IsPropertyCell());
       result = PropertyCell::cast(result)->value();
     }
   } else if (property_details_.type() == v8::internal::DATA) {
@@ -310,6 +311,7 @@ Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   Handle<JSObject> holder = GetHolder<JSObject>();
   Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
   Object* value = global->property_dictionary()->ValueAt(dictionary_entry());
+  DCHECK(value->IsPropertyCell());
   return Handle<PropertyCell>(PropertyCell::cast(value));
 }
 

@@ -605,6 +605,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
             (dictionary->DetailsAt(entry).type() == DATA)) {
           Object* value = dictionary->ValueAt(entry);
           if (!receiver->IsGlobalObject()) return value;
+          DCHECK(value->IsPropertyCell());
           value = PropertyCell::cast(value)->value();
           if (!value->IsTheHole()) return value;
           // If value is the hole (meaning, absent) do the general lookup.

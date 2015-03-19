@@ -15201,6 +15201,7 @@ Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
                PropertyCellType::kUninitialized ||
            dictionary->DetailsAt(entry).cell_type() ==
                PropertyCellType::kDeleted);
+    DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
     cell = handle(PropertyCell::cast(dictionary->ValueAt(entry)));
     DCHECK(cell->value()->IsTheHole());
     return cell;
@@ -15817,6 +15818,7 @@ static inline bool IsDeleted(D d, int i) {
     case DictionaryEntryType::kObjects:
       return false;
     case DictionaryEntryType::kCells:
+      DCHECK(d->ValueAt(i)->IsPropertyCell());
       return PropertyCell::cast(d->ValueAt(i))->value()->IsTheHole();
   }
   UNREACHABLE();
@@ -16972,6 +16974,7 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
     Handle<NameDictionary> dictionary, int entry) {
   Isolate* isolate = dictionary->GetIsolate();
   // Swap with a copy.
+  DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
   Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
   auto new_cell = isolate->factory()->NewPropertyCell();
   new_cell->set_value(cell->value());
@@ -17025,6 +17028,7 @@ Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
                                         int entry, Handle<Object> value,
                                         PropertyDetails details) {
   DCHECK(!value->IsTheHole());
+  DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
   Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
   const PropertyDetails original_details = dictionary->DetailsAt(entry);
   // Data accesses could be cached in ics or optimized code.
