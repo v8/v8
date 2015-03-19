@@ -543,11 +543,23 @@ class IsEffectSetMatcher FINAL : public NodeMatcher {
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const FINAL {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node, 0),
-                                 "effect0", effect0_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node, 1),
-                                 "effect1", effect1_matcher_, listener));
+    if (!NodeMatcher::MatchAndExplain(node, listener)) return false;
+
+    Node* effect0 = NodeProperties::GetEffectInput(node, 0);
+    Node* effect1 = NodeProperties::GetEffectInput(node, 1);
+
+    {
+      // Try matching in the reverse order first.
+      StringMatchResultListener value_listener;
+      if (effect0_matcher_.MatchAndExplain(effect1, &value_listener) &&
+          effect1_matcher_.MatchAndExplain(effect0, &value_listener)) {
+        return true;
+      }
+    }
+
+    return PrintMatchAndExplain(effect0, "effect0", effect0_matcher_,
+                                listener) &&
+           PrintMatchAndExplain(effect1, "effect1", effect1_matcher_, listener);
   }
 
  private:

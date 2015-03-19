@@ -10,6 +10,7 @@
 using testing::AnyOf;
 using testing::ElementsAre;
 using testing::IsNull;
+using testing::UnorderedElementsAre;
 
 namespace v8 {
 namespace internal {
@@ -56,7 +57,7 @@ TEST_F(NodePropertiesTest, ReplaceWithValue_EffectUse) {
   EXPECT_EQ(0, node->UseCount());
   EXPECT_EQ(2, start->UseCount());
   EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), ElementsAre(node, use_effect));
+  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_effect, node));
 }
 
 
@@ -72,7 +73,7 @@ TEST_F(NodePropertiesTest, ReplaceWithValue_ControlUse) {
   EXPECT_EQ(0, node->UseCount());
   EXPECT_EQ(2, start->UseCount());
   EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), ElementsAre(node, use_control));
+  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_control, node));
 }
 
 

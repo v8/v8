@@ -67,7 +67,6 @@ class Node FINAL {
   void TrimInputCount(int new_input_count);
 
   int UseCount() const;
-  Node* UseAt(int index) const;
   void ReplaceUses(Node* replace_to);
 
   class InputEdges FINAL {
@@ -226,7 +225,6 @@ class Node FINAL {
   NodeId const id_;
   unsigned bit_field_;
   Use* first_use_;
-  Use* last_use_;
   union {
     // When a node is initially allocated, it uses a static buffer to hold its
     // inputs under the assumption that the number of outputs will not increase.
