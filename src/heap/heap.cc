@@ -4678,7 +4678,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
 
 bool Heap::RecentIdleNotificationHappened() {
   return (last_idle_notification_time_ +
-          GCIdleTimeHandler::kMaxFrameRenderingIdleTime) >
+          GCIdleTimeHandler::kMaxScheduledIdleTime) >
          MonotonicallyIncreasingTimeInMs();
 }
 

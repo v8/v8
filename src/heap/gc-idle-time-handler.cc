@@ -117,7 +117,7 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     size_t scavenge_speed_in_bytes_per_ms,
     size_t new_space_allocation_throughput_in_bytes_per_ms) {
   size_t new_space_allocation_limit =
-      kMaxFrameRenderingIdleTime * scavenge_speed_in_bytes_per_ms;
+      kMaxScheduledIdleTime * scavenge_speed_in_bytes_per_ms;
 
   // If the limit is larger than the new space size, then scavenging used to be
   // really fast. We can take advantage of the whole new space.
@@ -133,8 +133,7 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
   } else {
     // We have to trigger scavenge before we reach the end of new space.
     new_space_allocation_limit -=
-        new_space_allocation_throughput_in_bytes_per_ms *
-        kMaxFrameRenderingIdleTime;
+        new_space_allocation_throughput_in_bytes_per_ms * kMaxScheduledIdleTime;
   }
 
   if (scavenge_speed_in_bytes_per_ms == 0) {
@@ -244,7 +243,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
       // can get rid of this special case and always start incremental marking.
       int remaining_mark_sweeps =
           kMaxMarkCompactsInIdleRound - mark_compacts_since_idle_round_started_;
-      if (static_cast<size_t>(idle_time_in_ms) > kMaxFrameRenderingIdleTime &&
+      if (static_cast<size_t>(idle_time_in_ms) > kMaxScheduledIdleTime &&
           (remaining_mark_sweeps <= 2 ||
            !heap_state.can_start_incremental_marking)) {
         return GCIdleTimeAction::FullGC();
