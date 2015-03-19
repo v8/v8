@@ -1218,7 +1218,7 @@ class ScopeIterator {
         RetrieveScopeChain(scope, shared_info);
       } else {
         // Function code
-        ParseInfo info(&zone, shared_info);
+        ParseInfo info(&zone, function_);
         if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }

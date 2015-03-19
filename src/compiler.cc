@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/compiler.h"
+
+#include <algorithm>
 
 #include "src/ast-numbering.h"
 #include "src/bootstrapper.h"
@@ -81,57 +81,8 @@ bool CompilationInfo::has_shared_info() const {
 
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info)
-    : parse_info_(parse_info),
-      flags_(0),
-      osr_ast_id_(BailoutId::None()),
-      parameter_count_(0),
-      optimization_id_(-1),
-      aborted_due_to_dependency_change_(false),
-      osr_expr_stack_height_(0) {
-  Initialize(parse_info->isolate(), BASE, parse_info->zone());
-}
-
-
-CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
-    : parse_info_(nullptr),
-      flags_(0),
-      osr_ast_id_(BailoutId::None()),
-      parameter_count_(0),
-      optimization_id_(-1),
-      aborted_due_to_dependency_change_(false),
-      osr_expr_stack_height_(0) {
-  Initialize(isolate, STUB, zone);
-  code_stub_ = stub;
-}
-
-
-void CompilationInfo::Initialize(Isolate* isolate,
-                                 Mode mode,
-                                 Zone* zone) {
-  isolate_ = isolate;
-  zone_ = zone;
-  deferred_handles_ = NULL;
-  code_stub_ = NULL;
-  prologue_offset_ = Code::kPrologueOffsetNotSet;
-  opt_count_ = has_shared_info() ? shared_info()->opt_count() : 0;
-  no_frame_ranges_ = isolate->cpu_profiler()->is_profiling()
-                   ? new List<OffsetRange>(2) : NULL;
-  if (FLAG_hydrogen_track_positions) {
-    inlined_function_infos_ = new std::vector<InlinedFunctionInfo>();
-    track_positions_ = true;
-  } else {
-    inlined_function_infos_ = NULL;
-    track_positions_ = false;
-  }
-
-  for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    dependencies_[i] = NULL;
-  }
-  if (mode == STUB) {
-    mode_ = STUB;
-    return;
-  }
-  mode_ = mode;
+    : CompilationInfo(parse_info, nullptr, BASE, parse_info->isolate(),
+                      parse_info->zone()) {
   // Compiling for the snapshot typically results in different code than
   // compiling later on. This means that code recompiled with deoptimization
   // support won't be "equivalent" (as defined by SharedFunctionInfo::
@@ -147,14 +98,41 @@ void CompilationInfo::Initialize(Isolate* isolate,
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (FLAG_turbo_types) MarkAsTypingEnabled();
 
-  bailout_reason_ = kNoReason;
-
   if (has_shared_info() && shared_info()->is_compiled()) {
     // We should initialize the CompilationInfo feedback vector from the
     // passed in shared info, rather than creating a new one.
-    feedback_vector_ =
-        Handle<TypeFeedbackVector>(shared_info()->feedback_vector(), isolate);
+    feedback_vector_ = Handle<TypeFeedbackVector>(
+        shared_info()->feedback_vector(), parse_info->isolate());
   }
+}
+
+
+CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
+    : CompilationInfo(nullptr, stub, STUB, isolate, zone) {}
+
+
+CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
+                                 Mode mode, Isolate* isolate, Zone* zone)
+    : parse_info_(parse_info),
+      isolate_(isolate),
+      flags_(0),
+      code_stub_(code_stub),
+      mode_(mode),
+      osr_ast_id_(BailoutId::None()),
+      zone_(zone),
+      deferred_handles_(nullptr),
+      bailout_reason_(kNoReason),
+      prologue_offset_(Code::kPrologueOffsetNotSet),
+      no_frame_ranges_(isolate->cpu_profiler()->is_profiling()
+                           ? new List<OffsetRange>(2)
+                           : nullptr),
+      track_positions_(FLAG_hydrogen_track_positions),
+      opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
+      parameter_count_(0),
+      optimization_id_(-1),
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
+  std::fill_n(dependencies_, DependentCode::kGroupCount, nullptr);
 }
 
 
@@ -162,7 +140,6 @@ CompilationInfo::~CompilationInfo() {
   DisableFutureOptimization();
   delete deferred_handles_;
   delete no_frame_ranges_;
-  delete inlined_function_infos_;
 #ifdef DEBUG
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
@@ -267,9 +244,8 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                           SourcePosition position,
                                           int parent_id) {
   DCHECK(track_positions_);
-  DCHECK(inlined_function_infos_);
 
-  int inline_id = static_cast<int>(inlined_function_infos_->size());
+  int inline_id = static_cast<int>(inlined_function_infos_.size());
   InlinedFunctionInfo info(parent_id, position, UnboundScript::kNoScriptId,
       shared->start_position());
   if (!shared->script()->IsUndefined()) {
@@ -296,7 +272,7 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
     }
   }
 
-  inlined_function_infos_->push_back(info);
+  inlined_function_infos_.push_back(info);
 
   if (FLAG_hydrogen_track_positions && inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
@@ -312,9 +288,8 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
 
 void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
   if (!track_positions_ || IsStub()) return;
-  DCHECK_LT(static_cast<size_t>(inlining_id), inlined_function_infos_->size());
-  inlined_function_infos_->at(inlining_id)
-      .deopt_pc_offsets.push_back(pc_offset);
+  DCHECK_LT(static_cast<size_t>(inlining_id), inlined_function_infos_.size());
+  inlined_function_infos_.at(inlining_id).deopt_pc_offsets.push_back(pc_offset);
 }
 
 
@@ -926,7 +901,9 @@ MaybeHandle<Code> Compiler::GetUnoptimizedCode(
   DCHECK(!shared->GetIsolate()->has_pending_exception());
   DCHECK(!shared->is_compiled());
 
-  CompilationInfoWithZone info(shared);
+  Zone zone;
+  ParseInfo parse_info(&zone, shared);
+  CompilationInfo info(&parse_info);
   return GetUnoptimizedCodeCommon(&info);
 }
 
@@ -953,10 +930,10 @@ bool Compiler::EnsureCompiled(Handle<JSFunction> function,
 bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK(info->function() != NULL);
   DCHECK(info->scope() != NULL);
-  if (!info->shared_info()->has_deoptimization_support()) {
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+  if (!shared->has_deoptimization_support()) {
     // TODO(titzer): just reuse the ParseInfo for the unoptimized compile.
-    Handle<SharedFunctionInfo> shared = info->shared_info();
-    CompilationInfoWithZone unoptimized(shared);
+    CompilationInfoWithZone unoptimized(info->closure());
     // Note that we use the same AST that we will use for generating the
     // optimized code.
     ParseInfo* parse_info = unoptimized.parse_info();
@@ -1579,11 +1556,6 @@ CompilationInfoWithZone::CompilationInfoWithZone(Handle<Script> script)
 
 CompilationInfoWithZone::CompilationInfoWithZone(Handle<JSFunction> function)
     : CompilationInfo(new ParseInfo(&zone_, function)) {}
-
-
-CompilationInfoWithZone::CompilationInfoWithZone(
-    Handle<SharedFunctionInfo> shared_info)
-    : CompilationInfo(new ParseInfo(&zone_, shared_info)) {}
 
 
 CompilationInfoWithZone::~CompilationInfoWithZone() {
