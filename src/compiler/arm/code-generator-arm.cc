@@ -802,6 +802,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   ArmOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
+  __ CheckConstPool(true, true);
   __ cmp(input, Operand(case_count));
   __ BlockConstPoolFor(case_count + 2);
   __ ldr(pc, MemOperand(pc, input, LSL, 2), lo);
