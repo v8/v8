@@ -217,8 +217,12 @@ class ParserBase : public Traits {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
+    Scanner::Location return_location() const { return return_location_; }
     Scanner::Location super_call_location() const {
       return super_call_location_;
+    }
+    void set_return_location(Scanner::Location location) {
+      return_location_ = location;
     }
     void set_super_call_location(Scanner::Location location) {
       super_call_location_ = location;
@@ -253,6 +257,9 @@ class ParserBase : public Traits {
 
     // Properties count estimation.
     int expected_property_count_;
+
+    // Location of most recent 'return' statement (invalid if none).
+    Scanner::Location return_location_;
 
     // Location of call to the "super" constructor (invalid if none).
     Scanner::Location super_call_location_;
@@ -1667,6 +1674,7 @@ ParserBase<Traits>::FunctionState::FunctionState(
     : next_materialized_literal_index_(0),
       next_handler_index_(0),
       expected_property_count_(0),
+      return_location_(Scanner::Location::invalid()),
       super_call_location_(Scanner::Location::invalid()),
       kind_(kind),
       generator_object_variable_(NULL),
@@ -2796,11 +2804,17 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
     // new super() is never allowed.
     // super() is only allowed in derived constructor
     if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
-      if (is_strong(language_mode()) &&
-          function_state->super_call_location().IsValid()) {
-        ReportMessageAt(scanner()->location(), "strong_super_call_duplicate");
-        *ok = false;
-        return this->EmptyExpression();
+      if (is_strong(language_mode())) {
+        if (function_state->super_call_location().IsValid()) {
+          ReportMessageAt(scanner()->location(), "strong_super_call_duplicate");
+          *ok = false;
+          return this->EmptyExpression();
+        } else if (function_state->return_location().IsValid()) {
+          ReportMessageAt(function_state->return_location(),
+                          "strong_constructor_return_misplaced");
+          *ok = false;
+          return this->EmptyExpression();
+        }
       }
       function_state->set_super_call_location(scanner()->location());
       return this->SuperReference(scope_, factory());

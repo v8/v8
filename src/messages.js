@@ -175,6 +175,8 @@ var kMessages = {
   strong_super_call_missing:     ["Please always invoke the super constructor in subclasses in strong mode"],
   strong_super_call_duplicate:   ["Please don't invoke the super constructor multiple times in strong mode"],
   strong_super_call_nested:      ["Please don't invoke the super constructor nested inside another statement or expression in strong mode"],
+  strong_constructor_return_value: ["Please do not return a value from a constructor in strong mode"],
+  strong_constructor_return_misplaced: ["Please do not return from a constructor before its super constructor invocation in strong mode"],
   sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
   malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],

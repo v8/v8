@@ -2707,6 +2707,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
   Scanner::Location loc = scanner()->location();
+  function_state_->set_return_location(loc);
 
   Token::Value tok = peek();
   Statement* result;
@@ -2721,6 +2722,14 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       return_value = GetLiteralUndefined(position());
     }
   } else {
+    if (is_strong(language_mode()) &&
+        i::IsConstructor(function_state_->kind())) {
+      int pos = peek_position();
+      ReportMessageAt(Scanner::Location(pos, pos + 1),
+                      "strong_constructor_return_value");
+      *ok = false;
+      return NULL;
+    }
     return_value = ParseExpression(true, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);

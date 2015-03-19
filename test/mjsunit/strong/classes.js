@@ -32,9 +32,9 @@ function constructor(body) {
 })();
 
 (function NoNestedSuper() {
-  assertSyntaxError(constructor("(super())"));
-  assertSyntaxError(constructor("(() => super())(); } })"));
-  assertSyntaxError(constructor("{ super();"));
+  assertSyntaxError(constructor("(super());"));
+  assertSyntaxError(constructor("(() => super())();"));
+  assertSyntaxError(constructor("{ super(); }"));
   assertSyntaxError(constructor("if (1) super();"));
 })();
 
@@ -43,4 +43,18 @@ function constructor(body) {
   assertSyntaxError(constructor("super(); super();"));
   assertSyntaxError(constructor("super(); (super());"));
   assertSyntaxError(constructor("super(); { super() }"));
+  assertSyntaxError(constructor("super(); (() => super())();"));
+})();
+
+(function NoReturnValue() {
+  assertSyntaxError(constructor("return {};"));
+  assertSyntaxError(constructor("return undefined;"));
+  assertSyntaxError(constructor("{ return {}; }"));
+  assertSyntaxError(constructor("if (1) return {};"));
+})();
+
+(function NoReturnBeforeSuper() {
+  assertSyntaxError(constructor("return; super();"));
+  assertSyntaxError(constructor("if (0) return; super();"));
+  assertSyntaxError(constructor("{ return; } super();"));
 })();

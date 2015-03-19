@@ -613,6 +613,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
+  function_state_->set_return_location(scanner()->location());
 
   // An ECMAScript program is considered syntactically incorrect if it
   // contains a return statement that is not within the body of a
@@ -624,6 +625,14 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
+    if (is_strong(language_mode()) &&
+        i::IsConstructor(function_state_->kind())) {
+      int pos = peek_position();
+      ReportMessageAt(Scanner::Location(pos, pos + 1),
+                      "strong_constructor_return_value");
+      *ok = false;
+      return Statement::Default();
+    }
     ParseExpression(true, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
