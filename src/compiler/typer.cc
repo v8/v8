@@ -156,9 +156,7 @@ Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
       graph_(graph),
       context_(context),
       decorator_(NULL),
-      cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())),
-      weaken_min_limits_(graph->zone()),
-      weaken_max_limits_(graph->zone()) {
+      cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())) {
   Zone* zone = this->zone();
   Factory* f = isolate->factory();
 
@@ -201,20 +199,6 @@ Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
 
   weakint_fun1_ = Type::Function(weakint, number, zone);
   random_fun_ = Type::Function(Type::OrderedNumber(), zone);
-
-  const int limits_count = 20;
-
-  weaken_min_limits_.reserve(limits_count + 1);
-  weaken_max_limits_.reserve(limits_count + 1);
-
-  double limit = 1 << 30;
-  weaken_min_limits_.push_back(0);
-  weaken_max_limits_.push_back(0);
-  for (int i = 0; i < limits_count; i++) {
-    weaken_min_limits_.push_back(-limit);
-    weaken_max_limits_.push_back(limit - 1);
-    limit *= 2;
-  }
 
   decorator_ = new (zone) Decorator(this);
   graph_->AddDecorator(decorator_);
@@ -1305,6 +1289,22 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 // in the graph. In the current implementation, we are
 // increasing the limits to the closest power of two.
 Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
+  static const double kWeakenMinLimits[] = {
+      0.0, -1073741824.0, -2147483648.0, -4294967296.0, -8589934592.0,
+      -17179869184.0, -34359738368.0, -68719476736.0, -137438953472.0,
+      -274877906944.0, -549755813888.0, -1099511627776.0, -2199023255552.0,
+      -4398046511104.0, -8796093022208.0, -17592186044416.0, -35184372088832.0,
+      -70368744177664.0, -140737488355328.0, -281474976710656.0,
+      -562949953421312.0};
+  static const double kWeakenMaxLimits[] = {
+      0.0, 1073741823.0, 2147483647.0, 4294967295.0, 8589934591.0,
+      17179869183.0, 34359738367.0, 68719476735.0, 137438953471.0,
+      274877906943.0, 549755813887.0, 1099511627775.0, 2199023255551.0,
+      4398046511103.0, 8796093022207.0, 17592186044415.0, 35184372088831.0,
+      70368744177663.0, 140737488355327.0, 281474976710655.0,
+      562949953421311.0};
+  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+
   // If the types have nothing to do with integers, return the types.
   if (!current_type->Maybe(typer_->integer) ||
       !previous_type->Maybe(typer_->integer)) {
@@ -1325,9 +1325,9 @@ Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
   // minima (or negative infinity if there is no such entry).
   if (current_min != previous->Min()) {
     new_min = typer_->integer->AsRange()->Min();
-    for (const auto val : typer_->weaken_min_limits_) {
-      if (val <= current_min) {
-        new_min = val;
+    for (double const min : kWeakenMinLimits) {
+      if (min <= current_min) {
+        new_min = min;
         break;
       }
     }
@@ -1339,9 +1339,9 @@ Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
   // maxima (or infinity if there is no such entry).
   if (current_max != previous->Max()) {
     new_max = typer_->integer->AsRange()->Max();
-    for (const auto val : typer_->weaken_max_limits_) {
-      if (val >= current_max) {
-        new_max = val;
+    for (double const max : kWeakenMaxLimits) {
+      if (max >= current_max) {
+        new_max = max;
         break;
       }
     }
