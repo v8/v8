@@ -2886,6 +2886,28 @@ void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
 }
 
 
+void MacroAssembler::Lzcntl(Register dst, Register src) {
+  // TODO(intel): Add support for LZCNT (BMI1/ABM).
+  Label not_zero_src;
+  bsrl(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Set(dst, 63);  // 63^31 == 32
+  bind(&not_zero_src);
+  xorl(dst, Immediate(31));  // for x in [0..31], 31^x == 31 - x
+}
+
+
+void MacroAssembler::Lzcntl(Register dst, const Operand& src) {
+  // TODO(intel): Add support for LZCNT (BMI1/ABM).
+  Label not_zero_src;
+  bsrl(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Set(dst, 63);  // 63^31 == 32
+  bind(&not_zero_src);
+  xorl(dst, Immediate(31));  // for x in [0..31], 31^x == 31 - x
+}
+
+
 void MacroAssembler::Pushad() {
   Push(rax);
   Push(rcx);

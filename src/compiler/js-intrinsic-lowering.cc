@@ -42,6 +42,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceInlineDoubleHi(node);
     case Runtime::kInlineIsRegExp:
       return ReduceInlineIsInstanceType(node, JS_REGEXP_TYPE);
+    case Runtime::kInlineMathClz32:
+      return ReduceInlineMathClz32(node);
     case Runtime::kInlineMathFloor:
       return ReduceInlineMathFloor(node);
     case Runtime::kInlineMathSqrt:
@@ -176,6 +178,11 @@ Reduction JSIntrinsicLowering::ReduceInlineIsInstanceType(
 
   // Turn the {node} into a Phi.
   return Change(node, common()->Phi(type, 2), vtrue, vfalse, merge);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceInlineMathClz32(Node* node) {
+  return Change(node, machine()->Word32Clz());
 }
 
 

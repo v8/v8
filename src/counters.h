@@ -570,6 +570,7 @@ class AggregatedHistogramTimerScope {
   SC(math_asin, V8.MathAsin)                                                   \
   SC(math_atan, V8.MathAtan)                                                   \
   SC(math_atan2, V8.MathAtan2)                                                 \
+  SC(math_clz32, V8.MathClz32)                                                 \
   SC(math_exp, V8.MathExp)                                                     \
   SC(math_floor, V8.MathFloor)                                                 \
   SC(math_log, V8.MathLog)                                                     \

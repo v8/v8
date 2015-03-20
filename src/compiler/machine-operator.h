@@ -96,6 +96,7 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Word32Sar();
   const Operator* Word32Ror();
   const Operator* Word32Equal();
+  const Operator* Word32Clz();
   bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }
 
   const Operator* Word64And();

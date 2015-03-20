@@ -694,6 +694,7 @@ namespace internal {
   F(ConstructDouble, 2, 1)                \
   F(DoubleHi, 1, 1)                       \
   F(DoubleLo, 1, 1)                       \
+  F(MathClz32, 1, 1)                      \
   F(MathFloor, 1, 1)                      \
   F(MathSqrt, 1, 1)                       \
   F(MathLogRT, 1, 1)                      \

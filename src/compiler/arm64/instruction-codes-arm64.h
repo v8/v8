@@ -18,6 +18,7 @@ namespace compiler {
   V(Arm64And32)                    \
   V(Arm64Bic)                      \
   V(Arm64Bic32)                    \
+  V(Arm64Clz32)                    \
   V(Arm64Cmp)                      \
   V(Arm64Cmp32)                    \
   V(Arm64Cmn)                      \

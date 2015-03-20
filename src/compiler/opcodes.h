@@ -208,6 +208,7 @@
   V(Word32Shr)                  \
   V(Word32Sar)                  \
   V(Word32Ror)                  \
+  V(Word32Clz)                  \
   V(Word64And)                  \
   V(Word64Or)                   \
   V(Word64Xor)                  \

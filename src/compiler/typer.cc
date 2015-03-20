@@ -1518,6 +1518,8 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineMathFloor:
     case Runtime::kInlineMathSqrt:
       return Bounds(Type::None(zone()), Type::Number());
+    case Runtime::kInlineMathClz32:
+      return Bounds(Type::None(), Type::Range(0, 32, zone()));
     default:
       break;
   }
@@ -1816,6 +1818,11 @@ Bounds Typer::Visitor::TypeWord32Ror(Node* node) {
 
 Bounds Typer::Visitor::TypeWord32Equal(Node* node) {
   return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeWord32Clz(Node* node) {
+  return Bounds(Type::Integral32());
 }
 
 

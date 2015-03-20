@@ -15,6 +15,7 @@ namespace compiler {
   V(ArmAdd)                        \
   V(ArmAnd)                        \
   V(ArmBic)                        \
+  V(ArmClz)                        \
   V(ArmCmp)                        \
   V(ArmCmn)                        \
   V(ArmTst)                        \

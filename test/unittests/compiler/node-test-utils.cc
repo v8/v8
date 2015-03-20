@@ -1634,6 +1634,7 @@ IS_UNOP_MATCHER(NumberToInt32)
 IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(ObjectIsSmi)
 IS_UNOP_MATCHER(ObjectIsNonNegativeSmi)
+IS_UNOP_MATCHER(Word32Clz)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

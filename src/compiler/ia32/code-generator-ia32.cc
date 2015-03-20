@@ -447,6 +447,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ ror_cl(i.OutputOperand());
       }
       break;
+    case kIA32Lzcnt:
+      __ Lzcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
     case kSSEFloat64Cmp:
       __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;

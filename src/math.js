@@ -252,17 +252,8 @@ function MathFroundJS(x) {
 }
 
 // ES6 draft 07-18-14, section 20.2.2.11
-function MathClz32(x) {
-  x = ToUint32(TO_NUMBER_INLINE(x));
-  if (x == 0) return 32;
-  var result = 0;
-  // Binary search.
-  if ((x & 0xFFFF0000) === 0) { x <<= 16; result += 16; };
-  if ((x & 0xFF000000) === 0) { x <<=  8; result +=  8; };
-  if ((x & 0xF0000000) === 0) { x <<=  4; result +=  4; };
-  if ((x & 0xC0000000) === 0) { x <<=  2; result +=  2; };
-  if ((x & 0x80000000) === 0) { x <<=  1; result +=  1; };
-  return result;
+function MathClz32JS(x) {
+  return %_MathClz32(x >>> 0);
 }
 
 // ES6 draft 09-27-13, section 20.2.2.9.
@@ -345,12 +336,13 @@ InstallFunctions(Math, DONT_ENUM, GlobalArray(
   "atanh", MathAtanh,
   "hypot", MathHypot,
   "fround", MathFroundJS,
-  "clz32", MathClz32,
+  "clz32", MathClz32JS,
   "cbrt", MathCbrt
 ));
 
 %SetInlineBuiltinFlag(MathAbs);
 %SetInlineBuiltinFlag(MathCeil);
+%SetInlineBuiltinFlag(MathClz32JS);
 %SetInlineBuiltinFlag(MathFloorJS);
 %SetInlineBuiltinFlag(MathRandom);
 %SetInlineBuiltinFlag(MathSqrtJS);

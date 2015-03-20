@@ -820,6 +820,9 @@ class MacroAssembler: public Assembler {
   }
   void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
 
+  void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
+  void Lzcnt(Register dst, const Operand& src);
+
   // Emit call to the code we are currently generating.
   void CallSelf() {
     Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));

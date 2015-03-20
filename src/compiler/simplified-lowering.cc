@@ -939,6 +939,9 @@ class RepresentationSelector {
       case IrOpcode::kWord32Equal:
         return VisitBinop(node, kRepWord32, kRepBit);
 
+      case IrOpcode::kWord32Clz:
+        return VisitUnop(node, kMachUint32, kMachUint32);
+
       case IrOpcode::kInt32Add:
       case IrOpcode::kInt32Sub:
       case IrOpcode::kInt32Mul:

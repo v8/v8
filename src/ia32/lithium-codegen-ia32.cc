@@ -3914,14 +3914,8 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
 void LCodeGen::DoMathClz32(LMathClz32* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Label not_zero_input;
-  __ bsr(result, input);
 
-  __ j(not_zero, &not_zero_input);
-  __ Move(result, Immediate(63));  // 63^31 == 32
-
-  __ bind(&not_zero_input);
-  __ xor_(result, Immediate(31));  // for x in [0..31], 31^x == 31-x.
+  __ Lzcnt(result, input);
 }
 
 

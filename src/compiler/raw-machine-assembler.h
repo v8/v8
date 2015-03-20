@@ -175,6 +175,7 @@ class RawMachineAssembler : public GraphBuilder {
   Node* Word32Ror(Node* a, Node* b) {
     return NewNode(machine()->Word32Ror(), a, b);
   }
+  Node* Word32Clz(Node* a) { return NewNode(machine()->Word32Clz(), a); }
   Node* Word32Equal(Node* a, Node* b) {
     return NewNode(machine()->Word32Equal(), a, b);
   }

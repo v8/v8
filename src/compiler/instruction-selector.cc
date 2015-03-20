@@ -658,6 +658,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord32Ror(node);
     case IrOpcode::kWord32Equal:
       return VisitWord32Equal(node);
+    case IrOpcode::kWord32Clz:
+      return VisitWord32Clz(node);
     case IrOpcode::kWord64And:
       return VisitWord64And(node);
     case IrOpcode::kWord64Or:

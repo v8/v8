@@ -1146,6 +1146,21 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
   }
 }
 
+
+TEST_F(InstructionSelectorTest, Word32Clz) {
+  StreamBuilder m(this, kMachUint32, kMachUint32);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Word32Clz(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Lzcnt32, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -112,6 +112,17 @@ RUNTIME_FUNCTION(Runtime_MathExpRT) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_MathClz32) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  isolate->counters()->math_clz32()->Increment();
+
+  CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
+  return *isolate->factory()->NewNumberFromUint(
+      base::bits::CountLeadingZeros32(x));
+}
+
+
 RUNTIME_FUNCTION(Runtime_MathFloor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

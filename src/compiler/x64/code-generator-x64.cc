@@ -694,6 +694,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Ror:
       ASSEMBLE_SHIFT(rorq, 6);
       break;
+    case kX64Lzcnt32:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ Lzcntl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ Lzcntl(i.OutputRegister(), i.InputOperand(0));
+      }
+      break;
     case kSSEFloat64Cmp:
       ASSEMBLE_DOUBLE_BINOP(ucomisd);
       break;
