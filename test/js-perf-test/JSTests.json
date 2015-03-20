@@ -60,7 +60,6 @@
       "path": ["Strings"],
       "main": "run.js",
       "resources": ["harmony-string.js"],
-      "flags": ["--harmony-strings"],
       "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
       "tests": [
         {"name": "StringFunctions"}

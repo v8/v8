@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-strings
-
 assertEquals("000", String.prototype.repeat.call(0, 3));
 assertEquals("-1-1-1", String.prototype.repeat.call(-1, 3));
 assertEquals("2.12.12.1", String.prototype.repeat.call(2.1, 3));
