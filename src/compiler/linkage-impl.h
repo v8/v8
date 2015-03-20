@@ -138,11 +138,13 @@ class LinkageHelper {
   }
 
 
+  // TODO(all): Add support for return representations/locations to
+  // CallInterfaceDescriptor.
   // TODO(turbofan): cache call descriptors for code stub calls.
   static CallDescriptor* GetStubCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
-      Operator::Properties properties) {
+      Operator::Properties properties, MachineType return_type) {
     const int register_parameter_count =
         descriptor.GetEnvironmentParameterCount();
     const int js_parameter_count =
@@ -157,7 +159,7 @@ class LinkageHelper {
 
     // Add return location.
     AddReturnLocations(&locations);
-    types.AddReturn(kMachAnyTagged);
+    types.AddReturn(return_type);
 
     // Add parameters in registers and on the stack.
     for (int i = 0; i < js_parameter_count; i++) {

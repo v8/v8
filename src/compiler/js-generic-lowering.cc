@@ -122,7 +122,8 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   Callable callable = CodeFactory::CompareIC(isolate(), token);
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
-      CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
+      CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node),
+      Operator::kNoProperties, kMachInt32);
 
   // Create a new call node asking a CompareIC for help.
   NodeVector inputs(zone());

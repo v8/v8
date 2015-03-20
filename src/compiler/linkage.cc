@@ -175,7 +175,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
-    Operator::Properties properties) {
+    Operator::Properties properties, MachineType return_type) {
   UNIMPLEMENTED();
   return NULL;
 }
