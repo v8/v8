@@ -261,6 +261,11 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
     return Handle<Object>::null();
   }
 
+  if (isolate_->stack_guard()->InterruptRequested()) {
+    // Avoid blocking GC in long running parser (v8:3974).
+    isolate_->stack_guard()->CheckAndHandleGCInterrupt();
+  }
+
   if (c0_ == '"') return ParseJsonString();
   if ((c0_ >= '0' && c0_ <= '9') || c0_ == '-') return ParseJsonNumber();
   if (c0_ == '{') return ParseJsonObject();
