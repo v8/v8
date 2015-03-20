@@ -736,8 +736,9 @@ void Heap::HandleGCRequest() {
     return;
   }
   DCHECK(FLAG_overapproximate_weak_closure);
-  DCHECK(!incremental_marking()->weak_closure_was_overapproximated());
-  OverApproximateWeakClosure("GC interrupt");
+  if (!incremental_marking()->weak_closure_was_overapproximated()) {
+    OverApproximateWeakClosure("GC interrupt");
+  }
 }
 
 
