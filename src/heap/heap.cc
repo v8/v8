@@ -803,6 +803,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
     DisallowHeapAllocation no_recursive_gc;
     isolate()->optimizing_compiler_thread()->Flush();
   }
+  isolate()->ClearSerializerData();
   mark_compact_collector()->SetFlags(kMakeHeapIterableMask |
                                      kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();

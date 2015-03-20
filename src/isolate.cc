@@ -1798,6 +1798,16 @@ void Isolate::GlobalTearDown() {
 }
 
 
+void Isolate::ClearSerializerData() {
+  delete external_reference_table_;
+  external_reference_table_ = NULL;
+  delete external_reference_map_;
+  external_reference_map_ = NULL;
+  delete root_index_map_;
+  root_index_map_ = NULL;
+}
+
+
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
 
@@ -1845,6 +1855,8 @@ void Isolate::Deinit() {
   heap_profiler_ = NULL;
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
+
+  ClearSerializerData();
 }
 
 
@@ -1932,9 +1944,6 @@ Isolate::~Isolate() {
 
   delete string_stream_debug_object_cache_;
   string_stream_debug_object_cache_ = NULL;
-
-  delete external_reference_table_;
-  external_reference_table_ = NULL;
 
   delete random_number_generator_;
   random_number_generator_ = NULL;

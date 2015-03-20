@@ -63,7 +63,7 @@ class ExternalReferenceEncoder {
                                  kPointerSizeLog2);
   }
 
-  HashMap map_;
+  HashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };
@@ -102,13 +102,13 @@ class RootIndexMap : public AddressMapBase {
   static const int kInvalidRootIndex = -1;
 
   int Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(&map_, obj, false);
+    HashMap::Entry* entry = LookupEntry(map_, obj, false);
     if (entry) return GetValue(entry);
     return kInvalidRootIndex;
   }
 
  private:
-  HashMap map_;
+  HashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(RootIndexMap);
 };
@@ -687,7 +687,7 @@ class Serializer : public SerializerDeserializer {
   BackReference AllocateLargeObject(int size);
   BackReference Allocate(AllocationSpace space, int size);
   int EncodeExternalReference(Address addr) {
-    return external_reference_encoder_->Encode(addr);
+    return external_reference_encoder_.Encode(addr);
   }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
@@ -714,7 +714,7 @@ class Serializer : public SerializerDeserializer {
   Isolate* isolate_;
 
   SnapshotByteSink* sink_;
-  ExternalReferenceEncoder* external_reference_encoder_;
+  ExternalReferenceEncoder external_reference_encoder_;
 
   BackReferenceMap back_reference_map_;
   RootIndexMap root_index_map_;

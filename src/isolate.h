@@ -376,8 +376,9 @@ typedef List<HeapObject*> DebugObjectCache;
   V(Relocatable*, relocatable_top, NULL)                                       \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
-  /* Serializer state. */                                                      \
   V(ExternalReferenceTable*, external_reference_table, NULL)                   \
+  V(HashMap*, external_reference_map, NULL)                                    \
+  V(HashMap*, root_index_map, NULL)                                            \
   V(int, pending_microtask_count, 0)                                           \
   V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
@@ -526,6 +527,8 @@ class Isolate {
   void TearDown();
 
   static void GlobalTearDown();
+
+  void ClearSerializerData();
 
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.

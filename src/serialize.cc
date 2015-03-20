@@ -338,23 +338,26 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
 }
 
 
-ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
-    : map_(HashMap::PointersMatch) {
+ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
+  map_ = isolate->external_reference_map();
+  if (map_ != NULL) return;
+  map_ = new HashMap(HashMap::PointersMatch);
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (int i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     if (addr == ExternalReferenceTable::NotAvailable()) continue;
     // We expect no duplicate external references entries in the table.
-    DCHECK_NULL(map_.Lookup(addr, Hash(addr), false));
-    map_.Lookup(addr, Hash(addr), true)->value = reinterpret_cast<void*>(i);
+    DCHECK_NULL(map_->Lookup(addr, Hash(addr), false));
+    map_->Lookup(addr, Hash(addr), true)->value = reinterpret_cast<void*>(i);
   }
+  isolate->set_external_reference_map(map_);
 }
 
 
 uint32_t ExternalReferenceEncoder::Encode(Address address) const {
   DCHECK_NOT_NULL(address);
   HashMap::Entry* entry =
-      const_cast<HashMap&>(map_).Lookup(address, Hash(address), false);
+      const_cast<HashMap*>(map_)->Lookup(address, Hash(address), false);
   DCHECK_NOT_NULL(entry);
   return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
 }
@@ -363,14 +366,17 @@ uint32_t ExternalReferenceEncoder::Encode(Address address) const {
 const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
   HashMap::Entry* entry =
-      const_cast<HashMap&>(map_).Lookup(address, Hash(address), false);
+      const_cast<HashMap*>(map_)->Lookup(address, Hash(address), false);
   if (entry == NULL) return "<unknown>";
   uint32_t i = static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   return ExternalReferenceTable::instance(isolate)->name(i);
 }
 
 
-RootIndexMap::RootIndexMap(Isolate* isolate) : map_(HashMap::PointersMatch) {
+RootIndexMap::RootIndexMap(Isolate* isolate) {
+  map_ = isolate->root_index_map();
+  if (map_ != NULL) return;
+  map_ = new HashMap(HashMap::PointersMatch);
   Object** root_array = isolate->heap()->roots_array_start();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
@@ -380,15 +386,16 @@ RootIndexMap::RootIndexMap(Isolate* isolate) : map_(HashMap::PointersMatch) {
     if (root->IsHeapObject() &&
         isolate->heap()->RootCanBeTreatedAsConstant(root_index)) {
       HeapObject* heap_object = HeapObject::cast(root);
-      HashMap::Entry* entry = LookupEntry(&map_, heap_object, false);
+      HashMap::Entry* entry = LookupEntry(map_, heap_object, false);
       if (entry != NULL) {
         // Some are initialized to a previous value in the root list.
         DCHECK_LT(GetValue(entry), i);
       } else {
-        SetValue(LookupEntry(&map_, heap_object, true), i);
+        SetValue(LookupEntry(map_, heap_object, true), i);
       }
     }
   }
+  isolate->set_root_index_map(map_);
 }
 
 
@@ -1202,7 +1209,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
 Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
     : isolate_(isolate),
       sink_(sink),
-      external_reference_encoder_(new ExternalReferenceEncoder(isolate)),
+      external_reference_encoder_(isolate),
       root_index_map_(isolate),
       code_address_map_(NULL),
       large_objects_total_size_(0),
@@ -1218,7 +1225,6 @@ Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
 
 
 Serializer::~Serializer() {
-  delete external_reference_encoder_;
   if (code_address_map_ != NULL) delete code_address_map_;
 }
 
