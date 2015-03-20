@@ -1520,6 +1520,10 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return Bounds(Type::None(zone()), Type::Number());
     case Runtime::kInlineMathClz32:
       return Bounds(Type::None(), Type::Range(0, 32, zone()));
+    case Runtime::kInlineStringGetLength:
+      // The string::length property is always an unsigned smi.
+      return Bounds(Type::None(), Type::Intersect(Type::UnsignedSmall(),
+                                                  Type::TaggedSigned()));
     default:
       break;
   }
