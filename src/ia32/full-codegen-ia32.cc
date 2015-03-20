@@ -236,6 +236,11 @@ void FullCodeGenerator::Generate() {
     }
   }
 
+  ArgumentsAccessStub::HasNewTarget has_new_target =
+      IsSubclassConstructor(info->function()->kind())
+          ? ArgumentsAccessStub::HAS_NEW_TARGET
+          : ArgumentsAccessStub::NO_NEW_TARGET;
+
   // Possibly allocate RestParameters
   int rest_index;
   Variable* rest_param = scope()->rest_parameter(&rest_index);
@@ -244,6 +249,11 @@ void FullCodeGenerator::Generate() {
 
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
+    if (has_new_target == ArgumentsAccessStub::HAS_NEW_TARGET) {
+      --num_parameters;
+      ++rest_index;
+    }
+
     __ lea(edx,
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
@@ -284,10 +294,7 @@ void FullCodeGenerator::Generate() {
     } else {
       type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
     }
-    ArgumentsAccessStub::HasNewTarget has_new_target =
-        IsSubclassConstructor(info->function()->kind())
-            ? ArgumentsAccessStub::HAS_NEW_TARGET
-            : ArgumentsAccessStub::NO_NEW_TARGET;
+
     ArgumentsAccessStub stub(isolate(), type, has_new_target);
     __ CallStub(&stub);
 
