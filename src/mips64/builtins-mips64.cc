@@ -1440,6 +1440,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
       __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
     }
 
+    // Returns the result in v0.
     Generate_CheckStackOverflow(masm, kFunctionOffset);
 
     // Push current limit and index.
@@ -1544,7 +1545,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
   const int kStackSize = kFormalParameters + 1;
 
   {
-    FrameAndConstantPoolScope frame_scope(masm, StackFrame::INTERNAL);
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
     const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
     const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
     const int kFunctionOffset = kArgumentsOffset + kPointerSize;
@@ -1565,8 +1566,10 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ push(a0);
     __ ld(a0, MemOperand(fp, kNewTargetOffset));  // get the new.target
     __ push(a0);
+    // Returns argument count in v0.
     __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
 
+    // Returns result in v0.
     Generate_CheckStackOverflow(masm, kFunctionOffset);
 
     // Push current limit and index.
@@ -1599,8 +1602,8 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
 
     // Leave internal frame.
   }
-  __ Daddu(sp, sp, Operand(kStackSize * kPointerSize));
-  __ Jump(ra);
+  __ jr(ra);
+  __ Daddu(sp, sp, Operand(kStackSize * kPointerSize));  // In delay slot.
 }
 
 
