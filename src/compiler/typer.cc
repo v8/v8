@@ -212,7 +212,8 @@ Typer::~Typer() {
 
 class Typer::Visitor : public Reducer {
  public:
-  explicit Visitor(Typer* typer) : typer_(typer) {}
+  explicit Visitor(Typer* typer)
+      : typer_(typer), weakened_nodes_(typer->zone()) {}
 
   Reduction Reduce(Node* node) OVERRIDE {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
@@ -280,6 +281,7 @@ class Typer::Visitor : public Reducer {
  private:
   Typer* typer_;
   MaybeHandle<Context> context_;
+  ZoneSet<NodeId> weakened_nodes_;
 
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
   DECLARE_METHOD(Start)
@@ -297,12 +299,17 @@ class Typer::Visitor : public Reducer {
   }
 
   Bounds WrapContextBoundsForInput(Node* node);
-  Type* Weaken(Type* current_type, Type* previous_type);
+  Type* Weaken(Node* node, Type* current_type, Type* previous_type);
 
   Zone* zone() { return typer_->zone(); }
   Isolate* isolate() { return typer_->isolate(); }
   Graph* graph() { return typer_->graph(); }
   MaybeHandle<Context> context() { return typer_->context(); }
+
+  void SetWeakened(NodeId node_id) { weakened_nodes_.insert(node_id); }
+  bool IsWeakened(NodeId node_id) {
+    return weakened_nodes_.find(node_id) != weakened_nodes_.end();
+  }
 
   typedef Type* (*UnaryTyperFun)(Type*, Typer* t);
   typedef Type* (*BinaryTyperFun)(Type*, Type*, Typer* t);
@@ -351,8 +358,8 @@ class Typer::Visitor : public Reducer {
       Bounds previous = NodeProperties::GetBounds(node);
       if (node->opcode() == IrOpcode::kPhi) {
         // Speed up termination in the presence of range types:
-        current.upper = Weaken(current.upper, previous.upper);
-        current.lower = Weaken(current.lower, previous.lower);
+        current.upper = Weaken(node, current.upper, previous.upper);
+        current.lower = Weaken(node, current.lower, previous.lower);
       }
 
       // Types should not get less precise.
@@ -1293,7 +1300,8 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 // the fixpoint calculation in case there appears to be a loop
 // in the graph. In the current implementation, we are
 // increasing the limits to the closest power of two.
-Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
+Type* Typer::Visitor::Weaken(Node* node, Type* current_type,
+                             Type* previous_type) {
   static const double kWeakenMinLimits[] = {
       0.0, -1073741824.0, -2147483648.0, -4294967296.0, -8589934592.0,
       -17179869184.0, -34359738368.0, -68719476736.0, -137438953472.0,
@@ -1311,24 +1319,35 @@ Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
   STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   // If the types have nothing to do with integers, return the types.
-  if (!current_type->Maybe(typer_->integer) ||
-      !previous_type->Maybe(typer_->integer)) {
+  if (!previous_type->Maybe(typer_->integer)) {
     return current_type;
   }
+  DCHECK(current_type->Maybe(typer_->integer));
 
-  Type::RangeType* previous =
-      Type::Intersect(previous_type, typer_->integer, zone())->GetRange();
-  Type::RangeType* current =
-      Type::Intersect(current_type, typer_->integer, zone())->GetRange();
-  if (current == nullptr || previous == nullptr) {
-    return current_type;
+  Type* current_integer =
+      Type::Intersect(current_type, typer_->integer, zone());
+  Type* previous_integer =
+      Type::Intersect(previous_type, typer_->integer, zone());
+
+  // Once we start weakening a node, we should always weaken.
+  if (!IsWeakened(node->id())) {
+    // Only weaken if there is range involved; we should converge quickly
+    // for all other types (the exception is a union of many constants,
+    // but we currently do not increase the number of constants in unions).
+    Type::RangeType* previous = previous_integer->GetRange();
+    Type::RangeType* current = current_integer->GetRange();
+    if (current == nullptr || previous == nullptr) {
+      return current_type;
+    }
+    // Range is involved => we are weakening.
+    SetWeakened(node->id());
   }
 
-  double current_min = current->Min();
+  double current_min = current_integer->Min();
   double new_min = current_min;
   // Find the closest lower entry in the list of allowed
   // minima (or negative infinity if there is no such entry).
-  if (current_min != previous->Min()) {
+  if (current_min != previous_integer->Min()) {
     new_min = typer_->integer->AsRange()->Min();
     for (double const min : kWeakenMinLimits) {
       if (min <= current_min) {
@@ -1338,11 +1357,11 @@ Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
     }
   }
 
-  double current_max = current->Max();
+  double current_max = current_integer->Max();
   double new_max = current_max;
   // Find the closest greater entry in the list of allowed
   // maxima (or infinity if there is no such entry).
-  if (current_max != previous->Max()) {
+  if (current_max != previous_integer->Max()) {
     new_max = typer_->integer->AsRange()->Max();
     for (double const max : kWeakenMaxLimits) {
       if (max >= current_max) {
