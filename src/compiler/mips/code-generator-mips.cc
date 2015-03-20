@@ -496,6 +496,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMipsXor:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kMipsClz:
+      __ Clz(i.OutputRegister(), i.InputRegister(0));
+      break;
     case kMipsShl:
       if (instr->InputAt(1)->IsRegister()) {
         __ sllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
