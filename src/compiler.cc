@@ -1063,7 +1063,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
   FixedArray* array = isolate->native_context()->embedder_data();
-  script->set_context_data(array->get(0));
+  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
 
   isolate->debug()->OnBeforeCompile(script);
 
