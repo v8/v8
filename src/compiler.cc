@@ -1288,6 +1288,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
+    // First check per-isolate compilation cache.
     maybe_result = compilation_cache->LookupScript(
         source, script_name, line_offset, column_offset,
         is_embedder_debug_script, is_shared_cross_origin, context,
@@ -1295,10 +1296,14 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     if (maybe_result.is_null() && FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
+      // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
       Handle<SharedFunctionInfo> result;
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
               .ToHandle(&result)) {
+        // Promote to per-isolate compilation cache.
+        DCHECK(!result->dont_cache());
+        compilation_cache->PutScript(source, context, language_mode, result);
         return result;
       }
       // Deserializer failed. Fall through to compile.
