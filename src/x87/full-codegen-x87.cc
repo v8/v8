@@ -2619,25 +2619,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ mov(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
     CallStoreIC();
 
-  } else if (op == Token::INIT_CONST_LEGACY) {
-    // Const initializers need a write barrier.
-    DCHECK(!var->IsParameter());  // No const parameters.
-    if (var->IsLookupSlot()) {
-      __ push(eax);
-      __ push(esi);
-      __ push(Immediate(var->name()));
-      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
-    } else {
-      DCHECK(var->IsStackLocal() || var->IsContextSlot());
-      Label skip;
-      MemOperand location = VarOperand(var, ecx);
-      __ mov(edx, location);
-      __ cmp(edx, isolate()->factory()->the_hole_value());
-      __ j(not_equal, &skip, Label::kNear);
-      EmitStoreToStackLocalOrContextSlot(var, location);
-      __ bind(&skip);
-    }
-
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     DCHECK(!var->IsLookupSlot());
@@ -2651,6 +2632,21 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
     __ bind(&assign);
     EmitStoreToStackLocalOrContextSlot(var, location);
+
+  } else if (var->mode() == CONST && op != Token::INIT_CONST) {
+    // Assignment to const variable needs a write barrier.
+    DCHECK(!var->IsLookupSlot());
+    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+    Label const_error;
+    MemOperand location = VarOperand(var, ecx);
+    __ mov(edx, location);
+    __ cmp(edx, isolate()->factory()->the_hole_value());
+    __ j(not_equal, &const_error, Label::kNear);
+    __ push(Immediate(var->name()));
+    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ bind(&const_error);
+    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+
   } else if (!var->is_const_mode() || op == Token::INIT_CONST) {
     if (var->IsLookupSlot()) {
       // Assignment to var.
@@ -2672,8 +2668,33 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
-  } else if (IsSignallingAssignmentToConst(var, op, language_mode())) {
-    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+
+  } else if (op == Token::INIT_CONST_LEGACY) {
+    // Const initializers need a write barrier.
+    DCHECK(var->mode() == CONST_LEGACY);
+    DCHECK(!var->IsParameter());  // No const parameters.
+    if (var->IsLookupSlot()) {
+      __ push(eax);
+      __ push(esi);
+      __ push(Immediate(var->name()));
+      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
+    } else {
+      DCHECK(var->IsStackLocal() || var->IsContextSlot());
+      Label skip;
+      MemOperand location = VarOperand(var, ecx);
+      __ mov(edx, location);
+      __ cmp(edx, isolate()->factory()->the_hole_value());
+      __ j(not_equal, &skip, Label::kNear);
+      EmitStoreToStackLocalOrContextSlot(var, location);
+      __ bind(&skip);
+    }
+
+  } else {
+    DCHECK(var->mode() == CONST_LEGACY && op != Token::INIT_CONST_LEGACY);
+    if (is_strict(language_mode())) {
+      __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+    }
+    // Silently ignore store in sloppy mode.
   }
 }
 
