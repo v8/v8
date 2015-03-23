@@ -72,11 +72,10 @@ function StringCharCodeAtJS(pos) {
 // ECMA-262, section 15.5.4.6
 function StringConcat(other /* and more */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.concat");
-
   var len = %_ArgumentsLength();
   var this_as_string = TO_STRING_INLINE(this);
   if (len === 1) {
-    return this_as_string + other;
+    return this_as_string + TO_STRING_INLINE(other);
   }
   var parts = new InternalArray(len + 1);
   parts[0] = this_as_string;
