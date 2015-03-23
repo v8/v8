@@ -4669,8 +4669,7 @@ enum ObjectSpace {
   kObjectSpaceCodeSpace = 1 << 3,
   kObjectSpaceMapSpace = 1 << 4,
   kObjectSpaceCellSpace = 1 << 5,
-  kObjectSpacePropertyCellSpace = 1 << 6,
-  kObjectSpaceLoSpace = 1 << 7,
+  kObjectSpaceLoSpace = 1 << 6,
   kObjectSpaceAll = kObjectSpaceNewSpace | kObjectSpaceOldPointerSpace |
                     kObjectSpaceOldDataSpace | kObjectSpaceCodeSpace |
                     kObjectSpaceMapSpace | kObjectSpaceLoSpace
