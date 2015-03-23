@@ -458,7 +458,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
                        : new (info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
-  info()->SetThisHasUses(false);
   graph_ = graph_builder_->CreateGraph();
 
   if (isolate()->has_pending_exception()) {

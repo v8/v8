@@ -114,18 +114,17 @@ class CompilationInfo {
     kNonDeferredCalling = 1 << 1,
     kSavesCallerDoubles = 1 << 2,
     kRequiresFrame = 1 << 3,
-    kThisHasUses = 1 << 4,
-    kMustNotHaveEagerFrame = 1 << 5,
-    kDeoptimizationSupport = 1 << 6,
-    kDebug = 1 << 7,
-    kCompilingForDebugging = 1 << 8,
-    kSerializing = 1 << 9,
-    kContextSpecializing = 1 << 10,
-    kInliningEnabled = 1 << 11,
-    kTypingEnabled = 1 << 12,
-    kDisableFutureOptimization = 1 << 13,
-    kSplittingEnabled = 1 << 14,
-    kBuiltinInliningEnabled = 1 << 15
+    kMustNotHaveEagerFrame = 1 << 4,
+    kDeoptimizationSupport = 1 << 5,
+    kDebug = 1 << 6,
+    kCompilingForDebugging = 1 << 7,
+    kSerializing = 1 << 8,
+    kContextSpecializing = 1 << 9,
+    kInliningEnabled = 1 << 10,
+    kTypingEnabled = 1 << 11,
+    kDisableFutureOptimization = 1 << 12,
+    kSplittingEnabled = 1 << 13,
+    kBuiltinInliningEnabled = 1 << 14
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -191,10 +190,6 @@ class CompilationInfo {
   void MarkAsRequiresFrame() { SetFlag(kRequiresFrame); }
 
   bool requires_frame() const { return GetFlag(kRequiresFrame); }
-
-  void SetThisHasUses(bool val) { SetFlag(kThisHasUses, val); }
-
-  bool this_has_uses() const { return GetFlag(kThisHasUses); }
 
   void MarkMustNotHaveEagerFrame() { SetFlag(kMustNotHaveEagerFrame); }
 

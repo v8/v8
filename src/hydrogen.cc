@@ -3438,6 +3438,7 @@ HGraph::HGraph(CompilationInfo* info)
       info_(info),
       zone_(info->zone()),
       is_recursive_(false),
+      this_has_uses_(false),
       use_optimistic_licm_(false),
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
@@ -5291,7 +5292,7 @@ HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
 
 void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   if (expr->is_this()) {
-    current_info()->SetThisHasUses(true);
+    graph()->MarkThisHasUses();
   }
 
   DCHECK(!HasStackOverflow());
