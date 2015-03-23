@@ -494,8 +494,6 @@ class CompilationInfoWithZone: public CompilationInfo {
  public:
   explicit CompilationInfoWithZone(Handle<Script> script);
   explicit CompilationInfoWithZone(Handle<JSFunction> closure);
-  CompilationInfoWithZone(CodeStub* stub, Isolate* isolate)
-      : CompilationInfo(stub, isolate, &zone_) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
   // zone scope and get rid of dependent maps even when the destructor is

@@ -27,20 +27,14 @@ typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
   InstructionTester()
-      : isolate(main_isolate()),
-        graph(zone()),
+      : graph(zone()),
         schedule(zone()),
-        fake_stub(main_isolate()),
-        info(&fake_stub, main_isolate()),
         common(zone()),
         machine(zone()),
         code(NULL) {}
 
-  Isolate* isolate;
   Graph graph;
   Schedule schedule;
-  FakeStubForTesting fake_stub;
-  CompilationInfoWithZone info;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;
   TestInstrSeq* code;

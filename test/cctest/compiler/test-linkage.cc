@@ -74,9 +74,10 @@ TEST(TestLinkageJSFunctionIncoming) {
 
 TEST(TestLinkageCodeStubIncoming) {
   Isolate* isolate = CcTest::InitIsolateOnce();
+  Zone zone;
   ToNumberStub stub(isolate);
-  CompilationInfoWithZone info(&stub, isolate);
-  CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
+  CompilationInfo info(&stub, isolate, &zone);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(&zone, &info);
   CHECK(descriptor);
   CHECK_EQ(1, static_cast<int>(descriptor->JSParameterCount()));
   CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
