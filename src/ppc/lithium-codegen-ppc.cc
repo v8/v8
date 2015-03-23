@@ -2893,8 +2893,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     // root array to force relocation to be able to later patch with
     // the cached map.
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
-    __ mov(ip, Operand(Handle<Object>(cell)));
-    __ LoadP(ip, FieldMemOperand(ip, PropertyCell::kValueOffset));
+    __ mov(ip, Operand(cell));
+    __ LoadP(ip, FieldMemOperand(ip, Cell::kValueOffset));
     __ cmp(map, ip);
     __ bne(&cache_miss);
     // We use Factory::the_hole_value() on purpose instead of loading from the
@@ -5469,7 +5469,7 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
   if (isolate()->heap()->InNewSpace(*object)) {
     Register reg = ToRegister(instr->value());
     Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    __ mov(ip, Operand(Handle<Object>(cell)));
+    __ mov(ip, Operand(cell));
     __ LoadP(ip, FieldMemOperand(ip, Cell::kValueOffset));
     __ cmp(reg, ip);
   } else {
