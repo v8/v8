@@ -56,7 +56,6 @@ class ParseInfo {
   FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
-  FLAG_ACCESSOR(kThisHasUses, this_has_uses, set_this_has_uses)
   FLAG_ACCESSOR(kAstValueFactoryOwned, ast_value_factory_owned,
                 set_ast_value_factory_owned)
 
@@ -170,8 +169,7 @@ class ParseInfo {
     kModule = 1 << 8,
     kAllowLazyParsing = 1 << 9,
     // ---------- Output flags --------------------------
-    kThisHasUses = 1 << 10,
-    kAstValueFactoryOwned = 1 << 11
+    kAstValueFactoryOwned = 1 << 10
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

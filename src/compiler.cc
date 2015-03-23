@@ -62,7 +62,6 @@ PARSE_INFO_GETTER(Handle<Script>, script)
 PARSE_INFO_GETTER(bool, is_eval)
 PARSE_INFO_GETTER(bool, is_native)
 PARSE_INFO_GETTER(bool, is_module)
-PARSE_INFO_GETTER(bool, this_has_uses)
 PARSE_INFO_GETTER(LanguageMode, language_mode)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<JSFunction>, closure,
                                Handle<JSFunction>::null())
@@ -459,8 +458,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
                        : new (info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
-  // TODO(titzer): ParseInfo::this_has_uses is only used by Crankshaft. Move.
-  info()->parse_info()->set_this_has_uses(false);
+  info()->SetThisHasUses(false);
   graph_ = graph_builder_->CreateGraph();
 
   if (isolate()->has_pending_exception()) {

@@ -5291,7 +5291,7 @@ HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
 
 void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   if (expr->is_this()) {
-    current_info()->parse_info()->set_this_has_uses(true);
+    current_info()->SetThisHasUses(true);
   }
 
   DCHECK(!HasStackOverflow());

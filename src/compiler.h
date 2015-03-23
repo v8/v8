@@ -110,21 +110,22 @@ class CompilationInfo {
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
   enum Flag {
-    kDeferredCalling = 1 << 7,
-    kNonDeferredCalling = 1 << 8,
-    kSavesCallerDoubles = 1 << 9,
-    kRequiresFrame = 1 << 10,
-    kMustNotHaveEagerFrame = 1 << 11,
-    kDeoptimizationSupport = 1 << 12,
-    kDebug = 1 << 13,
-    kCompilingForDebugging = 1 << 14,
-    kSerializing = 1 << 16,
-    kContextSpecializing = 1 << 17,
-    kInliningEnabled = 1 << 18,
-    kTypingEnabled = 1 << 19,
-    kDisableFutureOptimization = 1 << 20,
-    kSplittingEnabled = 1 << 23,
-    kBuiltinInliningEnabled = 1 << 24
+    kDeferredCalling = 1 << 0,
+    kNonDeferredCalling = 1 << 1,
+    kSavesCallerDoubles = 1 << 2,
+    kRequiresFrame = 1 << 3,
+    kThisHasUses = 1 << 4,
+    kMustNotHaveEagerFrame = 1 << 5,
+    kDeoptimizationSupport = 1 << 6,
+    kDebug = 1 << 7,
+    kCompilingForDebugging = 1 << 8,
+    kSerializing = 1 << 9,
+    kContextSpecializing = 1 << 10,
+    kInliningEnabled = 1 << 11,
+    kTypingEnabled = 1 << 12,
+    kDisableFutureOptimization = 1 << 13,
+    kSplittingEnabled = 1 << 14,
+    kBuiltinInliningEnabled = 1 << 15
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -140,7 +141,6 @@ class CompilationInfo {
   bool is_eval() const;
   bool is_native() const;
   bool is_module() const;
-  bool this_has_uses() const;
   LanguageMode language_mode() const;
   Handle<JSFunction> closure() const;
   FunctionLiteral* function() const;
@@ -191,6 +191,10 @@ class CompilationInfo {
   void MarkAsRequiresFrame() { SetFlag(kRequiresFrame); }
 
   bool requires_frame() const { return GetFlag(kRequiresFrame); }
+
+  void SetThisHasUses(bool val) { SetFlag(kThisHasUses, val); }
+
+  bool this_has_uses() const { return GetFlag(kThisHasUses); }
 
   void MarkMustNotHaveEagerFrame() { SetFlag(kMustNotHaveEagerFrame); }
 
