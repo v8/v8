@@ -1104,10 +1104,22 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Max(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Emit(kArm64Float64Max, g.DefineAsRegister(node), g.UseRegister(left),
+       g.UseRegister(right));
+}
 
 
-void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Min(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Emit(kArm64Float64Min, g.DefineAsRegister(node), g.UseRegister(left),
+       g.UseRegister(right));
+}
 
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
@@ -1681,6 +1693,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
+         MachineOperatorBuilder::kFloat64Max |
+         MachineOperatorBuilder::kFloat64Min |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe;

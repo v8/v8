@@ -740,6 +740,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
       break;
     }
+    case kArm64Float64Max:
+      __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
+      break;
+    case kArm64Float64Min:
+      __ Fmin(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
+      break;
     case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -842,7 +850,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_CHECKED_STORE_FLOAT(64);
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 // Assemble branches after this instruction.
