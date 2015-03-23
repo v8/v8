@@ -3821,7 +3821,7 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   __ B(&done);
 
   NopRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm_, call_helper);
+  generator.GenerateSlow(masm_, NOT_PART_OF_IC_HANDLER, call_helper);
 
   __ Bind(&done);
   context()->Plug(result);
@@ -3867,7 +3867,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
   __ B(&done);
 
   NopRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm_, call_helper);
+  generator.GenerateSlow(masm_, NOT_PART_OF_IC_HANDLER, call_helper);
 
   __ Bind(&done);
   context()->Plug(result);

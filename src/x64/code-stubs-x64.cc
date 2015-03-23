@@ -930,7 +930,7 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 
   StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, call_helper);
+  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
 
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
@@ -2899,7 +2899,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm,
+    MacroAssembler* masm, EmbedMode embed_mode,
     const RuntimeCallHelper& call_helper) {
   __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
@@ -2912,6 +2912,10 @@ void StringCharCodeAtGenerator::GenerateSlow(
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
+  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+    __ Push(VectorLoadICDescriptor::VectorRegister());
+    __ Push(VectorLoadICDescriptor::SlotRegister());
+  }
   __ Push(object_);
   __ Push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
@@ -2927,6 +2931,10 @@ void StringCharCodeAtGenerator::GenerateSlow(
     __ movp(index_, rax);
   }
   __ Pop(object_);
+  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+    __ Pop(VectorLoadICDescriptor::SlotRegister());
+    __ Pop(VectorLoadICDescriptor::VectorRegister());
+  }
   // Reload the instance type.
   __ movp(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
@@ -4518,7 +4526,6 @@ void VectorRawKeyedLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Label not_array, smi_key, key_okay, miss;
   __ CompareRoot(FieldOperand(feedback, 0), Heap::kWeakCellMapRootIndex);
   __ j(not_equal, &try_array);
-  __ JumpIfNotSmi(key, &miss);
   HandleMonomorphicCase(masm, receiver, key, vector, slot, feedback,
                         integer_slot, &miss);
 
@@ -4526,9 +4533,8 @@ void VectorRawKeyedLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   // Is it a fixed array?
   __ CompareRoot(FieldOperand(feedback, 0), Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &not_array);
-  // We have a polymorphic element handler.
-  __ JumpIfNotSmi(key, &miss);
 
+  // We have a polymorphic element handler.
   Label polymorphic, try_poly_name;
   __ bind(&polymorphic);
   HandleArrayCases(masm, receiver, key, vector, slot, feedback, integer_slot,

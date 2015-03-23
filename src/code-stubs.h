@@ -1777,6 +1777,15 @@ enum ReceiverCheckMode {
 };
 
 
+enum EmbedMode {
+  // The code being generated is part of an IC handler, which may MISS
+  // to an IC in failure cases.
+  PART_OF_IC_HANDLER,
+
+  NOT_PART_OF_IC_HANDLER
+};
+
+
 // Generates code implementing String.prototype.charCodeAt.
 //
 // Only supports the case when the receiver is a string and the index
@@ -1813,7 +1822,7 @@ class StringCharCodeAtGenerator {
   // Generates the slow case code. Must not be naturally
   // reachable. Expected to be put after a ret instruction (e.g., in
   // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm,
+  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
                     const RuntimeCallHelper& call_helper);
 
   // Skip handling slow case and directly jump to bailout.
@@ -1913,9 +1922,9 @@ class StringCharAtGenerator {
   // Generates the slow case code. Must not be naturally
   // reachable. Expected to be put after a ret instruction (e.g., in
   // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm,
+  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
                     const RuntimeCallHelper& call_helper) {
-    char_code_at_generator_.GenerateSlow(masm, call_helper);
+    char_code_at_generator_.GenerateSlow(masm, embed_mode, call_helper);
     char_from_code_generator_.GenerateSlow(masm, call_helper);
   }
 
