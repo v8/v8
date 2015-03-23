@@ -218,7 +218,7 @@ var DefaultObjectToString = NoSideEffectsObjectToString;
 function NoSideEffectsObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
-  return "[object " + %_ClassOf(ToObject(this)) + "]";
+  return "[object " + %_ClassOf(TO_OBJECT_INLINE(this)) + "]";
 }
 
 
@@ -231,7 +231,7 @@ function ObjectToLocaleString() {
 
 // ECMA-262 - 15.2.4.4
 function ObjectValueOf() {
-  return ToObject(this);
+  return TO_OBJECT_INLINE(this);
 }
 
 
@@ -266,7 +266,7 @@ function ObjectPropertyIsEnumerable(V) {
     var desc = GetOwnPropertyJS(this, P);
     return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
   }
-  return %IsPropertyEnumerable(ToObject(this), P);
+  return %IsPropertyEnumerable(TO_OBJECT_INLINE(this), P);
 }
 
 
@@ -284,7 +284,7 @@ function ObjectDefineGetter(name, fun) {
   desc.setGet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(receiver), ToName(name), desc, false);
+  DefineOwnProperty(TO_OBJECT_INLINE(receiver), ToName(name), desc, false);
 }
 
 
@@ -293,7 +293,7 @@ function ObjectLookupGetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalProxy(global);
   }
-  return %LookupAccessor(ToObject(receiver), ToName(name), GETTER);
+  return %LookupAccessor(TO_OBJECT_INLINE(receiver), ToName(name), GETTER);
 }
 
 
@@ -310,7 +310,7 @@ function ObjectDefineSetter(name, fun) {
   desc.setSet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(receiver), ToName(name), desc, false);
+  DefineOwnProperty(TO_OBJECT_INLINE(receiver), ToName(name), desc, false);
 }
 
 
@@ -319,12 +319,12 @@ function ObjectLookupSetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalProxy(global);
   }
-  return %LookupAccessor(ToObject(receiver), ToName(name), SETTER);
+  return %LookupAccessor(TO_OBJECT_INLINE(receiver), ToName(name), SETTER);
 }
 
 
 function ObjectKeys(obj) {
-  obj = ToObject(obj);
+  obj = TO_OBJECT_INLINE(obj);
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
@@ -641,7 +641,7 @@ function GetOwnPropertyJS(obj, v) {
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
-  var props = %GetOwnProperty(ToObject(obj), p);
+  var props = %GetOwnProperty(TO_OBJECT_INLINE(obj), p);
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -692,9 +692,9 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 // ES5 8.12.9.
 function DefineObjectProperty(obj, p, desc, should_throw) {
-  var current_array = %GetOwnProperty(ToObject(obj), ToName(p));
+  var current_array = %GetOwnProperty(obj, ToName(p));
   var current = ConvertDescriptorArrayToDescriptor(current_array);
-  var extensible = %IsExtensible(ToObject(obj));
+  var extensible = %IsExtensible(obj);
 
   // Error handling according to spec.
   // Step 3
@@ -1102,7 +1102,7 @@ function ObjectGetOwnPropertyKeys(obj, filter) {
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
-  obj = ToObject(obj);
+  obj = TO_OBJECT_INLINE(obj);
   // Special handling for proxies.
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
@@ -1194,7 +1194,7 @@ function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.defineProperties"]);
   }
-  var props = ToObject(properties);
+  var props = TO_OBJECT_INLINE(properties);
   var names = GetOwnEnumerablePropertyNames(props);
   var descriptors = new InternalArray();
   for (var i = 0; i < names.length; i++) {
@@ -1373,7 +1373,7 @@ function ObjectIs(obj1, obj2) {
 
 // ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
-  return %_GetPrototype(ToObject(this));
+  return %_GetPrototype(TO_OBJECT_INLINE(this));
 }
 
 
@@ -1390,10 +1390,10 @@ function ObjectSetProto(proto) {
 function ObjectConstructor(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
-    return ToObject(x);
+    return TO_OBJECT_INLINE(x);
   } else {
     if (x == null) return { };
-    return ToObject(x);
+    return TO_OBJECT_INLINE(x);
   }
 }
 
