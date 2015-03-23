@@ -990,22 +990,16 @@ void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
 
   // We will build up the handler from the bottom by pushing on the stack.
-  // First push the frame pointer and context.
+  // First push the context.
   if (kind == StackHandler::JS_ENTRY) {
-    // The frame pointer does not point to a JS frame so we save NULL for
-    // ebp. We expect the code throwing an exception to check ebp before
-    // dereferencing it to restore the context.
-    push(Immediate(0));  // NULL frame pointer.
     push(Immediate(Smi::FromInt(0)));  // No context.
   } else {
-    push(ebp);
     push(esi);
   }
   // Push the state.
