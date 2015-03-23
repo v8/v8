@@ -106,41 +106,46 @@ class ControlReducerImpl {
     marked.Push(start);
     marked.SetReachableFromStart(start);
 
-    // We use a stack of (Node, Node::Uses::const_iterator) pairs to avoid
+    // We use a stack of (Node, Node::UseEdges::iterator) pairs to avoid
     // O(n^2) traversal.
-    typedef std::pair<Node*, Node::Uses::const_iterator> FwIter;
+    typedef std::pair<Node*, Node::UseEdges::iterator> FwIter;
     ZoneVector<FwIter> fw_stack(zone_);
-    fw_stack.push_back(FwIter(start, start->uses().begin()));
+    fw_stack.push_back(FwIter(start, start->use_edges().begin()));
 
     while (!fw_stack.empty()) {
       Node* node = fw_stack.back().first;
       TRACE("ControlFw: #%d:%s\n", node->id(), node->op()->mnemonic());
       bool pop = true;
-      while (fw_stack.back().second != node->uses().end()) {
-        Node* succ = *(fw_stack.back().second);
-        if (marked.IsOnStack(succ) && !marked.IsReachableFromEnd(succ)) {
-          // {succ} is on stack and not reachable from end.
-          Node* added = ConnectNTL(succ);
-          nodes.push_back(added);
-          marked.SetReachableFromEnd(added);
-          AddBackwardsReachableNodes(marked, nodes, nodes.size() - 1);
+      while (fw_stack.back().second != node->use_edges().end()) {
+        Edge edge = *(fw_stack.back().second);
+        if (NodeProperties::IsControlEdge(edge) &&
+            edge.from()->op()->ControlOutputCount() > 0) {
+          // Only walk control edges to control nodes.
+          Node* succ = edge.from();
 
-          // Reset the use iterators for the entire stack.
-          for (size_t i = 0; i < fw_stack.size(); i++) {
-            FwIter& iter = fw_stack[i];
-            fw_stack[i] = FwIter(iter.first, iter.first->uses().begin());
+          if (marked.IsOnStack(succ) && !marked.IsReachableFromEnd(succ)) {
+            // {succ} is on stack and not reachable from end.
+            Node* added = ConnectNTL(succ);
+            nodes.push_back(added);
+            marked.SetReachableFromEnd(added);
+            AddBackwardsReachableNodes(marked, nodes, nodes.size() - 1);
+
+            // Reset the use iterators for the entire stack.
+            for (size_t i = 0; i < fw_stack.size(); i++) {
+              FwIter& iter = fw_stack[i];
+              fw_stack[i] = FwIter(iter.first, iter.first->use_edges().begin());
+            }
+            pop = false;  // restart traversing successors of this node.
+            break;
           }
-          pop = false;  // restart traversing successors of this node.
-          break;
-        }
-        if (succ->op()->ControlOutputCount() > 0 &&
-            !marked.IsReachableFromStart(succ)) {
-          // {succ} is a control node and not yet reached from start.
-          marked.Push(succ);
-          marked.SetReachableFromStart(succ);
-          fw_stack.push_back(FwIter(succ, succ->uses().begin()));
-          pop = false;  // "recurse" into successor control node.
-          break;
+          if (!marked.IsReachableFromStart(succ)) {
+            // {succ} is not yet reached from start.
+            marked.Push(succ);
+            marked.SetReachableFromStart(succ);
+            fw_stack.push_back(FwIter(succ, succ->use_edges().begin()));
+            pop = false;  // "recurse" into successor control node.
+            break;
+          }
         }
         ++fw_stack.back().second;
       }
@@ -168,6 +173,7 @@ class ControlReducerImpl {
   // Connect {loop}, the header of a non-terminating loop, to the end node.
   Node* ConnectNTL(Node* loop) {
     TRACE("ConnectNTL: #%d:%s\n", loop->id(), loop->op()->mnemonic());
+    DCHECK_EQ(IrOpcode::kLoop, loop->opcode());
 
     Node* always = graph()->NewNode(common_->Always());
     // Mark the node as visited so that we can revisit later.
@@ -509,8 +515,8 @@ class ControlReducerImpl {
       index++;
     }
 
-    TRACE("ReduceMerge: #%d:%s (%d live)\n", node->id(), node->op()->mnemonic(),
-          live);
+    TRACE("ReduceMerge: #%d:%s (%d of %d live)\n", node->id(),
+          node->op()->mnemonic(), live, index);
 
     if (live == 0) return dead();  // no remaining inputs.
 
@@ -577,7 +583,7 @@ class ControlReducerImpl {
     Decision result = DecideCondition(branch->InputAt(0));
     if (result == kTrue) {
       // fold a true branch by replacing IfTrue with the branch control.
-      TRACE("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
+      TRACE("  BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
             branch->op()->mnemonic(), node->id(), node->op()->mnemonic());
       return branch->InputAt(1);
     }
@@ -591,7 +597,7 @@ class ControlReducerImpl {
     Decision result = DecideCondition(branch->InputAt(0));
     if (result == kFalse) {
       // fold a false branch by replacing IfFalse with the branch control.
-      TRACE("BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
+      TRACE("  BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
             branch->op()->mnemonic(), node->id(), node->op()->mnemonic());
       return branch->InputAt(1);
     }
