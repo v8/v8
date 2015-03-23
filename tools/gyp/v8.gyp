@@ -1707,6 +1707,7 @@
           '../../src/debug-debugger.js',
           '../../src/mirror-debugger.js',
           '../../src/liveedit-debugger.js',
+          '../../src/templates.js',
           '../../src/macros.py',
         ],
         'experimental_library_files': [
@@ -1717,7 +1718,6 @@
           '../../src/harmony-array-includes.js',
           '../../src/harmony-tostring.js',
           '../../src/harmony-typedarray.js',
-          '../../src/harmony-templates.js',
           '../../src/harmony-regexp.js',
           '../../src/harmony-reflect.js'
         ],

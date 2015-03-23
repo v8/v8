@@ -1378,7 +1378,6 @@ enum ParserFlag {
   kAllowHarmonyClasses,
   kAllowHarmonyObjectLiterals,
   kAllowHarmonyRestParameters,
-  kAllowHarmonyTemplates,
   kAllowHarmonySloppy,
   kAllowHarmonyUnicode,
   kAllowHarmonyComputedPropertyNames,
@@ -1405,7 +1404,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_arrow_functions(
       flags.Contains(kAllowHarmonyArrowFunctions));
   parser->set_allow_harmony_classes(flags.Contains(kAllowHarmonyClasses));
-  parser->set_allow_harmony_templates(flags.Contains(kAllowHarmonyTemplates));
   parser->set_allow_harmony_rest_params(
       flags.Contains(kAllowHarmonyRestParameters));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
@@ -4704,9 +4702,7 @@ TEST(ScanTemplateLiterals) {
       "`foo${\r a}`",
       "`foo${'a' in a}`",
       NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0);
 }
 
 
@@ -4741,9 +4737,7 @@ TEST(ScanTaggedTemplateLiterals) {
       "tag`foo${\r a}`",
       "tag`foo${'a' in a}`",
       NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0);
 }
 
 
@@ -4770,9 +4764,7 @@ TEST(TemplateMaterializedLiterals) {
     NULL
   };
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0);
 }
 
 
@@ -4806,9 +4798,7 @@ TEST(ScanUnterminatedTemplateLiterals) {
       "`foo${fn(}`",
       "`foo${1 if}`",
       NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0);
 }
 
 
@@ -4828,9 +4818,7 @@ TEST(TemplateLiteralsIllegalTokens) {
       "`hello${1}\\x\n${2}`",
       NULL};
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyTemplates};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0);
 }
 
 

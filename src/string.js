@@ -1091,6 +1091,29 @@ function StringFromCodePoint(_) {  // length = 1
 }
 
 
+// -------------------------------------------------------------------
+// String methods related to templates
+
+// ES6 Draft 03-17-2015, section 21.1.2.4
+function StringRaw(callSite) {
+  // TODO(caitp): Use rest parameters when implemented
+  var numberOfSubstitutions = %_ArgumentsLength();
+  var cooked = ToObject(callSite);
+  var raw = ToObject(cooked.raw);
+  var literalSegments = ToLength(raw.length);
+  if (literalSegments <= 0) return "";
+
+  var result = ToString(raw[0]);
+
+  for (var i = 1; i < literalSegments; ++i) {
+    if (i < numberOfSubstitutions) {
+      result += ToString(%_Arguments(i));
+    }
+    result += ToString(raw[i]);
+  }
+
+  return result;
+}
 
 // -------------------------------------------------------------------
 
@@ -1105,7 +1128,8 @@ function StringFromCodePoint(_) {  // length = 1
 // Set up the non-enumerable functions on the String object.
 InstallFunctions(GlobalString, DONT_ENUM, GlobalArray(
   "fromCharCode", StringFromCharCode,
-  "fromCodePoint", StringFromCodePoint
+  "fromCodePoint", StringFromCodePoint,
+  "raw", StringRaw
 ));
 
 // Set up the non-enumerable functions on the String prototype object.

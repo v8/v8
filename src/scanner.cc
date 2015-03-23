@@ -38,7 +38,6 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
       harmony_modules_(false),
       harmony_numeric_literals_(false),
       harmony_classes_(false),
-      harmony_templates_(false),
       harmony_unicode_(false) {}
 
 
@@ -655,10 +654,8 @@ void Scanner::Scan() {
         break;
 
       case '`':
-        if (HarmonyTemplates()) {
-          token = ScanTemplateStart();
-          break;
-        }
+        token = ScanTemplateStart();
+        break;
 
       default:
         if (c0_ < 0) {

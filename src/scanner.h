@@ -462,8 +462,6 @@ class Scanner {
   void SetHarmonyClasses(bool classes) {
     harmony_classes_ = classes;
   }
-  bool HarmonyTemplates() const { return harmony_templates_; }
-  void SetHarmonyTemplates(bool templates) { harmony_templates_ = templates; }
   bool HarmonyUnicode() const { return harmony_unicode_; }
   void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
 
@@ -745,8 +743,6 @@ class Scanner {
   bool harmony_numeric_literals_;
   // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
   bool harmony_classes_;
-  // Whether we scan TEMPLATE_SPAN and TEMPLATE_TAIL
-  bool harmony_templates_;
   // Whether we allow \u{xxxxx}.
   bool harmony_unicode_;
 };

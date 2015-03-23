@@ -875,7 +875,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_harmony_classes(FLAG_harmony_classes);
   set_allow_harmony_object_literals(FLAG_harmony_object_literals);
-  set_allow_harmony_templates(FLAG_harmony_templates);
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_unicode(FLAG_harmony_unicode);
   set_allow_harmony_computed_property_names(
@@ -4173,7 +4172,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_harmony_classes(allow_harmony_classes());
     reusable_preparser_->set_allow_harmony_object_literals(
         allow_harmony_object_literals());
-    reusable_preparser_->set_allow_harmony_templates(allow_harmony_templates());
     reusable_preparser_->set_allow_harmony_sloppy(allow_harmony_sloppy());
     reusable_preparser_->set_allow_harmony_unicode(allow_harmony_unicode());
     reusable_preparser_->set_allow_harmony_computed_property_names(

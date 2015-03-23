@@ -107,7 +107,6 @@ class ParserBase : public Traits {
   bool allow_harmony_object_literals() const {
     return allow_harmony_object_literals_;
   }
-  bool allow_harmony_templates() const { return scanner()->HarmonyTemplates(); }
   bool allow_harmony_sloppy() const { return allow_harmony_sloppy_; }
   bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
   bool allow_harmony_computed_property_names() const {
@@ -137,9 +136,6 @@ class ParserBase : public Traits {
   }
   void set_allow_harmony_object_literals(bool allow) {
     allow_harmony_object_literals_ = allow;
-  }
-  void set_allow_harmony_templates(bool allow) {
-    scanner()->SetHarmonyTemplates(allow);
   }
   void set_allow_harmony_sloppy(bool allow) {
     allow_harmony_sloppy_ = allow;

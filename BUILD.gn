@@ -221,6 +221,7 @@ action("js2c") {
     "src/debug-debugger.js",
     "src/mirror-debugger.js",
     "src/liveedit-debugger.js",
+    "src/templates.js",
     "src/macros.py",
   ]
 
@@ -263,7 +264,6 @@ action("js2c_experimental") {
     "src/harmony-array-includes.js",
     "src/harmony-typedarray.js",
     "src/harmony-tostring.js",
-    "src/harmony-templates.js",
     "src/harmony-regexp.js",
     "src/harmony-reflect.js"
   ]
