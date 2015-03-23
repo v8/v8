@@ -1150,7 +1150,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         // stack overflow, at which point the partially parsed arrow
         // function concise body happens to be a valid expression. This
         // is a problem only for arrow functions with single statement
-        // bodies, since there is no end token suck as "}" for normal
+        // bodies, since there is no end token such as "}" for normal
         // functions.
         if (scanner()->location().end_pos == shared_info->end_position()) {
           // The pre-parser saw an arrow function here, so the full parser
