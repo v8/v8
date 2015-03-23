@@ -373,6 +373,9 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     case kRegister:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_REGISTER,
                          UnallocatedOperand::USED_AT_START);
+    case kSlot:
+      return Unallocated(op, UnallocatedOperand::MUST_HAVE_SLOT,
+                         UnallocatedOperand::USED_AT_START);
     case kFixedRegister:
       CHECK(0 <= op.value_ && op.value_ < num_general_registers_);
       return Unallocated(op, UnallocatedOperand::FIXED_REGISTER, op.value_);

@@ -39,17 +39,22 @@ static void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
 
 UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
                          InstructionOperand* hint)
-    : operand_(operand),
-      hint_(hint),
-      pos_(pos),
-      next_(nullptr),
-      requires_reg_(false),
-      register_beneficial_(true) {
+    : operand_(operand), hint_(hint), pos_(pos), next_(nullptr), flags_(0) {
+  bool register_beneficial = true;
+  UsePositionType type = UsePositionType::kAny;
   if (operand_ != nullptr && operand_->IsUnallocated()) {
     const UnallocatedOperand* unalloc = UnallocatedOperand::cast(operand_);
-    requires_reg_ = unalloc->HasRegisterPolicy();
-    register_beneficial_ = !unalloc->HasAnyPolicy();
+    if (unalloc->HasRegisterPolicy()) {
+      type = UsePositionType::kRequiresRegister;
+    } else if (unalloc->HasSlotPolicy()) {
+      type = UsePositionType::kRequiresSlot;
+      register_beneficial = false;
+    } else {
+      register_beneficial = !unalloc->HasAnyPolicy();
+    }
   }
+  flags_ = TypeField::encode(type) |
+           RegisterBeneficialField::encode(register_beneficial);
   DCHECK(pos_.IsValid());
 }
 
@@ -59,10 +64,11 @@ bool UsePosition::HasHint() const {
 }
 
 
-bool UsePosition::RequiresRegister() const { return requires_reg_; }
-
-
-bool UsePosition::RegisterIsBeneficial() const { return register_beneficial_; }
+void UsePosition::set_type(UsePositionType type, bool register_beneficial) {
+  DCHECK_IMPLIES(type == UsePositionType::kRequiresSlot, !register_beneficial);
+  flags_ = TypeField::encode(type) |
+           RegisterBeneficialField::encode(register_beneficial);
+}
 
 
 void UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
@@ -117,6 +123,7 @@ bool LiveRange::HasOverlap(UseInterval* target) const {
 LiveRange::LiveRange(int id, Zone* zone)
     : id_(id),
       spilled_(false),
+      has_slot_use_(false),
       is_phi_(false),
       is_non_loop_phi_(false),
       kind_(UNALLOCATED_REGISTERS),
@@ -140,7 +147,7 @@ void LiveRange::set_assigned_register(int reg,
   DCHECK(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
   // TODO(dcarney): stop aliasing hint operands.
-  ConvertUsesToOperand(GetAssignedOperand(operand_cache));
+  ConvertUsesToOperand(GetAssignedOperand(operand_cache), nullptr);
 }
 
 
@@ -161,16 +168,32 @@ void LiveRange::SpillAtDefinition(Zone* zone, int gap_index,
 
 
 void LiveRange::CommitSpillsAtDefinition(InstructionSequence* sequence,
-                                         InstructionOperand* op) {
-  auto to_spill = TopLevel()->spills_at_definition_;
-  if (to_spill == nullptr) return;
+                                         InstructionOperand* op,
+                                         bool might_be_duplicated) {
+  DCHECK(!IsChild());
   auto zone = sequence->zone();
-  for (; to_spill != nullptr; to_spill = to_spill->next) {
+  for (auto to_spill = spills_at_definition_; to_spill != nullptr;
+       to_spill = to_spill->next) {
     auto gap = sequence->GapAt(to_spill->gap_index);
     auto move = gap->GetOrCreateParallelMove(GapInstruction::START, zone);
+    // Skip insertion if it's possible that the move exists already as a
+    // constraint move from a fixed output register to a slot.
+    if (might_be_duplicated) {
+      bool found = false;
+      auto move_ops = move->move_operands();
+      for (auto move_op = move_ops->begin(); move_op != move_ops->end();
+           ++move_op) {
+        if (move_op->IsEliminated()) continue;
+        if (move_op->source()->Equals(to_spill->operand) &&
+            move_op->destination()->Equals(op)) {
+          found = true;
+          break;
+        }
+      }
+      if (found) continue;
+    }
     move->AddMove(to_spill->operand, op, zone);
   }
-  TopLevel()->spills_at_definition_ = nullptr;
 }
 
 
@@ -234,7 +257,7 @@ UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
 
 UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) {
   UsePosition* pos = NextUsePosition(start);
-  while (pos != nullptr && !pos->RequiresRegister()) {
+  while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister) {
     pos = pos->next();
   }
   return pos;
@@ -509,18 +532,27 @@ void LiveRange::AddUsePosition(LifetimePosition pos,
 }
 
 
-void LiveRange::ConvertUsesToOperand(InstructionOperand* op) {
-  auto use_pos = first_pos();
-  while (use_pos != nullptr) {
-    DCHECK(Start().Value() <= use_pos->pos().Value() &&
-           use_pos->pos().Value() <= End().Value());
-
-    if (use_pos->HasOperand()) {
-      DCHECK(op->IsRegister() || op->IsDoubleRegister() ||
-             !use_pos->RequiresRegister());
-      use_pos->operand()->ConvertTo(op->kind(), op->index());
+void LiveRange::ConvertUsesToOperand(InstructionOperand* op,
+                                     InstructionOperand* spill_op) {
+  for (auto pos = first_pos(); pos != nullptr; pos = pos->next()) {
+    DCHECK(Start().Value() <= pos->pos().Value() &&
+           pos->pos().Value() <= End().Value());
+    if (!pos->HasOperand()) {
+      continue;
     }
-    use_pos = use_pos->next();
+    switch (pos->type()) {
+      case UsePositionType::kRequiresSlot:
+        if (spill_op != nullptr) {
+          pos->operand()->ConvertTo(spill_op->kind(), spill_op->index());
+        }
+        break;
+      case UsePositionType::kRequiresRegister:
+        DCHECK(op->IsRegister() || op->IsDoubleRegister());
+      // Fall through.
+      case UsePositionType::kAny:
+        pos->operand()->ConvertTo(op->kind(), op->index());
+        break;
+    }
   }
 }
 
@@ -957,12 +989,15 @@ void RegisterAllocator::AssignSpillSlots() {
 void RegisterAllocator::CommitAssignment() {
   for (auto range : live_ranges()) {
     if (range == nullptr || range->IsEmpty()) continue;
-    // Register assignments were committed in set_assigned_register.
-    if (range->HasRegisterAssigned()) continue;
     auto assigned = range->GetAssignedOperand(operand_cache());
-    range->ConvertUsesToOperand(assigned);
-    if (range->IsSpilled()) {
-      range->CommitSpillsAtDefinition(code(), assigned);
+    InstructionOperand* spill_operand = nullptr;
+    if (!range->TopLevel()->HasNoSpillType()) {
+      spill_operand = range->TopLevel()->GetSpillOperand();
+    }
+    range->ConvertUsesToOperand(assigned, spill_operand);
+    if (!range->IsChild() && spill_operand != nullptr) {
+      range->CommitSpillsAtDefinition(code(), spill_operand,
+                                      range->has_slot_use());
     }
   }
 }
@@ -977,7 +1012,7 @@ SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
 
 bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
   if (range->IsChild() || !range->is_phi()) return false;
-  DCHECK(range->HasNoSpillType());
+  DCHECK(!range->HasSpillOperand());
 
   auto lookup = phi_map_.find(range->id());
   DCHECK(lookup != phi_map_.end());
@@ -1040,12 +1075,16 @@ bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
   }
   auto pos = range->NextUsePositionRegisterIsBeneficial(next_pos);
   if (pos == nullptr) {
-    auto spill_range = AssignSpillRangeToLiveRange(range->TopLevel());
+    auto spill_range = range->TopLevel()->HasSpillRange()
+                           ? range->TopLevel()->GetSpillRange()
+                           : AssignSpillRangeToLiveRange(range->TopLevel());
     CHECK(first_op_spill->TryMerge(spill_range));
     Spill(range);
     return true;
   } else if (pos->pos().Value() > range->Start().NextInstruction().Value()) {
-    auto spill_range = AssignSpillRangeToLiveRange(range->TopLevel());
+    auto spill_range = range->TopLevel()->HasSpillRange()
+                           ? range->TopLevel()->GetSpillRange()
+                           : AssignSpillRangeToLiveRange(range->TopLevel());
     CHECK(first_op_spill->TryMerge(spill_range));
     SpillBetween(range, range->Start(), pos->pos());
     DCHECK(UnhandledIsSorted());
@@ -1304,6 +1343,8 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
       for (size_t i = 0; i < instr->OutputCount(); i++) {
         auto output = instr->OutputAt(i);
         if (output->IsUnallocated()) {
+          // Unsupported.
+          DCHECK(!UnallocatedOperand::cast(output)->HasSlotPolicy());
           int out_vreg = UnallocatedOperand::cast(output)->virtual_register();
           live->Remove(out_vreg);
         } else if (output->IsConstant()) {
@@ -1344,14 +1385,22 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
           use_pos = curr_position.InstructionEnd();
         }
 
-        Use(block_start_position, use_pos, input, nullptr);
         if (input->IsUnallocated()) {
-          live->Add(UnallocatedOperand::cast(input)->virtual_register());
+          UnallocatedOperand* unalloc = UnallocatedOperand::cast(input);
+          int vreg = unalloc->virtual_register();
+          live->Add(vreg);
+          if (unalloc->HasSlotPolicy()) {
+            LiveRangeFor(vreg)->set_has_slot_use(true);
+          }
         }
+        Use(block_start_position, use_pos, input, nullptr);
       }
 
       for (size_t i = 0; i < instr->TempCount(); i++) {
         auto temp = instr->TempAt(i);
+        // Unsupported.
+        DCHECK_IMPLIES(temp->IsUnallocated(),
+                       !UnallocatedOperand::cast(temp)->HasSlotPolicy());
         if (instr->ClobbersTemps()) {
           if (temp->IsRegister()) continue;
           if (temp->IsUnallocated()) {
@@ -1773,20 +1822,25 @@ void RegisterAllocator::BuildLiveRanges() {
   for (auto range : live_ranges()) {
     if (range == nullptr) continue;
     range->kind_ = RequiredRegisterKind(range->id());
+    // Give slots to all ranges with a non fixed slot use.
+    if (range->has_slot_use() && range->HasNoSpillType()) {
+      AssignSpillRangeToLiveRange(range);
+    }
     // TODO(bmeurer): This is a horrible hack to make sure that for constant
     // live ranges, every use requires the constant to be in a register.
     // Without this hack, all uses with "any" policy would get the constant
     // operand assigned.
     if (range->HasSpillOperand() && range->GetSpillOperand()->IsConstant()) {
       for (auto pos = range->first_pos(); pos != nullptr; pos = pos->next_) {
-        pos->register_beneficial_ = true;
-        // TODO(dcarney): should the else case assert requires_reg_ == false?
+        if (pos->type() == UsePositionType::kRequiresSlot) continue;
+        UsePositionType new_type = UsePositionType::kAny;
         // Can't mark phis as needing a register.
         if (!code()
                  ->InstructionAt(pos->pos().InstructionIndex())
                  ->IsGapMoves()) {
-          pos->requires_reg_ = true;
+          new_type = UsePositionType::kRequiresRegister;
         }
+        pos->set_type(new_type, true);
       }
     }
   }

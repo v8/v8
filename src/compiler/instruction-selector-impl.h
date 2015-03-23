@@ -75,6 +75,11 @@ class OperandGenerator {
                                         GetVReg(node)));
   }
 
+  InstructionOperand UseUniqueSlot(Node* node) {
+    return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_SLOT,
+                                        GetVReg(node)));
+  }
+
   // Use register or operand for the node. If a register is chosen, it won't
   // alias any temporary or output registers.
   InstructionOperand UseUnique(Node* node) {

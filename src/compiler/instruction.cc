@@ -33,6 +33,8 @@ std::ostream& operator<<(std::ostream& os,
                                    unalloc->fixed_register_index()) << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
+        case UnallocatedOperand::MUST_HAVE_SLOT:
+          return os << "(S)";
         case UnallocatedOperand::SAME_AS_FIRST_INPUT:
           return os << "(1)";
         case UnallocatedOperand::ANY:

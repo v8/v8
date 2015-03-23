@@ -137,6 +137,7 @@ class UnallocatedOperand : public InstructionOperand {
     FIXED_REGISTER,
     FIXED_DOUBLE_REGISTER,
     MUST_HAVE_REGISTER,
+    MUST_HAVE_SLOT,
     SAME_AS_FIRST_INPUT
   };
 
@@ -253,6 +254,10 @@ class UnallocatedOperand : public InstructionOperand {
   bool HasRegisterPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&
            extended_policy() == MUST_HAVE_REGISTER;
+  }
+  bool HasSlotPolicy() const {
+    return basic_policy() == EXTENDED_POLICY &&
+           extended_policy() == MUST_HAVE_SLOT;
   }
   bool HasSameAsInputPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&

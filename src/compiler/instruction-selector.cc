@@ -1031,7 +1031,7 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 }
 
 
-static InstructionOperand UseOrImmediate(OperandGenerator* g, Node* input) {
+static InstructionOperand SlotOrImmediate(OperandGenerator* g, Node* input) {
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kNumberConstant:
@@ -1039,7 +1039,7 @@ static InstructionOperand UseOrImmediate(OperandGenerator* g, Node* input) {
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
     default:
-      return g->UseUnique(input);
+      return g->UseUniqueSlot(input);
   }
 }
 
@@ -1074,19 +1074,19 @@ void InstructionSelector::AddFrameStateInputs(
   size_t value_index = 0;
   for (StateValuesAccess::TypedNode input_node :
        StateValuesAccess(parameters)) {
-    inputs->push_back(UseOrImmediate(&g, input_node.node));
+    inputs->push_back(SlotOrImmediate(&g, input_node.node));
     descriptor->SetType(value_index++, input_node.type);
   }
   if (descriptor->HasContext()) {
-    inputs->push_back(UseOrImmediate(&g, context));
+    inputs->push_back(SlotOrImmediate(&g, context));
     descriptor->SetType(value_index++, kMachAnyTagged);
   }
   for (StateValuesAccess::TypedNode input_node : StateValuesAccess(locals)) {
-    inputs->push_back(UseOrImmediate(&g, input_node.node));
+    inputs->push_back(SlotOrImmediate(&g, input_node.node));
     descriptor->SetType(value_index++, input_node.type);
   }
   for (StateValuesAccess::TypedNode input_node : StateValuesAccess(stack)) {
-    inputs->push_back(UseOrImmediate(&g, input_node.node));
+    inputs->push_back(SlotOrImmediate(&g, input_node.node));
     descriptor->SetType(value_index++, input_node.type);
   }
   DCHECK(value_index == descriptor->GetSize());
