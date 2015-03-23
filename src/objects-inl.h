@@ -3148,7 +3148,12 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
 
 HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
   DCHECK(GetDetails(descriptor_number).location() == kField);
-  return HeapType::cast(GetValue(descriptor_number));
+  Object* value = GetValue(descriptor_number);
+  if (value->IsWeakCell()) {
+    if (WeakCell::cast(value)->cleared()) return HeapType::None();
+    value = WeakCell::cast(value)->value();
+  }
+  return HeapType::cast(value);
 }
 
 
