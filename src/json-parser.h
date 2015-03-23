@@ -262,6 +262,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
   }
 
   if (isolate_->stack_guard()->InterruptRequested()) {
+    ExecutionAccess access(isolate_);
     // Avoid blocking GC in long running parser (v8:3974).
     isolate_->stack_guard()->CheckAndHandleGCInterrupt();
   }
