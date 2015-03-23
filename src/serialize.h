@@ -329,8 +329,7 @@ class SerializerDeserializer: public ObjectVisitor {
     kAttachedReference = 0x1b,
     // 0x1c        Builtin code referenced by index.
     kBuiltin = 0x1c
-    // 0x1d..0x1e  Misc (including 0x3d..0x3f, 0x5d..0x5f, 0x7d..0x7f)
-    // 0x1f        Unused (including 0x3f, 0x5f, 0x7f).
+    // 0x1d..0x1f  Misc (including 0x3d..0x3f, 0x5d..0x5f, 0x7d..0x7f)
   };
 
   static const int kWhereMask = 0x1f;
@@ -362,6 +361,7 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kSkip = 0x1d;
   // Internal reference encoded as offsets of pc and target from code entry.
   static const int kInternalReference = 0x1e;
+  static const int kInternalReferenceEncoded = 0x1f;
   // Do nothing, used for padding.
   static const int kNop = 0x3d;
   // Move to next reserved chunk.

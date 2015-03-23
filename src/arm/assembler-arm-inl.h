@@ -554,7 +554,7 @@ void Assembler::deserialization_set_special_target_at(
 
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target) {
+    Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;
 }
 

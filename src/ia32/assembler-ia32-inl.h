@@ -532,7 +532,7 @@ void Assembler::emit_near_disp(Label* L) {
 
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target) {
+    Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;
 }
 

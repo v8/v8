@@ -1065,6 +1065,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         break;
       }
 
+      case kInternalReferenceEncoded:
       case kInternalReference: {
         // Internal reference address is not encoded via skip, but by offset
         // from code entry.
@@ -1076,7 +1077,10 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         DCHECK(0 <= target_offset && target_offset <= code->instruction_size());
         Address pc = code->entry() + pc_offset;
         Address target = code->entry() + target_offset;
-        Assembler::deserialization_set_target_internal_reference_at(pc, target);
+        Assembler::deserialization_set_target_internal_reference_at(
+            pc, target, data == kInternalReference
+                            ? RelocInfo::INTERNAL_REFERENCE
+                            : RelocInfo::INTERNAL_REFERENCE_ENCODED);
         break;
       }
 
@@ -1843,7 +1847,10 @@ void Serializer::ObjectSerializer::VisitInternalReference(RelocInfo* rinfo) {
          pc_offset <= Code::cast(object_)->instruction_size());
   DCHECK(0 <= target_offset &&
          target_offset <= Code::cast(object_)->instruction_size());
-  sink_->Put(kInternalReference, "InternalRef");
+  sink_->Put(rinfo->rmode() == RelocInfo::INTERNAL_REFERENCE
+                 ? kInternalReference
+                 : kInternalReferenceEncoded,
+             "InternalRef");
   sink_->PutInt(static_cast<uintptr_t>(pc_offset), "internal ref address");
   sink_->PutInt(static_cast<uintptr_t>(target_offset), "internal ref value");
 }

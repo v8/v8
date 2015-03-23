@@ -194,30 +194,38 @@ Address Assembler::break_address_from_return_address(Address pc) {
 }
 
 
+void Assembler::set_target_internal_reference_encoded_at(Address pc,
+                                                         Address target) {
+  // Encoded internal references are lui/ori load of 48-bit absolute address.
+  Instr instr_lui = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
+  Instr instr_ori = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
+  Instr instr_ori2 = Assembler::instr_at(pc + 3 * Assembler::kInstrSize);
+  DCHECK(Assembler::IsLui(instr_lui));
+  DCHECK(Assembler::IsOri(instr_ori));
+  DCHECK(Assembler::IsOri(instr_ori2));
+  instr_lui &= ~kImm16Mask;
+  instr_ori &= ~kImm16Mask;
+  instr_ori2 &= ~kImm16Mask;
+  int64_t imm = reinterpret_cast<int64_t>(target);
+  DCHECK((imm & 3) == 0);
+  Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
+                          instr_lui | ((imm >> 32) & kImm16Mask));
+  Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
+                          instr_ori | ((imm >> 16) & kImm16Mask));
+  Assembler::instr_at_put(pc + 3 * Assembler::kInstrSize,
+                          instr_ori | (imm & kImm16Mask));
+  // Currently used only by deserializer, and all code will be flushed
+  // after complete deserialization, no need to flush on each reference.
+}
+
+
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target) {
-  if (IsLui(instr_at(pc))) {
-    // Encoded internal references are lui/ori load of 48-bit abolute address.
-    Instr instr_lui = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
-    Instr instr_ori = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
-    Instr instr_ori2 = Assembler::instr_at(pc + 3 * Assembler::kInstrSize);
-    DCHECK(Assembler::IsLui(instr_lui));
-    DCHECK(Assembler::IsOri(instr_ori));
-    DCHECK(Assembler::IsOri(instr_ori2));
-    instr_lui &= ~kImm16Mask;
-    instr_ori &= ~kImm16Mask;
-    instr_ori2 &= ~kImm16Mask;
-    int64_t imm = reinterpret_cast<int64_t>(target);
-    DCHECK((imm & 3) == 0);
-    Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
-                            instr_lui | ((imm >> 32) & kImm16Mask));
-    Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
-                            instr_ori | ((imm >> 16) & kImm16Mask));
-    Assembler::instr_at_put(pc + 3 * Assembler::kInstrSize,
-                            instr_ori | (imm & kImm16Mask));
-    // Currently used only by deserializer, and all code will be flushed
-    // after complete deserialization, no need to flush on each reference.
+    Address pc, Address target, RelocInfo::Mode mode) {
+  if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
+    DCHECK(IsLui(instr_at(pc)));
+    set_target_internal_reference_encoded_at(pc, target);
   } else {
+    DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
     Memory::Address_at(pc) = target;
   }
 }
@@ -262,7 +270,7 @@ Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory::Address_at(pc_);
   } else {
-    // Encoded internal references are lui/ori load of 48-bit abolute address.
+    // Encoded internal references are lui/ori load of 48-bit absolute address.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
     Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
     Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
@@ -401,24 +409,7 @@ void RelocInfo::WipeOut() {
   if (IsInternalReference(rmode_)) {
     Memory::Address_at(pc_) = NULL;
   } else if (IsInternalReferenceEncoded(rmode_)) {
-    Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
-    Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-    Instr instr_ori2 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);
-    DCHECK(Assembler::IsLui(instr_lui));
-    DCHECK(Assembler::IsOri(instr_ori));
-    DCHECK(Assembler::IsOri(instr_ori2));
-    instr_lui &= ~kImm16Mask;
-    instr_ori &= ~kImm16Mask;
-    instr_ori2 &= ~kImm16Mask;
-    int64_t imm = 0;
-    Assembler::instr_at_put(pc_ + 0 * Assembler::kInstrSize,
-                            instr_lui | ((imm >> 32) & kImm16Mask));
-    Assembler::instr_at_put(pc_ + 1 * Assembler::kInstrSize,
-                            instr_ori | ((imm >> 16) & kImm16Mask));
-    Assembler::instr_at_put(pc_ + 3 * Assembler::kInstrSize,
-                            instr_ori | (imm & kImm16Mask));
-    // Currently used only by deserializer, and all code will be flushed
-    // after complete deserialization, no need to flush on each reference.
+    Assembler::set_target_internal_reference_encoded_at(pc_, nullptr);
   } else {
     Assembler::set_target_address_at(pc_, host_, NULL);
   }
