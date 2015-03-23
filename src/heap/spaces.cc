@@ -2618,7 +2618,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     // If sweeper threads are active, wait for them at that point and steal
     // elements form their free-lists.
     HeapObject* object = WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
-    if (object != NULL) return object;
+    return object;
   }
 
   // Try to expand the space and allocate in the new next page.

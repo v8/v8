@@ -1516,6 +1516,10 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
+  // There are soft limits in the allocation code, designed to trigger a mark
+  // sweep collection by failing allocations. There is no sense in trying to
+  // trigger one during scavenge: scavenges allocation should always succeed.
+  AlwaysAllocateScope scope(isolate());
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);

@@ -698,18 +698,12 @@ void Heap::CompletelyClearInstanceofCache() {
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()), daf_(isolate) {
-  // We shouldn't hit any nested scopes, because that requires
-  // non-handle code to call handle code. The code still works but
-  // performance will degrade, so we want to catch this situation
-  // in debug mode.
-  DCHECK(heap_->always_allocate_scope_depth_ == 0);
   heap_->always_allocate_scope_depth_++;
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_depth_--;
-  DCHECK(heap_->always_allocate_scope_depth_ == 0);
 }
 
 
