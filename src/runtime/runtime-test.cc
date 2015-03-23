@@ -89,8 +89,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
                  (function->code()->kind() == Code::FUNCTION &&
                   function->code()->optimizable()));
 
-  if (!isolate->use_crankshaft()) return isolate->heap()->undefined_value();
-
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
@@ -135,8 +133,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
                  (function->code()->kind() == Code::FUNCTION &&
                   function->code()->optimizable()));
-
-  if (!isolate->use_crankshaft()) return isolate->heap()->undefined_value();
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
