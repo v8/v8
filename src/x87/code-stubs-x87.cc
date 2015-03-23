@@ -4288,7 +4288,7 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- eax : argc (only if argument_count() == ANY)
+  //  -- eax : argc (only if argument_count() is ANY or MORE_THAN_ONE)
   //  -- ebx : AllocationSite or undefined
   //  -- edi : constructor
   //  -- edx : Original constructor
@@ -4322,9 +4322,6 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ cmp(ebx, isolate()->factory()->undefined_value());
   __ j(equal, &no_info);
 
-  __ cmp(edx, edi);
-  __ j(not_equal, &subclassing);
-
   // Only look at the lower 16 bits of the transition info.
   __ mov(edx, FieldOperand(ebx, AllocationSite::kTransitionInfoOffset));
   __ SmiUntag(edx);
@@ -4335,8 +4332,29 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ bind(&no_info);
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 
+  // Subclassing.
   __ bind(&subclassing);
-  __ TailCallRuntime(Runtime::kThrowArrayNotSubclassableError, 0, 1);
+  __ pop(ecx);  // return address.
+  __ push(edi);
+  __ push(edx);
+
+  // Adjust argc.
+  switch (argument_count()) {
+    case ANY:
+    case MORE_THAN_ONE:
+      __ add(eax, Immediate(2));
+      break;
+    case NONE:
+      __ mov(eax, Immediate(2));
+      break;
+    case ONE:
+      __ mov(eax, Immediate(3));
+      break;
+  }
+
+  __ push(ecx);
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
 }
 
 
