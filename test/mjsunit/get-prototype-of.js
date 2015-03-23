@@ -25,43 +25,77 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+assertThrows(function() {
+  Object.getPrototypeOf(undefined);
+}, TypeError);
 
-function TryGetPrototypeOfNonObject(x) {
-  var caught = 0;
-  try {
-      Object.getPrototypeOf(x);
-  } catch (e) {
-    caught = e;
-  }
+assertThrows(function() {
+  Object.getPrototypeOf(null);
+}, TypeError);
 
-  assertTrue(caught instanceof TypeError);
-};
-
-function GetPrototypeOfObject(x) {
-  assertDoesNotThrow(Object.getPrototypeOf(x));
-  assertNotNull(Object.getPrototypeOf(x));
-  assertEquals(Object.getPrototypeOf(x), x.__proto__);
-}
 
 function F(){};
-
-// Non object
-var x = 10;
-
-// Object
 var y = new F();
 
-// Make sure that TypeError exceptions are thrown when non-objects are passed
-// as argument
-TryGetPrototypeOfNonObject(0);
-TryGetPrototypeOfNonObject(null);
-TryGetPrototypeOfNonObject('Testing');
-TryGetPrototypeOfNonObject(x);
+assertSame(Object.getPrototypeOf(y), F.prototype);
+assertSame(Object.getPrototypeOf(F), Function.prototype);
 
-// Make sure the real objects have this method and that it returns the
-// actual prototype object. Also test for Functions and RegExp.
-GetPrototypeOfObject(this);
-GetPrototypeOfObject(y);
-GetPrototypeOfObject({x:5});
-GetPrototypeOfObject(F);
-GetPrototypeOfObject(RegExp);
+assertSame(Object.getPrototypeOf({x: 5}), Object.prototype);
+assertSame(Object.getPrototypeOf({x: 5, __proto__: null}), null);
+
+assertSame(Object.getPrototypeOf([1, 2]), Array.prototype);
+
+
+assertSame(Object.getPrototypeOf(1), Number.prototype);
+assertSame(Object.getPrototypeOf(true), Boolean.prototype);
+assertSame(Object.getPrototypeOf(false), Boolean.prototype);
+assertSame(Object.getPrototypeOf('str'), String.prototype);
+assertSame(Object.getPrototypeOf(Symbol()), Symbol.prototype);
+
+
+// Builtin constructors.
+var functions = [
+  Array,
+  ArrayBuffer,
+  Boolean,
+  // DataView,
+  Date,
+  Error,
+  EvalError,
+  Float32Array,
+  Float64Array,
+  Function,
+  Int16Array,
+  Int32Array,
+  Int8Array,
+  Map,
+  Number,
+  Object,
+  // Promise,
+  RangeError,
+  ReferenceError,
+  RegExp,
+  Set,
+  String,
+  // Symbol, not constructible
+  SyntaxError,
+  TypeError,
+  URIError,
+  Uint16Array,
+  Uint32Array,
+  Uint8Array,
+  Uint8ClampedArray,
+  WeakMap,
+  WeakSet,
+];
+
+for (var f of functions) {
+  assertSame(Object.getPrototypeOf(f), Function.prototype);
+  assertSame(Object.getPrototypeOf(new f), f.prototype);
+}
+
+var p = new Promise(function() {});
+assertSame(Object.getPrototypeOf(p), Promise.prototype);
+
+var dv = new DataView(new ArrayBuffer());
+assertSame(Object.getPrototypeOf(dv), DataView.prototype);

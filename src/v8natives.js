@@ -976,12 +976,9 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 }
 
 
-// ES5 section 15.2.3.2.
+// ES6 section 19.1.2.9
 function ObjectGetPrototypeOf(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.getPrototypeOf"]);
-  }
-  return %_GetPrototype(obj);
+  return %_GetPrototype(TO_OBJECT_INLINE(obj));
 }
 
 // ES6 section 19.1.2.19.
