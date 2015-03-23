@@ -1097,7 +1097,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   // For the JSEntry handler, we must preserve r1-r7, r0,r8-r12 are available.
   // We want the stack to look like
   // sp -> NextOffset
-  //       state
+  //       index
   //       context
 
   // Link the current handler as the next handler.
@@ -1107,10 +1107,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   // Set this new handler as the current one.
   StoreP(sp, MemOperand(r8));
 
-  unsigned state = StackHandler::IndexField::encode(handler_index) |
-                   StackHandler::KindField::encode(kind);
-  LoadIntLiteral(r8, state);
-
+  mov(r8, Operand(handler_index));
   if (kind == StackHandler::JS_ENTRY) {
     LoadSmiLiteral(cp, Smi::FromInt(0));  // Indicates no context.
   }
