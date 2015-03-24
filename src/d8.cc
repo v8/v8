@@ -72,6 +72,10 @@
 
 namespace v8 {
 
+namespace {
+v8::Platform* g_platform = NULL;
+}  // namespace
+
 
 static Handle<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(String::NewFromUtf8(isolate, message));
@@ -1289,9 +1293,11 @@ void SourceGroup::ExecuteInThread() {
         }
       }
       if (Shell::options.send_idle_notification) {
-        const int kLongIdlePauseInMs = 1000;
+        const double kLongIdlePauseInSeconds = 1.0;
         isolate->ContextDisposedNotification();
-        isolate->IdleNotification(kLongIdlePauseInMs);
+        isolate->IdleNotificationDeadline(
+            g_platform->MonotonicallyIncreasingTime() +
+            kLongIdlePauseInSeconds);
       }
       if (Shell::options.invoke_weak_callbacks) {
         // By sending a low memory notifications, we will try hard to collect
@@ -1487,9 +1493,10 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     }
   }
   if (options.send_idle_notification) {
-    const int kLongIdlePauseInMs = 1000;
+    const double kLongIdlePauseInSeconds = 1.0;
     isolate->ContextDisposedNotification();
-    isolate->IdleNotification(kLongIdlePauseInMs);
+    isolate->IdleNotificationDeadline(
+        g_platform->MonotonicallyIncreasingTime() + kLongIdlePauseInSeconds);
   }
   if (options.invoke_weak_callbacks) {
     // By sending a low memory notifications, we will try hard to collect all
@@ -1601,8 +1608,8 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  g_platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   v8::StartupDataHandler startup_data(argv[0], options.natives_blob,
@@ -1705,7 +1712,7 @@ int Shell::Main(int argc, char* argv[]) {
   isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
-  delete platform;
+  delete g_platform;
 
   return result;
 }

@@ -5439,7 +5439,9 @@ class V8_EXPORT Isolate {
    *
    * The idle_time_in_ms argument specifies the time V8 has to perform
    * garbage collection. There is no guarantee that the actual work will be
-   * done within the time limit.
+   * done within the time limit. This variant is deprecated and will be removed
+   * in the future.
+   *
    * The deadline_in_seconds argument specifies the deadline V8 has to finish
    * garbage collection work. deadline_in_seconds is compared with
    * MonotonicallyIncreasingTime() and should be based on the same timebase as

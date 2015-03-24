@@ -2240,9 +2240,12 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   marking->Start();
 
   // The following two calls will increment CcTest::heap()->global_ic_age().
-  const int kLongIdlePauseInMs = 1000;
+  const double kLongIdlePauseInSeconds = 1.0;
   CcTest::isolate()->ContextDisposedNotification();
-  CcTest::isolate()->IdleNotification(kLongIdlePauseInMs);
+  CcTest::isolate()->IdleNotificationDeadline(
+      (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
+       static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
+      kLongIdlePauseInSeconds);
 
   while (!marking->IsStopped() && !marking->IsComplete()) {
     marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
@@ -2296,9 +2299,12 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 
   // The following two calls will increment CcTest::heap()->global_ic_age().
   // Since incremental marking is off, IdleNotification will do full GC.
-  const int kLongIdlePauseInMs = 1000;
+  const double kLongIdlePauseInSeconds = 1.0;
   CcTest::isolate()->ContextDisposedNotification();
-  CcTest::isolate()->IdleNotification(kLongIdlePauseInMs);
+  CcTest::isolate()->IdleNotificationDeadline(
+      (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
+       static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
+      kLongIdlePauseInSeconds);
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
@@ -2344,8 +2350,11 @@ TEST(IdleNotificationFinishMarking) {
   marking->SetWeakClosureWasOverApproximatedForTesting(true);
 
   // The next idle notification has to finish incremental marking.
-  const int kLongIdleTime = 1000000;
-  CcTest::isolate()->IdleNotification(kLongIdleTime);
+  const double kLongIdleTime = 1000.0;
+  CcTest::isolate()->IdleNotificationDeadline(
+      (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
+       static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
+      kLongIdleTime);
   CHECK_EQ(CcTest::heap()->gc_count(), 1);
 }
 
