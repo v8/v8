@@ -1506,6 +1506,22 @@ RUNTIME_FUNCTION(Runtime_JSValueGetValue) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_HeapObjectGetMap) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(HeapObject, obj, 0);
+  return obj->map();
+}
+
+
+RUNTIME_FUNCTION(Runtime_MapGetInstanceType) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Map, map, 0);
+  return Smi::FromInt(map->instance_type());
+}
+
+
 RUNTIME_FUNCTION(Runtime_ObjectEquals) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);

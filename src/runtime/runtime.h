@@ -718,7 +718,11 @@ namespace internal {
   /* Strings */                           \
   F(StringGetLength, 1, 1)                \
   /* JSValue */                           \
-  F(JSValueGetValue, 1, 1)
+  F(JSValueGetValue, 1, 1)                \
+  /* HeapObject */                        \
+  F(HeapObjectGetMap, 1, 1)               \
+  /* Map */                               \
+  F(MapGetInstanceType, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
