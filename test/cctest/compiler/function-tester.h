@@ -150,7 +150,9 @@ class FunctionTester : public InitializedHandleScope {
   Handle<JSFunction> Compile(Handle<JSFunction> function) {
 // TODO(titzer): make this method private.
 #if V8_TURBOFAN_TARGET
-    CompilationInfoWithZone info(function);
+    Zone zone;
+    ParseInfo parse_info(&zone, function);
+    CompilationInfo info(&parse_info);
 
     CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
@@ -206,7 +208,9 @@ class FunctionTester : public InitializedHandleScope {
   // and replace the JSFunction's code with the result.
   Handle<JSFunction> CompileGraph(Graph* graph) {
     CHECK(Pipeline::SupportedTarget());
-    CompilationInfoWithZone info(function);
+    Zone zone;
+    ParseInfo parse_info(&zone, function);
+    CompilationInfo info(&parse_info);
 
     CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(),

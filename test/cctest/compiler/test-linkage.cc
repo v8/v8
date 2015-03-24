@@ -6,6 +6,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/parser.h"
 #include "src/zone.h"
 
 #include "src/compiler/common-operator.h"
@@ -42,25 +43,25 @@ static Handle<JSFunction> Compile(const char* source) {
 
 
 TEST(TestLinkageCreate) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
-  CompilationInfoWithZone info(function);
+  ParseInfo parse_info(handles.main_zone(), function);
+  CompilationInfo info(&parse_info);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(descriptor);
 }
 
 
 TEST(TestLinkageJSFunctionIncoming) {
-  InitializedHandleScope handles;
-
   const char* sources[] = {"(function() { })", "(function(a) { })",
                            "(function(a,b) { })", "(function(a,b,c) { })"};
 
   for (int i = 0; i < 3; i++) {
-    i::HandleScope handles(CcTest::i_isolate());
+    HandleAndZoneScope handles;
     Handle<JSFunction> function = v8::Utils::OpenHandle(
         *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
-    CompilationInfoWithZone info(function);
+    ParseInfo parse_info(handles.main_zone(), function);
+    CompilationInfo info(&parse_info);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(descriptor);
 
@@ -89,7 +90,8 @@ TEST(TestLinkageCodeStubIncoming) {
 TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
-  CompilationInfoWithZone info(function);
+  ParseInfo parse_info(handles.main_zone(), function);
+  CompilationInfo info(&parse_info);
 
   for (int i = 0; i < 32; i++) {
     CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(

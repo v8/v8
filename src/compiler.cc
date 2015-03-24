@@ -74,6 +74,28 @@ PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 #undef PARSE_INFO_GETTER_WITH_DEFAULT
 
 
+// Exactly like a CompilationInfo, except being allocated via {new} and it also
+// creates and enters a Zone on construction and deallocates it on destruction.
+class CompilationInfoWithZone : public CompilationInfo {
+ public:
+  explicit CompilationInfoWithZone(Handle<JSFunction> function)
+      : CompilationInfo(new ParseInfo(&zone_, function)) {}
+
+  // Virtual destructor because a CompilationInfoWithZone has to exit the
+  // zone scope and get rid of dependent maps even when the destructor is
+  // called when cast as a CompilationInfo.
+  virtual ~CompilationInfoWithZone() {
+    DisableFutureOptimization();
+    RollbackDependencies();
+    delete parse_info_;
+    parse_info_ = nullptr;
+  }
+
+ private:
+  Zone zone_;
+};
+
+
 bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
 }
@@ -1007,7 +1029,9 @@ MaybeHandle<Code> Compiler::GetDebugCode(Handle<JSFunction> function) {
 
 void Compiler::CompileForLiveEdit(Handle<Script> script) {
   // TODO(635): support extensions.
-  CompilationInfoWithZone info(script);
+  Zone zone;
+  ParseInfo parse_info(&zone, script);
+  CompilationInfo info(&parse_info);
   PostponeInterruptsScope postpone(info.isolate());
   VMState<COMPILER> state(info.isolate());
 
@@ -1145,13 +1169,14 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   if (!maybe_shared_info.ToHandle(&shared_info)) {
     Handle<Script> script = isolate->factory()->NewScript(source);
-    CompilationInfoWithZone info(script);
-    ParseInfo* parse_info = info.parse_info();
-    parse_info->set_eval();
-    if (context->IsNativeContext()) parse_info->set_global();
-    parse_info->set_language_mode(language_mode);
-    parse_info->set_parse_restriction(restriction);
-    parse_info->set_context(context);
+    Zone zone;
+    ParseInfo parse_info(&zone, script);
+    CompilationInfo info(&parse_info);
+    parse_info.set_eval();
+    if (context->IsNativeContext()) parse_info.set_global();
+    parse_info.set_language_mode(language_mode);
+    parse_info.set_parse_restriction(restriction);
+    parse_info.set_context(context);
 
     Debug::RecordEvalCaller(script);
 
@@ -1268,25 +1293,26 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     }
 
     // Compile the function and add it to the cache.
-    CompilationInfoWithZone info(script);
-    ParseInfo* parse_info = info.parse_info();
+    Zone zone;
+    ParseInfo parse_info(&zone, script);
+    CompilationInfo info(&parse_info);
     if (FLAG_harmony_modules && is_module) {
-      parse_info->set_module();
+      parse_info.set_module();
     } else {
-      parse_info->set_global();
+      parse_info.set_global();
     }
     if (compile_options != ScriptCompiler::kNoCompileOptions) {
-      parse_info->set_cached_data(cached_data);
+      parse_info.set_cached_data(cached_data);
     }
-    parse_info->set_compile_options(compile_options);
-    parse_info->set_extension(extension);
-    parse_info->set_context(context);
+    parse_info.set_compile_options(compile_options);
+    parse_info.set_extension(extension);
+    parse_info.set_context(context);
     if (FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kProduceCodeCache) {
       info.PrepareForSerializing();
     }
 
-    parse_info->set_language_mode(
+    parse_info.set_language_mode(
         static_cast<LanguageMode>(info.language_mode() | language_mode));
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
@@ -1334,11 +1360,12 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
     CompilationInfo* outer_info) {
   // Precondition: code has been parsed and scopes have been analyzed.
-  CompilationInfoWithZone info(script);
-  ParseInfo* parse_info = info.parse_info();
-  parse_info->set_literal(literal);
-  parse_info->set_scope(literal->scope());
-  parse_info->set_language_mode(literal->scope()->language_mode());
+  Zone zone;
+  ParseInfo parse_info(&zone, script);
+  CompilationInfo info(&parse_info);
+  parse_info.set_literal(literal);
+  parse_info.set_scope(literal->scope());
+  parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
 
   Isolate* isolate = info.isolate();
@@ -1547,21 +1574,6 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
       base::OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
 
-
-CompilationInfoWithZone::CompilationInfoWithZone(Handle<Script> script)
-    : CompilationInfo(new ParseInfo(&zone_, script)) {}
-
-
-CompilationInfoWithZone::CompilationInfoWithZone(Handle<JSFunction> function)
-    : CompilationInfo(new ParseInfo(&zone_, function)) {}
-
-
-CompilationInfoWithZone::~CompilationInfoWithZone() {
-  DisableFutureOptimization();
-  RollbackDependencies();
-  delete parse_info_;
-  parse_info_ = nullptr;
-}
 
 #if DEBUG
 void CompilationInfo::PrintAstForTesting() {

@@ -320,7 +320,9 @@ Reduction JSInliner::Reduce(Node* node) {
     return NoChange();
   }
 
-  CompilationInfoWithZone info(function);
+  Zone zone;
+  ParseInfo parse_info(&zone, function);
+  CompilationInfo info(&parse_info);
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) return NoChange();
   if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();

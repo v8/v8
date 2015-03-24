@@ -42,8 +42,10 @@ class StringLengthStubTF : public CodeStub {
   };
 
   Handle<Code> GenerateCode() OVERRIDE {
+    Zone zone;
     // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
-    CompilationInfoWithZone info(GetFunction(isolate(), "STRING_LENGTH_STUB"));
+    ParseInfo parse_info(&zone, GetFunction(isolate(), "STRING_LENGTH_STUB"));
+    CompilationInfo info(&parse_info);
     info.SetStub(this);
     // Run a "mini pipeline", extracted from compiler.cc.
     CHECK(Parser::ParseStatic(info.parse_info()));

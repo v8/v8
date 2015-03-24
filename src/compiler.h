@@ -486,22 +486,6 @@ class CompilationInfo {
 };
 
 
-// Exactly like a CompilationInfo, except also creates and enters a
-// Zone on construction and deallocates it on exit.
-class CompilationInfoWithZone: public CompilationInfo {
- public:
-  explicit CompilationInfoWithZone(Handle<Script> script);
-  explicit CompilationInfoWithZone(Handle<JSFunction> closure);
-
-  // Virtual destructor because a CompilationInfoWithZone has to exit the
-  // zone scope and get rid of dependent maps even when the destructor is
-  // called when cast as a CompilationInfo.
-  virtual ~CompilationInfoWithZone();
-
- private:
-  Zone zone_;
-};
-
 // A wrapper around a CompilationInfo that detaches the Handles from
 // the underlying DeferredHandleScope and stores them in info_ on
 // destruction.
