@@ -3024,15 +3024,27 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
 
   access_check_data.result = true;
   ExpectInt32("checked.whatever", 17);
-  CHECK_EQ(1, access_check_data.count);
+  CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')")
+             ->IsUndefined());
+  CHECK_EQ(2, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked.whatever", intercept_data_0.value);
-  CHECK_EQ(2, access_check_data.count);
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
+    CHECK(try_catch.HasCaught());
+  }
+  CHECK_EQ(4, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked.whatever", intercept_data_1.value);
-  CHECK_EQ(3, access_check_data.count);
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
+    CHECK(try_catch.HasCaught());
+  }
+  CHECK_EQ(6, access_check_data.count);
 }
 
 
@@ -3090,15 +3102,23 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
 
   access_check_data.result = true;
   ExpectInt32("checked[15]", 17);
-  CHECK_EQ(1, access_check_data.count);
+  CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
+             ->IsUndefined());
+  CHECK_EQ(3, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked[15]", intercept_data_0.value);
-  CHECK_EQ(2, access_check_data.count);
+  // Note: this should throw but without a LookupIterator it's complicated.
+  CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
+             ->IsUndefined());
+  CHECK_EQ(6, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked[15]", intercept_data_1.value);
-  CHECK_EQ(3, access_check_data.count);
+  // Note: this should throw but without a LookupIterator it's complicated.
+  CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
+             ->IsUndefined());
+  CHECK_EQ(9, access_check_data.count);
 }
 
 
