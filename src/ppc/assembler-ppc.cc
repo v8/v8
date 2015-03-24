@@ -2303,14 +2303,19 @@ void Assembler::EmitRelocations() {
   for (std::vector<DeferredRelocInfo>::iterator it = relocations_.begin();
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
-    RelocInfo rinfo(buffer_ + it->position(), rmode, it->data(), NULL);
+    Address pc = buffer_ + it->position();
+    Code* code = NULL;
+    RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.
-    if (RelocInfo::IsInternalReference(rmode) ||
-        RelocInfo::IsInternalReferenceEncoded(rmode)) {
-      intptr_t pos =
-          reinterpret_cast<intptr_t>(rinfo.target_internal_reference());
-      rinfo.set_target_internal_reference(buffer_ + pos);
+    if (RelocInfo::IsInternalReference(rmode)) {
+      // Jump table entry
+      intptr_t pos = reinterpret_cast<intptr_t>(Memory::Address_at(pc));
+      Memory::Address_at(pc) = buffer_ + pos;
+    } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
+      // mov sequence
+      intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, code));
+      set_target_address_at(pc, code, buffer_ + pos, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);

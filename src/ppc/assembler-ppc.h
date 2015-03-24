@@ -629,6 +629,10 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target);
+
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
 
