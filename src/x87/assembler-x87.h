@@ -530,6 +530,11 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, code, target);
   }
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target,
+      RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
   static const int kSpecialTargetSize = kPointerSize;
 
   // Distance between the address of the code target in the call instruction
