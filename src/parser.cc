@@ -3201,7 +3201,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
   Block* inner_block = factory()->NewBlock(NULL, names->length() + 4, false,
                                            RelocInfo::kNoPosition);
-  int pos = scanner()->location().beg_pos;
   ZoneList<Variable*> inner_vars(names->length(), zone());
 
   // For each let variable x:
@@ -3214,8 +3213,9 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     Declare(declaration, true, CHECK_OK);
     inner_vars.Add(declaration->proxy()->var(), zone());
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
-    Assignment* assignment = factory()->NewAssignment(
-        is_const ? Token::INIT_CONST : Token::INIT_LET, proxy, temp_proxy, pos);
+    Assignment* assignment =
+        factory()->NewAssignment(is_const ? Token::INIT_CONST : Token::INIT_LET,
+                                 proxy, temp_proxy, RelocInfo::kNoPosition);
     Statement* assignment_statement =
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
     proxy->var()->set_initializer_position(init->position());
@@ -3230,8 +3230,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     {
       Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
       VariableProxy* first_proxy = factory()->NewVariableProxy(first);
-      compare =
-          factory()->NewCompareOperation(Token::EQ, first_proxy, const1, pos);
+      compare = factory()->NewCompareOperation(Token::EQ, first_proxy, const1,
+                                               RelocInfo::kNoPosition);
     }
     Statement* clear_first = NULL;
     // Make statement: first = 0.
@@ -3243,8 +3243,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       clear_first =
           factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
     }
-    Statement* clear_first_or_next = factory()->NewIfStatement(
-        compare, clear_first, next, RelocInfo::kNoPosition);
+    Statement* clear_first_or_next =
+        factory()->NewIfStatement(compare, clear_first, next, next->position());
     inner_block->AddStatement(clear_first_or_next, zone());
   }
 
@@ -3265,8 +3265,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   {
     Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
     VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
-    flag_cond =
-        factory()->NewCompareOperation(Token::EQ, flag_proxy, const1, pos);
+    flag_cond = factory()->NewCompareOperation(Token::EQ, flag_proxy, const1,
+                                               RelocInfo::kNoPosition);
   }
 
   // Create chain of expressions "flag = 0, temp_x = x, ..."
@@ -3282,9 +3282,11 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     }
 
     // Make the comma-separated list of temp_x = x assignments.
+    int inner_var_proxy_pos = scanner()->location().beg_pos;
     for (int i = 0; i < names->length(); i++) {
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
-      VariableProxy* proxy = factory()->NewVariableProxy(inner_vars.at(i), pos);
+      VariableProxy* proxy =
+          factory()->NewVariableProxy(inner_vars.at(i), inner_var_proxy_pos);
       Assignment* assignment = factory()->NewAssignment(
           Token::ASSIGN, temp_proxy, proxy, RelocInfo::kNoPosition);
       compound_next = factory()->NewBinaryOperation(
@@ -3318,8 +3320,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     {
       Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
       VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
-      compare =
-          factory()->NewCompareOperation(Token::EQ, flag_proxy, const1, pos);
+      compare = factory()->NewCompareOperation(Token::EQ, flag_proxy, const1,
+                                               RelocInfo::kNoPosition);
     }
     Statement* stop =
         factory()->NewBreakStatement(outer_loop, RelocInfo::kNoPosition);
