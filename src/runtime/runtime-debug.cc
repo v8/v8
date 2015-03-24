@@ -2738,7 +2738,7 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 }
 
 
-// Check whether debugger and is about to step into the callback that is passed
+// Check whether debugger is about to step into the callback that is passed
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   DCHECK(args.length() == 1);
@@ -2748,9 +2748,12 @@ RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
     return isolate->heap()->false_value();
   }
   CONVERT_ARG_CHECKED(Object, callback, 0);
-  // We do not step into the callback if it's a builtin or not even a function.
-  return isolate->heap()->ToBoolean(callback->IsJSFunction() &&
-                                    !JSFunction::cast(callback)->IsBuiltin());
+  // We do not step into the callback if it's a builtin other than a bound,
+  // or not even a function.
+  return isolate->heap()->ToBoolean(
+      callback->IsJSFunction() &&
+      (!JSFunction::cast(callback)->IsBuiltin() ||
+       JSFunction::cast(callback)->shared()->bound()));
 }
 
 
@@ -2775,7 +2778,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   // if we do not leave the builtin.  To be able to step into the function
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
-  debug->FloodWithOneShot(fun);
+  debug->FloodWithOneShotGeneric(fun);
   return isolate->heap()->undefined_value();
 }
 

@@ -1,9 +1,9 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
-// Tests stepping into through Array.prototype.forEach callbacks.
+// Flags: --expose-debug-as debug --allow-natives-syntax --noalways-opt
+// Tests stepping into through Promises.
 
 Debug = debug.Debug
 var exception = null;
@@ -37,17 +37,29 @@ function listener(event, exec_state, event_data, data) {
 };
 
 Debug.setListener(listener);
-var bound_callback = callback.bind(null);
 
-debugger; // Break 0.
-[1,2].forEach(callback); // Break 1.
-[3,4].forEach(bound_callback); // Break 6.
+Promise.resolve(42)
+  .then(
+    function f0() {
+      debugger;  // Break 0.
+    } // Break 1.
+  )
+  .then(callback)
+  .then(callback.bind(null))
+  .then(Object)
+  .then(callback.bind(null).bind(null))
+  .then(finalize)
+  .catch(function(err) {
+    %AbortJS("FAIL: " + err);
+  });
 
 function callback(x) {
-  return x; // Break 2. // Break 4. // Break 7. // Break 9.
-} // Break 3. // Break 5. // Break 8. // Break 10.
+  return x; // Break 2. // Break 4. // Break 6.
+} // Break 3. // Break 5. // Break 7.
 
-assertNull(exception); // Break 11.
-assertEquals(expected_breaks, break_count);
+function finalize() {
+  assertNull(exception); // Break 8.
+  assertEquals(expected_breaks, break_count);
 
-Debug.setListener(null);
+  Debug.setListener(null);
+}
