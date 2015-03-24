@@ -1366,50 +1366,99 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
-  const int kIndexOffset =
-      StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
-  const int kLimitOffset =
-      StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
-  const int kArgsOffset = 2 * kPointerSize;
-  const int kRecvOffset = 3 * kPointerSize;
-  const int kFunctionOffset = 4 * kPointerSize;
+static void Generate_CheckStackOverflow(MacroAssembler* masm,
+                                        const int calleeOffset) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  __ LoadRoot(r5, Heap::kRealStackLimitRootIndex);
+  // Make r5 the space we have left. The stack might already be overflowed
+  // here which will cause r5 to become negative.
+  __ sub(r5, sp, r5);
+  // Check if the arguments will overflow the stack.
+  __ SmiToPtrArrayOffset(r0, r3);
+  __ cmp(r5, r0);
+  __ bgt(&okay);  // Signed comparison.
+
+  // Out of stack space.
+  __ LoadP(r4, MemOperand(fp, calleeOffset));
+  __ Push(r4, r3);
+  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+
+  __ bind(&okay);
+}
+
+
+static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int argumentsOffset,
+                                          const int indexOffset,
+                                          const int limitOffset) {
+  Label entry, loop;
+  __ LoadP(r3, MemOperand(fp, indexOffset));
+  __ b(&entry);
+
+  // Load the current argument from the arguments array and push it to the
+  // stack.
+  // r3: current argument index
+  __ bind(&loop);
+  __ LoadP(r4, MemOperand(fp, argumentsOffset));
+  __ Push(r4, r3);
+
+  // Call the runtime to access the property in the arguments array.
+  __ CallRuntime(Runtime::kGetProperty, 2);
+  __ push(r3);
+
+  // Use inline caching to access the arguments.
+  __ LoadP(r3, MemOperand(fp, indexOffset));
+  __ AddSmiLiteral(r3, r3, Smi::FromInt(1), r0);
+  __ StoreP(r3, MemOperand(fp, indexOffset));
+
+  // Test if the copy loop has finished copying all the elements from the
+  // arguments object.
+  __ bind(&entry);
+  __ LoadP(r4, MemOperand(fp, limitOffset));
+  __ cmp(r3, r4);
+  __ bne(&loop);
+
+  // On exit, the pushed arguments count is in r0, untagged
+  __ SmiUntag(r3);
+}
+
+
+// Used by FunctionApply and ReflectApply
+static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
+  const int kFormalParameters = targetIsArgument ? 3 : 2;
+  const int kStackSize = kFormalParameters + 1;
 
   {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
+    const int kReceiverOffset = kArgumentsOffset + kPointerSize;
+    const int kFunctionOffset = kReceiverOffset + kPointerSize;
 
     __ LoadP(r3, MemOperand(fp, kFunctionOffset));  // get the function
     __ push(r3);
-    __ LoadP(r3, MemOperand(fp, kArgsOffset));  // get the args array
+    __ LoadP(r3, MemOperand(fp, kArgumentsOffset));  // get the args array
     __ push(r3);
-    __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    if (targetIsArgument) {
+      __ InvokeBuiltin(Builtins::REFLECT_APPLY_PREPARE, CALL_FUNCTION);
+    } else {
+      __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    }
 
-    // Check the stack for overflow. We are not trying to catch
-    // interruptions (e.g. debug break and preemption) here, so the "real stack
-    // limit" is checked.
-    Label okay;
-    __ LoadRoot(r5, Heap::kRealStackLimitRootIndex);
-    // Make r5 the space we have left. The stack might already be overflowed
-    // here which will cause r5 to become negative.
-    __ sub(r5, sp, r5);
-    // Check if the arguments will overflow the stack.
-    __ SmiToPtrArrayOffset(r0, r3);
-    __ cmp(r5, r0);
-    __ bgt(&okay);  // Signed comparison.
-
-    // Out of stack space.
-    __ LoadP(r4, MemOperand(fp, kFunctionOffset));
-    __ Push(r4, r3);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-    // End of stack check.
+    Generate_CheckStackOverflow(masm, kFunctionOffset);
 
     // Push current limit and index.
-    __ bind(&okay);
+    const int kIndexOffset =
+        StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
+    const int kLimitOffset =
+        StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
     __ li(r4, Operand::Zero());
     __ Push(r3, r4);  // limit and initial index.
 
     // Get the receiver.
-    __ LoadP(r3, MemOperand(fp, kRecvOffset));
+    __ LoadP(r3, MemOperand(fp, kReceiverOffset));
 
     // Check that the function is a JS function (otherwise it must be a proxy).
     Label push_receiver;
@@ -1477,43 +1526,18 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ push(r3);
 
     // Copy all arguments from the array to the stack.
-    Label entry, loop;
-    __ LoadP(r3, MemOperand(fp, kIndexOffset));
-    __ b(&entry);
-
-    // Load the current argument from the arguments array and push it to the
-    // stack.
-    // r3: current argument index
-    __ bind(&loop);
-    __ LoadP(r4, MemOperand(fp, kArgsOffset));
-    __ Push(r4, r3);
-
-    // Call the runtime to access the property in the arguments array.
-    __ CallRuntime(Runtime::kGetProperty, 2);
-    __ push(r3);
-
-    // Use inline caching to access the arguments.
-    __ LoadP(r3, MemOperand(fp, kIndexOffset));
-    __ AddSmiLiteral(r3, r3, Smi::FromInt(1), r0);
-    __ StoreP(r3, MemOperand(fp, kIndexOffset));
-
-    // Test if the copy loop has finished copying all the elements from the
-    // arguments object.
-    __ bind(&entry);
-    __ LoadP(r4, MemOperand(fp, kLimitOffset));
-    __ cmp(r3, r4);
-    __ bne(&loop);
+    Generate_PushAppliedArguments(masm, kArgumentsOffset, kIndexOffset,
+                                  kLimitOffset);
 
     // Call the function.
     Label call_proxy;
     ParameterCount actual(r3);
-    __ SmiUntag(r3);
     __ LoadP(r4, MemOperand(fp, kFunctionOffset));
     __ CompareObjectType(r4, r5, r5, JS_FUNCTION_TYPE);
     __ bne(&call_proxy);
     __ InvokeFunction(r4, actual, CALL_FUNCTION, NullCallWrapper());
 
-    __ LeaveFrame(StackFrame::INTERNAL, 3 * kPointerSize);
+    __ LeaveFrame(StackFrame::INTERNAL, kStackSize * kPointerSize);
     __ blr();
 
     // Call the function proxy.
@@ -1527,8 +1551,87 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Tear down the internal frame and remove function, receiver and args.
   }
-  __ addi(sp, sp, Operand(3 * kPointerSize));
+  __ addi(sp, sp, Operand(kStackSize * kPointerSize));
   __ blr();
+}
+
+
+static void Generate_ConstructHelper(MacroAssembler* masm) {
+  const int kFormalParameters = 3;
+  const int kStackSize = kFormalParameters + 1;
+
+  {
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
+    const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
+    const int kFunctionOffset = kArgumentsOffset + kPointerSize;
+
+    // If newTarget is not supplied, set it to constructor
+    Label validate_arguments;
+    __ LoadP(r3, MemOperand(fp, kNewTargetOffset));
+    __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
+    __ bne(&validate_arguments);
+    __ LoadP(r3, MemOperand(fp, kFunctionOffset));
+    __ StoreP(r3, MemOperand(fp, kNewTargetOffset));
+
+    // Validate arguments
+    __ bind(&validate_arguments);
+    __ LoadP(r3, MemOperand(fp, kFunctionOffset));  // get the function
+    __ push(r3);
+    __ LoadP(r3, MemOperand(fp, kArgumentsOffset));  // get the args array
+    __ push(r3);
+    __ LoadP(r3, MemOperand(fp, kNewTargetOffset));  // get the new.target
+    __ push(r3);
+    __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
+
+    Generate_CheckStackOverflow(masm, kFunctionOffset);
+
+    // Push current limit and index.
+    const int kIndexOffset =
+        StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
+    const int kLimitOffset =
+        StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
+    __ li(r4, Operand::Zero());
+    __ Push(r3, r4);  // limit and initial index.
+    // Push newTarget and callee functions
+    __ LoadP(r3, MemOperand(fp, kNewTargetOffset));
+    __ push(r3);
+    __ LoadP(r3, MemOperand(fp, kFunctionOffset));
+    __ push(r3);
+
+    // Copy all arguments from the array to the stack.
+    Generate_PushAppliedArguments(masm, kArgumentsOffset, kIndexOffset,
+                                  kLimitOffset);
+
+    // Use undefined feedback vector
+    __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
+    __ LoadP(r4, MemOperand(fp, kFunctionOffset));
+
+    // Call the function.
+    CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
+    __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+
+    __ Drop(1);
+
+    // Leave internal frame.
+  }
+  __ addi(sp, sp, Operand(kStackSize * kPointerSize));
+  __ blr();
+}
+
+
+void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  Generate_ApplyHelper(masm, false);
+}
+
+
+void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
+  Generate_ApplyHelper(masm, true);
+}
+
+
+void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
+  Generate_ConstructHelper(masm);
 }
 
 
