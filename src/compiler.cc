@@ -125,7 +125,8 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       no_frame_ranges_(isolate->cpu_profiler()->is_profiling()
                            ? new List<OffsetRange>(2)
                            : nullptr),
-      track_positions_(FLAG_hydrogen_track_positions),
+      track_positions_(FLAG_hydrogen_track_positions ||
+                       isolate->cpu_profiler()->is_profiling()),
       opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
       parameter_count_(0),
       optimization_id_(-1),

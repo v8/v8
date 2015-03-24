@@ -251,6 +251,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
       NULL, code->instruction_start());
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
+    rec->entry->set_inlined_function_infos(info->inlined_function_infos());
   }
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
@@ -288,6 +289,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
       column, line_table, code->instruction_start());
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
+    rec->entry->set_inlined_function_infos(info->inlined_function_infos());
   }
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();

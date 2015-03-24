@@ -36,6 +36,17 @@ class JITLineInfoTable : public Malloced {
   DISALLOW_COPY_AND_ASSIGN(JITLineInfoTable);
 };
 
+
+struct DeoptInfo {
+  const char* deopt_reason;
+  struct Frame {
+    int script_id;
+    int position;
+  };
+  std::vector<Frame> stack;
+};
+
+
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
@@ -72,6 +83,7 @@ class CodeEntry {
     deopt_position_ = position;
     pc_offset_ = pc_offset;
   }
+  DeoptInfo GetDeoptInfo();
   const char* deopt_reason() const { return deopt_reason_; }
   SourcePosition deopt_position() const { return deopt_position_; }
   bool has_deopt_info() const { return !deopt_position_.IsUnknown(); }
@@ -87,6 +99,13 @@ class CodeEntry {
   List<OffsetRange>* no_frame_ranges() const { return no_frame_ranges_; }
   void set_no_frame_ranges(List<OffsetRange>* ranges) {
     no_frame_ranges_ = ranges;
+  }
+  void set_inlined_function_infos(
+      const std::vector<InlinedFunctionInfo>& infos) {
+    inlined_function_infos_ = infos;
+  }
+  const std::vector<InlinedFunctionInfo> inlined_function_infos() {
+    return inlined_function_infos_;
   }
 
   void SetBuiltinId(Builtins::Name id);
@@ -127,6 +146,8 @@ class CodeEntry {
   JITLineInfoTable* line_info_;
   Address instruction_start_;
 
+  std::vector<InlinedFunctionInfo> inlined_function_infos_;
+
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
 
@@ -134,17 +155,6 @@ class CodeEntry {
 class ProfileTree;
 
 class ProfileNode {
- private:
-  struct DeoptInfo {
-    DeoptInfo(const char* deopt_reason, SourcePosition deopt_position)
-        : deopt_reason(deopt_reason), deopt_position(deopt_position) {}
-    DeoptInfo(const DeoptInfo& info)
-        : deopt_reason(info.deopt_reason),
-          deopt_position(info.deopt_position) {}
-    const char* deopt_reason;
-    SourcePosition deopt_position;
-  };
-
  public:
   inline ProfileNode(ProfileTree* tree, CodeEntry* entry);
 
@@ -163,7 +173,7 @@ class ProfileNode {
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
   void CollectDeoptInfo(CodeEntry* entry);
-  const List<DeoptInfo>& deopt_infos() const { return deopt_infos_; }
+  const std::vector<DeoptInfo>& deopt_infos() const { return deopt_infos_; }
 
   void Print(int indent);
 
@@ -186,7 +196,8 @@ class ProfileNode {
   unsigned id_;
   HashMap line_ticks_;
 
-  List<DeoptInfo> deopt_infos_;
+  std::vector<DeoptInfo> deopt_infos_;
+
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
 

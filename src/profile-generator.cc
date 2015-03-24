@@ -112,8 +112,42 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
 }
 
 
+DeoptInfo CodeEntry::GetDeoptInfo() {
+  DCHECK(has_deopt_info());
+
+  DeoptInfo info;
+  info.deopt_reason = deopt_reason_;
+  if (inlined_function_infos_.empty()) {
+    info.stack.push_back(DeoptInfo::Frame(
+        {script_id_,
+         static_cast<int>(position_ + deopt_position_.position())}));
+    return info;
+  }
+  // Copy the only branch from the inlining tree where the deopt happened.
+  SourcePosition position = deopt_position_;
+  int inlining_id = InlinedFunctionInfo::kNoParentId;
+  for (size_t i = 0; i < inlined_function_infos_.size(); ++i) {
+    InlinedFunctionInfo& current_info = inlined_function_infos_.at(i);
+    if (std::binary_search(current_info.deopt_pc_offsets.begin(),
+                           current_info.deopt_pc_offsets.end(), pc_offset_)) {
+      inlining_id = static_cast<int>(i);
+      break;
+    }
+  }
+  while (inlining_id != InlinedFunctionInfo::kNoParentId) {
+    InlinedFunctionInfo& inlined_info = inlined_function_infos_.at(inlining_id);
+    info.stack.push_back(DeoptInfo::Frame(
+        {inlined_info.script_id,
+         static_cast<int>(inlined_info.start_position + position.raw())}));
+    position = inlined_info.inline_position;
+    inlining_id = inlined_info.parent_id;
+  }
+  return info;
+}
+
+
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
-  deopt_infos_.Add(DeoptInfo(entry->deopt_reason(), entry->deopt_position()));
+  deopt_infos_.push_back(entry->GetDeoptInfo());
   entry->clear_deopt_info();
 }
 
@@ -181,14 +215,16 @@ void ProfileNode::Print(int indent) {
   if (entry_->resource_name()[0] != '\0')
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
-  for (auto info : deopt_infos_) {
-    if (FLAG_hydrogen_track_positions) {
-      base::OS::Print("%*s deopted at %d_%d with reason '%s'\n", indent + 10,
-                      "", info.deopt_position.inlining_id(),
-                      info.deopt_position.position(), info.deopt_reason);
-    } else {
-      base::OS::Print("%*s deopted at %d with reason '%s'\n", indent + 10, "",
-                      info.deopt_position.raw(), info.deopt_reason);
+  for (size_t i = 0; i < deopt_infos_.size(); ++i) {
+    DeoptInfo& info = deopt_infos_[i];
+    base::OS::Print(
+        "%*s;;; deopted at script_id: %d position: %d with reason '%s'.\n",
+        indent + 10, "", info.stack[0].script_id, info.stack[0].position,
+        info.deopt_reason);
+    for (size_t index = 1; index < info.stack.size(); ++index) {
+      base::OS::Print("%*s;;;     Inline point: script_id %d position: %d.\n",
+                      indent + 10, "", info.stack[index].script_id,
+                      info.stack[index].position);
     }
   }
   const char* bailout_reason = entry_->bailout_reason();

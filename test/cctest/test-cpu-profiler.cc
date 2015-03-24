@@ -56,6 +56,11 @@ static v8::Local<v8::Function> GetFunction(v8::Context* env, const char* name) {
 }
 
 
+static int offset(const char* src, const char* substring) {
+  return static_cast<int>(strstr(src, substring) - src);
+}
+
+
 static const char* reason(const i::Deoptimizer::DeoptReason reason) {
   return i::Deoptimizer::GetDeoptReason(reason);
 }
@@ -1714,7 +1719,7 @@ const char* GetBranchDeoptReason(i::CpuProfile* iprofile, const char* branch[],
   v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
   const ProfileNode* iopt_function = NULL;
   iopt_function = GetSimpleBranch(profile, branch, length);
-  CHECK_EQ(1, iopt_function->deopt_infos().length());
+  CHECK_EQ(1, iopt_function->deopt_infos().size());
   return iopt_function->deopt_infos()[0].deopt_reason;
 }
 
@@ -1777,6 +1782,24 @@ TEST(CollectDeoptEvents) {
   v8::Script::Compile(v8_str(source))->Run();
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();
+  /* The expected profile
+  [Top down]:
+      0  (root) 0 #1
+     23     32 #2
+      1      opt_function2 31 #7
+      1        opt_function2 31 #8
+                  ;;; deopted at script_id: 31 position: 106 with reason
+  'division by zero'.
+      2      opt_function0 29 #3
+      4        opt_function0 29 #4
+                  ;;; deopted at script_id: 29 position: 108 with reason 'not a
+  heap number'.
+      0      opt_function1 30 #5
+      1        opt_function1 30 #6
+                  ;;; deopted at script_id: 30 position: 108 with reason 'lost
+  precision or NaN'.
+  */
+
   {
     const char* branch[] = {"", "opt_function0", "opt_function0"};
     CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber),
@@ -1813,4 +1836,198 @@ TEST(SourceLocation) {
       "CompareStatementWithThis();\n";
 
   v8::Script::Compile(v8_str(source))->Run();
+}
+
+
+static const char* inlined_source =
+    "function opt_function(left, right) { var k = left / 10; var r = 10 / "
+    "right; return k + r; }\n";
+//   0.........1.........2.........3.........4....*....5.........6......*..7
+
+
+// deopt at the first level inlined function
+TEST(DeoptAtFirstLevelInlinedSource) {
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::CpuProfiler* profiler = isolate->GetCpuProfiler();
+  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
+
+  //   0.........1.........2.........3.........4.........5.........6.........7
+  const char* source =
+      "function test(left, right) { return opt_function(left, right); }\n"
+      "\n"
+      "startProfiling();\n"
+      "\n"
+      "test(10, 10);\n"
+      "\n"
+      "%OptimizeFunctionOnNextCall(test)\n"
+      "\n"
+      "test(10, 10);\n"
+      "\n"
+      "test(undefined, 10);\n"
+      "\n"
+      "stopProfiling();\n"
+      "\n";
+
+  v8::Handle<v8::Script> inlined_script = v8_compile(inlined_source);
+  inlined_script->Run();
+  int inlined_script_id = inlined_script->GetUnboundScript()->GetId();
+
+  v8::Handle<v8::Script> script = v8_compile(source);
+  script->Run();
+  int script_id = script->GetUnboundScript()->GetId();
+
+  i::CpuProfile* iprofile = iprofiler->GetProfile(0);
+  iprofile->Print();
+  /* The expected profile output
+  [Top down]:
+      0  (root) 0 #1
+     10     30 #2
+      1      test 30 #3
+                ;;; deopted at script_id: 29 position: 45 with reason 'not a
+  heap number'.
+                ;;;     Inline point: script_id 30 position: 36.
+      4        opt_function 29 #4
+  */
+  v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
+
+  const char* branch[] = {"", "test"};
+  const ProfileNode* itest_node =
+      GetSimpleBranch(profile, branch, arraysize(branch));
+  const std::vector<i::DeoptInfo>& deopt_infos = itest_node->deopt_infos();
+  CHECK_EQ(1, deopt_infos.size());
+
+  const i::DeoptInfo& info = deopt_infos[0];
+  CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
+  CHECK_EQ(2, info.stack.size());
+  CHECK_EQ(inlined_script_id, info.stack[0].script_id);
+  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_EQ(script_id, info.stack[1].script_id);
+  CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
+
+  iprofiler->DeleteProfile(iprofile);
+}
+
+
+// deopt at the second level inlined function
+TEST(DeoptAtSecondLevelInlinedSource) {
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::CpuProfiler* profiler = isolate->GetCpuProfiler();
+  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
+
+  //   0.........1.........2.........3.........4.........5.........6.........7
+  const char* source =
+      "function test2(left, right) { return opt_function(left, right); }\n"
+      "function test1(left, right) { return test2(left, right); }\n"
+      "\n"
+      "startProfiling();\n"
+      "\n"
+      "test1(10, 10);\n"
+      "\n"
+      "%OptimizeFunctionOnNextCall(test1)\n"
+      "\n"
+      "test1(10, 10);\n"
+      "\n"
+      "test1(undefined, 10);\n"
+      "\n"
+      "stopProfiling();\n"
+      "\n";
+
+  v8::Handle<v8::Script> inlined_script = v8_compile(inlined_source);
+  inlined_script->Run();
+  int inlined_script_id = inlined_script->GetUnboundScript()->GetId();
+
+  v8::Handle<v8::Script> script = v8_compile(source);
+  script->Run();
+  int script_id = script->GetUnboundScript()->GetId();
+
+  i::CpuProfile* iprofile = iprofiler->GetProfile(0);
+  iprofile->Print();
+  /* The expected profile output
+  [Top down]:
+      0  (root) 0 #1
+     11     30 #2
+      1      test1 30 #3
+                ;;; deopted at script_id: 29 position: 45 with reason 'not a
+  heap number'.
+                ;;;     Inline point: script_id 30 position: 37.
+                ;;;     Inline point: script_id 30 position: 103.
+      1        test2 30 #4
+      3          opt_function 29 #5
+  */
+
+  v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
+
+  const char* branch[] = {"", "test1"};
+  const ProfileNode* itest_node =
+      GetSimpleBranch(profile, branch, arraysize(branch));
+  const std::vector<i::DeoptInfo>& deopt_infos = itest_node->deopt_infos();
+  CHECK_EQ(1, deopt_infos.size());
+
+  const i::DeoptInfo info = deopt_infos[0];
+  CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
+  CHECK_EQ(3, info.stack.size());
+  CHECK_EQ(inlined_script_id, info.stack[0].script_id);
+  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_EQ(script_id, info.stack[1].script_id);
+  CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
+  CHECK_EQ(offset(source, "test2(left, right);"), info.stack[2].position);
+
+  iprofiler->DeleteProfile(iprofile);
+}
+
+
+// deopt in untracked function
+TEST(DeoptUntrackedFunction) {
+  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::CpuProfiler* profiler = isolate->GetCpuProfiler();
+  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
+
+  //   0.........1.........2.........3.........4.........5.........6.........7
+  const char* source =
+      "function test(left, right) { return opt_function(left, right); }\n"
+      "\n"
+      "test(10, 10);\n"
+      "\n"
+      "%OptimizeFunctionOnNextCall(test)\n"
+      "\n"
+      "test(10, 10);\n"
+      "\n"
+      "startProfiling();\n"  // profiler started after compilation.
+      "\n"
+      "test(undefined, 10);\n"
+      "\n"
+      "stopProfiling();\n"
+      "\n";
+
+  v8::Handle<v8::Script> inlined_script = v8_compile(inlined_source);
+  inlined_script->Run();
+
+  v8::Handle<v8::Script> script = v8_compile(source);
+  script->Run();
+
+  i::CpuProfile* iprofile = iprofiler->GetProfile(0);
+  iprofile->Print();
+  v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
+
+  const char* branch[] = {"", "test"};
+  const ProfileNode* itest_node =
+      GetSimpleBranch(profile, branch, arraysize(branch));
+  CHECK_EQ(0, itest_node->deopt_infos().size());
+
+  iprofiler->DeleteProfile(iprofile);
 }

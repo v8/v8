@@ -3483,7 +3483,7 @@ void HGraph::FinalizeUniqueness() {
 
 
 int HGraph::SourcePositionToScriptPosition(SourcePosition pos) {
-  return (info()->is_tracking_positions() && !pos.IsUnknown())
+  return (FLAG_hydrogen_track_positions && !pos.IsUnknown())
              ? info()->start_position_for(pos.inlining_id()) + pos.position()
              : pos.raw();
 }
