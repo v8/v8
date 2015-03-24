@@ -599,11 +599,11 @@ const char* AllocationSpaceName(AllocationSpace space) {
 static int FreeListFragmentation(PagedSpace* space, Page* p) {
   // If page was not swept then there are no free list items on it.
   if (!p->WasSwept()) {
-    if (FLAG_trace_fragmentation) {
+    if (FLAG_trace_fragmentation_verbose) {
       PrintF("%p [%s]: %d bytes live (unswept)\n", reinterpret_cast<void*>(p),
              AllocationSpaceName(space->identity()), p->LiveBytes());
     }
-    return 0;
+    return FLAG_always_compact ? 1 : 0;
   }
 
   PagedSpace::SizeStats sizes;
@@ -620,7 +620,7 @@ static int FreeListFragmentation(PagedSpace* space, Page* p) {
     ratio_threshold = 15;
   }
 
-  if (FLAG_trace_fragmentation) {
+  if (FLAG_trace_fragmentation_verbose) {
     PrintF("%p [%s]: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
            reinterpret_cast<void*>(p), AllocationSpaceName(space->identity()),
            static_cast<int>(sizes.small_size_),
@@ -696,6 +696,10 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     max_evacuation_candidates *= 2;
   }
 
+  if (FLAG_always_compact) {
+    max_evacuation_candidates = kMaxMaxEvacuationCandidates;
+  }
+
   if (FLAG_trace_fragmentation && mode == REDUCE_MEMORY_FOOTPRINT) {
     PrintF(
         "Estimated over reserved memory: %.1f / %.1f MB (threshold %d), "
@@ -709,6 +713,11 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   Candidate candidates[kMaxMaxEvacuationCandidates];
 
+  if (FLAG_trace_fragmentation &&
+      max_evacuation_candidates >= kMaxMaxEvacuationCandidates) {
+    PrintF("Hit max page compaction limit of %d pages\n",
+           kMaxMaxEvacuationCandidates);
+  }
   max_evacuation_candidates =
       Min(kMaxMaxEvacuationCandidates, max_evacuation_candidates);
 
@@ -731,7 +740,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       unsigned int counter = space->heap()->ms_count();
       uintptr_t page_number = reinterpret_cast<uintptr_t>(p) >> kPageSizeBits;
       if ((counter & 1) == (page_number & 1)) fragmentation = 1;
-    } else if (mode == REDUCE_MEMORY_FOOTPRINT) {
+    } else if (mode == REDUCE_MEMORY_FOOTPRINT && !FLAG_always_compact) {
       // Don't try to release too many pages.
       if (estimated_release >= over_reserved) {
         continue;
@@ -756,7 +765,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
         fragmentation = 0;
       }
 
-      if (FLAG_trace_fragmentation) {
+      if (FLAG_trace_fragmentation_verbose) {
         PrintF("%p [%s]: %d (%.2f%%) free %s\n", reinterpret_cast<void*>(p),
                AllocationSpaceName(space->identity()),
                static_cast<int>(free_bytes),
@@ -3242,6 +3251,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
 void MarkCompactCollector::EvacuatePages() {
   int npages = evacuation_candidates_.length();
+  int abandoned_pages = 0;
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
     DCHECK(p->IsEvacuationCandidate() ||
@@ -3257,7 +3267,7 @@ void MarkCompactCollector::EvacuatePages() {
     if (p->IsEvacuationCandidate()) {
       // During compaction we might have to request a new page. Check that we
       // have an emergency page and the space still has room for that.
-      if (space->HasEmergencyMemory() && space->CanExpand()) {
+      if (space->HasEmergencyMemory() || space->CanExpand()) {
         EvacuateLiveObjectsFromPage(p);
         // Unlink the page from the list of pages here. We must not iterate
         // over that page later (e.g. when scan on scavenge pages are
@@ -3273,6 +3283,7 @@ void MarkCompactCollector::EvacuatePages() {
           page->ClearEvacuationCandidate();
           page->SetFlag(Page::RESCAN_ON_EVACUATION);
         }
+        abandoned_pages = npages - i;
         break;
       }
     }
@@ -3284,6 +3295,16 @@ void MarkCompactCollector::EvacuatePages() {
          space = spaces.next()) {
       if (space->HasEmergencyMemory()) {
         space->FreeEmergencyMemory();
+      }
+    }
+    if (FLAG_trace_fragmentation) {
+      if (abandoned_pages != 0) {
+        PrintF(
+            "  Abandon %d out of %d page defragmentations due to lack of "
+            "memory\n",
+            abandoned_pages, npages);
+      } else {
+        PrintF("  Defragmented %d pages\n", npages);
       }
     }
   }
@@ -3629,7 +3650,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                              GCTracer::Scope::MC_UPDATE_POINTERS_TO_EVACUATED);
     SlotsBuffer::UpdateSlotsRecordedIn(heap_, migration_slots_buffer_,
                                        code_slots_filtering_required);
-    if (FLAG_trace_fragmentation) {
+    if (FLAG_trace_fragmentation_verbose) {
       PrintF("  migration slots buffer: %d\n",
              SlotsBuffer::SizeOfChain(migration_slots_buffer_));
     }
@@ -3664,7 +3685,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       if (p->IsEvacuationCandidate()) {
         SlotsBuffer::UpdateSlotsRecordedIn(heap_, p->slots_buffer(),
                                            code_slots_filtering_required);
-        if (FLAG_trace_fragmentation) {
+        if (FLAG_trace_fragmentation_verbose) {
           PrintF("  page %p slots buffer: %d\n", reinterpret_cast<void*>(p),
                  SlotsBuffer::SizeOfChain(p->slots_buffer()));
         }

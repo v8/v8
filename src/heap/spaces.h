@@ -1871,6 +1871,7 @@ class PagedSpace : public Space {
   void CreateEmergencyMemory();
   void FreeEmergencyMemory();
   void UseEmergencyMemory();
+  intptr_t MaxEmergencyMemoryAllocated();
 
   bool HasEmergencyMemory() { return emergency_memory_ != NULL; }
 

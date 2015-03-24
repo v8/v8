@@ -1019,7 +1019,8 @@ bool PagedSpace::CanExpand() {
   DCHECK(max_capacity_ % AreaSize() == 0);
   DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
   DCHECK(heap()->CommittedOldGenerationMemory() <=
-         heap()->MaxOldGenerationSize());
+         heap()->MaxOldGenerationSize() +
+             PagedSpace::MaxEmergencyMemoryAllocated());
 
   // Are we going to exceed capacity for this space?
   if (!heap()->CanExpandOldGeneration(Page::kPageSize)) return false;
@@ -1046,7 +1047,8 @@ bool PagedSpace::Expand() {
 
   DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
   DCHECK(heap()->CommittedOldGenerationMemory() <=
-         heap()->MaxOldGenerationSize());
+         heap()->MaxOldGenerationSize() +
+             PagedSpace::MaxEmergencyMemoryAllocated());
 
   p->InsertAfter(anchor_.prev_page());
 
@@ -1125,6 +1127,15 @@ void PagedSpace::ReleasePage(Page* page) {
 
   DCHECK(Capacity() > 0);
   accounting_stats_.ShrinkSpace(AreaSize());
+}
+
+
+intptr_t PagedSpace::MaxEmergencyMemoryAllocated() {
+  // New space and large object space.
+  static const int spaces_without_emergency_memory = 2;
+  static const int spaces_with_emergency_memory =
+      LAST_SPACE - FIRST_SPACE + 1 - spaces_without_emergency_memory;
+  return Page::kPageSize * spaces_with_emergency_memory;
 }
 
 
