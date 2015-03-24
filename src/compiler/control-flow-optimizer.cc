@@ -242,11 +242,11 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
     DCHECK_NE(value, value1);
 
     if (branch != node) {
-      branch->RemoveAllInputs();
+      branch->NullAllInputs();
       if_true->ReplaceInput(0, node);
     }
     if_true->set_op(common()->IfValue(value));
-    if_false->RemoveAllInputs();
+    if_false->NullAllInputs();
     Enqueue(if_true);
 
     branch = branch1;
@@ -271,7 +271,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   if_false->set_op(common()->IfDefault());
   if_false->ReplaceInput(0, node);
   Enqueue(if_false);
-  branch->RemoveAllInputs();
+  branch->NullAllInputs();
   return true;
 }
 

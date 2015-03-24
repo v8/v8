@@ -142,7 +142,7 @@ void Inlinee::UnifyReturn(JSGraph* jsgraph) {
         values.push_back(NodeProperties::GetValueInput(input, 0));
         effects.push_back(NodeProperties::GetEffectInput(input));
         edge.UpdateTo(NodeProperties::GetControlInput(input));
-        input->RemoveAllInputs();
+        input->NullAllInputs();
         break;
       default:
         UNREACHABLE();

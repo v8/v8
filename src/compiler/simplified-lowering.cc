@@ -1069,7 +1069,7 @@ class RepresentationSelector {
       replacements_.push_back(node);
       replacements_.push_back(replacement);
     }
-    node->RemoveAllInputs();  // Node is now dead.
+    node->NullAllInputs();  // Node is now dead.
   }
 
   void PrintUseInfo(Node* node) {

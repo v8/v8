@@ -668,7 +668,7 @@ TEST(TrimInputCountOutOfLine2) {
 }
 
 
-TEST(RemoveAllInputs) {
+TEST(NullAllInputs) {
   GraphTester graph;
 
   for (int i = 0; i < 2; i++) {
@@ -685,16 +685,16 @@ TEST(RemoveAllInputs) {
       CHECK_INPUTS(n2, n0, n1);
     }
 
-    n0->RemoveAllInputs();
+    n0->NullAllInputs();
     CHECK_INPUTS(n0, NONE);
 
     CHECK_USES(n0, n1, n2);
-    n1->RemoveAllInputs();
+    n1->NullAllInputs();
     CHECK_INPUTS(n1, NULL);
     CHECK_INPUTS(n2, n0, n1);
     CHECK_USES(n0, n2);
 
-    n2->RemoveAllInputs();
+    n2->NullAllInputs();
     CHECK_INPUTS(n1, NULL);
     CHECK_INPUTS(n2, NULL, NULL);
     CHECK_USES(n0, NONE);
@@ -709,7 +709,7 @@ TEST(RemoveAllInputs) {
     CHECK_INPUTS(n1, n1);
     CHECK_USES(n0, NONE);
     CHECK_USES(n1, n1);
-    n1->RemoveAllInputs();
+    n1->NullAllInputs();
 
     CHECK_INPUTS(n0, NONE);
     CHECK_INPUTS(n1, NULL);

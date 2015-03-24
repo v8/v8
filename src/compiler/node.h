@@ -63,7 +63,7 @@ class Node FINAL {
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);
   void RemoveInput(int index);
-  void RemoveAllInputs();
+  void NullAllInputs();
   void TrimInputCount(int new_input_count);
 
   int UseCount() const;

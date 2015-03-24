@@ -40,7 +40,7 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
 
 void Node::Kill() {
   DCHECK_NOT_NULL(op());
-  RemoveAllInputs();
+  NullAllInputs();
   DCHECK(uses().empty());
 }
 
@@ -89,7 +89,7 @@ void Node::RemoveInput(int index) {
 }
 
 
-void Node::RemoveAllInputs() {
+void Node::NullAllInputs() {
   for (Edge edge : input_edges()) edge.UpdateTo(nullptr);
 }
 
