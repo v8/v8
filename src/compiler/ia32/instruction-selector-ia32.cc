@@ -17,8 +17,13 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
       : OperandGenerator(selector) {}
 
   InstructionOperand UseByteRegister(Node* node) {
-    // TODO(dcarney): relax constraint.
+    // TODO(titzer): encode byte register use constraints.
     return UseFixed(node, edx);
+  }
+
+  InstructionOperand DefineAsByteRegister(Node* node) {
+    // TODO(titzer): encode byte register def constraints.
+    return DefineAsRegister(node);
   }
 
   bool CanBeImmediate(Node* node) {
@@ -132,7 +137,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
 
   ArchOpcode opcode;
-  // TODO(titzer): signed/unsigned small loads
   switch (rep) {
     case kRepFloat32:
       opcode = kIA32Movss;
@@ -366,8 +370,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   outputs[output_count++] = g.DefineSameAsFirst(node);
   if (cont->IsSet()) {
-    // TODO(turbofan): Use byte register here.
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
+    outputs[output_count++] = g.DefineAsByteRegister(cont->result());
   }
 
   DCHECK_NE(0u, input_count);
@@ -825,8 +828,7 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else {
     DCHECK(cont->IsSet());
-    // TODO(titzer): Needs byte register.
-    selector->Emit(cont->Encode(opcode), g.DefineAsRegister(cont->result()),
+    selector->Emit(cont->Encode(opcode), g.DefineAsByteRegister(cont->result()),
                    left, right);
   }
 }
