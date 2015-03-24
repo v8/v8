@@ -9699,7 +9699,7 @@ class Cell: public HeapObject {
 
   static inline Cell* FromValueAddress(Address value) {
     Object* result = FromAddress(value - kValueOffset);
-    DCHECK(result->IsCell() || result->IsPropertyCell());
+    DCHECK(result->IsCell());
     return static_cast<Cell*>(result);
   }
 
