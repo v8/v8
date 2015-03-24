@@ -352,6 +352,7 @@ function GetSourceLine(message) {
   var start_position = %MessageGetStartPosition(message);
   var location = script.locationFromPosition(start_position, true);
   if (location == null) return "";
+  location.restrict();
   return location.sourceText();
 }
 
@@ -652,6 +653,57 @@ function SourceLocation(script, position, line, column, start, end) {
   this.end = end;
 }
 
+var kLineLengthLimit = 78;
+
+/**
+ * Restrict source location start and end positions to make the source slice
+ * no more that a certain number of characters wide.
+ * @param {number} opt_limit The with limit of the source text with a default
+ *     of 78
+ * @param {number} opt_before The number of characters to prefer before the
+ *     position with a default value of 10 less that the limit
+ */
+function SourceLocationRestrict(opt_limit, opt_before) {
+  // Find the actual limit to use.
+  var limit;
+  var before;
+  if (!IS_UNDEFINED(opt_limit)) {
+    limit = opt_limit;
+  } else {
+    limit = kLineLengthLimit;
+  }
+  if (!IS_UNDEFINED(opt_before)) {
+    before = opt_before;
+  } else {
+    // If no before is specified center for small limits and perfer more source
+    // before the the position that after for longer limits.
+    if (limit <= 20) {
+      before = $floor(limit / 2);
+    } else {
+      before = limit - 10;
+    }
+  }
+  if (before >= limit) {
+    before = limit - 1;
+  }
+
+  // If the [start, end[ interval is too big we restrict
+  // it in one or both ends. We make sure to always produce
+  // restricted intervals of maximum allowed size.
+  if (this.end - this.start > limit) {
+    var start_limit = this.position - before;
+    var end_limit = this.position + limit - before;
+    if (this.start < start_limit && end_limit < this.end) {
+      this.start = start_limit;
+      this.end = end_limit;
+    } else if (this.start < start_limit) {
+      this.start = this.end - limit;
+    } else {
+      this.end = this.start + limit;
+    }
+  }
+}
+
 
 /**
  * Get the source text for a SourceLocation
@@ -669,6 +721,7 @@ function SourceLocationSourceText() {
 SetUpLockedPrototype(SourceLocation,
   $Array("script", "position", "line", "column", "start", "end"),
   $Array(
+    "restrict", SourceLocationRestrict,
     "sourceText", SourceLocationSourceText
  )
 );
@@ -725,6 +778,7 @@ function GetPositionInLine(message) {
   var start_position = %MessageGetStartPosition(message);
   var location = script.locationFromPosition(start_position, false);
   if (location == null) return -1;
+  location.restrict();
   return start_position - location.start;
 }
 

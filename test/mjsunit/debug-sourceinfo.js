@@ -63,9 +63,9 @@ var comment_lines = 28;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 11337;
+var last_position = 13890;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 265;
+var last_line = 350;
 // This is the last column of last line (note: starting at 0 and +1, due
 // to trailing <LF>).
 var last_column = 1;
@@ -257,9 +257,94 @@ assertEquals(last_position, script.locationFromPosition(last_position).position)
 assertEquals(last_line, script.locationFromPosition(last_position).line);
 assertEquals(last_column, script.locationFromPosition(last_position).column);
 
-// Test that script.sourceLine(line) works.
+// Test source line and restriction. All the following tests start from line 1
+// column 2 in function b, which is the call to c.
+//   c(true);
+//   ^
+
 var location;
 
+location = script.locationFromLine(1, 0, start_b);
+assertEquals('  c(true);', location.sourceText());
+
+result = ['c', ' c', ' c(', '  c(', '  c(t']
+for (var i = 1; i <= 5; i++) {
+  location = script.locationFromLine(1, 2, start_b);
+  location.restrict(i);
+  assertEquals(result[i - 1], location.sourceText());
+}
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(1, 0);
+assertEquals('c', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(2, 0);
+assertEquals('c(', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(2, 1);
+assertEquals(' c', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(2, 2);
+assertEquals(' c', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(2, 3);
+assertEquals(' c', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(3, 1);
+assertEquals(' c(', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(5, 0);
+assertEquals('c(tru', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(5, 2);
+assertEquals('  c(t', location.sourceText());
+
+location = script.locationFromLine(1, 2, start_b);
+location.restrict(5, 4);
+assertEquals('  c(t', location.sourceText());
+
+// All the following tests start from line 1 column 10 in function b, which is
+// the final character.
+//   c(true);
+//          ^
+
+location = script.locationFromLine(1, 10, start_b);
+location.restrict(5, 0);
+assertEquals('rue);', location.sourceText());
+
+location = script.locationFromLine(1, 10, start_b);
+location.restrict(7, 0);
+assertEquals('(true);', location.sourceText());
+
+// All the following tests start from line 1 column 0 in function b, which is
+// the first character.
+//   c(true);
+//^
+
+location = script.locationFromLine(1, 0, start_b);
+location.restrict(5, 0);
+assertEquals('  c(t', location.sourceText());
+
+location = script.locationFromLine(1, 0, start_b);
+location.restrict(5, 4);
+assertEquals('  c(t', location.sourceText());
+
+location = script.locationFromLine(1, 0, start_b);
+location.restrict(7, 0);
+assertEquals('  c(tru', location.sourceText());
+
+location = script.locationFromLine(1, 0, start_b);
+location.restrict(7, 6);
+assertEquals('  c(tru', location.sourceText());
+
+// Test that script.sourceLine(line) works.
 for (line = 0; line < num_lines_d; line++) {
   var line_content_regexp = new RegExp("  x = " + (line + 1));
   assertTrue(line_content_regexp.test(script.sourceLine(start_line_d + line)));
