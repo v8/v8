@@ -470,6 +470,9 @@ class RegisterAllocator FINAL : public ZoneObject {
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
+  // Creates a new live range.
+  LiveRange* NewLiveRange(int index);
+
   // This zone is for InstructionOperands and moves that live beyond register
   // allocation.
   Zone* code_zone() const { return code()->zone(); }

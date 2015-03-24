@@ -736,15 +736,19 @@ InstructionOperand* RegisterAllocator::AllocateFixed(
 }
 
 
+LiveRange* RegisterAllocator::NewLiveRange(int index) {
+  // The LiveRange object itself can go in the local zone, but the
+  // InstructionOperand needs to go in the code zone, since it may survive
+  // register allocation.
+  return new (local_zone()) LiveRange(index, code_zone());
+}
+
+
 LiveRange* RegisterAllocator::FixedLiveRangeFor(int index) {
   DCHECK(index < config()->num_general_registers());
   auto result = fixed_live_ranges()[index];
   if (result == nullptr) {
-    // TODO(titzer): add a utility method to allocate a new LiveRange:
-    // The LiveRange object itself can go in this zone, but the
-    // InstructionOperand needs
-    // to go in the code zone, since it may survive register allocation.
-    result = new (local_zone()) LiveRange(FixedLiveRangeID(index), code_zone());
+    result = NewLiveRange(FixedLiveRangeID(index));
     DCHECK(result->IsFixed());
     result->kind_ = GENERAL_REGISTERS;
     SetLiveRangeAssignedRegister(result, index);
@@ -758,8 +762,7 @@ LiveRange* RegisterAllocator::FixedDoubleLiveRangeFor(int index) {
   DCHECK(index < config()->num_aliased_double_registers());
   auto result = fixed_double_live_ranges()[index];
   if (result == nullptr) {
-    result = new (local_zone())
-        LiveRange(FixedDoubleLiveRangeID(index), code_zone());
+    result = NewLiveRange(FixedDoubleLiveRangeID(index));
     DCHECK(result->IsFixed());
     result->kind_ = DOUBLE_REGISTERS;
     SetLiveRangeAssignedRegister(result, index);
@@ -775,7 +778,7 @@ LiveRange* RegisterAllocator::LiveRangeFor(int index) {
   }
   auto result = live_ranges()[index];
   if (result == nullptr) {
-    result = new (local_zone()) LiveRange(index, code_zone());
+    result = NewLiveRange(index);
     live_ranges()[index] = result;
   }
   return result;
