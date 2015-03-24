@@ -435,7 +435,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
     CallFunctionStub stub(isolate(), arity, flags);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
-  after_push_argument_ = false;
 }
 
 
@@ -450,7 +449,6 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
-  after_push_argument_ = false;
 
   DCHECK(ToRegister(instr->result()).is(x0));
 }
@@ -498,7 +496,6 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
     ArrayNArgumentsConstructorStub stub(isolate(), kind, override_mode);
     CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
   }
-  after_push_argument_ = false;
 
   DCHECK(ToRegister(instr->result()).is(x0));
 }
@@ -520,7 +517,7 @@ void LCodeGen::LoadContextFromDeferred(LOperand* context) {
   if (context->IsRegister()) {
     __ Mov(cp, ToRegister(context));
   } else if (context->IsStackSlot()) {
-    __ Ldr(cp, ToMemOperand(context, kMustUseFramePointer));
+    __ Ldr(cp, ToMemOperand(context));
   } else if (context->IsConstantOperand()) {
     HConstant* constant =
         chunk_->LookupConstant(LConstantOperand::cast(context));
@@ -1275,38 +1272,13 @@ static int64_t ArgumentsOffsetWithoutFrame(int index) {
 }
 
 
-MemOperand LCodeGen::ToMemOperand(LOperand* op, StackMode stack_mode) const {
+MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
   DCHECK(op != NULL);
   DCHECK(!op->IsRegister());
   DCHECK(!op->IsDoubleRegister());
   DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
   if (NeedsEagerFrame()) {
-    int fp_offset = StackSlotOffset(op->index());
-    if (op->index() >= 0) {
-      // Loads and stores have a bigger reach in positive offset than negative.
-      // When the load or the store can't be done in one instruction via fp
-      // (too big negative offset), we try to access via jssp (positive offset).
-      // We can reference a stack slot from jssp only if jssp references the end
-      // of the stack slots. It's not the case when:
-      //  - stack_mode != kCanUseStackPointer: this is the case when a deferred
-      //     code saved the registers.
-      //  - after_push_argument_: arguments has been pushed for a call.
-      //  - inlined_arguments_: inlined arguments have been pushed once. All the
-      //     remainder of the function cannot trust jssp any longer.
-      //  - saves_caller_doubles: some double registers have been pushed, jssp
-      //     references the end of the double registers and not the end of the
-      //     stack slots.
-      // Also, if the offset from fp is small enough to make a load/store in
-      // one instruction, we use a fp access.
-      if ((stack_mode == kCanUseStackPointer) && !after_push_argument_ &&
-          !inlined_arguments_ && !is_int9(fp_offset) &&
-          !info()->saves_caller_doubles()) {
-        int jssp_offset =
-            (GetStackSlotCount() - op->index() - 1) * kPointerSize;
-        return MemOperand(masm()->StackPointer(), jssp_offset);
-      }
-    }
-    return MemOperand(fp, fp_offset);
+    return MemOperand(fp, StackSlotOffset(op->index()));
   } else {
     // Retrieve parameter without eager stack-frame relative to the
     // stack-pointer.
@@ -1710,10 +1682,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
 
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
-  // We push some arguments and they will be pop in an other block. We can't
-  // trust that jssp references the end of the stack slots until the end of
-  // the function.
-  inlined_arguments_ = true;
   Register result = ToRegister(instr->result());
 
   if (instr->hydrogen()->from_inlined()) {
@@ -2130,8 +2098,6 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     }
     generator.AfterCall();
   }
-
-  after_push_argument_ = false;
 }
 
 
@@ -2151,13 +2117,11 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   __ Call(x10);
 
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
-  after_push_argument_ = false;
 }
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
   CallRuntime(instr->function(), instr->arity(), instr);
-  after_push_argument_ = false;
 }
 
 
@@ -2183,7 +2147,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     default:
       UNREACHABLE();
   }
-  after_push_argument_ = false;
 }
 
 
@@ -3239,7 +3202,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(), instr);
   }
-  after_push_argument_ = false;
 }
 
 
@@ -4781,8 +4743,6 @@ void LCodeGen::DoPushArguments(LPushArguments* instr) {
 
   // The preamble was done by LPreparePushArguments.
   args.PushQueued(MacroAssembler::PushPopQueue::SKIP_PREAMBLE);
-
-  after_push_argument_ = true;
 }
 
 
