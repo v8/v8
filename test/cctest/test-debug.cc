@@ -6697,6 +6697,7 @@ TEST(ProcessDebugMessagesThreaded) {
       v8::FunctionTemplate::New(isolate, StartSendingCommands);
   env->Global()->Set(v8_str("start"), start->GetFunction());
 
+  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   CompileRun("start(); while (true) { }");
 
   CHECK_EQ(20, counting_message_handler_counter);
