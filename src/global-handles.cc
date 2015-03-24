@@ -856,6 +856,12 @@ int GlobalHandles::PostGarbageCollectionProcessing(GarbageCollector collector) {
   DCHECK(isolate_->heap()->gc_state() == Heap::NOT_IN_GC);
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
+  freed_nodes += DispatchPendingPhantomCallbacks();
+  if (initial_post_gc_processing_count != post_gc_processing_count_) {
+    // If the callbacks caused a nested GC, then return.  See comment in
+    // PostScavengeProcessing.
+    return freed_nodes;
+  }
   if (collector == SCAVENGER) {
     freed_nodes = PostScavengeProcessing(initial_post_gc_processing_count);
   } else {
@@ -866,7 +872,6 @@ int GlobalHandles::PostGarbageCollectionProcessing(GarbageCollector collector) {
     // PostScavengeProcessing.
     return freed_nodes;
   }
-  freed_nodes += DispatchPendingPhantomCallbacks();
   if (initial_post_gc_processing_count == post_gc_processing_count_) {
     UpdateListOfNewSpaceNodes();
   }
