@@ -250,28 +250,21 @@ class RepresentationSelector {
   }
 
   // The default, most general visitation case. For {node}, process all value,
-  // context, effect, and control inputs, assuming that value inputs should have
-  // {kRepTagged} representation and can observe all output values {kTypeAny}.
+  // context, frame state, effect, and control inputs, assuming that value
+  // inputs should have {kRepTagged} representation and can observe all output
+  // values {kTypeAny}.
   void VisitInputs(Node* node) {
-    auto i = node->input_edges().begin();
-    for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
-      ProcessInput(node, (*i).index(), kMachAnyTagged);  // Value inputs
+    int tagged_count = node->op()->ValueInputCount() +
+                       OperatorProperties::GetContextInputCount(node->op());
+    // Visit value and context inputs as tagged.
+    for (int i = 0; i < tagged_count; i++) {
+      ProcessInput(node, i, kMachAnyTagged);
     }
-    for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
-         ++i, j--) {
-      ProcessInput(node, (*i).index(), kMachAnyTagged);  // Context inputs
+    // Only enqueue other inputs (framestates, effects, control).
+    for (int i = tagged_count; i < node->InputCount(); i++) {
+      Enqueue(node->InputAt(i));
     }
-    for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
-         ++i, j--) {
-      Enqueue((*i).to());  // FrameState inputs: just visit
-    }
-    for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
-      Enqueue((*i).to());  // Effect inputs: just visit
-    }
-    for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
-      Enqueue((*i).to());  // Control inputs: just visit
-    }
-    DCHECK(i == node->input_edges().end());
+    // Assume the output is tagged.
     SetOutput(node, kMachAnyTagged);
   }
 
@@ -407,19 +400,15 @@ class RepresentationSelector {
       }
 
       // Convert inputs to the output representation of this phi.
-      for (Edge const edge : node->input_edges()) {
-        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-        ProcessInput(node, edge.index(), values > 0 ? output_type : 0);
-        values--;
+      for (int i = 0; i < node->InputCount(); i++) {
+        ProcessInput(node, i, i < values ? output_type : 0);
       }
     } else {
       // Propagate {use} of the phi to value inputs, and 0 to control.
       MachineType use_type =
           static_cast<MachineType>((use & kTypeMask) | output);
-      for (Edge const edge : node->input_edges()) {
-        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-        ProcessInput(node, edge.index(), values > 0 ? use_type : 0);
-        values--;
+      for (int i = 0; i < node->InputCount(); i++) {
+        ProcessInput(node, i, i < values ? use_type : 0);
       }
     }
   }
