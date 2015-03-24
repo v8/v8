@@ -839,6 +839,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kPPC_NegFloat64:
       ASSEMBLE_FLOAT_UNOP_RC(fneg);
       break;
+    case kPPC_Cntlz32:
+      __ cntlzw_(i.OutputRegister(), i.InputRegister(0));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kPPC_Cmp32:
       ASSEMBLE_COMPARE(cmpw, cmplw);
       break;

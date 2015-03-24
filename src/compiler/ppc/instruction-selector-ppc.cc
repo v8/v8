@@ -737,6 +737,12 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 #endif
 
 
+void InstructionSelector::VisitWord32Clz(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Cntlz32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
 }
