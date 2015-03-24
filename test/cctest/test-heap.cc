@@ -5105,12 +5105,7 @@ TEST(Regress3877) {
 }
 
 
-void CheckMapRetainingFor(int n) {
-  FLAG_retain_maps_for_n_gc = n;
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Handle<WeakCell> weak_cell;
-  {
+Handle<WeakCell> AddRetainedMap(Isolate* isolate, Heap* heap) {
     HandleScope inner_scope(isolate);
     Handle<Map> map = Map::Create(isolate, 1);
     v8::Local<v8::Value> result =
@@ -5119,8 +5114,15 @@ void CheckMapRetainingFor(int n) {
         v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
     map->set_prototype(*proto);
     heap->AddRetainedMap(map);
-    weak_cell = inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
-  }
+    return inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
+}
+
+
+void CheckMapRetainingFor(int n) {
+  FLAG_retain_maps_for_n_gc = n;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Handle<WeakCell> weak_cell = AddRetainedMap(isolate, heap);
   CHECK(!weak_cell->cleared());
   for (int i = 0; i < n; i++) {
     heap->CollectGarbage(OLD_POINTER_SPACE);
@@ -5138,6 +5140,27 @@ TEST(MapRetaining) {
   CheckMapRetainingFor(0);
   CheckMapRetainingFor(1);
   CheckMapRetainingFor(7);
+}
+
+
+TEST(RegressArrayListGC) {
+  FLAG_retain_maps_for_n_gc = 1;
+  FLAG_incremental_marking = 0;
+  FLAG_gc_global = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  AddRetainedMap(isolate, heap);
+  Handle<Map> map = Map::Create(isolate, 1);
+  heap->CollectGarbage(OLD_POINTER_SPACE);
+  // Force GC in old space on next addition of retained map.
+  Map::WeakCellForMap(map);
+  SimulateFullSpace(CcTest::heap()->new_space());
+  for (int i = 0; i < 10; i++) {
+    heap->AddRetainedMap(map);
+  }
+  heap->CollectGarbage(OLD_POINTER_SPACE);
 }
 
 

@@ -8277,9 +8277,14 @@ Handle<WeakFixedArray> WeakFixedArray::Allocate(
 }
 
 
-Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj) {
+Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj,
+                                 AddMode mode) {
   int length = array->Length();
   array = EnsureSpace(array, length + 1);
+  if (mode == kReloadLengthAfterAllocation) {
+    DCHECK(array->Length() <= length);
+    length = array->Length();
+  }
   array->Set(length, *obj);
   array->SetLength(length + 1);
   return array;
@@ -8287,9 +8292,12 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj) {
 
 
 Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
-                                 Handle<Object> obj2) {
+                                 Handle<Object> obj2, AddMode mode) {
   int length = array->Length();
   array = EnsureSpace(array, length + 2);
+  if (mode == kReloadLengthAfterAllocation) {
+    length = array->Length();
+  }
   array->Set(length, *obj1);
   array->Set(length + 1, *obj2);
   array->SetLength(length + 2);
@@ -8299,10 +8307,12 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
 
 Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
   int capacity = array->length();
+  bool empty = (capacity == 0);
   if (capacity < kFirstIndex + length) {
     capacity = kFirstIndex + length;
     capacity = capacity + Max(capacity / 2, 2);
     array = Handle<ArrayList>::cast(FixedArray::CopySize(array, capacity));
+    if (empty) array->SetLength(0);
   }
   return array;
 }

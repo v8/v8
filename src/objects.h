@@ -2631,9 +2631,15 @@ class WeakFixedArray : public FixedArray {
 // Generic array grows dynamically with O(1) amortized insertion.
 class ArrayList : public FixedArray {
  public:
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj);
+  enum AddMode {
+    kNone,
+    // Use this if GC can delete elements from the array.
+    kReloadLengthAfterAllocation,
+  };
+  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj,
+                               AddMode mode = kNone);
   static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
-                               Handle<Object> obj2);
+                               Handle<Object> obj2, AddMode = kNone);
   inline int Length();
   inline void SetLength(int length);
   inline Object* Get(int index);
