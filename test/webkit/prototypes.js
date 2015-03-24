@@ -43,8 +43,8 @@ shouldBe("Date.__proto__", "Object.__proto__");
 shouldBe("Number.__proto__", "Object.__proto__");
 shouldBe("String.__proto__", "Object.__proto__");
 
-shouldBe("Object.getPrototypeOf('')", "String.prototype");
-shouldBe("Object.getPrototypeOf(0)", "Number.prototype");
+shouldThrow("Object.getPrototypeOf('')");
+shouldThrow("Object.getPrototypeOf(0)");
 shouldBe("Object.getPrototypeOf([])", "Array.prototype");
 shouldBe("Object.getPrototypeOf({})", "Object.prototype");
 shouldBe("Object.getPrototypeOf(new Date)", "Date.prototype");
