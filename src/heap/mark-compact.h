@@ -363,6 +363,15 @@ class SlotsBuffer {
                     SlotsBuffer** buffer_address, SlotType type, Address addr,
                     AdditionMode mode);
 
+  // Eliminates all stale entries from the slots buffer, i.e., slots that
+  // are not part of live objects anymore. This method must be called after
+  // marking, when the whole transitive closure is known and must be called
+  // before sweeping when mark bits are still intact.
+  static void RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer);
+
+  // Ensures that there are no invalid slots in the chain of slots buffers.
+  static void VerifySlots(Heap* heap, SlotsBuffer* buffer);
+
   static const int kNumberOfElements = 1021;
 
  private:
@@ -658,10 +667,10 @@ class MarkCompactCollector {
   // The following four methods can just be called after marking, when the
   // whole transitive closure is known. They must be called before sweeping
   // when mark bits are still intact.
-  bool IsSlotInBlackObject(Page* p, Address slot);
+  bool IsSlotInBlackObject(Page* p, Address slot, HeapObject** out_object);
   bool IsSlotInBlackObjectSlow(Page* p, Address slot);
-  bool IsSlotInLiveObject(HeapObject** address, HeapObject* object);
-  void VerifyIsSlotInLiveObject(HeapObject** address, HeapObject* object);
+  bool IsSlotInLiveObject(Address slot);
+  void VerifyIsSlotInLiveObject(Address slot, HeapObject* object);
 
  private:
   class SweeperTask;
@@ -674,6 +683,8 @@ class MarkCompactCollector {
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
   void EvictEvacuationCandidate(Page* page);
+  void ClearInvalidSlotsBufferEntries(PagedSpace* space);
+  void ClearInvalidStoreAndSlotsBufferEntries();
 
   void StartSweeperThreads();
 
