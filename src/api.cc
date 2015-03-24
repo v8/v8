@@ -600,6 +600,13 @@ void V8::ToLocalEmpty() {
 }
 
 
+void V8::InternalFieldOutOfBounds(int index) {
+  Utils::ApiCheck(0 <= index && index < kInternalFieldsInWeakCallback,
+                  "WeakCallbackInfo::GetInternalField",
+                  "Internal field out of bounds.");
+}
+
+
 // --- H a n d l e s ---
 
 

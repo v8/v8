@@ -134,6 +134,9 @@ class DefaultGlobalMapTraits : public StdMapTraits<K, V> {
   }
   static void DisposeCallbackData(WeakCallbackInfoType* data) {}
   static void Dispose(Isolate* isolate, Global<V> value, K key) {}
+  static void DisposeWeak(Isolate* isolate,
+                          const WeakCallbackInfo<WeakCallbackInfoType>& data,
+                          K key) {}
 
  private:
   template <typename T>
@@ -319,6 +322,8 @@ class PersistentValueMapBase {
     return p.Pass();
   }
 
+  void RemoveWeak(const K& key) { Traits::Remove(&impl_, key); }
+
  private:
   PersistentValueMapBase(PersistentValueMapBase&);
   void operator=(PersistentValueMapBase&);
@@ -469,8 +474,8 @@ class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
       GlobalValueMap<K, V, Traits>* persistentValueMap =
           Traits::MapFromWeakCallbackInfo(data);
       K key = Traits::KeyFromWeakCallbackInfo(data);
-      Traits::Dispose(data.GetIsolate(), persistentValueMap->Remove(key).Pass(),
-                      key);
+      persistentValueMap->RemoveWeak(key);
+      Traits::DisposeWeak(data.GetIsolate(), data, key);
       Traits::DisposeCallbackData(data.GetParameter());
     }
   }
