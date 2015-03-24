@@ -513,7 +513,7 @@ class Instruction {
     return FlagsConditionField::decode(opcode());
   }
 
-  // TODO(titzer): make control and call into flags.
+  // TODO(titzer): make call into a flags.
   static Instruction* New(Zone* zone, InstructionCode opcode) {
     return New(zone, opcode, 0, NULL, 0, NULL, 0, NULL);
   }
@@ -535,17 +535,10 @@ class Instruction {
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
 
-  // TODO(titzer): another holdover from lithium days; register allocator
-  // should not need to know about control instructions.
-  Instruction* MarkAsControl() {
-    bit_field_ = IsControlField::update(bit_field_, true);
-    return this;
-  }
   Instruction* MarkAsCall() {
     bit_field_ = IsCallField::update(bit_field_, true);
     return this;
   }
-  bool IsControl() const { return IsControlField::decode(bit_field_); }
   bool IsCall() const { return IsCallField::decode(bit_field_); }
   bool NeedsPointerMap() const { return IsCall(); }
   bool HasPointerMap() const { return pointer_map_ != NULL; }
@@ -588,7 +581,6 @@ class Instruction {
   typedef BitField<size_t, 8, 16> InputCountField;
   typedef BitField<size_t, 24, 6> TempCountField;
   typedef BitField<bool, 30, 1> IsCallField;
-  typedef BitField<bool, 31, 1> IsControlField;
 
   InstructionCode opcode_;
   uint32_t bit_field_;

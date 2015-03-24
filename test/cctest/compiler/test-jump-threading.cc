@@ -30,8 +30,8 @@ class TestCode : public HandleAndZoneScope {
   int Jump(int target) {
     Start();
     InstructionOperand ops[] = {UseRpo(target)};
-    sequence_.AddInstruction(Instruction::New(main_zone(), kArchJmp, 0, NULL, 1,
-                                              ops, 0, NULL)->MarkAsControl());
+    sequence_.AddInstruction(
+        Instruction::New(main_zone(), kArchJmp, 0, NULL, 1, ops, 0, NULL));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -45,8 +45,8 @@ class TestCode : public HandleAndZoneScope {
     InstructionOperand ops[] = {UseRpo(ttarget), UseRpo(ftarget)};
     InstructionCode code = 119 | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
-    sequence_.AddInstruction(Instruction::New(main_zone(), code, 0, NULL, 2,
-                                              ops, 0, NULL)->MarkAsControl());
+    sequence_.AddInstruction(
+        Instruction::New(main_zone(), code, 0, NULL, 2, ops, 0, NULL));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
