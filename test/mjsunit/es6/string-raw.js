@@ -254,3 +254,39 @@
   assertEquals("12345", String.raw(callSiteObj, arg(2), arg(4), arg(6)));
   assertEquals(["length", "raw1", "arg2", "raw3", "arg4", "raw5"], order);
 })();
+
+
+(function testStringRawToStringSubstitutionsOrder() {
+  var subs = [];
+  var log = [];
+  function stringify(toString) {
+    var valueOf = "_" + toString + "_";
+    return {
+      toString: function() { return toString; },
+      valueOf: function() { return valueOf; }
+    };
+  }
+  function getter(name, value) {
+    return {
+      get: function() {
+        log.push("get" + name);
+        return value;
+      },
+      set: function(v) {
+        log.push("set" + name);
+      }
+    };
+  }
+  Object.defineProperties(subs, {
+    0: getter(0, stringify("a")),
+    1: getter(1, stringify("b")),
+    2: getter(2, stringify("c"))
+  });
+
+  assertEquals("-a-b-c-", String.raw`-${subs[0]}-${subs[1]}-${subs[2]}-`);
+  assertArrayEquals(["get0", "get1", "get2"], log);
+
+  log.length = 0;
+  assertEquals("-a-", String.raw`-${subs[0]}-`);
+  assertArrayEquals(["get0"], log);
+})();

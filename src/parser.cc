@@ -5476,27 +5476,24 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
 
   if (!tag) {
     // Build tree of BinaryOps to simplify code-generation
-    Expression* expr = NULL;
+    Expression* expr = cooked_strings->at(0);
+    int i = 0;
+    while (i < expressions->length()) {
+      Expression* sub = expressions->at(i++);
+      Expression* cooked_str = cooked_strings->at(i);
 
-    if (expressions->length() == 0) {
-      // Simple case: treat as string literal
-      expr = cooked_strings->at(0);
-    } else {
-      int i;
-      Expression* cooked_str = cooked_strings->at(0);
+      // Let middle be ToString(sub).
+      ZoneList<Expression*>* args =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      args->Add(sub, zone());
+      Expression* middle = factory()->NewCallRuntime(
+          ast_value_factory()->to_string_string(), NULL, args,
+          sub->position());
+
       expr = factory()->NewBinaryOperation(
-          Token::ADD, cooked_str, expressions->at(0), cooked_str->position());
-      for (i = 1; i < expressions->length(); ++i) {
-        cooked_str = cooked_strings->at(i);
-        expr = factory()->NewBinaryOperation(
-            Token::ADD, expr, factory()->NewBinaryOperation(
-                                  Token::ADD, cooked_str, expressions->at(i),
-                                  cooked_str->position()),
-            cooked_str->position());
-      }
-      cooked_str = cooked_strings->at(i);
-      expr = factory()->NewBinaryOperation(Token::ADD, expr, cooked_str,
-                                           cooked_str->position());
+          Token::ADD, factory()->NewBinaryOperation(
+                          Token::ADD, expr, middle, expr->position()),
+          cooked_str, sub->position());
     }
     return expr;
   } else {

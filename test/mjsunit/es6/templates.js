@@ -586,3 +586,96 @@ var global = this;
     "raw;test3"
   ], raw);
 })();
+
+
+(function testToStringSubstitutions() {
+  var a = {
+    toString: function() { return "a"; },
+    valueOf: function() { return "-a-"; }
+  };
+  var b = {
+    toString: function() { return "b"; },
+    valueOf: function() { return "-b-"; }
+  };
+  assertEquals("a", `${a}`);
+  assertEquals("ab", `${a}${b}`);
+  assertEquals("-a--b-", `${a + b}`);
+  assertEquals("-a-", `${a + ""}`);
+  assertEquals("1a", `1${a}`);
+  assertEquals("1a2", `1${a}2`);
+  assertEquals("1a2b", `1${a}2${b}`);
+  assertEquals("1a2b3", `1${a}2${b}3`);
+})();
+
+
+(function testToStringSubstitutionsOrder() {
+  var subs = [];
+  var log = [];
+  function getter(name, value) {
+    return {
+      get: function() {
+        log.push("get" + name);
+        return value;
+      },
+      set: function(v) {
+        log.push("set" + name);
+      }
+    };
+  }
+  Object.defineProperties(subs, {
+    0: getter(0, "a"),
+    1: getter(1, "b"),
+    2: getter(2, "c")
+  });
+
+  assertEquals("-a-b-c-", `-${subs[0]}-${subs[1]}-${subs[2]}-`);
+  assertArrayEquals(["get0", "get1", "get2"], log);
+})();
+
+
+(function testTaggedToStringSubstitutionsOrder() {
+  var subs = [];
+  var log = [];
+  var tagged = [];
+  function getter(name, value) {
+    return {
+      get: function() {
+        log.push("get" + name);
+        return value;
+      },
+      set: function(v) {
+        log.push("set" + name);
+      }
+    };
+  }
+  Object.defineProperties(subs, {
+    0: getter(0, 1),
+    1: getter(1, 2),
+    2: getter(2, 3)
+  });
+
+  function tag(cs) {
+    var n_substitutions = arguments.length - 1;
+    var n_cooked = cs.length;
+    var e = cs[0];
+    var i = 0;
+    assertEquals(n_cooked, n_substitutions + 1);
+    while (i < n_substitutions) {
+      var sub = arguments[i++ + 1];
+      var tail = cs[i];
+      tagged.push(sub);
+      e = e.concat(sub, tail);
+    }
+    return e;
+  }
+
+  assertEquals("-1-2-3-", tag`-${subs[0]}-${subs[1]}-${subs[2]}-`);
+  assertArrayEquals(["get0", "get1", "get2"], log);
+  assertArrayEquals([1, 2, 3], tagged);
+
+  tagged.length = 0;
+  log.length = 0;
+  assertEquals("-1-", tag`-${subs[0]}-`);
+  assertArrayEquals(["get0"], log);
+  assertArrayEquals([1], tagged);
+})();
