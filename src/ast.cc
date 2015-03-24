@@ -622,24 +622,6 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 }
 
 
-bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               LookupIterator* it) {
-  target_ = Handle<JSFunction>::null();
-  DCHECK(it->IsFound() && it->GetHolder<JSObject>().is_identical_to(global));
-  Handle<PropertyCell> cell = it->GetPropertyCell();
-  if (cell->value()->IsJSFunction()) {
-    Handle<JSFunction> candidate(JSFunction::cast(cell->value()));
-    // If the function is in new space we assume it's more likely to
-    // change and thus prefer the general IC code.
-    if (!it->isolate()->heap()->InNewSpace(*candidate)) {
-      target_ = candidate;
-      return true;
-    }
-  }
-  return false;
-}
-
-
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
 
