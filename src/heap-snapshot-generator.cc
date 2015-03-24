@@ -2743,6 +2743,11 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
 
+  writer_->AddString("\"samples\":[");
+  SerializeSamples();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+
   writer_->AddString("\"strings\":[");
   SerializeStrings();
   if (writer_->aborted()) return;
@@ -2939,7 +2944,10 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("function_info_index") ","
         JSON_S("count") ","
         JSON_S("size") ","
-        JSON_S("children"))));
+        JSON_S("children")) ","
+    JSON_S("sample_fields") ":" JSON_A(
+        JSON_S("timestamp_us") ","
+        JSON_S("last_assigned_id"))));
 #undef JSON_S
 #undef JSON_O
 #undef JSON_A
@@ -3028,13 +3036,10 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
   EmbeddedVector<char, kBufferSize> buffer;
   const List<AllocationTracker::FunctionInfo*>& list =
       tracker->function_info_list();
-  bool first_entry = true;
   for (int i = 0; i < list.length(); i++) {
     AllocationTracker::FunctionInfo* info = list[i];
     int buffer_pos = 0;
-    if (first_entry) {
-      first_entry = false;
-    } else {
+    if (i > 0) {
       buffer[buffer_pos++] = ',';
     }
     buffer_pos = utoa(info->function_id, buffer, buffer_pos);
@@ -3050,6 +3055,34 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
     buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
     buffer[buffer_pos++] = ',';
     buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
+    buffer[buffer_pos++] = '\n';
+    buffer[buffer_pos++] = '\0';
+    writer_->AddString(buffer.start());
+  }
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeSamples() {
+  const List<HeapObjectsMap::TimeInterval>& samples =
+      snapshot_->profiler()->heap_object_map()->samples();
+  if (samples.is_empty()) return;
+  base::TimeTicks start_time = samples[0].timestamp;
+  // The buffer needs space for 2 unsigned ints, 2 commas, \n and \0
+  const int kBufferSize = MaxDecimalDigitsIn<sizeof(
+                              base::TimeDelta().InMicroseconds())>::kUnsigned +
+                          MaxDecimalDigitsIn<sizeof(samples[0].id)>::kUnsigned +
+                          2 + 1 + 1;
+  EmbeddedVector<char, kBufferSize> buffer;
+  for (int i = 0; i < samples.length(); i++) {
+    HeapObjectsMap::TimeInterval& sample = samples[i];
+    int buffer_pos = 0;
+    if (i > 0) {
+      buffer[buffer_pos++] = ',';
+    }
+    base::TimeDelta time_delta = sample.timestamp - start_time;
+    buffer_pos = utoa(time_delta.InMicroseconds(), buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+    buffer_pos = utoa(sample.last_assigned_id(), buffer, buffer_pos);
     buffer[buffer_pos++] = '\n';
     buffer[buffer_pos++] = '\0';
     writer_->AddString(buffer.start());

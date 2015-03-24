@@ -194,6 +194,16 @@ class HeapSnapshot {
 
 class HeapObjectsMap {
  public:
+  struct TimeInterval {
+    explicit TimeInterval(SnapshotObjectId id)
+        : id(id), size(0), count(0), timestamp(base::TimeTicks::Now()) {}
+    SnapshotObjectId last_assigned_id() const { return id - kObjectIdStep; }
+    SnapshotObjectId id;
+    uint32_t size;
+    uint32_t count;
+    base::TimeTicks timestamp;
+  };
+
   explicit HeapObjectsMap(Heap* heap);
 
   Heap* heap() const { return heap_; }
@@ -210,6 +220,7 @@ class HeapObjectsMap {
 
   void StopHeapObjectsTracking();
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
+  const List<TimeInterval>& samples() const { return time_intervals_; }
   size_t GetUsedMemorySize() const;
 
   SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
@@ -235,12 +246,6 @@ class HeapObjectsMap {
     Address addr;
     unsigned int size;
     bool accessed;
-  };
-  struct TimeInterval {
-    explicit TimeInterval(SnapshotObjectId id) : id(id), size(0), count(0) { }
-    SnapshotObjectId id;
-    uint32_t size;
-    uint32_t count;
   };
 
   SnapshotObjectId next_id_;
@@ -584,6 +589,7 @@ class HeapSnapshotJSONSerializer {
   void SerializeTraceTree();
   void SerializeTraceNode(AllocationTraceNode* node);
   void SerializeTraceNodeInfos();
+  void SerializeSamples();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();
 
