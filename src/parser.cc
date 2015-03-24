@@ -790,7 +790,7 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
   // for Traits::DeclareArrowParametersFromExpression() to be able to
   // pick the names of the parameters.
   return parser_->parsing_lazy_arrow_parameters_
-             ? factory->NewVariableProxy(name, false, start_position,
+             ? factory->NewVariableProxy(name, Variable::NORMAL, start_position,
                                          end_position)
              : scope->NewUnresolved(factory, name, start_position,
                                     end_position);
@@ -1975,7 +1975,7 @@ Variable* Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     // For global const variables we bind the proxy to a variable.
     DCHECK(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new (zone()) Variable(declaration_scope, name, mode, true, kind,
+    var = new (zone()) Variable(declaration_scope, name, mode, kind,
                                 kNeedsInitialization, kNotAssigned);
   } else if (declaration_scope->is_eval_scope() &&
              is_sloppy(declaration_scope->language_mode())) {
@@ -1984,7 +1984,7 @@ Variable* Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     // DeclareLookupSlot runtime function.
     Variable::Kind kind = Variable::NORMAL;
     // TODO(sigurds) figure out if kNotAssigned is OK here
-    var = new (zone()) Variable(declaration_scope, name, mode, true, kind,
+    var = new (zone()) Variable(declaration_scope, name, mode, kind,
                                 declaration->initialization(), kNotAssigned);
     var->AllocateTo(Variable::LOOKUP, -1);
     resolve = true;
@@ -3883,8 +3883,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           is_strict(language_mode()) ? CONST : CONST_LEGACY;
       DCHECK(function_name != NULL);
       fvar = new (zone())
-          Variable(scope_, function_name, fvar_mode, true /* is valid LHS */,
-                   Variable::NORMAL, kCreatedInitialized, kNotAssigned);
+          Variable(scope_, function_name, fvar_mode, Variable::NORMAL,
+                   kCreatedInitialized, kNotAssigned);
       VariableProxy* proxy = factory()->NewVariableProxy(fvar);
       VariableDeclaration* fvar_declaration = factory()->NewVariableDeclaration(
           proxy, fvar_mode, scope_, RelocInfo::kNoPosition);

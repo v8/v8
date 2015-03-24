@@ -47,14 +47,12 @@ class Variable: public ZoneObject {
     LOOKUP
   };
 
-  Variable(Scope* scope, const AstRawString* name, VariableMode mode,
-           bool is_valid_ref, Kind kind, InitializationFlag initialization_flag,
+  Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
+           InitializationFlag initialization_flag,
            MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
-
-  bool IsValidReference() { return is_valid_ref_; }
 
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not
@@ -144,9 +142,6 @@ class Variable: public ZoneObject {
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
-
-  // Valid as a reference? (const and this are not valid, for example)
-  bool is_valid_ref_;
 
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver

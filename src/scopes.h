@@ -22,8 +22,7 @@ class VariableMap: public ZoneHashMap {
   virtual ~VariableMap();
 
   Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
-                    bool is_valid_lhs, Variable::Kind kind,
-                    InitializationFlag initialization_flag,
+                    Variable::Kind kind, InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* Lookup(const AstRawString* name);
@@ -149,8 +148,8 @@ class Scope: public ZoneObject {
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
     DCHECK(!already_resolved());
-    VariableProxy* proxy =
-        factory->NewVariableProxy(name, false, start_position, end_position);
+    VariableProxy* proxy = factory->NewVariableProxy(
+        name, Variable::NORMAL, start_position, end_position);
     unresolved_.Add(proxy, zone_);
     return proxy;
   }

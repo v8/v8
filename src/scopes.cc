@@ -30,8 +30,7 @@ VariableMap::~VariableMap() {}
 
 
 Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
-                               VariableMode mode, bool is_valid_lhs,
-                               Variable::Kind kind,
+                               VariableMode mode, Variable::Kind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
@@ -42,7 +41,7 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     DCHECK(p->key == name);
-    p->value = new (zone()) Variable(scope, name, mode, is_valid_lhs, kind,
+    p->value = new (zone()) Variable(scope, name, mode, kind,
                                      initialization_flag, maybe_assigned_flag);
   }
   return reinterpret_cast<Variable*>(p->value);
@@ -131,7 +130,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
   Variable* variable = variables_.Declare(this,
                                           catch_variable_name,
                                           VAR,
-                                          true,  // Valid left-hand side.
                                           Variable::NORMAL,
                                           kCreatedInitialized);
   AllocateHeapSlot(variable);
@@ -313,15 +311,15 @@ void Scope::Initialize() {
     DCHECK(!subclass_constructor || is_function_scope());
     Variable* var = variables_.Declare(
         this, ast_value_factory_->this_string(),
-        subclass_constructor ? CONST : VAR, false, Variable::THIS,
+        subclass_constructor ? CONST : VAR, Variable::THIS,
         subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
     var->AllocateTo(Variable::PARAMETER, -1);
     receiver_ = var;
 
     if (subclass_constructor) {
-      new_target_ = variables_.Declare(
-          this, ast_value_factory_->new_target_string(), CONST, false,
-          Variable::NEW_TARGET, kCreatedInitialized);
+      new_target_ =
+          variables_.Declare(this, ast_value_factory_->new_target_string(),
+                             CONST, Variable::NEW_TARGET, kCreatedInitialized);
       new_target_->AllocateTo(Variable::PARAMETER, -2);
       new_target_->set_is_used();
     }
@@ -337,7 +335,6 @@ void Scope::Initialize() {
     variables_.Declare(this,
                        ast_value_factory_->arguments_string(),
                        VAR,
-                       true,
                        Variable::ARGUMENTS,
                        kCreatedInitialized);
   }
@@ -413,7 +410,7 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
     maybe_assigned_flag = kMaybeAssigned;
   }
 
-  Variable* var = variables_.Declare(this, name, mode, true, Variable::NORMAL,
+  Variable* var = variables_.Declare(this, name, mode, Variable::NORMAL,
                                      init_flag, maybe_assigned_flag);
   var->AllocateTo(location, index);
   return var;
@@ -429,9 +426,8 @@ Variable* Scope::LookupFunctionVar(const AstRawString* name,
     VariableMode mode;
     int index = scope_info_->FunctionContextSlotIndex(*(name->string()), &mode);
     if (index < 0) return NULL;
-    Variable* var = new(zone()) Variable(
-        this, name, mode, true /* is valid LHS */,
-        Variable::NORMAL, kCreatedInitialized);
+    Variable* var = new (zone())
+        Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
     VariableProxy* proxy = factory->NewVariableProxy(var);
     VariableDeclaration* declaration = factory->NewVariableDeclaration(
         proxy, mode, this, RelocInfo::kNoPosition);
@@ -459,7 +455,7 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
                                   bool is_rest) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
-  Variable* var = variables_.Declare(this, name, mode, true, Variable::NORMAL,
+  Variable* var = variables_.Declare(this, name, mode, Variable::NORMAL,
                                      kCreatedInitialized);
   if (is_rest) {
     DCHECK_NULL(rest_parameter_);
@@ -480,7 +476,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
-  return variables_.Declare(this, name, mode, true, kind, init_flag,
+  return variables_.Declare(this, name, mode, kind, init_flag,
                             maybe_assigned_flag);
 }
 
@@ -490,7 +486,6 @@ Variable* Scope::DeclareDynamicGlobal(const AstRawString* name) {
   return variables_.Declare(this,
                             name,
                             DYNAMIC_GLOBAL,
-                            true,
                             Variable::NORMAL,
                             kCreatedInitialized);
 }
@@ -513,7 +508,6 @@ Variable* Scope::NewInternal(const AstRawString* name) {
   Variable* var = new(zone()) Variable(this,
                                        name,
                                        INTERNAL,
-                                       false,
                                        Variable::NORMAL,
                                        kCreatedInitialized);
   internals_.Add(var, zone());
@@ -526,7 +520,6 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
   Variable* var = new(zone()) Variable(this,
                                        name,
                                        TEMPORARY,
-                                       true,
                                        Variable::NORMAL,
                                        kCreatedInitialized);
   temps_.Add(var, zone());
@@ -987,7 +980,6 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
     var = map->Declare(NULL,
                        name,
                        mode,
-                       true,
                        Variable::NORMAL,
                        init_flag);
     // Allocate it by giving it a dynamic lookup.

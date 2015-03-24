@@ -72,10 +72,12 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
 }
 
 
-VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                             int start_position, int end_position)
+VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
+                             Variable::Kind variable_kind, int start_position,
+                             int end_position)
     : Expression(zone, start_position),
-      bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
+      bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
+                 IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(name),
