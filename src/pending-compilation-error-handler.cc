@@ -17,7 +17,7 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
   if (!has_pending_error_) return;
   MessageLocation location(script, start_position_, end_position_);
   Factory* factory = isolate->factory();
-  bool has_arg = arg_ != NULL || char_arg_ != NULL;
+  bool has_arg = arg_ != NULL || char_arg_ != NULL || !handle_arg_.is_null();
   Handle<FixedArray> elements = factory->NewFixedArray(has_arg ? 1 : 0);
   if (arg_ != NULL) {
     Handle<String> arg_string = arg_->string();
@@ -26,6 +26,8 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
     Handle<String> arg_string =
         factory->NewStringFromUtf8(CStrVector(char_arg_)).ToHandleChecked();
     elements->set(0, *arg_string);
+  } else if (!handle_arg_.is_null()) {
+    elements->set(0, *handle_arg_);
   }
   isolate->debug()->OnCompileError(script);
 

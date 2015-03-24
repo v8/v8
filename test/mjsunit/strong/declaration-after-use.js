@@ -208,6 +208,9 @@ function assertThrowsHelper(code) {
   let func5 = (p1, p2) => { p1; p2; };
   func5();
 
+  let func5b = p1 => p1;
+  func5b();
+
   function func6() {
     var1, var2a, var2b, var2c;
   }

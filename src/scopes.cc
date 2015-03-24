@@ -586,8 +586,9 @@ class VarAndOrder {
 };
 
 
-void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
-                                         ZoneList<Variable*>* context_locals) {
+void Scope::CollectStackAndContextLocals(
+    ZoneList<Variable*>* stack_locals, ZoneList<Variable*>* context_locals,
+    ZoneList<Variable*>* strong_mode_free_variables) {
   DCHECK(stack_locals != NULL);
   DCHECK(context_locals != NULL);
 
@@ -621,6 +622,11 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
+    if (strong_mode_free_variables && var->has_strong_mode_reference() &&
+        var->mode() == DYNAMIC_GLOBAL) {
+      strong_mode_free_variables->Add(var, zone());
+    }
+
     if (var->is_used()) {
       vars.Add(VarAndOrder(var, p->order), zone());
     }
@@ -1106,6 +1112,12 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
 
   DCHECK(var != NULL);
   if (proxy->is_assigned()) var->set_maybe_assigned();
+
+  if (is_strong(language_mode())) {
+    // Record that the variable is referred to from strong mode. Also, record
+    // the position.
+    var->RecordStrongModeReference(proxy->position(), proxy->end_position());
+  }
 
   proxy->BindTo(var);
 

@@ -172,6 +172,7 @@ var kMessages = {
   strong_for_in:                 ["In strong mode, 'for'-'in' loops are deprecated, use 'for'-'of' instead"],
   strong_empty:                  ["In strong mode, empty sub-statements are deprecated, make them explicit with '{}' instead"],
   strong_use_before_declaration: ["In strong mode, declaring variable '", "%0", "' before its use is required"],
+  strong_unbound_global:         ["In strong mode, using an undeclared global variable '", "%0", "' is not allowed"],
   strong_super_call_missing:     ["In strong mode, invoking the super constructor in a subclass is required"],
   strong_super_call_duplicate:   ["In strong mode, invoking the super constructor multiple times is deprecated"],
   strong_super_call_nested:      ["In strong mode, invoking the super constructor nested inside another statement or expression is deprecated"],

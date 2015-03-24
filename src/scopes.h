@@ -414,8 +414,9 @@ class Scope: public ZoneObject {
   // Collect stack and context allocated local variables in this scope. Note
   // that the function variable - if present - is not collected and should be
   // handled separately.
-  void CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
-                                    ZoneList<Variable*>* context_locals);
+  void CollectStackAndContextLocals(
+      ZoneList<Variable*>* stack_locals, ZoneList<Variable*>* context_locals,
+      ZoneList<Variable*>* strong_mode_free_variables = nullptr);
 
   // Current number of var or const locals.
   int num_var_or_const() { return num_var_or_const_; }

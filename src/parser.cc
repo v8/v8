@@ -3666,6 +3666,10 @@ bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
       return false;
     }
 
+    // When the variable was seen, it was recorded as unresolved in the outer
+    // scope. But it's really not unresolved.
+    scope->outer_scope()->RemoveUnresolved(expression->AsVariableProxy());
+
     scope->DeclareParameter(raw_name, VAR);
     ++(*num_params);
     return true;

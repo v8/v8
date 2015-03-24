@@ -128,6 +128,25 @@ class Variable: public ZoneObject {
 
   static int CompareIndex(Variable* const* v, Variable* const* w);
 
+  void RecordStrongModeReference(int start_position, int end_position) {
+    // Record the earliest reference to the variable. Used in error messages for
+    // strong mode references to undeclared variables.
+    if (has_strong_mode_reference_ &&
+        strong_mode_reference_start_position_ < start_position)
+      return;
+    has_strong_mode_reference_ = true;
+    strong_mode_reference_start_position_ = start_position;
+    strong_mode_reference_end_position_ = end_position;
+  }
+
+  bool has_strong_mode_reference() const { return has_strong_mode_reference_; }
+  int strong_mode_reference_start_position() const {
+    return strong_mode_reference_start_position_;
+  }
+  int strong_mode_reference_end_position() const {
+    return strong_mode_reference_end_position_;
+  }
+
  private:
   Scope* scope_;
   const AstRawString* name_;
@@ -136,6 +155,11 @@ class Variable: public ZoneObject {
   Location location_;
   int index_;
   int initializer_position_;
+  // Tracks whether the variable is bound to a VariableProxy which is in strong
+  // mode, and if yes, the source location of the reference.
+  bool has_strong_mode_reference_;
+  int strong_mode_reference_start_position_;
+  int strong_mode_reference_end_position_;
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
