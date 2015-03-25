@@ -3235,40 +3235,22 @@ void MacroAssembler::DebugBreak() {
 // ---------------------------------------------------------------------------
 // Exception handling.
 
-void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
-                                    int handler_index) {
+void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-
-  // For the JSEntry handler, we must preserve a0-a3 and s0.
-  // t1-t3 are available. We will build up the handler from the bottom by
-  // pushing on the stack.
-  // Set up the the index (t2) for pushing.
-  li(t2, Operand(handler_index));
-
-  // Push the context and index.
-  if (kind == StackHandler::JS_ENTRY) {
-    DCHECK(Smi::FromInt(0) == 0);
-    // The zero_reg indicates no context.
-    // The operands are reversed to match the order of MultiPush/Pop.
-    Push(zero_reg, t2);
-  } else {
-    MultiPush(t2.bit() | cp.bit());
-  }
 
   // Link the current handler as the next handler.
   li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   lw(t1, MemOperand(t2));
   push(t1);
+
   // Set this new handler as the current one.
   sw(sp, MemOperand(t2));
 }
 
 
-void MacroAssembler::PopTryHandler() {
+void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Addu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
