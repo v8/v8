@@ -102,11 +102,6 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'test-debug/DebugStepNatives': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
-
   # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
   'test-js-typed-lowering/OrderCompareEffects': [SKIP],
 

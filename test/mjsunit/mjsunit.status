@@ -96,24 +96,12 @@
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
   'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
-  'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
-  'debug-stepin-accessor': [PASS, NO_VARIANTS],
-  'debug-stepin-builtin': [PASS, NO_VARIANTS],
-  'debug-stepin-constructor': [PASS, NO_VARIANTS],
-  'debug-stepin-function-call': [PASS, NO_VARIANTS],
-  'debug-stepin-positions': [PASS, NO_VARIANTS],
-  'debug-stepin-property-function-call': [PASS, NO_VARIANTS],
-  'debug-stepnext-do-while': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
-  'debug-scripts-request': [PASS, NO_VARIANTS],
-  'es6/debug-stepin-microtasks': [PASS, NO_VARIANTS],
-  'es6/debug-stepnext-for': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
-  'es6/regress/regress-468661': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.

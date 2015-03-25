@@ -1264,8 +1264,12 @@ void Debug::PrepareStep(StepAction step_action,
     return;
   }
 
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  frames_it.frame()->Summarize(&frames);
+  FrameSummary summary = frames.first();
+
   // Get the debug info (create it if it does not exist).
-  Handle<JSFunction> function(frame->function());
+  Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
     // Return if ensuring debug info failed.
@@ -1281,7 +1285,7 @@ void Debug::PrepareStep(StepAction step_action,
 
   // PC points to the instruction after the current one, possibly a break
   // location as well. So the "- 1" to exclude it from the search.
-  Address call_pc = frame->pc() - 1;
+  Address call_pc = summary.pc() - 1;
   BreakLocation location =
       BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
 
@@ -1348,7 +1352,7 @@ void Debug::PrepareStep(StepAction step_action,
 
     // Remember source position and frame to handle step next.
     thread_local_.last_statement_position_ =
-        debug_info->code()->SourceStatementPosition(frame->pc());
+        debug_info->code()->SourceStatementPosition(summary.pc());
     thread_local_.last_fp_ = frame->UnpaddedFP();
   } else {
     // If there's restarter frame on top of the stack, just get the pointer
@@ -1420,7 +1424,7 @@ void Debug::PrepareStep(StepAction step_action,
       // Object::Get/SetPropertyWithAccessor, otherwise the step action will be
       // propagated on the next Debug::Break.
       thread_local_.last_statement_position_ =
-          debug_info->code()->SourceStatementPosition(frame->pc());
+          debug_info->code()->SourceStatementPosition(summary.pc());
       thread_local_.last_fp_ = frame->UnpaddedFP();
     }
 

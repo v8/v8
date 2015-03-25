@@ -1552,9 +1552,11 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
   JavaScriptFrameIterator frame_it(isolate, id);
   RUNTIME_ASSERT(!frame_it.done());
 
-  JavaScriptFrame* frame = frame_it.frame();
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  frame_it.frame()->Summarize(&frames);
+  FrameSummary summary = frames.first();
 
-  Handle<JSFunction> fun = Handle<JSFunction>(frame->function());
+  Handle<JSFunction> fun = Handle<JSFunction>(summary.function());
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(fun->shared());
 
   if (!isolate->debug()->EnsureDebugInfo(shared, fun)) {
@@ -1565,7 +1567,7 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
 
   // Find range of break points starting from the break point where execution
   // has stopped.
-  Address call_pc = frame->pc() - 1;
+  Address call_pc = summary.pc() - 1;
   List<BreakLocation> locations;
   BreakLocation::FromAddressSameStatement(debug_info, ALL_BREAK_LOCATIONS,
                                           call_pc, &locations);
@@ -1575,7 +1577,7 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
   int index = 0;
   for (BreakLocation location : locations) {
     bool accept;
-    if (location.pc() > frame->pc()) {
+    if (location.pc() > summary.pc()) {
       accept = true;
     } else {
       StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
