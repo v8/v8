@@ -1327,7 +1327,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 static void Generate_CheckStackOverflow(MacroAssembler* masm,
                                         const int calleeOffset) {
   Register argc = x0;
-  Register receiver = x14;
   Register function = x15;
 
   // Check the stack for overflow.
@@ -1531,7 +1530,6 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     // Is x11 safe to use?
     Register newTarget = x11;
     Register args = x12;
-    Register receiver = x14;
     Register function = x15;
 
     // If newTarget is not supplied, set it to constructor
