@@ -67,9 +67,7 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
-
-  void Start(CompactionFlag flag = ALLOW_COMPACTION);
+  void Start();
 
   void Stop();
 
@@ -208,7 +206,7 @@ class IncrementalMarking {
 
   void ResetStepCounters();
 
-  void StartMarking(CompactionFlag flag);
+  void StartMarking();
 
   void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);
