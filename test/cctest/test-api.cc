@@ -8279,11 +8279,8 @@ TEST(DetachedAccesses) {
   CHECK(result.IsEmpty());
   result = CompileRun("get_x_w()");
   CHECK(result.IsEmpty());
-  {
-    v8::TryCatch try_catch(env1->GetIsolate());
-    CompileRun("this_x()");
-    CHECK(try_catch.HasCaught());
-  }
+  result = CompileRun("this_x()");
+  CHECK(v8_str("env2_x")->Equals(result));
 
   // Reattach env2's proxy
   env2 = Context::New(env1->GetIsolate(),

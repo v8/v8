@@ -241,28 +241,21 @@ bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
 
 
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
-Handle<Object> FunctionTemplateInfo::GetCompatibleReceiver(
-    Isolate* isolate, Handle<Object> receiver, bool is_construct) {
+Object* FunctionTemplateInfo::GetCompatibleReceiver(Isolate* isolate,
+                                                    Object* receiver) {
   // API calls are only supported with JSObject receivers.
-  if (!receiver->IsJSObject()) return isolate->factory()->null_value();
-  auto js_receiver = Handle<JSObject>::cast(receiver);
-  if (!is_construct && js_receiver->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(js_receiver)) {
-    return isolate->factory()->null_value();
-  }
+  if (!receiver->IsJSObject()) return isolate->heap()->null_value();
   Object* recv_type = this->signature();
   // No signature, return holder.
   if (recv_type->IsUndefined()) return receiver;
   FunctionTemplateInfo* signature = FunctionTemplateInfo::cast(recv_type);
   // Check the receiver.
-  for (PrototypeIterator iter(isolate, *receiver,
+  for (PrototypeIterator iter(isolate, receiver,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    if (signature->IsTemplateFor(iter.GetCurrent())) {
-      return Handle<Object>(iter.GetCurrent(), isolate);
-    }
+    if (signature->IsTemplateFor(iter.GetCurrent())) return iter.GetCurrent();
   }
-  return isolate->factory()->null_value();
+  return isolate->heap()->null_value();
 }
 
 

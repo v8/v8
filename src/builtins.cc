@@ -1044,9 +1044,7 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
   DCHECK(!args[0]->IsNull());
   if (args[0]->IsUndefined()) args[0] = function->global_proxy();
 
-  Handle<Object> receiver(&args[0]);
-  Handle<Object> raw_holder =
-      fun_data->GetCompatibleReceiver(isolate, receiver, is_construct);
+  Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, args[0]);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
@@ -1068,8 +1066,12 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
     LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     DCHECK(raw_holder->IsJSObject());
 
-    FunctionCallbackArguments custom(isolate, data_obj, *function, *raw_holder,
-                                     &args[0] - 1, args.length() - 1,
+    FunctionCallbackArguments custom(isolate,
+                                     data_obj,
+                                     *function,
+                                     raw_holder,
+                                     &args[0] - 1,
+                                     args.length() - 1,
                                      is_construct);
 
     v8::Handle<v8::Value> value = custom.Call(callback);

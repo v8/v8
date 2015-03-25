@@ -8646,14 +8646,6 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   CallOptimization optimization(function);
   if (!optimization.is_simple_api_call()) return false;
   Handle<Map> holder_map;
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    auto map = receiver_maps->at(i);
-    // Don't inline calls to receivers requiring accesschecks.
-    if (map->is_access_check_needed() &&
-        map->instance_type() != JS_GLOBAL_PROXY_TYPE) {
-      return false;
-    }
-  }
   if (call_type == kCallApiFunction) {
     // Cannot embed a direct reference to the global proxy map
     // as it maybe dropped on deserialization.
