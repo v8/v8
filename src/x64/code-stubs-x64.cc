@@ -2472,9 +2472,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ movp(rsp, masm->ExternalOperand(pending_handler_sp_address));
   __ movp(rbp, masm->ExternalOperand(pending_handler_fp_address));
 
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (rbp == 0) == (rsi == 0), so we could test either
-  // rbp or rsi.
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (rsi == 0) for non-JS frames.
   Label skip;
   __ testp(rsi, rsi);
   __ j(zero, &skip, Label::kNear);
@@ -2574,10 +2573,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(rax, Heap::kExceptionRootIndex);
   __ jmp(&exit);
 
-  // Invoke: Link this frame into the handler chain.  There's only one
-  // handler block in this code object, so its index is 0.
+  // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  __ PushTryHandler(StackHandler::JS_ENTRY, 0);
+  __ PushStackHandler();
 
   // Clear any pending exceptions.
   __ LoadRoot(rax, Heap::kTheHoleValueRootIndex);
@@ -2603,7 +2601,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  __ PopTryHandler();
+  __ PopStackHandler();
 
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.

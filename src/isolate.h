@@ -687,7 +687,7 @@ class Isolate {
   bool OptionalRescheduleException(bool is_bottom_call);
 
   // Push and pop a promise and the current try-catch handler.
-  void PushPromise(Handle<JSObject> promise);
+  void PushPromise(Handle<JSObject> promise, Handle<JSFunction> function);
   void PopPromise();
   Handle<Object> GetPromiseOnStackOnThrow();
 
@@ -764,11 +764,12 @@ class Isolate {
   // clears and returns the current pending exception.
   Object* FindHandler();
 
-  // Tries to predict whether the exception will be caught. Note that this can
+  // Tries to predict whether an exception will be caught. Note that this can
   // only produce an estimate, because it is undecidable whether a finally
   // clause will consume or re-throw an exception. We conservatively assume any
   // finally clause will behave as if the exception were consumed.
-  bool PredictWhetherExceptionIsCaught(Object* exception);
+  enum CatchType { NOT_CAUGHT, CAUGHT_BY_JAVASCRIPT, CAUGHT_BY_EXTERNAL };
+  CatchType PredictExceptionCatcher();
 
   void ScheduleThrow(Object* exception);
   // Re-set pending message, script and positions reported to the TryCatch
@@ -1370,15 +1371,15 @@ class Isolate {
 
 class PromiseOnStack {
  public:
-  PromiseOnStack(StackHandler* handler, Handle<JSObject> promise,
+  PromiseOnStack(Handle<JSFunction> function, Handle<JSObject> promise,
                  PromiseOnStack* prev)
-      : handler_(handler), promise_(promise), prev_(prev) {}
-  StackHandler* handler() { return handler_; }
+      : function_(function), promise_(promise), prev_(prev) {}
+  Handle<JSFunction> function() { return function_; }
   Handle<JSObject> promise() { return promise_; }
   PromiseOnStack* prev() { return prev_; }
 
  private:
-  StackHandler* handler_;
+  Handle<JSFunction> function_;
   Handle<JSObject> promise_;
   PromiseOnStack* prev_;
 };

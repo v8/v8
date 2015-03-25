@@ -1380,7 +1380,6 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Label try_entry, handler_entry, exit;
   __ jmp(&try_entry);
   __ bind(&handler_entry);
-  handler_table()->set(stmt->index(), Smi::FromInt(handler_entry.pos()));
   // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
@@ -1406,11 +1405,11 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_entry);
-  __ PushTryHandler(StackHandler::CATCH, stmt->index());
+  EnterTryBlock(stmt->index(), &handler_entry);
   { TryCatch try_body(this);
     Visit(stmt->try_block());
   }
-  __ PopTryHandler();
+  ExitTryBlock(stmt->index());
   __ bind(&exit);
 }
 
@@ -1444,7 +1443,6 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Jump to try-handler setup and try-block code.
   __ jmp(&try_entry);
   __ bind(&handler_entry);
-  handler_table()->set(stmt->index(), Smi::FromInt(handler_entry.pos()));
   // Exception handler code.  This code is only executed when an exception
   // is thrown.  The exception is in the result register, and must be
   // preserved by the finally block.  Call the finally block and then
@@ -1463,11 +1461,11 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Set up try handler.
   __ bind(&try_entry);
-  __ PushTryHandler(StackHandler::FINALLY, stmt->index());
+  EnterTryBlock(stmt->index(), &handler_entry);
   { TryFinally try_body(this, &finally_entry);
     Visit(stmt->try_block());
   }
-  __ PopTryHandler();
+  ExitTryBlock(stmt->index());
   // Execute the finally block on the way out.  Clobber the unpredictable
   // value in the result register with one that's safe for GC because the
   // finally block will unconditionally preserve the result register on the
@@ -1622,13 +1620,54 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
-    int* stack_depth,
-    int* context_length) {
+void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
+  handler_table()->SetRangeStart(index, masm()->pc_offset());
+  handler_table()->SetRangeHandler(index, handler->pos());
+
+  // Determine expression stack depth of try statement.
+  int stack_depth = info_->scope()->num_stack_slots();  // Include stack locals.
+  for (NestedStatement* current = nesting_stack_; current != NULL; /*nop*/) {
+    current = current->AccumulateDepth(&stack_depth);
+  }
+  handler_table()->SetRangeDepth(index, stack_depth);
+
+  // Push context onto operand stack.
+  STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
+  __ Push(context_register());
+}
+
+
+void FullCodeGenerator::ExitTryBlock(int index) {
+  handler_table()->SetRangeEnd(index, masm()->pc_offset());
+
+  // Drop context from operand stack.
+  __ Drop(TryBlockConstant::kElementCount);
+}
+
+
+FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
+    int* stack_depth, int* context_length) {
   // The macros used here must preserve the result register.
-  __ Drop(*stack_depth);
-  __ PopTryHandler();
+
+  // Because the handler block contains the context of the finally
+  // code, we can restore it directly from there for the finally code
+  // rather than iteratively unwinding contexts via their previous
+  // links.
+  if (*context_length > 0) {
+    __ Drop(*stack_depth);  // Down to the handler block.
+    // Restore the context to its dedicated register and the stack.
+    STATIC_ASSERT(TryFinally::kElementCount == 1);
+    __ Pop(codegen_->context_register());
+    codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                codegen_->context_register());
+  } else {
+    // Down to the handler block and also drop context.
+    __ Drop(*stack_depth + kElementCount);
+  }
+  __ Call(finally_entry_);
+
   *stack_depth = 0;
+  *context_length = 0;
   return previous_;
 }
 

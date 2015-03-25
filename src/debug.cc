@@ -1185,8 +1185,9 @@ void Debug::FloodHandlerWithOneShot() {
   }
   for (JavaScriptFrameIterator it(isolate_, id); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
-    if (frame->HasHandler()) {
-      // Flood the function with the catch block with break points
+    int stack_slots = 0;  // The computed stack slot count is not used.
+    if (frame->LookupExceptionHandlerInTable(&stack_slots) > 0) {
+      // Flood the function with the catch/finally block with break points.
       FloodWithOneShot(Handle<JSFunction>(frame->function()));
       return;
     }
@@ -2503,7 +2504,8 @@ MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
 
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
-  bool uncaught = !isolate_->PredictWhetherExceptionIsCaught(*exception);
+  Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
+  bool uncaught = (catch_type == Isolate::NOT_CAUGHT);
   if (promise->IsJSObject()) {
     Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
     // Mark the promise as already having triggered a message.

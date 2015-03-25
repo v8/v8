@@ -8468,6 +8468,36 @@ Handle<DeoptimizationOutputData> DeoptimizationOutputData::New(
 }
 
 
+int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out) {
+  int innermost_handler = -1, innermost_start = -1;
+  for (int i = 0; i < length(); i += kRangeEntrySize) {
+    int start_offset = Smi::cast(get(i + kRangeStartIndex))->value();
+    int end_offset = Smi::cast(get(i + kRangeEndIndex))->value();
+    int handler_offset = Smi::cast(get(i + kRangeHandlerIndex))->value();
+    int stack_depth = Smi::cast(get(i + kRangeDepthIndex))->value();
+    if (pc_offset > start_offset && pc_offset <= end_offset) {
+      DCHECK_NE(start_offset, innermost_start);
+      if (start_offset < innermost_start) continue;
+      innermost_handler = handler_offset;
+      innermost_start = start_offset;
+      *stack_depth_out = stack_depth;
+    }
+  }
+  return innermost_handler;
+}
+
+
+// TODO(turbofan): Make sure table is sorted and use binary search.
+int HandlerTable::LookupReturn(int pc_offset) {
+  for (int i = 0; i < length(); i += kReturnEntrySize) {
+    int return_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
+    int handler_offset = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    if (pc_offset == return_offset) return handler_offset;
+  }
+  return -1;
+}
+
+
 #ifdef DEBUG
 bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   if (IsEmpty()) return other->IsEmpty();
@@ -11494,6 +11524,30 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(
 }
 
 
+void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
+  os << "   from   to       hdlr\n";
+  for (int i = 0; i < length(); i += kRangeEntrySize) {
+    int pc_start = Smi::cast(get(i + kRangeStartIndex))->value();
+    int pc_end = Smi::cast(get(i + kRangeEndIndex))->value();
+    int handler = Smi::cast(get(i + kRangeHandlerIndex))->value();
+    int depth = Smi::cast(get(i + kRangeDepthIndex))->value();
+    os << "  (" << std::setw(4) << pc_start << "," << std::setw(4) << pc_end
+       << ")  ->  " << std::setw(4) << handler << " (depth=" << depth << ")\n";
+  }
+}
+
+
+void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
+  os << "   off      hdlr\n";
+  for (int i = 0; i < length(); i += kReturnEntrySize) {
+    int pc_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
+    int handler = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
+       << handler << "\n";
+  }
+}
+
+
 const char* Code::ICState2String(InlineCacheState state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
@@ -11640,13 +11694,12 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 #endif
   }
 
-  if (handler_table()->length() > 0 && is_turbofanned()) {
+  if (handler_table()->length() > 0) {
     os << "Handler Table (size = " << handler_table()->Size() << ")\n";
-    for (int i = 0; i < handler_table()->length(); i += 2) {
-      int pc_offset = Smi::cast(handler_table()->get(i))->value();
-      int handler = Smi::cast(handler_table()->get(i + 1))->value();
-      os << static_cast<const void*>(instruction_start() + pc_offset) << "  "
-         << std::setw(4) << pc_offset << " " << std::setw(4) << handler << "\n";
+    if (kind() == FUNCTION) {
+      HandlerTable::cast(handler_table())->HandlerTableRangePrint(os);
+    } else if (kind() == OPTIMIZED_FUNCTION) {
+      HandlerTable::cast(handler_table())->HandlerTableReturnPrint(os);
     }
     os << "\n";
   }

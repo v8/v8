@@ -232,9 +232,7 @@ TEST(DeoptTry) {
       "})";
   FunctionTester T(src);
 
-#if 0  // TODO(mstarzinger): Enable once we can.
   T.CheckCall(T.Val(2), T.Val(1));
-#endif
 }
 
 

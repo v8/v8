@@ -44,38 +44,8 @@ inline StackHandler* StackHandler::next() const {
 }
 
 
-inline bool StackHandler::includes(Address address) const {
-  Address start = this->address();
-  Address end = start + StackHandlerConstants::kSize;
-  return start <= address && address <= end;
-}
-
-
-inline void StackHandler::Iterate(ObjectVisitor* v, Code* holder) const {
-  v->VisitPointer(context_address());
-}
-
-
 inline StackHandler* StackHandler::FromAddress(Address address) {
   return reinterpret_cast<StackHandler*>(address);
-}
-
-
-inline Context* StackHandler::context() const {
-  const int offset = StackHandlerConstants::kContextOffset;
-  return Context::cast(Memory::Object_at(address() + offset));
-}
-
-
-inline int StackHandler::index() const {
-  const int offset = StackHandlerConstants::kStateIntOffset;
-  return Memory::int_at(address() + offset);
-}
-
-
-inline Object** StackHandler::context_address() const {
-  const int offset = StackHandlerConstants::kContextOffset;
-  return reinterpret_cast<Object**>(address() + offset);
 }
 
 

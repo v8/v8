@@ -2784,10 +2784,11 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
 
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  isolate->PushPromise(promise);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
+  isolate->PushPromise(promise, function);
   return isolate->heap()->undefined_value();
 }
 

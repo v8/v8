@@ -134,12 +134,13 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Emit exception handler table.
   if (!handlers_.empty()) {
-    Handle<FixedArray> table = isolate()->factory()->NewFixedArray(
-        static_cast<int>(handlers_.size()) * 2, TENURED);
+    Handle<HandlerTable> table =
+        Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+            HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
+            TENURED));
     for (size_t i = 0; i < handlers_.size(); ++i) {
-      int table_index = static_cast<int>(i * 2);
-      table->set(table_index + 0, Smi::FromInt(handlers_[i].pc_offset));
-      table->set(table_index + 1, Smi::FromInt(handlers_[i].handler->pos()));
+      table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
+      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
     }
     result->set_handler_table(*table);
   }

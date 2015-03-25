@@ -44,7 +44,7 @@ var lastMicrotaskId = 0;
       throw MakeTypeError('resolver_not_a_function', [resolver]);
     var promise = PromiseInit(this);
     try {
-      %DebugPushPromise(promise);
+      %DebugPushPromise(promise, Promise);
       resolver(function(x) { PromiseResolve(promise, x) },
                function(r) { PromiseReject(promise, r) });
     } catch (e) {
@@ -110,7 +110,7 @@ var lastMicrotaskId = 0;
 
   function PromiseHandle(value, handler, deferred) {
     try {
-      %DebugPushPromise(deferred.promise);
+      %DebugPushPromise(deferred.promise, PromiseHandle);
       DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
       var result = handler(value);
       if (result === deferred.promise)

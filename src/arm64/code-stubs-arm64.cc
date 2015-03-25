@@ -1226,9 +1226,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Mov(fp, Operand(pending_handler_fp_address));
   __ Ldr(fp, MemOperand(fp));
 
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
-  // or cp.
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (cp == 0) for non-JS frames.
   Label not_js_frame;
   __ Cbz(cp, &not_js_frame);
   __ Str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -1346,10 +1345,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(x0, Heap::kExceptionRootIndex);
   __ B(&exit);
 
-  // Invoke: Link this frame into the handler chain.  There's only one
-  // handler block in this code object, so its index is 0.
+  // Invoke: Link this frame into the handler chain.
   __ Bind(&invoke);
-  __ PushTryHandler(StackHandler::JS_ENTRY, 0);
+  __ PushStackHandler();
   // If an exception not caught by another handler occurs, this handler
   // returns control to the code after the B(&invoke) above, which
   // restores all callee-saved registers (including cp and fp) to their
@@ -1383,7 +1381,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Blr(x12);
 
   // Unlink this frame from the handler chain.
-  __ PopTryHandler();
+  __ PopStackHandler();
 
 
   __ Bind(&exit);

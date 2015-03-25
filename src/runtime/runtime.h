@@ -75,7 +75,7 @@ namespace internal {
   F(SetInlineBuiltinFlag, 1, 1)                \
   F(StoreArrayLiteralElement, 5, 1)            \
   F(DebugPrepareStepInIfStepping, 1, 1)        \
-  F(DebugPushPromise, 1, 1)                    \
+  F(DebugPushPromise, 2, 1)                    \
   F(DebugPopPromise, 0, 1)                     \
   F(DebugPromiseEvent, 1, 1)                   \
   F(DebugAsyncTaskEvent, 1, 1)                 \
@@ -457,7 +457,7 @@ namespace internal {
                                                              \
   /* Harmony generators */                                   \
   F(CreateJSGeneratorObject, 0, 1)                           \
-  F(SuspendJSGeneratorObject, 1, 1)                          \
+  F(SuspendJSGeneratorObject, -1, 1)                         \
   F(ResumeJSGeneratorObject, 3, 1)                           \
   F(GeneratorClose, 1, 1)                                    \
                                                              \

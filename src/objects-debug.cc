@@ -425,7 +425,6 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   VerifyObjectField(kReceiverOffset);
   VerifyObjectField(kOperandStackOffset);
   VerifyObjectField(kContinuationOffset);
-  VerifyObjectField(kStackHandlerIndexOffset);
 }
 
 

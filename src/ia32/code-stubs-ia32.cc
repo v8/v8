@@ -2556,9 +2556,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ mov(esp, Operand::StaticVariable(pending_handler_sp_address));
   __ mov(ebp, Operand::StaticVariable(pending_handler_fp_address));
 
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (ebp == 0) == (esi == 0), so we could test either
-  // ebp or esi.
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (esi == 0) for non-JS frames.
   Label skip;
   __ test(esi, esi);
   __ j(zero, &skip, Label::kNear);
@@ -2619,10 +2618,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ mov(eax, Immediate(isolate()->factory()->exception()));
   __ jmp(&exit);
 
-  // Invoke: Link this frame into the handler chain.  There's only one
-  // handler block in this code object, so its index is 0.
+  // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  __ PushTryHandler(StackHandler::JS_ENTRY, 0);
+  __ PushStackHandler();
 
   // Clear any pending exceptions.
   __ mov(edx, Immediate(isolate()->factory()->the_hole_value()));
@@ -2648,7 +2646,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ call(edx);
 
   // Unlink this frame from the handler chain.
-  __ PopTryHandler();
+  __ PopStackHandler();
 
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.
