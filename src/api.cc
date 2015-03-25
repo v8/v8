@@ -6787,10 +6787,6 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 }
 
 
-void Isolate::ClearInterrupt() {
-}
-
-
 void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   CHECK(i::FLAG_expose_gc);
   if (type == kMinorGarbageCollection) {

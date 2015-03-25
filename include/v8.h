@@ -5348,13 +5348,6 @@ class V8_EXPORT Isolate {
   void RequestInterrupt(InterruptCallback callback, void* data);
 
   /**
-   * Clear interrupt request created by |RequestInterrupt|.
-   * Can be called from another thread without acquiring a |Locker|.
-   */
-  V8_DEPRECATED("There's no way to clear interrupts in flight.",
-                void ClearInterrupt());
-
-  /**
    * Request garbage collection in this Isolate. It is only valid to call this
    * function if --expose_gc was specified.
    *
