@@ -10783,7 +10783,9 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   // Returns the holder JSObject if the function can legally be called with this
   // receiver.  Returns Heap::null_value() if the call is illegal.
-  Object* GetCompatibleReceiver(Isolate* isolate, Object* receiver);
+  Handle<Object> GetCompatibleReceiver(Isolate* isolate,
+                                       Handle<Object> receiver,
+                                       bool is_construct);
 
  private:
   // Bit position in the flag, from least significant bit position.
