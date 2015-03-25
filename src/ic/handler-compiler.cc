@@ -332,9 +332,13 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   // Reset the holder so further calculations are correct.
   set_holder(holder_orig);
   if (lost_holder_register) {
-    // Reload lost holder register.
-    auto cell = isolate()->factory()->NewWeakCell(holder());
-    __ LoadWeakValue(reg, cell, &miss);
+    if (*it->GetReceiver() == *holder()) {
+      reg = receiver();
+    } else {
+      // Reload lost holder register.
+      auto cell = isolate()->factory()->NewWeakCell(holder());
+      __ LoadWeakValue(reg, cell, &miss);
+    }
   }
   FrontendFooter(it->name(), &miss);
   InterceptorVectorSlotPop(reg);
