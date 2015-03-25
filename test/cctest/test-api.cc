@@ -8733,6 +8733,32 @@ TEST(SuperAccessControl) {
 }
 
 
+TEST(Regress470113) {
+  i::FLAG_harmony_classes = true;
+  i::FLAG_harmony_object_literals = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+  obj_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL);
+  LocalContext env;
+  env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "'use strict';\n"
+        "class C extends Object {\n"
+        "   m() { super.powned = 'Powned!'; }\n"
+        "}\n"
+        "let c = new C();\n"
+        "c.m.call(prohibited)");
+
+    CHECK(try_catch.HasCaught());
+  }
+}
+
+
 static void ConstTenGetter(Local<String> name,
                            const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_num(10));
