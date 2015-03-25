@@ -385,6 +385,12 @@ class MemoryChunk {
     // to grey transition is performed in the value.
     HAS_PROGRESS_BAR,
 
+    // This flag is intended to be used for testing. Works only when both
+    // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
+    // are set. It forces the page to become an evacuation candidate at next
+    // candidates selection cycle.
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING,
+
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };

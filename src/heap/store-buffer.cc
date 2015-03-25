@@ -361,12 +361,14 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
   Address* new_top = old_start_;
   for (Address* current = old_start_; current < old_top_; current++) {
     Address addr = *current;
-    Object** slot = reinterpret_cast<Object**>(*current);
+    Object** slot = reinterpret_cast<Object**>(addr);
     Object* object = *slot;
-    if (heap_->InNewSpace(object)) {
-      if (heap_->mark_compact_collector()->IsSlotInLiveObject(
-              reinterpret_cast<HeapObject**>(slot),
-              reinterpret_cast<HeapObject*>(object))) {
+    if (heap_->InNewSpace(object) && object->IsHeapObject()) {
+      // If the target object is not black, the source slot must be part
+      // of a non-black (dead) object.
+      HeapObject* heap_object = HeapObject::cast(object);
+      if (Marking::IsBlack(Marking::MarkBitFrom(heap_object)) &&
+          heap_->mark_compact_collector()->IsSlotInLiveObject(addr)) {
         *new_top++ = addr;
       }
     }
@@ -389,10 +391,10 @@ void StoreBuffer::VerifyValidStoreBufferEntries() {
   for (Address* current = old_start_; current < old_top_; current++) {
     Object** slot = reinterpret_cast<Object**>(*current);
     Object* object = *slot;
+    CHECK(object->IsHeapObject());
     CHECK(heap_->InNewSpace(object));
     heap_->mark_compact_collector()->VerifyIsSlotInLiveObject(
-        reinterpret_cast<HeapObject**>(slot),
-        reinterpret_cast<HeapObject*>(object));
+        reinterpret_cast<Address>(slot), HeapObject::cast(object));
   }
 }
 
