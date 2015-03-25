@@ -486,8 +486,8 @@ void Assembler::deserialization_set_special_target_at(
 
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target) {
-  if (IsLis(instr_at(pc)) && IsOri(instr_at(pc + kInstrSize))) {
+    Address pc, Address target, RelocInfo::Mode mode) {
+  if (RelocInfo::IsInternalReferenceEncoded(mode)) {
     Code* code = NULL;
     set_target_address_at(pc, code, target, SKIP_ICACHE_FLUSH);
   } else {
