@@ -42,8 +42,8 @@
     ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
      ((major) * 10000 + (minor) * 100 + (patchlevel)))
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
-# define V8_GNUC_PREREQ(major, minor, patchlevel)       \
-    ((__GNUC__ * 10000 + __GNUC_MINOR__) >=             \
+# define V8_GNUC_PREREQ(major, minor, patchlevel)      \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >=      \
      ((major) * 10000 + (minor) * 100 + (patchlevel)))
 #else
 # define V8_GNUC_PREREQ(major, minor, patchlevel) 0
