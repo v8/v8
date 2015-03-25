@@ -57,12 +57,10 @@ class LinkageHelper {
 
     // The target for JS function calls is the JSFunction object.
     MachineType target_type = kMachAnyTagged;
-    // Unoptimized code doesn't preserve the JSCallFunctionReg, so expect the
-    // closure on the stack.
-    LinkageLocation target_loc =
-        is_osr ? stackloc(Linkage::kJSFunctionCallClosureParamIndex -
-                          js_parameter_count)
-               : regloc(LinkageTraits::JSCallFunctionReg());
+    // TODO(titzer): When entering into an OSR function from unoptimized code,
+    // the JSFunction is not in a register, but it is on the stack in an
+    // unaddressable spill slot. We hack this in the OSR prologue. Fix.
+    LinkageLocation target_loc = regloc(LinkageTraits::JSCallFunctionReg());
     return new (zone) CallDescriptor(     // --
         CallDescriptor::kCallJSFunction,  // kind
         target_type,                      // target MachineType
