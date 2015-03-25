@@ -1594,7 +1594,7 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, call_helper);
+  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
 
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
@@ -3079,7 +3079,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm, EmbedMode embed_mode,
+    const RuntimeCallHelper& call_helper) {
   __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
   // Index is not a smi.
@@ -3088,8 +3089,13 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ CheckMap(index_, result_, Heap::kHeapNumberMapRootIndex, index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
-  __ push(object_);
-  __ push(index_);  // Consumed by runtime conversion function.
+  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+    __ Push(VectorLoadICDescriptor::VectorRegister(),
+            VectorLoadICDescriptor::SlotRegister(), object_, index_);
+  } else {
+    // index_ is consumed by runtime conversion function.
+    __ Push(object_, index_);
+  }
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
   } else {
@@ -3100,7 +3106,12 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
   __ Move(index_, r3);
-  __ pop(object_);
+  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+    __ Pop(VectorLoadICDescriptor::VectorRegister(),
+           VectorLoadICDescriptor::SlotRegister(), object_);
+  } else {
+    __ pop(object_);
+  }
   // Reload the instance type.
   __ LoadP(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
   __ lbz(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
@@ -4778,7 +4789,6 @@ void VectorRawKeyedLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ LoadP(scratch1, FieldMemOperand(feedback, HeapObject::kMapOffset));
   __ CompareRoot(scratch1, Heap::kWeakCellMapRootIndex);
   __ bne(&try_array);
-  __ JumpIfNotSmi(key, &miss);
   HandleMonomorphicCase(masm, receiver, key, vector, slot, feedback, scratch1,
                         &miss);
 
@@ -4786,9 +4796,8 @@ void VectorRawKeyedLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   // Is it a fixed array?
   __ CompareRoot(scratch1, Heap::kFixedArrayMapRootIndex);
   __ bne(&not_array);
-  // We have a polymorphic element handler.
-  __ JumpIfNotSmi(key, &miss);
 
+  // We have a polymorphic element handler.
   Label polymorphic, try_poly_name;
   __ bind(&polymorphic);
   HandleArrayCases(masm, receiver, key, vector, slot, feedback, scratch1, r9,
