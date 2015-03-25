@@ -63,7 +63,10 @@ Handle<JSReceiver> LookupIterator::GetRoot(Handle<Object> receiver,
                                            Isolate* isolate) {
   if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
   auto root = handle(receiver->GetRootMap(isolate)->prototype(), isolate);
-  CHECK(!root->IsNull());
+  if (root->IsNull()) {
+    unsigned int magic = 0xbbbbbbbb;
+    isolate->PushStackTraceAndDie(magic, *receiver, NULL, magic);
+  }
   return Handle<JSReceiver>::cast(root);
 }
 
