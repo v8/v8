@@ -1420,7 +1420,6 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  // TODO(turbofan): Do we really need a separate reloc-info for this?
   Node* node = NewNode(javascript()->CallRuntime(Runtime::kDebugBreak, 0));
   PrepareFrameState(node, stmt->DebugBreakId());
   environment()->MarkAllLocalsLive();

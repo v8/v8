@@ -105,7 +105,6 @@ REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kAbort)
 #define REPLACE_UNIMPLEMENTED(op) \
   void JSGenericLowering::Lower##op(Node* node) { UNIMPLEMENTED(); }
 REPLACE_UNIMPLEMENTED(JSYield)
-REPLACE_UNIMPLEMENTED(JSDebugger)
 #undef REPLACE_UNIMPLEMENTED
 
 

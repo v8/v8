@@ -252,7 +252,6 @@ class JSOperatorBuilder FINAL : public ZoneObject {
 
   const Operator* TypeOf();
   const Operator* InstanceOf();
-  const Operator* Debugger();
 
   const Operator* StackCheck();
 

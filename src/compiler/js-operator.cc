@@ -239,7 +239,6 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(HasProperty, Operator::kNoProperties, 2, 1)           \
   V(TypeOf, Operator::kPure, 1, 1)                        \
   V(InstanceOf, Operator::kNoProperties, 2, 1)            \
-  V(Debugger, Operator::kNoProperties, 0, 0)              \
   V(StackCheck, Operator::kNoProperties, 0, 0)            \
   V(CreateFunctionContext, Operator::kNoProperties, 1, 1) \
   V(CreateWithContext, Operator::kNoProperties, 2, 1)     \

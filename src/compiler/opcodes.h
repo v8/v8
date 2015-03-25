@@ -132,7 +132,6 @@
   V(JSCallFunction)         \
   V(JSCallRuntime)          \
   V(JSYield)                \
-  V(JSDebugger)             \
   V(JSStackCheck)
 
 #define JS_OP_LIST(V)     \
