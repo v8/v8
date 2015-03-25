@@ -4596,17 +4596,33 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 }
 
 
-void CheckIC(Code* code, Code::Kind kind, InlineCacheState state) {
-  Code* ic = FindFirstIC(code, kind);
-  CHECK(ic->is_inline_cache_stub());
-  CHECK(ic->ic_state() == state);
+void CheckIC(Code* code, Code::Kind kind, SharedFunctionInfo* shared,
+             int ic_slot, InlineCacheState state) {
+  if (FLAG_vector_ics &&
+      (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
+       kind == Code::CALL_IC)) {
+    TypeFeedbackVector* vector = shared->feedback_vector();
+    FeedbackVectorICSlot slot(ic_slot);
+    if (kind == Code::LOAD_IC) {
+      LoadICNexus nexus(vector, slot);
+      CHECK_EQ(nexus.StateFromFeedback(), state);
+    } else if (kind == Code::KEYED_LOAD_IC) {
+      KeyedLoadICNexus nexus(vector, slot);
+      CHECK_EQ(nexus.StateFromFeedback(), state);
+    } else if (kind == Code::CALL_IC) {
+      CallICNexus nexus(vector, slot);
+      CHECK_EQ(nexus.StateFromFeedback(), state);
+    }
+  } else {
+    Code* ic = FindFirstIC(code, kind);
+    CHECK(ic->is_inline_cache_stub());
+    CHECK(ic->ic_state() == state);
+  }
 }
 
 
 TEST(MonomorphicStaysMonomorphicAfterGC) {
   if (FLAG_always_opt) return;
-  // TODO(mvstanton): vector ics need weak support!
-  if (FLAG_vector_ics) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4629,19 +4645,17 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     CompileRun("(testIC())");
   }
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CheckIC(loadIC->code(), Code::LOAD_IC, MONOMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC->code(), Code::LOAD_IC, MONOMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
 }
 
 
 TEST(PolymorphicStaysPolymorphicAfterGC) {
   if (FLAG_always_opt) return;
-  // TODO(mvstanton): vector ics need weak support!
-  if (FLAG_vector_ics) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4667,12 +4681,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     CompileRun("(testIC())");
   }
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CheckIC(loadIC->code(), Code::LOAD_IC, POLYMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC->code(), Code::LOAD_IC, POLYMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
 }
 
 
