@@ -104,7 +104,8 @@ class JumpPatchSite BASE_EMBEDDED {
 void FullCodeGenerator::Generate() {
   CompilationInfo* info = info_;
   handler_table_ =
-      isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
+      Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+          HandlerTable::LengthForRange(function()->handler_count()), TENURED));
 
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
@@ -2143,7 +2144,6 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
-      handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
       __ LoadRoot(load_name, Heap::kthrow_stringRootIndex);  // "throw"
       __ LoadP(r6, MemOperand(sp, 1 * kPointerSize));        // iter
       __ Push(load_name, r6, r3);  // "throw", iter, except
@@ -2154,16 +2154,17 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // re-boxing.
       __ bind(&l_try);
       __ pop(r3);  // result
-      __ PushTryHandler(StackHandler::CATCH, expr->index());
-      const int handler_size = StackHandlerConstants::kSize;
+      EnterTryBlock(expr->index(), &l_catch);
+      const int try_block_size = TryCatch::kElementCount * kPointerSize;
       __ push(r3);  // result
       __ b(&l_suspend);
       __ bind(&l_continuation);
       __ b(&l_resume);
       __ bind(&l_suspend);
-      const int generator_object_depth = kPointerSize + handler_size;
+      const int generator_object_depth = kPointerSize + try_block_size;
       __ LoadP(r3, MemOperand(sp, generator_object_depth));
       __ push(r3);  // g
+      __ Push(Smi::FromInt(expr->index()));  // handler-index
       DCHECK(l_continuation.pos() > 0 && Smi::IsValid(l_continuation.pos()));
       __ LoadSmiLiteral(r4, Smi::FromInt(l_continuation.pos()));
       __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset),
@@ -2172,12 +2173,12 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mr(r4, cp);
       __ RecordWriteField(r3, JSGeneratorObject::kContextOffset, r4, r5,
                           kLRHasBeenSaved, kDontSaveFPRegs);
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 2);
       __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
       __ pop(r3);  // result
       EmitReturnSequence();
       __ bind(&l_resume);  // received in r3
-      __ PopTryHandler();
+      ExitTryBlock(expr->index());
 
       // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
@@ -5360,32 +5361,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ bctr();
 }
 
-
-#undef __
-
-#define __ ACCESS_MASM(masm())
-
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
-    int* stack_depth, int* context_length) {
-  // The macros used here must preserve the result register.
-
-  // Because the handler block contains the context of the finally
-  // code, we can restore it directly from there for the finally code
-  // rather than iteratively unwinding contexts via their previous
-  // links.
-  __ Drop(*stack_depth);  // Down to the handler block.
-  if (*context_length > 0) {
-    // Restore the context to its dedicated register and the stack.
-    __ LoadP(cp, MemOperand(sp, StackHandlerConstants::kContextOffset));
-    __ StoreP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  }
-  __ PopTryHandler();
-  __ b(finally_entry_, SetLK);
-
-  *stack_depth = 0;
-  *context_length = 0;
-  return previous_;
-}
 
 #undef __
 
