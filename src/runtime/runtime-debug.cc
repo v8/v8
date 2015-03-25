@@ -2683,6 +2683,15 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetDebugContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  Handle<Context> context = isolate->debug()->GetDebugContext();
+  context->set_security_token(isolate->native_context()->security_token());
+  return context->global_proxy();
+}
+
+
 // Performs a GC.
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
