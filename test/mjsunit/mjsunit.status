@@ -606,9 +606,5 @@
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
-
-  # these two issues started after uplevel, believe they share common cause
-  'debug-references': [SKIP],
-  'mirror-object': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 ]
