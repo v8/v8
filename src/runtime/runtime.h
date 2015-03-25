@@ -578,7 +578,6 @@ namespace internal {
   F(LiveEditRestartFrame, 2, 1)                     \
   F(GetFunctionCodePositionFromSource, 2, 1)        \
   F(ExecuteInDebugContext, 2, 1)                    \
-  F(GetDebugContext, 0, 1)                          \
                                                     \
   F(SetFlags, 1, 1)                                 \
   F(CollectGarbage, 1, 1)                           \
