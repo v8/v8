@@ -1346,10 +1346,8 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-static bool ShouldOptimizeNewClosure(Isolate* isolate,
-                                     Handle<SharedFunctionInfo> info) {
-  return !info->is_toplevel() && info->is_compiled() &&
-         info->allows_lazy_compilation();
+static bool ShouldOptimizeNewClosure(Handle<SharedFunctionInfo> info) {
+  return !info->is_toplevel() && info->allows_lazy_compilation();
 }
 
 
@@ -1384,7 +1382,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     return result;
   }
 
-  if (FLAG_always_opt && ShouldOptimizeNewClosure(isolate(), info)) {
+  if (FLAG_always_opt && ShouldOptimizeNewClosure(info)) {
     result->MarkForOptimization();
   }
   return result;

@@ -9690,7 +9690,6 @@ void JSFunction::AttemptConcurrentOptimization() {
     return;
   }
   DCHECK(!IsInOptimizationQueue());
-  DCHECK(is_compiled() || isolate->debug()->has_break_points());
   DCHECK(!IsOptimized());
   DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
   DCHECK(isolate->concurrent_recompilation_enabled());
