@@ -468,7 +468,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 }
 
 
-void IncrementalMarking::Start() {
+void IncrementalMarking::Start(CompactionFlag flag) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start\n");
   }
@@ -483,7 +483,7 @@ void IncrementalMarking::Start() {
   was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
-    StartMarking();
+    StartMarking(flag);
   } else {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Start sweeping.\n");
@@ -495,12 +495,12 @@ void IncrementalMarking::Start() {
 }
 
 
-void IncrementalMarking::StartMarking() {
+void IncrementalMarking::StartMarking(CompactionFlag flag) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start marking\n");
   }
 
-  is_compacting_ = !FLAG_never_compact &&
+  is_compacting_ = !FLAG_never_compact && (flag == ALLOW_COMPACTION) &&
                    heap_->mark_compact_collector()->StartCompaction(
                        MarkCompactCollector::INCREMENTAL_COMPACTION);
 
@@ -834,7 +834,9 @@ void IncrementalMarking::Epilogue() {
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
   if (IsStopped() && ShouldActivate()) {
-    Start();
+    // TODO(hpayer): Let's play safe for now, but compaction should be
+    // in principle possible.
+    Start(PREVENT_COMPACTION);
   } else {
     Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
   }
@@ -963,7 +965,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
       }
       if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
         bytes_scanned_ = 0;
-        StartMarking();
+        StartMarking(PREVENT_COMPACTION);
       }
     } else if (state_ == MARKING) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
