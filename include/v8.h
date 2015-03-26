@@ -4183,6 +4183,13 @@ class V8_EXPORT FunctionTemplate : public Template {
    */
   void SetClassName(Handle<String> name);
 
+
+  /**
+   * When set to true, no access check will be performed on the receiver of a
+   * function call.  Currently defaults to true, but this is subject to change.
+   */
+  void SetAcceptAnyReceiver(bool value);
+
   /**
    * Determines whether the __proto__ accessor ignores instances of
    * the function template.  If instances of the function template are

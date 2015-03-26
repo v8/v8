@@ -5583,6 +5583,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache,
                kDoNotCacheBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, instantiated, kInstantiatedBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
+               kAcceptAnyReceiver)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
