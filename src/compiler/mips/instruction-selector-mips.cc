@@ -785,7 +785,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
           lookup_space_cost + 3 * lookup_time_cost &&
       sw.min_value > std::numeric_limits<int32_t>::min()) {
     InstructionOperand index_operand = value_operand;
-    if (min_value) {
+    if (sw.min_value) {
       index_operand = g.TempRegister();
       Emit(kMipsSub, index_operand, value_operand,
            g.TempImmediate(sw.min_value));
