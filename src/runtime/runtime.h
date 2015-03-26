@@ -646,7 +646,9 @@ namespace internal {
   F(DateField, 2 /* date object, field index */, 1)         \
   F(StringCharFromCode, 1, 1)                               \
   F(StringCharAt, 2, 1)                                     \
+  F(OneByteSeqStringGetChar, 2, 1)                          \
   F(OneByteSeqStringSetChar, 3, 1)                          \
+  F(TwoByteSeqStringGetChar, 2, 1)                          \
   F(TwoByteSeqStringSetChar, 3, 1)                          \
   F(ObjectEquals, 2, 1)                                     \
   F(IsObject, 1, 1)                                         \

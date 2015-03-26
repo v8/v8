@@ -116,6 +116,21 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
   return {kUntaggedBase, 0, Type::None(), kMachNone};
 }
 
+
+// static
+ElementAccess AccessBuilder::ForSeqStringChar(String::Encoding encoding) {
+  switch (encoding) {
+    case String::ONE_BYTE_ENCODING:
+      return {kTaggedBase, SeqString::kHeaderSize, Type::Unsigned32(),
+              kMachUint8};
+    case String::TWO_BYTE_ENCODING:
+      return {kTaggedBase, SeqString::kHeaderSize, Type::Unsigned32(),
+              kMachUint16};
+  }
+  UNREACHABLE();
+  return {kUntaggedBase, 0, Type::None(), kMachNone};
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

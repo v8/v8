@@ -1265,6 +1265,15 @@ RUNTIME_FUNCTION(Runtime_StringCharAt) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_OneByteSeqStringGetChar) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  return Smi::FromInt(string->SeqOneByteStringGet(index));
+}
+
+
 RUNTIME_FUNCTION(Runtime_OneByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
@@ -1273,6 +1282,15 @@ RUNTIME_FUNCTION(Runtime_OneByteSeqStringSetChar) {
   CONVERT_ARG_CHECKED(SeqOneByteString, string, 2);
   string->SeqOneByteStringSet(index, value);
   return string;
+}
+
+
+RUNTIME_FUNCTION(Runtime_TwoByteSeqStringGetChar) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  return Smi::FromInt(string->SeqTwoByteStringGet(index));
 }
 
 

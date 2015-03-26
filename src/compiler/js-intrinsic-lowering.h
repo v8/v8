@@ -40,6 +40,8 @@ class JSIntrinsicLowering FINAL : public Reducer {
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathFloor(Node* node);
   Reduction ReduceMathSqrt(Node* node);
+  Reduction ReduceSeqStringGetChar(Node* node, String::Encoding encoding);
+  Reduction ReduceSeqStringSetChar(Node* node, String::Encoding encoding);
   Reduction ReduceStringGetLength(Node* node);
   Reduction ReduceValueOf(Node* node);
 

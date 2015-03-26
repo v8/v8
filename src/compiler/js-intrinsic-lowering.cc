@@ -53,8 +53,16 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceMathFloor(node);
     case Runtime::kInlineMathSqrt:
       return ReduceMathSqrt(node);
+    case Runtime::kInlineOneByteSeqStringGetChar:
+      return ReduceSeqStringGetChar(node, String::ONE_BYTE_ENCODING);
+    case Runtime::kInlineOneByteSeqStringSetChar:
+      return ReduceSeqStringSetChar(node, String::ONE_BYTE_ENCODING);
     case Runtime::kInlineStringGetLength:
       return ReduceStringGetLength(node);
+    case Runtime::kInlineTwoByteSeqStringGetChar:
+      return ReduceSeqStringGetChar(node, String::TWO_BYTE_ENCODING);
+    case Runtime::kInlineTwoByteSeqStringSetChar:
+      return ReduceSeqStringSetChar(node, String::TWO_BYTE_ENCODING);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     default:
@@ -218,6 +226,42 @@ Reduction JSIntrinsicLowering::ReduceMathFloor(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceMathSqrt(Node* node) {
   return Change(node, machine()->Float64Sqrt());
+}
+
+
+Reduction JSIntrinsicLowering::ReduceSeqStringGetChar(
+    Node* node, String::Encoding encoding) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  node->set_op(
+      simplified()->LoadElement(AccessBuilder::ForSeqStringChar(encoding)));
+  node->ReplaceInput(2, effect);
+  node->ReplaceInput(3, control);
+  node->TrimInputCount(4);
+  NodeProperties::ReplaceWithValue(node, node, node);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceSeqStringSetChar(
+    Node* node, String::Encoding encoding) {
+  // Note: The intrinsic has a strange argument order, so we need to reshuffle.
+  Node* index = NodeProperties::GetValueInput(node, 0);
+  Node* chr = NodeProperties::GetValueInput(node, 1);
+  Node* string = NodeProperties::GetValueInput(node, 2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  node->set_op(
+      simplified()->StoreElement(AccessBuilder::ForSeqStringChar(encoding)));
+  node->ReplaceInput(0, string);
+  node->ReplaceInput(1, index);
+  node->ReplaceInput(2, chr);
+  node->ReplaceInput(3, effect);
+  node->ReplaceInput(4, control);
+  node->TrimInputCount(5);
+  NodeProperties::RemoveBounds(node);
+  NodeProperties::ReplaceWithValue(node, string, node);
+  return Changed(node);
 }
 
 

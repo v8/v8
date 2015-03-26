@@ -176,6 +176,39 @@ TEST(ObjectEquals) {
 }
 
 
+TEST(OneByteSeqStringGetChar) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_OneByteSeqStringGetChar(a,b); })",
+                   flags);
+
+  Handle<SeqOneByteString> string =
+      T.main_isolate()->factory()->NewRawOneByteString(3).ToHandleChecked();
+  string->SeqOneByteStringSet(0, 'b');
+  string->SeqOneByteStringSet(1, 'a');
+  string->SeqOneByteStringSet(2, 'r');
+  T.CheckCall(T.Val('b'), string, T.Val(0.0));
+  T.CheckCall(T.Val('a'), string, T.Val(1));
+  T.CheckCall(T.Val('r'), string, T.Val(2));
+}
+
+
+TEST(OneByteSeqStringSetChar) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { %_OneByteSeqStringSetChar(a,88,b); })",
+                   flags);
+
+  Handle<SeqOneByteString> string =
+      T.main_isolate()->factory()->NewRawOneByteString(3).ToHandleChecked();
+  string->SeqOneByteStringSet(0, 'b');
+  string->SeqOneByteStringSet(1, 'a');
+  string->SeqOneByteStringSet(2, 'r');
+  T.Call(T.Val(1), string);
+  CHECK_EQ('b', string->SeqOneByteStringGet(0));
+  CHECK_EQ('X', string->SeqOneByteStringGet(1));
+  CHECK_EQ('r', string->SeqOneByteStringGet(2));
+}
+
+
 TEST(SetValueOf) {
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
@@ -244,6 +277,39 @@ TEST(SubString) {
   T.CheckCall(T.Val("aaa"), T.Val("aaabbb"), T.Val(0.0));
   T.CheckCall(T.Val("abb"), T.Val("aaabbb"), T.Val(2));
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(0.0));
+}
+
+
+TEST(TwoByteSeqStringGetChar) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { return %_TwoByteSeqStringGetChar(a,b); })",
+                   flags);
+
+  Handle<SeqTwoByteString> string =
+      T.main_isolate()->factory()->NewRawTwoByteString(3).ToHandleChecked();
+  string->SeqTwoByteStringSet(0, 'b');
+  string->SeqTwoByteStringSet(1, 'a');
+  string->SeqTwoByteStringSet(2, 'r');
+  T.CheckCall(T.Val('b'), string, T.Val(0.0));
+  T.CheckCall(T.Val('a'), string, T.Val(1));
+  T.CheckCall(T.Val('r'), string, T.Val(2));
+}
+
+
+TEST(TwoByteSeqStringSetChar) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T("(function(a,b) { %_TwoByteSeqStringSetChar(a,88,b); })",
+                   flags);
+
+  Handle<SeqTwoByteString> string =
+      T.main_isolate()->factory()->NewRawTwoByteString(3).ToHandleChecked();
+  string->SeqTwoByteStringSet(0, 'b');
+  string->SeqTwoByteStringSet(1, 'a');
+  string->SeqTwoByteStringSet(2, 'r');
+  T.Call(T.Val(1), string);
+  CHECK_EQ('b', string->SeqTwoByteStringGet(0));
+  CHECK_EQ('X', string->SeqTwoByteStringGet(1));
+  CHECK_EQ('r', string->SeqTwoByteStringGet(2));
 }
 
 
