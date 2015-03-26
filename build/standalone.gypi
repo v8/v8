@@ -341,7 +341,7 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'host_arch=="ppc64"', {
+          [ 'host_arch=="ppc64" and OS!="aix"', {
             'cflags': [ '-mminimal-toc' ],
           }],
           [ 'visibility=="hidden" and v8_enable_backtrace==0', {
