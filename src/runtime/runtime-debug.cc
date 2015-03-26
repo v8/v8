@@ -2206,9 +2206,6 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
-  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
-  Handle<SharedFunctionInfo> outer_info(function->shared());
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -2218,16 +2215,29 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   isolate->set_context(*(save->context()));
 
   // Materialize stack locals and the arguments object.
-  Handle<JSObject> materialized = NewJSObjectWithNullProto(isolate);
+  Handle<JSObject> materialized;
+  Handle<JSFunction> function;
+  Handle<SharedFunctionInfo> outer_info;
+  Handle<Context> eval_context;
 
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, materialized,
-      MaterializeStackLocalsWithFrameInspector(isolate, materialized, function,
-                                               &frame_inspector));
+  // We need to limit the lifetime of the FrameInspector because evaluation can
+  // call arbitrary code and only one FrameInspector can be active at a time.
+  {
+    FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
+    materialized = NewJSObjectWithNullProto(isolate);
+    function = handle(JSFunction::cast(frame_inspector.GetFunction()));
+    outer_info = handle(function->shared());
+    eval_context = handle(Context::cast(frame_inspector.GetContext()));
 
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, materialized,
-      MaterializeArgumentsObject(isolate, materialized, function));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, materialized,
+        MaterializeStackLocalsWithFrameInspector(isolate, materialized,
+                                                 function, &frame_inspector));
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, materialized,
+        MaterializeArgumentsObject(isolate, materialized, function));
+  }
 
   // At this point, the lookup chain may look like this:
   // [inner context] -> [function stack]+[function context] -> [outer context]
@@ -2244,7 +2254,6 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   // This could cause lookup failures if debug-evaluate creates a closure that
   // uses this temporary context chain.
 
-  Handle<Context> eval_context(Context::cast(frame_inspector.GetContext()));
   DCHECK(!eval_context.is_null());
   Handle<Context> function_context = eval_context;
   Handle<Context> outer_context(function->context(), isolate);
