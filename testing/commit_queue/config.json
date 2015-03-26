@@ -6,9 +6,6 @@
     "git_repo_url": "https://chromium.googlesource.com/v8/v8",
     "hide_ref_in_committed_msg": true,
     "max_commit_burst": 1,
-    "project_bases": [
-        ".*"
-    ],
     "project_bases_legacy_from_git_repo_url": true,
     "remote_branch": "refs/pending/heads/master",
     "rietveld_url": "https://codereview.chromium.org",
