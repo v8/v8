@@ -1380,8 +1380,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsStackSlot() || source->IsDoubleStackSlot()) {
 #else
   } else if (source->IsStackSlot()) {
-#endif
     DCHECK(destination->IsStackSlot());
+#endif
     Register temp_0 = kScratchReg;
     Register temp_1 = r0;
     MemOperand src = g.ToMemOperand(source);
