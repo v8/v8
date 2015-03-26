@@ -4610,7 +4610,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
   heap_state.can_start_incremental_marking =
-      incremental_marking()->ShouldActivate() && FLAG_incremental_marking;
+      incremental_marking()->ShouldActivate() && FLAG_incremental_marking &&
+      !mark_compact_collector()->sweeping_in_progress();
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
   heap_state.mark_compact_speed_in_bytes_per_ms =
