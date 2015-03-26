@@ -376,6 +376,23 @@ RUNTIME_FUNCTION(Runtime_GetV8Version) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
+  HandleScope scope(isolate);
+#ifdef DEBUG
+  DCHECK(args.length() == 1);
+  // Get the function and make sure it is compiled.
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
+  if (!Compiler::EnsureCompiled(func, KEEP_EXCEPTION)) {
+    return isolate->heap()->exception();
+  }
+  OFStream os(stdout);
+  func->code()->Print(os);
+  os << std::endl;
+#endif  // DEBUG
+  return isolate->heap()->undefined_value();
+}
+
+
 static int StackSize(Isolate* isolate) {
   int n = 0;
   for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) n++;

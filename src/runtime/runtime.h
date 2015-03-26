@@ -420,6 +420,7 @@ namespace internal {
   F(HasFastProperties, 1, 1)                           \
   F(TransitionElementsKind, 2, 1)                      \
   F(HaveSameMap, 2, 1)                                 \
+  F(DisassembleFunction, 1, 1)                         \
   F(IsJSGlobalProxy, 1, 1)                             \
   F(ForInCacheArrayLength, 2, 1) /* TODO(turbofan): Only temporary */
 
@@ -522,7 +523,7 @@ namespace internal {
   /* Debugger support*/                             \
   F(DebugBreak, 0, 1)                               \
   F(SetDebugEventListener, 2, 1)                    \
-  F(Break, 0, 1)                                    \
+  F(ScheduleBreak, 0, 1)                            \
   F(DebugGetPropertyDetails, 2, 1)                  \
   F(DebugGetProperty, 2, 1)                         \
   F(DebugPropertyTypeFromDetails, 1, 1)             \
@@ -561,8 +562,6 @@ namespace internal {
   F(DebugSetScriptSource, 2, 1)                     \
   F(DebugCallbackSupportsStepping, 1, 1)            \
   F(SystemBreak, 0, 1)                              \
-  F(DebugDisassembleFunction, 1, 1)                 \
-  F(DebugDisassembleConstructor, 1, 1)              \
   F(FunctionGetInferredName, 1, 1)                  \
   F(FunctionGetDebugName, 1, 1)                     \
   F(LiveEditFindSharedFunctionInfosForScript, 1, 1) \
@@ -577,7 +576,7 @@ namespace internal {
   F(LiveEditCompareStrings, 2, 1)                   \
   F(LiveEditRestartFrame, 2, 1)                     \
   F(GetFunctionCodePositionFromSource, 2, 1)        \
-  F(ExecuteInDebugContext, 2, 1)                    \
+  F(ExecuteInDebugContext, 1, 1)                    \
                                                     \
   F(SetFlags, 1, 1)                                 \
   F(CollectGarbage, 1, 1)                           \
