@@ -19,6 +19,7 @@ namespace compiler {
 
 class ControlBuilder;
 class Graph;
+class JSTypeFeedbackTable;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
 class Node;
@@ -30,7 +31,8 @@ class Node;
 class AstGraphBuilder : public AstVisitor {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-                  LoopAssignmentAnalysis* loop_assignment = NULL);
+                  LoopAssignmentAnalysis* loop_assignment = NULL,
+                  JSTypeFeedbackTable* js_type_feedback = NULL);
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph(bool constant_context, bool stack_check = true);
@@ -104,6 +106,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Analyzer of local variable liveness.
   LivenessAnalyzer liveness_analyzer_;
+
+  // Type feedback table.
+  JSTypeFeedbackTable* js_type_feedback_;
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -263,12 +268,14 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builders for property loads and stores.
   Node* BuildKeyedLoad(Node* receiver, Node* key,
-                       const VectorSlotPair& feedback);
+                       const VectorSlotPair& feedback, TypeFeedbackId id);
   Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
-                       const VectorSlotPair& feedback,
+                       const VectorSlotPair& feedback, TypeFeedbackId id,
                        ContextualMode mode = NOT_CONTEXTUAL);
-  Node* BuildKeyedStore(Node* receiver, Node* key, Node* value);
-  Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value);
+  Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
+                        TypeFeedbackId id);
+  Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value,
+                        TypeFeedbackId id);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();

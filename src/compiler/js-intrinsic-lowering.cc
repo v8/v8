@@ -111,15 +111,7 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
       graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_true);
 
   // Connect the deopt to the merge exiting the graph.
-  Node* end_pred = NodeProperties::GetControlInput(graph()->end());
-  if (end_pred->opcode() == IrOpcode::kMerge) {
-    int inputs = end_pred->op()->ControlInputCount() + 1;
-    end_pred->AppendInput(graph()->zone(), deopt);
-    end_pred->set_op(common()->Merge(inputs));
-  } else {
-    Node* merge = graph()->NewNode(common()->Merge(2), end_pred, deopt);
-    NodeProperties::ReplaceControlInput(graph()->end(), merge);
-  }
+  NodeProperties::MergeControlToEnd(graph(), common(), deopt);
 
   return Changed(deopt);
 }

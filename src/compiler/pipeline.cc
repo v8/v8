@@ -25,6 +25,7 @@
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-intrinsic-lowering.h"
+#include "src/compiler/js-type-feedback.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/load-elimination.h"
@@ -46,6 +47,7 @@
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-pool.h"
 #include "src/ostreams.h"
+#include "src/type-info.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -72,6 +74,7 @@ class PipelineData {
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
+        js_type_feedback_(nullptr),
         typer_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
@@ -111,6 +114,7 @@ class PipelineData {
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
+        js_type_feedback_(nullptr),
         typer_(nullptr),
         schedule_(schedule),
         instruction_zone_scope_(zone_pool_),
@@ -137,6 +141,7 @@ class PipelineData {
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
+        js_type_feedback_(nullptr),
         typer_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
@@ -174,6 +179,10 @@ class PipelineData {
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   JSGraph* jsgraph() const { return jsgraph_; }
+  JSTypeFeedbackTable* js_type_feedback() { return js_type_feedback_; }
+  void set_js_type_feedback(JSTypeFeedbackTable* js_type_feedback) {
+    js_type_feedback_ = js_type_feedback;
+  }
   Typer* typer() const { return typer_.get(); }
 
   LoopAssignmentAnalysis* loop_assignment() const { return loop_assignment_; }
@@ -207,6 +216,7 @@ class PipelineData {
     common_ = nullptr;
     javascript_ = nullptr;
     jsgraph_ = nullptr;
+    js_type_feedback_ = nullptr;
     schedule_ = nullptr;
   }
 
@@ -259,6 +269,7 @@ class PipelineData {
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
   JSGraph* jsgraph_;
+  JSTypeFeedbackTable* js_type_feedback_;
   // TODO(dcarney): make this into a ZoneObject.
   SmartPointer<Typer> typer_;
   Schedule* schedule_;
@@ -310,8 +321,10 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
                                JSGraph* jsgraph,
                                LoopAssignmentAnalysis* loop_assignment,
+                               JSTypeFeedbackTable* js_type_feedback,
                                SourcePositionTable* source_positions)
-      : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment),
+      : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment,
+                        js_type_feedback),
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
 
@@ -419,7 +432,7 @@ struct GraphBuilderPhase {
   void Run(PipelineData* data, Zone* temp_zone, bool constant_context) {
     AstGraphBuilderWithPositions graph_builder(
         temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
-        data->source_positions());
+        data->js_type_feedback(), data->source_positions());
     bool stack_check = !data->info()->IsStub();
     if (!graph_builder.CreateGraph(constant_context, stack_check)) {
       data->set_compilation_failed();
@@ -476,6 +489,25 @@ struct OsrDeconstructionPhase {
     bool success =
         osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
     if (!success) data->info()->RetryOptimization(kOsrCompileFailed);
+  }
+};
+
+
+struct JSTypeFeedbackPhase {
+  static const char* phase_name() { return "type feedback specializing"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    SourcePositionTable::Scope pos(data->source_positions(),
+                                   SourcePosition::Unknown());
+    Handle<Context> native_context(data->info()->context()->native_context());
+    TypeFeedbackOracle oracle(data->isolate(), temp_zone,
+                              data->info()->unoptimized_code(),
+                              data->info()->feedback_vector(), native_context);
+    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSTypeFeedbackSpecializer specializer(data->jsgraph(),
+                                          data->js_type_feedback(), &oracle);
+    AddReducer(data, &graph_reducer, &specializer);
+    graph_reducer.ReduceGraph();
   }
 };
 
@@ -884,6 +916,11 @@ Handle<Code> Pipeline::GenerateCode() {
   PipelineData data(&zone_pool, info(), pipeline_statistics.get());
   this->data_ = &data;
 
+  if (info()->is_type_feedback_enabled()) {
+    data.set_js_type_feedback(new (data.graph_zone())
+                                  JSTypeFeedbackTable(data.graph_zone()));
+  }
+
   BeginPhaseKind("graph creation");
 
   if (FLAG_trace_turbo) {
@@ -951,6 +988,11 @@ Handle<Code> Pipeline::GenerateCode() {
       RunPrintAndVerify("OSR deconstruction");
     }
 
+    if (info()->is_type_feedback_enabled()) {
+      Run<JSTypeFeedbackPhase>();
+      RunPrintAndVerify("JSType feedback");
+    }
+
     // Lower simplified operators and insert changes.
     Run<SimplifiedLoweringPhase>();
     RunPrintAndVerify("Lowered simplified");
@@ -963,7 +1005,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
     // Lower changes that have been inserted before.
     Run<ChangeLoweringPhase>();
-    // // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+    // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
     RunPrintAndVerify("Lowered changes", true);
 
     Run<LateControlReductionPhase>();

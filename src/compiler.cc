@@ -440,6 +440,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
     if (info()->shared_info()->asm_function()) {
       info()->MarkAsContextSpecializing();
+    } else if (FLAG_turbo_type_feedback) {
+      info()->MarkAsTypeFeedbackEnabled();
     }
 
     Timer t(this, &time_taken_to_create_graph_);

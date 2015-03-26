@@ -124,7 +124,8 @@ class CompilationInfo {
     kTypingEnabled = 1 << 11,
     kDisableFutureOptimization = 1 << 12,
     kSplittingEnabled = 1 << 13,
-    kBuiltinInliningEnabled = 1 << 14
+    kBuiltinInliningEnabled = 1 << 14,
+    kTypeFeedbackEnabled = 1 << 15
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -208,6 +209,12 @@ class CompilationInfo {
   void MarkAsContextSpecializing() { SetFlag(kContextSpecializing); }
 
   bool is_context_specializing() const { return GetFlag(kContextSpecializing); }
+
+  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
+
+  bool is_type_feedback_enabled() const {
+    return GetFlag(kTypeFeedbackEnabled);
+  }
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
 

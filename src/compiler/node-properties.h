@@ -12,7 +12,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Graph;
 class Operator;
+class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
 class NodeProperties FINAL {
@@ -79,6 +81,11 @@ class NodeProperties FINAL {
   static void ReplaceEffectInput(Node* node, Node* effect, int index = 0);
   static void ReplaceFrameStateInput(Node* node, int index, Node* frame_state);
   static void RemoveNonValueInputs(Node* node);
+
+  // Merge the control node {node} into the end of the graph, introducing a
+  // merge node or expanding an existing merge node if necessary.
+  static void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,
+                                Node* node);
 
   // Replace value uses of {node} with {value} and effect uses of {node} with
   // {effect}. If {effect == NULL}, then use the effect input to {node}. All

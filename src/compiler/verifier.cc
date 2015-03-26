@@ -618,10 +618,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kReferenceEqual: {
       // (Unique, Any) -> Boolean  and
       // (Any, Unique) -> Boolean
-      if (typing == TYPED) {
-        CHECK(bounds(ValueInput(node, 0)).upper->Is(Type::Unique()) ||
-              bounds(ValueInput(node, 1)).upper->Is(Type::Unique()));
-      }
       CheckUpperIs(node, Type::Boolean());
       break;
     }

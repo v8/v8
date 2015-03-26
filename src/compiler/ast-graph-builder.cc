@@ -7,6 +7,7 @@
 #include "src/compiler.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"
+#include "src/compiler/js-type-feedback.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/machine-operator.h"
@@ -381,7 +382,8 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
 
 
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop)
+                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
+                                 JSTypeFeedbackTable* js_type_feedback)
     : local_zone_(local_zone),
       info_(info),
       jsgraph_(jsgraph),
@@ -397,7 +399,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       loop_assignment_analysis_(loop),
       state_values_cache_(jsgraph),
       liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
-                         local_zone) {
+                         local_zone),
+      js_type_feedback_(js_type_feedback) {
   InitializeAstVisitor(info->isolate(), local_zone);
 }
 
@@ -1663,7 +1666,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForValue(property->value());
             Node* value = environment()->Pop();
             Handle<Name> name = key->AsPropertyName();
-            Node* store = BuildNamedStore(literal, name, value);
+            Node* store =
+                BuildNamedStore(literal, name, value, TypeFeedbackId::None());
             PrepareFrameState(store, key->id());
             BuildSetHomeObject(value, literal, property->value());
           } else {
@@ -1838,7 +1842,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
         subexpr->id(), OutputFrameStateCombine::PokeAt(0));
     Node* value = environment()->Pop();
     Node* index = jsgraph()->Constant(i);
-    Node* store = BuildKeyedStore(literal, index, value);
+    Node* store =
+        BuildKeyedStore(literal, index, value, TypeFeedbackId::None());
     PrepareFrameStateAfterAndBefore(store, expr->GetIdForElement(i),
                                     OutputFrameStateCombine::Ignore(),
                                     frame_state_before);
@@ -1870,7 +1875,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       Node* object = environment()->Pop();
       value = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedStore(object, name, value);
+      Node* store =
+          BuildNamedStore(object, name, value, TypeFeedbackId::None());
       PrepareFrameState(store, bailout_id);
       break;
     }
@@ -1881,7 +1887,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       value = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value);
+      Node* store = BuildKeyedStore(object, key, value, TypeFeedbackId::None());
       // TODO(jarin) Provide a real frame state before.
       PrepareFrameStateAfterAndBefore(store, bailout_id,
                                       OutputFrameStateCombine::Ignore(),
@@ -1933,7 +1939,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
         VectorSlotPair pair =
             CreateVectorSlotPair(property->PropertyFeedbackSlot());
-        old_value = BuildNamedLoad(object, name, pair);
+        old_value =
+            BuildNamedLoad(object, name, pair, property->PropertyFeedbackId());
         PrepareFrameState(old_value, property->LoadId(),
                           OutputFrameStateCombine::Push());
         break;
@@ -1943,7 +1950,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         Node* object = environment()->Peek(1);
         VectorSlotPair pair =
             CreateVectorSlotPair(property->PropertyFeedbackSlot());
-        old_value = BuildKeyedLoad(object, key, pair);
+        old_value =
+            BuildKeyedLoad(object, key, pair, property->PropertyFeedbackId());
         PrepareFrameState(old_value, property->LoadId(),
                           OutputFrameStateCombine::Push());
         break;
@@ -1988,14 +1996,16 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     case NAMED_PROPERTY: {
       Node* object = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedStore(object, name, value);
+      Node* store =
+          BuildNamedStore(object, name, value, expr->AssignmentFeedbackId());
       PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value);
+      Node* store =
+          BuildKeyedStore(object, key, value, expr->AssignmentFeedbackId());
       PrepareFrameStateAfterAndBefore(store, expr->id(),
                                       ast_context()->GetStateCombine(),
                                       frame_state_before_store);
@@ -2029,13 +2039,13 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
     VisitForValue(expr->obj());
     Node* object = environment()->Pop();
     Handle<Name> name = expr->key()->AsLiteral()->AsPropertyName();
-    value = BuildNamedLoad(object, name, pair);
+    value = BuildNamedLoad(object, name, pair, expr->PropertyFeedbackId());
   } else {
     VisitForValue(expr->obj());
     VisitForValue(expr->key());
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
-    value = BuildKeyedLoad(object, key, pair);
+    value = BuildKeyedLoad(object, key, pair, expr->PropertyFeedbackId());
   }
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -2083,11 +2093,13 @@ void AstGraphBuilder::VisitCall(Call* expr) {
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
       if (property->key()->IsPropertyName()) {
         Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-        callee_value = BuildNamedLoad(object, name, pair);
+        callee_value =
+            BuildNamedLoad(object, name, pair, property->PropertyFeedbackId());
       } else {
         VisitForValue(property->key());
         Node* key = environment()->Pop();
-        callee_value = BuildKeyedLoad(object, key, pair);
+        callee_value =
+            BuildKeyedLoad(object, key, pair, property->PropertyFeedbackId());
       }
       PrepareFrameState(callee_value, property->LoadId(),
                         OutputFrameStateCombine::Push());
@@ -2183,7 +2195,8 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
   Node* receiver_value = BuildLoadBuiltinsObject();
   VectorSlotPair pair = CreateVectorSlotPair(expr->CallRuntimeFeedbackSlot());
-  Node* callee_value = BuildNamedLoad(receiver_value, name, pair);
+  Node* callee_value =
+      BuildNamedLoad(receiver_value, name, pair, expr->CallRuntimeFeedbackId());
   // TODO(jarin): Find/create a bailout id to deoptimize to (crankshaft
   // refuses to optimize functions with jsruntime calls).
   PrepareFrameState(callee_value, BailoutId::None(),
@@ -2271,7 +2284,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       VectorSlotPair pair =
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      old_value = BuildNamedLoad(object, name, pair);
+      old_value =
+          BuildNamedLoad(object, name, pair, property->PropertyFeedbackId());
       PrepareFrameState(old_value, property->LoadId(),
                         OutputFrameStateCombine::Push());
       stack_depth = 1;
@@ -2284,7 +2298,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Peek(1);
       VectorSlotPair pair =
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      old_value = BuildKeyedLoad(object, key, pair);
+      old_value =
+          BuildKeyedLoad(object, key, pair, property->PropertyFeedbackId());
       PrepareFrameState(old_value, property->LoadId(),
                         OutputFrameStateCombine::Push());
       stack_depth = 2;
@@ -2327,7 +2342,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       Node* object = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedStore(object, name, value);
+      Node* store =
+          BuildNamedStore(object, name, value, expr->CountStoreFeedbackId());
       environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId());
       environment()->Pop();
@@ -2336,7 +2352,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value);
+      Node* store =
+          BuildKeyedStore(object, key, value, expr->CountStoreFeedbackId());
       environment()->Push(value);
       PrepareFrameStateAfterAndBefore(store, expr->AssignmentId(),
                                       OutputFrameStateCombine::Ignore(),
@@ -2745,7 +2762,8 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
-      Node* node = BuildNamedLoad(global, name, feedback, contextual_mode);
+      Node* node = BuildNamedLoad(global, name, feedback,
+                                  TypeFeedbackId::None(), contextual_mode);
       PrepareFrameState(node, bailout_id, OutputFrameStateCombine::Push());
       return node;
     }
@@ -2852,7 +2870,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
-      Node* store = BuildNamedStore(global, name, value);
+      Node* store =
+          BuildNamedStore(global, name, value, TypeFeedbackId::None());
       PrepareFrameState(store, bailout_id, combine);
       return store;
     }
@@ -2948,33 +2967,42 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 }
 
 
+static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
+                           TypeFeedbackId id) {
+  if (js_type_feedback) js_type_feedback->Record(node, id);
+  return node;
+}
+
+
 Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
-                                      const VectorSlotPair& feedback) {
+                                      const VectorSlotPair& feedback,
+                                      TypeFeedbackId id) {
   const Operator* op = javascript()->LoadProperty(feedback);
-  return NewNode(op, object, key);
+  return Record(js_type_feedback_, NewNode(op, object, key), id);
 }
 
 
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const VectorSlotPair& feedback,
-                                      ContextualMode mode) {
+                                      TypeFeedbackId id, ContextualMode mode) {
   const Operator* op =
       javascript()->LoadNamed(MakeUnique(name), feedback, mode);
-  return NewNode(op, object);
+  return Record(js_type_feedback_, NewNode(op, object), id);
 }
 
 
-Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value) {
+Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
+                                       TypeFeedbackId id) {
   const Operator* op = javascript()->StoreProperty(language_mode());
-  return NewNode(op, object, key, value);
+  return Record(js_type_feedback_, NewNode(op, object, key, value), id);
 }
 
 
 Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
-                                       Node* value) {
+                                       Node* value, TypeFeedbackId id) {
   const Operator* op =
       javascript()->StoreNamed(language_mode(), MakeUnique(name));
-  return NewNode(op, object, value);
+  return Record(js_type_feedback_, NewNode(op, object, value), id);
 }
 
 
@@ -3063,7 +3091,8 @@ Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
                                           Expression* expr) {
   if (!FunctionLiteral::NeedsHomeObject(expr)) return value;
   Handle<Name> name = isolate()->factory()->home_object_symbol();
-  Node* store = BuildNamedStore(value, name, home_object);
+  Node* store =
+      BuildNamedStore(value, name, home_object, TypeFeedbackId::None());
   PrepareFrameState(store, BailoutId::None());
   return store;
 }

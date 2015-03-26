@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/node-properties.h"
-
 #include "src/compiler/common-operator.h"
+#include "src/compiler/graph.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 
 namespace v8 {
@@ -148,6 +148,22 @@ void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
 // static
 void NodeProperties::RemoveNonValueInputs(Node* node) {
   node->TrimInputCount(node->op()->ValueInputCount());
+}
+
+
+void NodeProperties::MergeControlToEnd(Graph* graph,
+                                       CommonOperatorBuilder* common,
+                                       Node* node) {
+  // Connect the node to the merge exiting the graph.
+  Node* end_pred = NodeProperties::GetControlInput(graph->end());
+  if (end_pred->opcode() == IrOpcode::kMerge) {
+    int inputs = end_pred->op()->ControlInputCount() + 1;
+    end_pred->AppendInput(graph->zone(), node);
+    end_pred->set_op(common->Merge(inputs));
+  } else {
+    Node* merge = graph->NewNode(common->Merge(2), end_pred, node);
+    NodeProperties::ReplaceControlInput(graph->end(), merge);
+  }
 }
 
 
