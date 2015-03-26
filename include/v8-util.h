@@ -322,7 +322,11 @@ class PersistentValueMapBase {
     return p.Pass();
   }
 
-  void RemoveWeak(const K& key) { Traits::Remove(&impl_, key); }
+  void RemoveWeak(const K& key) {
+    Global<V> p;
+    p.val_ = FromVal(Traits::Remove(&impl_, key));
+    p.Reset();
+  }
 
  private:
   PersistentValueMapBase(PersistentValueMapBase&);
@@ -476,7 +480,6 @@ class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
       K key = Traits::KeyFromWeakCallbackInfo(data);
       persistentValueMap->RemoveWeak(key);
       Traits::DisposeWeak(data.GetIsolate(), data, key);
-      Traits::DisposeCallbackData(data.GetParameter());
     }
   }
 };

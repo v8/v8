@@ -479,11 +479,13 @@ class WeakCallbackInfo {
  public:
   typedef void (*Callback)(const WeakCallbackInfo<T>& data);
 
-  WeakCallbackInfo(Isolate* isolate, T* parameter, void* internal_field1,
-                   void* internal_field2)
-      : isolate_(isolate), parameter_(parameter) {
-    internal_fields_[0] = internal_field1;
-    internal_fields_[1] = internal_field2;
+  WeakCallbackInfo(Isolate* isolate, T* parameter,
+                   void* internal_fields[kInternalFieldsInWeakCallback],
+                   Callback* callback)
+      : isolate_(isolate), parameter_(parameter), callback_(callback) {
+    for (int i = 0; i < kInternalFieldsInWeakCallback; ++i) {
+      internal_fields_[i] = internal_fields[i];
+    }
   }
 
   V8_INLINE Isolate* GetIsolate() const { return isolate_; }
@@ -499,10 +501,21 @@ class WeakCallbackInfo {
     return internal_fields_[1];
   }
 
+  bool IsFirstPass() const { return callback_ != nullptr; }
+
+  // When first called, the embedder MUST Reset() the Global which triggered the
+  // callback. The Global itself is unusable for anything else. No v8 other api
+  // calls may be called in the first callback. Should additional work be
+  // required, the embedder must set a second pass callback, which will be
+  // called after all the initial callbacks are processed.
+  // Calling SetSecondPassCallback on the second pass will immediately crash.
+  void SetSecondPassCallback(Callback callback) const { *callback_ = callback; }
+
  private:
   Isolate* isolate_;
   T* parameter_;
-  void* internal_fields_[2];
+  Callback* callback_;
+  void* internal_fields_[kInternalFieldsInWeakCallback];
 };
 
 

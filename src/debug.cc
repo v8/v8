@@ -593,9 +593,10 @@ void ScriptCache::HandleWeakScript(
 
 
 void Debug::HandlePhantomDebugInfo(
-    const v8::PhantomCallbackData<DebugInfoListNode>& data) {
-  Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
+    const v8::WeakCallbackInfo<DebugInfoListNode>& data) {
   DebugInfoListNode* node = data.GetParameter();
+  node->ClearInfo();
+  Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
   debug->RemoveDebugInfo(node);
 #ifdef DEBUG
   for (DebugInfoListNode* n = debug->debug_info_list_;
@@ -610,17 +611,20 @@ void Debug::HandlePhantomDebugInfo(
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
-  debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
-  typedef PhantomCallbackData<void>::Callback Callback;
+  debug_info_ =
+      Handle<DebugInfo>::cast(global_handles->Create(debug_info)).location();
+  typedef WeakCallbackInfo<void>::Callback Callback;
   GlobalHandles::MakeWeak(
-      reinterpret_cast<Object**>(debug_info_.location()), this,
+      reinterpret_cast<Object**>(debug_info_), this,
       reinterpret_cast<Callback>(Debug::HandlePhantomDebugInfo),
       v8::WeakCallbackType::kParameter);
 }
 
 
-DebugInfoListNode::~DebugInfoListNode() {
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_.location()));
+void DebugInfoListNode::ClearInfo() {
+  if (debug_info_ == nullptr) return;
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_));
+  debug_info_ = nullptr;
 }
 
 

@@ -264,38 +264,28 @@ class GlobalHandles::Node {
     if (weak_callback_ != NULL) {
       if (weakness_type() == NORMAL_WEAK) return;
 
-      v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-
       DCHECK(weakness_type() == PHANTOM_WEAK ||
              weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
 
-      Object* internal_field0 = nullptr;
-      Object* internal_field1 = nullptr;
-      if (weakness_type() != PHANTOM_WEAK) {
-        if (object()->IsJSObject()) {
-          JSObject* jsobject = JSObject::cast(object());
-          int field_count = jsobject->GetInternalFieldCount();
-          if (field_count > 0) {
-            internal_field0 = jsobject->GetInternalField(0);
-            if (!internal_field0->IsSmi()) internal_field0 = nullptr;
-          }
-          if (field_count > 1) {
-            internal_field1 = jsobject->GetInternalField(1);
-            if (!internal_field1->IsSmi()) internal_field1 = nullptr;
-          }
+      void* internal_fields[v8::kInternalFieldsInWeakCallback] = {nullptr,
+                                                                  nullptr};
+      if (weakness_type() != PHANTOM_WEAK && object()->IsJSObject()) {
+        auto jsobject = JSObject::cast(object());
+        int field_count = jsobject->GetInternalFieldCount();
+        for (int i = 0; i < v8::kInternalFieldsInWeakCallback; ++i) {
+          if (field_count == i) break;
+          auto field = jsobject->GetInternalField(i);
+          if (field->IsSmi()) internal_fields[i] = field;
         }
       }
 
-      // Zap with harmless value.
-      *location() = Smi::FromInt(0);
+      // Zap with something dangerous.
+      *location() = reinterpret_cast<Object*>(0x6057ca11);
+
       typedef v8::WeakCallbackInfo<void> Data;
-
-      Data data(api_isolate, parameter(), internal_field0, internal_field1);
-      Data::Callback callback =
-          reinterpret_cast<Data::Callback>(weak_callback_);
-
+      auto callback = reinterpret_cast<Data::Callback>(weak_callback_);
       pending_phantom_callbacks->Add(
-          PendingPhantomCallback(this, data, callback));
+          PendingPhantomCallback(this, callback, parameter(), internal_fields));
       DCHECK(IsInUse());
       set_state(NEAR_DEATH);
     }
@@ -838,14 +828,47 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
 
 int GlobalHandles::DispatchPendingPhantomCallbacks() {
   int freed_nodes = 0;
+  {
+    // The initial pass callbacks must simply clear the nodes.
+    for (auto i = pending_phantom_callbacks_.begin();
+         i != pending_phantom_callbacks_.end(); ++i) {
+      auto callback = i;
+      // Skip callbacks that have already been processed once.
+      if (callback->node() == nullptr) continue;
+      callback->Invoke(isolate());
+      freed_nodes++;
+    }
+  }
+  // The second pass empties the list.
   while (pending_phantom_callbacks_.length() != 0) {
-    PendingPhantomCallback callback = pending_phantom_callbacks_.RemoveLast();
-    DCHECK(callback.node()->IsInUse());
-    callback.invoke();
-    DCHECK(!callback.node()->IsInUse());
-    freed_nodes++;
+    auto callback = pending_phantom_callbacks_.RemoveLast();
+    DCHECK(callback.node() == nullptr);
+    // No second pass callback required.
+    if (callback.callback() == nullptr) continue;
+    // Fire second pass callback.
+    callback.Invoke(isolate());
   }
   return freed_nodes;
+}
+
+
+void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
+  Data::Callback* callback_addr = nullptr;
+  if (node_ != nullptr) {
+    // Initialize for first pass callback.
+    DCHECK(node_->state() == Node::NEAR_DEATH);
+    callback_addr = &callback_;
+  }
+  Data data(reinterpret_cast<v8::Isolate*>(isolate), parameter_,
+            internal_fields_, callback_addr);
+  Data::Callback callback = callback_;
+  callback_ = nullptr;
+  callback(data);
+  if (node_ != nullptr) {
+    // Transition to second pass state.
+    DCHECK(node_->state() == Node::FREE);
+    node_ = nullptr;
+  }
 }
 
 
@@ -876,14 +899,6 @@ int GlobalHandles::PostGarbageCollectionProcessing(GarbageCollector collector) {
     UpdateListOfNewSpaceNodes();
   }
   return freed_nodes;
-}
-
-
-void GlobalHandles::PendingPhantomCallback::invoke() {
-  if (node_->state() == Node::FREE) return;
-  DCHECK(node_->state() == Node::NEAR_DEATH);
-  callback_(data_);
-  if (node_->state() != Node::FREE) node_->Release();
 }
 
 

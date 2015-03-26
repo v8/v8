@@ -261,15 +261,17 @@ class ScriptCache : private HashMap {
 class DebugInfoListNode {
  public:
   explicit DebugInfoListNode(DebugInfo* debug_info);
-  virtual ~DebugInfoListNode();
+  virtual ~DebugInfoListNode() { ClearInfo(); }
 
   DebugInfoListNode* next() { return next_; }
   void set_next(DebugInfoListNode* next) { next_ = next; }
-  Handle<DebugInfo> debug_info() { return debug_info_; }
+  Handle<DebugInfo> debug_info() { return Handle<DebugInfo>(debug_info_); }
+
+  void ClearInfo();
 
  private:
   // Global (weak) handle to the debug info object.
-  Handle<DebugInfo> debug_info_;
+  DebugInfo** debug_info_;
 
   // Next pointer for linked list.
   DebugInfoListNode* next_;

@@ -3099,6 +3099,123 @@ THREADED_TEST(Global) {
 }
 
 
+namespace {
+
+class TwoPassCallbackData;
+void FirstPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data);
+void SecondPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data);
+
+
+class TwoPassCallbackData {
+ public:
+  TwoPassCallbackData(v8::Isolate* isolate, int* instance_counter)
+      : first_pass_called_(false),
+        second_pass_called_(false),
+        trigger_gc_(false),
+        instance_counter_(instance_counter) {
+    HandleScope scope(isolate);
+    i::ScopedVector<char> buffer(40);
+    i::SNPrintF(buffer, "%p", static_cast<void*>(this));
+    auto string =
+        v8::String::NewFromUtf8(isolate, buffer.start(),
+                                v8::NewStringType::kNormal).ToLocalChecked();
+    cell_.Reset(isolate, string);
+    (*instance_counter_)++;
+  }
+
+  ~TwoPassCallbackData() {
+    CHECK(first_pass_called_);
+    CHECK(second_pass_called_);
+    CHECK(cell_.IsEmpty());
+    (*instance_counter_)--;
+  }
+
+  void FirstPass() {
+    CHECK(!first_pass_called_);
+    CHECK(!second_pass_called_);
+    CHECK(!cell_.IsEmpty());
+    cell_.Reset();
+    first_pass_called_ = true;
+  }
+
+  void SecondPass() {
+    CHECK(first_pass_called_);
+    CHECK(!second_pass_called_);
+    CHECK(cell_.IsEmpty());
+    second_pass_called_ = true;
+    delete this;
+  }
+
+  void SetWeak() {
+    cell_.SetWeak(this, FirstPassCallback, v8::WeakCallbackType::kParameter);
+  }
+
+  void MarkTriggerGc() { trigger_gc_ = true; }
+  bool trigger_gc() { return trigger_gc_; }
+
+  int* instance_counter() { return instance_counter_; }
+
+ private:
+  bool first_pass_called_;
+  bool second_pass_called_;
+  bool trigger_gc_;
+  v8::Global<v8::String> cell_;
+  int* instance_counter_;
+};
+
+
+void SecondPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data) {
+  ApiTestFuzzer::Fuzz();
+  bool trigger_gc = data.GetParameter()->trigger_gc();
+  int* instance_counter = data.GetParameter()->instance_counter();
+  data.GetParameter()->SecondPass();
+  if (!trigger_gc) return;
+  auto data_2 = new TwoPassCallbackData(data.GetIsolate(), instance_counter);
+  data_2->SetWeak();
+  CcTest::heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+}
+
+
+void FirstPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data) {
+  data.GetParameter()->FirstPass();
+  data.SetSecondPassCallback(SecondPassCallback);
+}
+
+}  // namespace
+
+
+TEST(TwoPassPhantomCallbacks) {
+  auto isolate = CcTest::isolate();
+  const size_t kLength = 20;
+  int instance_counter = 0;
+  for (size_t i = 0; i < kLength; ++i) {
+    auto data = new TwoPassCallbackData(isolate, &instance_counter);
+    data->SetWeak();
+  }
+  CHECK_EQ(static_cast<int>(kLength), instance_counter);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CHECK_EQ(0, instance_counter);
+}
+
+
+TEST(TwoPassPhantomCallbacksNestedGc) {
+  auto isolate = CcTest::isolate();
+  const size_t kLength = 20;
+  TwoPassCallbackData* array[kLength];
+  int instance_counter = 0;
+  for (size_t i = 0; i < kLength; ++i) {
+    array[i] = new TwoPassCallbackData(isolate, &instance_counter);
+    array[i]->SetWeak();
+  }
+  array[5]->MarkTriggerGc();
+  array[10]->MarkTriggerGc();
+  array[15]->MarkTriggerGc();
+  CHECK_EQ(static_cast<int>(kLength), instance_counter);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CHECK_EQ(0, instance_counter);
+}
+
+
 template <typename K, typename V>
 class WeakStdMapTraits : public v8::StdMapTraits<K, V> {
  public:
@@ -3242,9 +3359,11 @@ class PhantomStdMapTraits : public v8::StdMapTraits<K, V> {
       v8::Isolate* isolate,
       const v8::WeakCallbackInfo<WeakCallbackDataType>& info, K key) {
     CHECK_EQ(IntKeyToVoidPointer(key), info.GetInternalField(0));
+    DisposeCallbackData(info.GetParameter());
   }
 };
-}
+
+}  // namespace
 
 
 TEST(GlobalValueMap) {
@@ -6381,12 +6500,13 @@ THREADED_TEST(ErrorWithMissingScriptInfo) {
 
 struct FlagAndPersistent {
   bool flag;
-  v8::Persistent<v8::Object> handle;
+  v8::Global<v8::Object> handle;
 };
 
 
 static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.GetParameter()->flag = true;
+  data.GetParameter()->handle.Reset();
 }
 
 
