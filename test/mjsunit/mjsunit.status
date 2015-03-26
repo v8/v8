@@ -587,6 +587,9 @@
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 
+  # Deopting uses just enough memory to make this one OOM.
+  'regress/regress-3976': [SKIP],
+
   # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
 }],  # 'deopt_fuzzer == True'
