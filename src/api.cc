@@ -7789,8 +7789,10 @@ void HeapProfiler::StopTrackingHeapObjects() {
 }
 
 
-SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream) {
-  return reinterpret_cast<i::HeapProfiler*>(this)->PushHeapObjectsStats(stream);
+SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream,
+                                            int64_t* timestamp_us) {
+  i::HeapProfiler* heap_profiler = reinterpret_cast<i::HeapProfiler*>(this);
+  return heap_profiler->PushHeapObjectsStats(stream, timestamp_us);
 }
 
 

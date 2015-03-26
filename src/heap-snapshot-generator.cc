@@ -611,7 +611,8 @@ int HeapObjectsMap::FindUntrackedObjects() {
 }
 
 
-SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
+SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream,
+                                                      int64_t* timestamp_us) {
   UpdateHeapObjectsMap();
   time_intervals_.Add(TimeInterval(next_id_));
   int prefered_chunk_size = stream->GetChunkSize();
@@ -653,6 +654,10 @@ SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
     if (result == OutputStream::kAbort) return last_assigned_id();
   }
   stream->EndOfStream();
+  if (timestamp_us) {
+    *timestamp_us = (time_intervals_.last().timestamp -
+                     time_intervals_[0].timestamp).InMicroseconds();
+  }
   return last_assigned_id();
 }
 

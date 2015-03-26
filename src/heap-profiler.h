@@ -33,7 +33,8 @@ class HeapProfiler {
   HeapObjectsMap* heap_object_map() const { return ids_.get(); }
   StringsStorage* names() const { return names_.get(); }
 
-  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
+  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream,
+                                        int64_t* timestamp_us);
   int GetSnapshotsCount();
   HeapSnapshot* GetSnapshot(int index);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);

@@ -471,17 +471,19 @@ class V8_EXPORT HeapProfiler {
    * reports updates for all previous time intervals via the OutputStream
    * object. Updates on each time interval are provided as a stream of the
    * HeapStatsUpdate structure instances.
-   * The return value of the function is the last seen heap object Id.
+   * If |timestamp_us| is supplied, timestamp of the new entry will be written
+   * into it. The return value of the function is the last seen heap object Id.
    *
    * StartTrackingHeapObjects must be called before the first call to this
    * method.
    */
-  SnapshotObjectId GetHeapStats(OutputStream* stream);
+  SnapshotObjectId GetHeapStats(OutputStream* stream,
+                                int64_t* timestamp_us = NULL);
 
   /**
    * Stops tracking of heap objects population statistics, cleans up all
    * collected data. StartHeapObjectsTracking must be called again prior to
-   * calling PushHeapObjectsStats next time.
+   * calling GetHeapStats next time.
    */
   void StopTrackingHeapObjects();
 

@@ -219,7 +219,8 @@ class HeapObjectsMap {
   }
 
   void StopHeapObjectsTracking();
-  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
+  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream,
+                                        int64_t* timestamp_us);
   const List<TimeInterval>& samples() const { return time_intervals_; }
   size_t GetUsedMemorySize() const;
 

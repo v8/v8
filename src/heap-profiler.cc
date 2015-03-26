@@ -91,8 +91,9 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
 }
 
 
-SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
-  return ids_->PushHeapObjectsStats(stream);
+SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream,
+                                                    int64_t* timestamp_us) {
+  return ids_->PushHeapObjectsStats(stream, timestamp_us);
 }
 
 
