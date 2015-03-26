@@ -4558,14 +4558,14 @@ bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
 }
 
 
-static Object* g_smi_slot = NULL;
-
-
 void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
-  DCHECK_EQ(Smi::FromInt(0), g_smi_slot);
-
-  // Remove entries by replacing them with a dummy slot containing a smi.
-  const ObjectSlot kRemovedEntry = &g_smi_slot;
+  // Remove entries by replacing them with an old-space slot containing a smi
+  // that is located in an unmovable page.
+  const ObjectSlot kRemovedEntry =
+      HeapObject::RawField(heap->empty_fixed_array(),
+                           FixedArrayBase::kLengthOffset);
+  DCHECK(Page::FromAddress(
+      reinterpret_cast<Address>(kRemovedEntry))->NeverEvacuate());
 
   while (buffer != NULL) {
     SlotsBuffer::ObjectSlot* slots = buffer->slots_;
@@ -4593,8 +4593,6 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
 
 
 void SlotsBuffer::VerifySlots(Heap* heap, SlotsBuffer* buffer) {
-  DCHECK_EQ(Smi::FromInt(0), g_smi_slot);
-
   while (buffer != NULL) {
     SlotsBuffer::ObjectSlot* slots = buffer->slots_;
     intptr_t slots_count = buffer->idx_;
