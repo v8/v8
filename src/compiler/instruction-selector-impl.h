@@ -15,6 +15,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Helper struct containing data about a table or lookup switch.
+struct SwitchInfo {
+  int32_t min_value;           // minimum value of {case_values}
+  int32_t max_value;           // maximum value of {case_values}
+  size_t value_range;          // |max_value - min_value| + 1
+  size_t case_count;           // number of cases
+  int32_t* case_values;        // actual case values, unsorted
+  BasicBlock** case_branches;  // basic blocks corresponding to case values
+  BasicBlock* default_branch;  // default branch target
+};
+
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
 class OperandGenerator {

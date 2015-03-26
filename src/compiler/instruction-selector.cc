@@ -522,27 +522,32 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kSwitch: {
       DCHECK_EQ(IrOpcode::kSwitch, input->opcode());
+      SwitchInfo sw;
       // Last successor must be Default.
-      BasicBlock* default_branch = block->successors().back();
-      DCHECK_EQ(IrOpcode::kIfDefault, default_branch->front()->opcode());
+      sw.default_branch = block->successors().back();
+      DCHECK_EQ(IrOpcode::kIfDefault, sw.default_branch->front()->opcode());
       // All other successors must be cases.
-      size_t case_count = block->SuccessorCount() - 1;
-      DCHECK_LE(1u, case_count);
-      BasicBlock** case_branches = &block->successors().front();
+      sw.case_count = block->SuccessorCount() - 1;
+      DCHECK_LE(1u, sw.case_count);
+      sw.case_branches = &block->successors().front();
       // Determine case values and their min/max.
-      int32_t* case_values = zone()->NewArray<int32_t>(case_count);
-      int32_t min_value = std::numeric_limits<int32_t>::max();
-      int32_t max_value = std::numeric_limits<int32_t>::min();
-      for (size_t index = 0; index < case_count; ++index) {
-        BasicBlock* branch = case_branches[index];
+      sw.case_values = zone()->NewArray<int32_t>(sw.case_count);
+      sw.min_value = std::numeric_limits<int32_t>::max();
+      sw.max_value = std::numeric_limits<int32_t>::min();
+      for (size_t index = 0; index < sw.case_count; ++index) {
+        BasicBlock* branch = sw.case_branches[index];
         int32_t value = OpParameter<int32_t>(branch->front()->op());
-        case_values[index] = value;
-        if (min_value > value) min_value = value;
-        if (max_value < value) max_value = value;
+        sw.case_values[index] = value;
+        if (sw.min_value > value) sw.min_value = value;
+        if (sw.max_value < value) sw.max_value = value;
       }
-      DCHECK_LE(min_value, max_value);
-      return VisitSwitch(input, default_branch, case_branches, case_values,
-                         case_count, min_value, max_value);
+      DCHECK_LE(sw.min_value, sw.max_value);
+      // Note that {value_range} can be 0 if {min_value} is -2^31 and
+      // {max_value}
+      // is 2^31-1, so don't assume that it's non-zero below.
+      sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
+                       bit_cast<uint32_t>(sw.min_value);
+      return VisitSwitch(input, sw);
     }
     case BasicBlock::kReturn: {
       // If the result itself is a return, return its input.
@@ -812,6 +817,43 @@ void InstructionSelector::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
+
+
+void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
+                                          InstructionOperand& index_operand) {
+  OperandGenerator g(this);
+  size_t input_count = 2 + sw.value_range;
+  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  inputs[0] = index_operand;
+  InstructionOperand default_operand = g.Label(sw.default_branch);
+  std::fill(&inputs[1], &inputs[input_count], default_operand);
+  for (size_t index = 0; index < sw.case_count; ++index) {
+    size_t value = sw.case_values[index] - sw.min_value;
+    BasicBlock* branch = sw.case_branches[index];
+    DCHECK_LE(0u, value);
+    DCHECK_LT(value + 2, input_count);
+    inputs[value + 2] = g.Label(branch);
+  }
+  Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
+}
+
+
+void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
+                                           InstructionOperand& value_operand) {
+  OperandGenerator g(this);
+  size_t input_count = 2 + sw.case_count * 2;
+  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  inputs[0] = value_operand;
+  inputs[1] = g.Label(sw.default_branch);
+  for (size_t index = 0; index < sw.case_count; ++index) {
+    int32_t value = sw.case_values[index];
+    BasicBlock* branch = sw.case_branches[index];
+    inputs[index * 2 + 2 + 0] = g.TempImmediate(value);
+    inputs[index * 2 + 2 + 1] = g.Label(branch);
+  }
+  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
+}
+
 
 #endif  // V8_TURBOFAN_BACKEND
 
