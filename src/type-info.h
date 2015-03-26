@@ -67,9 +67,12 @@ class TypeFeedbackOracle: public ZoneObject {
   template <class T>
   void CollectReceiverTypes(T* obj, SmallMapList* types);
 
-  static bool CanRetainOtherContext(Map* map, Context* native_context);
-  static bool CanRetainOtherContext(JSFunction* function,
-                                    Context* native_context);
+  static bool IsRelevantFeedback(Map* map, Context* native_context) {
+    Object* constructor = map->GetConstructor();
+    return !constructor->IsJSFunction() ||
+           JSFunction::cast(constructor)->context()->native_context() ==
+               native_context;
+  }
 
   Handle<JSFunction> GetCallTarget(FeedbackVectorICSlot slot);
   Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorICSlot slot);

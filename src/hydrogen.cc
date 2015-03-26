@@ -5445,9 +5445,10 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 static bool CanInlinePropertyAccess(Handle<Map> map) {
   if (map->instance_type() == HEAP_NUMBER_TYPE) return true;
   if (map->instance_type() < FIRST_NONSTRING_TYPE) return true;
-  return map->IsJSObjectMap() &&
-      !map->is_dictionary_map() &&
-      !map->has_named_interceptor();
+  return map->IsJSObjectMap() && !map->is_dictionary_map() &&
+         !map->has_named_interceptor() &&
+         // TODO(verwaest): Whitelist contexts to which we have access.
+         !map->is_access_check_needed();
 }
 
 
@@ -6956,7 +6957,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
 
 static bool CanInlineElementAccess(Handle<Map> map) {
   return map->IsJSObjectMap() && !map->has_slow_elements_kind() &&
-         !map->has_indexed_interceptor();
+         !map->has_indexed_interceptor() && !map->is_access_check_needed();
 }
 
 
@@ -7816,6 +7817,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
                                        HValue* implicit_return_value,
                                        BailoutId ast_id, BailoutId return_id,
                                        InliningKind inlining_kind) {
+  if (target->context()->native_context() !=
+      top_info()->closure()->context()->native_context()) {
+    return false;
+  }
   int nodes_added = InliningAstSize(target);
   if (nodes_added == kNotInlinable) return false;
 
@@ -8643,6 +8648,10 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
                                                int argc,
                                                BailoutId ast_id,
                                                ApiCallType call_type) {
+  if (function->context()->native_context() !=
+      top_info()->closure()->context()->native_context()) {
+    return false;
+  }
   CallOptimization optimization(function);
   if (!optimization.is_simple_api_call()) return false;
   Handle<Map> holder_map;
