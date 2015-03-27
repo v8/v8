@@ -8,9 +8,6 @@ Debug = debug.Debug
 var exception = null;
 var break_count = 0;
 
-var expected_values =
-  [ReferenceError, ReferenceError, 0, 0, 0, 0, 0, 1, ReferenceError, ReferenceError];
-
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
@@ -23,23 +20,12 @@ function listener(event, exec_state, event_data, data) {
       }
       var frameMirror = exec_state.frame(0);
 
-      var v = null;;
-      try {
-        v = frameMirror.evaluate('i').value();
-      } catch(e) {
-        v = e;
-      }
       frameMirror.allScopes();
       var source = frameMirror.sourceLineText();
       print("paused at: " + source);
       assertTrue(source.indexOf("// Break " + break_count + ".") > 0,
                  "Unexpected pause at: " + source + "\n" +
                  "Expected: // Break " + break_count + ".");
-      if (expected_values[break_count] === ReferenceError) {
-        assertTrue(v instanceof ReferenceError);
-      } else {
-        assertSame(expected_values[break_count], v);
-      }
       ++break_count;
 
       if (break_count !== expected_breaks) {
@@ -60,16 +46,13 @@ var sum = 0;
   'use strict';
 
   debugger; // Break 0.
+  var i = 0; // Break 1.
+  i++; // Break 2.
+  i++; // Break 3.
+  return i; // Break 4.
+}()); // Break 5.
 
-  for (let i=0; // Break 1.
-       i < 1;   // Break 2. // Break 3. // Break 6. // Break 7.
-       i++) {
-    let key = i; // Break 4.
-    sum += key;   // Break 5.
-  }
-}()); // Break 8.
-
-assertNull(exception); // Break 9.
+assertNull(exception); // Break 6.
 assertEquals(expected_breaks, break_count);
 
 Debug.setListener(null);
