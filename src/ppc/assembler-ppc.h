@@ -46,7 +46,6 @@
 #include "src/assembler.h"
 #include "src/compiler.h"
 #include "src/ppc/constants-ppc.h"
-#include "src/serialize.h"
 
 #define ABI_USES_FUNCTION_DESCRIPTORS \
   (V8_HOST_ARCH_PPC && (V8_OS_AIX ||    \
