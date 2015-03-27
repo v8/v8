@@ -1174,9 +1174,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     Register temp_0 = kScratchReg;
     FPURegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.rm(), src0.offset() + kPointerSize);
+    MemOperand src1(src0.rm(), src0.offset() + kIntSize);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.rm(), dst0.offset() + kPointerSize);
+    MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
     __ ldc1(temp_1, dst0);  // Save destination in temp_1.
     __ lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
     __ sw(temp_0, dst0);
