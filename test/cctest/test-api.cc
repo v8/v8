@@ -15987,30 +15987,7 @@ static void CreateGarbageInOldSpace() {
 
 
 // Test that idle notification can be handled and eventually collects garbage.
-TEST(IdleNotificationWithSmallHint) {
-  const intptr_t MB = 1024 * 1024;
-  const double IdlePauseInSeconds = 0.9;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  intptr_t initial_size = CcTest::heap()->SizeOfObjects();
-  CreateGarbageInOldSpace();
-  intptr_t size_with_garbage = CcTest::heap()->SizeOfObjects();
-  CHECK_GT(size_with_garbage, initial_size + MB);
-  bool finished = false;
-  for (int i = 0; i < 200 && !finished; i++) {
-    finished = env->GetIsolate()->IdleNotificationDeadline(
-        (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
-         static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
-        IdlePauseInSeconds);
-  }
-  intptr_t final_size = CcTest::heap()->SizeOfObjects();
-  CHECK(finished);
-  CHECK_LT(final_size, initial_size + 1);
-}
-
-
-// Test that idle notification can be handled and eventually collects garbage.
-TEST(IdleNotificationWithLargeHint) {
+TEST(TestIdleNotification) {
   const intptr_t MB = 1024 * 1024;
   const double IdlePauseInSeconds = 1.0;
   LocalContext env;

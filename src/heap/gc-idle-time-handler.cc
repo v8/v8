@@ -13,7 +13,7 @@ const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
 const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMaxFinalIncrementalMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
-const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
+const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 2;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
 const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
@@ -153,9 +153,10 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
 bool GCIdleTimeHandler::ShouldDoMarkCompact(
     size_t idle_time_in_ms, size_t size_of_objects,
     size_t mark_compact_speed_in_bytes_per_ms) {
-  return idle_time_in_ms >=
-         EstimateMarkCompactTime(size_of_objects,
-                                 mark_compact_speed_in_bytes_per_ms);
+  return idle_time_in_ms >= kMaxScheduledIdleTime &&
+         idle_time_in_ms >=
+             EstimateMarkCompactTime(size_of_objects,
+                                     mark_compact_speed_in_bytes_per_ms);
 }
 
 
@@ -236,23 +237,10 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     if (ShouldDoMarkCompact(static_cast<size_t>(idle_time_in_ms),
                             heap_state.size_of_objects,
                             heap_state.mark_compact_speed_in_bytes_per_ms)) {
-      // If there are no more than two GCs left in this idle round and we are
-      // allowed to do a full GC, then make those GCs full in order to compact
-      // the code space.
-      // TODO(ulan): Once we enable code compaction for incremental marking, we
-      // can get rid of this special case and always start incremental marking.
-      int remaining_mark_sweeps =
-          kMaxMarkCompactsInIdleRound - mark_compacts_since_idle_round_started_;
-      if (static_cast<size_t>(idle_time_in_ms) > kMaxScheduledIdleTime &&
-          (remaining_mark_sweeps <= 2 ||
-           !heap_state.can_start_incremental_marking)) {
-        return GCIdleTimeAction::FullGC();
-      }
-    }
-    if (!heap_state.can_start_incremental_marking) {
-      return GCIdleTimeAction::Nothing();
+      return GCIdleTimeAction::FullGC();
     }
   }
+
   // TODO(hpayer): Estimate finalize sweeping time.
   if (heap_state.sweeping_in_progress &&
       static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {

@@ -168,7 +168,7 @@ TEST_F(GCIdleTimeHandlerTest, DoScavengeHighScavengeSpeed) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ShouldDoMarkCompact) {
-  size_t idle_time_in_ms = 16;
+  size_t idle_time_in_ms = GCIdleTimeHandler::kMaxScheduledIdleTime;
   EXPECT_TRUE(GCIdleTimeHandler::ShouldDoMarkCompact(idle_time_in_ms, 0, 0));
 }
 
