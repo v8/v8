@@ -16,7 +16,7 @@
 #include "src/prettyprinter.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
-#include "src/snapshot.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {

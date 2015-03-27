@@ -9,7 +9,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen.h"
-#include "src/snapshot.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {

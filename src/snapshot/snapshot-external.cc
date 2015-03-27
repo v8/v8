@@ -4,11 +4,11 @@
 
 // Used for building with external snapshots.
 
-#include "src/snapshot.h"
+#include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/mutex.h"
-#include "src/serialize.h"
-#include "src/snapshot-source-sink.h"
+#include "src/snapshot/serialize.h"
+#include "src/snapshot/snapshot-source-sink.h"
 #include "src/v8.h"  // for V8::Initialize
 
 

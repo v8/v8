@@ -34,8 +34,8 @@
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
 #include "src/scopeinfo.h"
-#include "src/serialize.h"
 #include "src/simulator.h"
+#include "src/snapshot/serialize.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 

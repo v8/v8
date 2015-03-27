@@ -11,7 +11,6 @@
 #include "src/macro-assembler.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
-#include "src/serialize.h"
 #include "src/unicode.h"
 #include "src/x64/regexp-macro-assembler-x64.h"
 

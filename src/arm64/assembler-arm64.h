@@ -14,7 +14,6 @@
 #include "src/assembler.h"
 #include "src/compiler.h"
 #include "src/globals.h"
-#include "src/serialize.h"
 #include "src/utils.h"
 
 

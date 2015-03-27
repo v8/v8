@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/isolate.h"
-#include "src/serialize.h"
+#include "src/snapshot/serialize.h"
 
 #ifndef V8_SNAPSHOT_H_
 #define V8_SNAPSHOT_H_

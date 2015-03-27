@@ -28,6 +28,7 @@
 #include "src/scanner-character-streams.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
+#include "src/snapshot/serialize.h"
 #include "src/typing.h"
 #include "src/vm-state-inl.h"
 

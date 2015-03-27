@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/natives.h"
+#include "src/snapshot/natives.h"
 
 #include "src/base/logging.h"
 #include "src/list.h"
 #include "src/list-inl.h"
-#include "src/snapshot-source-sink.h"
+#include "src/snapshot/snapshot-source-sink.h"
 #include "src/vector.h"
 
 #ifndef V8_USE_EXTERNAL_STARTUP_DATA

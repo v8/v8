@@ -36,7 +36,6 @@
 #include "src/global-handles.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

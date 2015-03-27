@@ -40,7 +40,6 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/mips/assembler-mips-inl.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

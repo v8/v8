@@ -209,7 +209,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
-        '../../src/snapshot-empty.cc',
+        '../../src/snapshot/snapshot-empty.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -267,8 +267,8 @@
             '../..',
           ],
           'sources': [
-            '../../src/natives-external.cc',
-            '../../src/snapshot-external.cc',
+            '../../src/snapshot/natives-external.cc',
+            '../../src/snapshot/snapshot-external.cc',
           ],
           'actions': [
             {
@@ -761,7 +761,6 @@
         '../../src/modules.cc',
         '../../src/modules.h',
         '../../src/msan.h',
-        '../../src/natives.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
         '../../src/objects-printer.cc',
@@ -844,14 +843,15 @@
         '../../src/scopeinfo.h',
         '../../src/scopes.cc',
         '../../src/scopes.h',
-        '../../src/serialize.cc',
-        '../../src/serialize.h',
         '../../src/small-pointer-list.h',
         '../../src/smart-pointers.h',
-        '../../src/snapshot.h',
-        '../../src/snapshot-common.cc',
-        '../../src/snapshot-source-sink.cc',
-        '../../src/snapshot-source-sink.h',
+        '../../src/snapshot/natives.h',
+        '../../src/snapshot/serialize.cc',
+        '../../src/snapshot/serialize.h',
+        '../../src/snapshot/snapshot.h',
+        '../../src/snapshot/snapshot-common.cc',
+        '../../src/snapshot/snapshot-source-sink.cc',
+        '../../src/snapshot/snapshot-source-sink.h',
         '../../src/string-builder.cc',
         '../../src/string-builder.h',
         '../../src/string-search.cc',
@@ -1817,7 +1817,7 @@
         '../..',
       ],
       'sources': [
-        '../../src/mksnapshot.cc',
+        '../../src/snapshot/mksnapshot.cc',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {

@@ -28,7 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/platform/platform.h"
-#include "src/snapshot.h"
+#include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

@@ -13,8 +13,8 @@
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/isolate-inl.h"
-#include "src/natives.h"
-#include "src/snapshot.h"
+#include "src/snapshot/natives.h"
+#include "src/snapshot/snapshot.h"
 #include "third_party/fdlibm/fdlibm.h"
 
 namespace v8 {

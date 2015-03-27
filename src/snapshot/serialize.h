@@ -8,7 +8,7 @@
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
-#include "src/snapshot-source-sink.h"
+#include "src/snapshot/snapshot-source-sink.h"
 
 namespace v8 {
 namespace internal {

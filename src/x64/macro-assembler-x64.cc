@@ -14,7 +14,6 @@
 #include "src/debug.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
-#include "src/serialize.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
 

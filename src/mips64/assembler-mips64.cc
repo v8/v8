@@ -38,7 +38,6 @@
 
 #include "src/base/cpu.h"
 #include "src/mips64/assembler-mips64-inl.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

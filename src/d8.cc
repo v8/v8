@@ -45,7 +45,7 @@
 #include "src/basic-block-profiler.h"
 #include "src/d8-debug.h"
 #include "src/debug.h"
-#include "src/natives.h"
+#include "src/snapshot/natives.h"
 #include "src/v8.h"
 #endif  // !V8_SHARED
 

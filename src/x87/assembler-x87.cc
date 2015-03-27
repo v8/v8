@@ -42,7 +42,6 @@
 #include "src/base/cpu.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

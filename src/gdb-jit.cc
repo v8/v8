@@ -13,9 +13,9 @@
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/messages.h"
-#include "src/natives.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
+#include "src/snapshot/natives.h"
 
 namespace v8 {
 namespace internal {

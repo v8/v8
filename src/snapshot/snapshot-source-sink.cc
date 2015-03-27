@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 
-#include "src/snapshot-source-sink.h"
+#include "src/snapshot/snapshot-source-sink.h"
 
 #include "src/base/logging.h"
 #include "src/handles-inl.h"
-#include "src/serialize.h"  // for SerializerDeserializer::nop() in AtEOF()
+#include "src/snapshot/serialize.h"  // for SerializerDeserializer::nop()
 
 
 namespace v8 {

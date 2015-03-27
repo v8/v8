@@ -36,7 +36,6 @@
 #include "src/debug.h"
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
-#include "src/snapshot.h"
 #include "src/utils-inl.h"
 #include "test/cctest/cctest.h"
 

@@ -402,7 +402,7 @@ source_set("v8_nosnapshot") {
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
-    "src/snapshot-empty.cc",
+    "src/snapshot/snapshot-empty.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -452,8 +452,8 @@ if (v8_use_external_startup_data) {
     ]
 
     sources = [
-      "src/natives-external.cc",
-      "src/snapshot-external.cc",
+      "src/snapshot/natives-external.cc",
+      "src/snapshot/snapshot-external.cc",
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
@@ -882,7 +882,6 @@ source_set("v8_base") {
     "src/modules.cc",
     "src/modules.h",
     "src/msan.h",
-    "src/natives.h",
     "src/objects-debug.cc",
     "src/objects-inl.h",
     "src/objects-printer.cc",
@@ -965,14 +964,15 @@ source_set("v8_base") {
     "src/scopeinfo.h",
     "src/scopes.cc",
     "src/scopes.h",
-    "src/serialize.cc",
-    "src/serialize.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
-    "src/snapshot-common.cc",
-    "src/snapshot-source-sink.cc",
-    "src/snapshot-source-sink.h",
-    "src/snapshot.h",
+    "src/snapshot/natives.h",
+    "src/snapshot/serialize.cc",
+    "src/snapshot/serialize.h",
+    "src/snapshot/snapshot-common.cc",
+    "src/snapshot/snapshot-source-sink.cc",
+    "src/snapshot/snapshot-source-sink.h",
+    "src/snapshot/snapshot.h",
     "src/string-builder.cc",
     "src/string-builder.h",
     "src/string-search.cc",
@@ -1468,7 +1468,7 @@ if (current_toolchain == snapshot_toolchain) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
-      "src/mksnapshot.cc",
+      "src/snapshot/mksnapshot.cc",
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]

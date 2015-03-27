@@ -54,7 +54,7 @@
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
-#include "src/serialize.h"
+#include "src/snapshot/serialize.h"
 #include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32

@@ -21,7 +21,6 @@
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
 #include "src/runtime-profiler.h"
-#include "src/serialize.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
 

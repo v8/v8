@@ -20,7 +20,7 @@
 #include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"
-#include "src/natives.h"
+#include "src/snapshot/natives.h"
 
 #include "include/v8-debug.h"
 

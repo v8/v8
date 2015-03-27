@@ -14,7 +14,6 @@
 #include "src/debug.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

@@ -43,7 +43,6 @@
 #include "src/assembler.h"
 #include "src/compiler.h"
 #include "src/mips/constants-mips.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

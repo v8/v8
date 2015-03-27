@@ -11,7 +11,7 @@
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
+#include "src/snapshot/serialize.h"
 #include "src/string-stream.h"
 
 namespace v8 {
