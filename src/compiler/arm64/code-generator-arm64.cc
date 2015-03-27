@@ -689,9 +689,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        0, 2);
       break;
     }
-    case kArm64Float64Neg:
-      __ Fneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      break;
     case kArm64Float64Sqrt:
       __ Fsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
