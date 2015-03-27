@@ -909,7 +909,8 @@ class Heap {
 
   // Iterate pointers to from semispace of new space found in memory interval
   // from start to end.
-  void IterateAndMarkPointersToFromSpace(Address start, Address end,
+  void IterateAndMarkPointersToFromSpace(bool record_slots, Address start,
+                                         Address end,
                                          ObjectSlotCallback callback);
 
   // Returns whether the object resides in new space.

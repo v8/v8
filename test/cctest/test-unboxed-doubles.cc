@@ -18,7 +18,7 @@
 using namespace v8::base;
 using namespace v8::internal;
 
-#if (V8_DOUBLE_FIELDS_UNBOXING)
+#if V8_DOUBLE_FIELDS_UNBOXING
 
 
 //
@@ -909,40 +909,38 @@ TEST(Regress436816) {
 
 TEST(DoScavenge) {
   CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(CcTest::isolate());
 
-  CompileRun(
-      "function A() {"
-      "  this.x = 42.5;"
-      "  this.o = {};"
-      "};"
-      "var o = new A();");
+  // The plan: create |obj| with double field in new space, do scanvenge so
+  // that |obj| is moved to old space, construct a double value that looks like
+  // a pointer to "from space" pointer. Do scavenge one more time and ensure
+  // that it didn't crash or corrupt the double value stored in the object.
 
-  Handle<String> obj_name = factory->InternalizeUtf8String("o");
+  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<Map> map = Map::Create(isolate, 10);
+  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
+                           Representation::Double(),
+                           INSERT_TRANSITION).ToHandleChecked();
 
-  Handle<Object> obj_value =
-      Object::GetProperty(isolate->global_object(), obj_name).ToHandleChecked();
-  CHECK(obj_value->IsJSObject());
-  Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
+  // Create object in new space.
+  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED, false);
+
+  Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
+  obj->WriteToField(0, *heap_number);
 
   {
     // Ensure the object is properly set up.
-    Map* map = obj->map();
-    DescriptorArray* descriptors = map->instance_descriptors();
-    CHECK(map->NumberOfOwnDescriptors() == 2);
-    CHECK(descriptors->GetDetails(0).representation().IsDouble());
-    CHECK(descriptors->GetDetails(1).representation().IsHeapObject());
-    FieldIndex field_index = FieldIndex::ForDescriptor(map, 0);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
     CHECK(field_index.is_inobject() && field_index.is_double());
     CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
     CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
   }
   CHECK(isolate->heap()->new_space()->Contains(*obj));
 
-  // Trigger GCs so that the newly allocated object moves to old gen.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  // Do scavenge so that |obj| is moved to survivor space.
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   // Create temp object in the new space.
   Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS, NOT_TENURED);
@@ -957,13 +955,103 @@ TEST(DoScavenge) {
   Handle<HeapNumber> boom_number = factory->NewHeapNumber(boom_value, MUTABLE);
   obj->FastPropertyAtPut(field_index, *boom_number);
 
-  // Now the object moves to old gen and it has a double field that looks like
+  // Now |obj| moves to old gen and it has a double field that looks like
   // a pointer to a from semi-space.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE, "boom");
 
   CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
 
   CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
+}
+
+
+TEST(DoScavengeWithIncrementalWriteBarrier) {
+  if (FLAG_never_compact || !FLAG_incremental_marking) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = CcTest::heap();
+  PagedSpace* old_pointer_space = heap->old_pointer_space();
+
+  // The plan: create |obj_value| in old space and ensure that it is allocated
+  // on evacuation candidate page, create |obj| with double and tagged fields
+  // in new space and write |obj_value| to tagged field of |obj|, do two
+  // scavenges to promote |obj| to old space, a GC in old space and ensure that
+  // the tagged value was properly updated after candidates evacuation.
+
+  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<Map> map = Map::Create(isolate, 10);
+  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
+                           Representation::Double(),
+                           INSERT_TRANSITION).ToHandleChecked();
+  map = Map::CopyWithField(map, MakeName("prop", 1), any_type, NONE,
+                           Representation::Tagged(),
+                           INSERT_TRANSITION).ToHandleChecked();
+
+  // Create |obj_value| in old space.
+  Handle<HeapObject> obj_value;
+  Page* ec_page;
+  {
+    AlwaysAllocateScope always_allocate(isolate);
+    // Make sure |obj_value| is placed on an old-space evacuation candidate.
+    SimulateFullSpace(old_pointer_space);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
+    ec_page = Page::FromAddress(obj_value->address());
+  }
+
+  // Create object in new space.
+  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED, false);
+
+  Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
+  obj->WriteToField(0, *heap_number);
+  obj->WriteToField(1, *obj_value);
+
+  {
+    // Ensure the object is properly set up.
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
+    CHECK(field_index.is_inobject() && field_index.is_double());
+    CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
+    CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
+
+    field_index = FieldIndex::ForDescriptor(*map, 1);
+    CHECK(field_index.is_inobject() && !field_index.is_double());
+    CHECK(!map->IsUnboxedDoubleField(field_index));
+  }
+  CHECK(isolate->heap()->new_space()->Contains(*obj));
+
+  // Heap is ready, force |ec_page| to become an evacuation candidate and
+  // simulate incremental marking.
+  FLAG_stress_compaction = true;
+  FLAG_manual_evacuation_candidates_selection = true;
+  ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  SimulateIncrementalMarking(heap);
+  // Disable stress compaction mode in order to let GC do scavenge.
+  FLAG_stress_compaction = false;
+
+  // Check that everything is ready for triggering incremental write barrier
+  // during scavenge (i.e. that |obj| is black and incremental marking is
+  // in compacting mode and |obj_value|'s page is an evacuation candidate).
+  IncrementalMarking* marking = heap->incremental_marking();
+  CHECK(marking->IsCompacting());
+  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
+  CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
+
+  // Trigger GCs so that |obj| moves to old gen.
+  heap->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  heap->CollectGarbage(i::NEW_SPACE);  // in old gen now
+
+  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
+  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj_value));
+  CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
+
+  heap->CollectGarbage(i::OLD_POINTER_SPACE, "boom");
+
+  // |obj_value| must be evacuated.
+  CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
+
+  FieldIndex field_index = FieldIndex::ForDescriptor(*map, 1);
+  CHECK_EQ(*obj_value, obj->RawFastPropertyAt(field_index));
 }
 
 
@@ -1163,28 +1251,23 @@ TEST(StoreBufferScanOnScavenge) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  CompileRun(
-      "function A() {"
-      "  this.x = 42.5;"
-      "  this.o = {};"
-      "};"
-      "var o = new A();");
+  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<Map> map = Map::Create(isolate, 10);
+  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
+                           Representation::Double(),
+                           INSERT_TRANSITION).ToHandleChecked();
 
-  Handle<String> obj_name = factory->InternalizeUtf8String("o");
+  // Create object in new space.
+  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED, false);
 
-  Handle<Object> obj_value =
-      Object::GetProperty(isolate->global_object(), obj_name).ToHandleChecked();
-  CHECK(obj_value->IsJSObject());
-  Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
+  Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
+  obj->WriteToField(0, *heap_number);
 
   {
     // Ensure the object is properly set up.
-    Map* map = obj->map();
     DescriptorArray* descriptors = map->instance_descriptors();
-    CHECK(map->NumberOfOwnDescriptors() == 2);
     CHECK(descriptors->GetDetails(0).representation().IsDouble());
-    CHECK(descriptors->GetDetails(1).representation().IsHeapObject());
-    FieldIndex field_index = FieldIndex::ForDescriptor(map, 0);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
     CHECK(field_index.is_inobject() && field_index.is_double());
     CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
     CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));

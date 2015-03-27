@@ -723,6 +723,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   int count = 0;
   int fragmentation = 0;
+  int page_number = 0;
   Candidate* least = NULL;
 
   PageIterator it(space);
@@ -737,9 +738,16 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     CHECK(p->slots_buffer() == NULL);
 
     if (FLAG_stress_compaction) {
-      unsigned int counter = space->heap()->ms_count();
-      uintptr_t page_number = reinterpret_cast<uintptr_t>(p) >> kPageSizeBits;
-      if ((counter & 1) == (page_number & 1)) fragmentation = 1;
+      if (FLAG_manual_evacuation_candidates_selection) {
+        if (p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
+          p->ClearFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+          fragmentation = 1;
+        }
+      } else {
+        unsigned int counter = space->heap()->ms_count();
+        if ((counter & 1) == (page_number & 1)) fragmentation = 1;
+        page_number++;
+      }
     } else if (mode == REDUCE_MEMORY_FOOTPRINT && !FLAG_always_compact) {
       // Don't try to release too many pages.
       if (estimated_release >= over_reserved) {
