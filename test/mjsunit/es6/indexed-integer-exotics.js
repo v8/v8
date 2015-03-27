@@ -54,3 +54,10 @@ for (var i = 0; i < 3; i++) {
 }
 %OptimizeFunctionOnNextCall(f);
 assertEquals(undefined, f());
+
+Object.defineProperty(new Int32Array(), "-1", {'value': 1});
+Object.defineProperty(new Int32Array(), "-0", {'value': 1});
+Object.defineProperty(new Int32Array(), "-10", {'value': 1});
+Object.defineProperty(new Int32Array(), "4294967296", {'value': 1});
+
+check();

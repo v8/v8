@@ -4162,6 +4162,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return value;
+
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY:
       case LookupIterator::NOT_FOUND:
