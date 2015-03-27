@@ -32,6 +32,7 @@ class JSIntrinsicLowering FINAL : public Reducer {
   Reduction ReduceDoubleHi(Node* node);
   Reduction ReduceDoubleLo(Node* node);
   Reduction ReduceHeapObjectGetMap(Node* node);
+  Reduction ReduceIncrementStatsCounter(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsNonNegativeSmi(Node* node);
   Reduction ReduceIsSmi(Node* node);
@@ -47,6 +48,7 @@ class JSIntrinsicLowering FINAL : public Reducer {
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
+  Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

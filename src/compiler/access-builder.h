@@ -46,6 +46,9 @@ class AccessBuilder FINAL : public AllStatic {
   // Provides access Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
+  // Provides access to the backing store of a StatsCounter.
+  static FieldAccess ForStatsCounter();
+
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 

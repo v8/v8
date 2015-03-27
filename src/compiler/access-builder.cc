@@ -83,6 +83,12 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
 
 
 // static
+FieldAccess AccessBuilder::ForStatsCounter() {
+  return {kUntaggedBase, 0, MaybeHandle<Name>(), Type::Signed32(), kMachInt32};
+}
+
+
+// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
 }

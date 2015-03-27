@@ -7,6 +7,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
 namespace v8 {
@@ -33,6 +34,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleLo(node);
     case Runtime::kInlineHeapObjectGetMap:
       return ReduceHeapObjectGetMap(node);
+    case Runtime::kInlineIncrementStatsCounter:
+      return ReduceIncrementStatsCounter(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:
@@ -133,6 +136,30 @@ Reduction JSIntrinsicLowering::ReduceHeapObjectGetMap(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   return Change(node, simplified()->LoadField(AccessBuilder::ForMap()), value,
                 effect, control);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceIncrementStatsCounter(Node* node) {
+  if (!FLAG_native_code_counters) return ChangeToUndefined(node);
+  HeapObjectMatcher<String> m(NodeProperties::GetValueInput(node, 0));
+  if (!m.HasValue() || !m.Value().handle()->IsString()) {
+    return ChangeToUndefined(node);
+  }
+  SmartArrayPointer<char> name = m.Value().handle()->ToCString();
+  StatsCounter counter(jsgraph()->isolate(), name.get());
+  if (!counter.Enabled()) return ChangeToUndefined(node);
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  FieldAccess access = AccessBuilder::ForStatsCounter();
+  Node* cnt = jsgraph()->ExternalConstant(ExternalReference(&counter));
+  Node* load =
+      graph()->NewNode(simplified()->LoadField(access), cnt, effect, control);
+  Node* inc =
+      graph()->NewNode(machine()->Int32Add(), load, jsgraph()->OneConstant());
+  Node* store = graph()->NewNode(simplified()->StoreField(access), cnt, inc,
+                                 load, control);
+  return ChangeToUndefined(node, store);
 }
 
 
@@ -348,6 +375,13 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   node->ReplaceInput(2, c);
   node->TrimInputCount(3);
   NodeProperties::ReplaceWithValue(node, node, node);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
+  NodeProperties::ReplaceWithValue(node, jsgraph()->UndefinedConstant(),
+                                   effect);
   return Changed(node);
 }
 
