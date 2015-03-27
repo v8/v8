@@ -1168,7 +1168,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   if (aligned_push_count > 0) {
     // TODO(dcarney): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
-    Emit(kArm64Claim | MiscField::encode(aligned_push_count), g.NoOutput());
+    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(aligned_push_count));
   }
   // Move arguments to the stack.
   {
@@ -1176,15 +1176,16 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     // Emit the uneven pushes.
     if (pushed_count_uneven) {
       Node* input = buffer.pushed_nodes[slot];
-      Emit(kArm64Poke | MiscField::encode(slot), g.NoOutput(),
-           g.UseRegister(input));
+      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input),
+           g.TempImmediate(slot));
       slot--;
     }
     // Now all pushes can be done in pairs.
     for (; slot >= 0; slot -= 2) {
-      Emit(kArm64PokePair | MiscField::encode(slot), g.NoOutput(),
+      Emit(kArm64PokePair, g.NoOutput(),
            g.UseRegister(buffer.pushed_nodes[slot]),
-           g.UseRegister(buffer.pushed_nodes[slot - 1]));
+           g.UseRegister(buffer.pushed_nodes[slot - 1]),
+           g.TempImmediate(slot));
     }
   }
 

@@ -610,24 +610,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
     case kArm64Claim: {
-      int words = MiscField::decode(instr->opcode());
-      __ Claim(words);
+      __ Claim(i.InputInt32(0));
       break;
     }
     case kArm64Poke: {
-      int slot = MiscField::decode(instr->opcode());
-      Operand operand(slot * kPointerSize);
+      Operand operand(i.InputInt32(1) * kPointerSize);
       __ Poke(i.InputRegister(0), operand);
       break;
     }
-    case kArm64PokePairZero: {
-      // TODO(dcarney): test slot offset and register order.
-      int slot = MiscField::decode(instr->opcode()) - 1;
-      __ PokePair(i.InputRegister(0), xzr, slot * kPointerSize);
-      break;
-    }
     case kArm64PokePair: {
-      int slot = MiscField::decode(instr->opcode()) - 1;
+      int slot = i.InputInt32(2) - 1;
       __ PokePair(i.InputRegister(1), i.InputRegister(0), slot * kPointerSize);
       break;
     }

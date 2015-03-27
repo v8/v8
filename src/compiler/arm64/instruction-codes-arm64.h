@@ -77,7 +77,6 @@ namespace compiler {
   V(Arm64CompareAndBranch32)       \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
-  V(Arm64PokePairZero)             \
   V(Arm64PokePair)                 \
   V(Arm64Float64Cmp)               \
   V(Arm64Float64Add)               \
