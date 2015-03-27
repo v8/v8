@@ -85,6 +85,7 @@ namespace compiler {
   V(Arm64Float64Mul)               \
   V(Arm64Float64Div)               \
   V(Arm64Float64Mod)               \
+  V(Arm64Float64Neg)               \
   V(Arm64Float64Sqrt)              \
   V(Arm64Float64RoundDown)         \
   V(Arm64Float64RoundTiesAway)     \
