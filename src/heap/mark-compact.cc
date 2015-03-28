@@ -287,6 +287,60 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
 }
 
 
+void MarkCompactCollector::ClearInvalidSlotsBufferEntries(PagedSpace* space) {
+  PageIterator it(space);
+  while (it.has_next()) {
+    Page* p = it.next();
+    SlotsBuffer::RemoveInvalidSlots(heap_, p->slots_buffer());
+  }
+}
+
+
+void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
+  heap_->store_buffer()->ClearInvalidStoreBufferEntries();
+
+  ClearInvalidSlotsBufferEntries(heap_->old_pointer_space());
+  ClearInvalidSlotsBufferEntries(heap_->old_data_space());
+  ClearInvalidSlotsBufferEntries(heap_->code_space());
+  ClearInvalidSlotsBufferEntries(heap_->cell_space());
+  ClearInvalidSlotsBufferEntries(heap_->map_space());
+
+  LargeObjectIterator it(heap_->lo_space());
+  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
+    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    SlotsBuffer::RemoveInvalidSlots(heap_, chunk->slots_buffer());
+  }
+}
+
+
+#ifdef VERIFY_HEAP
+static void VerifyValidSlotsBufferEntries(Heap* heap, PagedSpace* space) {
+  PageIterator it(space);
+  while (it.has_next()) {
+    Page* p = it.next();
+    SlotsBuffer::VerifySlots(heap, p->slots_buffer());
+  }
+}
+
+
+static void VerifyValidStoreAndSlotsBufferEntries(Heap* heap) {
+  heap->store_buffer()->VerifyValidStoreBufferEntries();
+
+  VerifyValidSlotsBufferEntries(heap, heap->old_pointer_space());
+  VerifyValidSlotsBufferEntries(heap, heap->old_data_space());
+  VerifyValidSlotsBufferEntries(heap, heap->code_space());
+  VerifyValidSlotsBufferEntries(heap, heap->cell_space());
+  VerifyValidSlotsBufferEntries(heap, heap->map_space());
+
+  LargeObjectIterator it(heap->lo_space());
+  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
+    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    SlotsBuffer::VerifySlots(heap, chunk->slots_buffer());
+  }
+}
+#endif
+
+
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
@@ -312,11 +366,11 @@ void MarkCompactCollector::CollectGarbage() {
   }
 #endif
 
-  heap_->store_buffer()->ClearInvalidStoreBufferEntries();
+  ClearInvalidStoreAndSlotsBufferEntries();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    heap_->store_buffer()->VerifyValidStoreBufferEntries();
+    VerifyValidStoreAndSlotsBufferEntries(heap_);
   }
 #endif
 
@@ -3055,10 +3109,14 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 }
 
 
-bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot) {
+bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
+                                               HeapObject** out_object) {
   // This function does not support large objects right now.
   Space* owner = p->owner();
-  if (owner == heap_->lo_space() || owner == NULL) return true;
+  if (owner == heap_->lo_space() || owner == NULL) {
+    *out_object = NULL;
+    return true;
+  }
 
   uint32_t mark_bit_index = p->AddressToMarkbitIndex(slot);
   unsigned int start_index = mark_bit_index >> Bitmap::kBitsPerCellLog2;
@@ -3112,6 +3170,7 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot) {
       (object->address() + object->Size()) > slot) {
     // If the slot is within the last found object in the cell, the slot is
     // in a live object.
+    *out_object = object;
     return true;
   }
   return false;
@@ -3153,28 +3212,38 @@ bool MarkCompactCollector::IsSlotInBlackObjectSlow(Page* p, Address slot) {
 }
 
 
-bool MarkCompactCollector::IsSlotInLiveObject(HeapObject** address,
-                                              HeapObject* object) {
-  // If the target object is not black, the source slot must be part
-  // of a non-black (dead) object.
-  if (!Marking::IsBlack(Marking::MarkBitFrom(object))) {
-    return false;
-  }
-
+bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
+  HeapObject* object = NULL;
   // The target object is black but we don't know if the source slot is black.
   // The source object could have died and the slot could be part of a free
   // space. Find out based on mark bits if the slot is part of a live object.
-  if (!IsSlotInBlackObject(
-          Page::FromAddress(reinterpret_cast<Address>(address)),
-          reinterpret_cast<Address>(address))) {
+  if (!IsSlotInBlackObject(Page::FromAddress(slot), slot, &object)) {
     return false;
   }
+
+#if V8_DOUBLE_FIELDS_UNBOXING
+  // |object| is NULL only when the slot belongs to large object space.
+  DCHECK(object != NULL ||
+         Page::FromAnyPointerAddress(heap_, slot)->owner() ==
+             heap_->lo_space());
+  // We don't need to check large objects' layout descriptor since it can't
+  // contain in-object fields anyway.
+  if (object != NULL) {
+    // Filter out slots that happens to point to unboxed double fields.
+    LayoutDescriptorHelper helper(object->map());
+    bool has_only_tagged_fields = helper.all_fields_tagged();
+    if (!has_only_tagged_fields &&
+        !helper.IsTagged(static_cast<int>(slot - object->address()))) {
+      return false;
+    }
+  }
+#endif
 
   return true;
 }
 
 
-void MarkCompactCollector::VerifyIsSlotInLiveObject(HeapObject** address,
+void MarkCompactCollector::VerifyIsSlotInLiveObject(Address slot,
                                                     HeapObject* object) {
   // The target object has to be black.
   CHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
@@ -3182,9 +3251,7 @@ void MarkCompactCollector::VerifyIsSlotInLiveObject(HeapObject** address,
   // The target object is black but we don't know if the source slot is black.
   // The source object could have died and the slot could be part of a free
   // space. Use the mark bit iterator to find out about liveness of the slot.
-  CHECK(IsSlotInBlackObjectSlow(
-      Page::FromAddress(reinterpret_cast<Address>(address)),
-      reinterpret_cast<Address>(address)));
+  CHECK(IsSlotInBlackObjectSlow(Page::FromAddress(slot), slot));
 }
 
 
@@ -4500,6 +4567,63 @@ bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
   buffer->Add(reinterpret_cast<ObjectSlot>(type));
   buffer->Add(reinterpret_cast<ObjectSlot>(addr));
   return true;
+}
+
+
+void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
+  // Remove entries by replacing them with an old-space slot containing a smi
+  // that is located in an unmovable page.
+  const ObjectSlot kRemovedEntry = HeapObject::RawField(
+      heap->empty_fixed_array(), FixedArrayBase::kLengthOffset);
+  DCHECK(Page::FromAddress(reinterpret_cast<Address>(kRemovedEntry))
+             ->NeverEvacuate());
+
+  while (buffer != NULL) {
+    SlotsBuffer::ObjectSlot* slots = buffer->slots_;
+    intptr_t slots_count = buffer->idx_;
+
+    for (int slot_idx = 0; slot_idx < slots_count; ++slot_idx) {
+      ObjectSlot slot = slots[slot_idx];
+      if (!IsTypedSlot(slot)) {
+        Object* object = *slot;
+        if (object->IsHeapObject()) {
+          if (heap->InNewSpace(object) ||
+              !heap->mark_compact_collector()->IsSlotInLiveObject(
+                  reinterpret_cast<Address>(slot))) {
+            slots[slot_idx] = kRemovedEntry;
+          }
+        }
+      } else {
+        ++slot_idx;
+        DCHECK(slot_idx < slots_count);
+      }
+    }
+    buffer = buffer->next();
+  }
+}
+
+
+void SlotsBuffer::VerifySlots(Heap* heap, SlotsBuffer* buffer) {
+  while (buffer != NULL) {
+    SlotsBuffer::ObjectSlot* slots = buffer->slots_;
+    intptr_t slots_count = buffer->idx_;
+
+    for (int slot_idx = 0; slot_idx < slots_count; ++slot_idx) {
+      ObjectSlot slot = slots[slot_idx];
+      if (!IsTypedSlot(slot)) {
+        Object* object = *slot;
+        if (object->IsHeapObject()) {
+          CHECK(!heap->InNewSpace(object));
+          CHECK(heap->mark_compact_collector()->IsSlotInLiveObject(
+              reinterpret_cast<Address>(slot)));
+        }
+      } else {
+        ++slot_idx;
+        DCHECK(slot_idx < slots_count);
+      }
+    }
+    buffer = buffer->next();
+  }
 }
 
 
