@@ -38,42 +38,12 @@
     {
       'target_name': 'v8',
       'dependencies_traverse': 1,
+      'dependencies': ['v8_maybe_snapshot'],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
-        }],
-
-        ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
-          # The dependency on v8_base should come from a transitive
-          # dependency however the Android toolchain requires libv8_base.a
-          # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base', 'v8_snapshot'],
-        }],
-        ['v8_use_snapshot!="true" and v8_use_external_startup_data==0', {
-          # The dependency on v8_base should come from a transitive
-          # dependency however the Android toolchain requires libv8_base.a
-          # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base', 'v8_nosnapshot'],
-        }],
-        ['v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
-          'target_conditions': [
-            ['_toolset=="host"', {
-              'inputs': [
-                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
-              ],
-            }, {
-              'inputs': [
-                '<(PRODUCT_DIR)/snapshot_blob.bin',
-              ],
-            }],
-          ],
-        }],
-        ['v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
-          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
         }],
         ['component=="shared_library"', {
           'type': '<(component)',
@@ -125,6 +95,50 @@
           '../../include',
         ],
       },
+    },
+    {
+      # This rule delegates to either v8_snapshot, v8_nosnapshot, or
+      # v8_external_snapshot, depending on the current variables.
+      # The intention is to make the 'calling' rules a bit simpler.
+      'target_name': 'v8_maybe_snapshot',
+      'type': 'none',
+      'conditions': [
+        ['v8_use_snapshot!="true"', {
+          # The dependency on v8_base should come from a transitive
+          # dependency however the Android toolchain requires libv8_base.a
+          # to appear before libv8_snapshot.a so it's listed explicitly.
+          'dependencies': ['v8_base', 'v8_nosnapshot'],
+        }],
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
+          # The dependency on v8_base should come from a transitive
+          # dependency however the Android toolchain requires libv8_base.a
+          # to appear before libv8_snapshot.a so it's listed explicitly.
+          'dependencies': ['v8_base', 'v8_snapshot'],
+        }],
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
+          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
+        }],
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
+          'target_conditions': [
+            ['_toolset=="host"', {
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+              ],
+            }, {
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob.bin',
+              ],
+            }],
+          ],
+        }],
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ]
     },
     {
       'target_name': 'v8_snapshot',

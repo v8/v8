@@ -278,17 +278,7 @@
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to
           # depend on the underlying static target in that case.
-          'conditions': [
-            ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
-              'dependencies': ['../../tools/gyp/v8.gyp:v8_snapshot'],
-            }],
-            ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
-              'dependencies': ['../../tools/gyp/v8.gyp:v8_external_snapshot'],
-            }],
-            ['v8_use_snapshot!="true"', {
-              'dependencies': ['../../tools/gyp/v8.gyp:v8_nosnapshot'],
-            }],
-          ],
+          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
         }, {
           'dependencies': ['../../tools/gyp/v8.gyp:v8'],
         }],
