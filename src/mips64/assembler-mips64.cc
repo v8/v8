@@ -2139,13 +2139,8 @@ void Assembler::seleqz(Register rs, Register rt, Register rd) {
 // FPR.
 void Assembler::seleqz(SecondaryField fmt, FPURegister fd,
     FPURegister ft, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r6);
-  DCHECK(fmt == D);
-  DCHECK(fmt == S);
-
-  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
-      fs.code() << kFsShift | fd.code() << kFdShift | SELEQZ_C;
-  emit(instr);
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, SELEQZ_C);
 }
 
 
@@ -2160,12 +2155,8 @@ void Assembler::selnez(Register rs, Register rt, Register rd) {
 void Assembler::selnez(SecondaryField fmt, FPURegister fd,
     FPURegister ft, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r6);
-  DCHECK(fmt == D);
-  DCHECK(fmt == S);
-
-  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
-      fs.code() << kFsShift | fd.code() << kFdShift | SELNEZ_C;
-  emit(instr);
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, SELNEZ_C);
 }
 
 

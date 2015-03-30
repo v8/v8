@@ -1920,6 +1920,34 @@ void Assembler::movf(Register rd, Register rs, uint16_t cc) {
 }
 
 
+void Assembler::seleqz(Register rs, Register rt, Register rd) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELEQZ_S);
+}
+
+
+void Assembler::seleqz(SecondaryField fmt, FPURegister fd, FPURegister ft,
+                       FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, SELEQZ_C);
+}
+
+
+void Assembler::selnez(Register rs, Register rt, Register rd) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELNEZ_S);
+}
+
+
+void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister ft,
+                       FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, SELNEZ_C);
+}
+
+
 // Bit twiddling.
 void Assembler::clz(Register rd, Register rs) {
   if (!IsMipsArchVariant(kMips32r6)) {

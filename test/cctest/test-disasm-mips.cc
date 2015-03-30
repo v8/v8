@@ -90,6 +90,20 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 if (failure) { \
     V8_Fatal(__FILE__, __LINE__, "MIPS Disassembler tests failed.\n"); \
   }
+//  tests only seleqz, selnez, seleqz.fmt and selnez.fmt
+TEST(Type1) {
+  SET_UP();
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(seleqz(a0, a1, a2), "00853035       seleqz    a0, a1, a2");
+    COMPARE(selnez(a0, a1, a2), "00853037       selnez    a0, a1, a2");
+
+    COMPARE(seleqz(S, f0, f1, f2), "45000894       seleqz.S    f0, f1, f2");
+    COMPARE(selnez(S, f0, f1, f2), "45000897       selnez.S    f0, f1, f2");
+    COMPARE(seleqz(D, f3, f4, f5), "00853035       seleqz.D    f3, f4, f5");
+    COMPARE(selnez(D, f3, f4, f5), "00853037       selnez.D    f3, f4, f5");
+  }
+  VERIFY_RUN();
+}
 
 
 TEST(Type0) {

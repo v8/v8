@@ -92,6 +92,25 @@ if (failure) { \
   }
 
 
+TEST(Type1) {
+  if (kArchVariant == kMips64r6) {
+    SET_UP();
+    COMPARE(seleqz(a0, a1, a2), "00853035       seleqz    a0, a1, a2");
+    COMPARE(selnez(a0, a1, a2), "00853037       selnez    a0, a1, a2");
+
+
+    COMPARE(seleqz(D, f3, f4, f5), "462428d4       seleqz.D    f4, f5, f3");
+    COMPARE(selnez(D, f3, f4, f5), "462428d7       selnez.D    f4, f5, f3");
+
+    /*COMPARE(min(D, f3, f4, f5),
+          "462428dc       min.D    f4, f5, f3");
+    COMPARE(max(D, f3, f4, f5),
+          "462428de       max.D    f4, f5, f3");*/
+    VERIFY_RUN();
+  }
+}
+
+
 TEST(Type0) {
   SET_UP();
 

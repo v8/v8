@@ -265,6 +265,47 @@ class Simulator {
   // Executing is handled based on the instruction type.
   void DecodeTypeRegister(Instruction* instr);
 
+  // Called from DecodeTypeRegisterCOP1
+  void DecodeTypeRegisterDRsType(Instruction* instr, const int32_t& fr_reg,
+                                 const int32_t& fs_reg, const int32_t& ft_reg,
+                                 const int32_t& fd_reg);
+  void DecodeTypeRegisterWRsType(Instruction* instr, int32_t& alu_out,
+                                 const int32_t& fd_reg, const int32_t& fs_reg);
+  void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t& ft_reg,
+                                 const int32_t& fs_reg, const int32_t& fd_reg);
+  void DecodeTypeRegisterLRsType(Instruction* instr, const int32_t& ft_reg,
+                                 const int32_t& fs_reg, const int32_t& fd_reg);
+
+  // Functions called from DeocodeTypeRegister
+  void DecodeTypeRegisterCOP1(
+      Instruction* instr, const int32_t& rs_reg, const int32_t& rs,
+      const uint32_t& rs_u, const int32_t& rt_reg, const int32_t& rt,
+      const uint32_t& rt_u, const int32_t& rd_reg, const int32_t& fr_reg,
+      const int32_t& fs_reg, const int32_t& ft_reg, const int32_t& fd_reg,
+      int64_t& i64hilo, uint64_t& u64hilo, int32_t& alu_out, bool& do_interrupt,
+      int32_t& current_pc, int32_t& next_pc, int32_t& return_addr_reg);
+
+
+  void DecodeTypeRegisterCOP1X(Instruction* instr, const int32_t& fr_reg,
+                               const int32_t& fs_reg, const int32_t& ft_reg,
+                               const int32_t& fd_reg);
+
+
+  void DecodeTypeRegisterSPECIAL(
+      Instruction* instr, const int32_t& rs_reg, const int32_t& rs,
+      const uint32_t& rs_u, const int32_t& rt_reg, const int32_t& rt,
+      const uint32_t& rt_u, const int32_t& rd_reg, const int32_t& fr_reg,
+      const int32_t& fs_reg, const int32_t& ft_reg, const int32_t& fd_reg,
+      int64_t& i64hilo, uint64_t& u64hilo, int32_t& alu_out, bool& do_interrupt,
+      int32_t& current_pc, int32_t& next_pc, int32_t& return_addr_reg);
+
+
+  void DecodeTypeRegisterSPECIAL2(Instruction* instr, const int32_t& rd_reg,
+                                  int32_t& alu_out);
+
+  void DecodeTypeRegisterSPECIAL3(Instruction* instr, const int32_t& rt_reg,
+                                  int32_t& alu_out);
+
   // Helper function for DecodeTypeRegister.
   void ConfigureTypeRegister(Instruction* instr,
                              int32_t* alu_out,

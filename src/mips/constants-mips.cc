@@ -252,6 +252,8 @@ Instruction::Type Instruction::InstructionType() const {
         case MOVZ:
         case MOVN:
         case MOVCI:
+        case SELEQZ_S:
+        case SELNEZ_S:
           return kRegisterType;
         default:
           return kUnsupported;
@@ -280,6 +282,8 @@ Instruction::Type Instruction::InstructionType() const {
         case BC1:   // Branch on coprocessor condition.
         case BC1EQZ:
         case BC1NEZ:
+        case SELEQZ_C:
+        case SELNEZ_C:
           return kImmediateType;
         default:
           return kRegisterType;
