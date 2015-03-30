@@ -6066,7 +6066,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::IsIntegerIndexedExotic() {
   InstanceType instance_type = map_->instance_type();
-  return instance_type == JS_TYPED_ARRAY_TYPE && IsNonArrayIndexInteger(*name_);
+  return instance_type == JS_TYPED_ARRAY_TYPE &&
+         IsSpecialIndex(isolate()->unicode_cache(), *name_);
 }
 
 

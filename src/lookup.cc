@@ -364,7 +364,7 @@ bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
   if (name()->IsString()) {
     Handle<String> name_string = Handle<String>::cast(name());
     if (name_string->length() != 0) {
-      result = IsNonArrayIndexInteger(*name_string);
+      result = IsSpecialIndex(isolate_->unicode_cache(), *name_string);
     }
   }
   exotic_index_state_ =
