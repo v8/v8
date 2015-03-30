@@ -111,10 +111,6 @@ class GCIdleTimeHandler {
   // EstimateFinalIncrementalMarkCompactTime.
   static const size_t kMaxFinalIncrementalMarkCompactTimeInMs;
 
-  // Minimum time to finalize sweeping phase. The main thread may wait for
-  // sweeper threads.
-  static const size_t kMinTimeForFinalizeSweeping;
-
   // Number of idle mark-compact events, after which idle handler will finish
   // idle round.
   static const int kMaxMarkCompactsInIdleRound;
@@ -148,6 +144,7 @@ class GCIdleTimeHandler {
     bool incremental_marking_stopped;
     bool can_start_incremental_marking;
     bool sweeping_in_progress;
+    bool sweeping_completed;
     size_t mark_compact_speed_in_bytes_per_ms;
     size_t incremental_marking_speed_in_bytes_per_ms;
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms;

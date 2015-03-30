@@ -12,7 +12,6 @@ namespace internal {
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
 const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMaxFinalIncrementalMarkCompactTimeInMs = 1000;
-const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
 const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 2;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
@@ -241,9 +240,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     }
   }
 
-  // TODO(hpayer): Estimate finalize sweeping time.
-  if (heap_state.sweeping_in_progress &&
-      static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {
+  if (heap_state.sweeping_in_progress && heap_state.sweeping_completed) {
     return GCIdleTimeAction::FinalizeSweeping();
   }
 

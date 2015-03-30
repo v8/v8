@@ -27,6 +27,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     result.incremental_marking_stopped = false;
     result.can_start_incremental_marking = true;
     result.sweeping_in_progress = false;
+    result.sweeping_completed = false;
     result.mark_compact_speed_in_bytes_per_ms = kMarkCompactSpeed;
     result.incremental_marking_speed_in_bytes_per_ms = kMarkingSpeed;
     result.scavenge_speed_in_bytes_per_ms = kScavengeSpeed;
@@ -298,6 +299,30 @@ TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
   double idle_time_ms =
       static_cast<double>(heap_state.size_of_objects / speed - 1);
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, FinalizeSweeping) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  heap_state.sweeping_in_progress = true;
+  heap_state.sweeping_completed = true;
+  double idle_time_ms = 10.0;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_FINALIZE_SWEEPING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, CannotFinalizeSweeping) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  heap_state.sweeping_in_progress = true;
+  heap_state.sweeping_completed = false;
+  double idle_time_ms = 10.0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
 }
