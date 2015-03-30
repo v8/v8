@@ -44,10 +44,13 @@ function OverrideFunction(object, name, f) {
 
 
 // Helper function to install a getter-only accessor property.
-function InstallGetter(object, name, getter) {
+function InstallGetter(object, name, getter, attributes) {
+  if (typeof attributes == "undefined") {
+    attributes = DONT_ENUM;
+  }
   %FunctionSetName(getter, name);
   %FunctionRemovePrototype(getter);
-  %DefineAccessorPropertyUnchecked(object, name, getter, null, DONT_ENUM);
+  %DefineAccessorPropertyUnchecked(object, name, getter, null, attributes);
   %SetNativeFlag(getter);
 }
 

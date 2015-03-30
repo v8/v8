@@ -314,9 +314,12 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
   InstallGetter(global.NAME.prototype, "buffer", NAME_GetBuffer);
-  InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset);
-  InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength);
-  InstallGetter(global.NAME.prototype, "length", NAME_GetLength);
+  InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset,
+      DONT_ENUM | DONT_DELETE);
+  InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength,
+      DONT_ENUM | DONT_DELETE);
+  InstallGetter(global.NAME.prototype, "length", NAME_GetLength,
+      DONT_ENUM | DONT_DELETE);
   InstallGetter(global.NAME.prototype, symbolToStringTag,
                 TypedArrayGetToStringTag);
   InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(
