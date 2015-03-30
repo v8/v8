@@ -34,6 +34,13 @@ namespace compiler {
   V(MipsMov)                       \
   V(MipsTst)                       \
   V(MipsCmp)                       \
+  V(MipsCmpS)                      \
+  V(MipsAddS)                      \
+  V(MipsSubS)                      \
+  V(MipsMulS)                      \
+  V(MipsDivS)                      \
+  V(MipsModS)                      \
+  V(MipsSqrtS)                     \
   V(MipsCmpD)                      \
   V(MipsAddD)                      \
   V(MipsSubD)                      \

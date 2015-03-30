@@ -1430,18 +1430,18 @@ void MacroAssembler::Mfhc1(Register rt, FPURegister fs) {
 }
 
 
-void MacroAssembler::BranchF(Label* target,
-                             Label* nan,
-                             Condition cc,
-                             FPURegister cmp1,
-                             FPURegister cmp2,
-                             BranchDelaySlot bd) {
+void MacroAssembler::BranchFSize(SecondaryField sizeField, Label* target,
+                                 Label* nan, Condition cc, FPURegister cmp1,
+                                 FPURegister cmp2, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cc == al) {
     Branch(bd, target);
     return;
   }
 
+  if (IsMipsArchVariant(kMips32r6)) {
+    sizeField = sizeField == D ? L : W;
+  }
   DCHECK(nan || target);
   // Check for unordered (NaN) cases.
   if (nan) {
@@ -1463,35 +1463,35 @@ void MacroAssembler::BranchF(Label* target,
       // have been handled by the caller.
       switch (cc) {
         case lt:
-          c(OLT, D, cmp1, cmp2);
+          c(OLT, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case gt:
-          c(ULE, D, cmp1, cmp2);
+          c(ULE, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         case ge:
-          c(ULT, D, cmp1, cmp2);
+          c(ULT, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         case le:
-          c(OLE, D, cmp1, cmp2);
+          c(OLE, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case eq:
-          c(EQ, D, cmp1, cmp2);
+          c(EQ, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case ueq:
-          c(UEQ, D, cmp1, cmp2);
+          c(UEQ, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case ne:
-          c(EQ, D, cmp1, cmp2);
+          c(EQ, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         case nue:
-          c(UEQ, D, cmp1, cmp2);
+          c(UEQ, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         default:
@@ -1508,35 +1508,35 @@ void MacroAssembler::BranchF(Label* target,
       DCHECK(!cmp1.is(kDoubleCompareReg) && !cmp2.is(kDoubleCompareReg));
       switch (cc) {
         case lt:
-          cmp(OLT, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(target, kDoubleCompareReg);
           break;
         case gt:
-          cmp(ULE, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
         case ge:
-          cmp(ULT, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
         case le:
-          cmp(OLE, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(target, kDoubleCompareReg);
           break;
         case eq:
-          cmp(EQ, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(target, kDoubleCompareReg);
           break;
         case ueq:
-          cmp(UEQ, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(target, kDoubleCompareReg);
           break;
         case ne:
-          cmp(EQ, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
         case nue:
-          cmp(UEQ, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
         default:
@@ -1548,6 +1548,20 @@ void MacroAssembler::BranchF(Label* target,
   if (bd == PROTECT) {
     nop();
   }
+}
+
+
+void MacroAssembler::BranchF(Label* target, Label* nan, Condition cc,
+                             FPURegister cmp1, FPURegister cmp2,
+                             BranchDelaySlot bd) {
+  BranchFSize(D, target, nan, cc, cmp1, cmp2, bd);
+}
+
+
+void MacroAssembler::BranchFS(Label* target, Label* nan, Condition cc,
+                              FPURegister cmp1, FPURegister cmp2,
+                              BranchDelaySlot bd) {
+  BranchFSize(S, target, nan, cc, cmp1, cmp2, bd);
 }
 
 

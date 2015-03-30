@@ -771,13 +771,20 @@ class MacroAssembler: public Assembler {
   // general-purpose register.
   void Mfhc1(Register rt, FPURegister fs);
 
-  // Wrapper function for the different cmp/branch types.
+  // Wrapper functions for the different cmp/branch types.
+  void BranchFSize(SecondaryField sizeField, Label* target, Label* nan,
+                   Condition cc, FPURegister cmp1, FPURegister cmp2,
+                   BranchDelaySlot bd = PROTECT);
+
   void BranchF(Label* target,
                Label* nan,
                Condition cc,
                FPURegister cmp1,
                FPURegister cmp2,
                BranchDelaySlot bd = PROTECT);
+
+  void BranchFS(Label* target, Label* nan, Condition cc, FPURegister cmp1,
+                FPURegister cmp2, BranchDelaySlot bd = PROTECT);
 
   // Alternate (inline) version for better readability with USE_DELAY_SLOT.
   inline void BranchF(BranchDelaySlot bd,
@@ -787,6 +794,11 @@ class MacroAssembler: public Assembler {
                       FPURegister cmp1,
                       FPURegister cmp2) {
     BranchF(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  inline void BranchFS(BranchDelaySlot bd, Label* target, Label* nan,
+                       Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchFS(target, nan, cc, cmp1, cmp2, bd);
   }
 
   // Truncates a double using a specific rounding mode, and writes the value
