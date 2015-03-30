@@ -1261,12 +1261,42 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
         ori(rd, rd, (j.imm64_ & kImm16Mask));
       }
     } else {
-      lui(rd, (j.imm64_ >> 48) & kImm16Mask);
-      ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
-      dsll(rd, rd, 16);
-      ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-      dsll(rd, rd, 16);
-      ori(rd, rd, j.imm64_ & kImm16Mask);
+      if (is_int48(j.imm64_)) {
+        if ((j.imm64_ >> 32) & kImm16Mask) {
+          lui(rd, (j.imm64_ >> 32) & kImm16Mask);
+          if ((j.imm64_ >> 16) & kImm16Mask) {
+            ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+          }
+        } else {
+          ori(rd, zero_reg, (j.imm64_ >> 16) & kImm16Mask);
+        }
+        dsll(rd, rd, 16);
+        if (j.imm64_ & kImm16Mask) {
+          ori(rd, rd, j.imm64_ & kImm16Mask);
+        }
+      } else {
+        lui(rd, (j.imm64_ >> 48) & kImm16Mask);
+        if ((j.imm64_ >> 32) & kImm16Mask) {
+          ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
+        }
+        if ((j.imm64_ >> 16) & kImm16Mask) {
+          dsll(rd, rd, 16);
+          ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+          if (j.imm64_ & kImm16Mask) {
+            dsll(rd, rd, 16);
+            ori(rd, rd, j.imm64_ & kImm16Mask);
+          } else {
+            dsll(rd, rd, 16);
+          }
+        } else {
+          if (j.imm64_ & kImm16Mask) {
+            dsll32(rd, rd, 0);
+            ori(rd, rd, j.imm64_ & kImm16Mask);
+          } else {
+            dsll32(rd, rd, 0);
+          }
+        }
+      }
     }
   } else if (MustUseReg(j.rmode_)) {
     RecordRelocInfo(j.rmode_, j.imm64_);
@@ -1748,16 +1778,34 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
     // Move the low part of the double into the lower bits of the corresponding
     // FPU register.
     if (lo != 0) {
-      li(at, Operand(lo));
-      mtc1(at, dst);
+      if (!(lo & kImm16Mask)) {
+        lui(at, (lo >> kLuiShift) & kImm16Mask);
+        mtc1(at, dst);
+      } else if (!(lo & kHiMask)) {
+        ori(at, zero_reg, lo & kImm16Mask);
+        mtc1(at, dst);
+      } else {
+        lui(at, (lo >> kLuiShift) & kImm16Mask);
+        ori(at, at, lo & kImm16Mask);
+        mtc1(at, dst);
+      }
     } else {
       mtc1(zero_reg, dst);
     }
     // Move the high part of the double into the high bits of the corresponding
     // FPU register.
     if (hi != 0) {
-      li(at, Operand(hi));
-      mthc1(at, dst);
+      if (!(hi & kImm16Mask)) {
+        lui(at, (hi >> kLuiShift) & kImm16Mask);
+        mthc1(at, dst);
+      } else if (!(hi & kHiMask)) {
+        ori(at, zero_reg, hi & kImm16Mask);
+        mthc1(at, dst);
+      } else {
+        lui(at, (hi >> kLuiShift) & kImm16Mask);
+        ori(at, at, hi & kImm16Mask);
+        mthc1(at, dst);
+      }
     } else {
       mthc1(zero_reg, dst);
     }
