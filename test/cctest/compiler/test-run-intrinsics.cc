@@ -63,7 +63,7 @@ TEST(IncrementStatsCounter) {
   reinterpret_cast<v8::Isolate*>(CcTest::InitIsolateOnce())
       ->SetCounterFunction(LookupCounter);
   FunctionTester T(
-      "(function() { %_IncrementStatsCounter(\"" COUNTER_NAME "\"); })", flags);
+      "(function() { %_IncrementStatsCounter('" COUNTER_NAME "'); })", flags);
   StatsCounter counter(T.main_isolate(), COUNTER_NAME);
   if (!counter.Enabled()) return;
 
@@ -232,6 +232,18 @@ TEST(OneByteSeqStringSetChar) {
   CHECK_EQ('b', string->SeqOneByteStringGet(0));
   CHECK_EQ('X', string->SeqOneByteStringGet(1));
   CHECK_EQ('r', string->SeqOneByteStringGet(2));
+}
+
+
+TEST(NewConsString) {
+  FLAG_turbo_deoptimization = true;
+  FunctionTester T(
+      "(function() { "
+      "   return %_NewConsString(14, true, 'abcdefghi', 'jklmn');"
+      " })",
+      flags);
+
+  T.CheckCall(T.Val("abcdefghijklmn"));
 }
 
 

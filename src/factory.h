@@ -196,6 +196,14 @@ class Factory FINAL {
   // Create a new cons string object which consists of a pair of strings.
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewOneByteConsString(
+      int length, Handle<String> left, Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewTwoByteConsString(
+      int length, Handle<String> left, Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewRawConsString(Handle<Map> map,
+                                                       int length,
+                                                       Handle<String> left,
+                                                       Handle<String> right);
 
   // Create a new string object which holds a proper substring of a string.
   Handle<String> NewProperSubString(Handle<String> str,

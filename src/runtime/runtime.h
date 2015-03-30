@@ -172,6 +172,7 @@ namespace internal {
   F(StringToArray, 2, 1)                       \
   F(NewStringWrapper, 1, 1)                    \
   F(NewString, 2, 1)                           \
+  F(NewConsString, 4, 1)                       \
   F(TruncateString, 2, 1)                      \
                                                \
   /* Numbers */                                \

@@ -1221,6 +1221,28 @@ RUNTIME_FUNCTION(Runtime_NewString) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_NewConsString) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_INT32_ARG_CHECKED(length, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, left, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, right, 3);
+
+  Handle<String> result;
+  if (is_one_byte) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        isolate->factory()->NewOneByteConsString(length, left, right));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        isolate->factory()->NewTwoByteConsString(length, left, right));
+  }
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_StringEquals) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);
