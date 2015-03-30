@@ -1418,6 +1418,7 @@ class HGraphBuilder {
 
   HInstruction* AddLoadStringInstanceType(HValue* string);
   HInstruction* AddLoadStringLength(HValue* string);
+  HInstruction* BuildLoadStringLength(HValue* string);
   HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map> map) {
     return Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
                                  Add<HConstant>(map));
