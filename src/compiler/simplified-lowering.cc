@@ -319,15 +319,18 @@ class RepresentationSelector {
   MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
     // Phis adapt to the output representation their uses demand.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    if ((use & kRepMask) == kRepTagged) {
+    if ((use & kRepMask) == kRepFloat32) {
+      // only float32 uses.
+      return kRepFloat32;
+    } else if ((use & kRepMask) == kRepFloat64) {
+      // only float64 uses.
+      return kRepFloat64;
+    } else if ((use & kRepMask) == kRepTagged) {
       // only tagged uses.
       return kRepTagged;
     } else if (upper->Is(Type::Integral32())) {
       // Integer within [-2^31, 2^32[ range.
-      if ((use & kRepMask) == kRepFloat64) {
-        // only float64 uses.
-        return kRepFloat64;
-      } else if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+      if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
         // multiple uses, but we are within 32 bits range => pick kRepWord32.
         return kRepWord32;
       } else if (((use & kRepMask) == kRepWord32 &&
@@ -507,6 +510,8 @@ class RepresentationSelector {
         return VisitLeaf(node, kRepWord32);
       case IrOpcode::kInt64Constant:
         return VisitLeaf(node, kRepWord64);
+      case IrOpcode::kFloat32Constant:
+        return VisitLeaf(node, kRepFloat32);
       case IrOpcode::kFloat64Constant:
         return VisitLeaf(node, kRepFloat64);
       case IrOpcode::kExternalConstant:

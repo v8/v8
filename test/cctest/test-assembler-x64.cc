@@ -1188,6 +1188,229 @@ TEST(AssemblerX64FMA_ss) {
 }
 
 
+TEST(AssemblerX64SSE_ss) {
+  CcTest::InitializeVM();
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  Assembler assm(isolate, buffer, sizeof(buffer));
+  {
+    Label exit;
+    // arguments in xmm0, xmm1 and xmm2
+    __ movl(rax, Immediate(0));
+
+    __ movaps(xmm3, xmm0);
+    __ maxss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(1));
+
+    __ movaps(xmm3, xmm1);
+    __ minss(xmm3, xmm2);
+    __ ucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(2));
+
+    __ movaps(xmm3, xmm2);
+    __ subss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm0);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(3));
+
+    __ movaps(xmm3, xmm0);
+    __ addss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(4));
+
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(5));
+
+    __ movaps(xmm3, xmm0);
+    __ divss(xmm3, xmm1);
+    __ mulss(xmm3, xmm2);
+    __ mulss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(6));
+
+    // result in eax
+    __ bind(&exit);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(code->entry());
+  int res = f(1.0f, 2.0f, 3.0f);
+  PrintF("f(1,2,3) = %d\n", res);
+  CHECK_EQ(6, res);
+}
+
+
+TEST(AssemblerX64AVX_ss) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(AVX)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  Assembler assm(isolate, buffer, sizeof(buffer));
+  {
+    CpuFeatureScope avx_scope(&assm, AVX);
+    Label exit;
+    // arguments in xmm0, xmm1 and xmm2
+    __ movl(rax, Immediate(0));
+
+    __ vmaxss(xmm3, xmm0, xmm1);
+    __ vucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(1));
+
+    __ vminss(xmm3, xmm1, xmm2);
+    __ vucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(2));
+
+    __ vsubss(xmm3, xmm2, xmm1);
+    __ vucomiss(xmm3, xmm0);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(3));
+
+    __ vaddss(xmm3, xmm0, xmm1);
+    __ vucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(4));
+
+    __ vmulss(xmm3, xmm0, xmm1);
+    __ vucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(5));
+
+    __ vdivss(xmm3, xmm0, xmm1);
+    __ vmulss(xmm3, xmm3, xmm2);
+    __ vmulss(xmm3, xmm3, xmm1);
+    __ vucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(6));
+
+    // result in eax
+    __ bind(&exit);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(code->entry());
+  int res = f(1.0f, 2.0f, 3.0f);
+  PrintF("f(1,2,3) = %d\n", res);
+  CHECK_EQ(6, res);
+}
+
+
+TEST(AssemblerX64AVX_sd) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(AVX)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  Assembler assm(isolate, buffer, sizeof(buffer));
+  {
+    CpuFeatureScope avx_scope(&assm, AVX);
+    Label exit;
+    // arguments in xmm0, xmm1 and xmm2
+    __ movl(rax, Immediate(0));
+
+    __ vmaxsd(xmm3, xmm0, xmm1);
+    __ vucomisd(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(1));
+
+    __ vminsd(xmm3, xmm1, xmm2);
+    __ vucomisd(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(2));
+
+    __ vsubsd(xmm3, xmm2, xmm1);
+    __ vucomisd(xmm3, xmm0);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(3));
+
+    __ vaddsd(xmm3, xmm0, xmm1);
+    __ vucomisd(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(4));
+
+    __ vmulsd(xmm3, xmm0, xmm1);
+    __ vucomisd(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(5));
+
+    __ vdivsd(xmm3, xmm0, xmm1);
+    __ vmulsd(xmm3, xmm3, xmm2);
+    __ vmulsd(xmm3, xmm3, xmm1);
+    __ vucomisd(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(6));
+
+    // result in eax
+    __ bind(&exit);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F7 f = FUNCTION_CAST<F7>(code->entry());
+  int res = f(1.0, 2.0, 3.0);
+  PrintF("f(1,2,3) = %d\n", res);
+  CHECK_EQ(6, res);
+}
+
+
 TEST(AssemblerX64JumpTables1) {
   // Test jump tables with forward jumps.
   CcTest::InitializeVM();

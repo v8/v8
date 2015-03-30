@@ -644,6 +644,43 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Tst32:
       __ Tst(i.InputRegister32(0), i.InputOperand32(1));
       break;
+    case kArm64Float32Cmp:
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ Fcmp(i.InputFloat32Register(0), i.InputFloat32Register(1));
+      } else {
+        DCHECK(instr->InputAt(1)->IsImmediate());
+        // 0.0 is the only immediate supported by fcmp instructions.
+        DCHECK(i.InputDouble(1) == 0.0);
+        __ Fcmp(i.InputFloat32Register(0), i.InputDouble(1));
+      }
+      break;
+    case kArm64Float32Add:
+      __ Fadd(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Sub:
+      __ Fsub(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Mul:
+      __ Fmul(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Div:
+      __ Fdiv(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Max:
+      __ Fmax(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Min:
+      __ Fmin(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Sqrt:
+      __ Fsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArm64Float64Cmp:
       if (instr->InputAt(1)->IsDoubleRegister()) {
         __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
@@ -681,6 +718,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        0, 2);
       break;
     }
+    case kArm64Float64Max:
+      __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
+      break;
+    case kArm64Float64Min:
+      __ Fmin(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
+      break;
     case kArm64Float64Sqrt:
       __ Fsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
@@ -732,14 +777,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
       break;
     }
-    case kArm64Float64Max:
-      __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-              i.InputDoubleRegister(1));
-      break;
-    case kArm64Float64Min:
-      __ Fmin(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-              i.InputDoubleRegister(1));
-      break;
     case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;

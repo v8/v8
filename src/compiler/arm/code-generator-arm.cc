@@ -509,6 +509,54 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ teq(i.InputRegister(0), i.InputOperand2(1));
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
+    case kArmVcmpF32:
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ VFPCompareAndSetFlags(i.InputFloat32Register(0),
+                                 i.InputFloat32Register(1));
+      } else {
+        DCHECK(instr->InputAt(1)->IsImmediate());
+        // 0.0 is the only immediate supported by vcmp instructions.
+        DCHECK(i.InputDouble(1) == 0.0);
+        __ VFPCompareAndSetFlags(i.InputFloat32Register(0), i.InputDouble(1));
+      }
+      DCHECK_EQ(SetCC, i.OutputSBit());
+      break;
+    case kArmVaddF32:
+      __ vadd(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVsubF32:
+      __ vsub(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmulF32:
+      __ vmul(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmlaF32:
+      __ vmla(i.OutputFloat32Register(), i.InputFloat32Register(1),
+              i.InputFloat32Register(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmlsF32:
+      __ vmls(i.OutputFloat32Register(), i.InputFloat32Register(1),
+              i.InputFloat32Register(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVdivF32:
+      __ vdiv(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVsqrtF32:
+      __ vsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
+    case kArmVnegF32:
+      __ vneg(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArmVcmpF64:
       if (instr->InputAt(1)->IsDoubleRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat64Register(0),
@@ -568,6 +616,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVsqrtF64:
       __ vsqrt(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
+    case kArmVnegF64:
+      __ vneg(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
     case kArmVrintmF64:
       __ vrintm(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
@@ -579,9 +630,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArmVrintaF64:
       __ vrinta(i.OutputFloat64Register(), i.InputFloat64Register(0));
-      break;
-    case kArmVnegF64:
-      __ vneg(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
     case kArmVcvtF32F64: {
       __ vcvt_f32_f64(i.OutputFloat32Register(), i.InputFloat64Register(0));

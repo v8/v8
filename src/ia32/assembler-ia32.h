@@ -954,11 +954,18 @@ class Assembler : public AssemblerBase {
   void mulss(XMMRegister dst, const Operand& src);
   void divss(XMMRegister dst, XMMRegister src) { divss(dst, Operand(src)); }
   void divss(XMMRegister dst, const Operand& src);
+  void sqrtss(XMMRegister dst, XMMRegister src) { sqrtss(dst, Operand(src)); }
+  void sqrtss(XMMRegister dst, const Operand& src);
 
   void ucomiss(XMMRegister dst, XMMRegister src) { ucomiss(dst, Operand(src)); }
   void ucomiss(XMMRegister dst, const Operand& src);
   void movaps(XMMRegister dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
+
+  void maxss(XMMRegister dst, XMMRegister src) { maxss(dst, Operand(src)); }
+  void maxss(XMMRegister dst, const Operand& src);
+  void minss(XMMRegister dst, XMMRegister src) { minss(dst, Operand(src)); }
+  void minss(XMMRegister dst, const Operand& src);
 
   void andps(XMMRegister dst, const Operand& src);
   void andps(XMMRegister dst, XMMRegister src) { andps(dst, Operand(src)); }
@@ -1268,6 +1275,44 @@ class Assembler : public AssemblerBase {
     vsd(0x5d, dst, src1, src2);
   }
   void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vaddss(dst, src1, Operand(src2));
+  }
+  void vaddss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x58, dst, src1, src2);
+  }
+  void vsubss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsubss(dst, src1, Operand(src2));
+  }
+  void vsubss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5c, dst, src1, src2);
+  }
+  void vmulss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmulss(dst, src1, Operand(src2));
+  }
+  void vmulss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x59, dst, src1, src2);
+  }
+  void vdivss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vdivss(dst, src1, Operand(src2));
+  }
+  void vdivss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5e, dst, src1, src2);
+  }
+  void vmaxss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmaxss(dst, src1, Operand(src2));
+  }
+  void vmaxss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5f, dst, src1, src2);
+  }
+  void vminss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vminss(dst, src1, Operand(src2));
+  }
+  void vminss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5d, dst, src1, src2);
+  }
+  void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a

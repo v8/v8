@@ -1251,48 +1251,69 @@ class Assembler : public AssemblerBase {
                     int fraction_bits,
                     const Condition cond = al);
 
+  void vmrs(const Register dst, const Condition cond = al);
+  void vmsr(const Register dst, const Condition cond = al);
+
   void vneg(const DwVfpRegister dst,
             const DwVfpRegister src,
             const Condition cond = al);
+  void vneg(const SwVfpRegister dst, const SwVfpRegister src,
+            const Condition cond = al);
   void vabs(const DwVfpRegister dst,
             const DwVfpRegister src,
+            const Condition cond = al);
+  void vabs(const SwVfpRegister dst, const SwVfpRegister src,
             const Condition cond = al);
   void vadd(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vadd(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vsub(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vsub(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vmul(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmul(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vmla(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmla(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vmls(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmls(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vdiv(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vdiv(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vcmp(const DwVfpRegister src1,
             const DwVfpRegister src2,
+            const Condition cond = al);
+  void vcmp(const SwVfpRegister src1, const SwVfpRegister src2,
             const Condition cond = al);
   void vcmp(const DwVfpRegister src1,
             const double src2,
             const Condition cond = al);
-  void vmrs(const Register dst,
-            const Condition cond = al);
-  void vmsr(const Register dst,
+  void vcmp(const SwVfpRegister src1, const float src2,
             const Condition cond = al);
   void vsqrt(const DwVfpRegister dst,
              const DwVfpRegister src,
+             const Condition cond = al);
+  void vsqrt(const SwVfpRegister dst, const SwVfpRegister src,
              const Condition cond = al);
 
   // ARMv8 rounding instructions.

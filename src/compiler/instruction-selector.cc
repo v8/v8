@@ -751,6 +751,26 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitTruncateFloat64ToInt32(node);
     case IrOpcode::kTruncateInt64ToInt32:
       return VisitTruncateInt64ToInt32(node);
+    case IrOpcode::kFloat32Add:
+      return MarkAsDouble(node), VisitFloat32Add(node);
+    case IrOpcode::kFloat32Sub:
+      return MarkAsDouble(node), VisitFloat32Sub(node);
+    case IrOpcode::kFloat32Mul:
+      return MarkAsDouble(node), VisitFloat32Mul(node);
+    case IrOpcode::kFloat32Div:
+      return MarkAsDouble(node), VisitFloat32Div(node);
+    case IrOpcode::kFloat32Min:
+      return MarkAsDouble(node), VisitFloat32Min(node);
+    case IrOpcode::kFloat32Max:
+      return MarkAsDouble(node), VisitFloat32Max(node);
+    case IrOpcode::kFloat32Sqrt:
+      return MarkAsDouble(node), VisitFloat32Sqrt(node);
+    case IrOpcode::kFloat32Equal:
+      return VisitFloat32Equal(node);
+    case IrOpcode::kFloat32LessThan:
+      return VisitFloat32LessThan(node);
+    case IrOpcode::kFloat32LessThanOrEqual:
+      return VisitFloat32LessThanOrEqual(node);
     case IrOpcode::kFloat64Add:
       return MarkAsDouble(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:

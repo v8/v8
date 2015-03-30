@@ -2070,6 +2070,56 @@ Bounds Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeFloat32Add(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Sub(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Mul(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Div(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Max(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Min(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Sqrt(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Equal(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32LessThan(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32LessThanOrEqual(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
 Bounds Typer::Visitor::TypeFloat64Add(Node* node) {
   return Bounds(Type::Number());
 }

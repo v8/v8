@@ -870,7 +870,13 @@ int DisassemblerX64::SetCC(byte* data) {
 int DisassemblerX64::AVXInstruction(byte* data) {
   byte opcode = *data;
   byte* current = data + 1;
-  if (vex_66() && vex_0f38()) {
+  if (vex_0f() && opcode == 0x2e) {
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("vucomis%c %s,", vex_66() ? 'd' : 's',
+                   NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+  } else if (vex_66() && vex_0f38()) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
@@ -932,6 +938,43 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       case 0xbf:
         AppendToBuffer("vfnmsub231s%c %s,%s,", float_size_code(),
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+  } else if (vex_f3() && vex_0f()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x58:
+        AppendToBuffer("vaddss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x59:
+        AppendToBuffer("vmulss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5c:
+        AppendToBuffer("vsubss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5d:
+        AppendToBuffer("vminss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5e:
+        AppendToBuffer("vdivss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5f:
+        AppendToBuffer("vmaxss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
       default:
@@ -1304,7 +1347,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       // CVTSI2SD: integer to XMM double conversion.
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("%sd %s,", mnemonic, NameOfXMMRegister(regop));
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0x2C) {
       // CVTTSD2SI:
@@ -1367,7 +1410,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       // CVTSI2SS: integer to XMM single conversion.
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("%ss %s,", mnemonic, NameOfXMMRegister(regop));
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0x2C) {
       // CVTTSS2SI:
@@ -1377,38 +1420,27 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       AppendToBuffer("cvttss2si%c %s,",
           operand_size_code(), NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
-    } else if (opcode == 0x58) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("addss %s,", NameOfXMMRegister(regop));
-      current += PrintRightXMMOperand(current);
-    } else if (opcode == 0x59) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("mulss %s,", NameOfXMMRegister(regop));
-      current += PrintRightXMMOperand(current);
-    } else if (opcode == 0x5A) {
-      // CVTSS2SD:
-      // Convert scalar single-precision FP to scalar double-precision FP.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("cvtss2sd %s,", NameOfXMMRegister(regop));
-      current += PrintRightXMMOperand(current);
-    } else if (opcode == 0x5c) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("subss %s,", NameOfXMMRegister(regop));
-      current += PrintRightXMMOperand(current);
-    } else if (opcode == 0x5e) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("divss %s,", NameOfXMMRegister(regop));
-      current += PrintRightXMMOperand(current);
     } else if (opcode == 0x7E) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("movq %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
+      // XMM arithmetic. Mnemonic was retrieved at the start of this function.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else if (opcode == 0xC2) {
+      // Intel manual 2A, Table 3-18.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      const char* const pseudo_op[] = {"cmpeqss",    "cmpltss",  "cmpless",
+                                       "cmpunordss", "cmpneqss", "cmpnltss",
+                                       "cmpnless",   "cmpordss"};
+      AppendToBuffer("%s %s,%s", pseudo_op[current[1]],
+                     NameOfXMMRegister(regop), NameOfXMMRegister(rm));
+      current += 2;
     } else {
       UnimplementedInstruction();
     }
@@ -1544,23 +1576,23 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
     case 0x1F:
       return "nop";
     case 0x2A:  // F2/F3 prefix.
-      return "cvtsi2s";
-    case 0x51:  // F2 prefix.
-      return "sqrtsd";
-    case 0x58:  // F2 prefix.
-      return "addsd";
-    case 0x59:  // F2 prefix.
-      return "mulsd";
-    case 0x5A:  // F2 prefix.
-      return "cvtsd2ss";
-    case 0x5D:  // F2 prefix.
-      return "minsd";
-    case 0x5C:  // F2 prefix.
-      return "subsd";
-    case 0x5E:  // F2 prefix.
-      return "divsd";
-    case 0x5F:  // F2 prefix.
-      return "maxsd";
+      return (group_1_prefix_ == 0xF2) ? "cvtsi2sd" : "cvtsi2ss";
+    case 0x51:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "sqrtsd" : "sqrtss";
+    case 0x58:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "addsd" : "addss";
+    case 0x59:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "mulsd" : "mulss";
+    case 0x5A:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "cvtsd2ss" : "cvtss2sd";
+    case 0x5D:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "minsd" : "minss";
+    case 0x5C:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "subsd" : "subss";
+    case 0x5E:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "divsd" : "divss";
+    case 0x5F:  // F2/F3 prefix.
+      return (group_1_prefix_ == 0xF2) ? "maxsd" : "maxss";
     case 0xA2:
       return "cpuid";
     case 0xA5:

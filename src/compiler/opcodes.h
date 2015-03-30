@@ -192,6 +192,9 @@
   V(Int64LessThan)                    \
   V(Int64LessThanOrEqual)             \
   V(Uint64LessThan)                   \
+  V(Float32Equal)                     \
+  V(Float32LessThan)                  \
+  V(Float32LessThanOrEqual)           \
   V(Float64Equal)                     \
   V(Float64LessThan)                  \
   V(Float64LessThanOrEqual)
@@ -243,6 +246,13 @@
   V(TruncateFloat64ToFloat32)   \
   V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
+  V(Float32Add)                 \
+  V(Float32Sub)                 \
+  V(Float32Mul)                 \
+  V(Float32Div)                 \
+  V(Float32Max)                 \
+  V(Float32Min)                 \
+  V(Float32Sqrt)                \
   V(Float64Add)                 \
   V(Float64Sub)                 \
   V(Float64Mul)                 \

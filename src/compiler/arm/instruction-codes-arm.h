@@ -44,6 +44,15 @@ namespace compiler {
   V(ArmUxth)                       \
   V(ArmUxtab)                      \
   V(ArmUxtah)                      \
+  V(ArmVcmpF32)                    \
+  V(ArmVaddF32)                    \
+  V(ArmVsubF32)                    \
+  V(ArmVmulF32)                    \
+  V(ArmVmlaF32)                    \
+  V(ArmVmlsF32)                    \
+  V(ArmVdivF32)                    \
+  V(ArmVnegF32)                    \
+  V(ArmVsqrtF32)                   \
   V(ArmVcmpF64)                    \
   V(ArmVaddF64)                    \
   V(ArmVsubF64)                    \

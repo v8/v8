@@ -450,6 +450,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kIA32Lzcnt:
       __ Lzcnt(i.OutputRegister(), i.InputOperand(0));
       break;
+    case kSSEFloat32Cmp:
+      __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Add:
+      __ addss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Sub:
+      __ subss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Mul:
+      __ mulss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Div:
+      __ divss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Max:
+      __ maxss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Min:
+      __ minss(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat32Sqrt:
+      __ sqrtss(i.OutputDoubleRegister(), i.InputOperand(0));
+      break;
     case kSSEFloat64Cmp:
       __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
@@ -506,10 +530,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
-    case kSSECvtss2sd:
+    case kSSEFloat32ToFloat64:
       __ cvtss2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSECvtsd2ss:
+    case kSSEFloat64ToFloat32:
       __ cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSEFloat64ToInt32:
@@ -552,6 +576,42 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64LoadLowWord32:
       __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kAVXFloat32Add: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vaddss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat32Sub: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vsubss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat32Mul: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmulss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat32Div: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vdivss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat32Max: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmaxss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat32Min: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vminss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
     case kAVXFloat64Add: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vaddsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -747,7 +807,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 // Assembles a branch after an instruction.

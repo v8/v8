@@ -1046,6 +1046,14 @@ class Assembler : public AssemblerBase {
   void divss(XMMRegister dst, XMMRegister src);
   void divss(XMMRegister dst, const Operand& src);
 
+  void maxss(XMMRegister dst, XMMRegister src);
+  void maxss(XMMRegister dst, const Operand& src);
+  void minss(XMMRegister dst, XMMRegister src);
+  void minss(XMMRegister dst, const Operand& src);
+
+  void sqrtss(XMMRegister dst, XMMRegister src);
+  void sqrtss(XMMRegister dst, const Operand& src);
+
   void ucomiss(XMMRegister dst, XMMRegister src);
   void ucomiss(XMMRegister dst, const Operand& src);
   void movaps(XMMRegister dst, XMMRegister src);
@@ -1133,6 +1141,11 @@ class Assembler : public AssemblerBase {
   void divsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, const Operand& src);
 
+  void maxsd(XMMRegister dst, XMMRegister src);
+  void maxsd(XMMRegister dst, const Operand& src);
+  void minsd(XMMRegister dst, XMMRegister src);
+  void minsd(XMMRegister dst, const Operand& src);
+
   void andpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
@@ -1148,11 +1161,6 @@ class Assembler : public AssemblerBase {
 
   void punpckldq(XMMRegister dst, XMMRegister src);
   void punpckhdq(XMMRegister dst, XMMRegister src);
-
-  void maxsd(XMMRegister dst, XMMRegister src);
-  void maxsd(XMMRegister dst, const Operand& src);
-  void minsd(XMMRegister dst, XMMRegister src);
-  void minsd(XMMRegister dst, const Operand& src);
 
   // SSE 4.1 instruction
   void extractps(Register dst, XMMRegister src, byte imm8);
@@ -1351,8 +1359,51 @@ class Assembler : public AssemblerBase {
   void vminsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x5d, dst, src1, src2);
   }
+  void vucomisd(XMMRegister dst, XMMRegister src);
+  void vucomisd(XMMRegister dst, const Operand& src);
   void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x58, dst, src1, src2);
+  }
+  void vaddss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x58, dst, src1, src2);
+  }
+  void vsubss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x5c, dst, src1, src2);
+  }
+  void vsubss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5c, dst, src1, src2);
+  }
+  void vmulss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x59, dst, src1, src2);
+  }
+  void vmulss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x59, dst, src1, src2);
+  }
+  void vdivss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x5e, dst, src1, src2);
+  }
+  void vdivss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5e, dst, src1, src2);
+  }
+  void vmaxss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x5f, dst, src1, src2);
+  }
+  void vmaxss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5f, dst, src1, src2);
+  }
+  void vminss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x5d, dst, src1, src2);
+  }
+  void vminss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5d, dst, src1, src2);
+  }
+  void vucomiss(XMMRegister dst, XMMRegister src);
+  void vucomiss(XMMRegister dst, const Operand& src);
+  void vss(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
   // Debugging
   void Print();

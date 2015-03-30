@@ -483,6 +483,12 @@ class MacroAssembler: public Assembler {
     VFPCanonicalizeNaN(value, value, cond);
   }
 
+  // Compare single values and move the result to the normal condition flags.
+  void VFPCompareAndSetFlags(const SwVfpRegister src1, const SwVfpRegister src2,
+                             const Condition cond = al);
+  void VFPCompareAndSetFlags(const SwVfpRegister src1, const float src2,
+                             const Condition cond = al);
+
   // Compare double values and move the result to the normal condition flags.
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
                              const DwVfpRegister src2,
@@ -490,6 +496,15 @@ class MacroAssembler: public Assembler {
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
                              const double src2,
                              const Condition cond = al);
+
+  // Compare single values and then load the fpscr flags to a register.
+  void VFPCompareAndLoadFlags(const SwVfpRegister src1,
+                              const SwVfpRegister src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+  void VFPCompareAndLoadFlags(const SwVfpRegister src1, const float src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
 
   // Compare double values and then load the fpscr flags to a register.
   void VFPCompareAndLoadFlags(const DwVfpRegister src1,

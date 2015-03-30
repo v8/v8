@@ -404,6 +404,10 @@ TEST(DisasmX64) {
     __ subss(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ divss(xmm1, xmm0);
     __ divss(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ maxss(xmm1, xmm0);
+    __ maxss(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ minss(xmm1, xmm0);
+    __ minss(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ addps(xmm1, xmm0);
     __ addps(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ subps(xmm1, xmm0);
@@ -492,6 +496,21 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope scope(&assm, AVX);
+      __ vaddss(xmm0, xmm1, xmm2);
+      __ vaddss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vmulss(xmm0, xmm1, xmm2);
+      __ vmulss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vsubss(xmm0, xmm1, xmm2);
+      __ vsubss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vdivss(xmm0, xmm1, xmm2);
+      __ vdivss(xmm0, xmm1, Operand(rbx, rcx, times_2, 10000));
+      __ vminss(xmm8, xmm1, xmm2);
+      __ vminss(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
+      __ vmaxss(xmm8, xmm1, xmm2);
+      __ vmaxss(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vucomiss(xmm9, xmm1);
+      __ vucomiss(xmm8, Operand(rbx, rdx, times_2, 10981));
+
       __ vaddsd(xmm0, xmm1, xmm2);
       __ vaddsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vmulsd(xmm0, xmm1, xmm2);
@@ -504,6 +523,8 @@ TEST(DisasmX64) {
       __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
       __ vmaxsd(xmm8, xmm1, xmm2);
       __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vucomisd(xmm9, xmm1);
+      __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
     }
   }
 

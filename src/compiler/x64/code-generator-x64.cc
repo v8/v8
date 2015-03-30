@@ -265,7 +265,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
   } while (0)
 
 
-#define ASSEMBLE_DOUBLE_BINOP(asm_instr)                                \
+#define ASSEMBLE_SSE_BINOP(asm_instr)                                   \
   do {                                                                  \
     if (instr->InputAt(1)->IsDoubleRegister()) {                        \
       __ asm_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
@@ -275,7 +275,17 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
   } while (0)
 
 
-#define ASSEMBLE_AVX_DOUBLE_BINOP(asm_instr)                           \
+#define ASSEMBLE_SSE_UNOP(asm_instr)                                    \
+  do {                                                                  \
+    if (instr->InputAt(0)->IsDoubleRegister()) {                        \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0)); \
+    } else {                                                            \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputOperand(0));        \
+    }                                                                   \
+  } while (0)
+
+
+#define ASSEMBLE_AVX_BINOP(asm_instr)                                  \
   do {                                                                 \
     CpuFeatureScope avx_scope(masm(), AVX);                            \
     if (instr->InputAt(1)->IsDoubleRegister()) {                       \
@@ -701,20 +711,47 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Lzcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
+    case kSSEFloat32Cmp:
+      ASSEMBLE_SSE_BINOP(ucomiss);
+      break;
+    case kSSEFloat32Add:
+      ASSEMBLE_SSE_BINOP(addss);
+      break;
+    case kSSEFloat32Sub:
+      ASSEMBLE_SSE_BINOP(subss);
+      break;
+    case kSSEFloat32Mul:
+      ASSEMBLE_SSE_BINOP(mulss);
+      break;
+    case kSSEFloat32Div:
+      ASSEMBLE_SSE_BINOP(divss);
+      break;
+    case kSSEFloat32Max:
+      ASSEMBLE_SSE_BINOP(maxss);
+      break;
+    case kSSEFloat32Min:
+      ASSEMBLE_SSE_BINOP(minss);
+      break;
+    case kSSEFloat32Sqrt:
+      ASSEMBLE_SSE_UNOP(sqrtss);
+      break;
+    case kSSEFloat32ToFloat64:
+      ASSEMBLE_SSE_UNOP(cvtss2sd);
+      break;
     case kSSEFloat64Cmp:
-      ASSEMBLE_DOUBLE_BINOP(ucomisd);
+      ASSEMBLE_SSE_BINOP(ucomisd);
       break;
     case kSSEFloat64Add:
-      ASSEMBLE_DOUBLE_BINOP(addsd);
+      ASSEMBLE_SSE_BINOP(addsd);
       break;
     case kSSEFloat64Sub:
-      ASSEMBLE_DOUBLE_BINOP(subsd);
+      ASSEMBLE_SSE_BINOP(subsd);
       break;
     case kSSEFloat64Mul:
-      ASSEMBLE_DOUBLE_BINOP(mulsd);
+      ASSEMBLE_SSE_BINOP(mulsd);
       break;
     case kSSEFloat64Div:
-      ASSEMBLE_DOUBLE_BINOP(divsd);
+      ASSEMBLE_SSE_BINOP(divsd);
       break;
     case kSSEFloat64Mod: {
       __ subq(rsp, Immediate(kDoubleSize));
@@ -749,17 +786,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kSSEFloat64Max:
-      ASSEMBLE_DOUBLE_BINOP(maxsd);
+      ASSEMBLE_SSE_BINOP(maxsd);
       break;
     case kSSEFloat64Min:
-      ASSEMBLE_DOUBLE_BINOP(minsd);
+      ASSEMBLE_SSE_BINOP(minsd);
       break;
     case kSSEFloat64Sqrt:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ sqrtsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      } else {
-        __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
-      }
+      ASSEMBLE_SSE_UNOP(sqrtsd);
       break;
     case kSSEFloat64Round: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
@@ -768,19 +801,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
-    case kSSECvtss2sd:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      } else {
-        __ cvtss2sd(i.OutputDoubleRegister(), i.InputOperand(0));
-      }
-      break;
-    case kSSECvtsd2ss:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      } else {
-        __ cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));
-      }
+    case kSSEFloat64ToFloat32:
+      ASSEMBLE_SSE_UNOP(cvtsd2ss);
       break;
     case kSSEFloat64ToInt32:
       if (instr->InputAt(0)->IsDoubleRegister()) {
@@ -848,23 +870,59 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
+    case kAVXFloat32Cmp: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ vucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ vucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      break;
+    }
+    case kAVXFloat32Add:
+      ASSEMBLE_AVX_BINOP(vaddss);
+      break;
+    case kAVXFloat32Sub:
+      ASSEMBLE_AVX_BINOP(vsubss);
+      break;
+    case kAVXFloat32Mul:
+      ASSEMBLE_AVX_BINOP(vmulss);
+      break;
+    case kAVXFloat32Div:
+      ASSEMBLE_AVX_BINOP(vdivss);
+      break;
+    case kAVXFloat32Max:
+      ASSEMBLE_AVX_BINOP(vmaxss);
+      break;
+    case kAVXFloat32Min:
+      ASSEMBLE_AVX_BINOP(vminss);
+      break;
+    case kAVXFloat64Cmp: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ vucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ vucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      break;
+    }
     case kAVXFloat64Add:
-      ASSEMBLE_AVX_DOUBLE_BINOP(vaddsd);
+      ASSEMBLE_AVX_BINOP(vaddsd);
       break;
     case kAVXFloat64Sub:
-      ASSEMBLE_AVX_DOUBLE_BINOP(vsubsd);
+      ASSEMBLE_AVX_BINOP(vsubsd);
       break;
     case kAVXFloat64Mul:
-      ASSEMBLE_AVX_DOUBLE_BINOP(vmulsd);
+      ASSEMBLE_AVX_BINOP(vmulsd);
       break;
     case kAVXFloat64Div:
-      ASSEMBLE_AVX_DOUBLE_BINOP(vdivsd);
+      ASSEMBLE_AVX_BINOP(vdivsd);
       break;
     case kAVXFloat64Max:
-      ASSEMBLE_AVX_DOUBLE_BINOP(vmaxsd);
+      ASSEMBLE_AVX_BINOP(vmaxsd);
       break;
     case kAVXFloat64Min:
-      ASSEMBLE_AVX_DOUBLE_BINOP(vminsd);
+      ASSEMBLE_AVX_BINOP(vminsd);
       break;
     case kX64Movsxbl:
       ASSEMBLE_MOVX(movsxbl);

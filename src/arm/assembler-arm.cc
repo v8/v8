@@ -2945,6 +2945,21 @@ void Assembler::vneg(const DwVfpRegister dst,
 }
 
 
+void Assembler::vneg(const SwVfpRegister dst, const SwVfpRegister src,
+                     const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-968.
+  // cond(31-28) | 11101(27-23) | D(22) | 11(21-20) | 0001(19-16) | Vd(15-12) |
+  // 101(11-9) | sz=0(8) | 0(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | B16 | vd * B12 | 0x5 * B9 |
+       B6 | m * B5 | vm);
+}
+
+
 void Assembler::vabs(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
@@ -2957,6 +2972,20 @@ void Assembler::vabs(const DwVfpRegister dst,
   src.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | B7 | B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vabs(const SwVfpRegister dst, const SwVfpRegister src,
+                     const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-524.
+  // cond(31-28) | 11101(27-23) | D(22) | 11(21-20) | 0000(19-16) | Vd(15-12) |
+  // 101(11-9) | sz=0(8) | 1(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | vd * B12 | 0x5 * B9 | B7 | B6 |
+       m * B5 | vm);
 }
 
 
@@ -2980,6 +3009,24 @@ void Assembler::vadd(const DwVfpRegister dst,
 }
 
 
+void Assembler::vadd(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vadd(Sn, Sm) single precision floating point addition.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-830.
+  // cond(31-28) | 11100(27-23)| D(22) | 11(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | 0x3 * B20 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | m * B5 | vm);
+}
+
+
 void Assembler::vsub(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -2997,6 +3044,24 @@ void Assembler::vsub(const DwVfpRegister dst,
   src2.split_code(&vm, &m);
   emit(cond | 0x1C*B23 | d*B22 | 0x3*B20 | vn*B16 | vd*B12 | 0x5*B9 | B8 |
        n*B7 | B6 | m*B5 | vm);
+}
+
+
+void Assembler::vsub(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vsub(Sn, Sm) single precision floating point subtraction.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-1086.
+  // cond(31-28) | 11100(27-23)| D(22) | 11(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | 0x3 * B20 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | B6 | m * B5 | vm);
 }
 
 
@@ -3020,6 +3085,24 @@ void Assembler::vmul(const DwVfpRegister dst,
 }
 
 
+void Assembler::vmul(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vmul(Sn, Sm) single precision floating point multiplication.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-960.
+  // cond(31-28) | 11100(27-23)| D(22) | 10(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | 0x2 * B20 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | m * B5 | vm);
+}
+
+
 void Assembler::vmla(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -3038,6 +3121,22 @@ void Assembler::vmla(const DwVfpRegister dst,
 }
 
 
+void Assembler::vmla(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-932.
+  // cond(31-28) | 11100(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | op=0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | vn * B16 | vd * B12 | 0x5 * B9 | n * B7 |
+       m * B5 | vm);
+}
+
+
 void Assembler::vmls(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -3053,6 +3152,22 @@ void Assembler::vmls(const DwVfpRegister dst,
   src2.split_code(&vm, &m);
   emit(cond | 0x1C*B23 | d*B22 | vn*B16 | vd*B12 | 0x5*B9 | B8 | n*B7 | B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vmls(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-932.
+  // cond(31-28) | 11100(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | op=1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | vn * B16 | vd * B12 | 0x5 * B9 | n * B7 |
+       B6 | m * B5 | vm);
 }
 
 
@@ -3076,6 +3191,24 @@ void Assembler::vdiv(const DwVfpRegister dst,
 }
 
 
+void Assembler::vdiv(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vdiv(Sn, Sm) single precision floating point division.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-882.
+  // cond(31-28) | 11101(27-23)| D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 | 0x5 * B9 | n * B7 |
+       m * B5 | vm);
+}
+
+
 void Assembler::vcmp(const DwVfpRegister src1,
                      const DwVfpRegister src2,
                      const Condition cond) {
@@ -3089,6 +3222,21 @@ void Assembler::vcmp(const DwVfpRegister src1,
   src2.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | 0x4*B16 | vd*B12 | 0x5*B9 | B8 | B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vcmp(const SwVfpRegister src1, const SwVfpRegister src2,
+                     const Condition cond) {
+  // vcmp(Sd, Sm) single precision floating point comparison.
+  // Instruction details available in ARM DDI 0406C.b, A8-864.
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0100(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | E=0(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  src1.split_code(&vd, &d);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | 0x4 * B16 | vd * B12 |
+       0x5 * B9 | B6 | m * B5 | vm);
 }
 
 
@@ -3106,21 +3254,17 @@ void Assembler::vcmp(const DwVfpRegister src1,
 }
 
 
-void Assembler::vmsr(Register dst, Condition cond) {
-  // Instruction details available in ARM DDI 0406A, A8-652.
-  // cond(31-28) | 1110 (27-24) | 1110(23-20)| 0001 (19-16) |
-  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  emit(cond | 0xE*B24 | 0xE*B20 |  B16 |
-       dst.code()*B12 | 0xA*B8 | B4);
-}
-
-
-void Assembler::vmrs(Register dst, Condition cond) {
-  // Instruction details available in ARM DDI 0406A, A8-652.
-  // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
-  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  emit(cond | 0xE*B24 | 0xF*B20 |  B16 |
-       dst.code()*B12 | 0xA*B8 | B4);
+void Assembler::vcmp(const SwVfpRegister src1, const float src2,
+                     const Condition cond) {
+  // vcmp(Sd, #0.0) single precision floating point comparison.
+  // Instruction details available in ARM DDI 0406C.b, A8-864.
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0101(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | E=0(7) | 1(6) | 0(5) | 0(4) | 0000(3-0)
+  DCHECK(src2 == 0.0);
+  int vd, d;
+  src1.split_code(&vd, &d);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | 0x5 * B16 | vd * B12 |
+       0x5 * B9 | B6);
 }
 
 
@@ -3136,6 +3280,36 @@ void Assembler::vsqrt(const DwVfpRegister dst,
   src.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | B16 | vd*B12 | 0x5*B9 | B8 | 0x3*B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vsqrt(const SwVfpRegister dst, const SwVfpRegister src,
+                      const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-1058.
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0001(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | 11(7-6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | B16 | vd * B12 | 0x5 * B9 |
+       0x3 * B6 | m * B5 | vm);
+}
+
+
+void Assembler::vmsr(Register dst, Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-652.
+  // cond(31-28) | 1110 (27-24) | 1110(23-20)| 0001 (19-16) |
+  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
+  emit(cond | 0xE * B24 | 0xE * B20 | B16 | dst.code() * B12 | 0xA * B8 | B4);
+}
+
+
+void Assembler::vmrs(Register dst, Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-652.
+  // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
+  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
+  emit(cond | 0xE * B24 | 0xF * B20 | B16 | dst.code() * B12 | 0xA * B8 | B4);
 }
 
 
