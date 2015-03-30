@@ -122,6 +122,10 @@ class GCIdleTimeHandler {
   // 16 ms when there is currently no rendering going on.
   static const size_t kMaxScheduledIdleTime = 50;
 
+  // We conservatively assume that in the next kTimeUntilNextIdleEvent ms
+  // no idle notification happens.
+  static const size_t kTimeUntilNextIdleEvent = 100;
+
   // If we haven't recorded any scavenger events yet, we use a conservative
   // lower bound for the scavenger speed.
   static const size_t kInitialConservativeScavengeSpeed = 100 * KB;

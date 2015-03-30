@@ -131,8 +131,12 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
         static_cast<size_t>(new_space_size * kConservativeTimeRatio);
   } else {
     // We have to trigger scavenge before we reach the end of new space.
-    new_space_allocation_limit -=
-        new_space_allocation_throughput_in_bytes_per_ms * kMaxScheduledIdleTime;
+    size_t adjust_limit = new_space_allocation_throughput_in_bytes_per_ms *
+                          kTimeUntilNextIdleEvent;
+    if (adjust_limit > new_space_allocation_limit)
+      new_space_allocation_limit = 0;
+    else
+      new_space_allocation_limit -= adjust_limit;
   }
 
   if (scavenge_speed_in_bytes_per_ms == 0) {
