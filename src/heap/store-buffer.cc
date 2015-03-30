@@ -197,6 +197,8 @@ void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
   }
   if (created_new_scan_on_scavenge_pages) {
     Filter(MemoryChunk::SCAN_ON_SCAVENGE);
+    heap_->isolate()->CountUsage(
+        v8::Isolate::UseCounterFeature::kStoreBufferOverflow);
   }
   old_buffer_is_filtered_ = true;
 }

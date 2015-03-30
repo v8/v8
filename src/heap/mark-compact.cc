@@ -2103,6 +2103,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
 void MarkCompactCollector::RefillMarkingDeque() {
+  isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
   DCHECK(marking_deque_.overflowed());
 
   DiscoverGreyObjectsInNewSpace(heap(), &marking_deque_);
@@ -4669,6 +4670,30 @@ void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo, Object* target) {
     if (!success) {
       EvictEvacuationCandidate(target_page);
     }
+  }
+}
+
+
+void MarkCompactCollector::EvictEvacuationCandidate(Page* page) {
+  if (FLAG_trace_fragmentation) {
+    PrintF("Page %p is too popular. Disabling evacuation.\n",
+           reinterpret_cast<void*>(page));
+  }
+
+  isolate()->CountUsage(v8::Isolate::UseCounterFeature::kSlotsBufferOverflow);
+
+  // TODO(gc) If all evacuation candidates are too popular we
+  // should stop slots recording entirely.
+  page->ClearEvacuationCandidate();
+
+  // We were not collecting slots on this page that point
+  // to other evacuation candidates thus we have to
+  // rescan the page after evacuation to discover and update all
+  // pointers to evacuated objects.
+  if (page->owner()->identity() == OLD_DATA_SPACE) {
+    evacuation_candidates_.RemoveElement(page);
+  } else {
+    page->SetFlag(Page::RESCAN_ON_EVACUATION);
   }
 }
 

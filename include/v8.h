@@ -5135,7 +5135,7 @@ class V8_EXPORT Isolate {
   };
 
   /**
-   * Features reported via the SetUseCounterCallback callback. Do not chang
+   * Features reported via the SetUseCounterCallback callback. Do not change
    * assigned numbers of existing items; add new features to the end of this
    * list.
    */
@@ -5143,6 +5143,9 @@ class V8_EXPORT Isolate {
     kUseAsm = 0,
     kBreakIterator = 1,
     kLegacyConst = 2,
+    kMarkDequeOverflow = 3,
+    kStoreBufferOverflow = 4,
+    kSlotsBufferOverflow = 5,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 
