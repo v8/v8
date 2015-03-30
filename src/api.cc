@@ -1675,8 +1675,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   }
 
   i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
-  i::SharedFunctionInfo* raw_result = NULL;
-  { i::HandleScope scope(isolate);
+  i::Handle<i::SharedFunctionInfo> result;
+  {
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
@@ -1705,7 +1705,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     if (!source->source_map_url.IsEmpty()) {
       source_map_url = Utils::OpenHandle(*(source->source_map_url));
     }
-    i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
+    result = i::Compiler::CompileScript(
         str, name_obj, line_offset, column_offset, is_embedder_debug_script,
         is_shared_cross_origin, source_map_url, isolate->native_context(), NULL,
         &script_data, options, i::NOT_NATIVES_CODE, is_module);
@@ -1718,7 +1718,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       script_data = NULL;
     }
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
-    raw_result = *result;
 
     if ((options == kProduceParserCache || options == kProduceCodeCache) &&
         script_data != NULL) {
@@ -1732,7 +1731,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     }
     delete script_data;
   }
-  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
@@ -1931,59 +1929,53 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            const ScriptOrigin& origin) {
   PREPARE_FOR_EXECUTION(context, "v8::ScriptCompiler::Compile()", Script);
   i::StreamedSource* source = v8_source->impl();
-  i::SharedFunctionInfo* raw_result = nullptr;
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
-    i::Handle<i::Script> script = isolate->factory()->NewScript(str);
-    if (!origin.ResourceName().IsEmpty()) {
-      script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
-    }
-    if (!origin.ResourceLineOffset().IsEmpty()) {
-      script->set_line_offset(i::Smi::FromInt(
-          static_cast<int>(origin.ResourceLineOffset()->Value())));
-    }
-    if (!origin.ResourceColumnOffset().IsEmpty()) {
-      script->set_column_offset(i::Smi::FromInt(
-          static_cast<int>(origin.ResourceColumnOffset()->Value())));
-    }
-    if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
-      script->set_is_shared_cross_origin(
-          origin.ResourceIsSharedCrossOrigin()->IsTrue());
-    }
-    if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
-      script->set_is_embedder_debug_script(
-          origin.ResourceIsEmbedderDebugScript()->IsTrue());
-    }
-    if (!origin.SourceMapUrl().IsEmpty()) {
-      script->set_source_mapping_url(
-          *Utils::OpenHandle(*(origin.SourceMapUrl())));
-    }
-
-    source->info->set_script(script);
-    source->info->set_context(isolate->native_context());
-
-    // Do the parsing tasks which need to be done on the main thread. This will
-    // also handle parse errors.
-    source->parser->Internalize(isolate, script,
-                                source->info->function() == nullptr);
-    source->parser->HandleSourceURLComments(isolate, script);
-
-    i::Handle<i::SharedFunctionInfo> result;
-    if (source->info->function() != nullptr) {
-      // Parsing has succeeded.
-      result = i::Compiler::CompileStreamedScript(script, source->info.get(),
-                                                  str->length());
-    }
-    has_pending_exception = result.is_null();
-    if (has_pending_exception) isolate->ReportPendingMessages();
-    RETURN_ON_FAILED_EXECUTION(Script);
-
-    source->info->clear_script();  // because script goes out of scope.
-    raw_result = *result;          // TODO(titzer): use CloseAndEscape?
+  i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
+  i::Handle<i::Script> script = isolate->factory()->NewScript(str);
+  if (!origin.ResourceName().IsEmpty()) {
+    script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
+  }
+  if (!origin.ResourceLineOffset().IsEmpty()) {
+    script->set_line_offset(i::Smi::FromInt(
+        static_cast<int>(origin.ResourceLineOffset()->Value())));
+  }
+  if (!origin.ResourceColumnOffset().IsEmpty()) {
+    script->set_column_offset(i::Smi::FromInt(
+        static_cast<int>(origin.ResourceColumnOffset()->Value())));
+  }
+  if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
+    script->set_is_shared_cross_origin(
+        origin.ResourceIsSharedCrossOrigin()->IsTrue());
+  }
+  if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
+    script->set_is_embedder_debug_script(
+        origin.ResourceIsEmbedderDebugScript()->IsTrue());
+  }
+  if (!origin.SourceMapUrl().IsEmpty()) {
+    script->set_source_mapping_url(
+        *Utils::OpenHandle(*(origin.SourceMapUrl())));
   }
 
-  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
+  source->info->set_script(script);
+  source->info->set_context(isolate->native_context());
+
+  // Do the parsing tasks which need to be done on the main thread. This will
+  // also handle parse errors.
+  source->parser->Internalize(isolate, script,
+                              source->info->function() == nullptr);
+  source->parser->HandleSourceURLComments(isolate, script);
+
+  i::Handle<i::SharedFunctionInfo> result;
+  if (source->info->function() != nullptr) {
+    // Parsing has succeeded.
+    result = i::Compiler::CompileStreamedScript(script, source->info.get(),
+                                                str->length());
+  }
+  has_pending_exception = result.is_null();
+  if (has_pending_exception) isolate->ReportPendingMessages();
+  RETURN_ON_FAILED_EXECUTION(Script);
+
+  source->info->clear_script();  // because script goes out of scope.
+
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
   if (generic.IsEmpty()) return Local<Script>();
   Local<Script> bound = generic->BindToCurrentContext();
@@ -6255,7 +6247,7 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
 
 void Promise::Resolver::Resolve(Handle<Value> value) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  Resolve(context, value);
+  USE(Resolve(context, value));
 }
 
 
@@ -6277,7 +6269,7 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
 
 void Promise::Resolver::Reject(Handle<Value> value) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  Reject(context, value);
+  USE(Reject(context, value));
 }
 
 
