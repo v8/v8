@@ -1060,17 +1060,22 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   Arm64OperandGenerator g(this);
   Float64BinopMatcher m(node);
-  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
-      CanCover(m.node(), m.right().node())) {
-    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
-        CanCover(m.right().node(), m.right().InputAt(0))) {
-      Float64BinopMatcher mright0(m.right().InputAt(0));
-      if (mright0.left().IsMinusZero()) {
-        Emit(kArm64Float64RoundUp, g.DefineAsRegister(node),
-             g.UseRegister(mright0.right().node()));
-        return;
+  if (m.left().IsMinusZero()) {
+    if (m.right().IsFloat64RoundDown() &&
+        CanCover(m.node(), m.right().node())) {
+      if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+          CanCover(m.right().node(), m.right().InputAt(0))) {
+        Float64BinopMatcher mright0(m.right().InputAt(0));
+        if (mright0.left().IsMinusZero()) {
+          Emit(kArm64Float64RoundUp, g.DefineAsRegister(node),
+               g.UseRegister(mright0.right().node()));
+          return;
+        }
       }
     }
+    Emit(kArm64Float64Neg, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()));
+    return;
   }
   VisitRRR(this, kArm64Float64Sub, node);
 }
