@@ -2272,6 +2272,7 @@ Block* Parser::ParseVariableDeclarations(
     if (is_sloppy(language_mode())) {
       mode = CONST_LEGACY;
       init_op = Token::INIT_CONST_LEGACY;
+      ++use_counts_[v8::Isolate::kLegacyConst];
     } else {
       DCHECK(var_context != kStatement);
       mode = CONST;

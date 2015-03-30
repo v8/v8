@@ -3441,6 +3441,25 @@ TEST(UseAsmUseCount) {
 }
 
 
+TEST(UseConstLegacyCount) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun(
+      "const x = 1;\n"
+      "var foo = 1;\n"
+      "const y = 1;\n"
+      "function bar() {\n"
+      "    const z = 1; var baz = 1;\n"
+      "    function q() { const k = 42; }\n"
+      "}");
+  CHECK_EQ(4, use_counts[v8::Isolate::kLegacyConst]);
+}
+
+
 TEST(ErrorsArrowFunctions) {
   // Tests that parser and preparser generate the same kind of errors
   // on invalid arrow function syntax.
