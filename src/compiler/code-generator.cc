@@ -555,7 +555,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         break;
       case Constant::kFloat64:
         DCHECK(type == kMachFloat64 || type == kMachAnyTagged ||
-               type == kRepTagged || type == (kTypeInt32 | kRepTagged) ||
+               type == kRepTagged || type == (kTypeNumber | kRepTagged) ||
+               type == (kTypeInt32 | kRepTagged) ||
                type == (kTypeUint32 | kRepTagged));
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
