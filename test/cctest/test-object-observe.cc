@@ -834,3 +834,54 @@ TEST(APIAccessorsShouldNotNotify) {
   CompileRun("Object.defineProperty(obj, 'accessor', { value: 44 });");
   CHECK(CompileRun("records")->IsNull());
 }
+
+
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+}
+
+
+TEST(UseCountObjectObserve) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun(
+      "var obj = {};"
+      "Object.observe(obj, function(){})");
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
+  CompileRun(
+      "var obj2 = {};"
+      "Object.observe(obj2, function(){})");
+  // Only counts the first use of observe in a given context.
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
+  {
+    LocalContext env2;
+    CompileRun(
+        "var obj = {};"
+        "Object.observe(obj, function(){})");
+  }
+  // Counts different contexts separately.
+  CHECK_EQ(2, use_counts[v8::Isolate::kObjectObserve]);
+}
+
+
+TEST(UseCountObjectGetNotifier) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun("var obj = {}");
+  CompileRun("Object.getNotifier(obj)");
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
+}
