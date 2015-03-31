@@ -2737,13 +2737,8 @@ Node* AstGraphBuilder::BuildThrowIfStaticPrototype(Node* name,
   Node* check = NewNode(javascript()->StrictEqual(), name, prototype_string);
   prototype_check.If(check);
   prototype_check.Then();
-  {
-    const Operator* op =
-        javascript()->CallRuntime(Runtime::kThrowStaticPrototypeError, 0);
-    Node* call = NewNode(op);
-    PrepareFrameState(call, bailout_id);
-    environment()->Push(call);
-  }
+  Node* error = BuildThrowStaticPrototypeError(bailout_id);
+  environment()->Push(error);
   prototype_check.Else();
   environment()->Push(name);
   prototype_check.End();
@@ -3102,7 +3097,9 @@ Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
   const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
   Node* call = NewNode(op, exception);
   PrepareFrameState(call, bailout_id);
-  return call;
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
 }
 
 
@@ -3113,7 +3110,9 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
       javascript()->CallRuntime(Runtime::kThrowReferenceError, 1);
   Node* call = NewNode(op, variable_name);
   PrepareFrameState(call, bailout_id);
-  return call;
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
 }
 
 
@@ -3122,7 +3121,20 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
       javascript()->CallRuntime(Runtime::kThrowConstAssignError, 0);
   Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
-  return call;
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
+}
+
+
+Node* AstGraphBuilder::BuildThrowStaticPrototypeError(BailoutId bailout_id) {
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kThrowStaticPrototypeError, 0);
+  Node* call = NewNode(op);
+  PrepareFrameState(call, bailout_id);
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
 }
 
 
