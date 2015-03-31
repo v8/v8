@@ -1146,9 +1146,9 @@ static T& frame_entry(Address re_frame, int frame_offset) {
 }
 
 
-int RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
-                                                   Code* re_code,
-                                                   Address re_frame) {
+int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
+                                                       Code* re_code,
+                                                       Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed()) {
