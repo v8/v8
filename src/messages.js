@@ -588,8 +588,8 @@ function ScriptLineCount() {
 
 
 /**
- * If sourceURL comment is available and script starts at zero returns sourceURL
- * comment contents. Otherwise, script name is returned. See
+ * If sourceURL comment is available returns sourceURL comment contents.
+ * Otherwise, script name is returned. See
  * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
  * and Source Map Revision 3 proposal for details on using //# sourceURL and
  * deprecated //@ sourceURL comment to identify scripts that don't have name.
@@ -598,12 +598,7 @@ function ScriptLineCount() {
  * deprecated //@ sourceURL comment otherwise.
  */
 function ScriptNameOrSourceURL() {
-  if (this.line_offset > 0 || this.column_offset > 0) {
-    return this.name;
-  }
-  if (this.source_url) {
-    return this.source_url;
-  }
+  if (this.source_url) return this.source_url;
   return this.name;
 }
 

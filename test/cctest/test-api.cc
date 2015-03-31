@@ -15818,7 +15818,7 @@ void AnalyzeStackOfInlineScriptWithSourceURL(
   v8::Handle<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
       args.GetIsolate(), 10, v8::StackTrace::kDetailed);
   CHECK_EQ(4, stackTrace->GetFrameCount());
-  v8::Handle<v8::String> url = v8_str("url");
+  v8::Handle<v8::String> url = v8_str("source_url");
   for (int i = 0; i < 3; i++) {
     v8::Handle<v8::String> name =
         stackTrace->GetFrame(i)->GetScriptNameOrSourceURL();
