@@ -186,10 +186,8 @@ void CodeGenerator::RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
 
 
 void CodeGenerator::AssembleInstruction(Instruction* instr) {
-  if (instr->IsGapMoves()) {
-    // Handle parallel moves associated with the gap instruction.
-    AssembleGap(GapInstruction::cast(instr));
-  } else if (instr->IsSourcePosition()) {
+  AssembleGaps(instr);
+  if (instr->IsSourcePosition()) {
     AssembleSourcePosition(SourcePositionInstruction::cast(instr));
   } else {
     // Assemble architecture-specific code for the instruction.
@@ -258,13 +256,13 @@ void CodeGenerator::AssembleSourcePosition(SourcePositionInstruction* instr) {
 }
 
 
-void CodeGenerator::AssembleGap(GapInstruction* instr) {
-  for (int i = GapInstruction::FIRST_INNER_POSITION;
-       i <= GapInstruction::LAST_INNER_POSITION; i++) {
-    GapInstruction::InnerPosition inner_pos =
-        static_cast<GapInstruction::InnerPosition>(i);
+void CodeGenerator::AssembleGaps(Instruction* instr) {
+  for (int i = Instruction::FIRST_GAP_POSITION;
+       i <= Instruction::LAST_GAP_POSITION; i++) {
+    Instruction::GapPosition inner_pos =
+        static_cast<Instruction::GapPosition>(i);
     ParallelMove* move = instr->GetParallelMove(inner_pos);
-    if (move != NULL) resolver()->Resolve(move);
+    if (move != nullptr) resolver()->Resolve(move);
   }
 }
 

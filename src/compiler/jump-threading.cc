@@ -76,10 +76,10 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
       RpoNumber fw = block->rpo_number();
       for (int i = block->code_start(); i < block->code_end(); ++i) {
         Instruction* instr = code->InstructionAt(i);
-        if (instr->IsGapMoves() && GapInstruction::cast(instr)->IsRedundant()) {
-          // skip redundant gap moves.
-          TRACE("  nop gap\n");
-          continue;
+        if (!instr->AreMovesRedundant()) {
+          // can't skip instructions with non redundant moves.
+          TRACE("  parallel move\n");
+          fallthru = false;
         } else if (instr->IsSourcePosition()) {
           // skip source positions.
           TRACE("  src pos\n");

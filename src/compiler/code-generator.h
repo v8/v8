@@ -61,7 +61,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // Assemble code for the specified instruction.
   void AssembleInstruction(Instruction* instr);
   void AssembleSourcePosition(SourcePositionInstruction* instr);
-  void AssembleGap(GapInstruction* gap);
+  void AssembleGaps(Instruction* instr);
 
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============

@@ -58,16 +58,16 @@ class TestCode : public HandleAndZoneScope {
   void RedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    int index = static_cast<int>(sequence_.instructions().size()) - 2;
-    sequence_.AddGapMove(index, RegisterOperand::New(13, main_zone()),
-                         RegisterOperand::New(13, main_zone()));
+    int index = static_cast<int>(sequence_.instructions().size()) - 1;
+    AddGapMove(index, RegisterOperand::New(13, main_zone()),
+               RegisterOperand::New(13, main_zone()));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    int index = static_cast<int>(sequence_.instructions().size()) - 2;
-    sequence_.AddGapMove(index, ImmediateOperand::New(11, main_zone()),
-                         RegisterOperand::New(11, main_zone()));
+    int index = static_cast<int>(sequence_.instructions().size()) - 1;
+    AddGapMove(index, ImmediateOperand::New(11, main_zone()),
+               RegisterOperand::New(11, main_zone()));
   }
   void Other() {
     Start();
@@ -95,6 +95,11 @@ class TestCode : public HandleAndZoneScope {
   void Defer() {
     CHECK(current_ == NULL);
     Start(true);
+  }
+  void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to) {
+    sequence_.InstructionAt(index)
+        ->GetOrCreateParallelMove(Instruction::START, main_zone())
+        ->AddMove(from, to, main_zone());
   }
 };
 

@@ -20,15 +20,29 @@ enum RegisterKind {
 
 
 // This class represents a single point of a InstructionOperand's lifetime. For
-// each instruction there are exactly two lifetime positions: the beginning and
-// the end of the instruction. Lifetime positions for different instructions are
-// disjoint.
+// each instruction there are four lifetime positions:
+//
+//   [[START, END], [START, END]]
+//
+// Where the first half position corresponds to
+//
+//  [GapPosition::START, GapPosition::END]
+//
+// and the second half position corresponds to
+//
+//  [Lifetime::USED_AT_START, Lifetime::USED_AT_END]
+//
 class LifetimePosition FINAL {
  public:
   // Return the lifetime position that corresponds to the beginning of
-  // the instruction with the given index.
-  static LifetimePosition FromInstructionIndex(int index) {
+  // the gap with the given index.
+  static LifetimePosition GapFromInstructionIndex(int index) {
     return LifetimePosition(index * kStep);
+  }
+  // Return the lifetime position that corresponds to the beginning of
+  // the instruction with the given index.
+  static LifetimePosition InstructionFromInstructionIndex(int index) {
+    return LifetimePosition(index * kStep + kHalfStep);
   }
 
   // Returns a numeric representation of this lifetime position.
@@ -36,41 +50,54 @@ class LifetimePosition FINAL {
 
   // Returns the index of the instruction to which this lifetime position
   // corresponds.
-  int InstructionIndex() const {
+  int ToInstructionIndex() const {
     DCHECK(IsValid());
     return value_ / kStep;
   }
 
-  // Returns true if this lifetime position corresponds to the instruction
-  // start.
-  bool IsInstructionStart() const { return (value_ & (kStep - 1)) == 0; }
+  // Returns true if this lifetime position corresponds to a START value
+  bool IsStart() const { return (value_ & (kHalfStep - 1)) == 0; }
+  // Returns true if this lifetime position corresponds to a gap START value
+  bool IsFullStart() const { return (value_ & (kStep - 1)) == 0; }
 
-  // Returns the lifetime position for the start of the instruction which
-  // corresponds to this lifetime position.
-  LifetimePosition InstructionStart() const {
+  bool IsGapPosition() { return (value_ & 0x2) == 0; }
+  bool IsInstructionPosition() { return !IsGapPosition(); }
+
+  // Returns the lifetime position for the current START.
+  LifetimePosition Start() const {
+    DCHECK(IsValid());
+    return LifetimePosition(value_ & ~(kHalfStep - 1));
+  }
+
+  // Returns the lifetime position for the current gap START.
+  LifetimePosition FullStart() const {
     DCHECK(IsValid());
     return LifetimePosition(value_ & ~(kStep - 1));
   }
 
-  // Returns the lifetime position for the end of the instruction which
-  // corresponds to this lifetime position.
-  LifetimePosition InstructionEnd() const {
+  // Returns the lifetime position for the current END.
+  LifetimePosition End() const {
     DCHECK(IsValid());
-    return LifetimePosition(InstructionStart().Value() + kStep / 2);
+    return LifetimePosition(Start().Value() + kHalfStep / 2);
   }
 
-  // Returns the lifetime position for the beginning of the next instruction.
-  LifetimePosition NextInstruction() const {
+  // Returns the lifetime position for the beginning of the next START.
+  LifetimePosition NextStart() const {
     DCHECK(IsValid());
-    return LifetimePosition(InstructionStart().Value() + kStep);
+    return LifetimePosition(Start().Value() + kHalfStep);
   }
 
-  // Returns the lifetime position for the beginning of the previous
-  // instruction.
-  LifetimePosition PrevInstruction() const {
+  // Returns the lifetime position for the beginning of the next gap START.
+  LifetimePosition NextFullStart() const {
     DCHECK(IsValid());
-    DCHECK(value_ > 1);
-    return LifetimePosition(InstructionStart().Value() - kStep);
+    return LifetimePosition(FullStart().Value() + kStep);
+  }
+
+  // Returns the lifetime position for the beginning of the previous START.
+  LifetimePosition PrevStart() const {
+    DCHECK(IsValid());
+    DCHECK(value_ >= kHalfStep);
+    return LifetimePosition(Start().Value() - kHalfStep);
   }
 
   // Constructs the lifetime position which does not correspond to any
@@ -90,10 +117,11 @@ class LifetimePosition FINAL {
   }
 
  private:
-  static const int kStep = 2;
+  static const int kHalfStep = 2;
+  static const int kStep = 2 * kHalfStep;
 
-  // Code relies on kStep being a power of two.
-  STATIC_ASSERT(IS_POWER_OF_TWO(kStep));
+  // Code relies on kStep and kHalfStep being a power of two.
+  STATIC_ASSERT(IS_POWER_OF_TWO(kHalfStep));
 
   explicit LifetimePosition(int value) : value_(value) {}
 
@@ -495,8 +523,8 @@ class RegisterAllocator FINAL : public ZoneObject {
   bool IsOutputDoubleRegisterOf(Instruction* instr, int index);
   void ProcessInstructions(const InstructionBlock* block, BitVector* live);
   void MeetRegisterConstraints(const InstructionBlock* block);
-  void MeetConstraintsBetween(Instruction* first, Instruction* second,
-                              int gap_index);
+  void MeetConstraintsBefore(int index);
+  void MeetConstraintsAfter(int index);
   void MeetRegisterConstraintsForLastInstructionInBlock(
       const InstructionBlock* block);
   void ResolvePhis(const InstructionBlock* block);
@@ -509,7 +537,7 @@ class RegisterAllocator FINAL : public ZoneObject {
               InstructionOperand* hint);
   void Use(LifetimePosition block_start, LifetimePosition position,
            InstructionOperand* operand, InstructionOperand* hint);
-  void AddGapMove(int index, GapInstruction::InnerPosition position,
+  void AddGapMove(int index, Instruction::GapPosition position,
                   InstructionOperand* from, InstructionOperand* to);
 
   // Helper methods for updating the life range lists.
@@ -590,7 +618,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   LiveRange* FixedLiveRangeFor(int index);
   LiveRange* FixedDoubleLiveRangeFor(int index);
   LiveRange* LiveRangeFor(int index);
-  GapInstruction* GetLastGap(const InstructionBlock* block);
+  Instruction* GetLastInstruction(const InstructionBlock* block);
 
   const char* RegisterName(int allocation_index);
 

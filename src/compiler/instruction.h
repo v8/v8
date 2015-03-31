@@ -25,8 +25,7 @@ namespace compiler {
 class Schedule;
 
 // A couple of reserved opcodes are used for internal use.
-const InstructionCode kGapInstruction = -1;
-const InstructionCode kSourcePositionInstruction = -2;
+const InstructionCode kSourcePositionInstruction = -1;
 
 #define INSTRUCTION_OPERAND_LIST(V)     \
   V(Constant, CONSTANT)                 \
@@ -543,7 +542,6 @@ class Instruction {
   bool NeedsPointerMap() const { return IsCall(); }
   bool HasPointerMap() const { return pointer_map_ != NULL; }
 
-  bool IsGapMoves() const { return opcode() == kGapInstruction; }
   bool IsSourcePosition() const {
     return opcode() == kSourcePositionInstruction;
   }
@@ -570,8 +568,37 @@ class Instruction {
            OutputCount() == 0 && TempCount() == 0;
   }
 
+  enum GapPosition {
+    START,
+    END,
+    FIRST_GAP_POSITION = START,
+    LAST_GAP_POSITION = END
+  };
+
+  ParallelMove* GetOrCreateParallelMove(GapPosition pos, Zone* zone) {
+    if (parallel_moves_[pos] == nullptr) {
+      parallel_moves_[pos] = new (zone) ParallelMove(zone);
+    }
+    return parallel_moves_[pos];
+  }
+
+  ParallelMove* GetParallelMove(GapPosition pos) {
+    return parallel_moves_[pos];
+  }
+
+  const ParallelMove* GetParallelMove(GapPosition pos) const {
+    return parallel_moves_[pos];
+  }
+
+  bool AreMovesRedundant() const;
+
+  ParallelMove* const* parallel_moves() const { return &parallel_moves_[0]; }
+  ParallelMove** parallel_moves() { return &parallel_moves_[0]; }
+
  protected:
   explicit Instruction(InstructionCode opcode);
+
+ private:
   Instruction(InstructionCode opcode, size_t output_count,
               InstructionOperand* outputs, size_t input_count,
               InstructionOperand* inputs, size_t temp_count,
@@ -584,6 +611,7 @@ class Instruction {
 
   InstructionCode opcode_;
   uint32_t bit_field_;
+  ParallelMove* parallel_moves_[2];
   PointerMap* pointer_map_;
   InstructionOperand operands_[1];
 
@@ -597,65 +625,6 @@ struct PrintableInstruction {
   const Instruction* instr_;
 };
 std::ostream& operator<<(std::ostream& os, const PrintableInstruction& instr);
-
-
-// Represents moves inserted before an instruction due to register allocation.
-// TODO(titzer): squash GapInstruction back into Instruction, since essentially
-// every instruction can possibly have moves inserted before it.
-class GapInstruction : public Instruction {
- public:
-  enum InnerPosition {
-    START,
-    END,
-    FIRST_INNER_POSITION = START,
-    LAST_INNER_POSITION = END
-  };
-
-  ParallelMove* GetOrCreateParallelMove(InnerPosition pos, Zone* zone) {
-    if (parallel_moves_[pos] == NULL) {
-      parallel_moves_[pos] = new (zone) ParallelMove(zone);
-    }
-    return parallel_moves_[pos];
-  }
-
-  ParallelMove* GetParallelMove(InnerPosition pos) {
-    return parallel_moves_[pos];
-  }
-
-  const ParallelMove* GetParallelMove(InnerPosition pos) const {
-    return parallel_moves_[pos];
-  }
-
-  bool IsRedundant() const;
-
-  ParallelMove** parallel_moves() { return parallel_moves_; }
-
-  static GapInstruction* New(Zone* zone) {
-    void* buffer = zone->New(sizeof(GapInstruction));
-    return new (buffer) GapInstruction(kGapInstruction);
-  }
-
-  static GapInstruction* cast(Instruction* instr) {
-    DCHECK(instr->IsGapMoves());
-    return static_cast<GapInstruction*>(instr);
-  }
-
-  static const GapInstruction* cast(const Instruction* instr) {
-    DCHECK(instr->IsGapMoves());
-    return static_cast<const GapInstruction*>(instr);
-  }
-
- protected:
-  explicit GapInstruction(InstructionCode opcode) : Instruction(opcode) {
-    parallel_moves_[START] = NULL;
-    parallel_moves_[END] = NULL;
-  }
-
- private:
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const PrintableInstruction& instr);
-  ParallelMove* parallel_moves_[LAST_INNER_POSITION + 1];
-};
 
 
 class SourcePositionInstruction FINAL : public Instruction {
@@ -982,19 +951,13 @@ class InstructionSequence FINAL : public ZoneObject {
   void MarkAsReference(int virtual_register);
   void MarkAsDouble(int virtual_register);
 
-  void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to);
-
-  GapInstruction* GetBlockStart(RpoNumber rpo) const;
+  Instruction* GetBlockStart(RpoNumber rpo) const;
 
   typedef InstructionDeque::const_iterator const_iterator;
   const_iterator begin() const { return instructions_.begin(); }
   const_iterator end() const { return instructions_.end(); }
   const InstructionDeque& instructions() const { return instructions_; }
 
-  GapInstruction* GapAt(int index) const {
-    return GapInstruction::cast(InstructionAt(index));
-  }
-  bool IsGapAt(int index) const { return InstructionAt(index)->IsGapMoves(); }
   Instruction* InstructionAt(int index) const {
     DCHECK(index >= 0);
     DCHECK(index < static_cast<int>(instructions_.size()));

@@ -206,10 +206,7 @@ TEST(InstructionIsGapAt) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 4);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK(R.code->instructions().size() == 2);
 }
 
 
@@ -236,10 +233,7 @@ TEST(InstructionIsGapAt2) {
   R.code->AddInstruction(g1);
   R.code->EndBlock(R.RpoFor(b1));
 
-  CHECK(R.code->instructions().size() == 8);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK(R.code->instructions().size() == 4);
 }
 
 
@@ -257,21 +251,15 @@ TEST(InstructionAddGapMove) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 4);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK(R.code->instructions().size() == 2);
 
-  int indexes[] = {0, 2, -1};
-  for (int i = 0; indexes[i] >= 0; i++) {
-    int index = indexes[i];
-
-    UnallocatedOperand* op1 = R.NewUnallocated(index + 6);
-    UnallocatedOperand* op2 = R.NewUnallocated(index + 12);
-
-    R.code->AddGapMove(index, op1, op2);
-    GapInstruction* gap = R.code->GapAt(index);
-    ParallelMove* move = gap->GetParallelMove(GapInstruction::START);
+  int index = 0;
+  for (auto instr : R.code->instructions()) {
+    UnallocatedOperand* op1 = R.NewUnallocated(index++);
+    UnallocatedOperand* op2 = R.NewUnallocated(index++);
+    instr->GetOrCreateParallelMove(TestInstr::START, R.zone())
+        ->AddMove(op1, op2, R.zone());
+    ParallelMove* move = instr->GetParallelMove(TestInstr::START);
     CHECK(move);
     const ZoneList<MoveOperands>* move_operands = move->move_operands();
     CHECK_EQ(1, move_operands->length());

@@ -110,7 +110,10 @@ Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
                  TempCountField::encode(0) | IsCallField::encode(false)),
-      pointer_map_(NULL) {}
+      pointer_map_(NULL) {
+  parallel_moves_[0] = nullptr;
+  parallel_moves_[1] = nullptr;
+}
 
 
 Instruction::Instruction(InstructionCode opcode, size_t output_count,
@@ -123,6 +126,8 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
                  TempCountField::encode(temp_count) |
                  IsCallField::encode(false)),
       pointer_map_(NULL) {
+  parallel_moves_[0] = nullptr;
+  parallel_moves_[1] = nullptr;
   size_t offset = 0;
   for (size_t i = 0; i < output_count; ++i) {
     DCHECK(!outputs[i].IsInvalid());
@@ -139,11 +144,12 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
 }
 
 
-bool GapInstruction::IsRedundant() const {
-  for (int i = GapInstruction::FIRST_INNER_POSITION;
-       i <= GapInstruction::LAST_INNER_POSITION; i++) {
-    if (parallel_moves_[i] != NULL && !parallel_moves_[i]->IsRedundant())
+bool Instruction::AreMovesRedundant() const {
+  for (int i = Instruction::FIRST_GAP_POSITION;
+       i <= Instruction::LAST_GAP_POSITION; i++) {
+    if (parallel_moves_[i] != nullptr && !parallel_moves_[i]->IsRedundant()) {
       return false;
+    }
   }
   return true;
 }
@@ -289,6 +295,19 @@ std::ostream& operator<<(std::ostream& os,
   const Instruction& instr = *printable.instr_;
   PrintableInstructionOperand printable_op = {printable.register_configuration_,
                                               NULL};
+  os << "gap ";
+  for (int i = Instruction::FIRST_GAP_POSITION;
+       i <= Instruction::LAST_GAP_POSITION; i++) {
+    os << "(";
+    if (instr.parallel_moves()[i] != NULL) {
+      PrintableParallelMove ppm = {printable.register_configuration_,
+                                   instr.parallel_moves()[i]};
+      os << ppm;
+    }
+    os << ") ";
+  }
+  os << "\n          ";
+
   if (instr.OutputCount() > 1) os << "(";
   for (size_t i = 0; i < instr.OutputCount(); i++) {
     if (i > 0) os << ", ";
@@ -299,20 +318,7 @@ std::ostream& operator<<(std::ostream& os,
   if (instr.OutputCount() > 1) os << ") = ";
   if (instr.OutputCount() == 1) os << " = ";
 
-  if (instr.IsGapMoves()) {
-    const GapInstruction* gap = GapInstruction::cast(&instr);
-    os << "gap ";
-    for (int i = GapInstruction::FIRST_INNER_POSITION;
-         i <= GapInstruction::LAST_INNER_POSITION; i++) {
-      os << "(";
-      if (gap->parallel_moves_[i] != NULL) {
-        PrintableParallelMove ppm = {printable.register_configuration_,
-                                     gap->parallel_moves_[i]};
-        os << ppm;
-      }
-      os << ") ";
-    }
-  } else if (instr.IsSourcePosition()) {
+  if (instr.IsSourcePosition()) {
     const SourcePositionInstruction* pos =
         SourcePositionInstruction::cast(&instr);
     os << "position (" << pos->source_position().raw() << ")";
@@ -494,9 +500,9 @@ int InstructionSequence::NextVirtualRegister() {
 }
 
 
-GapInstruction* InstructionSequence::GetBlockStart(RpoNumber rpo) const {
+Instruction* InstructionSequence::GetBlockStart(RpoNumber rpo) const {
   const InstructionBlock* block = InstructionBlockAt(rpo);
-  return GapInstruction::cast(InstructionAt(block->code_start()));
+  return InstructionAt(block->code_start());
 }
 
 
@@ -522,8 +528,6 @@ void InstructionSequence::EndBlock(RpoNumber rpo) {
 
 
 int InstructionSequence::AddInstruction(Instruction* instr) {
-  GapInstruction* gap = GapInstruction::New(zone());
-  instructions_.push_back(gap);
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
   if (instr->NeedsPointerMap()) {
@@ -568,13 +572,6 @@ void InstructionSequence::MarkAsReference(int virtual_register) {
 
 void InstructionSequence::MarkAsDouble(int virtual_register) {
   doubles_.insert(virtual_register);
-}
-
-
-void InstructionSequence::AddGapMove(int index, InstructionOperand* from,
-                                     InstructionOperand* to) {
-  GapAt(index)->GetOrCreateParallelMove(GapInstruction::START, zone())->AddMove(
-      from, to, zone());
 }
 
 

@@ -593,10 +593,12 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
     if (instruction_block->code_start() >= 0) {
       int first_index = instruction_block->first_instruction_index();
       int last_index = instruction_block->last_instruction_index();
-      PrintIntProperty("first_lir_id", LifetimePosition::FromInstructionIndex(
-                                           first_index).Value());
-      PrintIntProperty("last_lir_id", LifetimePosition::FromInstructionIndex(
-                                          last_index).Value());
+      PrintIntProperty(
+          "first_lir_id",
+          LifetimePosition::GapFromInstructionIndex(first_index).Value());
+      PrintIntProperty("last_lir_id",
+                       LifetimePosition::InstructionFromInstructionIndex(
+                           last_index).Value());
     }
 
     {

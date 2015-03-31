@@ -15,12 +15,12 @@ static size_t OperandCount(const Instruction* instr) {
 }
 
 
-static void VerifyGapEmpty(const GapInstruction* gap) {
-  for (int i = GapInstruction::FIRST_INNER_POSITION;
-       i <= GapInstruction::LAST_INNER_POSITION; i++) {
-    GapInstruction::InnerPosition inner_pos =
-        static_cast<GapInstruction::InnerPosition>(i);
-    CHECK(!gap->GetParallelMove(inner_pos));
+static void VerifyEmptyGaps(const Instruction* instr) {
+  for (int i = Instruction::FIRST_GAP_POSITION;
+       i <= Instruction::LAST_GAP_POSITION; i++) {
+    Instruction::GapPosition inner_pos =
+        static_cast<Instruction::GapPosition>(i);
+    CHECK(instr->GetParallelMove(inner_pos) == nullptr);
   }
 }
 
@@ -60,6 +60,8 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
   // Construct OperandConstraints for all InstructionOperands, eliminating
   // kSameAsFirst along the way.
   for (const auto* instr : sequence->instructions()) {
+    // All gaps should be totally unallocated at this point.
+    VerifyEmptyGaps(instr);
     const size_t operand_count = OperandCount(instr);
     auto* op_constraints = zone->NewArray<OperandConstraint>(operand_count);
     size_t count = 0;
@@ -79,11 +81,6 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
         op_constraints[count].value_ = op_constraints[0].value_;
       }
       VerifyOutput(op_constraints[count]);
-    }
-    // All gaps should be totally unallocated at this point.
-    if (instr->IsGapMoves()) {
-      CHECK(operand_count == 0);
-      VerifyGapEmpty(GapInstruction::cast(instr));
     }
     InstructionConstraint instr_constraint = {instr, operand_count,
                                               op_constraints};
@@ -329,11 +326,11 @@ class OperandMap : public ZoneObject {
     map().insert(to_insert.begin(), to_insert.end());
   }
 
-  void RunGapInstruction(Zone* zone, const GapInstruction* gap) {
-    for (int i = GapInstruction::FIRST_INNER_POSITION;
-         i <= GapInstruction::LAST_INNER_POSITION; i++) {
-      auto inner_pos = static_cast<GapInstruction::InnerPosition>(i);
-      auto move = gap->GetParallelMove(inner_pos);
+  void RunGaps(Zone* zone, const Instruction* instr) {
+    for (int i = Instruction::FIRST_GAP_POSITION;
+         i <= Instruction::LAST_GAP_POSITION; i++) {
+      auto inner_pos = static_cast<Instruction::GapPosition>(i);
+      auto move = instr->GetParallelMove(inner_pos);
       if (move == nullptr) continue;
       RunParallelMoves(zone, move);
     }
@@ -648,11 +645,7 @@ void RegisterAllocatorVerifier::VerifyGapMoves(BlockMaps* block_maps,
          ++instr_index) {
       const auto& instr_constraint = constraints_[instr_index];
       const auto instr = instr_constraint.instruction_;
-      if (instr->IsSourcePosition()) continue;
-      if (instr->IsGapMoves()) {
-        current->RunGapInstruction(zone(), GapInstruction::cast(instr));
-        continue;
-      }
+      current->RunGaps(zone(), instr);
       const auto op_constraints = instr_constraint.operand_constraints_;
       size_t count = 0;
       for (size_t i = 0; i < instr->InputCount(); ++i, ++count) {
