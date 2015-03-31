@@ -870,7 +870,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_harmony_arrow_functions(FLAG_harmony_arrow_functions);
-  set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_harmony_classes(FLAG_harmony_classes);
   set_allow_harmony_object_literals(FLAG_harmony_object_literals);
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
@@ -4172,8 +4171,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_harmony_modules(allow_harmony_modules());
     reusable_preparser_->set_allow_harmony_arrow_functions(
         allow_harmony_arrow_functions());
-    reusable_preparser_->set_allow_harmony_numeric_literals(
-        allow_harmony_numeric_literals());
     reusable_preparser_->set_allow_harmony_classes(allow_harmony_classes());
     reusable_preparser_->set_allow_harmony_object_literals(
         allow_harmony_object_literals());

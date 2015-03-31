@@ -1373,7 +1373,6 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyModules,
-  kAllowHarmonyNumericLiterals,
   kAllowHarmonyArrowFunctions,
   kAllowHarmonyClasses,
   kAllowHarmonyObjectLiterals,
@@ -1397,8 +1396,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_modules(flags.Contains(kAllowHarmonyModules));
-  parser->set_allow_harmony_numeric_literals(
-      flags.Contains(kAllowHarmonyNumericLiterals));
   parser->set_allow_harmony_object_literals(
       flags.Contains(kAllowHarmonyObjectLiterals));
   parser->set_allow_harmony_arrow_functions(
@@ -1668,9 +1665,8 @@ TEST(ParserSync) {
   // Neither Harmony numeric literals nor our natives syntax have any
   // interaction with the flags above, so test these separately to reduce
   // the combinatorial explosion.
-  static const ParserFlag flags2[] = { kAllowHarmonyNumericLiterals };
-  TestParserSync("0o1234", flags2, arraysize(flags2));
-  TestParserSync("0b1011", flags2, arraysize(flags2));
+  TestParserSync("0o1234", NULL, 0);
+  TestParserSync("0b1011", NULL, 0);
 
   static const ParserFlag flags3[] = { kAllowNatives };
   TestParserSync("%DebugPrint(123)", flags3, arraysize(flags3));
@@ -4262,7 +4258,6 @@ TEST(ClassDeclarationErrors) {
 
   static const ParserFlag always_flags[] = {
     kAllowHarmonyClasses,
-    kAllowHarmonyNumericLiterals,
     kAllowHarmonySloppy
   };
   RunParserSyncTest(context_data, class_data, kError, NULL, 0,

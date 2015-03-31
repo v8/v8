@@ -202,7 +202,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                                \
-  V(harmony_numeric_literals, "harmony numeric literals")                  \
   V(harmony_classes, "harmony classes (implies object literal extension)") \
   V(harmony_object_literals, "harmony object literal extensions")
 

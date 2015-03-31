@@ -450,12 +450,6 @@ class Scanner {
   void SetHarmonyModules(bool modules) {
     harmony_modules_ = modules;
   }
-  bool HarmonyNumericLiterals() const {
-    return harmony_numeric_literals_;
-  }
-  void SetHarmonyNumericLiterals(bool numeric_literals) {
-    harmony_numeric_literals_ = numeric_literals;
-  }
   bool HarmonyClasses() const {
     return harmony_classes_;
   }
@@ -739,8 +733,6 @@ class Scanner {
   bool has_multiline_comment_before_next_;
   // Whether we scan 'module', 'import', 'export' as keywords.
   bool harmony_modules_;
-  // Whether we scan 0o777 and 0b111 as numbers.
-  bool harmony_numeric_literals_;
   // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
   bool harmony_classes_;
   // Whether we allow \u{xxxxx}.

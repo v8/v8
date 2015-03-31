@@ -185,13 +185,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   }
 
   // Slower case.
-  int flags = ALLOW_HEX;
-  if (FLAG_harmony_numeric_literals) {
-    // The current spec draft has not updated "ToNumber Applied to the String
-    // Type", https://bugs.ecmascript.org/show_bug.cgi?id=1584
-    flags |= ALLOW_OCTAL | ALLOW_BINARY;
-  }
-
+  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   return *isolate->factory()->NewNumber(
       StringToDouble(isolate->unicode_cache(), subject, flags));
 }

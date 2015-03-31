@@ -100,9 +100,6 @@ class ParserBase : public Traits {
     return allow_harmony_arrow_functions_;
   }
   bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
-  bool allow_harmony_numeric_literals() const {
-    return scanner()->HarmonyNumericLiterals();
-  }
   bool allow_harmony_classes() const { return scanner()->HarmonyClasses(); }
   bool allow_harmony_object_literals() const {
     return allow_harmony_object_literals_;
@@ -127,9 +124,6 @@ class ParserBase : public Traits {
   }
   void set_allow_harmony_modules(bool allow) {
     scanner()->SetHarmonyModules(allow);
-  }
-  void set_allow_harmony_numeric_literals(bool allow) {
-    scanner()->SetHarmonyNumericLiterals(allow);
   }
   void set_allow_harmony_classes(bool allow) {
     scanner()->SetHarmonyClasses(allow);

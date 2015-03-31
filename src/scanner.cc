@@ -36,7 +36,6 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       octal_pos_(Location::invalid()),
       harmony_modules_(false),
-      harmony_numeric_literals_(false),
       harmony_classes_(false),
       harmony_unicode_(false) {}
 
@@ -954,7 +953,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         while (IsHexDigit(c0_)) {
           AddLiteralCharAdvance();
         }
-      } else if (harmony_numeric_literals_ && (c0_ == 'o' || c0_ == 'O')) {
+      } else if (c0_ == 'o' || c0_ == 'O') {
         kind = OCTAL;
         AddLiteralCharAdvance();
         if (!IsOctalDigit(c0_)) {
@@ -964,7 +963,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         while (IsOctalDigit(c0_)) {
           AddLiteralCharAdvance();
         }
-      } else if (harmony_numeric_literals_ && (c0_ == 'b' || c0_ == 'B')) {
+      } else if (c0_ == 'b' || c0_ == 'B') {
         kind = BINARY;
         AddLiteralCharAdvance();
         if (!IsBinaryDigit(c0_)) {
