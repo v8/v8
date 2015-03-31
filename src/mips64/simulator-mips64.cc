@@ -2272,12 +2272,62 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
 
 void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
                                           const int32_t& fs_reg,
+                                          const int32_t& ft_reg,
                                           const int64_t& fd_reg) {
-  float f;
+  float fs, ft;
+  fs = get_fpu_register_float(fs_reg);
+  ft = get_fpu_register_float(ft_reg);
+  uint32_t cc, fcsr_cc;
+  cc = instr->FCccValue();
+  fcsr_cc = get_fcsr_condition_bit(cc);
   switch (instr->FunctionFieldRaw()) {
+    case ADD_D:
+      set_fpu_register_float(fd_reg, fs + ft);
+      break;
+    case SUB_D:
+      set_fpu_register_float(fd_reg, fs - ft);
+      break;
+    case MUL_D:
+      set_fpu_register_float(fd_reg, fs * ft);
+      break;
+    case DIV_D:
+      set_fpu_register_float(fd_reg, fs / ft);
+      break;
+    case ABS_D:
+      set_fpu_register_float(fd_reg, fabs(fs));
+      break;
+    case MOV_D:
+      set_fpu_register_float(fd_reg, fs);
+      break;
+    case NEG_D:
+      set_fpu_register_float(fd_reg, -fs);
+      break;
+    case SQRT_D:
+      set_fpu_register_float(fd_reg, fast_sqrt(fs));
+      break;
+    case C_UN_D:
+      set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));
+      break;
+    case C_EQ_D:
+      set_fcsr_bit(fcsr_cc, (fs == ft));
+      break;
+    case C_UEQ_D:
+      set_fcsr_bit(fcsr_cc, (fs == ft) || (std::isnan(fs) || std::isnan(ft)));
+      break;
+    case C_OLT_D:
+      set_fcsr_bit(fcsr_cc, (fs < ft));
+      break;
+    case C_ULT_D:
+      set_fcsr_bit(fcsr_cc, (fs < ft) || (std::isnan(fs) || std::isnan(ft)));
+      break;
+    case C_OLE_D:
+      set_fcsr_bit(fcsr_cc, (fs <= ft));
+      break;
+    case C_ULE_D:
+      set_fcsr_bit(fcsr_cc, (fs <= ft) || (std::isnan(fs) || std::isnan(ft)));
+      break;
     case CVT_D_S:
-      f = get_fpu_register_float(fs_reg);
-      set_fpu_register_double(fd_reg, static_cast<double>(f));
+      set_fpu_register_double(fd_reg, static_cast<double>(fs));
       break;
     default:
       // CVT_W_S CVT_L_S TRUNC_W_S ROUND_W_S ROUND_L_S FLOOR_W_S FLOOR_L_S
@@ -2581,7 +2631,7 @@ void Simulator::DecodeTypeRegisterCOP1(
       set_fpu_register_hi_word(fs_reg, registers_[rt_reg]);
       break;
     case S:
-      DecodeTypeRegisterSRsType(instr, fs_reg, fd_reg);
+      DecodeTypeRegisterSRsType(instr, fs_reg, ft_reg, fd_reg);
       break;
     case D:
       DecodeTypeRegisterDRsType(instr, fs_reg, ft_reg, fd_reg);

@@ -45,6 +45,13 @@ namespace compiler {
   V(Mips64Mov)                      \
   V(Mips64Tst)                      \
   V(Mips64Cmp)                      \
+  V(Mips64CmpS)                     \
+  V(Mips64AddS)                     \
+  V(Mips64SubS)                     \
+  V(Mips64MulS)                     \
+  V(Mips64DivS)                     \
+  V(Mips64ModS)                     \
+  V(Mips64SqrtS)                    \
   V(Mips64CmpD)                     \
   V(Mips64AddD)                     \
   V(Mips64SubD)                     \

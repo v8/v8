@@ -604,6 +604,45 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
 
+    case kMips64CmpS:
+      // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
+      break;
+    case kMips64AddS:
+      // TODO(plind): add special case: combine mult & add.
+      __ add_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
+    case kMips64SubS:
+      __ sub_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
+    case kMips64MulS:
+      // TODO(plind): add special case: right op is -1.0, see arm port.
+      __ mul_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
+    case kMips64DivS:
+      __ div_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
+    case kMips64ModS: {
+      // TODO(bmeurer): We should really get rid of this special instruction,
+      // and generate a CallAddress instruction instead.
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      __ PrepareCallCFunction(0, 2, kScratchReg);
+      __ MovToFloatParameters(i.InputDoubleRegister(0),
+                              i.InputDoubleRegister(1));
+      // TODO(balazs.kilvady): implement mod_two_floats_operation(isolate())
+      __ CallCFunction(ExternalReference::mod_two_doubles_operation(isolate()),
+                       0, 2);
+      // Move the result in the double result register.
+      __ MovFromFloatResult(i.OutputSingleRegister());
+      break;
+    }
+    case kMips64SqrtS: {
+      __ sqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    }
     case kMips64CmpD:
       // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
       break;
@@ -638,6 +677,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
     }
+    case kMips64SqrtD: {
+      __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    }
     case kMips64Float64RoundDown: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d, Floor);
       break;
@@ -648,10 +691,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kMips64Float64RoundUp: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
-      break;
-    }
-    case kMips64SqrtD: {
-      __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kMips64CvtSD: {
@@ -846,6 +885,41 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
+  } else if (instr->arch_opcode() == kMips64CmpS) {
+    // TODO(dusmil) optimize unordered checks to use fewer instructions
+    // even if we have to unfold BranchF macro.
+    Label* nan = flabel;
+    switch (branch->condition) {
+      case kEqual:
+        cc = eq;
+        break;
+      case kNotEqual:
+        cc = ne;
+        nan = tlabel;
+        break;
+      case kUnsignedLessThan:
+        cc = lt;
+        break;
+      case kUnsignedGreaterThanOrEqual:
+        cc = ge;
+        nan = tlabel;
+        break;
+      case kUnsignedLessThanOrEqual:
+        cc = le;
+        break;
+      case kUnsignedGreaterThan:
+        cc = gt;
+        nan = tlabel;
+        break;
+      default:
+        UNSUPPORTED_COND(kMips64CmpS, branch->condition);
+        break;
+    }
+    __ BranchFS(tlabel, nan, cc, i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
+
+    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
+
   } else if (instr->arch_opcode() == kMips64CmpD) {
     // TODO(dusmil) optimize unordered checks to use less instructions
     // even if we have to unfold BranchF macro.

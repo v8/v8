@@ -341,7 +341,7 @@ class Simulator {
                                   int64_t& alu_out);
 
   void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t& fs_reg,
-                                 const int64_t& fd_reg);
+                                 const int32_t& ft_reg, const int64_t& fd_reg);
 
   void DecodeTypeRegisterDRsType(Instruction* instr, const int32_t& fs_reg,
                                  const int64_t& ft_reg, const int32_t& fd_reg);

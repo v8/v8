@@ -305,8 +305,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 
 
 void InstructionSelector::VisitWord32Clz(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64Clz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64Clz, node);
 }
 
 
@@ -369,15 +368,12 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
       return;
     }
   }
-  Emit(kMips64Mul, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-       g.UseRegister(m.right().node()));
+  VisitRRR(this, kMips64Mul, node);
 }
 
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64MulHigh, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  VisitRRR(this, kMips64MulHigh, node);
 }
 
 
@@ -492,35 +488,27 @@ void InstructionSelector::VisitUint64Mod(Node* node) {
 
 
 void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtDS, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtDS, node);
 }
 
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtDW, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtDW, node);
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtDUw, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtDUw, node);
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64TruncWD, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64TruncWD, node);
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64TruncUwD, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64TruncUwD, node);
 }
 
 
@@ -546,13 +534,22 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtSD, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtSD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Add(Node* node) {
+  VisitRRR(this, kMips64AddS, node);
 }
 
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   VisitRRR(this, kMips64AddD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Sub(Node* node) {
+  VisitRRR(this, kMips64SubS, node);
 }
 
 
@@ -575,8 +572,18 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32Mul(Node* node) {
+  VisitRRR(this, kMips64MulS, node);
+}
+
+
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   VisitRRR(this, kMips64MulD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Div(Node* node) {
+  VisitRRR(this, kMips64DivS, node);
 }
 
 
@@ -593,15 +600,25 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 
 
 void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitFloat32Sqrt(Node* node) {
+  VisitRR(this, kMips64SqrtS, node);
+}
+
+
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64SqrtD, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64SqrtD, node);
 }
 
 
@@ -785,7 +802,18 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 
-// Shared routine for multiple float compare operations.
+// Shared routine for multiple float32 compare operations.
+void VisitFloat32Compare(InstructionSelector* selector, Node* node,
+                         FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  VisitCompare(selector, kMips64CmpS, g.UseRegister(left), g.UseRegister(right),
+               cont);
+}
+
+
+// Shared routine for multiple float64 compare operations.
 void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   Mips64OperandGenerator g(selector);
@@ -900,6 +928,15 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(selector, value, cont);
+      case IrOpcode::kFloat32Equal:
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitFloat32Compare(selector, value, cont);
+      case IrOpcode::kFloat32LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitFloat32Compare(selector, value, cont);
+      case IrOpcode::kFloat32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitFloat32Compare(selector, value, cont);
       case IrOpcode::kFloat64Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat64Compare(selector, value, cont);
@@ -1064,6 +1101,24 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat32Equal(Node* node) {
+  FlagsContinuation cont(kEqual, node);
+  VisitFloat32Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat32LessThan(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitFloat32Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  VisitFloat32Compare(this, node, &cont);
 }
 
 

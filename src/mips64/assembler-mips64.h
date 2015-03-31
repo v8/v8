@@ -918,14 +918,20 @@ class Assembler : public AssemblerBase {
   void cfc1(Register rt, FPUControlRegister fs);
 
   // Arithmetic.
+  void add_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void add_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void sub_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void mul_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void div_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
+  void neg_s(FPURegister fd, FPURegister fs);
   void neg_d(FPURegister fd, FPURegister fs);
+  void sqrt_s(FPURegister fd, FPURegister fs);
   void sqrt_d(FPURegister fd, FPURegister fs);
 
   // Conversion.
