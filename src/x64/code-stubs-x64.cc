@@ -2318,6 +2318,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CreateWeakCellStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
+  StoreFastElementStub::GenerateAheadOfTime(isolate);
 }
 
 

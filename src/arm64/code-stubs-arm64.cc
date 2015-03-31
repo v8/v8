@@ -979,6 +979,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
+  StoreFastElementStub::GenerateAheadOfTime(isolate);
 }
 
 
