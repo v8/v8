@@ -2200,6 +2200,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(GetFromCache)                      \
   F(NumberToString)                    \
   F(DebugIsActive)                     \
+  F(Likely)                            \
+  F(Unlikely)                          \
   /* Typed Arrays */                   \
   F(TypedArrayInitialize)              \
   F(DataViewInitialize)                \

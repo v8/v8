@@ -330,5 +330,17 @@ RUNTIME_FUNCTION(Runtime_IncrementStatsCounter) {
   }
   return isolate->heap()->undefined_value();
 }
+
+
+RUNTIME_FUNCTION(Runtime_Likely) {
+  DCHECK(args.length() == 1);
+  return args[0];
+}
+
+
+RUNTIME_FUNCTION(Runtime_Unlikely) {
+  DCHECK(args.length() == 1);
+  return args[0];
+}
 }
 }  // namespace v8::internal

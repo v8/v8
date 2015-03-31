@@ -88,6 +88,8 @@ namespace internal {
   F(NotifyContextDisposed, 0, 1)               \
   F(ThrowIteratorResultNotAnObject, 1, 1)      \
   F(IncrementStatsCounter, 1, 1)               \
+  F(Likely, 1, 1)                              \
+  F(Unlikely, 1, 1)                            \
                                                \
   /* Array join support */                     \
   F(PushIfAbsent, 2, 1)                        \

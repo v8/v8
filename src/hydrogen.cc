@@ -12044,6 +12044,17 @@ void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateLikely(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  Visit(call->arguments()->at(0));
+}
+
+
+void HOptimizedGraphBuilder::GenerateUnlikely(CallRuntime* call) {
+  return GenerateLikely(call);
+}
+
+
 HValue* HOptimizedGraphBuilder::BuildOrderedHashTableHashToBucket(
     HValue* hash, HValue* num_buckets) {
   HValue* mask = AddUncasted<HSub>(num_buckets, graph()->GetConstant1());
