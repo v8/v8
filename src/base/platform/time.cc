@@ -548,15 +548,6 @@ TimeTicks TimeTicks::HighResolutionNow() {
            info.numer / info.denom);
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
-#elif V8_LIBRT_NOT_AVAILABLE
-  // TODO(bmeurer): This is a temporary hack to support cross-compiling
-  // Chrome for Android in AOSP. Remove this once AOSP is fixed, also
-  // cleanup the tools/gyp/v8.gyp file.
-  struct timeval tv;
-  int result = gettimeofday(&tv, NULL);
-  DCHECK_EQ(0, result);
-  USE(result);
-  ticks = (tv.tv_sec * Time::kMicrosecondsPerSecond + tv.tv_usec);
 #elif V8_OS_POSIX
   struct timespec ts;
   int result = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -576,7 +567,7 @@ bool TimeTicks::IsHighResolutionClockWorking() {
 }
 
 
-#if V8_OS_LINUX && !V8_LIBRT_NOT_AVAILABLE
+#if V8_OS_LINUX
 
 class KernelTimestampClock {
  public:
@@ -632,7 +623,7 @@ class KernelTimestampClock {
   bool Available() { return false; }
 };
 
-#endif  // V8_OS_LINUX && !V8_LIBRT_NOT_AVAILABLE
+#endif  // V8_OS_LINUX
 
 static LazyStaticInstance<KernelTimestampClock,
                           DefaultConstructTrait<KernelTimestampClock>,

@@ -1398,17 +1398,15 @@ source_set("v8_libbase") {
   } else if (is_android) {
     defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
 
-    if (host_os == "mac") {
-      if (current_toolchain == host_toolchain) {
+    if (current_toolchain == host_toolchain) {
+      libs = [ "dl", "rt" ]
+      if (host_os == "mac") {
         sources += [ "src/base/platform/platform-macos.cc" ]
       } else {
         sources += [ "src/base/platform/platform-linux.cc" ]
       }
     } else {
       sources += [ "src/base/platform/platform-linux.cc" ]
-      if (current_toolchain == host_toolchain) {
-        defines += [ "V8_LIBRT_NOT_AVAILABLE" ]
-      }
     }
   } else if (is_mac) {
     sources += [ "src/base/platform/platform-macos.cc" ]

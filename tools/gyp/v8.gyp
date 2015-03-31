@@ -1407,8 +1407,17 @@
               '../../src/base/platform/platform-posix.cc'
             ],
             'link_settings': {
-              'libraries': [
-                '-ldl'
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  # Only include libdl and librt on host builds because they
+                  # are included by default on Android target builds, and we
+                  # don't want to re-include them here since this will change
+                  # library order and break (see crbug.com/469973).
+                  'libraries': [
+                    '-ldl',
+                    '-lrt'
+                  ]
+                }]
               ]
             },
             'conditions': [
@@ -1425,28 +1434,6 @@
                   }],
                 ],
               }, {
-                # TODO(bmeurer): What we really want here, is this:
-                #
-                # 'link_settings': {
-                #   'target_conditions': [
-                #     ['_toolset=="host"', {
-                #       'libraries': [
-                #         '-lrt'
-                #       ]
-                #     }]
-                #   ]
-                # },
-                #
-                # but we can't do this right now, as the AOSP does not support
-                # linking against the host librt, so we need to work around this
-                # for now, using the following hack (see platform/time.cc):
-                'target_conditions': [
-                  ['_toolset=="host"', {
-                    'defines': [
-                      'V8_LIBRT_NOT_AVAILABLE=1',
-                    ],
-                  }],
-                ],
                 'sources': [
                   '../../src/base/platform/platform-linux.cc'
                 ]
