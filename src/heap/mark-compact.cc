@@ -3698,6 +3698,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_SWEEP_NEWSPACE);
     code_slots_filtering_required = MarkInvalidatedCode();
+    EvacuationScope evacuation_scope(this);
     EvacuateNewSpace();
   }
 
@@ -3706,6 +3707,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                              GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuationScope evacuation_scope(this);
     EvacuatePages();
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap && !sweeping_in_progress_) {
+      VerifyEvacuation(heap());
+    }
+#endif
   }
 
   // Second pass: find pointers to new space and update them.
