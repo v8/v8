@@ -89,6 +89,7 @@ class Decoder {
   void PrintXImm21(Instruction* instr);
   void PrintXImm26(Instruction* instr);
   void PrintCode(Instruction* instr);   // For break and trap instructions.
+  void PrintFormat(Instruction* instr);  // For floating format postfix.
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
 
@@ -101,6 +102,8 @@ class Decoder {
 
 
   // Each of these functions decodes one particular instruction type.
+  bool DecodeTypeRegisterRsType(Instruction* instr);
+  void DecodeTypeRegisterSRsType(Instruction* instr);
   void DecodeTypeRegisterDRsType(Instruction* instr);
   void DecodeTypeRegisterLRsType(Instruction* instr);
   void DecodeTypeRegisterSPECIAL(Instruction* instr);
@@ -295,6 +298,29 @@ void Decoder::PrintCode(Instruction* instr) {
 }
 
 
+void Decoder::PrintFormat(Instruction* instr) {
+  char formatLetter = ' ';
+  switch (instr->RsFieldRaw()) {
+    case S:
+      formatLetter = 's';
+      break;
+    case D:
+      formatLetter = 'd';
+      break;
+    case W:
+      formatLetter = 'w';
+      break;
+    case L:
+      formatLetter = 'l';
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  PrintChar(formatLetter);
+}
+
+
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {
 }
@@ -425,6 +451,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       PrintCc(instr);
       return 2;
     }
+    case 't':
+      PrintFormat(instr);
+      return 1;
   }
   UNREACHABLE();
   return -1;
@@ -455,83 +484,104 @@ void Decoder::Unknown(Instruction* instr) {
 }
 
 
-void Decoder::DecodeTypeRegisterDRsType(Instruction* instr) {
+bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
     case ADD_D:
-      Format(instr, "add.d   'fd, 'fs, 'ft");
+      Format(instr, "add.'t   'fd, 'fs, 'ft");
       break;
     case SUB_D:
-      Format(instr, "sub.d   'fd, 'fs, 'ft");
+      Format(instr, "sub.'t   'fd, 'fs, 'ft");
       break;
     case MUL_D:
-      Format(instr, "mul.d   'fd, 'fs, 'ft");
+      Format(instr, "mul.'t   'fd, 'fs, 'ft");
       break;
     case DIV_D:
-      Format(instr, "div.d   'fd, 'fs, 'ft");
+      Format(instr, "div.'t   'fd, 'fs, 'ft");
       break;
     case ABS_D:
-      Format(instr, "abs.d   'fd, 'fs");
+      Format(instr, "abs.'t   'fd, 'fs");
       break;
     case MOV_D:
-      Format(instr, "mov.d   'fd, 'fs");
+      Format(instr, "mov.'t   'fd, 'fs");
       break;
     case NEG_D:
-      Format(instr, "neg.d   'fd, 'fs");
+      Format(instr, "neg.'t   'fd, 'fs");
       break;
     case SQRT_D:
-      Format(instr, "sqrt.d  'fd, 'fs");
+      Format(instr, "sqrt.'t  'fd, 'fs");
       break;
     case CVT_W_D:
-      Format(instr, "cvt.w.d 'fd, 'fs");
+      Format(instr, "cvt.w.'t 'fd, 'fs");
       break;
     case CVT_L_D:
-      Format(instr, "cvt.l.d 'fd, 'fs");
+      Format(instr, "cvt.l.'t 'fd, 'fs");
       break;
     case TRUNC_W_D:
-      Format(instr, "trunc.w.d 'fd, 'fs");
+      Format(instr, "trunc.w.'t 'fd, 'fs");
       break;
     case TRUNC_L_D:
-      Format(instr, "trunc.l.d 'fd, 'fs");
+      Format(instr, "trunc.l.'t 'fd, 'fs");
       break;
     case ROUND_W_D:
-      Format(instr, "round.w.d 'fd, 'fs");
+      Format(instr, "round.w.'t 'fd, 'fs");
       break;
     case FLOOR_W_D:
-      Format(instr, "floor.w.d 'fd, 'fs");
+      Format(instr, "floor.w.'t 'fd, 'fs");
       break;
     case CEIL_W_D:
-      Format(instr, "ceil.w.d 'fd, 'fs");
+      Format(instr, "ceil.w.'t 'fd, 'fs");
       break;
     case CVT_S_D:
-      Format(instr, "cvt.s.d 'fd, 'fs");
+      Format(instr, "cvt.s.'t 'fd, 'fs");
       break;
     case C_F_D:
-      Format(instr, "c.f.d   'fs, 'ft, 'Cc");
+      Format(instr, "c.f.'t   'fs, 'ft, 'Cc");
       break;
     case C_UN_D:
-      Format(instr, "c.un.d  'fs, 'ft, 'Cc");
+      Format(instr, "c.un.'t  'fs, 'ft, 'Cc");
       break;
     case C_EQ_D:
-      Format(instr, "c.eq.d  'fs, 'ft, 'Cc");
+      Format(instr, "c.eq.'t  'fs, 'ft, 'Cc");
       break;
     case C_UEQ_D:
-      Format(instr, "c.ueq.d 'fs, 'ft, 'Cc");
+      Format(instr, "c.ueq.'t 'fs, 'ft, 'Cc");
       break;
     case C_OLT_D:
-      Format(instr, "c.olt.d 'fs, 'ft, 'Cc");
+      Format(instr, "c.olt.'t 'fs, 'ft, 'Cc");
       break;
     case C_ULT_D:
-      Format(instr, "c.ult.d 'fs, 'ft, 'Cc");
+      Format(instr, "c.ult.'t 'fs, 'ft, 'Cc");
       break;
     case C_OLE_D:
-      Format(instr, "c.ole.d 'fs, 'ft, 'Cc");
+      Format(instr, "c.ole.'t 'fs, 'ft, 'Cc");
       break;
     case C_ULE_D:
-      Format(instr, "c.ule.d 'fs, 'ft, 'Cc");
+      Format(instr, "c.ule.'t 'fs, 'ft, 'Cc");
       break;
     default:
-      Format(instr, "unknown.cop1.d");
-      break;
+      return false;
+  }
+  return true;
+}
+
+
+void Decoder::DecodeTypeRegisterSRsType(Instruction* instr) {
+  if (!DecodeTypeRegisterRsType(instr)) {
+    switch (instr->FunctionFieldRaw()) {
+      case CVT_D_S:
+        Format(instr, "cvt.d.'t 'fd, 'fs");
+        break;
+      default:
+        Format(instr, "unknown.cop1.'t");
+        break;
+    }
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterDRsType(Instruction* instr) {
+  if (!DecodeTypeRegisterRsType(instr)) {
+    Format(instr, "unknown.cop1.'t");
   }
 }
 
@@ -832,17 +882,11 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
         case MTHC1:
           Format(instr, "mthc1   'rt, 'fs");
           break;
+        case S:
+          DecodeTypeRegisterSRsType(instr);
+          break;
         case D:
           DecodeTypeRegisterDRsType(instr);
-          break;
-        case S:
-          switch (instr->FunctionFieldRaw()) {
-            case CVT_D_S:
-              Format(instr, "cvt.d.s 'fd, 'fs");
-              break;
-            default:
-              UNIMPLEMENTED_MIPS();
-          }
           break;
         case W:
           switch (instr->FunctionFieldRaw()) {

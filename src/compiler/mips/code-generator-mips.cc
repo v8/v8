@@ -787,6 +787,38 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   out << "Unsupported " << #opcode << " condition: \"" << condition << "\""; \
   UNIMPLEMENTED();
 
+static bool convertCondition(FlagsCondition condition, Condition& cc,
+                             bool& acceptNaN) {
+  acceptNaN = false;
+  switch (condition) {
+    case kEqual:
+      cc = eq;
+      return true;
+    case kNotEqual:
+      cc = ne;
+      acceptNaN = true;
+      return true;
+    case kUnsignedLessThan:
+      cc = lt;
+      return true;
+    case kUnsignedGreaterThanOrEqual:
+      cc = ge;
+      acceptNaN = true;
+      return true;
+    case kUnsignedLessThanOrEqual:
+      cc = le;
+      return true;
+    case kUnsignedGreaterThan:
+      cc = gt;
+      acceptNaN = true;
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+
 // Assembles branches after an instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   MipsOperandConverter i(this, instr);
@@ -823,68 +855,24 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   } else if (instr->arch_opcode() == kMipsCmpS) {
     // TODO(dusmil) optimize unordered checks to use fewer instructions
     // even if we have to unfold BranchF macro.
-    Label* nan = flabel;
-    switch (branch->condition) {
-      case kEqual:
-        cc = eq;
-        break;
-      case kNotEqual:
-        cc = ne;
-        nan = tlabel;
-        break;
-      case kUnsignedLessThan:
-        cc = lt;
-        break;
-      case kUnsignedGreaterThanOrEqual:
-        cc = ge;
-        nan = tlabel;
-        break;
-      case kUnsignedLessThanOrEqual:
-        cc = le;
-        break;
-      case kUnsignedGreaterThan:
-        cc = gt;
-        nan = tlabel;
-        break;
-      default:
-        UNSUPPORTED_COND(kMipsCmpS, branch->condition);
-        break;
+    bool acceptNaN = false;
+    if (!convertCondition(branch->condition, cc, acceptNaN)) {
+      UNSUPPORTED_COND(kMips64CmpS, branch->condition);
     }
-    __ BranchFS(tlabel, nan, cc, i.InputDoubleRegister(0),
-                i.InputDoubleRegister(1));
+    Label* nan = acceptNaN ? tlabel : flabel;
+    __ BranchFS(tlabel, nan, cc, i.InputSingleRegister(0),
+                i.InputSingleRegister(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 
   } else if (instr->arch_opcode() == kMipsCmpD) {
     // TODO(dusmil) optimize unordered checks to use fewer instructions
     // even if we have to unfold BranchF macro.
-    Label* nan = flabel;
-    switch (branch->condition) {
-      case kEqual:
-        cc = eq;
-        break;
-      case kNotEqual:
-        cc = ne;
-        nan = tlabel;
-        break;
-      case kUnsignedLessThan:
-        cc = lt;
-        break;
-      case kUnsignedGreaterThanOrEqual:
-        cc = ge;
-        nan = tlabel;
-        break;
-      case kUnsignedLessThanOrEqual:
-        cc = le;
-        break;
-      case kUnsignedGreaterThan:
-        cc = gt;
-        nan = tlabel;
-        break;
-      default:
-        UNSUPPORTED_COND(kMipsCmpD, branch->condition);
-        break;
+    bool acceptNaN = false;
+    if (!convertCondition(branch->condition, cc, acceptNaN)) {
+      UNSUPPORTED_COND(kMips64CmpD, branch->condition);
     }
+    Label* nan = acceptNaN ? tlabel : flabel;
     __ BranchF(tlabel, nan, cc, i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
 
