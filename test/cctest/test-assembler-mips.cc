@@ -50,94 +50,6 @@ typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
 
 #define __ assm.
-TEST(MIPS16) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
-
-  typedef struct test {
-    int a;
-    int b;
-    int c;
-    int d;
-    double e;
-    double f;
-    double g;
-    double h;
-    double i;
-    double j;
-    double k;
-    double l;
-  } Test;
-
-  Test test;
-  // integer part of test
-  __ addiu(t1, zero_reg, 1);                      // t1=1
-  __ seleqz(t1, zero_reg, t3);                    // t3=1
-  __ sw(t3, MemOperand(a0, OFFSET_OF(Test, a)));  // a=1
-  __ seleqz(t1, t1, t2);                          // t2=0
-  __ sw(t2, MemOperand(a0, OFFSET_OF(Test, b)));  // b=0
-  __ selnez(t1, zero_reg, t3);                    // t3=1;
-  __ sw(t3, MemOperand(a0, OFFSET_OF(Test, c)));  // c=0
-  __ selnez(t1, t1, t3);                          // t3=1
-  __ sw(t3, MemOperand(a0, OFFSET_OF(Test, d)));  // d=1
-  // floating point part of test S format
-  __ li(t0, 0x80);
-  __ mtc1(t0, f4);
-  __ cvt_d_w(f4, f4);  // f4=0x80
-  __ li(t0, 0xf3);
-  __ mtc1(t0, f6);
-  __ cvt_d_w(f6, f6);                                // f6=0xf3
-  __ seleqz(S, f8, f4, f6);                          // f8=0xf3
-  __ seleqz(S, f10, f6, f6);                         // f10=0
-  __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, e)));   // e=0xf3
-  __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, f)));  // f=0
-  __ selnez(S, f8, f4, f6);                          // f8=0
-  __ selnez(S, f10, f6, f6);                         // f10=0xf3*/
-  __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, g)));   // g=0
-  __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, h)));  // h=0xf3
-
-  __ li(t0, 0x80);
-  __ mtc1(t0, f4);
-  __ cvt_d_w(f4, f4);  // f4=0x80
-  __ li(t0, 0xf3);
-  __ mtc1(t0, f6);
-  __ cvt_d_w(f6, f6);                                // f6=0xf3
-  __ seleqz(D, f8, f4, f6);                          // f8=0xf3
-  __ seleqz(D, f10, f6, f6);                         // f10=0
-  __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, i)));   // i=0xf3
-  __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, j)));  // j=0
-  __ selnez(S, f8, f4, f6);                          // f8=0
-  __ selnez(S, f10, f6, f6);                         // f10=0xf3*/
-  __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, k)));   // k=0
-  __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, l)));  // l=0xf3
-  __ jr(ra);
-  __ nop();
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-
-  CHECK_EQ(test.a, 1);
-  CHECK_EQ(test.b, 0);
-  CHECK_EQ(test.c, 0);
-  CHECK_EQ(test.d, 1);
-
-  CHECK_EQ(test.e, 0xf3);
-  CHECK_EQ(test.f, 0x0);
-  CHECK_EQ(test.g, 0);
-  CHECK_EQ(test.h, 0xf3);
-
-  CHECK_EQ(test.i, 0xf3);
-  CHECK_EQ(test.j, 0x0);
-  CHECK_EQ(test.k, 0);
-  CHECK_EQ(test.l, 0xf3);
-}
-
 
 TEST(MIPS0) {
   CcTest::InitializeVM();
@@ -1411,6 +1323,97 @@ TEST(MIPS15) {
   __ nop();
   __ bind(&target);
   __ nop();
+}
+
+
+TEST(MIPS16) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test {
+      int a;
+      int b;
+      int c;
+      int d;
+      double e;
+      double f;
+      double g;
+      double h;
+      double i;
+      double j;
+      double k;
+      double l;
+    } Test;
+
+    Test test;
+    // Integer part of test.
+    __ addiu(t1, zero_reg, 1);                      // t1 = 1
+    __ seleqz(t1, zero_reg, t3);                    // t3 = 1
+    __ sw(t3, MemOperand(a0, OFFSET_OF(Test, a)));  // a = 1
+    __ seleqz(t1, t1, t2);                          // t2 = 0
+    __ sw(t2, MemOperand(a0, OFFSET_OF(Test, b)));  // b = 0
+    __ selnez(t1, zero_reg, t3);                    // t3 = 1;
+    __ sw(t3, MemOperand(a0, OFFSET_OF(Test, c)));  // c = 0
+    __ selnez(t1, t1, t3);                          // t3 = 1
+    __ sw(t3, MemOperand(a0, OFFSET_OF(Test, d)));  // d = 1
+    // Floating point part of test S format.
+    __ li(t0, 0x80);
+    __ mtc1(t0, f4);
+    __ cvt_d_w(f4, f4);  // f4 = 0x80
+    __ li(t0, 0xf3);
+    __ mtc1(t0, f6);
+    __ cvt_d_w(f6, f6);                                // f6 = 0xf3
+    __ seleqz(S, f8, f4, f6);                          // f8 = 0xf3
+    __ seleqz(S, f10, f6, f6);                         // f10 = 0
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, e)));   // e = 0xf3
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, f)));  // f = 0
+    __ selnez(S, f8, f4, f6);                          // f8 = 0
+    __ selnez(S, f10, f6, f6);                         // f10 = 0xf3
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, g)));   // g = 0
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, h)));  // h = 0xf3
+
+    __ li(t0, 0x80);
+    __ mtc1(t0, f4);
+    __ cvt_d_w(f4, f4);  // f4 = 0x80
+    __ li(t0, 0xf3);
+    __ mtc1(t0, f6);
+    __ cvt_d_w(f6, f6);                                // f6 = 0xf3
+    __ seleqz(D, f8, f4, f6);                          // f8 = 0xf3
+    __ seleqz(D, f10, f6, f6);                         // f10 = 0
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, i)));   // i = 0xf3
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, j)));  // j = 0
+    __ selnez(S, f8, f4, f6);                          // f8 = 0
+    __ selnez(S, f10, f6, f6);                         // f10 = 0xf3
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, k)));   // k = 0
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, l)));  // l = 0xf3
+    __ jr(ra);
+    __ nop();
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+
+    CHECK_EQ(test.a, 1);
+    CHECK_EQ(test.b, 0);
+    CHECK_EQ(test.c, 0);
+    CHECK_EQ(test.d, 1);
+
+    CHECK_EQ(test.e, 0xf3);
+    CHECK_EQ(test.f, 0x0);
+    CHECK_EQ(test.g, 0);
+    CHECK_EQ(test.h, 0xf3);
+
+    CHECK_EQ(test.i, 0xf3);
+    CHECK_EQ(test.j, 0x0);
+    CHECK_EQ(test.k, 0);
+    CHECK_EQ(test.l, 0xf3);
+  }
 }
 
 
