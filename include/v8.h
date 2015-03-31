@@ -5418,8 +5418,9 @@ class V8_EXPORT Isolate {
    *
    * This should only be used for testing purposes and not to enforce a garbage
    * collection schedule. It has strong negative impact on the garbage
-   * collection performance. Use IdleNotification() or LowMemoryNotification()
-   * instead to influence the garbage collection schedule.
+   * collection performance. Use IdleNotificationDeadline() or
+   * LowMemoryNotification() instead to influence the garbage collection
+   * schedule.
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
@@ -5501,14 +5502,9 @@ class V8_EXPORT Isolate {
    * Optional notification that the embedder is idle.
    * V8 uses the notification to perform garbage collection.
    * This call can be used repeatedly if the embedder remains idle.
-   * Returns true if the embedder should stop calling IdleNotification
+   * Returns true if the embedder should stop calling IdleNotificationDeadline
    * until real work has been done.  This indicates that V8 has done
    * as much cleanup as it will be able to do.
-   *
-   * The idle_time_in_ms argument specifies the time V8 has to perform
-   * garbage collection. There is no guarantee that the actual work will be
-   * done within the time limit. This variant is deprecated and will be removed
-   * in the future.
    *
    * The deadline_in_seconds argument specifies the deadline V8 has to finish
    * garbage collection work. deadline_in_seconds is compared with
@@ -5516,8 +5512,10 @@ class V8_EXPORT Isolate {
    * that function. There is no guarantee that the actual work will be done
    * within the time limit.
    */
-  bool IdleNotification(int idle_time_in_ms);
   bool IdleNotificationDeadline(double deadline_in_seconds);
+
+  V8_DEPRECATE_SOON("use IdleNotificationDeadline()",
+                    bool IdleNotification(int idle_time_in_ms));
 
   /**
    * Optional notification that the system is running low on memory.
