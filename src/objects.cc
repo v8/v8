@@ -406,6 +406,21 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
     Handle<Object> receiver,
     Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
+
+  // Platforms with simulators like arm/arm64 expose a funny issue. If the
+  // simulator has a separate JS stack pointer from the C++ stack pointer, it
+  // can miss C++ stack overflows in the stack guard at the start of JavaScript
+  // functions. It would be very expensive to check the C++ stack pointer at
+  // that location. The best solution seems to be to break the impasse by
+  // adding checks at possible recursion points. What's more, we don't put
+  // this stack check behind the USE_SIMULATOR define in order to keep
+  // behavior the same between hardware and simulators.
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    isolate->StackOverflow();
+    return MaybeHandle<Object>();
+  }
+
   Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
