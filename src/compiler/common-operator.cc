@@ -118,7 +118,7 @@ size_t ProjectionIndexOf(const Operator* const op) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(IfException, Operator::kKontrol, 0, 0, 1, 1, 0, 1)     \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(Throw, Operator::kFoldable, 1, 1, 1, 0, 0, 1)          \
+  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
