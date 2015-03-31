@@ -596,7 +596,6 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse:
     case IrOpcode::kIfSuccess:
-    case IrOpcode::kIfException:
     case IrOpcode::kSwitch:
     case IrOpcode::kIfValue:
     case IrOpcode::kIfDefault:
@@ -604,6 +603,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kMerge:
       // No code needed for these graph artifacts.
       return;
+    case IrOpcode::kIfException:
+      return MarkAsReference(node), VisitIfException(node);
     case IrOpcode::kFinish:
       return MarkAsReference(node), VisitFinish(node);
     case IrOpcode::kParameter: {
@@ -966,6 +967,16 @@ void InstructionSelector::VisitParameter(Node* node) {
   Emit(kArchNop,
        g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
                           linkage()->GetParameterType(index)));
+}
+
+
+void InstructionSelector::VisitIfException(Node* node) {
+  OperandGenerator g(this);
+  Node* call = node->InputAt(0);
+  DCHECK_EQ(IrOpcode::kCall, call->opcode());
+  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(call);
+  Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0),
+                                    descriptor->GetReturnType(0)));
 }
 
 

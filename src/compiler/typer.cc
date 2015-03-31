@@ -228,6 +228,7 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return UpdateBounds(node, Type##x(node));
       DECLARE_CASE(Start)
+      DECLARE_CASE(IfException)
       // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
       COMMON_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_OP_LIST(DECLARE_CASE)
@@ -239,8 +240,22 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
+      DECLARE_CASE(Dead)
+      DECLARE_CASE(Loop)
+      DECLARE_CASE(Branch)
+      DECLARE_CASE(IfTrue)
+      DECLARE_CASE(IfFalse)
+      DECLARE_CASE(IfSuccess)
+      DECLARE_CASE(Switch)
+      DECLARE_CASE(IfValue)
+      DECLARE_CASE(IfDefault)
+      DECLARE_CASE(Merge)
+      DECLARE_CASE(Deoptimize)
+      DECLARE_CASE(Return)
+      DECLARE_CASE(OsrNormalEntry)
+      DECLARE_CASE(OsrLoopEntry)
+      DECLARE_CASE(Throw)
       DECLARE_CASE(End)
-      INNER_CONTROL_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -256,6 +271,7 @@ class Typer::Visitor : public Reducer {
 
 #define DECLARE_CASE(x) case IrOpcode::k##x: return Type##x(node);
       DECLARE_CASE(Start)
+      DECLARE_CASE(IfException)
       // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
       COMMON_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_OP_LIST(DECLARE_CASE)
@@ -267,8 +283,22 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
+      DECLARE_CASE(Dead)
+      DECLARE_CASE(Loop)
+      DECLARE_CASE(Branch)
+      DECLARE_CASE(IfTrue)
+      DECLARE_CASE(IfFalse)
+      DECLARE_CASE(IfSuccess)
+      DECLARE_CASE(Switch)
+      DECLARE_CASE(IfValue)
+      DECLARE_CASE(IfDefault)
+      DECLARE_CASE(Merge)
+      DECLARE_CASE(Deoptimize)
+      DECLARE_CASE(Return)
+      DECLARE_CASE(OsrNormalEntry)
+      DECLARE_CASE(OsrLoopEntry)
+      DECLARE_CASE(Throw)
       DECLARE_CASE(End)
-      INNER_CONTROL_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -285,6 +315,7 @@ class Typer::Visitor : public Reducer {
 
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
   DECLARE_METHOD(Start)
+  DECLARE_METHOD(IfException)
   VALUE_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -599,6 +630,11 @@ Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
 
 Bounds Typer::Visitor::TypeStart(Node* node) {
   return Bounds(Type::None(zone()), Type::Internal(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeIfException(Node* node) {
+  return Bounds::Unbounded(zone());
 }
 
 

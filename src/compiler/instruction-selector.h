@@ -199,6 +199,7 @@ class InstructionSelector FINAL {
 
   void VisitFinish(Node* node);
   void VisitParameter(Node* node);
+  void VisitIfException(Node* node);
   void VisitOsrValue(Node* node);
   void VisitPhi(Node* node);
   void VisitProjection(Node* node);

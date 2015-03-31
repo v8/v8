@@ -3296,7 +3296,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
         Node* on_exception = graph()->NewNode(common()->IfException(), result);
         environment_->UpdateControlDependency(on_exception);
-        execution_control()->ThrowValue(result);
+        execution_control()->ThrowValue(on_exception);
       }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {

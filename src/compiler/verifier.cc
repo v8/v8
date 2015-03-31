@@ -228,13 +228,20 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
-    case IrOpcode::kIfSuccess:
-    case IrOpcode::kIfException: {
+    case IrOpcode::kIfSuccess: {
       // IfSuccess and IfException continuation only on throwing nodes.
       Node* input = NodeProperties::GetControlInput(node, 0);
       CHECK(!input->op()->HasProperty(Operator::kNoThrow));
       // Type is empty.
       CheckNotTyped(node);
+      break;
+    }
+    case IrOpcode::kIfException: {
+      // IfSuccess and IfException continuation only on throwing nodes.
+      Node* input = NodeProperties::GetControlInput(node, 0);
+      CHECK(!input->op()->HasProperty(Operator::kNoThrow));
+      // Type can be anything.
+      CheckUpperIs(node, Type::Any());
       break;
     }
     case IrOpcode::kSwitch: {

@@ -6,27 +6,24 @@
 #define V8_COMPILER_OPCODES_H_
 
 // Opcodes for control operators.
-#define INNER_CONTROL_OP_LIST(V) \
-  V(Dead)                        \
-  V(Loop)                        \
-  V(Branch)                      \
-  V(Switch)                      \
-  V(IfTrue)                      \
-  V(IfFalse)                     \
-  V(IfSuccess)                   \
-  V(IfException)                 \
-  V(IfValue)                     \
-  V(IfDefault)                   \
-  V(Merge)                       \
-  V(Deoptimize)                  \
-  V(Return)                      \
-  V(OsrNormalEntry)              \
-  V(OsrLoopEntry)                \
-  V(Throw)
-
 #define CONTROL_OP_LIST(V) \
-  INNER_CONTROL_OP_LIST(V) \
   V(Start)                 \
+  V(Dead)                  \
+  V(Loop)                  \
+  V(Branch)                \
+  V(Switch)                \
+  V(IfTrue)                \
+  V(IfFalse)               \
+  V(IfSuccess)             \
+  V(IfException)           \
+  V(IfValue)               \
+  V(IfDefault)             \
+  V(Merge)                 \
+  V(Deoptimize)            \
+  V(Return)                \
+  V(OsrNormalEntry)        \
+  V(OsrLoopEntry)          \
+  V(Throw)                 \
   V(End)
 
 // Opcodes for constant operators.
@@ -306,12 +303,12 @@ class IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kDead <= value && value <= kAlways;
+    return kStart <= value && value <= kAlways;
   }
 
   // Returns true if opcode for control operator.
   static bool IsControlOpcode(Value value) {
-    return kDead <= value && value <= kEnd;
+    return kStart <= value && value <= kEnd;
   }
 
   // Returns true if opcode for JavaScript operator.
