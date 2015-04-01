@@ -923,8 +923,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
       UNSUPPORTED_COND(kMips64CmpS, branch->condition);
     }
     Label* nan = acceptNaN ? tlabel : flabel;
-    __ BranchFS(tlabel, nan, cc, i.InputSingleRegister(0),
-                i.InputSingleRegister(1));
+    __ BranchF32(tlabel, nan, cc, i.InputSingleRegister(0),
+                 i.InputSingleRegister(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 
@@ -936,8 +936,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
       UNSUPPORTED_COND(kMips64CmpD, branch->condition);
     }
     Label* nan = acceptNaN ? tlabel : flabel;
-    __ BranchF(tlabel, nan, cc, i.InputDoubleRegister(0),
-               i.InputDoubleRegister(1));
+    __ BranchF64(tlabel, nan, cc, i.InputDoubleRegister(0),
+                 i.InputDoubleRegister(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
   } else {

@@ -1430,9 +1430,9 @@ void MacroAssembler::Mfhc1(Register rt, FPURegister fs) {
 }
 
 
-void MacroAssembler::BranchFSize(SecondaryField sizeField, Label* target,
-                                 Label* nan, Condition cc, FPURegister cmp1,
-                                 FPURegister cmp2, BranchDelaySlot bd) {
+void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
+                                   Label* nan, Condition cc, FPURegister cmp1,
+                                   FPURegister cmp2, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cc == al) {
     Branch(bd, target);
@@ -1548,20 +1548,6 @@ void MacroAssembler::BranchFSize(SecondaryField sizeField, Label* target,
   if (bd == PROTECT) {
     nop();
   }
-}
-
-
-void MacroAssembler::BranchF(Label* target, Label* nan, Condition cc,
-                             FPURegister cmp1, FPURegister cmp2,
-                             BranchDelaySlot bd) {
-  BranchFSize(D, target, nan, cc, cmp1, cmp2, bd);
-}
-
-
-void MacroAssembler::BranchFS(Label* target, Label* nan, Condition cc,
-                              FPURegister cmp1, FPURegister cmp2,
-                              BranchDelaySlot bd) {
-  BranchFSize(S, target, nan, cc, cmp1, cmp2, bd);
 }
 
 

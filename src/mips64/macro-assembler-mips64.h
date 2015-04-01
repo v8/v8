@@ -802,33 +802,38 @@ class MacroAssembler: public Assembler {
               FPURegister scratch);
 
   // Wrapper functions for the different cmp/branch types.
-  void BranchFSize(SecondaryField sizeField, Label* target, Label* nan,
-                   Condition cc, FPURegister cmp1, FPURegister cmp2,
-                   BranchDelaySlot bd = PROTECT);
-
-  void BranchF(Label* target,
-               Label* nan,
-               Condition cc,
-               FPURegister cmp1,
-               FPURegister cmp2,
-               BranchDelaySlot bd = PROTECT);
-
-  void BranchFS(Label* target, Label* nan, Condition cc, FPURegister cmp1,
-                FPURegister cmp2, BranchDelaySlot bd = PROTECT);
-
-  // Alternate (inline) version for better readability with USE_DELAY_SLOT.
-  inline void BranchF(BranchDelaySlot bd,
-                      Label* target,
-                      Label* nan,
-                      Condition cc,
-                      FPURegister cmp1,
-                      FPURegister cmp2) {
-    BranchF(target, nan, cc, cmp1, cmp2, bd);
+  inline void BranchF32(Label* target, Label* nan, Condition cc,
+                        FPURegister cmp1, FPURegister cmp2,
+                        BranchDelaySlot bd = PROTECT) {
+    BranchFCommon(S, target, nan, cc, cmp1, cmp2, bd);
   }
 
-  inline void BranchFS(BranchDelaySlot bd, Label* target, Label* nan,
-                       Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchFS(target, nan, cc, cmp1, cmp2, bd);
+  inline void BranchF64(Label* target, Label* nan, Condition cc,
+                        FPURegister cmp1, FPURegister cmp2,
+                        BranchDelaySlot bd = PROTECT) {
+    BranchFCommon(D, target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  // Alternate (inline) version for better readability with USE_DELAY_SLOT.
+  inline void BranchF64(BranchDelaySlot bd, Label* target, Label* nan,
+                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchF64(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  inline void BranchF32(BranchDelaySlot bd, Label* target, Label* nan,
+                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchF32(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  // Alias functions for backward compatibility.
+  inline void BranchF(Label* target, Label* nan, Condition cc, FPURegister cmp1,
+                      FPURegister cmp2, BranchDelaySlot bd = PROTECT) {
+    BranchF64(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  inline void BranchF(BranchDelaySlot bd, Label* target, Label* nan,
+                      Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchF64(bd, target, nan, cc, cmp1, cmp2);
   }
 
   // Truncates a double using a specific rounding mode, and writes the value
@@ -1700,6 +1705,11 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void J(Label* L, BranchDelaySlot bdslot);
   void Jr(Label* L, BranchDelaySlot bdslot);
   void Jalr(Label* L, BranchDelaySlot bdslot);
+
+  // Common implementation of BranchF functions for the different formats.
+  void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,
+                     Condition cc, FPURegister cmp1, FPURegister cmp2,
+                     BranchDelaySlot bd = PROTECT);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
