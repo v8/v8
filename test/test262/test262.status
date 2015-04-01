@@ -63,6 +63,14 @@
   '11.1.5_4-4-d-3': [FAIL],
   '11.1.5_4-4-d-4': [FAIL],
 
+  # NativeError has Error as its [[Prototype]]
+  '15.2.3.2-2-12': [FAIL],
+  '15.2.3.2-2-13': [FAIL],
+  '15.2.3.2-2-14': [FAIL],
+  '15.2.3.2-2-15': [FAIL],
+  '15.2.3.2-2-16': [FAIL],
+  '15.2.3.2-2-17': [FAIL],
+
   # Function length properties are configurable in ES6
   '10.1_L15': [FAIL],
   '10.2.2_L15': [FAIL],

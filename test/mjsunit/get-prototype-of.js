@@ -25,9 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+function assertPrototypeOf(func, expected) {
+  assertEquals(expected, Object.getPrototypeOf(func));
+}
+
+
 assertThrows(function() {
   Object.getPrototypeOf(undefined);
 }, TypeError);
+
 
 assertThrows(function() {
   Object.getPrototypeOf(null);
@@ -37,20 +43,35 @@ assertThrows(function() {
 function F(){};
 var y = new F();
 
-assertSame(Object.getPrototypeOf(y), F.prototype);
-assertSame(Object.getPrototypeOf(F), Function.prototype);
+assertPrototypeOf(y, F.prototype);
+assertPrototypeOf(F, Function.prototype);
 
-assertSame(Object.getPrototypeOf({x: 5}), Object.prototype);
-assertSame(Object.getPrototypeOf({x: 5, __proto__: null}), null);
+assertPrototypeOf({x: 5}, Object.prototype);
+assertPrototypeOf({x: 5, __proto__: null}, null);
 
-assertSame(Object.getPrototypeOf([1, 2]), Array.prototype);
+assertPrototypeOf([1, 2], Array.prototype);
 
 
-assertSame(Object.getPrototypeOf(1), Number.prototype);
-assertSame(Object.getPrototypeOf(true), Boolean.prototype);
-assertSame(Object.getPrototypeOf(false), Boolean.prototype);
-assertSame(Object.getPrototypeOf('str'), String.prototype);
-assertSame(Object.getPrototypeOf(Symbol()), Symbol.prototype);
+assertPrototypeOf(1, Number.prototype);
+assertPrototypeOf(true, Boolean.prototype);
+assertPrototypeOf(false, Boolean.prototype);
+assertPrototypeOf('str', String.prototype);
+assertPrototypeOf(Symbol(), Symbol.prototype);
+
+
+var errorFunctions = [
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+];
+
+for (var f of errorFunctions) {
+  assertPrototypeOf(f, Error);
+  assertPrototypeOf(new f(), f.prototype);
+}
 
 
 // Builtin constructors.
@@ -61,7 +82,6 @@ var functions = [
   // DataView,
   Date,
   Error,
-  EvalError,
   Float32Array,
   Float64Array,
   Function,
@@ -72,15 +92,10 @@ var functions = [
   Number,
   Object,
   // Promise,
-  RangeError,
-  ReferenceError,
   RegExp,
   Set,
   String,
   // Symbol, not constructible
-  SyntaxError,
-  TypeError,
-  URIError,
   Uint16Array,
   Uint32Array,
   Uint8Array,
@@ -90,12 +105,12 @@ var functions = [
 ];
 
 for (var f of functions) {
-  assertSame(Object.getPrototypeOf(f), Function.prototype);
-  assertSame(Object.getPrototypeOf(new f), f.prototype);
+  assertPrototypeOf(f, Function.prototype);
+  assertPrototypeOf(new f(), f.prototype);
 }
 
 var p = new Promise(function() {});
-assertSame(Object.getPrototypeOf(p), Promise.prototype);
+assertPrototypeOf(p, Promise.prototype);
 
 var dv = new DataView(new ArrayBuffer());
-assertSame(Object.getPrototypeOf(dv), DataView.prototype);
+assertPrototypeOf(dv, DataView.prototype);

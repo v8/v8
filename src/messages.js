@@ -1172,10 +1172,11 @@ function SetUpError() {
       %FunctionSetPrototype(f, new ErrorPrototype());
     } else {
       %FunctionSetPrototype(f, new $Error());
+      %InternalSetPrototype(f, $Error);
     }
     %FunctionSetInstanceClassName(f, 'Error');
     %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
-    %AddNamedProperty(f.prototype, "name", name, DONT_ENUM);
+    %AddNamedProperty(f.prototype, 'name', name, DONT_ENUM);
     %SetCode(f, function(m) {
       if (%_IsConstructCall()) {
         try { captureStackTrace(this, f); } catch (e) { }
