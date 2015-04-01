@@ -986,7 +986,9 @@ class Isolate {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
-  bool snapshot_available() const { return snapshot_blob_ != NULL; }
+  bool snapshot_available() const {
+    return snapshot_blob_ != NULL && snapshot_blob_->raw_size != 0;
+  }
 
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
