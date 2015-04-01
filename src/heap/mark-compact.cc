@@ -2892,8 +2892,6 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     // Avoid unnecessary changes that might unnecessary flush the instruction
     // cache.
     if (target != old_target) {
-      // TODO(jochen): Remove again after fixing http://crbug.com/452095
-      CHECK(target->IsHeapObject() == old_target->IsHeapObject());
       rinfo->set_target_object(target);
     }
   }
@@ -2904,8 +2902,6 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     Object* old_target = target;
     VisitPointer(&target);
     if (target != old_target) {
-      // TODO(jochen): Remove again after fixing http://crbug.com/452095
-      CHECK(target->IsHeapObject() == old_target->IsHeapObject());
       rinfo->set_target_address(Code::cast(target)->instruction_start());
     }
   }
@@ -2916,8 +2912,6 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     DCHECK(stub != NULL);
     VisitPointer(&stub);
     if (stub != rinfo->code_age_stub()) {
-      // TODO(jochen): Remove again after fixing http://crbug.com/452095
-      CHECK(stub->IsHeapObject() == rinfo->code_age_stub()->IsHeapObject());
       rinfo->set_code_age_stub(Code::cast(stub));
     }
   }
@@ -2929,9 +2923,6 @@ class PointersUpdatingVisitor : public ObjectVisitor {
             rinfo->IsPatchedDebugBreakSlotSequence()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
     VisitPointer(&target);
-    // TODO(jochen): Remove again after fixing http://crbug.com/452095
-    CHECK(target->IsCode() &&
-          HAS_SMI_TAG(Code::cast(target)->instruction_start()));
     rinfo->set_call_address(Code::cast(target)->instruction_start());
   }
 
@@ -3076,9 +3067,6 @@ static void UpdatePointer(HeapObject** address, HeapObject* object) {
          object->GetHeap()->lo_space()->FindPage(
              reinterpret_cast<Address>(address)) != NULL);
   if (map_word.IsForwardingAddress()) {
-    // TODO(jochen): Remove again after fixing http://crbug.com/452095
-    CHECK((*address)->IsHeapObject() ==
-          map_word.ToForwardingAddress()->IsHeapObject());
     // Update the corresponding slot.
     *address = map_word.ToForwardingAddress();
   }

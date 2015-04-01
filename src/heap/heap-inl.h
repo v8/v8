@@ -547,8 +547,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
     DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
-    // TODO(jochen): Remove again after fixing http://crbug.com/452095
-    CHECK((*p)->IsHeapObject() && dest->IsHeapObject());
     *p = dest;
     return;
   }
