@@ -514,6 +514,7 @@
   'built-ins/Symbol/species/Symbol.species.in_RegExp': [FAIL],
   'built-ins/Symbol/species/Symbol.species.in_Set': [FAIL],
   'built-ins/Symbol/species/Symbol.species.notChangedByExtends': [FAIL],
+  'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
   'language/block-scope/leave/finally-block-let-declaration-only-shadows-outer-parameter-value-1': [FAIL],
   'language/block-scope/leave/finally-block-let-declaration-only-shadows-outer-parameter-value-2': [FAIL],
   'language/block-scope/leave/for-loop-block-let-declaration-only-shadows-outer-parameter-value-1': [FAIL],
