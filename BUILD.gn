@@ -32,9 +32,14 @@ v8_toolset_for_d8 = "host"
 # TODO(GYP): For now we only support 32-bit little-endian target builds from an
 # x64 Linux host. Eventually we need to support all of the host/target
 # configurations v8 runs on.
-if (host_cpu == "x64" && host_os == "linux" &&
-    (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86")) {
-  snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+if (host_cpu == "x64" && host_os == "linux") {
+  if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
+    snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+  } else if (target_cpu == "x64") {
+    snapshot_toolchain = "//build/toolchain/linux:clang_x64"
+  } else {
+    assert(false, "Need environment for this arch")
+  }
 } else {
   snapshot_toolchain = default_toolchain
 }
