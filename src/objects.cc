@@ -10367,31 +10367,27 @@ int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
 }
 
 
-int Script::GetLineNumberWithArray(int position) {
+int Script::GetLineNumberWithArray(int code_pos) {
   DisallowHeapAllocation no_allocation;
-  FixedArray* line_ends = FixedArray::cast(this->line_ends());
-  int upper = line_ends->length() - 1;
-  if (upper < 0) return -1;
-  int offset = line_offset()->value();
+  DCHECK(line_ends()->IsFixedArray());
+  FixedArray* line_ends_array = FixedArray::cast(line_ends());
+  int line_ends_len = line_ends_array->length();
+  if (line_ends_len == 0) return -1;
 
-  if (position > Smi::cast(line_ends->get(upper))->value()) {
-    return upper + 1 + offset;
+  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos) {
+    return line_offset()->value();
   }
-  if (position <= Smi::cast(line_ends->get(0))->value()) return offset;
 
-  int lower = 1;
-  // Binary search.
-  while (true) {
-    int mid = (lower + upper) / 2;
-    if (position <= Smi::cast(line_ends->get(mid - 1))->value()) {
-      upper = mid - 1;
-    } else if (position > Smi::cast(line_ends->get(mid))->value()) {
-      lower = mid + 1;
+  int left = 0;
+  int right = line_ends_len;
+  while (int half = (right - left) / 2) {
+    if ((Smi::cast(line_ends_array->get(left + half)))->value() > code_pos) {
+      right -= half;
     } else {
-      return mid + offset;
+      left += half;
     }
   }
-  return -1;
+  return right + line_offset()->value();
 }
 
 

@@ -410,26 +410,34 @@ function MakeReferenceErrorEmbedded(type, arg) {
        else the line number.
  */
 function ScriptLineFromPosition(position) {
+  var lower = 0;
+  var upper = this.lineCount() - 1;
   var line_ends = this.line_ends;
-  var upper = line_ends.length - 1;
-  if (upper < 0) return -1;
 
   // We'll never find invalid positions so bail right away.
-  if (position > line_ends[upper]) return -1;
-  if (position <= line_ends[0]) return 0;
+  if (position > line_ends[upper]) {
+    return -1;
+  }
 
-  var lower = 1;
-  // Binary search.
-  while (true) {
-    var mid = (upper + lower) >> 1;
-    if (position <= line_ends[mid - 1]) {
-      upper = mid - 1;
-    } else if (position > line_ends[mid]){
-      lower = mid + 1;
+  // This means we don't have to safe-guard indexing line_ends[i - 1].
+  if (position <= line_ends[0]) {
+    return 0;
+  }
+
+  // Binary search to find line # from position range.
+  while (upper >= 1) {
+    var i = (lower + upper) >> 1;
+
+    if (position > line_ends[i]) {
+      lower = i + 1;
+    } else if (position <= line_ends[i - 1]) {
+      upper = i - 1;
     } else {
-      return mid;
+      return i;
     }
   }
+
+  return -1;
 }
 
 /**

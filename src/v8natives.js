@@ -176,7 +176,7 @@ function GlobalEval(x) {
 
   var global_proxy = %GlobalProxy(global);
 
-  var f = %CompileString(x, false, 0);
+  var f = %CompileString(x, false);
   if (!IS_FUNCTION(f)) return f;
 
   return %_CallFunction(global_proxy, f);
@@ -1832,7 +1832,7 @@ function FunctionBind(this_arg) { // Length is 1.
 }
 
 
-function NewFunctionFromString(arguments, function_token) {
+function NewFunctionString(arguments, function_token) {
   var n = arguments.length;
   var p = '';
   if (n > 1) {
@@ -1849,20 +1849,21 @@ function NewFunctionFromString(arguments, function_token) {
     // If the formal parameters include an unbalanced block comment, the
     // function must be rejected. Since JavaScript does not allow nested
     // comments we can include a trailing block comment to catch this.
-    p += '\n\x2f**\x2f';
+    p += '\n/' + '**/';
   }
   var body = (n > 0) ? ToString(arguments[n - 1]) : '';
-  var head = '(' + function_token + '(' + p + ') {\n';
-  var src = head + body + '\n})';
-  var global_proxy = %GlobalProxy(global);
-  var f = %_CallFunction(global_proxy, %CompileString(src, true, head.length));
-  %FunctionMarkNameShouldPrintAsAnonymous(f);
-  return f;
+  return '(' + function_token + '(' + p + ') {\n' + body + '\n})';
 }
 
 
 function FunctionConstructor(arg1) {  // length == 1
-  return NewFunctionFromString(arguments, 'function');
+  var source = NewFunctionString(arguments, 'function');
+  var global_proxy = %GlobalProxy(global);
+  // Compile the string in the constructor and not a helper so that errors
+  // appear to come from here.
+  var f = %_CallFunction(global_proxy, %CompileString(source, true));
+  %FunctionMarkNameShouldPrintAsAnonymous(f);
+  return f;
 }
 
 

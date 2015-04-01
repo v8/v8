@@ -277,8 +277,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
         int position = static_cast<int>(it.rinfo()->data());
         if (position >= 0) {
           int pc_offset = static_cast<int>(it.rinfo()->pc() - code->address());
-          int line_number = script->GetLineNumber(position);
-          line_table->SetPosition(pc_offset, line_number + 1);
+          int line_number = script->GetLineNumber(position) + 1;
+          line_table->SetPosition(pc_offset, line_number);
         }
       }
     }

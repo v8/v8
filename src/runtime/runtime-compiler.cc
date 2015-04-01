@@ -349,10 +349,9 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_CompileString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
-  CONVERT_SMI_ARG_CHECKED(source_offset, 2);
 
   // Extract native context.
   Handle<Context> context(isolate->native_context());
@@ -378,14 +377,6 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
       isolate, fun,
       Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
                                     restriction, RelocInfo::kNoPosition));
-  if (function_literal_only) {
-    // The actual body is wrapped, which shifts line numbers.
-    Handle<Script> script(Script::cast(fun->shared()->script()), isolate);
-    if (script->line_offset() == 0) {
-      int line_num = Script::GetLineNumber(script, source_offset);
-      script->set_line_offset(Smi::FromInt(-line_num));
-    }
-  }
   return *fun;
 }
 
