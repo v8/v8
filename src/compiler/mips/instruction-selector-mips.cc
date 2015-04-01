@@ -505,13 +505,14 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Possibly align stack here for functions.
   int push_count = buffer.pushed_nodes.size();
   if (push_count > 0) {
-    Emit(kMipsStackClaim | MiscField::encode(push_count), g.NoOutput());
+    Emit(kMipsStackClaim, g.NoOutput(),
+         g.TempImmediate(push_count << kPointerSizeLog2));
   }
   int slot = buffer.pushed_nodes.size() - 1;
   for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
        ++i) {
-    Emit(kMipsStoreToStackSlot | MiscField::encode(slot), g.NoOutput(),
-         g.UseRegister(*i));
+    Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(*i),
+         g.TempImmediate(slot << kPointerSizeLog2));
     slot--;
   }
 

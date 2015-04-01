@@ -654,13 +654,14 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   int push_count = buffer.pushed_nodes.size();
   if (push_count > 0) {
-    Emit(kMips64StackClaim | MiscField::encode(push_count), g.NoOutput());
+    Emit(kMips64StackClaim, g.NoOutput(),
+         g.TempImmediate(push_count << kPointerSizeLog2));
   }
   int slot = buffer.pushed_nodes.size() - 1;
   for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
        ++i) {
-    Emit(kMips64StoreToStackSlot | MiscField::encode(slot), g.NoOutput(),
-         g.UseRegister(*i));
+    Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(*i),
+         g.TempImmediate(slot << kPointerSizeLog2));
     slot--;
   }
 
