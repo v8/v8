@@ -1000,13 +1000,9 @@ function ObjectSetPrototypeOf(obj, proto) {
 }
 
 
-// ES5 section 15.2.3.3
+// ES6 section 19.1.2.6
 function ObjectGetOwnPropertyDescriptor(obj, p) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object",
-                        ["Object.getOwnPropertyDescriptor"]);
-  }
-  var desc = GetOwnPropertyJS(obj, p);
+  var desc = GetOwnPropertyJS(TO_OBJECT_INLINE(obj), p);
   return FromPropertyDescriptor(desc);
 }
 
