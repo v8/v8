@@ -155,10 +155,6 @@ class JsonParser BASE_EMBEDDED {
   // JavaScript array.
   Handle<Object> ParseJsonObject();
 
-  // Helper for ParseJsonObject. Parses the form "123": obj, which is recorded
-  // as an element, not a property.
-  bool ParseElement(Handle<JSObject> json_object);
-
   // Parses a JSON array literal (grammar production JSONArray). An array
   // literal is a square-bracketed and comma separated sequence (possibly empty)
   // of JSON values.
@@ -303,38 +299,6 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
 }
 
 
-template <bool seq_one_byte>
-bool JsonParser<seq_one_byte>::ParseElement(Handle<JSObject> json_object) {
-  uint32_t index = 0;
-  // Maybe an array index, try to parse it.
-  if (c0_ == '0') {
-    // With a leading zero, the string has to be "0" only to be an index.
-    Advance();
-  } else {
-    do {
-      int d = c0_ - '0';
-      if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
-      index = (index * 10) + d;
-      Advance();
-    } while (IsDecimalDigit(c0_));
-  }
-
-  if (c0_ == '"') {
-    // Successfully parsed index, parse and store element.
-    AdvanceSkipWhitespace();
-
-    if (c0_ == ':') {
-      AdvanceSkipWhitespace();
-      Handle<Object> value = ParseJsonValue();
-      if (!value.is_null()) {
-        JSObject::SetOwnElement(json_object, index, value, SLOPPY).Assert();
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 // Parse a JSON object. Position must be right at '{'.
 template <bool seq_one_byte>
 Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
@@ -356,10 +320,35 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       int start_position = position_;
       Advance();
 
+      uint32_t index = 0;
       if (IsDecimalDigit(c0_)) {
-        if (ParseElement(json_object)) continue;
+        // Maybe an array index, try to parse it.
+        if (c0_ == '0') {
+          // With a leading zero, the string has to be "0" only to be an index.
+          Advance();
+        } else {
+          do {
+            int d = c0_ - '0';
+            if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
+            index = (index * 10) + d;
+            Advance();
+          } while (IsDecimalDigit(c0_));
+        }
+
+        if (c0_ == '"') {
+          // Successfully parsed index, parse and store element.
+          AdvanceSkipWhitespace();
+
+          if (c0_ != ':') return ReportUnexpectedCharacter();
+          AdvanceSkipWhitespace();
+          Handle<Object> value = ParseJsonValue();
+          if (value.is_null()) return ReportUnexpectedCharacter();
+
+          JSObject::SetOwnElement(json_object, index, value, SLOPPY).Assert();
+          continue;
+        }
+        // Not an index, fallback to the slow path.
       }
-      // Not an index, fallback to the slow path.
 
       position_ = start_position;
 #ifdef DEBUG
@@ -371,106 +360,80 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 
       // Try to follow existing transitions as long as possible. Once we stop
       // transitioning, no transition can be found anymore.
-      DCHECK(transitioning);
-      // First check whether there is a single expected transition. If so, try
-      // to parse it first.
-      bool follow_expected = false;
-      Handle<Map> target;
-      if (seq_one_byte) {
-        key = TransitionArray::ExpectedTransitionKey(map);
-        follow_expected = !key.is_null() && ParseJsonString(key);
-      }
-      // If the expected transition hits, follow it.
-      if (follow_expected) {
-        target = TransitionArray::ExpectedTransitionTarget(map);
-      } else {
-        // If the expected transition failed, parse an internalized string and
-        // try to find a matching transition.
-        key = ParseJsonInternalizedString();
-        if (key.is_null()) return ReportUnexpectedCharacter();
-
-        target = TransitionArray::FindTransitionToField(map, key);
-        // If a transition was found, follow it and continue.
-        transitioning = !target.is_null();
-      }
-      if (c0_ != ':') return ReportUnexpectedCharacter();
-
-      AdvanceSkipWhitespace();
-      value = ParseJsonValue();
-      if (value.is_null()) return ReportUnexpectedCharacter();
-
       if (transitioning) {
-        PropertyDetails details =
-            target->instance_descriptors()->GetDetails(descriptor);
-        Representation expected_representation = details.representation();
-
-        if (value->FitsRepresentation(expected_representation)) {
-          if (expected_representation.IsHeapObject() &&
-              !target->instance_descriptors()
-                   ->GetFieldType(descriptor)
-                   ->NowContains(value)) {
-            Handle<HeapType> value_type(
-                value->OptimalType(isolate(), expected_representation));
-            Map::GeneralizeFieldType(target, descriptor,
-                                     expected_representation, value_type);
-          }
-          DCHECK(target->instance_descriptors()
-                     ->GetFieldType(descriptor)
-                     ->NowContains(value));
-          properties.Add(value, zone());
-          map = target;
-          descriptor++;
-          continue;
+        // First check whether there is a single expected transition. If so, try
+        // to parse it first.
+        bool follow_expected = false;
+        Handle<Map> target;
+        if (seq_one_byte) {
+          key = TransitionArray::ExpectedTransitionKey(map);
+          follow_expected = !key.is_null() && ParseJsonString(key);
+        }
+        // If the expected transition hits, follow it.
+        if (follow_expected) {
+          target = TransitionArray::ExpectedTransitionTarget(map);
         } else {
-          transitioning = false;
+          // If the expected transition failed, parse an internalized string and
+          // try to find a matching transition.
+          key = ParseJsonInternalizedString();
+          if (key.is_null()) return ReportUnexpectedCharacter();
+
+          target = TransitionArray::FindTransitionToField(map, key);
+          // If a transition was found, follow it and continue.
+          transitioning = !target.is_null();
         }
-      }
+        if (c0_ != ':') return ReportUnexpectedCharacter();
 
-      DCHECK(!transitioning);
+        AdvanceSkipWhitespace();
+        value = ParseJsonValue();
+        if (value.is_null()) return ReportUnexpectedCharacter();
 
-      // Commit the intermediate state to the object and stop transitioning.
-      CommitStateToJsonObject(json_object, map, &properties);
+        if (transitioning) {
+          PropertyDetails details =
+              target->instance_descriptors()->GetDetails(descriptor);
+          Representation expected_representation = details.representation();
 
-      Runtime::DefineObjectProperty(json_object, key, value, NONE).Check();
-    } while (transitioning && MatchSkipWhiteSpace(','));
-
-    // If we transitioned until the very end, transition the map now.
-    if (transitioning) {
-      CommitStateToJsonObject(json_object, map, &properties);
-    } else {
-      while (MatchSkipWhiteSpace(',')) {
-        HandleScope local_scope(isolate());
-        if (c0_ != '"') return ReportUnexpectedCharacter();
-
-        int start_position = position_;
-        Advance();
-
-        if (IsDecimalDigit(c0_)) {
-          if (ParseElement(json_object)) continue;
+          if (value->FitsRepresentation(expected_representation)) {
+            if (expected_representation.IsHeapObject() &&
+                !target->instance_descriptors()
+                     ->GetFieldType(descriptor)
+                     ->NowContains(value)) {
+              Handle<HeapType> value_type(value->OptimalType(
+                      isolate(), expected_representation));
+              Map::GeneralizeFieldType(target, descriptor,
+                                       expected_representation, value_type);
+            }
+            DCHECK(target->instance_descriptors()->GetFieldType(
+                    descriptor)->NowContains(value));
+            properties.Add(value, zone());
+            map = target;
+            descriptor++;
+            continue;
+          } else {
+            transitioning = false;
+          }
         }
-        // Not an index, fallback to the slow path.
 
-        position_ = start_position;
-#ifdef DEBUG
-        c0_ = '"';
-#endif
-
-        Handle<String> key;
-        Handle<Object> value;
-
+        // Commit the intermediate state to the object and stop transitioning.
+        CommitStateToJsonObject(json_object, map, &properties);
+      } else {
         key = ParseJsonInternalizedString();
         if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
 
         AdvanceSkipWhitespace();
         value = ParseJsonValue();
         if (value.is_null()) return ReportUnexpectedCharacter();
-
-        Runtime::DefineObjectProperty(json_object, key, value, NONE).Check();
       }
-    }
 
+      Runtime::DefineObjectProperty(json_object, key, value, NONE).Check();
+    } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();
+    }
+
+    // If we transitioned until the very end, transition the map now.
+    if (transitioning) {
+      CommitStateToJsonObject(json_object, map, &properties);
     }
   }
   AdvanceSkipWhitespace();
