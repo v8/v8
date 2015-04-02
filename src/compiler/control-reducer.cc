@@ -433,7 +433,7 @@ class ControlReducerImpl {
   }
 
   // Try to statically fold a condition.
-  Decision DecideCondition(Node* cond) {
+  Decision DecideCondition(Node* cond, bool recurse = true) {
     switch (cond->opcode()) {
       case IrOpcode::kInt32Constant:
         return Int32Matcher(cond).Is(0) ? kFalse : kTrue;
@@ -444,13 +444,28 @@ class ControlReducerImpl {
       case IrOpcode::kHeapConstant: {
         Handle<Object> object =
             HeapObjectMatcher<Object>(cond).Value().handle();
-        if (object->IsTrue()) return kTrue;
-        if (object->IsFalse()) return kFalse;
-        // TODO(turbofan): decide more conditions for heap constants.
-        break;
+        return object->BooleanValue() ? kTrue : kFalse;
+      }
+      case IrOpcode::kPhi: {
+        if (!recurse) return kUnknown;  // Only go one level deep checking phis.
+        Decision result = kUnknown;
+        // Check if all inputs to a phi result in the same decision.
+        for (int i = cond->op()->ValueInputCount() - 1; i >= 0; i--) {
+          // Recurse only one level, since phis can be involved in cycles.
+          Decision decision = DecideCondition(cond->InputAt(i), false);
+          if (decision == kUnknown) return kUnknown;
+          if (result == kUnknown) result = decision;
+          if (result != decision) return kUnknown;
+        }
+        return result;
       }
       default:
         break;
+    }
+    if (NodeProperties::IsTyped(cond)) {
+      // If the node has a range type, check whether the range excludes 0.
+      Type* type = NodeProperties::GetBounds(cond).upper;
+      if (type->IsRange() && (type->Min() > 0 || type->Max() < 0)) return kTrue;
     }
     return kUnknown;
   }
