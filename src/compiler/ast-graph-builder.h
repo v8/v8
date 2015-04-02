@@ -384,6 +384,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
 
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }
+  int context_chain_length() { return static_cast<int>(contexts_.size()); }
   int stack_height() {
     return static_cast<int>(values()->size()) - parameters_count_ -
            locals_count_;
@@ -394,9 +395,13 @@ class AstGraphBuilder::Environment : public ZoneObject {
   Node* Lookup(Variable* variable);
   void MarkAllLocalsLive();
 
+  // Operations on the context chain.
   Node* Context() const { return contexts_.back(); }
   void PushContext(Node* context) { contexts()->push_back(context); }
   void PopContext() { contexts()->pop_back(); }
+  void TrimContextChain(int trim_to_length) {
+    contexts()->resize(trim_to_length);
+  }
 
   // Operations on the operand stack.
   void Push(Node* node) {
@@ -428,7 +433,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
   }
-  void Trim(int trim_to_height) {
+  void TrimStack(int trim_to_height) {
     int depth = stack_height() - trim_to_height;
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
@@ -477,8 +482,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
     PrepareForLoop(assigned, is_osr);
     return CopyAndShareLiveness();
   }
-
-  int ContextStackDepth() { return static_cast<int>(contexts_.size()); }
 
  private:
   AstGraphBuilder* builder_;

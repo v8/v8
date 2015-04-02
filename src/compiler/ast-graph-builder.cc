@@ -112,7 +112,7 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
       : builder_(builder),
         outer_(builder->execution_context()),
         scope_(scope),
-        depth_(builder_->environment()->ContextStackDepth()) {
+        depth_(builder_->environment()->context_chain_length()) {
     builder_->environment()->PushContext(context);  // Push.
     builder_->set_execution_context(this);
   }
@@ -120,7 +120,7 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
   ~ContextScope() {
     builder_->set_execution_context(outer_);  // Pop.
     builder_->environment()->PopContext();
-    CHECK_EQ(depth_, builder_->environment()->ContextStackDepth());
+    CHECK_EQ(depth_, builder_->environment()->context_chain_length());
   }
 
   // Current scope during visitation.
@@ -146,6 +146,7 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
   explicit ControlScope(AstGraphBuilder* builder)
       : builder_(builder),
         outer_(builder->execution_control()),
+        context_length_(builder->environment()->context_chain_length()),
         stack_height_(builder->environment()->stack_height()) {
     builder_->set_execution_control(this);  // Push.
   }
@@ -193,11 +194,13 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 
   Environment* environment() { return builder_->environment(); }
   AstGraphBuilder* builder() const { return builder_; }
+  int context_length() const { return context_length_; }
   int stack_height() const { return stack_height_; }
 
  private:
   AstGraphBuilder* builder_;
   ControlScope* outer_;
+  int context_length_;
   int stack_height_;
 };
 
@@ -450,9 +453,6 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   Environment env(this, scope, graph()->start());
   set_environment(&env);
 
-  // Initialize control scope.
-  ControlScope control(this);
-
   if (info()->is_osr()) {
     // Use OSR normal entry as the start of the top-level environment.
     // It will be replaced with {Dead} after typing and optimizations.
@@ -462,6 +462,9 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   // Initialize the incoming context.
   CreateFunctionContext(constant_context);
   ContextScope incoming(this, scope, function_context_.get());
+
+  // Initialize control scope.
+  ControlScope control(this);
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
@@ -813,7 +816,8 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
   Environment* env = environment()->CopyAsUnreachable();
   ControlScope* current = this;
   while (current != NULL) {
-    environment()->Trim(current->stack_height());
+    environment()->TrimStack(current->stack_height());
+    environment()->TrimContextChain(current->context_length());
     if (current->Execute(command, target, value)) break;
     current = current->outer_;
   }
@@ -3334,8 +3338,7 @@ void AstGraphBuilder::UpdateControlDependencyToLeaveFunction(Node* exit) {
 
 void AstGraphBuilder::Environment::Merge(Environment* other) {
   DCHECK(values_.size() == other->values_.size());
-  // TODO(titzer): make context stack heights match.
-  DCHECK(contexts_.size() <= other->contexts_.size());
+  DCHECK(contexts_.size() == other->contexts_.size());
 
   // Nothing to do if the other environment is dead.
   if (other->IsMarkedAsUnreachable()) return;
@@ -3350,10 +3353,7 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
         graph()->NewNode(common()->Merge(1), arraysize(inputs), inputs, true);
     effect_dependency_ = other->effect_dependency_;
     values_ = other->values_;
-    // TODO(titzer): make context stack heights match.
-    size_t min = std::min(contexts_.size(), other->contexts_.size());
     contexts_ = other->contexts_;
-    contexts_.resize(min, nullptr);
     return;
   }
 
