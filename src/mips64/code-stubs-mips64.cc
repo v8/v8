@@ -2540,6 +2540,28 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+  // a0 : number of arguments to the construct function
+  // a2 : Feedback vector
+  // a3 : slot in feedback vector (Smi)
+  // a1 : the function to call
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  const RegList kSavedRegs = 1 << 4 |  // a0
+                             1 << 5 |  // a1
+                             1 << 6 |  // a2
+                             1 << 7;   // a3
+
+  // Arguments register must be smi-tagged to call out.
+  __ SmiTag(a0);
+  __ MultiPush(kSavedRegs);
+
+  __ CallStub(stub);
+
+  __ MultiPop(kSavedRegs);
+  __ SmiUntag(a0);
+}
+
+
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
@@ -2562,16 +2584,31 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  __ Branch(&done, eq, a4, Operand(a1));
+  Label check_allocation_site;
+  Register feedback_map = a5;
+  Register weak_value = t0;
+  __ ld(weak_value, FieldMemOperand(a4, WeakCell::kValueOffset));
+  __ Branch(&done, eq, a1, Operand(weak_value));
+  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
+  __ Branch(&done, eq, a4, Operand(at));
+  __ ld(feedback_map, FieldMemOperand(a4, 0));
+  __ LoadRoot(at, Heap::kWeakCellMapRootIndex);
+  __ Branch(FLAG_pretenuring_call_new ? &miss : &check_allocation_site, ne,
+            feedback_map, Operand(at));
+
+  // If a1 is not equal to the weak cell value, and the weak cell value is
+  // cleared, we have a new chance to become monomorphic.
+  __ JumpIfSmi(weak_value, &initialize);
+  __ jmp(&megamorphic);
 
   if (!FLAG_pretenuring_call_new) {
+    __ bind(&check_allocation_site);
     // If we came here, we need to see if we are the array function.
     // If we didn't have a matching function, and we didn't find the megamorph
     // sentinel, then we have in the slot either some other function or an
     // AllocationSite. Do a map check on the object in a3.
-    __ ld(a5, FieldMemOperand(a4, 0));
     __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-    __ Branch(&miss, ne, a5, Operand(at));
+    __ Branch(&miss, ne, feedback_map, Operand(at));
 
     // Make sure the function is the Array() function
     __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, a4);
@@ -2588,7 +2625,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ dsrl(a4, a3, 32- kPointerSizeLog2);
+  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
   __ Daddu(a4, a2, Operand(a4));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
@@ -2604,39 +2641,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     // The target function is the Array constructor,
     // Create an AllocationSite if we don't already have it, store it in the
     // slot.
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      const RegList kSavedRegs =
-          1 << 4  |  // a0
-          1 << 5  |  // a1
-          1 << 6  |  // a2
-          1 << 7;    // a3
-
-      // Arguments register must be smi-tagged to call out.
-      __ SmiTag(a0);
-      __ MultiPush(kSavedRegs);
-
-      CreateAllocationSiteStub create_stub(masm->isolate());
-      __ CallStub(&create_stub);
-
-      __ MultiPop(kSavedRegs);
-      __ SmiUntag(a0);
-    }
+    CreateAllocationSiteStub create_stub(masm->isolate());
+    CallStubInRecordCallTarget(masm, &create_stub);
     __ Branch(&done);
 
     __ bind(&not_array_function);
   }
 
-  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
-  __ Daddu(a4, a2, Operand(a4));
-  __ Daddu(a4, a4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sd(a1, MemOperand(a4, 0));
-
-  __ Push(a4, a2, a1);
-  __ RecordWrite(a2, a4, a1, kRAHasNotBeenSaved, kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ Pop(a4, a2, a1);
-
+  CreateWeakCellStub create_stub(masm->isolate());
+  CallStubInRecordCallTarget(masm, &create_stub);
   __ bind(&done);
 }
 
