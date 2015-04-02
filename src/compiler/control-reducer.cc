@@ -416,9 +416,9 @@ class ControlReducerImpl {
       case IrOpcode::kBranch:
         return ReduceBranch(node);
       case IrOpcode::kIfTrue:
-        return ReduceIfTrue(node);
+        return ReduceIfProjection(node, kTrue);
       case IrOpcode::kIfFalse:
-        return ReduceIfFalse(node);
+        return ReduceIfProjection(node, kFalse);
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:
         return ReduceMerge(node);
@@ -576,27 +576,13 @@ class ControlReducerImpl {
     return node;
   }
 
-  // Reduce branches if they have constant inputs.
-  Node* ReduceIfTrue(Node* node) {
+  // Reduce if projections if the branch has a constant input.
+  Node* ReduceIfProjection(Node* node, Decision decision) {
     Node* branch = node->InputAt(0);
     DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
     Decision result = DecideCondition(branch->InputAt(0));
-    if (result == kTrue) {
-      // fold a true branch by replacing IfTrue with the branch control.
-      TRACE("  BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
-            branch->op()->mnemonic(), node->id(), node->op()->mnemonic());
-      return branch->InputAt(1);
-    }
-    return result == kUnknown ? node : dead();
-  }
-
-  // Reduce branches if they have constant inputs.
-  Node* ReduceIfFalse(Node* node) {
-    Node* branch = node->InputAt(0);
-    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
-    Decision result = DecideCondition(branch->InputAt(0));
-    if (result == kFalse) {
-      // fold a false branch by replacing IfFalse with the branch control.
+    if (result == decision) {
+      // Fold a branch by replacing IfTrue/IfFalse with the branch control.
       TRACE("  BranchReduce: #%d:%s => #%d:%s\n", branch->id(),
             branch->op()->mnemonic(), node->id(), node->op()->mnemonic());
       return branch->InputAt(1);
@@ -681,9 +667,9 @@ Node* ControlReducer::ReduceIfNodeForTesting(JSGraph* jsgraph,
   ControlReducerImpl impl(&zone, jsgraph, common);
   switch (node->opcode()) {
     case IrOpcode::kIfTrue:
-      return impl.ReduceIfTrue(node);
+      return impl.ReduceIfProjection(node, kTrue);
     case IrOpcode::kIfFalse:
-      return impl.ReduceIfFalse(node);
+      return impl.ReduceIfProjection(node, kFalse);
     default:
       return node;
   }
