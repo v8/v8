@@ -3151,6 +3151,7 @@ void MacroAssembler::Jalr(Label* L, BranchDelaySlot bdslot) {
 
 
 void MacroAssembler::DropAndRet(int drop) {
+  DCHECK(is_int16(drop * kPointerSize));
   Ret(USE_DELAY_SLOT);
   addiu(sp, sp, drop * kPointerSize);
 }
@@ -3188,7 +3189,7 @@ void MacroAssembler::Drop(int count,
      Branch(&skip, NegateCondition(cond), reg, op);
   }
 
-  addiu(sp, sp, count * kPointerSize);
+  Addu(sp, sp, Operand(count * kPointerSize));
 
   if (cond != al) {
     bind(&skip);
