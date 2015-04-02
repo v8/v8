@@ -3482,6 +3482,17 @@ class V8_EXPORT ArrayBufferView : public Object {
    */
   size_t ByteLength();
 
+  /**
+   * Copy the contents of the ArrayBufferView's buffer to an embedder defined
+   * memory without additional overhead that calling ArrayBufferView::Buffer
+   * might incur.
+   *
+   * Will write at most min(|byte_length|, ByteLength) bytes starting at
+   * ByteOffset of the underling buffer to the memory starting at |dest|.
+   * Returns the number of bytes actually written.
+   */
+  size_t CopyContents(void* dest, size_t byte_length);
+
   V8_INLINE static ArrayBufferView* Cast(Value* obj);
 
   static const int kInternalFieldCount =
