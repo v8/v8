@@ -439,7 +439,7 @@ class MaybeLocal {
     return !IsEmpty();
   }
 
-  // Will crash if the MaybeLocal<> is empty.
+  // Will crash when checks are enabled if the MaybeLocal<> is empty.
   V8_INLINE Local<T> ToLocalChecked();
 
   template <class S>
@@ -6909,7 +6909,9 @@ Local<T> Eternal<T>::Get(Isolate* isolate) {
 
 template <class T>
 Local<T> MaybeLocal<T>::ToLocalChecked() {
-  if (V8_UNLIKELY(val_ == nullptr)) V8::ToLocalEmpty();
+#ifdef V8_ENABLE_CHECKS
+  if (val_ == nullptr) V8::ToLocalEmpty();
+#endif
   return Local<T>(val_);
 }
 
