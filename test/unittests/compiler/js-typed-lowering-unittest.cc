@@ -190,10 +190,11 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithString) {
   Reduction r =
       Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(), input,
-                                        graph()->start(), graph()->start()),
-                            IsNumberConstant(0.0)));
+  EXPECT_THAT(
+      r.replacement(),
+      IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(zone()), input,
+                                graph()->start(), graph()->start()),
+                    IsNumberConstant(0.0)));
 }
 
 
@@ -392,8 +393,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   EXPECT_THAT(
       r.replacement(),
       IsNumberLessThan(IsNumberConstant(0.0),
-                       IsLoadField(AccessBuilder::ForStringLength(), input,
-                                   graph()->start(), graph()->start())));
+                       IsLoadField(AccessBuilder::ForStringLength(zone()),
+                                   input, graph()->start(), graph()->start())));
 }
 
 

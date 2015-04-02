@@ -316,8 +316,9 @@ TEST_F(JSIntrinsicLoweringTest, InlineStringGetLength) {
       javascript()->CallRuntime(Runtime::kInlineStringGetLength, 1), input,
       context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
-                                           input, effect, control));
+  EXPECT_THAT(r.replacement(),
+              IsLoadField(AccessBuilder::ForStringLength(zone()), input, effect,
+                          control));
 }
 
 

@@ -541,7 +541,7 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSUnaryNot(x:string) => NumberEqual(x.length,#0)
-    FieldAccess const access = AccessBuilder::ForStringLength();
+    FieldAccess const access = AccessBuilder::ForStringLength(graph()->zone());
     // It is safe for the load to be effect-free (i.e. not linked into effect
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
@@ -572,7 +572,7 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSToBoolean(x:string) => NumberLessThan(#0,x.length)
-    FieldAccess const access = AccessBuilder::ForStringLength();
+    FieldAccess const access = AccessBuilder::ForStringLength(graph()->zone());
     // It is safe for the load to be effect-free (i.e. not linked into effect
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,

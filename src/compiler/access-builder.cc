@@ -59,10 +59,9 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
 
 
 // static
-FieldAccess AccessBuilder::ForStringLength() {
+FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
   return {kTaggedBase, String::kLengthOffset, Handle<Name>(),
-          Type::Intersect(Type::UnsignedSmall(), Type::TaggedSigned()),
-          kMachAnyTagged};
+          Type::Range(0, String::kMaxLength, zone), kMachAnyTagged};
 }
 
 
