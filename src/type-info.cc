@@ -51,7 +51,19 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
 
 Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorSlot slot) {
   DCHECK(slot.ToInt() >= 0 && slot.ToInt() < feedback_vector_->length());
+  Handle<Object> undefined =
+      Handle<Object>::cast(isolate()->factory()->undefined_value());
   Object* obj = feedback_vector_->Get(slot);
+
+  // Slots do not embed direct pointers to functions. Instead a WeakCell is
+  // always used.
+  DCHECK(!obj->IsJSFunction());
+  if (obj->IsWeakCell()) {
+    WeakCell* cell = WeakCell::cast(obj);
+    if (cell->cleared()) return undefined;
+    obj = cell->value();
+  }
+
   return Handle<Object>(obj, isolate());
 }
 

@@ -2367,6 +2367,24 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+  // r0 : number of arguments to the construct function
+  // r2 : Feedback vector
+  // r3 : slot in feedback vector (Smi)
+  // r1 : the function to call
+  FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+
+  // Arguments register must be smi-tagged to call out.
+  __ SmiTag(r0);
+  __ Push(r3, r2, r1, r0);
+
+  __ CallStub(stub);
+
+  __ Pop(r3, r2, r1, r0);
+  __ SmiUntag(r0);
+}
+
+
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
@@ -2388,16 +2406,30 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  __ cmp(r4, r1);
+  Label check_allocation_site;
+  Register feedback_map = r5;
+  Register weak_value = r8;
+  __ ldr(weak_value, FieldMemOperand(r4, WeakCell::kValueOffset));
+  __ cmp(r1, weak_value);
   __ b(eq, &done);
+  __ CompareRoot(r4, Heap::kmegamorphic_symbolRootIndex);
+  __ b(eq, &done);
+  __ ldr(feedback_map, FieldMemOperand(r4, 0));
+  __ CompareRoot(feedback_map, Heap::kWeakCellMapRootIndex);
+  __ b(ne, FLAG_pretenuring_call_new ? &miss : &check_allocation_site);
+
+  // If r1 is not equal to the weak cell value, and the weak cell value is
+  // cleared, we have a new chance to become monomorphic.
+  __ JumpIfSmi(weak_value, &initialize);
+  __ jmp(&megamorphic);
 
   if (!FLAG_pretenuring_call_new) {
+    __ bind(&check_allocation_site);
     // If we came here, we need to see if we are the array function.
     // If we didn't have a matching function, and we didn't find the megamorph
     // sentinel, then we have in the slot either some other function or an
     // AllocationSite. Do a map check on the object in ecx.
-    __ ldr(r5, FieldMemOperand(r4, 0));
-    __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
+    __ CompareRoot(feedback_map, Heap::kAllocationSiteMapRootIndex);
     __ b(ne, &miss);
 
     // Make sure the function is the Array() function
@@ -2433,33 +2465,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     // The target function is the Array constructor,
     // Create an AllocationSite if we don't already have it, store it in the
     // slot.
-    {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-
-      // Arguments register must be smi-tagged to call out.
-      __ SmiTag(r0);
-      __ Push(r3, r2, r1, r0);
-
-      CreateAllocationSiteStub create_stub(masm->isolate());
-      __ CallStub(&create_stub);
-
-      __ Pop(r3, r2, r1, r0);
-      __ SmiUntag(r0);
-    }
+    CreateAllocationSiteStub create_stub(masm->isolate());
+    CallStubInRecordCallTarget(masm, &create_stub);
     __ b(&done);
 
     __ bind(&not_array_function);
   }
 
-  __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-  __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ str(r1, MemOperand(r4, 0));
-
-  __ Push(r4, r2, r1);
-  __ RecordWrite(r2, r4, r1, kLRHasNotBeenSaved, kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ Pop(r4, r2, r1);
-
+  CreateWeakCellStub create_stub(masm->isolate());
+  CallStubInRecordCallTarget(masm, &create_stub);
   __ bind(&done);
 }
 

@@ -3387,6 +3387,66 @@ static void CheckVectorICCleared(Handle<JSFunction> f, int ic_slot_index) {
 }
 
 
+TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Prepare function f that contains a monomorphic IC for object
+  // originating from the same native context.
+  CompileRun(
+      "function fun() { this.x = 1; };"
+      "function f(o) { return new o(); } f(fun); f(fun);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+
+
+  Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
+  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+
+  SimulateIncrementalMarking(CcTest::heap());
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+
+  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+}
+
+
+TEST(IncrementalMarkingClearsMonomorphicConstructor) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Value> fun1;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 1; };");
+    fun1 = env->Global()->Get(v8_str("fun"));
+  }
+
+  // Prepare function f that contains a monomorphic constructor for object
+  // originating from a different native context.
+  CcTest::global()->Set(v8_str("fun1"), fun1);
+  CompileRun(
+      "function fun() { this.x = 1; };"
+      "function f(o) { return new o(); } f(fun1); f(fun1);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+
+
+  Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
+  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+
+  // Fire context dispose notification.
+  CcTest::isolate()->ContextDisposedNotification();
+  SimulateIncrementalMarking(CcTest::heap());
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+
+  CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
+           vector->Get(FeedbackVectorSlot(0)));
+}
+
+
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
@@ -4412,6 +4472,60 @@ static void ClearWeakIC(const v8::WeakCallbackData<v8::Object, void>& data) {
       reinterpret_cast<v8::Persistent<v8::Value>*>(data.GetParameter());
   CHECK(p->IsNearDeath());
   p->Reset();
+}
+
+
+TEST(WeakFunctionInConstructor) {
+  if (i::FLAG_always_opt) return;
+  i::FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+      "function createObj(obj) {"
+      "  return new obj();"
+      "}");
+  Handle<JSFunction> createObj =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(
+                                CcTest::global()->Get(v8_str("createObj"))));
+
+  v8::Persistent<v8::Object> garbage;
+  {
+    v8::HandleScope scope(isolate);
+    const char* source =
+        " (function() {"
+        "   function hat() { this.x = 5; }"
+        "   createObj(hat);"
+        "   createObj(hat);"
+        "   return hat;"
+        " })();";
+    garbage.Reset(isolate, CompileRun(source)->ToObject(isolate));
+  }
+  weak_ic_cleared = false;
+  garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
+  Heap* heap = CcTest::i_isolate()->heap();
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK(weak_ic_cleared);
+
+  // We've determined the constructor in createObj has had it's weak cell
+  // cleared. Now, verify that one additional call with a new function
+  // allows monomorphicity.
+  Handle<TypeFeedbackVector> feedback_vector = Handle<TypeFeedbackVector>(
+      createObj->shared()->feedback_vector(), CcTest::i_isolate());
+  for (int i = 0; i < 20; i++) {
+    Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+    CHECK(slot_value->IsWeakCell());
+    if (WeakCell::cast(slot_value)->cleared()) break;
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
+
+  Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+  CHECK(slot_value->IsWeakCell() && WeakCell::cast(slot_value)->cleared());
+  CompileRun(
+      "function coat() { this.x = 6; }"
+      "createObj(coat);");
+  slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+  CHECK(slot_value->IsWeakCell() && !WeakCell::cast(slot_value)->cleared());
 }
 
 

@@ -139,18 +139,21 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 
 // This logic is copied from
 // StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
-static bool ClearLogic(Heap* heap, int ic_age) {
+static bool ClearLogic(Heap* heap) {
   return FLAG_cleanup_code_caches_at_gc &&
          heap->isolate()->serializer_enabled();
 }
 
 
-void TypeFeedbackVector::ClearSlots(SharedFunctionInfo* shared) {
+void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
+                                        bool force_clear) {
   int slots = Slots();
-  Isolate* isolate = GetIsolate();
-  Object* uninitialized_sentinel =
-      TypeFeedbackVector::RawUninitializedSentinel(isolate->heap());
+  Heap* heap = GetIsolate()->heap();
 
+  if (!force_clear && !ClearLogic(heap)) return;
+
+  Object* uninitialized_sentinel =
+      TypeFeedbackVector::RawUninitializedSentinel(heap);
   for (int i = 0; i < slots; i++) {
     FeedbackVectorSlot slot(i);
     Object* obj = Get(slot);
@@ -172,10 +175,7 @@ void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
                                           bool force_clear) {
   Heap* heap = GetIsolate()->heap();
 
-  // I'm not sure yet if this ic age is the correct one.
-  int ic_age = shared->ic_age();
-
-  if (!force_clear && !ClearLogic(heap, ic_age)) return;
+  if (!force_clear && !ClearLogic(heap)) return;
 
   int slots = ICSlots();
   Code* host = shared->code();

@@ -195,7 +195,11 @@ class TypeFeedbackVector : public FixedArray {
                                          Handle<TypeFeedbackVector> vector);
 
   // Clears the vector slots and the vector ic slots.
-  void ClearSlots(SharedFunctionInfo* shared);
+  void ClearSlots(SharedFunctionInfo* shared) { ClearSlotsImpl(shared, true); }
+  void ClearSlotsAtGCTime(SharedFunctionInfo* shared) {
+    ClearSlotsImpl(shared, false);
+  }
+
   void ClearICSlots(SharedFunctionInfo* shared) {
     ClearICSlotsImpl(shared, true);
   }
@@ -237,10 +241,26 @@ class TypeFeedbackVector : public FixedArray {
   typedef BitSetComputer<VectorICKind, kVectorICKindBits, kSmiValueSize,
                          uint32_t> VectorICComputer;
 
+  void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
   void ClearICSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
 };
+
+
+// The following asserts protect an optimization in type feedback vector
+// code that looks into the contents of a slot assuming to find a String,
+// a Symbol, an AllocationSite, a WeakCell, or a FixedArray.
+STATIC_ASSERT(WeakCell::kSize >= 2 * kPointerSize);
+STATIC_ASSERT(WeakCell::kValueOffset == AllocationSite::kTransitionInfoOffset);
+STATIC_ASSERT(WeakCell::kValueOffset == FixedArray::kLengthOffset);
+STATIC_ASSERT(WeakCell::kValueOffset == Name::kHashFieldSlot);
+// Verify that an empty hash field looks like a tagged object, but can't
+// possibly be confused with a pointer.
+STATIC_ASSERT((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
+STATIC_ASSERT(Name::kEmptyHashField == 0x3);
+// Verify that a set hash field will not look like a tagged object.
+STATIC_ASSERT(Name::kHashNotComputedMask == kHeapObjectTag);
 
 
 // A FeedbackNexus is the combination of a TypeFeedbackVector and a slot.
