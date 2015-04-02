@@ -531,7 +531,7 @@ class Assembler : public AssemblerBase {
   // Return the code target address of the patch debug break slot
   inline static Address break_address_from_return_address(Address pc);
 
-  static void JumpLabelToJumpRegister(Address pc);
+  static void JumpToJumpRegister(Address pc);
 
   static void QuietNaN(HeapObject* nan);
 

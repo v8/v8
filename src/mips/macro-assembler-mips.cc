@@ -3092,24 +3092,6 @@ void MacroAssembler::Ret(Condition cond,
 }
 
 
-void MacroAssembler::J(Label* L, BranchDelaySlot bdslot) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-
-  uint32_t imm28;
-  imm28 = jump_address(L);
-  imm28 &= kImm28Mask;
-  { BlockGrowBufferScope block_buf_growth(this);
-    // Buffer growth (and relocation) must be blocked for internal references
-    // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    j(imm28);
-  }
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
-}
-
-
 void MacroAssembler::Jr(Label* L, BranchDelaySlot bdslot) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
