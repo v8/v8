@@ -301,50 +301,71 @@ bool LCodeGen::GenerateDeferredCode() {
 bool LCodeGen::GenerateJumpTable() {
   if (jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
-  }
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-  Label table_start, call_deopt_entry;
-  __ bind(&table_start);
-  Label needs_frame;
-  for (int i = 0; i < jump_table_.length(); i++) {
-    Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
-    __ bind(&table_entry->label);
-    Address entry = table_entry->address;
-    DeoptComment(table_entry->deopt_info);
-    __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
-    if (table_entry->needs_frame) {
-      DCHECK(!info()->saves_caller_doubles());
-      Comment(";;; call deopt with frame");
-      __ MultiPush(cp.bit() | fp.bit() | ra.bit());
-      __ Call(&needs_frame);
-    } else {
-      __ Call(&call_deopt_entry);
+    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
+    Label table_start, call_deopt_entry;
+
+    __ bind(&table_start);
+    Label needs_frame;
+    Address base = jump_table_[0]->address;
+    for (int i = 0; i < jump_table_.length(); i++) {
+      Deoptimizer::JumpTableEntry* table_entry = jump_table_[i];
+      __ bind(&table_entry->label);
+      Address entry = table_entry->address;
+      DeoptComment(table_entry->deopt_info);
+
+      // Second-level deopt table entries are contiguous and small, so instead
+      // of loading the full, absolute address of each one, load the base
+      // address and add an immediate offset.
+      if (is_int16(entry - base)) {
+        if (table_entry->needs_frame) {
+          DCHECK(!info()->saves_caller_doubles());
+          Comment(";;; call deopt with frame");
+          __ MultiPush(cp.bit() | fp.bit() | ra.bit());
+          __ BranchAndLink(&needs_frame, USE_DELAY_SLOT);
+          __ li(t9, Operand(entry - base));
+        } else {
+          __ BranchAndLink(&call_deopt_entry, USE_DELAY_SLOT);
+          __ li(t9, Operand(entry - base));
+        }
+
+      } else {
+        __ li(t9, Operand(entry - base));
+        if (table_entry->needs_frame) {
+          DCHECK(!info()->saves_caller_doubles());
+          Comment(";;; call deopt with frame");
+          __ MultiPush(cp.bit() | fp.bit() | ra.bit());
+          __ BranchAndLink(&needs_frame);
+        } else {
+          __ BranchAndLink(&call_deopt_entry);
+        }
+      }
+      info()->LogDeoptCallPosition(masm()->pc_offset(),
+                                   table_entry->deopt_info.inlining_id);
     }
-    info()->LogDeoptCallPosition(masm()->pc_offset(),
-                                 table_entry->deopt_info.inlining_id);
+    if (needs_frame.is_linked()) {
+      __ bind(&needs_frame);
+      // This variant of deopt can only be used with stubs. Since we don't
+      // have a function pointer to install in the stack frame that we're
+      // building, install a special marker there instead.
+      DCHECK(info()->IsStub());
+      __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
+      __ push(at);
+      __ Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+    }
+
+    Comment(";;; call deopt");
+    __ bind(&call_deopt_entry);
+
+    if (info()->saves_caller_doubles()) {
+      DCHECK(info()->IsStub());
+      RestoreCallerDoubles();
+    }
+
+    __ li(at,
+          Operand(reinterpret_cast<int64_t>(base), RelocInfo::RUNTIME_ENTRY));
+    __ Daddu(t9, t9, Operand(at));
+    __ Jump(t9);
   }
-  if (needs_frame.is_linked()) {
-    __ bind(&needs_frame);
-    // This variant of deopt can only be used with stubs. Since we don't
-    // have a function pointer to install in the stack frame that we're
-    // building, install a special marker there instead.
-    DCHECK(info()->IsStub());
-    __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
-    __ push(at);
-    __ Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-  }
-
-  Comment(";;; call deopt");
-  __ bind(&call_deopt_entry);
-
-  if (info()->saves_caller_doubles()) {
-    DCHECK(info()->IsStub());
-    RestoreCallerDoubles();
-  }
-  __ Jump(t9);
-
-  __ RecordComment("]");
-
   // The deoptimization jump table is the last part of the instruction
   // sequence. Mark the generated code as done unless we bailed out.
   if (!is_aborted()) status_ = DONE;
@@ -824,16 +845,17 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
     info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
-    Deoptimizer::JumpTableEntry table_entry(entry, deopt_info, bailout_type,
-                                            !frame_is_built_);
+    Deoptimizer::JumpTableEntry* table_entry =
+        new (zone()) Deoptimizer::JumpTableEntry(
+            entry, deopt_info, bailout_type, !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
     if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling() ||
         jump_table_.is_empty() ||
-        !table_entry.IsEquivalentTo(jump_table_.last())) {
+        !table_entry->IsEquivalentTo(*jump_table_.last())) {
       jump_table_.Add(table_entry, zone());
     }
-    __ Branch(&jump_table_.last().label, condition, src1, src2);
+    __ Branch(&jump_table_.last()->label, condition, src1, src2);
   }
 }
 

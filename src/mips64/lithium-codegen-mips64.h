@@ -358,7 +358,7 @@ class LCodeGen: public LCodeGenBase {
   void EmitVectorLoadICRegisters(T* instr);
 
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry*> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;
