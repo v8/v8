@@ -10,7 +10,7 @@ deps = {
   "v8/build/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "2889664b9fa88cce175c5c7cdf207d28420a7412",
   "v8/third_party/icu":
-    Var("git_url") + "/chromium/deps/icu.git" + "@" + "46be516de5c83aa0b7b3b75be669b48e7a803290",
+    Var("git_url") + "/chromium/deps/icu.git" + "@" + "e4c31439828d356525b71ef81a6d61ea50d7d673",
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "3b302fef93f7cc58d9b8168466905237484b2772",
   "v8/testing/gtest":
