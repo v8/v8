@@ -1903,28 +1903,39 @@ void Assembler::movf(Register rd, Register rs, uint16_t cc) {
 }
 
 
-void Assembler::seleqz(Register rs, Register rt, Register rd) {
+void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                    FPURegister ft) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK((fmt == D) || (fmt == S));
+
+  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
+                fs.code() << kFsShift | fd.code() << kFdShift | SEL;
+  emit(instr);
+}
+
+
+void Assembler::seleqz(Register rd, Register rs, Register rt) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELEQZ_S);
 }
 
 
-void Assembler::seleqz(SecondaryField fmt, FPURegister fd, FPURegister ft,
-                       FPURegister fs) {
+void Assembler::seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                       FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, SELEQZ_C);
 }
 
 
-void Assembler::selnez(Register rs, Register rt, Register rd) {
+void Assembler::selnez(Register rd, Register rs, Register rt) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELNEZ_S);
 }
 
 
-void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister ft,
-                       FPURegister fs) {
+void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                       FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, SELNEZ_C);
@@ -2244,32 +2255,32 @@ void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
 }
 
 
-void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister ft,
-    FPURegister fs) {
+void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                    FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, MIN);
 }
 
 
-void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister ft,
-    FPURegister fs) {
+void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                     FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, MINA);
 }
 
 
-void Assembler::max(SecondaryField fmt, FPURegister fd, FPURegister ft,
-    FPURegister fs) {
+void Assembler::max(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                    FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, MAX);
 }
 
 
-void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister ft,
-    FPURegister fs) {
+void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                     FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, MAXA);

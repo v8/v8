@@ -92,25 +92,6 @@ if (failure) { \
   }
 
 
-TEST(Type1) {
-  if (kArchVariant == kMips64r6) {
-    SET_UP();
-    COMPARE(seleqz(a0, a1, a2), "00853035       seleqz    a0, a1, a2");
-    COMPARE(selnez(a0, a1, a2), "00853037       selnez    a0, a1, a2");
-
-
-    COMPARE(seleqz(D, f3, f4, f5), "462428d4       seleqz.D    f4, f5, f3");
-    COMPARE(selnez(D, f3, f4, f5), "462428d7       selnez.D    f4, f5, f3");
-
-    /*COMPARE(min(D, f3, f4, f5),
-          "462428dc       min.D    f4, f5, f3");
-    COMPARE(max(D, f3, f4, f5),
-          "462428de       max.D    f4, f5, f3");*/
-    VERIFY_RUN();
-  }
-}
-
-
 TEST(Type0) {
   SET_UP();
 
@@ -689,4 +670,21 @@ TEST(Type0) {
           "7c62f800       ext     v0, v1, 0, 32");
 
   VERIFY_RUN();
+}
+
+
+TEST(Type1) {
+  if (kArchVariant == kMips64r6) {
+    SET_UP();
+    COMPARE(seleqz(a0, a1, a2), "00a62035       seleqz    a0, a1, a2");
+    COMPARE(selnez(a0, a1, a2), "00a62037       selnez    a0, a1, a2");
+
+
+    COMPARE(seleqz(D, f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
+    COMPARE(selnez(D, f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
+
+    COMPARE(min(D, f3, f4, f5), "462520dc       min.d    f3, f4, f5");
+    COMPARE(max(D, f3, f4, f5), "462520de       max.d    f3, f4, f5");
+    VERIFY_RUN();
+  }
 }

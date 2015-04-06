@@ -90,20 +90,6 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 if (failure) { \
     V8_Fatal(__FILE__, __LINE__, "MIPS Disassembler tests failed.\n"); \
   }
-//  tests only seleqz, selnez, seleqz.fmt and selnez.fmt
-TEST(Type1) {
-  SET_UP();
-  if (IsMipsArchVariant(kMips32r6)) {
-    COMPARE(seleqz(a0, a1, a2), "00853035       seleqz    a0, a1, a2");
-    COMPARE(selnez(a0, a1, a2), "00853037       selnez    a0, a1, a2");
-
-    COMPARE(seleqz(S, f0, f1, f2), "45000894       seleqz.S    f0, f1, f2");
-    COMPARE(selnez(S, f0, f1, f2), "45000897       selnez.S    f0, f1, f2");
-    COMPARE(seleqz(D, f3, f4, f5), "00853035       seleqz.D    f3, f4, f5");
-    COMPARE(selnez(D, f3, f4, f5), "00853037       selnez.D    f3, f4, f5");
-  }
-  VERIFY_RUN();
-}
 
 
 TEST(Type0) {
@@ -536,4 +522,22 @@ TEST(Type0) {
   }
 
   VERIFY_RUN();
+}
+
+
+//  Tests only seleqz, selnez, seleqz.fmt and selnez.fmt
+TEST(Type1) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    SET_UP();
+    COMPARE(seleqz(a0, a1, a2), "00a62035       seleqz    a0, a1, a2");
+    COMPARE(selnez(a0, a1, a2), "00a62037       selnez    a0, a1, a2");
+
+
+    COMPARE(seleqz(D, f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
+    COMPARE(selnez(D, f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
+
+    COMPARE(min(D, f3, f4, f5), "462520dc       min.d    f3, f4, f5");
+    COMPARE(max(D, f3, f4, f5), "462520de       max.d    f3, f4, f5");
+    VERIFY_RUN();
+  }
 }

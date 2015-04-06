@@ -106,6 +106,7 @@ class Decoder {
   void DecodeTypeRegisterSRsType(Instruction* instr);
   void DecodeTypeRegisterDRsType(Instruction* instr);
   void DecodeTypeRegisterLRsType(Instruction* instr);
+  void DecodeTypeRegisterWRsType(Instruction* instr);
   void DecodeTypeRegisterSPECIAL(Instruction* instr);
   void DecodeTypeRegisterSPECIAL2(Instruction* instr);
   void DecodeTypeRegisterSPECIAL3(Instruction* instr);
@@ -113,10 +114,6 @@ class Decoder {
   void DecodeTypeRegisterCOP1X(Instruction* instr);
   int DecodeTypeRegister(Instruction* instr);
 
-  void DecodeTypeImmediateCOP1W(Instruction* instr);
-  void DecodeTypeImmediateCOP1L(Instruction* instr);
-  void DecodeTypeImmediateCOP1S(Instruction* instr);
-  void DecodeTypeImmediateCOP1D(Instruction* instr);
   void DecodeTypeImmediateCOP1(Instruction* instr);
   void DecodeTypeImmediateREGIMM(Instruction* instr);
   void DecodeTypeImmediate(Instruction* instr);
@@ -521,10 +518,22 @@ int Decoder::DecodeBreakInstr(Instruction* instr) {
 bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
     case SELEQZ_C:
-      Format(instr, "seleqz.'t    'ft, 'fs, 'fd");
+      Format(instr, "seleqz.'t    'fd, 'fs, 'ft");
       break;
     case SELNEZ_C:
-      Format(instr, "selnez.'t    'ft, 'fs, 'fd");
+      Format(instr, "selnez.'t    'fd, 'fs, 'ft");
+      break;
+    case MIN:
+      Format(instr, "min.'t    'fd, 'fs, 'ft");
+      break;
+    case MAX:
+      Format(instr, "max.'t    'fd, 'fs, 'ft");
+      break;
+    case MINA:
+      Format(instr, "mina.'t   'fd, 'fs, 'ft");
+      break;
+    case MAXA:
+      Format(instr, "maxa.'t   'fd, 'fs, 'ft");
       break;
     case ADD_D:
       Format(instr, "add.'t   'fd, 'fs, 'ft");
@@ -679,6 +688,53 @@ void Decoder::DecodeTypeRegisterLRsType(Instruction* instr) {
 }
 
 
+void Decoder::DecodeTypeRegisterWRsType(Instruction* instr) {
+  switch (instr->FunctionValue()) {
+    case CVT_S_W:  // Convert word to float (single).
+      Format(instr, "cvt.s.w 'fd, 'fs");
+      break;
+    case CVT_D_W:  // Convert word to double.
+      Format(instr, "cvt.d.w 'fd, 'fs");
+      break;
+    case CMP_AF:
+      Format(instr, "cmp.af.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_UN:
+      Format(instr, "cmp.un.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_EQ:
+      Format(instr, "cmp.eq.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_UEQ:
+      Format(instr, "cmp.ueq.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_LT:
+      Format(instr, "cmp.lt.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_ULT:
+      Format(instr, "cmp.ult.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_LE:
+      Format(instr, "cmp.le.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_ULE:
+      Format(instr, "cmp.ule.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_OR:
+      Format(instr, "cmp.or.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_UNE:
+      Format(instr, "cmp.une.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_NE:
+      Format(instr, "cmp.ne.s    'fd, 'fs, 'ft");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void Decoder::DecodeTypeRegisterCOP1(Instruction* instr) {
   switch (instr->RsFieldRaw()) {
     case MFC1:
@@ -713,13 +769,7 @@ void Decoder::DecodeTypeRegisterCOP1(Instruction* instr) {
       DecodeTypeRegisterDRsType(instr);
       break;
     case W:
-      switch (instr->FunctionFieldRaw()) {
-        case CVT_D_W:  // Convert word to double.
-          Format(instr, "cvt.d.w 'fd, 'fs");
-          break;
-        default:
-          UNREACHABLE();
-      }
+      DecodeTypeRegisterWRsType(instr);
       break;
     case L:
       DecodeTypeRegisterLRsType(instr);
@@ -1013,10 +1063,10 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       }
       break;
     case SELEQZ_S:
-      Format(instr, "seleqz    'rs, 'rt, 'rd");
+      Format(instr, "seleqz    'rd, 'rs, 'rt");
       break;
     case SELNEZ_S:
-      Format(instr, "selnez    'rs, 'rt, 'rd");
+      Format(instr, "selnez    'rd, 'rs, 'rt");
       break;
     default:
       UNREACHABLE();
@@ -1090,146 +1140,6 @@ int Decoder::DecodeTypeRegister(Instruction* instr) {
 }
 
 
-void Decoder::DecodeTypeImmediateCOP1D(Instruction* instr) {
-  switch (instr->FunctionValue()) {
-    case SEL:
-      Format(instr, "sel.D    'ft, 'fs, 'fd");
-      break;
-    case SELEQZ_C:
-      Format(instr, "seleqz.D 'ft, 'fs, 'fd");
-      break;
-    case SELNEZ_C:
-      Format(instr, "selnez.D 'ft, 'fs, 'fd");
-      break;
-    case MIN:
-      Format(instr, "min.D    'ft, 'fs, 'fd");
-      break;
-    case MINA:
-      Format(instr, "mina.D   'ft, 'fs, 'fd");
-      break;
-    case MAX:
-      Format(instr, "max.D    'ft, 'fs, 'fd");
-      break;
-    case MAXA:
-      Format(instr, "maxa.D   'ft, 'fs, 'fd");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void Decoder::DecodeTypeImmediateCOP1L(Instruction* instr) {
-  switch (instr->FunctionValue()) {
-    case CMP_AF:
-      Format(instr, "cmp.af.D    'ft, 'fs, 'fd");
-      break;
-    case CMP_UN:
-      Format(instr, "cmp.un.D    'ft, 'fs, 'fd");
-      break;
-    case CMP_EQ:
-      Format(instr, "cmp.eq.D    'ft, 'fs, 'fd");
-      break;
-    case CMP_UEQ:
-      Format(instr, "cmp.ueq.D   'ft, 'fs, 'fd");
-      break;
-    case CMP_LT:
-      Format(instr, "cmp.lt.D    'ft, 'fs, 'fd");
-      break;
-    case CMP_ULT:
-      Format(instr, "cmp.ult.D   'ft, 'fs, 'fd");
-      break;
-    case CMP_LE:
-      Format(instr, "cmp.le.D    'ft, 'fs, 'fd");
-      break;
-    case CMP_ULE:
-      Format(instr, "cmp.ule.D   'ft, 'fs, 'fd");
-      break;
-    case CMP_OR:
-      Format(instr, "cmp.or.D    'ft, 'fs, 'fd");
-      break;
-    case CMP_UNE:
-      Format(instr, "cmp.une.D   'ft, 'fs, 'fd");
-      break;
-    case CMP_NE:
-      Format(instr, "cmp.ne.D    'ft, 'fs, 'fd");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void Decoder::DecodeTypeImmediateCOP1S(Instruction* instr) {
-  switch (instr->FunctionValue()) {
-    case SEL:
-      Format(instr, "sel.S    'ft, 'fs, 'fd");
-      break;
-    case SELEQZ_C:
-      Format(instr, "seleqz.S 'ft, 'fs, 'fd");
-      break;
-    case SELNEZ_C:
-      Format(instr, "selnez.S 'ft, 'fs, 'fd");
-      break;
-    case MIN:
-      Format(instr, "min.S    'ft, 'fs, 'fd");
-      break;
-    case MINA:
-      Format(instr, "mina.S   'ft, 'fs, 'fd");
-      break;
-    case MAX:
-      Format(instr, "max.S    'ft, 'fs, 'fd");
-      break;
-    case MAXA:
-      Format(instr, "maxa.S   'ft, 'fs, 'fd");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void Decoder::DecodeTypeImmediateCOP1W(Instruction* instr) {
-  switch (instr->FunctionValue()) {
-    case CMP_AF:
-      Format(instr, "cmp.af.S    'ft, 'fs, 'fd");
-      break;
-    case CMP_UN:
-      Format(instr, "cmp.un.S    'ft, 'fs, 'fd");
-      break;
-    case CMP_EQ:
-      Format(instr, "cmp.eq.S    'ft, 'fs, 'fd");
-      break;
-    case CMP_UEQ:
-      Format(instr, "cmp.ueq.S   'ft, 'fs, 'fd");
-      break;
-    case CMP_LT:
-      Format(instr, "cmp.lt.S    'ft, 'fs, 'fd");
-      break;
-    case CMP_ULT:
-      Format(instr, "cmp.ult.S   'ft, 'fs, 'fd");
-      break;
-    case CMP_LE:
-      Format(instr, "cmp.le.S    'ft, 'fs, 'fd");
-      break;
-    case CMP_ULE:
-      Format(instr, "cmp.ule.S   'ft, 'fs, 'fd");
-      break;
-    case CMP_OR:
-      Format(instr, "cmp.or.S    'ft, 'fs, 'fd");
-      break;
-    case CMP_UNE:
-      Format(instr, "cmp.une.S   'ft, 'fs, 'fd");
-      break;
-    case CMP_NE:
-      Format(instr, "cmp.ne.S    'ft, 'fs, 'fd");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
 void Decoder::DecodeTypeImmediateCOP1(Instruction* instr) {
   switch (instr->RsFieldRaw()) {
     case BC1:
@@ -1244,18 +1154,6 @@ void Decoder::DecodeTypeImmediateCOP1(Instruction* instr) {
       break;
     case BC1NEZ:
       Format(instr, "bc1nez    'ft, 'imm16u");
-      break;
-    case W:  // CMP.S instruction.
-      DecodeTypeImmediateCOP1W(instr);
-      break;
-    case L:  // CMP.D instruction.
-      DecodeTypeImmediateCOP1L(instr);
-      break;
-    case S:
-      DecodeTypeImmediateCOP1S(instr);
-      break;
-    case D:
-      DecodeTypeImmediateCOP1D(instr);
       break;
     default:
       UNREACHABLE();

@@ -2273,7 +2273,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
 void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
                                           const int32_t& fs_reg,
                                           const int32_t& ft_reg,
-                                          const int64_t& fd_reg) {
+                                          const int32_t& fd_reg) {
   float fs, ft;
   fs = get_fpu_register_float(fs_reg);
   ft = get_fpu_register_float(ft_reg);
@@ -2339,16 +2339,22 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
 
 void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
                                           const int32_t& fs_reg,
-                                          const int64_t& ft_reg,
+                                          const int32_t& ft_reg,
                                           const int32_t& fd_reg) {
-  double ft, fs;
+  double ft, fs, fd;
   uint32_t cc, fcsr_cc;
   fs = get_fpu_register_double(fs_reg);
   ft = get_fpu_register_double(ft_reg);
+  fd = get_fpu_register_double(fd_reg);
   cc = instr->FCccValue();
   fcsr_cc = get_fcsr_condition_bit(cc);
-  int64_t ft_int = static_cast<int64_t>(ft);
+  int64_t ft_int = bit_cast<int64_t>(ft);
+  int64_t fd_int = bit_cast<int64_t>(fd);
   switch (instr->FunctionFieldRaw()) {
+    case SEL:
+      DCHECK(kArchVariant == kMips64r6);
+      set_fpu_register_double(fd_reg, (fd_int & 0x1) == 0 ? fs : ft);
+      break;
     case SELEQZ_C:
       DCHECK(kArchVariant == kMips64r6);
       set_fpu_register_double(fd_reg, (ft_int & 0x1) == 0 ? fs : 0.0);
@@ -2356,6 +2362,32 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
     case SELNEZ_C:
       DCHECK(kArchVariant == kMips64r6);
       set_fpu_register_double(fd_reg, (ft_int & 0x1) != 0 ? fs : 0.0);
+      break;
+    case MIN:
+      DCHECK(kArchVariant == kMips64r6);
+      fs = get_fpu_register_double(fs_reg);
+      if (std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else if (std::isnan(fs) && !std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, ft);
+      } else if (!std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else {
+        set_fpu_register_double(fd_reg, (fs >= ft) ? ft : fs);
+      }
+      break;
+    case MAX:
+      DCHECK(kArchVariant == kMips64r6);
+      fs = get_fpu_register_double(fs_reg);
+      if (std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else if (std::isnan(fs) && !std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, ft);
+      } else if (!std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else {
+        set_fpu_register_double(fd_reg, (fs <= ft) ? ft : fs);
+      }
       break;
     case ADD_D:
       set_fpu_register_double(fd_reg, fs + ft);
@@ -2595,10 +2627,10 @@ void Simulator::DecodeTypeRegisterLRsType(Instruction* instr,
 
 
 void Simulator::DecodeTypeRegisterCOP1(
-    Instruction* instr, const int64_t& rs_reg, const int64_t& rs,
-    const uint64_t& rs_u, const int64_t& rt_reg, const int64_t& rt,
-    const uint64_t& rt_u, const int64_t& rd_reg, const int32_t& fr_reg,
-    const int32_t& fs_reg, const int32_t& ft_reg, const int64_t& fd_reg,
+    Instruction* instr, const int32_t& rs_reg, const int64_t& rs,
+    const uint64_t& rs_u, const int32_t& rt_reg, const int64_t& rt,
+    const uint64_t& rt_u, const int32_t& rd_reg, const int32_t& fr_reg,
+    const int32_t& fs_reg, const int32_t& ft_reg, const int32_t& fd_reg,
     int64_t& alu_out) {
   switch (instr->RsFieldRaw()) {
     case BC1:  // Branch on coprocessor condition.
@@ -2652,7 +2684,7 @@ void Simulator::DecodeTypeRegisterCOP1X(Instruction* instr,
                                         const int32_t& fr_reg,
                                         const int32_t& fs_reg,
                                         const int32_t& ft_reg,
-                                        const int64_t& fd_reg) {
+                                        const int32_t& fd_reg) {
   switch (instr->FunctionFieldRaw()) {
     case MADD_D:
       double fr, ft, fs;
@@ -2886,10 +2918,10 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   const uint64_t rt_u   = static_cast<uint32_t>(rt);
   const int64_t  rd_reg = instr->RdValue();
 
-  const int32_t  fr_reg = instr->FrValue();
-  const int32_t  fs_reg = instr->FsValue();
-  const int32_t  ft_reg = instr->FtValue();
-  const int64_t  fd_reg = instr->FdValue();
+  const int32_t fr_reg = instr->FrValue();
+  const int32_t fs_reg = instr->FsValue();
+  const int32_t ft_reg = instr->FtValue();
+  const int32_t fd_reg = instr->FdValue();
   int64_t  i64hilo = 0;
   uint64_t u64hilo = 0;
 

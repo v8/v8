@@ -880,15 +880,13 @@ class Assembler : public AssemblerBase {
   void movt(Register rd, Register rs, uint16_t cc = 0);
   void movf(Register rd, Register rs, uint16_t cc = 0);
 
-  void sel(SecondaryField fmt, FPURegister fd, FPURegister ft,
-      FPURegister fs, uint8_t sel);
-  void seleqz(Register rs, Register rt, Register rd);
-  void seleqz(SecondaryField fmt, FPURegister fd, FPURegister ft,
-      FPURegister fs);
+  void sel(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
+  void seleqz(Register rd, Register rs, Register rt);
+  void seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
+              FPURegister ft);
   void selnez(Register rs, Register rt, Register rd);
-  void selnez(SecondaryField fmt, FPURegister fd, FPURegister ft,
-      FPURegister fs);
-
+  void selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
+              FPURegister ft);
   // Bit twiddling.
   void clz(Register rd, Register rs);
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -955,10 +953,10 @@ class Assembler : public AssemblerBase {
   void ceil_l_s(FPURegister fd, FPURegister fs);
   void ceil_l_d(FPURegister fd, FPURegister fs);
 
-  void min(SecondaryField fmt, FPURegister fd, FPURegister ft, FPURegister fs);
-  void mina(SecondaryField fmt, FPURegister fd, FPURegister ft, FPURegister fs);
-  void max(SecondaryField fmt, FPURegister fd, FPURegister ft, FPURegister fs);
-  void maxa(SecondaryField fmt, FPURegister fd, FPURegister ft, FPURegister fs);
+  void min(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
+  void mina(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
+  void max(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
+  void maxa(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
 
   void cvt_s_w(FPURegister fd, FPURegister fs);
   void cvt_s_l(FPURegister fd, FPURegister fs);

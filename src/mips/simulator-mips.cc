@@ -2137,15 +2137,20 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
                                           const int32_t& fs_reg,
                                           const int32_t& ft_reg,
                                           const int32_t& fd_reg) {
-  double ft, fs;
+  double ft, fs, fd;
   uint32_t cc, fcsr_cc;
   int64_t i64;
   fs = get_fpu_register_double(fs_reg);
   ft = get_fpu_register_double(ft_reg);
-  int64_t ft_int = static_cast<int64_t>(ft);
+  int64_t ft_int = bit_cast<int64_t>(ft);
+  int64_t fd_int = bit_cast<int64_t>(fd);
   cc = instr->FCccValue();
   fcsr_cc = get_fcsr_condition_bit(cc);
   switch (instr->FunctionFieldRaw()) {
+    case SEL:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      set_fpu_register_double(fd_reg, (fd_int & 0x1) == 0 ? fs : ft);
+      break;
     case SELEQZ_C:
       DCHECK(IsMipsArchVariant(kMips32r6));
       set_fpu_register_double(fd_reg, (ft_int & 0x1) == 0 ? fs : 0.0);
@@ -2153,6 +2158,33 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
     case SELNEZ_C:
       DCHECK(IsMipsArchVariant(kMips32r6));
       set_fpu_register_double(fd_reg, (ft_int & 0x1) != 0 ? fs : 0.0);
+      break;
+    case MIN:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      fs = get_fpu_register_double(fs_reg);
+      if (std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else if (std::isnan(fs) && !std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, ft);
+      } else if (!std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else {
+        set_fpu_register_double(fd_reg, (fs >= ft) ? ft : fs);
+      }
+      break;
+    case MAX:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      fs = get_fpu_register_double(fs_reg);
+      if (std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else if (std::isnan(fs) && !std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, ft);
+      } else if (!std::isnan(fs) && std::isnan(ft)) {
+        set_fpu_register_double(fd_reg, fs);
+      } else {
+        set_fpu_register_double(fd_reg, (fs <= ft) ? ft : fs);
+      }
+      break;
       break;
     case ADD_D:
       set_fpu_register_double(fd_reg, fs + ft);

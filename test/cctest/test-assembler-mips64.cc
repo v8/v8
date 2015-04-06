@@ -1448,38 +1448,30 @@ TEST(MIPS17) {
       int b;
       int c;
       int d;
-      double i;
-      double j;
-      double k;
-      double l;
+      double e;
+      double f;
+      double g;
+      double h;
     } Test;
 
     Test test;
     // Integer part of test.
     __ addiu(t1, zero_reg, 1);                      // t1 = 1
-    __ seleqz(t1, zero_reg, t3);                    // t3 = 1
+    __ seleqz(t3, t1, zero_reg);                    // t3 = 1
     __ sw(t3, MemOperand(a0, OFFSET_OF(Test, a)));  // a = 1
-    __ seleqz(t1, t1, t2);                          // t2 = 0
+    __ seleqz(t2, t1, t1);                          // t2 = 0
     __ sw(t2, MemOperand(a0, OFFSET_OF(Test, b)));  // b = 0
-    __ selnez(t1, zero_reg, t3);                    // t3 = 1;
+    __ selnez(t3, t1, zero_reg);                    // t3 = 1;
     __ sw(t3, MemOperand(a0, OFFSET_OF(Test, c)));  // c = 0
-    __ selnez(t1, t1, t3);                          // t3 = 1
+    __ selnez(t3, t1, t1);                          // t3 = 1
     __ sw(t3, MemOperand(a0, OFFSET_OF(Test, d)));  // d = 1
     // Floating point part of test.
-    __ li(t0, 0x80);
-    __ mtc1(t0, f4);
-    __ cvt_d_w(f4, f4);  // f4=0x80
-    __ li(t0, 0xf3);
-    __ mtc1(t0, f6);
-    __ cvt_d_w(f6, f6);                                // f6 = 0xf3
-    __ seleqz(D, f8, f4, f6);                          // f8 = 0xf3
-    __ seleqz(D, f10, f6, f6);                         // f10 = 0
-    __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, i)));   // i = 0xf3
-    __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, j)));  // j = 0
-    __ selnez(D, f8, f4, f6);                          // f8 = 0
-    __ selnez(D, f10, f6, f6);                         // f10 = 0xf3
-    __ sdc1(f8, MemOperand(a0, OFFSET_OF(Test, k)));   // k = 0
-    __ sdc1(f10, MemOperand(a0, OFFSET_OF(Test, l)));  // l = 0xf3
+    __ ldc1(f0, MemOperand(a0, OFFSET_OF(Test, e)) );  // src
+    __ ldc1(f2, MemOperand(a0, OFFSET_OF(Test, f)) );  // test
+    __ seleqz(D, f4, f0, f2);
+    __ selnez(D, f6, f0, f2);
+    __ sdc1(f4, MemOperand(a0, OFFSET_OF(Test, g)) );  // src
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(Test, h)) );  // src
     __ jr(ra);
     __ nop();
     CodeDesc desc;
@@ -1495,10 +1487,92 @@ TEST(MIPS17) {
     CHECK_EQ(test.c, 0);
     CHECK_EQ(test.d, 1);
 
-    CHECK_EQ(test.i, 0xf3);
-    CHECK_EQ(test.j, 0x0);
-    CHECK_EQ(test.k, 0);
-    CHECK_EQ(test.l, 0xf3);
+    const int test_size = 3;
+    const int input_size = 5;
+
+    double inputs[input_size] = {0.0, 65.2, -70.32,
+      18446744073709551621.0, -18446744073709551621.0};
+    double outputs[input_size] = {0.0, 65.2, -70.32,
+      18446744073709551621.0, -18446744073709551621.0};
+    double tests[test_size*2] = {2.8, 2.9, -2.8, -2.9,
+      18446744073709551616.0, 18446744073709555712.0};
+    for (int j=0;j < test_size;j+=2) {
+      for (int i=0;i < input_size;i++) {
+        test.e = inputs[i];
+        test.f = tests[j];
+        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        CHECK_EQ(test.g, outputs[i]);
+        CHECK_EQ(test.h, 0);
+
+        test.f = tests[j+1];
+        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        CHECK_EQ(test.g, 0);
+        CHECK_EQ(test.h, outputs[i]);
+      }
+    }
+  }
+}
+
+
+TEST(MIPS18) {
+  if (kArchVariant == kMips64r6) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test_float {
+      double a;
+      double b;
+      double c;
+      double d;
+    } TestFloat;
+
+    TestFloat test;
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)));
+    __ ldc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)));
+    __ min(D, f10, f8, f4);
+    __ max(D, f12, f8, f4);
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, c)));
+    __ sdc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, d)));
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    test.a = 2.0;  // a goes to fs
+    test.b = 3.0;  // b goes to ft
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.c, 2.0);
+    CHECK_EQ(test.d, 3.0);
+
+    test.a = 3.0;  // a goes to fs
+    test.b = 2.0;  // b goes to ft
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.c, 2.0);
+    CHECK_EQ(test.d, 3.0);
+
+    test.a = std::numeric_limits<double>::quiet_NaN();
+    test.b = 3.0;  // b goes to ft
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.c, 3.0);
+    CHECK_EQ(test.d, 3.0);
+
+    test.b = std::numeric_limits<double>::quiet_NaN();
+    test.a = 3.0;  // b goes to ft
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.c, 3.0);
+    CHECK_EQ(test.d, 3.0);
+
+    test.a = std::numeric_limits<double>::quiet_NaN();
+    test.b = std::numeric_limits<double>::quiet_NaN();
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    DCHECK(std::isnan(test.c));
+    DCHECK(std::isnan(test.d));
   }
 }
 
