@@ -2059,10 +2059,20 @@ bool Genesis::InstallNatives() {
     Handle<JSObject> builtins(native_context()->builtins());
     Handle<JSObject> generator_object_prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    Handle<JSFunction> generator_function_prototype =
-        InstallFunction(builtins, "GeneratorFunctionPrototype",
-                        JS_FUNCTION_TYPE, JSFunction::kHeaderSize,
-                        generator_object_prototype, Builtins::kIllegal);
+    Handle<JSObject> generator_function_prototype =
+        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    JSObject::AddProperty(
+        builtins,
+        factory()->InternalizeUtf8String("GeneratorFunctionPrototype"),
+        generator_function_prototype,
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
+
+    JSObject::AddProperty(
+        generator_function_prototype,
+        factory()->InternalizeUtf8String("prototype"),
+        generator_object_prototype,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
     InstallFunction(builtins, "GeneratorFunction", JS_FUNCTION_TYPE,
                     JSFunction::kSize, generator_function_prototype,
                     Builtins::kIllegal);

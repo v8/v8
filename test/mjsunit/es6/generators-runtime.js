@@ -78,6 +78,23 @@ function TestGeneratorFunctionPrototype() {
              Object.getPrototypeOf(GeneratorFunctionPrototype));
   assertSame(GeneratorFunctionPrototype,
              Object.getPrototypeOf(function* () {}));
+  assertSame("object", typeof GeneratorFunctionPrototype);
+
+  var constructor_desc = Object.getOwnPropertyDescriptor(
+      GeneratorFunctionPrototype, "constructor");
+  assertTrue(constructor_desc !== undefined);
+  assertSame(GeneratorFunction, constructor_desc.value);
+  assertFalse(constructor_desc.writable);
+  assertFalse(constructor_desc.enumerable);
+  assertTrue(constructor_desc.configurable);
+
+  var prototype_desc = Object.getOwnPropertyDescriptor(
+      GeneratorFunctionPrototype, "prototype");
+  assertTrue(prototype_desc !== undefined);
+  assertSame(GeneratorObjectPrototype, prototype_desc.value);
+  assertFalse(prototype_desc.writable);
+  assertFalse(prototype_desc.enumerable);
+  assertTrue(prototype_desc.configurable);
 }
 TestGeneratorFunctionPrototype();
 
@@ -136,7 +153,6 @@ TestGeneratorFunction();
 function TestPerGeneratorPrototype() {
   assertTrue((function*(){}).prototype !== (function*(){}).prototype);
   assertTrue((function*(){}).prototype !== g.prototype);
-  assertTrue(g.prototype instanceof GeneratorFunctionPrototype);
   assertSame(GeneratorObjectPrototype, Object.getPrototypeOf(g.prototype));
   assertTrue(!(g.prototype instanceof Function));
   assertSame(typeof (g.prototype), "object");

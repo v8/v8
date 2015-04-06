@@ -67,12 +67,6 @@ function GeneratorObjectIterator() {
   return this;
 }
 
-function GeneratorFunctionPrototypeConstructor(x) {
-  if (%_IsConstructCall()) {
-    throw MakeTypeError('not_constructor', ['GeneratorFunctionPrototype']);
-  }
-}
-
 function GeneratorFunctionConstructor(arg1) {  // length == 1
   var source = NewFunctionString(arguments, 'function*');
   var global_proxy = %GlobalProxy(global);
@@ -109,7 +103,6 @@ function SetUpGenerators() {
   %InternalSetPrototype(GeneratorFunctionPrototype, $Function.prototype);
   %AddNamedProperty(GeneratorFunctionPrototype,
       symbolToStringTag, "GeneratorFunction", DONT_ENUM | READ_ONLY);
-  %SetCode(GeneratorFunctionPrototype, GeneratorFunctionPrototypeConstructor);
   %AddNamedProperty(GeneratorFunctionPrototype, "constructor",
       GeneratorFunction, DONT_ENUM | READ_ONLY);
   %InternalSetPrototype(GeneratorFunction, $Function);
