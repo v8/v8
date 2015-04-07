@@ -314,28 +314,16 @@ class RetrieveV8Releases(Step):
                               reverse=True)
 
 
-class SwitchChromium(Step):
-  MESSAGE = "Switch to Chromium checkout."
-
-  def RunStep(self):
-    cwd = self._options.chromium
-    # Check for a clean workdir.
-    if not self.GitIsWorkdirClean(cwd=cwd):  # pragma: no cover
-      self.Die("Workspace is not clean. Please commit or undo your changes.")
-    # Assert that the DEPS file is there.
-    if not os.path.exists(os.path.join(cwd, "DEPS")):  # pragma: no cover
-      self.Die("DEPS file not present.")
-
-
 class UpdateChromiumCheckout(Step):
-  MESSAGE = "Update the checkout and create a new branch."
+  MESSAGE = "Update the chromium checkout."
 
   def RunStep(self):
     cwd = self._options.chromium
-    self.GitCheckout("master", cwd=cwd)
-    self.GitPull(cwd=cwd)
-    self.DeleteBranch(self.Config("BRANCHNAME"), cwd=cwd)
-    self.GitCreateBranch(self.Config("BRANCHNAME"), cwd=cwd)
+    self.GitFetchOrigin("+refs/heads/*:refs/remotes/origin/*",
+                        "+refs/branch-heads/*:refs/remotes/branch-heads/*",
+                        cwd=cwd)
+    # Update v8 checkout in chromium.
+    self.GitFetchOrigin(cwd=os.path.join(cwd, "v8"))
 
 
 def ConvertToCommitNumber(step, revision):
@@ -352,9 +340,6 @@ class RetrieveChromiumV8Releases(Step):
   def RunStep(self):
     cwd = self._options.chromium
 
-    # Update v8 checkout in chromium.
-    self.GitFetchOrigin(cwd=os.path.join(cwd, "v8"))
-
     # All v8 revisions we are interested in.
     releases_dict = dict((r["revision_git"], r) for r in self["releases"])
 
@@ -362,12 +347,9 @@ class RetrieveChromiumV8Releases(Step):
     count_past_last_v8 = 0
     try:
       for git_hash in self.GitLog(
-          format="%H", grep="V8", cwd=cwd).splitlines():
-        if "DEPS" not in self.GitChangedFiles(git_hash, cwd=cwd):
-          continue
-        if not self.GitCheckoutFileSafe("DEPS", git_hash, cwd=cwd):
-          break  # pragma: no cover
-        deps = FileToText(os.path.join(cwd, "DEPS"))
+          format="%H", grep="V8", branch="origin/master",
+          path="DEPS", cwd=cwd).splitlines():
+        deps = self.GitShowFile(git_hash, "DEPS", cwd=cwd)
         match = DEPS_RE.search(deps)
         if match:
           cr_rev = self.GetCommitPositionNumber(git_hash, cwd=cwd)
@@ -378,7 +360,7 @@ class RetrieveChromiumV8Releases(Step):
           if count_past_last_v8:
             count_past_last_v8 += 1  # pragma: no cover
 
-          if count_past_last_v8 > 10:
+          if count_past_last_v8 > 20:
             break  # pragma: no cover
 
           # Stop as soon as we find a v8 revision that we didn't fetch in the
@@ -390,9 +372,6 @@ class RetrieveChromiumV8Releases(Step):
     # Allow Ctrl-C interrupt.
     except (KeyboardInterrupt, SystemExit):  # pragma: no cover
       pass
-
-    # Clean up.
-    self.GitCheckoutFileSafe("DEPS", "HEAD", cwd=cwd)
 
     # Add the chromium ranges to the v8 candidates and master releases.
     all_ranges = BuildRevisionRanges(cr_releases)
@@ -425,11 +404,8 @@ class RietrieveChromiumBranches(Step):
     count_past_last_v8 = 0
     try:
       for branch in branches:
-        if not self.GitCheckoutFileSafe("DEPS",
-                                        "branch-heads/%d" % branch,
-                                        cwd=cwd):
-          break  # pragma: no cover
-        deps = FileToText(os.path.join(cwd, "DEPS"))
+        deps = self.GitShowFile(
+            "refs/branch-heads/%d" % branch, "DEPS", cwd=cwd)
         match = DEPS_RE.search(deps)
         if match:
           v8_hsh = match.group(1)
@@ -438,7 +414,7 @@ class RietrieveChromiumBranches(Step):
           if count_past_last_v8:
             count_past_last_v8 += 1  # pragma: no cover
 
-          if count_past_last_v8 > 10:
+          if count_past_last_v8 > 20:
             break  # pragma: no cover
 
           # Stop as soon as we find a v8 revision that we didn't fetch in the
@@ -451,9 +427,6 @@ class RietrieveChromiumBranches(Step):
     except (KeyboardInterrupt, SystemExit):  # pragma: no cover
       pass
 
-    # Clean up.
-    self.GitCheckoutFileSafe("DEPS", "HEAD", cwd=cwd)
-
     # Add the chromium branches to the v8 candidate releases.
     all_ranges = BuildRevisionRanges(cr_branches)
     for revision, ranges in all_ranges.iteritems():
@@ -464,8 +437,6 @@ class CleanUp(Step):
   MESSAGE = "Clean up."
 
   def RunStep(self):
-    self.GitCheckout("master", cwd=self._options.chromium)
-    self.GitDeleteBranch(self.Config("BRANCHNAME"), cwd=self._options.chromium)
     self.CommonCleanup()
 
 
@@ -518,7 +489,6 @@ class Releases(ScriptsBase):
     return [
       Preparation,
       RetrieveV8Releases,
-      SwitchChromium,
       UpdateChromiumCheckout,
       RetrieveChromiumV8Releases,
       RietrieveChromiumBranches,

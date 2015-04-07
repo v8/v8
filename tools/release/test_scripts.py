@@ -1322,6 +1322,7 @@ Cr-Commit-Position: refs/heads/candidates@{#345}
 
 Cr-Commit-Position: refs/heads/4.2.71@{#1}
 """
+    c_deps = "Line\n   \"v8_revision\": \"%s\",\n  line\n"
 
     json_output = self.MakeEmptyTempFile()
     csv_output = self.MakeEmptyTempFile()
@@ -1331,19 +1332,12 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
     chrome_dir = TEST_CONFIG["CHROMIUM"]
     chrome_v8_dir = os.path.join(chrome_dir, "v8")
     os.makedirs(chrome_v8_dir)
-    def WriteDEPS(revision):
-      TextToFile("Line\n   \"v8_revision\": \"%s\",\n  line\n" % revision,
-                 os.path.join(chrome_dir, "DEPS"))
-    WriteDEPS(567)
 
     def ResetVersion(major, minor, build, patch=0):
       return lambda: self.WriteFakeVersionFile(major=major,
                                                minor=minor,
                                                build=build,
                                                patch=patch)
-
-    def ResetDEPS(revision):
-      return lambda: WriteDEPS(revision)
 
     self.Expect([
       Cmd("git status -s -uno", ""),
@@ -1403,47 +1397,25 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
       Cmd("git log -1 --format=%ci hash_456", "02:15"),
       Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(3, 22, 5)),
-      Cmd("git status -s -uno", "", cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
-      Cmd("git pull", "", cwd=chrome_dir),
-      Cmd("git branch", "  branch1\n* %s" % TEST_CONFIG["BRANCHNAME"],
-          cwd=chrome_dir),
-      Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], "",
-          cwd=chrome_dir),
-      Cmd("git new-branch %s" % TEST_CONFIG["BRANCHNAME"], "",
+      Cmd("git fetch origin +refs/heads/*:refs/remotes/origin/* "
+          "+refs/branch-heads/*:refs/remotes/branch-heads/*", "",
           cwd=chrome_dir),
       Cmd("git fetch origin", "", cwd=chrome_v8_dir),
-      Cmd("git log --format=%H --grep=\"V8\"",
-          "c_hash0\nc_hash1\nc_hash2\nc_hash3\n",
+      Cmd("git log --format=%H --grep=\"V8\" origin/master -- DEPS",
+          "c_hash1\nc_hash2\nc_hash3\n",
           cwd=chrome_dir),
-      Cmd("git diff --name-only c_hash0 c_hash0^", "", cwd=chrome_dir),
-      Cmd("git diff --name-only c_hash1 c_hash1^", "DEPS", cwd=chrome_dir),
-      Cmd("git checkout -f c_hash1 -- DEPS", "",
-          cb=ResetDEPS("hash_456"),
-          cwd=chrome_dir),
+      Cmd("git show c_hash1:DEPS", c_deps % "hash_456", cwd=chrome_dir),
       Cmd("git log -1 --format=%B c_hash1", c_hash1_commit_log,
           cwd=chrome_dir),
-      Cmd("git diff --name-only c_hash2 c_hash2^", "DEPS", cwd=chrome_dir),
-      Cmd("git checkout -f c_hash2 -- DEPS", "",
-          cb=ResetDEPS("hash_345"),
-          cwd=chrome_dir),
+      Cmd("git show c_hash2:DEPS", c_deps % "hash_345", cwd=chrome_dir),
       Cmd("git log -1 --format=%B c_hash2", c_hash2_commit_log,
           cwd=chrome_dir),
-      Cmd("git diff --name-only c_hash3 c_hash3^", "DEPS", cwd=chrome_dir),
-      Cmd("git checkout -f c_hash3 -- DEPS", "", cb=ResetDEPS("deadbeef"),
-          cwd=chrome_dir),
+      Cmd("git show c_hash3:DEPS", c_deps % "deadbeef", cwd=chrome_dir),
       Cmd("git log -1 --format=%B c_hash3", c_hash3_commit_log,
           cwd=chrome_dir),
-      Cmd("git checkout -f HEAD -- DEPS", "", cb=ResetDEPS("hash_567"),
-          cwd=chrome_dir),
       Cmd("git branch -r", " weird/123\n  branch-heads/7\n", cwd=chrome_dir),
-      Cmd("git checkout -f branch-heads/7 -- DEPS", "",
-          cb=ResetDEPS("hash_345"),
+      Cmd("git show refs/branch-heads/7:DEPS", c_deps % "hash_345",
           cwd=chrome_dir),
-      Cmd("git checkout -f HEAD -- DEPS", "", cb=ResetDEPS("hash_567"),
-          cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
-      Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], "", cwd=chrome_dir),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
