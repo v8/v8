@@ -162,9 +162,6 @@ class ParserBase : public Traits {
     kForStatement
   };
 
-  // If a list of variable declarations includes any initializers.
-  enum VariableDeclarationProperties { kHasInitializers, kHasNoInitializers };
-
   class Checkpoint;
   class ObjectLiteralCheckerBase;
 
@@ -1588,8 +1585,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
                                    bool* ok);
   Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                      VariableDeclarationProperties* decl_props,
                                       int* num_decl,
+                                      Scanner::Location* first_initializer_loc,
                                       bool* ok);
   Statement ParseExpressionOrLabelledStatement(bool* ok);
   Statement ParseIfStatement(bool* ok);

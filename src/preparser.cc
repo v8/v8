@@ -410,10 +410,8 @@ PreParser::Statement PreParser::ParseVariableStatement(
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result = ParseVariableDeclarations(var_context,
-                                               NULL,
-                                               NULL,
-                                               CHECK_OK);
+  Statement result =
+      ParseVariableDeclarations(var_context, nullptr, nullptr, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -425,10 +423,8 @@ PreParser::Statement PreParser::ParseVariableStatement(
 // to initialize it properly. This mechanism is also used for the parsing
 // of 'for-in' loops.
 PreParser::Statement PreParser::ParseVariableDeclarations(
-    VariableDeclarationContext var_context,
-    VariableDeclarationProperties* decl_props,
-    int* num_decl,
-    bool* ok) {
+    VariableDeclarationContext var_context, int* num_decl,
+    Scanner::Location* first_initializer_loc, bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -486,13 +482,18 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
     ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    Scanner::Location variable_loc = scanner()->location();
     nvars++;
     if (peek() == Token::ASSIGN || require_initializer ||
         // require initializers for multiple consts.
         (is_strict_const && peek() == Token::COMMA)) {
       Expect(Token::ASSIGN, CHECK_OK);
       ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
-      if (decl_props != NULL) *decl_props = kHasInitializers;
+
+      variable_loc.end_pos = scanner()->location().end_pos;
+      if (first_initializer_loc && !first_initializer_loc->IsValid()) {
+        *first_initializer_loc = variable_loc;
+      }
     }
   } while (peek() == Token::COMMA);
 
@@ -728,20 +729,31 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
-    ForEachStatement::VisitMode visit_mode;
+    ForEachStatement::VisitMode mode;
     if (peek() == Token::VAR || peek() == Token::CONST ||
         (peek() == Token::LET && is_strict(language_mode()))) {
       bool is_lexical = peek() == Token::LET ||
                         (peek() == Token::CONST && is_strict(language_mode()));
       int decl_count;
-      VariableDeclarationProperties decl_props = kHasNoInitializers;
-      ParseVariableDeclarations(
-          kForStatement, &decl_props, &decl_count, CHECK_OK);
-      bool has_initializers = decl_props == kHasInitializers;
+      Scanner::Location first_initializer_loc = Scanner::Location::invalid();
+      ParseVariableDeclarations(kForStatement, &decl_count,
+                                &first_initializer_loc, CHECK_OK);
+      bool has_initializers = first_initializer_loc.IsValid();
       bool accept_IN = decl_count == 1 && !(is_lexical && has_initializers);
-      bool accept_OF = !has_initializers;
-      if (accept_IN && CheckInOrOf(accept_OF, &visit_mode, ok)) {
+      bool accept_OF = true;
+      if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
         if (!*ok) return Statement::Default();
+        if (first_initializer_loc.IsValid() &&
+            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE)) {
+          if (mode == ForEachStatement::ITERATE) {
+            ReportMessageAt(first_initializer_loc, "for_of_loop_initializer");
+          } else {
+            // TODO(caitp): This should be an error in sloppy mode, too.
+            ReportMessageAt(first_initializer_loc, "for_in_loop_initializer");
+          }
+          *ok = false;
+          return Statement::Default();
+        }
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);
@@ -751,7 +763,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       Expression lhs = ParseExpression(false, CHECK_OK);
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
-      if (CheckInOrOf(lhs.IsIdentifier(), &visit_mode, ok)) {
+      if (CheckInOrOf(lhs.IsIdentifier(), &mode, ok)) {
         if (!*ok) return Statement::Default();
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);

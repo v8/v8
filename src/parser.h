@@ -909,9 +909,9 @@ class Parser : public ParserBase<ParserTraits> {
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                   VariableDeclarationProperties* decl_props,
                                    ZoneList<const AstRawString*>* names,
                                    const AstRawString** out,
+                                   Scanner::Location* first_initializer_loc,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* labels, bool* ok);
