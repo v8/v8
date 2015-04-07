@@ -157,17 +157,34 @@ bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
 }
 
 
-bool TryMatchAnyExtend(InstructionSelector* selector, Node* node,
-                       InstructionCode* opcode) {
-  NodeMatcher nm(node);
+bool TryMatchAnyExtend(Arm64OperandGenerator* g, InstructionSelector* selector,
+                       Node* left_node, Node* right_node,
+                       InstructionOperand* left_op,
+                       InstructionOperand* right_op, InstructionCode* opcode) {
+  NodeMatcher nm(right_node);
+
   if (nm.IsWord32And()) {
-    Int32BinopMatcher m(node);
-    if (m.right().HasValue()) {
-      if (m.right().Value() == 0xff) {
-        *opcode |= AddressingModeField::encode(kMode_Operand2_R_UXTB);
-        return true;
-      } else if (m.right().Value() == 0xffff) {
-        *opcode |= AddressingModeField::encode(kMode_Operand2_R_UXTH);
+    Int32BinopMatcher mright(right_node);
+    if (mright.right().Is(0xff) || mright.right().Is(0xffff)) {
+      int32_t mask = mright.right().Value();
+      *left_op = g->UseRegister(left_node);
+      *right_op = g->UseRegister(mright.left().node());
+      *opcode |= AddressingModeField::encode(
+          (mask == 0xff) ? kMode_Operand2_R_UXTB : kMode_Operand2_R_UXTH);
+      return true;
+    }
+  } else if (nm.IsWord32Sar()) {
+    Int32BinopMatcher mright(right_node);
+    if (selector->CanCover(mright.node(), mright.left().node()) &&
+        mright.left().IsWord32Shl()) {
+      Int32BinopMatcher mleft_of_right(mright.left().node());
+      if ((mright.right().Is(16) && mleft_of_right.right().Is(16)) ||
+          (mright.right().Is(24) && mleft_of_right.right().Is(24))) {
+        int32_t shift = mright.right().Value();
+        *left_op = g->UseRegister(left_node);
+        *right_op = g->UseRegister(mleft_of_right.left().node());
+        *opcode |= AddressingModeField::encode(
+            (shift == 24) ? kMode_Operand2_R_SXTB : kMode_Operand2_R_SXTH);
         return true;
       }
     }
@@ -193,35 +210,34 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     is_add_sub = true;
   }
 
-  if (g.CanBeImmediate(m.right().node(), operand_mode)) {
-    inputs[input_count++] = g.UseRegister(m.left().node());
-    inputs[input_count++] = g.UseImmediate(m.right().node());
-  } else if (TryMatchAnyShift(selector, m.right().node(), &opcode,
-                              !is_add_sub)) {
-    Matcher m_shift(m.right().node());
-    inputs[input_count++] = g.UseRegister(m.left().node());
+  Node* left_node = m.left().node();
+  Node* right_node = m.right().node();
+
+  if (g.CanBeImmediate(right_node, operand_mode)) {
+    inputs[input_count++] = g.UseRegister(left_node);
+    inputs[input_count++] = g.UseImmediate(right_node);
+  } else if (is_add_sub &&
+             TryMatchAnyExtend(&g, selector, left_node, right_node, &inputs[0],
+                               &inputs[1], &opcode)) {
+    input_count += 2;
+  } else if (is_add_sub && m.HasProperty(Operator::kCommutative) &&
+             TryMatchAnyExtend(&g, selector, right_node, left_node, &inputs[0],
+                               &inputs[1], &opcode)) {
+    input_count += 2;
+  } else if (TryMatchAnyShift(selector, right_node, &opcode, !is_add_sub)) {
+    Matcher m_shift(right_node);
+    inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else if (m.HasProperty(Operator::kCommutative) &&
-             TryMatchAnyShift(selector, m.left().node(), &opcode,
-                              !is_add_sub)) {
-    Matcher m_shift(m.left().node());
-    inputs[input_count++] = g.UseRegister(m.right().node());
+             TryMatchAnyShift(selector, left_node, &opcode, !is_add_sub)) {
+    Matcher m_shift(left_node);
+    inputs[input_count++] = g.UseRegister(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
-  } else if (is_add_sub &&
-             TryMatchAnyExtend(selector, m.right().node(), &opcode)) {
-    Matcher mright(m.right().node());
-    inputs[input_count++] = g.UseRegister(m.left().node());
-    inputs[input_count++] = g.UseRegister(mright.left().node());
-  } else if (is_add_sub && m.HasProperty(Operator::kCommutative) &&
-             TryMatchAnyExtend(selector, m.left().node(), &opcode)) {
-    Matcher mleft(m.left().node());
-    inputs[input_count++] = g.UseRegister(m.right().node());
-    inputs[input_count++] = g.UseRegister(mleft.left().node());
   } else {
-    inputs[input_count++] = g.UseRegister(m.left().node());
-    inputs[input_count++] = g.UseRegister(m.right().node());
+    inputs[input_count++] = g.UseRegister(left_node);
+    inputs[input_count++] = g.UseRegister(right_node);
   }
 
   if (cont->IsBranch()) {
