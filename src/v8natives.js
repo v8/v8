@@ -1715,6 +1715,8 @@ function SetUpNumber() {
     "parseInt", GlobalParseInt,
     "parseFloat", GlobalParseFloat
   ));
+
+  %SetInlineBuiltinFlag(NumberIsNaN);
 }
 
 SetUpNumber();

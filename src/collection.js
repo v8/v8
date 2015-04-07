@@ -25,7 +25,7 @@ function HashToEntry(table, hash, numBuckets) {
 
 
 function SetFindEntry(table, numBuckets, key, hash) {
-  var keyIsNaN = IS_NUMBER(key) && NUMBER_IS_NAN(key);
+  var keyIsNaN = NumberIsNaN(key);
   for (var entry = HashToEntry(table, hash, numBuckets);
        entry !== NOT_FOUND;
        entry = ORDERED_HASH_SET_CHAIN_AT(table, entry, numBuckets)) {
@@ -33,7 +33,7 @@ function SetFindEntry(table, numBuckets, key, hash) {
     if (key === candidate) {
       return entry;
     }
-    if (keyIsNaN && IS_NUMBER(candidate) && NUMBER_IS_NAN(candidate)) {
+    if (keyIsNaN && NumberIsNaN(candidate)) {
       return entry;
     }
   }
@@ -43,7 +43,7 @@ function SetFindEntry(table, numBuckets, key, hash) {
 
 
 function MapFindEntry(table, numBuckets, key, hash) {
-  var keyIsNaN = IS_NUMBER(key) && NUMBER_IS_NAN(key);
+  var keyIsNaN = NumberIsNaN(key);
   for (var entry = HashToEntry(table, hash, numBuckets);
        entry !== NOT_FOUND;
        entry = ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets)) {
@@ -51,7 +51,7 @@ function MapFindEntry(table, numBuckets, key, hash) {
     if (key === candidate) {
       return entry;
     }
-    if (keyIsNaN && IS_NUMBER(candidate) && NUMBER_IS_NAN(candidate)) {
+    if (keyIsNaN && NumberIsNaN(candidate)) {
       return entry;
     }
   }
