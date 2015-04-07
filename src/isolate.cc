@@ -833,6 +833,12 @@ Object* Isolate::StackOverflow() {
   Throw(*exception, nullptr);
 
   CaptureAndSetSimpleStackTrace(exception, factory()->undefined_value());
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap && FLAG_stress_compaction) {
+    heap()->CollectAllAvailableGarbage("trigger compaction");
+  }
+#endif  // VERIFY_HEAP
+
   return heap()->exception();
 }
 
