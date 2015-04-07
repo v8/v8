@@ -828,6 +828,9 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   __ B(gt, &enough_stack_space);
   // There is not enough stack space, so use a builtin to throw an appropriate
   // error.
+  if (argc_is_tagged == kArgcIsUntaggedInt) {
+    __ SmiTag(argc);
+  }
   __ Push(function, argc);
   __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
   // We should never return from the APPLY_OVERFLOW builtin.

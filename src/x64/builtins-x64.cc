@@ -606,6 +606,9 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
 
   // Out of stack space.
   __ Push(Operand(rbp, calleeOffset));
+  if (rax_is_tagged == kRaxIsUntaggedInt) {
+    __ Integer32ToSmi(rax, rax);
+  }
   __ Push(rax);
   __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
 
