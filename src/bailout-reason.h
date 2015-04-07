@@ -164,7 +164,6 @@ namespace internal {
   V(kModuleVariable, "Module variable")                                        \
   V(kModuleUrl, "Module url")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                         \
-  V(kSuperReference, "Super reference")                                        \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \
   V(kNoEmptyArraysHereInEmitFastOneByteArrayJoin,                              \
@@ -215,10 +214,12 @@ namespace internal {
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
   V(kRhsHasBeenClobbered, "Rhs has been clobbered")                            \
   V(kScopedBlock, "ScopedBlock")                                               \
+  V(kScriptContext, "Allocation of script context")                            \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
+  V(kSuperReference, "Super reference")                                        \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
   V(kTheInstructionShouldBeALis, "The instruction should be a lis")            \

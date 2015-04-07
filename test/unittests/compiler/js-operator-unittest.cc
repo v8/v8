@@ -81,7 +81,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
     SHARED(CreateBlockContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
     SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
-    SHARED(CreateScriptContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2)
+    SHARED(CreateScriptContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2)
 #undef SHARED
 };
 

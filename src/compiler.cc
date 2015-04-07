@@ -1472,6 +1472,24 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   }
   current_code->set_profiler_ticks(0);
 
+  // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
+  // an eval scope and hence would fail at parsing the eval source again.
+  if (shared->disable_optimization_reason() == kEval) {
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(mstarzinger): We cannot properly deserialize a scope chain for the
+  // builtin context, hence Genesis::InstallExperimentalNatives would fail.
+  if (shared->is_toplevel() && isolate->bootstrapper()->IsActive()) {
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(titzer): Some top-level code times out because of missing interrupt
+  // checks at back-branches, these are currently marked with --no-turbo-osr.
+  if (shared->is_toplevel() && !FLAG_turbo_osr) {
+    return MaybeHandle<Code>();
+  }
+
   info->SetOptimizing(osr_ast_id, current_code);
 
   if (mode == CONCURRENT) {

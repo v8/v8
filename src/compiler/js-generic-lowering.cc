@@ -98,7 +98,7 @@ REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
-REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kAbort)
+REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kNewScriptContext)
 #undef REPLACE_RUNTIME
 
 

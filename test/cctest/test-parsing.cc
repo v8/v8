@@ -3433,7 +3433,8 @@ TEST(UseAsmUseCount) {
              "var foo = 1;\n"
              "\"use asm\";\n"  // Only the first one counts.
              "function bar() { \"use asm\"; var baz = 1; }");
-  CHECK_EQ(2, use_counts[v8::Isolate::kUseAsm]);
+  // Optimizing will double-count because the source is parsed twice.
+  CHECK_EQ(i::FLAG_always_opt ? 4 : 2, use_counts[v8::Isolate::kUseAsm]);
 }
 
 
@@ -3452,7 +3453,8 @@ TEST(UseConstLegacyCount) {
       "    const z = 1; var baz = 1;\n"
       "    function q() { const k = 42; }\n"
       "}");
-  CHECK_EQ(4, use_counts[v8::Isolate::kLegacyConst]);
+  // Optimizing will double-count because the source is parsed twice.
+  CHECK_EQ(i::FLAG_always_opt ? 8 : 4, use_counts[v8::Isolate::kLegacyConst]);
 }
 
 

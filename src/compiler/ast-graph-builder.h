@@ -245,8 +245,9 @@ class AstGraphBuilder : public AstVisitor {
   // Builder to create a receiver check for sloppy mode.
   Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
 
-  // Builders to create local function and block contexts.
-  Node* BuildLocalFunctionContext(Node* context, Node* closure);
+  // Builders to create local function, script and block contexts.
+  Node* BuildLocalFunctionContext(Node* context);
+  Node* BuildLocalScriptContext(Scope* scope);
   Node* BuildLocalBlockContext(Scope* scope);
 
   // Builder to create an arguments object if it is used.

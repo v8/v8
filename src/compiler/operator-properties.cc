@@ -52,6 +52,7 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSNotEqual:
 
     // Context operations
+    case IrOpcode::kJSCreateScriptContext:
     case IrOpcode::kJSCreateWithContext:
 
     // Conversions

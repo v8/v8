@@ -1375,11 +1375,6 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-static bool ShouldOptimizeNewClosure(Handle<SharedFunctionInfo> info) {
-  return !info->is_toplevel() && info->allows_lazy_compilation();
-}
-
-
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info,
     Handle<Context> context,
@@ -1391,6 +1386,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  }
+
+  if (FLAG_always_opt && info->allows_lazy_compilation()) {
+    result->MarkForOptimization();
   }
 
   int index = info->SearchOptimizedCodeMap(context->native_context(),
@@ -1408,12 +1407,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Code* code = info->GetCodeFromOptimizedCodeMap(index);
     DCHECK(!code->marked_for_deoptimization());
     result->ReplaceCode(code);
-    return result;
   }
 
-  if (FLAG_always_opt && ShouldOptimizeNewClosure(info)) {
-    result->MarkForOptimization();
-  }
   return result;
 }
 

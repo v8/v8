@@ -476,9 +476,7 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     // Push a new inner context scope for the function.
-    Node* closure = GetFunctionClosure();
-    Node* inner_context =
-        BuildLocalFunctionContext(function_context_.get(), closure);
+    Node* inner_context = BuildLocalFunctionContext(function_context_.get());
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody(stack_check);
   } else {
@@ -2474,7 +2472,8 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
   const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 3);
-  NewNode(op, current_context(), pairs, flags);
+  Node* call = NewNode(op, current_context(), pairs, flags);
+  PrepareFrameState(call, BailoutId::Declarations());
   globals()->clear();
 }
 
@@ -2633,10 +2632,14 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
 }
 
 
-Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
+Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context) {
+  Node* closure = GetFunctionClosure();
+
   // Allocate a new local context.
-  const Operator* op = javascript()->CreateFunctionContext();
-  Node* local_context = NewNode(op, closure);
+  Node* local_context =
+      info()->scope()->is_script_scope()
+          ? BuildLocalScriptContext(info()->scope())
+          : NewNode(javascript()->CreateFunctionContext(), closure);
 
   // Copy parameters into context if necessary.
   int num_parameters = info()->scope()->num_parameters();
@@ -2656,12 +2659,25 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
 }
 
 
+Node* AstGraphBuilder::BuildLocalScriptContext(Scope* scope) {
+  Node* closure = GetFunctionClosure();
+
+  // Allocate a new local context.
+  const Operator* op = javascript()->CreateScriptContext();
+  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(isolate()));
+  Node* local_context = NewNode(op, closure, scope_info);
+  PrepareFrameState(local_context, BailoutId::FunctionEntry());
+
+  return local_context;
+}
+
+
 Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
   Node* closure = GetFunctionClosure();
 
   // Allocate a new local context.
   const Operator* op = javascript()->CreateBlockContext();
-  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(info_->isolate()));
+  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(isolate()));
   Node* local_context = NewNode(op, scope_info, closure);
 
   return local_context;

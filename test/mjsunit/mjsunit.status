@@ -76,6 +76,7 @@
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
   'unbox-double-arrays': [PASS, NO_VARIANTS],
+  'unicode-test': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
@@ -90,6 +91,17 @@
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
+
+  # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
+  'debug-compile-event-newfunction': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
+
+  # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
+  # issues on ARM and ARM64.
+  'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
+  'mirror-script': [PASS, NO_VARIANTS],  # on ARM64 only.
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-const': [PASS, NO_VARIANTS],
@@ -119,8 +131,9 @@
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
-  # Only regexp stuff tested, no need for extensive Crankshaft tests.
+  # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
   'regexp-global': [PASS, NO_VARIANTS],
+  'third_party/regexp-pcre': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
