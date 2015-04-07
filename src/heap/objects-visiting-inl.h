@@ -585,10 +585,6 @@ template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
                                                           Map* map) {
   Object* raw_transitions = map->raw_transitions();
-  if (TransitionArray::IsSimpleTransition(raw_transitions)) {
-    StaticVisitor::VisitPointer(
-        heap, HeapObject::RawField(map, Map::kTransitionsOffset));
-  }
   if (TransitionArray::IsFullTransitionArray(raw_transitions)) {
     MarkTransitionArray(heap, TransitionArray::cast(raw_transitions));
   }

@@ -1287,9 +1287,11 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
 
 
 void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
-  Object* raw_transitions = map->raw_transitions();
-  if (TransitionArray::IsFullTransitionArray(raw_transitions)) {
-    TransitionArray* transitions = TransitionArray::cast(raw_transitions);
+  Object* raw_transitions_or_prototype_info = map->raw_transitions();
+  if (TransitionArray::IsFullTransitionArray(
+          raw_transitions_or_prototype_info)) {
+    TransitionArray* transitions =
+        TransitionArray::cast(raw_transitions_or_prototype_info);
     int transitions_entry = GetEntry(transitions)->index();
 
     if (FLAG_collect_maps && map->CanTransition()) {
@@ -1307,11 +1309,18 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
 
     TagObject(transitions, "(transition array)");
     SetInternalReference(map, entry, "transitions", transitions,
-                         Map::kTransitionsOffset);
-  } else if (TransitionArray::IsSimpleTransition(raw_transitions)) {
-    TagObject(raw_transitions, "(transition)");
-    SetInternalReference(map, entry, "transition", raw_transitions,
-                         Map::kTransitionsOffset);
+                         Map::kTransitionsOrPrototypeInfoOffset);
+  } else if (TransitionArray::IsSimpleTransition(
+                 raw_transitions_or_prototype_info)) {
+    TagObject(raw_transitions_or_prototype_info, "(transition)");
+    SetInternalReference(map, entry, "transition",
+                         raw_transitions_or_prototype_info,
+                         Map::kTransitionsOrPrototypeInfoOffset);
+  } else if (map->is_prototype_map()) {
+    TagObject(raw_transitions_or_prototype_info, "prototype_info");
+    SetInternalReference(map, entry, "prototype_info",
+                         raw_transitions_or_prototype_info,
+                         Map::kTransitionsOrPrototypeInfoOffset);
   }
   DescriptorArray* descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");

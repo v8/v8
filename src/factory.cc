@@ -51,6 +51,15 @@ Handle<Box> Factory::NewBox(Handle<Object> value) {
 }
 
 
+Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
+  Handle<PrototypeInfo> result =
+      Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
+  result->set_prototype_users(WeakFixedArray::Empty());
+  result->set_validity_cell(Smi::FromInt(0));
+  return result;
+}
+
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map,
                                     const char* to_string,
                                     Handle<Object> to_number,

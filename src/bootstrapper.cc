@@ -833,6 +833,7 @@ Handle<GlobalObject> Genesis::CreateNewGlobals(
         ApiNatives::GlobalObjectType);
   }
 
+  js_global_object_function->initial_map()->set_is_prototype_map(true);
   js_global_object_function->initial_map()->set_is_hidden_prototype();
   js_global_object_function->initial_map()->set_dictionary_map(true);
   Handle<GlobalObject> global_object =

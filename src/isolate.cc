@@ -756,14 +756,12 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
 
 
 bool Isolate::IsInternallyUsedPropertyName(Handle<Object> name) {
-  return name.is_identical_to(factory()->hidden_string()) ||
-         name.is_identical_to(factory()->prototype_users_symbol());
+  return name.is_identical_to(factory()->hidden_string());
 }
 
 
 bool Isolate::IsInternallyUsedPropertyName(Object* name) {
-  return name == heap()->hidden_string() ||
-         name == heap()->prototype_users_symbol();
+  return name == heap()->hidden_string();
 }
 
 

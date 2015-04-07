@@ -58,6 +58,9 @@ class Factory FINAL {
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
 
+  // Create a new PrototypeInfo struct.
+  Handle<PrototypeInfo> NewPrototypeInfo();
+
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 

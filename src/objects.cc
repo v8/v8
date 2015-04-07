@@ -1902,11 +1902,12 @@ void Map::ConnectElementsTransition(Handle<Map> parent, Handle<Map> child) {
 }
 
 
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
+                            int expected_additional_properties) {
   if (object->map() == *new_map) return;
+  Handle<Map> old_map(object->map());
   if (object->HasFastProperties()) {
     if (!new_map->is_dictionary_map()) {
-      Handle<Map> old_map(object->map());
       MigrateFastToFast(object, new_map);
       if (old_map->is_prototype_map()) {
         // Clear out the old descriptor array to avoid problems to sharing
@@ -1920,15 +1921,19 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
         DCHECK(new_map->GetBackPointer()->IsUndefined());
       }
     } else {
-      MigrateFastToSlow(object, new_map, 0);
+      MigrateFastToSlow(object, new_map, expected_additional_properties);
     }
   } else {
-    // For slow-to-fast migrations JSObject::TransformToFastProperties()
+    // For slow-to-fast migrations JSObject::MigrateSlowToFast()
     // must be used instead.
     CHECK(new_map->is_dictionary_map());
 
     // Slow-to-slow migration is trivial.
     object->set_map(*new_map);
+  }
+  if (old_map->is_prototype_map()) {
+    new_map->set_prototype_info(old_map->prototype_info());
+    old_map->set_prototype_info(Smi::FromInt(0));
   }
 }
 
@@ -4534,7 +4539,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   Handle<Map> map(object->map());
   Handle<Map> new_map = Map::Normalize(map, mode, reason);
 
-  MigrateFastToSlow(object, new_map, expected_additional_properties);
+  MigrateToMap(object, new_map, expected_additional_properties);
 }
 
 
@@ -9946,6 +9951,7 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 }
 
 
+// static
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    PrototypeOptimizationMode mode) {
   if (object->IsGlobalObject()) return;
@@ -9955,14 +9961,12 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "NormalizeAsPrototype");
   }
-  bool has_just_copied_map = false;
+  Handle<Map> previous_map(object->map());
   if (!object->HasFastProperties()) {
     JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
-    has_just_copied_map = true;
   }
-  if (mode == FAST_PROTOTYPE && object->HasFastProperties() &&
-      !object->map()->is_prototype_map()) {
-    if (!has_just_copied_map) {
+  if (!object->map()->is_prototype_map()) {
+    if (object->map() == *previous_map) {
       Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
       JSObject::MigrateToMap(object, new_map);
     }
@@ -9985,39 +9989,54 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
 }
 
 
+// static
 void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
   if (!object->map()->is_prototype_map()) return;
   OptimizeAsPrototype(object, FAST_PROTOTYPE);
 }
 
 
+// static
 void JSObject::RegisterPrototypeUser(Handle<JSObject> prototype,
                                      Handle<HeapObject> user) {
   DCHECK(FLAG_track_prototype_users);
   Isolate* isolate = prototype->GetIsolate();
-  Handle<Name> symbol = isolate->factory()->prototype_users_symbol();
-
-  // Get prototype users array, create it if it doesn't exist yet.
-  Handle<Object> maybe_array =
-      JSObject::GetProperty(prototype, symbol).ToHandleChecked();
-
-  Handle<WeakFixedArray> new_array = WeakFixedArray::Add(maybe_array, user);
-  if (!maybe_array.is_identical_to(new_array)) {
-    JSObject::SetOwnPropertyIgnoreAttributes(prototype, symbol, new_array,
-                                             DONT_ENUM).Assert();
+  if (prototype->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate, prototype);
+    prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+  }
+  Handle<PrototypeInfo> proto_info;
+  Object* maybe_proto_info = prototype->map()->prototype_info();
+  if (maybe_proto_info->IsPrototypeInfo()) {
+    proto_info = handle(PrototypeInfo::cast(maybe_proto_info), isolate);
+  } else {
+    proto_info = isolate->factory()->NewPrototypeInfo();
+    prototype->map()->set_prototype_info(*proto_info);
+  }
+  Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
+  Handle<WeakFixedArray> new_array = WeakFixedArray::Add(maybe_registry, user);
+  if (!maybe_registry.is_identical_to(new_array)) {
+    proto_info->set_prototype_users(*new_array);
   }
 }
 
 
+// static
 void JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
                                        Handle<HeapObject> user) {
   Isolate* isolate = prototype->GetIsolate();
-  Handle<Name> symbol = isolate->factory()->prototype_users_symbol();
-
-  Handle<Object> maybe_array =
-      JSObject::GetProperty(prototype, symbol).ToHandleChecked();
-  if (!maybe_array->IsWeakFixedArray()) return;
-  Handle<WeakFixedArray>::cast(maybe_array)->Remove(user);
+  if (prototype->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate, prototype);
+    prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+  }
+  DCHECK(prototype->map()->is_prototype_map());
+  Object* maybe_proto_info = prototype->map()->prototype_info();
+  if (!maybe_proto_info->IsPrototypeInfo()) return;
+  Handle<PrototypeInfo> proto_info(PrototypeInfo::cast(maybe_proto_info),
+                                   isolate);
+  Object* maybe_registry = proto_info->prototype_users();
+  if (!maybe_registry->IsWeakFixedArray()) return;
+  WeakFixedArray::cast(maybe_registry)->Remove(user);
 }
 
 
@@ -10043,18 +10062,9 @@ void Map::SetPrototype(Handle<Object> prototype,
 bool Map::ShouldRegisterAsPrototypeUser(Handle<JSObject> prototype) {
   if (!FLAG_track_prototype_users) return false;
   if (this->is_prototype_map()) return true;
-  if (this->is_dictionary_map()) return false;
   Object* back = GetBackPointer();
   if (!back->IsMap()) return true;
   if (Map::cast(back)->prototype() != *prototype) return true;
-  return false;
-}
-
-
-bool Map::CanUseOptimizationsBasedOnPrototypeRegistry() {
-  if (!FLAG_track_prototype_users) return false;
-  if (this->is_prototype_map()) return true;
-  if (GetBackPointer()->IsMap()) return true;
   return false;
 }
 

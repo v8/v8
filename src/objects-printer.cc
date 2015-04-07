@@ -416,7 +416,12 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << " - unused property fields: " << unused_property_fields() << "\n";
   if (is_deprecated()) os << " - deprecated_map\n";
   if (is_dictionary_map()) os << " - dictionary_map\n";
-  if (is_prototype_map()) os << " - prototype_map\n";
+  if (is_prototype_map()) {
+    os << " - prototype_map\n";
+    os << " - prototype info: " << Brief(prototype_info());
+  } else {
+    os << " - back pointer: " << Brief(GetBackPointer());
+  }
   if (is_hidden_prototype()) os << " - hidden_prototype\n";
   if (has_named_interceptor()) os << " - named_interceptor\n";
   if (has_indexed_interceptor()) os << " - indexed_interceptor\n";
@@ -425,7 +430,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_access_check_needed()) os << " - access_check_needed\n";
   if (!is_extensible()) os << " - non-extensible\n";
   if (is_observed()) os << " - observed\n";
-  os << " - back pointer: " << Brief(GetBackPointer());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
      << Brief(instance_descriptors());
@@ -869,6 +873,14 @@ void ExecutableAccessorInfo::ExecutableAccessorInfoPrint(
 void Box::BoxPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Box");
   os << "\n - value: " << Brief(value());
+  os << "\n";
+}
+
+
+void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PrototypeInfo");
+  os << "\n - prototype users: " << Brief(prototype_users());
+  os << "\n - validity cell: " << Brief(validity_cell());
   os << "\n";
 }
 

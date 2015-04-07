@@ -879,6 +879,17 @@ void Box::BoxVerify() {
 }
 
 
+void PrototypeInfo::PrototypeInfoVerify() {
+  CHECK(IsPrototypeInfo());
+  if (prototype_users()->IsWeakFixedArray()) {
+    WeakFixedArray::cast(prototype_users())->FixedArrayVerify();
+  } else {
+    CHECK(prototype_users()->IsSmi());
+  }
+  CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
+}
+
+
 void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(flag());
