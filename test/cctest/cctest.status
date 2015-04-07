@@ -394,6 +394,14 @@
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
+['system == aix and arch == ppc64', {
+
+  # BUG 2857
+  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
+
+}],  # 'system == aix and arch == ppc64'
+
+##############################################################################
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
