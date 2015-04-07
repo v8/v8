@@ -852,6 +852,18 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
     }
   }
 
+  // x * (2^k + 1) -> x + (x << k)
+  if (m.right().HasValue() && m.right().Value() > 0) {
+    int32_t value = m.right().Value();
+    if (base::bits::IsPowerOfTwo32(value - 1)) {
+      Emit(kArm64Add32 | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
+           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseRegister(m.left().node()),
+           g.TempImmediate(WhichPowerOf2(value - 1)));
+      return;
+    }
+  }
+
   VisitRRR(this, kArm64Mul32, node);
 }
 
@@ -879,6 +891,18 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
     if (mright.left().Is(0)) {
       Emit(kArm64Mneg, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(mright.right().node()));
+      return;
+    }
+  }
+
+  // x * (2^k + 1) -> x + (x << k)
+  if (m.right().HasValue() && m.right().Value() > 0) {
+    int64_t value = m.right().Value();
+    if (base::bits::IsPowerOfTwo64(value - 1)) {
+      Emit(kArm64Add | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
+           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseRegister(m.left().node()),
+           g.TempImmediate(WhichPowerOf2_64(value - 1)));
       return;
     }
   }

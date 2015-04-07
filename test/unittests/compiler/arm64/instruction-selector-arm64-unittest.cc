@@ -1520,6 +1520,66 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         ::testing::ValuesIn(kMulDPInstructions));
 
 
+TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
+  // x * (2^k + 1) -> x + (x << k)
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Int32Mul(m.Parameter(0), m.Int32Constant((1 << k) + 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k + 1) * x -> x + (x << k)
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Int32Mul(m.Int32Constant((1 << k) + 1), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
+  // x * (2^k + 1) -> x + (x << k)
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Int64Mul(m.Parameter(0), m.Int64Constant((1L << k) + 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k + 1) * x -> x + (x << k)
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Floating point instructions.
 

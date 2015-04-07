@@ -67,6 +67,41 @@ inline int WhichPowerOf2(uint32_t x) {
 }
 
 
+// X must be a power of 2.  Returns the number of trailing zeros.
+inline int WhichPowerOf2_64(uint64_t x) {
+  DCHECK(base::bits::IsPowerOfTwo64(x));
+  int bits = 0;
+#ifdef DEBUG
+  uint64_t original_x = x;
+#endif
+  if (x >= 0x100000000L) {
+    bits += 32;
+    x >>= 32;
+  }
+  if (x >= 0x10000) {
+    bits += 16;
+    x >>= 16;
+  }
+  if (x >= 0x100) {
+    bits += 8;
+    x >>= 8;
+  }
+  if (x >= 0x10) {
+    bits += 4;
+    x >>= 4;
+  }
+  switch (x) {
+    default: UNREACHABLE();
+    case 8: bits++;  // Fall through.
+    case 4: bits++;  // Fall through.
+    case 2: bits++;  // Fall through.
+    case 1: break;
+  }
+  DCHECK_EQ(1L << bits, original_x);
+  return bits;
+}
+
+
 inline int MostSignificantBit(uint32_t x) {
   static const int msb4[] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
   int nibble = 0;
