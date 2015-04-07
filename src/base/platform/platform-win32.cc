@@ -733,15 +733,17 @@ void* OS::GetRandomMmapAddr() {
   // Note: This does not guarantee RWX regions will be within the
   // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
 #ifdef V8_HOST_ARCH_64_BIT
-  static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
+  static const uintptr_t kAllocationRandomAddressMin = 0x0000000080000000;
+  static const uintptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
 #else
-  static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
+  static const uintptr_t kAllocationRandomAddressMin = 0x04000000;
+  static const uintptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
-  uintptr_t address =
-      (platform_random_number_generator.Pointer()->NextInt() << kPageSizeBits) |
-      kAllocationRandomAddressMin;
+  uintptr_t address;
+  platform_random_number_generator.Pointer()->NextBytes(&address,
+                                                        sizeof(address));
+  address <<= kPageSizeBits;
+  address += kAllocationRandomAddressMin;
   address &= kAllocationRandomAddressMax;
   return reinterpret_cast<void *>(address);
 }
