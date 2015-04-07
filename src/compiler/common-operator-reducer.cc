@@ -51,17 +51,10 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
     Node* vtrue = NodeProperties::GetValueInput(node, 0);
     Node* vfalse = NodeProperties::GetValueInput(node, 1);
     Node* merge = NodeProperties::GetControlInput(node);
-    Node* if_true = NodeProperties::GetControlInput(merge, 0);
-    Node* if_false = NodeProperties::GetControlInput(merge, 1);
-    if (if_true->opcode() != IrOpcode::kIfTrue) {
-      std::swap(if_true, if_false);
-      std::swap(vtrue, vfalse);
-    }
-    if (if_true->opcode() == IrOpcode::kIfTrue &&
-        if_false->opcode() == IrOpcode::kIfFalse &&
-        if_true->InputAt(0) == if_false->InputAt(0)) {
-      Node* branch = if_true->InputAt(0);
-      Node* cond = branch->InputAt(0);
+    DiamondMatcher matcher(merge);
+    if (matcher.Matched()) {
+      if (matcher.IfTrue() == merge->InputAt(1)) std::swap(vtrue, vfalse);
+      Node* cond = matcher.Branch()->InputAt(0);
       if (cond->opcode() == IrOpcode::kFloat64LessThan) {
         if (cond->InputAt(0) == vtrue && cond->InputAt(1) == vfalse &&
             machine()->HasFloat64Min()) {

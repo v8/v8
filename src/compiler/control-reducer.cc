@@ -566,25 +566,17 @@ class ControlReducerImpl {
 
     // Check if it's an unused diamond.
     if (live == 2 && phis.empty()) {
-      Node* node0 = node->InputAt(0);
-      Node* node1 = node->InputAt(1);
-      if (((node0->opcode() == IrOpcode::kIfTrue &&
-            node1->opcode() == IrOpcode::kIfFalse) ||
-           (node1->opcode() == IrOpcode::kIfTrue &&
-            node0->opcode() == IrOpcode::kIfFalse)) &&
-          node0->OwnedBy(node) && node1->OwnedBy(node)) {
-        Node* branch0 = NodeProperties::GetControlInput(node0);
-        Node* branch1 = NodeProperties::GetControlInput(node1);
-        if (branch0 == branch1) {
-          // It's a dead diamond, i.e. neither the IfTrue nor the IfFalse nodes
-          // have users except for the Merge and the Merge has no Phi or
-          // EffectPhi uses, so replace the Merge with the control input of the
-          // diamond.
-          TRACE("  DeadDiamond: #%d:%s #%d:%s #%d:%s\n", node0->id(),
-                node0->op()->mnemonic(), node1->id(), node1->op()->mnemonic(),
-                branch0->id(), branch0->op()->mnemonic());
-          return NodeProperties::GetControlInput(branch0);
-        }
+      DiamondMatcher matcher(node);
+      if (matcher.Matched() && matcher.IfProjectionsAreOwned()) {
+        // It's a dead diamond, i.e. neither the IfTrue nor the IfFalse nodes
+        // have uses except for the Merge and the Merge has no Phi or
+        // EffectPhi uses, so replace the Merge with the control input of the
+        // diamond.
+        TRACE("  DeadDiamond: #%d:Branch #%d:IfTrue #%d:IfFalse\n",
+              matcher.Branch()->id(), matcher.IfTrue()->id(),
+              matcher.IfFalse()->id());
+        // TODO(turbofan): replace single-phi diamonds with selects.
+        return NodeProperties::GetControlInput(matcher.Branch());
       }
     }
 

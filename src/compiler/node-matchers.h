@@ -542,6 +542,40 @@ typedef BaseWithIndexAndDisplacementMatcher<Int32AddMatcher>
 typedef BaseWithIndexAndDisplacementMatcher<Int64AddMatcher>
     BaseWithIndexAndDisplacement64Matcher;
 
+struct BranchMatcher : public NodeMatcher {
+  explicit BranchMatcher(Node* branch);
+
+  bool Matched() const { return if_true_ && if_false_; }
+
+  Node* Branch() const { return node(); }
+  Node* IfTrue() const { return if_true_; }
+  Node* IfFalse() const { return if_false_; }
+
+ private:
+  Node* if_true_;
+  Node* if_false_;
+};
+
+
+struct DiamondMatcher : public NodeMatcher {
+  explicit DiamondMatcher(Node* merge);
+
+  bool Matched() const { return branch_; }
+  bool IfProjectionsAreOwned() const {
+    return if_true_->OwnedBy(node()) && if_false_->OwnedBy(node());
+  }
+
+  Node* Branch() const { return branch_; }
+  Node* IfTrue() const { return if_true_; }
+  Node* IfFalse() const { return if_false_; }
+  Node* Merge() const { return node(); }
+
+ private:
+  Node* branch_;
+  Node* if_true_;
+  Node* if_false_;
+};
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
