@@ -233,10 +233,10 @@ void FullCodeGenerator::Generate() {
     }
   }
 
-ArgumentsAccessStub::HasNewTarget has_new_target =
-    IsSubclassConstructor(info->function()->kind())
-        ? ArgumentsAccessStub::HAS_NEW_TARGET
-        : ArgumentsAccessStub::NO_NEW_TARGET;
+  ArgumentsAccessStub::HasNewTarget has_new_target =
+      IsSubclassConstructor(info->function()->kind())
+          ? ArgumentsAccessStub::HAS_NEW_TARGET
+          : ArgumentsAccessStub::NO_NEW_TARGET;
 
   // Possibly allocate RestParameters
   int rest_index;
