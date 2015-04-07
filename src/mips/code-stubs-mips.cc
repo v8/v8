@@ -2547,7 +2547,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ Branch(&done, eq, a1, Operand(weak_value));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&done, eq, t0, Operand(at));
-  __ lw(feedback_map, FieldMemOperand(t0, Heap::kMapOffset));
+  __ lw(feedback_map, FieldMemOperand(t0, HeapObject::kMapOffset));
   __ LoadRoot(at, Heap::kWeakCellMapRootIndex);
   __ Branch(FLAG_pretenuring_call_new ? &miss : &check_allocation_site, ne,
             feedback_map, Operand(at));
