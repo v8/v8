@@ -5,6 +5,7 @@
 #ifndef V8_V8_PROFILER_H_
 #define V8_V8_PROFILER_H_
 
+#include <vector>
 #include "v8.h"
 
 /**
@@ -16,6 +17,18 @@ class HeapGraphNode;
 struct HeapStatsUpdate;
 
 typedef uint32_t SnapshotObjectId;
+
+
+struct V8_EXPORT CpuProfileDeoptInfo {
+  struct Frame {
+    int script_id;
+    size_t position;
+  };
+  /** A pointer to a static string owned by v8. */
+  const char* deopt_reason;
+  std::vector<Frame> stack;
+};
+
 
 /**
  * CpuProfileNode represents a node in a call graph.
@@ -84,6 +97,9 @@ class V8_EXPORT CpuProfileNode {
 
   /** Retrieves a child node by index. */
   const CpuProfileNode* GetChild(int index) const;
+
+  /** Retrieves deopt infos for the node. */
+  const std::vector<CpuProfileDeoptInfo>& GetDeoptInfos() const;
 
   static const int kNoLineNumberInfo = Message::kNoLineNumberInfo;
   static const int kNoColumnNumberInfo = Message::kNoColumnInfo;

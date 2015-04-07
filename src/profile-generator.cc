@@ -112,15 +112,14 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
 }
 
 
-DeoptInfo CodeEntry::GetDeoptInfo() {
+CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
   DCHECK(has_deopt_info());
 
-  DeoptInfo info;
+  CpuProfileDeoptInfo info;
   info.deopt_reason = deopt_reason_;
   if (inlined_function_infos_.empty()) {
-    info.stack.push_back(DeoptInfo::Frame(
-        {script_id_,
-         static_cast<int>(position_ + deopt_position_.position())}));
+    info.stack.push_back(CpuProfileDeoptInfo::Frame(
+        {script_id_, position_ + deopt_position_.position()}));
     return info;
   }
   // Copy the only branch from the inlining tree where the deopt happened.
@@ -136,9 +135,9 @@ DeoptInfo CodeEntry::GetDeoptInfo() {
   }
   while (inlining_id != InlinedFunctionInfo::kNoParentId) {
     InlinedFunctionInfo& inlined_info = inlined_function_infos_.at(inlining_id);
-    info.stack.push_back(DeoptInfo::Frame(
+    info.stack.push_back(CpuProfileDeoptInfo::Frame(
         {inlined_info.script_id,
-         static_cast<int>(inlined_info.start_position + position.raw())}));
+         inlined_info.start_position + position.raw()}));
     position = inlined_info.inline_position;
     inlining_id = inlined_info.parent_id;
   }
@@ -216,7 +215,7 @@ void ProfileNode::Print(int indent) {
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
   for (size_t i = 0; i < deopt_infos_.size(); ++i) {
-    DeoptInfo& info = deopt_infos_[i];
+    CpuProfileDeoptInfo& info = deopt_infos_[i];
     base::OS::Print(
         "%*s;;; deopted at script_id: %d position: %d with reason '%s'.\n",
         indent + 10, "", info.stack[0].script_id, info.stack[0].position,
