@@ -359,6 +359,7 @@ class RetrieveChromiumV8Releases(Step):
     releases_dict = dict((r["revision_git"], r) for r in self["releases"])
 
     cr_releases = []
+    count_past_last_v8 = 0
     try:
       for git_hash in self.GitLog(
           format="%H", grep="V8", cwd=cwd).splitlines():
@@ -374,10 +375,17 @@ class RetrieveChromiumV8Releases(Step):
             v8_hsh = match.group(1)
             cr_releases.append([cr_rev, v8_hsh])
 
+          if count_past_last_v8:
+            count_past_last_v8 += 1  # pragma: no cover
+
+          if count_past_last_v8 > 10:
+            break  # pragma: no cover
+
           # Stop as soon as we find a v8 revision that we didn't fetch in the
           # v8-revision-retrieval part above (i.e. a revision that's too old).
+          # Just iterate a few more times in case there were reverts.
           if v8_hsh not in releases_dict:
-            break  # pragma: no cover
+            count_past_last_v8 += 1  # pragma: no cover
 
     # Allow Ctrl-C interrupt.
     except (KeyboardInterrupt, SystemExit):  # pragma: no cover
@@ -414,6 +422,7 @@ class RietrieveChromiumBranches(Step):
     branches = sorted(branches, reverse=True)
 
     cr_branches = []
+    count_past_last_v8 = 0
     try:
       for branch in branches:
         if not self.GitCheckoutFileSafe("DEPS",
@@ -426,10 +435,17 @@ class RietrieveChromiumBranches(Step):
           v8_hsh = match.group(1)
           cr_branches.append([str(branch), v8_hsh])
 
+          if count_past_last_v8:
+            count_past_last_v8 += 1  # pragma: no cover
+
+          if count_past_last_v8 > 10:
+            break  # pragma: no cover
+
           # Stop as soon as we find a v8 revision that we didn't fetch in the
           # v8-revision-retrieval part above (i.e. a revision that's too old).
+          # Just iterate a few more times in case there were reverts.
           if v8_hsh not in releases_dict:
-            break  # pragma: no cover
+            count_past_last_v8 += 1  # pragma: no cover
 
     # Allow Ctrl-C interrupt.
     except (KeyboardInterrupt, SystemExit):  # pragma: no cover
