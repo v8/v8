@@ -34,7 +34,6 @@ Debug::Debug(Isolate* isolate)
       message_handler_(NULL),
       command_received_(0),
       command_queue_(isolate->logger(), kQueueInitialSize),
-      event_command_queue_(isolate->logger(), kQueueInitialSize),
       is_active_(false),
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
@@ -2746,19 +2745,6 @@ void Debug::ProcessDebugEvent(v8::DebugEvent event,
   if ((event != v8::Break || !auto_continue) && !event_listener_.is_null()) {
     CallEventCallback(event, exec_state, event_data, NULL);
   }
-  // Process pending debug commands.
-  if (event == v8::Break) {
-    while (!event_command_queue_.IsEmpty()) {
-      CommandMessage command = event_command_queue_.Get();
-      if (!event_listener_.is_null()) {
-        CallEventCallback(v8::BreakForCommand,
-                          exec_state,
-                          event_data,
-                          command.client_data());
-      }
-      command.Dispose();
-    }
-  }
 }
 
 
@@ -3027,15 +3013,6 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
   isolate_->logger()->DebugTag("Put command on command_queue.");
   command_queue_.Put(message);
   command_received_.Signal();
-
-  // Set the debug command break flag to have the command processed.
-  if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();
-}
-
-
-void Debug::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
-  CommandMessage message = CommandMessage::New(Vector<uint16_t>(), client_data);
-  event_command_queue_.Put(message);
 
   // Set the debug command break flag to have the command processed.
   if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();

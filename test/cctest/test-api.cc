@@ -20247,6 +20247,26 @@ class RequestMultipleInterrupts : public RequestInterruptTestBase {
 TEST(RequestMultipleInterrupts) { RequestMultipleInterrupts().RunTest(); }
 
 
+static bool interrupt_was_called = false;
+
+
+void SmallScriptsInterruptCallback(v8::Isolate* isolate, void* data) {
+  interrupt_was_called = true;
+}
+
+
+TEST(RequestInterruptSmallScripts) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  interrupt_was_called = false;
+  isolate->RequestInterrupt(&SmallScriptsInterruptCallback, NULL);
+  CompileRun("(function(x){return x;})(1);");
+  CHECK(interrupt_was_called);
+}
+
+
 static Local<Value> function_new_expected_env;
 static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
   CHECK(function_new_expected_env->Equals(info.Data()));

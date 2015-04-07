@@ -7359,12 +7359,6 @@ bool Debug::CheckDebugBreak(Isolate* isolate) {
 }
 
 
-void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debug()->EnqueueDebugCommand(data);
-}
-
-
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   i::Isolate* isolate = i::Isolate::Current();
   ENTER_V8(isolate);
