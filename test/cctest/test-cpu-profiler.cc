@@ -56,10 +56,8 @@ static v8::Local<v8::Function> GetFunction(v8::Context* env, const char* name) {
 }
 
 
-static size_t offset(const char* src, const char* substring) {
-  const char* it = strstr(src, substring);
-  CHECK(it);
-  return static_cast<size_t>(it - src);
+static int offset(const char* src, const char* substring) {
+  return static_cast<int>(strstr(src, substring) - src);
 }
 
 
@@ -1900,11 +1898,10 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   const char* branch[] = {"", "test"};
   const ProfileNode* itest_node =
       GetSimpleBranch(profile, branch, arraysize(branch));
-  const std::vector<v8::CpuProfileDeoptInfo>& deopt_infos =
-      itest_node->deopt_infos();
+  const std::vector<i::DeoptInfo>& deopt_infos = itest_node->deopt_infos();
   CHECK_EQ(1, deopt_infos.size());
 
-  const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
+  const i::DeoptInfo& info = deopt_infos[0];
   CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
   CHECK_EQ(2, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
@@ -1973,11 +1970,10 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   const char* branch[] = {"", "test1"};
   const ProfileNode* itest_node =
       GetSimpleBranch(profile, branch, arraysize(branch));
-  const std::vector<v8::CpuProfileDeoptInfo>& deopt_infos =
-      itest_node->deopt_infos();
+  const std::vector<i::DeoptInfo>& deopt_infos = itest_node->deopt_infos();
   CHECK_EQ(1, deopt_infos.size());
 
-  const v8::CpuProfileDeoptInfo info = deopt_infos[0];
+  const i::DeoptInfo info = deopt_infos[0];
   CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
   CHECK_EQ(3, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
