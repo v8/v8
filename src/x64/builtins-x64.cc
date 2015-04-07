@@ -573,6 +573,46 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
 }
 
 
+enum IsTagged { kRaxIsSmiTagged, kRaxIsUntaggedInt };
+
+
+// Clobbers rcx, rdx, kScratchRegister; preserves all other registers.
+static void Generate_CheckStackOverflow(MacroAssembler* masm,
+                                        const int calleeOffset,
+                                        IsTagged rax_is_tagged) {
+  // rax   : the number of items to be pushed to the stack
+  //
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
+  __ movp(rcx, rsp);
+  // Make rcx the space we have left. The stack might already be overflowed
+  // here which will cause rcx to become negative.
+  __ subp(rcx, kScratchRegister);
+  // Make rdx the space we need for the array when it is unrolled onto the
+  // stack.
+  if (rax_is_tagged == kRaxIsSmiTagged) {
+    __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
+  } else {
+    DCHECK(rax_is_tagged == kRaxIsUntaggedInt);
+    __ movp(rdx, rax);
+    __ shlq(rdx, Immediate(kPointerSizeLog2));
+  }
+  // Check if the arguments will overflow the stack.
+  __ cmpp(rcx, rdx);
+  __ j(greater, &okay);  // Signed comparison.
+
+  // Out of stack space.
+  __ Push(Operand(rbp, calleeOffset));
+  __ Push(rax);
+  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+
+  __ bind(&okay);
+}
+
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
@@ -654,6 +694,14 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // rbx : argv
     // rsi : context
     // rdi : function
+
+    // Check if we have enough stack space to push all arguments.
+    // The function is the first thing that was pushed above after entering
+    // the internal frame.
+    const int kFunctionOffset =
+        InternalFrameConstants::kCodeOffset - kRegisterSize;
+    // Expects argument count in rax. Clobbers rcx, rdx.
+    Generate_CheckStackOverflow(masm, kFunctionOffset, kRaxIsUntaggedInt);
 
     // Copy arguments to the stack in a loop.
     // Register rbx points to array of pointers to handle locations.
@@ -1051,35 +1099,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 }
 
 
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset) {
-  // rax   : the number of items to be pushed to the stack
-  //
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  Label okay;
-  __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-  __ movp(rcx, rsp);
-  // Make rcx the space we have left. The stack might already be overflowed
-  // here which will cause rcx to become negative.
-  __ subp(rcx, kScratchRegister);
-  // Make rdx the space we need for the array when it is unrolled onto the
-  // stack.
-  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
-  // Check if the arguments will overflow the stack.
-  __ cmpp(rcx, rdx);
-  __ j(greater, &okay);  // Signed comparison.
-
-  // Out of stack space.
-  __ Push(Operand(rbp, calleeOffset));
-  __ Push(rax);
-  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-
-  __ bind(&okay);
-}
-
-
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
                                           const int argumentsOffset,
                                           const int indexOffset,
@@ -1157,7 +1176,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
       __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
     }
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset);
+    Generate_CheckStackOverflow(masm, kFunctionOffset, kRaxIsSmiTagged);
 
     // Push current index and limit.
     const int kLimitOffset =
@@ -1286,7 +1305,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ Push(Operand(rbp, kNewTargetOffset));
     __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset);
+    Generate_CheckStackOverflow(masm, kFunctionOffset, kRaxIsSmiTagged);
 
     // Push current index and limit.
     const int kLimitOffset =
