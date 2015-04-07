@@ -2736,7 +2736,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
                                        Register index) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Arguments register must be smi-tagged to call out.
+  // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(argc);
   __ Push(argc, function, feedback_vector, index);
 
@@ -2779,18 +2779,20 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
+  // We don't know if feedback value is a WeakCell or a Symbol, but it's
+  // harmless to read at this position in a symbol (see static asserts in
+  // type-feedback-vector.h).
   Label check_allocation_site;
   __ Ldr(feedback_value, FieldMemOperand(feedback, WeakCell::kValueOffset));
   __ Cmp(function, feedback_value);
   __ B(eq, &done);
   __ CompareRoot(feedback, Heap::kmegamorphic_symbolRootIndex);
   __ B(eq, &done);
-  __ Ldr(feedback_map, FieldMemOperand(feedback, 0));
+  __ Ldr(feedback_map, FieldMemOperand(feedback, HeapObject::kMapOffset));
   __ CompareRoot(feedback_map, Heap::kWeakCellMapRootIndex);
   __ B(ne, FLAG_pretenuring_call_new ? &miss : &check_allocation_site);
 
-  // If function is not equal to the weak cell value, and the weak cell value is
-  // cleared, we have a new chance to become monomorphic.
+  // If the weak cell is cleared, we have a new chance to become monomorphic.
   __ JumpIfSmi(feedback_value, &initialize);
   __ B(&megamorphic);
 
@@ -2799,7 +2801,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
     // If we came here, we need to see if we are the array function.
     // If we didn't have a matching function, and we didn't find the megamorph
     // sentinel, then we have in the slot either some other function or an
-    // AllocationSite. Do a map check on the object in scratch1 register.
+    // AllocationSite.
     __ JumpIfNotRoot(feedback_map, Heap::kAllocationSiteMapRootIndex, &miss);
 
     // Make sure the function is the Array() function

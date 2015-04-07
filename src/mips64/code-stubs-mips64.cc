@@ -2541,7 +2541,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
                              1 << 6 |  // a2
                              1 << 7;   // a3
 
-  // Arguments register must be smi-tagged to call out.
+  // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(a0);
   __ MultiPush(kSavedRegs);
 
@@ -2574,6 +2574,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
+  // We don't know if a4 is a WeakCell or a Symbol, but it's harmless to read at
+  // this position in a symbol (see static asserts in type-feedback-vector.h).
   Label check_allocation_site;
   Register feedback_map = a5;
   Register weak_value = t0;
@@ -2581,13 +2583,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ Branch(&done, eq, a1, Operand(weak_value));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&done, eq, a4, Operand(at));
-  __ ld(feedback_map, FieldMemOperand(a4, 0));
+  __ ld(feedback_map, FieldMemOperand(a4, HeapObject::kMapOffset));
   __ LoadRoot(at, Heap::kWeakCellMapRootIndex);
   __ Branch(FLAG_pretenuring_call_new ? &miss : &check_allocation_site, ne,
             feedback_map, Operand(at));
 
-  // If a1 is not equal to the weak cell value, and the weak cell value is
-  // cleared, we have a new chance to become monomorphic.
+  // If the weak cell is cleared, we have a new chance to become monomorphic.
   __ JumpIfSmi(weak_value, &initialize);
   __ jmp(&megamorphic);
 
@@ -2596,7 +2597,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     // If we came here, we need to see if we are the array function.
     // If we didn't have a matching function, and we didn't find the megamorph
     // sentinel, then we have in the slot either some other function or an
-    // AllocationSite. Do a map check on the object in a3.
+    // AllocationSite.
     __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
     __ Branch(&miss, ne, feedback_map, Operand(at));
 
