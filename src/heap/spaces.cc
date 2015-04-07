@@ -1152,6 +1152,11 @@ void PagedSpace::FreeEmergencyMemory() {
 
 
 void PagedSpace::UseEmergencyMemory() {
+  // Page::Initialize makes the chunk into a real page and adds it to the
+  // accounting for this space.  Unlike PagedSpace::Expand, we don't check
+  // CanExpand first, so we can go over the limits a little here.  That's OK,
+  // because we are in the process of compacting which will free up at least as
+  // much memory as it allocates.
   Page* page = Page::Initialize(heap(), emergency_memory_, executable(), this);
   page->InsertAfter(anchor_.prev_page());
   emergency_memory_ = NULL;
