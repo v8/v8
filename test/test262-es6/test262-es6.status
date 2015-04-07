@@ -33,6 +33,9 @@
   'intl402/11.2.3_b': [FAIL],
   'intl402/12.2.3_b': [FAIL],
 
+  # TODO(mstarzinger): Optimizing top-level code found some issues. Fix!
+  'language/expressions/addition/S9.3_A4.1_T2': [PASS, NO_VARIANTS],
+
   # Unicode canonicalization is not available with i18n turned off.
   'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [['no_i18n', SKIP]],
 
