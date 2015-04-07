@@ -12,12 +12,9 @@ var $Set = global.Set;
 var $Map = global.Map;
 
 
-// Used by harmony-templates.js
-var $MapGet;
-var $MapSet;
-
-
 (function() {
+
+%CheckIsBootstrapping();
 
 
 function HashToEntry(table, hash, numBuckets) {
@@ -238,31 +235,23 @@ function SetForEach(f, receiver) {
 }
 
 
-// -------------------------------------------------------------------
+%SetCode($Set, SetConstructor);
+%FunctionSetPrototype($Set, new $Object());
+%AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
+%AddNamedProperty(
+    $Set.prototype, symbolToStringTag, "Set", DONT_ENUM | READ_ONLY);
 
-function SetUpSet() {
-  %CheckIsBootstrapping();
+%FunctionSetLength(SetForEach, 1);
 
-  %SetCode($Set, SetConstructor);
-  %FunctionSetPrototype($Set, new $Object());
-  %AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
-  %AddNamedProperty(
-      $Set.prototype, symbolToStringTag, "Set", DONT_ENUM | READ_ONLY);
-
-  %FunctionSetLength(SetForEach, 1);
-
-  // Set up the non-enumerable functions on the Set prototype object.
-  InstallGetter($Set.prototype, "size", SetGetSize);
-  InstallFunctions($Set.prototype, DONT_ENUM, $Array(
-    "add", SetAdd,
-    "has", SetHas,
-    "delete", SetDelete,
-    "clear", SetClearJS,
-    "forEach", SetForEach
-  ));
-}
-
-SetUpSet();
+// Set up the non-enumerable functions on the Set prototype object.
+InstallGetter($Set.prototype, "size", SetGetSize);
+InstallFunctions($Set.prototype, DONT_ENUM, $Array(
+  "add", SetAdd,
+  "has", SetHas,
+  "delete", SetDelete,
+  "clear", SetClearJS,
+  "forEach", SetForEach
+));
 
 
 // -------------------------------------------------------------------
@@ -434,34 +423,23 @@ function MapForEach(f, receiver) {
 }
 
 
-// -------------------------------------------------------------------
+%SetCode($Map, MapConstructor);
+%FunctionSetPrototype($Map, new $Object());
+%AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
+%AddNamedProperty(
+    $Map.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
 
-function SetUpMap() {
-  %CheckIsBootstrapping();
+%FunctionSetLength(MapForEach, 1);
 
-  %SetCode($Map, MapConstructor);
-  %FunctionSetPrototype($Map, new $Object());
-  %AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
-  %AddNamedProperty(
-      $Map.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
-
-  %FunctionSetLength(MapForEach, 1);
-
-  // Set up the non-enumerable functions on the Map prototype object.
-  InstallGetter($Map.prototype, "size", MapGetSize);
-  InstallFunctions($Map.prototype, DONT_ENUM, $Array(
-    "get", MapGet,
-    "set", MapSet,
-    "has", MapHas,
-    "delete", MapDelete,
-    "clear", MapClearJS,
-    "forEach", MapForEach
-  ));
-
-  $MapGet = MapGet;
-  $MapSet = MapSet;
-}
-
-SetUpMap();
+// Set up the non-enumerable functions on the Map prototype object.
+InstallGetter($Map.prototype, "size", MapGetSize);
+InstallFunctions($Map.prototype, DONT_ENUM, $Array(
+  "get", MapGet,
+  "set", MapSet,
+  "has", MapHas,
+  "delete", MapDelete,
+  "clear", MapClearJS,
+  "forEach", MapForEach
+));
 
 })();

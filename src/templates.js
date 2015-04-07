@@ -4,7 +4,17 @@
 
 "use strict";
 
+// Called from a desugaring in the parser.
+var GetTemplateCallSite;
+
+(function() {
+
+%CheckIsBootstrapping();
+
 var callSiteCache = new $Map;
+var mapGetFn = $Map.prototype.get;
+var mapSetFn = $Map.prototype.set;
+
 
 function SameCallSiteElements(rawStrings, other) {
   var length = rawStrings.length;
@@ -21,7 +31,7 @@ function SameCallSiteElements(rawStrings, other) {
 
 
 function GetCachedCallSite(siteObj, hash) {
-  var obj = %_CallFunction(callSiteCache, hash, $MapGet);
+  var obj = %_CallFunction(callSiteCache, hash, mapGetFn);
 
   if (IS_UNDEFINED(obj)) return;
 
@@ -33,13 +43,13 @@ function GetCachedCallSite(siteObj, hash) {
 
 
 function SetCachedCallSite(siteObj, hash) {
-  var obj = %_CallFunction(callSiteCache, hash, $MapGet);
+  var obj = %_CallFunction(callSiteCache, hash, mapGetFn);
   var array;
 
   if (IS_UNDEFINED(obj)) {
     array = new InternalArray(1);
     array[0] = siteObj;
-    %_CallFunction(callSiteCache, hash, array, $MapSet);
+    %_CallFunction(callSiteCache, hash, array, mapSetFn);
   } else {
     obj.push(siteObj);
   }
@@ -48,7 +58,7 @@ function SetCachedCallSite(siteObj, hash) {
 }
 
 
-function GetTemplateCallSite(siteObj, rawStrings, hash) {
+GetTemplateCallSite = function(siteObj, rawStrings, hash) {
   var cached = GetCachedCallSite(rawStrings, hash);
 
   if (!IS_UNDEFINED(cached)) return cached;
@@ -58,3 +68,5 @@ function GetTemplateCallSite(siteObj, rawStrings, hash) {
 
   return SetCachedCallSite(%ObjectFreeze(siteObj), hash);
 }
+
+})();
