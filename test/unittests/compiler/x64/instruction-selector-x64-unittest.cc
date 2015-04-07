@@ -75,6 +75,7 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
 // -----------------------------------------------------------------------------
 // Loads and stores
 
+
 namespace {
 
 struct MemoryAccess {
@@ -136,6 +137,7 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorMemoryAccessTest,
                         ::testing::ValuesIn(kMemoryAccesses));
+
 
 // -----------------------------------------------------------------------------
 // ChangeUint32ToUint64.
@@ -1023,6 +1025,22 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
     EXPECT_EQ(kSSEFloat64Sub, s[2]->arch_opcode());
     EXPECT_EQ(kSSEFloat64Div, s[3]->arch_opcode());
   }
+}
+
+
+TEST_F(InstructionSelectorTest, Float64SubWithMinusZeroAndParameter) {
+  StreamBuilder m(this, kMachFloat64, kMachFloat64);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kSSEFloat64Neg, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
 }
 
 

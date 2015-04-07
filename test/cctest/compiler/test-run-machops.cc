@@ -3212,6 +3212,46 @@ TEST(RunFloat32SubP) {
 }
 
 
+TEST(RunFloat32SubImm1) {
+  float input = 0.0f;
+  float output = 0.0f;
+
+  FOR_FLOAT32_INPUTS(i) {
+    RawMachineAssemblerTester<int32_t> m;
+    Node* t0 = m.LoadFromPointer(&input, kMachFloat32);
+    Node* t1 = m.Float32Sub(m.Float32Constant(*i), t0);
+    m.StoreToPointer(&output, kMachFloat32, t1);
+    m.Return(m.Int32Constant(0));
+    FOR_FLOAT32_INPUTS(j) {
+      input = *j;
+      float expected = *i - input;
+      CHECK_EQ(0, m.Call());
+      CheckFloatEq(expected, output);
+    }
+  }
+}
+
+
+TEST(RunFloat32SubImm2) {
+  float input = 0.0f;
+  float output = 0.0f;
+
+  FOR_FLOAT32_INPUTS(i) {
+    RawMachineAssemblerTester<int32_t> m;
+    Node* t0 = m.LoadFromPointer(&input, kMachFloat32);
+    Node* t1 = m.Float32Sub(t0, m.Float32Constant(*i));
+    m.StoreToPointer(&output, kMachFloat32, t1);
+    m.Return(m.Int32Constant(0));
+    FOR_FLOAT32_INPUTS(j) {
+      input = *j;
+      float expected = input - *i;
+      CHECK_EQ(0, m.Call());
+      CheckFloatEq(expected, output);
+    }
+  }
+}
+
+
 TEST(RunFloat64SubP) {
   RawMachineAssemblerTester<int32_t> m;
   Float64BinopTester bt(&m);

@@ -726,14 +726,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat32Div:
       ASSEMBLE_SSE_BINOP(divss);
       break;
+    case kSSEFloat32Neg: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      // TODO(turbofan): Add AVX version with relaxed register constraints.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psllq(kScratchDoubleReg, 31);
+      __ xorps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      break;
+    }
+    case kSSEFloat32Sqrt:
+      ASSEMBLE_SSE_UNOP(sqrtss);
+      break;
     case kSSEFloat32Max:
       ASSEMBLE_SSE_BINOP(maxss);
       break;
     case kSSEFloat32Min:
       ASSEMBLE_SSE_BINOP(minss);
-      break;
-    case kSSEFloat32Sqrt:
-      ASSEMBLE_SSE_UNOP(sqrtss);
       break;
     case kSSEFloat32ToFloat64:
       ASSEMBLE_SSE_UNOP(cvtss2sd);
@@ -791,6 +799,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Min:
       ASSEMBLE_SSE_BINOP(minsd);
       break;
+    case kSSEFloat64Neg: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      // TODO(turbofan): Add AVX version with relaxed register constraints.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psllq(kScratchDoubleReg, 63);
+      __ xorpd(i.OutputDoubleRegister(), kScratchDoubleReg);
+      break;
+    }
     case kSSEFloat64Sqrt:
       ASSEMBLE_SSE_UNOP(sqrtsd);
       break;

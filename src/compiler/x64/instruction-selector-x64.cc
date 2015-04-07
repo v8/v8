@@ -858,6 +858,13 @@ void InstructionSelector::VisitFloat32Add(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Sub(Node* node) {
+  X64OperandGenerator g(this);
+  Float32BinopMatcher m(node);
+  if (m.left().IsMinusZero()) {
+    Emit(kSSEFloat32Neg, g.DefineSameAsFirst(node),
+         g.UseRegister(m.right().node()));
+    return;
+  }
   VisitFloatBinop(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
 }
 
@@ -896,17 +903,22 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   X64OperandGenerator g(this);
   Float64BinopMatcher m(node);
-  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
-      CanCover(m.node(), m.right().node())) {
-    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
-        CanCover(m.right().node(), m.right().InputAt(0))) {
-      Float64BinopMatcher mright0(m.right().InputAt(0));
-      if (mright0.left().IsMinusZero()) {
-        Emit(kSSEFloat64Round | MiscField::encode(kRoundUp),
-             g.DefineAsRegister(node), g.UseRegister(mright0.right().node()));
-        return;
+  if (m.left().IsMinusZero()) {
+    if (m.right().IsFloat64RoundDown() &&
+        CanCover(m.node(), m.right().node())) {
+      if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+          CanCover(m.right().node(), m.right().InputAt(0))) {
+        Float64BinopMatcher mright0(m.right().InputAt(0));
+        if (mright0.left().IsMinusZero()) {
+          Emit(kSSEFloat64Round | MiscField::encode(kRoundUp),
+               g.DefineAsRegister(node), g.UseRegister(mright0.right().node()));
+          return;
+        }
       }
     }
+    Emit(kSSEFloat64Neg, g.DefineSameAsFirst(node),
+         g.UseRegister(m.right().node()));
+    return;
   }
   VisitFloatBinop(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
 }
