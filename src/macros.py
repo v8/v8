@@ -276,6 +276,33 @@ const ITERATOR_KIND_KEYS = 1;
 const ITERATOR_KIND_VALUES = 2;
 const ITERATOR_KIND_ENTRIES = 3;
 
+macro FIXED_ARRAY_GET(array, index) = (%_FixedArrayGet(array, (index) | 0));
+macro FIXED_ARRAY_SET(array, index, value) = (%_FixedArraySet(array, (index) | 0, value));
+# TODO(adamk): Find a more robust way to force Smi representation.
+macro FIXED_ARRAY_SET_SMI(array, index, value) = (FIXED_ARRAY_SET(array, index, (value) | 0));
+
+macro ORDERED_HASH_TABLE_BUCKET_COUNT(table) = (FIXED_ARRAY_GET(table, 0));
+macro ORDERED_HASH_TABLE_ELEMENT_COUNT(table) = (FIXED_ARRAY_GET(table, 1));
+macro ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, count) = (FIXED_ARRAY_SET_SMI(table, 1, count));
+macro ORDERED_HASH_TABLE_DELETED_COUNT(table) = (FIXED_ARRAY_GET(table, 2));
+macro ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, count) = (FIXED_ARRAY_SET_SMI(table, 2, count));
+macro ORDERED_HASH_TABLE_BUCKET_AT(table, bucket) = (FIXED_ARRAY_GET(table, 3 + (bucket)));
+macro ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry) = (FIXED_ARRAY_SET(table, 3 + (bucket), entry));
+
+macro ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets) = (hash & ((numBuckets) - 1));
+
+macro ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets) = (3 + (numBuckets) + ((entry) << 1));
+macro ORDERED_HASH_SET_KEY_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets)));
+macro ORDERED_HASH_SET_CHAIN_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets) + 1));
+
+macro ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets) = (3 + (numBuckets) + ((entry) * 3));
+macro ORDERED_HASH_MAP_KEY_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets)));
+macro ORDERED_HASH_MAP_VALUE_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets) + 1));
+macro ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets) + 2));
+
+# Must match OrderedHashTable::kNotFound.
+const NOT_FOUND = -1;
+
 # Check whether debug is active.
 const DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
 macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));

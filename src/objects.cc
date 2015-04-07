@@ -807,17 +807,19 @@ Map* Object::GetRootMap(Isolate* isolate) {
 
 
 Object* Object::GetHash() {
-  // The object is either a number, a name, an odd-ball,
+  // The object is either a Smi, a HeapNumber, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsSmi()) {
-    int num = Smi::cast(this)->value();
-    uint32_t hash = ComputeLongHash(double_to_uint64(static_cast<double>(num)));
+    uint32_t hash = ComputeIntegerHash(Smi::cast(this)->value(), kZeroHashSeed);
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (IsHeapNumber()) {
     double num = HeapNumber::cast(this)->value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     if (i::IsMinusZero(num)) num = 0;
+    if (IsSmiDouble(num)) {
+      return Smi::FromInt(FastD2I(num))->GetHash();
+    }
     uint32_t hash = ComputeLongHash(double_to_uint64(num));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
@@ -16258,20 +16260,6 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
 
 
 template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Remove(
-    Handle<Derived> table, Handle<Object> key, bool* was_present) {
-  int entry = table->FindEntry(key);
-  if (entry == kNotFound) {
-    *was_present = false;
-    return table;
-  }
-  *was_present = true;
-  table->RemoveEntry(entry);
-  return Shrink(table);
-}
-
-
-template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
@@ -16316,61 +16304,6 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
 }
 
 
-template <class Derived, class Iterator, int entrysize>
-int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
-    Handle<Object> key, int hash) {
-  DCHECK(!IsObsolete());
-
-  DisallowHeapAllocation no_gc;
-  DCHECK(!key->IsTheHole());
-  for (int entry = HashToEntry(hash); entry != kNotFound;
-       entry = ChainAt(entry)) {
-    Object* candidate = KeyAt(entry);
-    if (candidate->SameValueZero(*key))
-      return entry;
-  }
-  return kNotFound;
-}
-
-
-template <class Derived, class Iterator, int entrysize>
-int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
-    Handle<Object> key) {
-  DisallowHeapAllocation no_gc;
-  Object* hash = key->GetHash();
-  if (!hash->IsSmi()) return kNotFound;
-  return FindEntry(key, Smi::cast(hash)->value());
-}
-
-
-template <class Derived, class Iterator, int entrysize>
-int OrderedHashTable<Derived, Iterator, entrysize>::AddEntry(int hash) {
-  DCHECK(!IsObsolete());
-
-  int entry = UsedCapacity();
-  int bucket = HashToBucket(hash);
-  int index = EntryToIndex(entry);
-  Object* chain_entry = get(kHashTableStartIndex + bucket);
-  set(kHashTableStartIndex + bucket, Smi::FromInt(entry));
-  set(index + kChainOffset, chain_entry);
-  SetNumberOfElements(NumberOfElements() + 1);
-  return index;
-}
-
-
-template<class Derived, class Iterator, int entrysize>
-void OrderedHashTable<Derived, Iterator, entrysize>::RemoveEntry(int entry) {
-  DCHECK(!IsObsolete());
-
-  int index = EntryToIndex(entry);
-  for (int i = 0; i < entrysize; ++i) {
-    set_the_hole(index + i);
-  }
-  SetNumberOfElements(NumberOfElements() - 1);
-  SetNumberOfDeletedElements(NumberOfDeletedElements() + 1);
-}
-
-
 template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
@@ -16386,21 +16319,6 @@ OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Shrink(
 template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Clear(
     Handle<OrderedHashSet> table);
-
-template Handle<OrderedHashSet>
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Remove(
-    Handle<OrderedHashSet> table, Handle<Object> key, bool* was_present);
-
-template int OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
-    Handle<Object> key, int hash);
-template int OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
-    Handle<Object> key);
-
-template int
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::AddEntry(int hash);
-
-template void
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::RemoveEntry(int entry);
 
 
 template Handle<OrderedHashMap>
@@ -16418,69 +16336,6 @@ OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Shrink(
 template Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Clear(
     Handle<OrderedHashMap> table);
-
-template Handle<OrderedHashMap>
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Remove(
-    Handle<OrderedHashMap> table, Handle<Object> key, bool* was_present);
-
-template int OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
-    Handle<Object> key, int hash);
-template int OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
-    Handle<Object> key);
-
-template int
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::AddEntry(int hash);
-
-template void
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::RemoveEntry(int entry);
-
-
-bool OrderedHashSet::Contains(Handle<Object> key) {
-  return FindEntry(key) != kNotFound;
-}
-
-
-Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
-                                           Handle<Object> key) {
-  int hash = GetOrCreateHash(table->GetIsolate(), key)->value();
-  if (table->FindEntry(key, hash) != kNotFound) return table;
-
-  table = EnsureGrowable(table);
-
-  int index = table->AddEntry(hash);
-  table->set(index, *key);
-  return table;
-}
-
-
-Object* OrderedHashMap::Lookup(Handle<Object> key) {
-  DisallowHeapAllocation no_gc;
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return GetHeap()->the_hole_value();
-  return ValueAt(entry);
-}
-
-
-Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
-                                           Handle<Object> key,
-                                           Handle<Object> value) {
-  DCHECK(!key->IsTheHole());
-
-  int hash = GetOrCreateHash(table->GetIsolate(), key)->value();
-  int entry = table->FindEntry(key, hash);
-
-  if (entry != kNotFound) {
-    table->set(table->EntryToIndex(entry) + kValueOffset, *value);
-    return table;
-  }
-
-  table = EnsureGrowable(table);
-
-  int index = table->AddEntry(hash);
-  table->set(index, *key);
-  table->set(index + kValueOffset, *value);
-  return table;
-}
 
 
 template<class Derived, class TableType>

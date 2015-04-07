@@ -2415,16 +2415,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   }
 #endif  // _WIN64
 
-  // Runtime functions should not return 'the hole'.  Allowing it to escape may
-  // lead to crashes in the IC code later.
-  if (FLAG_debug_code) {
-    Label okay;
-    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-    __ j(not_equal, &okay, Label::kNear);
-    __ int3();
-    __ bind(&okay);
-  }
-
   // Check result for exception sentinel.
   Label exception_returned;
   __ CompareRoot(rax, Heap::kExceptionRootIndex);

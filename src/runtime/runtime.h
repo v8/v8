@@ -301,6 +301,13 @@ namespace internal {
   F(GetConstructTrap, 1, 1)                            \
   F(Fix, 1, 1)                                         \
                                                        \
+  /* ES6 collections */                                \
+  F(MapGrow, 1, 1)                                     \
+  F(MapShrink, 1, 1)                                   \
+  F(SetGrow, 1, 1)                                     \
+  F(SetShrink, 1, 1)                                   \
+  F(GenericHash, 1, 1)                                 \
+                                                       \
   /* ES6 collection iterators */                       \
   F(SetIteratorInitialize, 3, 1)                       \
   F(SetIteratorClone, 1, 1)                            \
@@ -705,18 +712,14 @@ namespace internal {
   F(MathLogRT, 1, 1)                      \
   /* ES6 Collections */                   \
   F(MapClear, 1, 1)                       \
-  F(MapDelete, 2, 1)                      \
-  F(MapGet, 2, 1)                         \
-  F(MapGetSize, 1, 1)                     \
-  F(MapHas, 2, 1)                         \
   F(MapInitialize, 1, 1)                  \
-  F(MapSet, 3, 1)                         \
-  F(SetAdd, 2, 1)                         \
   F(SetClear, 1, 1)                       \
-  F(SetDelete, 2, 1)                      \
-  F(SetGetSize, 1, 1)                     \
-  F(SetHas, 2, 1)                         \
   F(SetInitialize, 1, 1)                  \
+  F(FixedArrayGet, 2, 1)                  \
+  F(FixedArraySet, 3, 1)                  \
+  F(JSCollectionGetTable, 1, 1)           \
+  F(StringGetRawHashField, 1, 1)          \
+  F(TheHole, 0, 1)                        \
   /* Arrays */                            \
   F(HasFastPackedElements, 1, 1)          \
   F(GetPrototype, 1, 1)                   \

@@ -110,7 +110,6 @@ TEST(HashMap) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   TestHashMap(ObjectHashTable::New(isolate, 23));
-  TestHashMap(isolate->factory()->NewOrderedHashMap());
 }
 
 
@@ -199,15 +198,6 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   table = HashSet::Add(table, key);
   CHECK(gc_count < isolate->heap()->gc_count());
 }
-
-
-TEST(ObjectHashSetCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  TestHashSetCausesGC(isolate->factory()->NewOrderedHashSet());
-}
 #endif
 
 
@@ -246,9 +236,7 @@ TEST(ObjectHashTableCausesGC) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
-  TestHashMapCausesGC(isolate->factory()->NewOrderedHashMap());
 }
 #endif
-
 
 }

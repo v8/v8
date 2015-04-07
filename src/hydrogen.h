@@ -2222,18 +2222,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(MathLogRT)                         \
   /* ES6 Collections */                \
   F(MapClear)                          \
-  F(MapDelete)                         \
-  F(MapGet)                            \
-  F(MapGetSize)                        \
-  F(MapHas)                            \
   F(MapInitialize)                     \
-  F(MapSet)                            \
-  F(SetAdd)                            \
   F(SetClear)                          \
-  F(SetDelete)                         \
-  F(SetGetSize)                        \
-  F(SetHas)                            \
   F(SetInitialize)                     \
+  F(FixedArrayGet)                     \
+  F(FixedArraySet)                     \
+  F(JSCollectionGetTable)              \
+  F(StringGetRawHashField)             \
+  F(TheHole)                           \
   /* Arrays */                         \
   F(HasFastPackedElements)             \
   F(GetPrototype)                      \

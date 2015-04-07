@@ -1005,16 +1005,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   __ VFPEnsureFPSCRState(r2);
 
-  // Runtime functions should not return 'the hole'.  Allowing it to escape may
-  // lead to crashes in the IC code later.
-  if (FLAG_debug_code) {
-    Label okay;
-    __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
-    __ b(ne, &okay);
-    __ stop("The hole escaped");
-    __ bind(&okay);
-  }
-
   // Check result for exception sentinel.
   Label exception_returned;
   __ CompareRoot(r0, Heap::kExceptionRootIndex);

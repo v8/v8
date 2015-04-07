@@ -3974,17 +3974,6 @@ class OrderedHashTable: public FixedArray {
   // exisiting iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
-  // Returns an OrderedHashTable (possibly |table|) where |key| has been
-  // removed.
-  static Handle<Derived> Remove(Handle<Derived> table, Handle<Object> key,
-      bool* was_present);
-
-  // Returns kNotFound if the key isn't present.
-  int FindEntry(Handle<Object> key, int hash);
-
-  // Like the above, but doesn't require the caller to provide a hash.
-  int FindEntry(Handle<Object> key);
-
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
   }
@@ -3998,15 +3987,6 @@ class OrderedHashTable: public FixedArray {
   int NumberOfBuckets() {
     return Smi::cast(get(kNumberOfBucketsIndex))->value();
   }
-
-  // Returns the index into the data table where the new entry
-  // should be placed. The table is assumed to have enough space
-  // for a new entry.
-  int AddEntry(int hash);
-
-  // Removes the entry, and puts the_hole in entrysize pointers
-  // (leaving the hash table chain intact).
-  void RemoveEntry(int entry);
 
   // Returns an index into |this| for the given entry.
   int EntryToIndex(int entry) {
@@ -4078,20 +4058,6 @@ class OrderedHashTable: public FixedArray {
     return NumberOfBuckets() * kLoadFactor;
   }
 
-  // Returns the next entry for the given entry.
-  int ChainAt(int entry) {
-    return Smi::cast(get(EntryToIndex(entry) + kChainOffset))->value();
-  }
-
-  int HashToBucket(int hash) {
-    return hash & (NumberOfBuckets() - 1);
-  }
-
-  int HashToEntry(int hash) {
-    int bucket = HashToBucket(hash);
-    return Smi::cast(get(kHashTableStartIndex + bucket))->value();
-  }
-
   void SetNextTable(Derived* next_table) {
     set(kNextTableIndex, next_table);
   }
@@ -4115,26 +4081,16 @@ class OrderedHashSet: public OrderedHashTable<
     OrderedHashSet, JSSetIterator, 1> {
  public:
   DECLARE_CAST(OrderedHashSet)
-
-  bool Contains(Handle<Object> key);
-  static Handle<OrderedHashSet> Add(
-      Handle<OrderedHashSet> table, Handle<Object> key);
 };
 
 
 class JSMapIterator;
 
 
-class OrderedHashMap:public OrderedHashTable<
-    OrderedHashMap, JSMapIterator, 2> {
+class OrderedHashMap
+    : public OrderedHashTable<OrderedHashMap, JSMapIterator, 2> {
  public:
   DECLARE_CAST(OrderedHashMap)
-
-  Object* Lookup(Handle<Object> key);
-  static Handle<OrderedHashMap> Put(
-      Handle<OrderedHashMap> table,
-      Handle<Object> key,
-      Handle<Object> value);
 
   Object* ValueAt(int entry) {
     return get(EntryToIndex(entry) + kValueOffset);

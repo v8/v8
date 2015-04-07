@@ -141,7 +141,6 @@
         'test-mementos.cc',
         'test-migrations.cc',
         'test-object-observe.cc',
-        'test-ordered-hash-table.cc',
         'test-parsing.cc',
         'test-platform.cc',
         'test-profile-generator.cc',

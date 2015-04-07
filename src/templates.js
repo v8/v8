@@ -21,7 +21,7 @@ function SameCallSiteElements(rawStrings, other) {
 
 
 function GetCachedCallSite(siteObj, hash) {
-  var obj = %MapGet(callSiteCache, hash);
+  var obj = %_CallFunction(callSiteCache, hash, $MapGet);
 
   if (IS_UNDEFINED(obj)) return;
 
@@ -33,13 +33,13 @@ function GetCachedCallSite(siteObj, hash) {
 
 
 function SetCachedCallSite(siteObj, hash) {
-  var obj = %MapGet(callSiteCache, hash);
+  var obj = %_CallFunction(callSiteCache, hash, $MapGet);
   var array;
 
   if (IS_UNDEFINED(obj)) {
     array = new InternalArray(1);
     array[0] = siteObj;
-    %MapSet(callSiteCache, hash, array);
+    %_CallFunction(callSiteCache, hash, array, $MapSet);
   } else {
     obj.push(siteObj);
   }
