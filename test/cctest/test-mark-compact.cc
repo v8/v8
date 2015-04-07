@@ -96,7 +96,7 @@ TEST(Promotion) {
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   // Array now sits in the old space
-  CHECK(heap->InSpace(*array, OLD_POINTER_SPACE));
+  CHECK(heap->InSpace(*array, OLD_SPACE));
 }
 
 
@@ -118,10 +118,10 @@ TEST(NoPromotion) {
   CHECK(heap->InSpace(*array, NEW_SPACE));
 
   // Simulate a full old space to make promotion fail.
-  SimulateFullSpace(heap->old_pointer_space());
+  SimulateFullSpace(heap->old_space());
 
   // Call mark compact GC, and it should pass.
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 }
 
 
@@ -137,7 +137,7 @@ TEST(MarkCompactCollector) {
   Handle<GlobalObject> global(isolate->context()->global_object());
 
   // call mark-compact when heap is empty
-  heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 1");
+  heap->CollectGarbage(OLD_SPACE, "trigger 1");
 
   // keep allocating garbage in new space until it fails
   const int arraysize = 100;
@@ -164,7 +164,7 @@ TEST(MarkCompactCollector) {
     factory->NewJSObject(function);
   }
 
-  heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 4");
+  heap->CollectGarbage(OLD_SPACE, "trigger 4");
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
@@ -182,7 +182,7 @@ TEST(MarkCompactCollector) {
     JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   }
 
-  heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
+  heap->CollectGarbage(OLD_SPACE, "trigger 5");
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
@@ -307,7 +307,7 @@ TEST(ObjectGroups) {
                                  g2c1.location());
   }
   // Do a full GC
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 
   // All object should be alive.
   CHECK_EQ(0, NumberOfWeakCalls);
@@ -334,7 +334,7 @@ TEST(ObjectGroups) {
                                  g2c1.location());
   }
 
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, NumberOfWeakCalls);
@@ -347,7 +347,7 @@ TEST(ObjectGroups) {
                           reinterpret_cast<void*>(&g2c1_and_id),
                           &WeakPointerCallback);
 
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);
 }
 

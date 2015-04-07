@@ -440,7 +440,7 @@ TEST(WeakGlobalHandlesMark) {
   }
 
   // Make sure the objects are promoted.
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
   heap->CollectGarbage(NEW_SPACE);
   CHECK(!heap->InNewSpace(*h1) && !heap->InNewSpace(*h2));
 
@@ -493,7 +493,7 @@ TEST(DeleteWeakGlobalHandle) {
   CHECK(!WeakPointerCleared);
 
   // Mark-compact treats weak reference properly.
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 
   CHECK(WeakPointerCleared);
 }
@@ -892,7 +892,7 @@ TEST(Iteration) {
   Handle<Object> objs[objs_count];
   int next_objs_index = 0;
 
-  // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
+  // Allocate a JS array to OLD_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewJSArray(10);
   objs[next_objs_index++] = factory->NewJSArray(10,
                                                 FAST_HOLEY_ELEMENTS,
@@ -1001,15 +1001,15 @@ TEST(Regression39128) {
 
   // Step 4: clone jsobject, but force always allocate first to create a clone
   // in old pointer space.
-  Address old_pointer_space_top = heap->old_pointer_space()->top();
+  Address old_space_top = heap->old_space()->top();
   AlwaysAllocateScope aa_scope(isolate);
   Object* clone_obj = heap->CopyJSObject(jsobject).ToObjectChecked();
   JSObject* clone = JSObject::cast(clone_obj);
-  if (clone->address() != old_pointer_space_top) {
+  if (clone->address() != old_space_top) {
     // Alas, got allocated from free list, we cannot do checks.
     return;
   }
-  CHECK(heap->old_pointer_space()->Contains(clone->address()));
+  CHECK(heap->old_space()->Contains(clone->address()));
 }
 
 
@@ -2137,7 +2137,7 @@ TEST(InstanceOfStubWriteBarrier) {
   }
 
   CcTest::heap()->incremental_marking()->set_should_hurry(true);
-  CcTest::heap()->CollectGarbage(OLD_POINTER_SPACE);
+  CcTest::heap()->CollectGarbage(OLD_SPACE);
 }
 
 
@@ -2188,7 +2188,7 @@ TEST(PrototypeTransitionClearing) {
 
   // Make sure next prototype is placed on an old-space evacuation candidate.
   Handle<JSObject> prototype;
-  PagedSpace* space = CcTest::heap()->old_pointer_space();
+  PagedSpace* space = CcTest::heap()->old_space();
   {
     AlwaysAllocateScope always_allocate(isolate);
     SimulateFullSpace(space);
@@ -2314,7 +2314,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 TEST(IdleNotificationFinishMarking) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  SimulateFullSpace(CcTest::heap()->old_space());
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Abort();
   marking->Start();
@@ -2430,11 +2430,11 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
-  CHECK(CcTest::heap()->InOldPointerSpace(*int_array_handle));
-  CHECK(CcTest::heap()->InOldPointerSpace(int_array_handle->elements()));
-  CHECK(CcTest::heap()->InOldPointerSpace(*double_array_handle));
-  CHECK(CcTest::heap()->InOldDataSpace(double_array_handle->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*int_array_handle));
+  CHECK(CcTest::heap()->InOldSpace(int_array_handle->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*double_array_handle));
+  CHECK(CcTest::heap()->InOldSpace(double_array_handle->elements()));
 }
 
 
@@ -2473,8 +2473,8 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(CcTest::heap()->InOldPointerSpace(o->elements()));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(o->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
 }
 
 
@@ -2514,27 +2514,25 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*o));
   FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
   FieldIndex idx2 = FieldIndex::ForPropertyIndex(o->map(), 1);
-  CHECK(CcTest::heap()->InOldPointerSpace(o->RawFastPropertyAt(idx1)));
+  CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx1)));
   if (!o->IsUnboxedDoubleField(idx2)) {
-    CHECK(CcTest::heap()->InOldDataSpace(o->RawFastPropertyAt(idx2)));
+    CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
   } else {
     CHECK_EQ(1.1, o->RawFastDoublePropertyAt(idx2));
   }
 
   JSObject* inner_object =
       reinterpret_cast<JSObject*>(o->RawFastPropertyAt(idx1));
-  CHECK(CcTest::heap()->InOldPointerSpace(inner_object));
+  CHECK(CcTest::heap()->InOldSpace(inner_object));
   if (!inner_object->IsUnboxedDoubleField(idx1)) {
-    CHECK(
-        CcTest::heap()->InOldDataSpace(inner_object->RawFastPropertyAt(idx1)));
+    CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
   } else {
     CHECK_EQ(2.2, inner_object->RawFastDoublePropertyAt(idx1));
   }
-  CHECK(
-      CcTest::heap()->InOldPointerSpace(inner_object->RawFastPropertyAt(idx2)));
+  CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
 }
 
 
@@ -2573,8 +2571,8 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
-  CHECK(CcTest::heap()->InOldDataSpace(o->properties()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(o->properties()));
 }
 
 
@@ -2613,8 +2611,8 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(CcTest::heap()->InOldDataSpace(o->elements()));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(o->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
 }
 
 
@@ -2658,11 +2656,11 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
-  CHECK(CcTest::heap()->InOldPointerSpace(*int_array_handle));
-  CHECK(CcTest::heap()->InOldPointerSpace(int_array_handle->elements()));
-  CHECK(CcTest::heap()->InOldPointerSpace(*double_array_handle));
-  CHECK(CcTest::heap()->InOldDataSpace(double_array_handle->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*int_array_handle));
+  CHECK(CcTest::heap()->InOldSpace(int_array_handle->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*double_array_handle));
+  CHECK(CcTest::heap()->InOldSpace(double_array_handle->elements()));
 }
 
 
@@ -2707,11 +2705,11 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
-  CHECK(CcTest::heap()->InOldPointerSpace(*int_array_handle_1));
-  CHECK(CcTest::heap()->InOldPointerSpace(int_array_handle_1->elements()));
-  CHECK(CcTest::heap()->InOldPointerSpace(*int_array_handle_2));
-  CHECK(CcTest::heap()->InOldPointerSpace(int_array_handle_2->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*int_array_handle_1));
+  CHECK(CcTest::heap()->InOldSpace(int_array_handle_1->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*int_array_handle_2));
+  CHECK(CcTest::heap()->InOldSpace(int_array_handle_2->elements()));
 }
 
 
@@ -2758,11 +2756,11 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
-  CHECK(CcTest::heap()->InOldPointerSpace(*double_array_handle_1));
-  CHECK(CcTest::heap()->InOldDataSpace(double_array_handle_1->elements()));
-  CHECK(CcTest::heap()->InOldPointerSpace(*double_array_handle_2));
-  CHECK(CcTest::heap()->InOldDataSpace(double_array_handle_2->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*double_array_handle_1));
+  CHECK(CcTest::heap()->InOldSpace(double_array_handle_1->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*double_array_handle_2));
+  CHECK(CcTest::heap()->InOldSpace(double_array_handle_2->elements()));
 }
 
 
@@ -2815,7 +2813,7 @@ TEST(OptimizedPretenuringConstructorCalls) {
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
 
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*o));
 }
 
 
@@ -2862,7 +2860,7 @@ TEST(OptimizedPretenuringCallNew) {
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-  CHECK(CcTest::heap()->InOldPointerSpace(*o));
+  CHECK(CcTest::heap()->InOldSpace(*o));
 }
 
 
@@ -3047,7 +3045,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
 
   root = GetByName("root");
   AddPropertyTo(0, root, "prop9");
-  CcTest::i_isolate()->heap()->CollectGarbage(OLD_POINTER_SPACE);
+  CcTest::i_isolate()->heap()->CollectGarbage(OLD_SPACE);
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3185,27 +3183,27 @@ TEST(ReleaseOverReservedPages) {
   static const int number_of_test_pages = 20;
 
   // Prepare many pages with low live-bytes count.
-  PagedSpace* old_pointer_space = heap->old_pointer_space();
-  CHECK_EQ(1, old_pointer_space->CountTotalPages());
+  PagedSpace* old_space = heap->old_space();
+  CHECK_EQ(1, old_space->CountTotalPages());
   for (int i = 0; i < number_of_test_pages; i++) {
     AlwaysAllocateScope always_allocate(isolate);
-    SimulateFullSpace(old_pointer_space);
+    SimulateFullSpace(old_space);
     factory->NewFixedArray(1, TENURED);
   }
-  CHECK_EQ(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+  CHECK_EQ(number_of_test_pages + 1, old_space->CountTotalPages());
 
   // Triggering one GC will cause a lot of garbage to be discovered but
   // even spread across all allocated pages.
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
                           "triggered for preparation");
-  CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+  CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages());
 
   // Triggering subsequent GCs should cause at least half of the pages
   // to be released to the OS after at most two cycles.
   heap->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 1");
-  CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+  CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages());
   heap->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 2");
-  CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages() * 2);
+  CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages() * 2);
 
   // Triggering a last-resort GC should cause all pages to be released to the
   // OS so that other processes can seize the memory.  If we get a failure here
@@ -3215,7 +3213,7 @@ TEST(ReleaseOverReservedPages) {
   // boots, but if the 20 small arrays don't fit on the first page then that's
   // an indication that it is too small.
   heap->CollectAllAvailableGarbage("triggered really hard");
-  CHECK_EQ(1, old_pointer_space->CountTotalPages());
+  CHECK_EQ(1, old_space->CountTotalPages());
 }
 
 
@@ -4983,8 +4981,8 @@ TEST(ArrayShiftSweeping) {
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
-  CHECK(heap->InOldPointerSpace(o->elements()));
-  CHECK(heap->InOldPointerSpace(*o));
+  CHECK(heap->InOldSpace(o->elements()));
+  CHECK(heap->InOldSpace(*o));
   Page* page = Page::FromAddress(o->elements()->address());
   CHECK(page->parallel_sweeping() <= MemoryChunk::SWEEPING_FINALIZE ||
         Marking::IsBlack(Marking::MarkBitFrom(o->elements())));
@@ -5097,7 +5095,7 @@ TEST(Regress388880) {
   // Allocate fixed array in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
   {
-    SimulateFullSpace(heap->old_pointer_space());
+    SimulateFullSpace(heap->old_space());
     int padding_size = desired_offset - Page::kObjectStartOffset;
     int padding_array_length =
         (padding_size - FixedArray::kHeaderSize) / kPointerSize;
@@ -5166,7 +5164,7 @@ TEST(Regress3631) {
       "  weak_map.set(future_keys[i], i);"
       "}");
   heap->incremental_marking()->set_should_hurry(true);
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 }
 
 
@@ -5183,7 +5181,7 @@ TEST(Regress442710) {
   Handle<String> name = factory->InternalizeUtf8String("testArray");
   JSReceiver::SetProperty(global, name, array, SLOPPY).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 }
 
 
@@ -5252,10 +5250,10 @@ void CheckMapRetainingFor(int n) {
   Handle<WeakCell> weak_cell = AddRetainedMap(isolate, heap);
   CHECK(!weak_cell->cleared());
   for (int i = 0; i < n; i++) {
-    heap->CollectGarbage(OLD_POINTER_SPACE);
+    heap->CollectGarbage(OLD_SPACE);
   }
   CHECK(!weak_cell->cleared());
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
   CHECK(weak_cell->cleared());
 }
 
@@ -5280,14 +5278,14 @@ TEST(RegressArrayListGC) {
   Heap* heap = isolate->heap();
   AddRetainedMap(isolate, heap);
   Handle<Map> map = Map::Create(isolate, 1);
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
   // Force GC in old space on next addition of retained map.
   Map::WeakCellForMap(map);
   SimulateFullSpace(CcTest::heap()->new_space());
   for (int i = 0; i < 10; i++) {
     heap->AddRetainedMap(map);
   }
-  heap->CollectGarbage(OLD_POINTER_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
 }
 
 

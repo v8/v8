@@ -206,8 +206,8 @@ void MemoryChunk::UpdateHighWaterMark(Address mark) {
 
 
 PointerChunkIterator::PointerChunkIterator(Heap* heap)
-    : state_(kOldPointerState),
-      old_pointer_iterator_(heap->old_pointer_space()),
+    : state_(kOldSpaceState),
+      old_iterator_(heap->old_space()),
       map_iterator_(heap->map_space()),
       lo_iterator_(heap->lo_space()) {}
 

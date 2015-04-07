@@ -306,16 +306,16 @@ TEST(ConstantPoolCompacting) {
 
   // Start a second old-space page so that the heap pointer added to the
   // constant pool array ends up on the an evacuation candidate page.
-  Page* first_page = heap->old_data_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->anchor()->next_page();
   {
     HandleScope scope(isolate);
     int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
     Handle<HeapObject> temp =
         factory->NewFixedDoubleArray(dummy_array_size / kDoubleSize, TENURED);
-    CHECK(heap->InOldDataSpace(temp->address()));
+    CHECK(heap->InOldSpace(temp->address()));
     Handle<HeapObject> heap_ptr =
         factory->NewHeapNumber(5.0, IMMUTABLE, TENURED);
-    CHECK(heap->InOldDataSpace(heap_ptr->address()));
+    CHECK(heap->InOldSpace(heap_ptr->address()));
     CHECK(!first_page->Contains(heap_ptr->address()));
     array->set(0, *heap_ptr);
     array->set(1, *heap_ptr);

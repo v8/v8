@@ -3729,8 +3729,12 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return false;
   }
 
-  dominator_allocate = GetFoldableDominator(dominator_allocate);
-  if (dominator_allocate == NULL) {
+
+  if (!IsFoldable(dominator_allocate)) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n", id(),
+             Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
     return false;
   }
 
@@ -3762,10 +3766,7 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   DCHECK(
       (IsNewSpaceAllocation() && dominator_allocate->IsNewSpaceAllocation()) ||
-      (IsOldDataSpaceAllocation() &&
-       dominator_allocate->IsOldDataSpaceAllocation()) ||
-      (IsOldPointerSpaceAllocation() &&
-       dominator_allocate->IsOldPointerSpaceAllocation()));
+      (IsOldSpaceAllocation() && dominator_allocate->IsOldSpaceAllocation()));
 
   // First update the size of the dominator allocate instruction.
   dominator_size = dominator_allocate->size();
@@ -3856,70 +3857,6 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 }
 
 
-HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
-  if (!IsFoldable(dominator)) {
-    // We cannot hoist old space allocations over new space allocations.
-    if (IsNewSpaceAllocation() || dominator->IsNewSpaceAllocation()) {
-      if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), new space hoisting\n", id(),
-               Mnemonic(), dominator->id(), dominator->Mnemonic());
-      }
-      return NULL;
-    }
-
-    HAllocate* dominator_dominator = dominator->dominating_allocate_;
-
-    // We can hoist old data space allocations over an old pointer space
-    // allocation and vice versa. For that we have to check the dominator
-    // of the dominator allocate instruction.
-    if (dominator_dominator == NULL) {
-      dominating_allocate_ = dominator;
-      if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n", id(),
-               Mnemonic(), dominator->id(), dominator->Mnemonic());
-      }
-      return NULL;
-    }
-
-    // We can just fold old space allocations that are in the same basic block,
-    // since it is not guaranteed that we fill up the whole allocated old
-    // space memory.
-    // TODO(hpayer): Remove this limitation and add filler maps for each each
-    // allocation as soon as we have store elimination.
-    if (block()->block_id() != dominator_dominator->block()->block_id()) {
-      if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), different basic blocks\n",
-               id(), Mnemonic(), dominator_dominator->id(),
-               dominator_dominator->Mnemonic());
-      }
-      return NULL;
-    }
-
-    DCHECK((IsOldDataSpaceAllocation() &&
-            dominator_dominator->IsOldDataSpaceAllocation()) ||
-           (IsOldPointerSpaceAllocation() &&
-            dominator_dominator->IsOldPointerSpaceAllocation()));
-
-    int32_t current_size = HConstant::cast(size())->GetInteger32Constant();
-    HStoreNamedField* dominator_free_space_size =
-        dominator->filler_free_space_size_;
-    if (dominator_free_space_size != NULL) {
-      // We already hoisted one old space allocation, i.e., we already installed
-      // a filler map. Hence, we just have to update the free space size.
-      dominator->UpdateFreeSpaceFiller(current_size);
-    } else {
-      // This is the first old space allocation that gets hoisted. We have to
-      // install a filler map since the follwing allocation may cause a GC.
-      dominator->CreateFreeSpaceFiller(current_size);
-    }
-
-    // We can hoist the old space allocation over the actual dominator.
-    return dominator_dominator;
-  }
-  return dominator;
-}
-
-
 void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
   DCHECK(filler_free_space_size_ != NULL);
   Zone* zone = block()->zone();
@@ -3987,8 +3924,7 @@ void HAllocate::ClearNextMapWord(int offset) {
 std::ostream& HAllocate::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << NameOf(size()) << " (";
   if (IsNewSpaceAllocation()) os << "N";
-  if (IsOldPointerSpaceAllocation()) os << "P";
-  if (IsOldDataSpaceAllocation()) os << "D";
+  if (IsOldSpaceAllocation()) os << "P";
   if (MustAllocateDoubleAligned()) os << "A";
   if (MustPrefillWithFiller()) os << "F";
   return os << ")";

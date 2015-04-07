@@ -898,8 +898,7 @@ class MarkCompactCollector {
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
 
-  SmartPointer<FreeList> free_list_old_data_space_;
-  SmartPointer<FreeList> free_list_old_pointer_space_;
+  SmartPointer<FreeList> free_list_old_space_;
 
   friend class Heap;
 };

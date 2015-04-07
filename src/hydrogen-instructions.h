@@ -5509,12 +5509,8 @@ class HAllocate FINAL : public HTemplateInstruction<2> {
     return (flags_ & ALLOCATE_IN_NEW_SPACE) != 0;
   }
 
-  bool IsOldDataSpaceAllocation() const {
-    return (flags_ & ALLOCATE_IN_OLD_DATA_SPACE) != 0;
-  }
-
-  bool IsOldPointerSpaceAllocation() const {
-    return (flags_ & ALLOCATE_IN_OLD_POINTER_SPACE) != 0;
+  bool IsOldSpaceAllocation() const {
+    return (flags_ & ALLOCATE_IN_OLD_SPACE) != 0;
   }
 
   bool MustAllocateDoubleAligned() const {
@@ -5547,8 +5543,7 @@ class HAllocate FINAL : public HTemplateInstruction<2> {
  private:
   enum Flags {
     ALLOCATE_IN_NEW_SPACE = 1 << 0,
-    ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
-    ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
+    ALLOCATE_IN_OLD_SPACE = 1 << 2,
     ALLOCATE_DOUBLE_ALIGNED = 1 << 3,
     PREFILL_WITH_FILLER = 1 << 4,
     CLEAR_NEXT_MAP_WORD = 1 << 5
@@ -5584,11 +5579,8 @@ class HAllocate FINAL : public HTemplateInstruction<2> {
 
   static Flags ComputeFlags(PretenureFlag pretenure_flag,
                             InstanceType instance_type) {
-    Flags flags = pretenure_flag == TENURED
-                      ? (Heap::TargetSpaceId(instance_type) == OLD_POINTER_SPACE
-                             ? ALLOCATE_IN_OLD_POINTER_SPACE
-                             : ALLOCATE_IN_OLD_DATA_SPACE)
-                      : ALLOCATE_IN_NEW_SPACE;
+    Flags flags = pretenure_flag == TENURED ? ALLOCATE_IN_OLD_SPACE
+                                            : ALLOCATE_IN_NEW_SPACE;
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
       flags = static_cast<Flags>(flags | ALLOCATE_DOUBLE_ALIGNED);
     }
@@ -5630,10 +5622,7 @@ class HAllocate FINAL : public HTemplateInstruction<2> {
 
   bool IsFoldable(HAllocate* allocate) {
     return (IsNewSpaceAllocation() && allocate->IsNewSpaceAllocation()) ||
-           (IsOldDataSpaceAllocation() &&
-            allocate->IsOldDataSpaceAllocation()) ||
-           (IsOldPointerSpaceAllocation() &&
-            allocate->IsOldPointerSpaceAllocation());
+           (IsOldSpaceAllocation() && allocate->IsOldSpaceAllocation());
   }
 
   void ClearNextMapWord(int offset);

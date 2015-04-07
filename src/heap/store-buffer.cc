@@ -468,7 +468,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
                 heap_->mark_compact_collector()->EnsureSweepingCompleted();
               }
             }
-            CHECK(page->owner() == heap_->old_pointer_space());
+            CHECK(page->owner() == heap_->old_space());
             HeapObjectIterator iterator(page, NULL);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
@@ -538,7 +538,6 @@ void StoreBuffer::Compact() {
   for (Address* current = start_; current < top; current++) {
     DCHECK(!heap_->cell_space()->Contains(*current));
     DCHECK(!heap_->code_space()->Contains(*current));
-    DCHECK(!heap_->old_data_space()->Contains(*current));
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;

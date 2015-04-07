@@ -939,14 +939,8 @@ class ExternalReference BASE_EMBEDDED {
   // Used for fast allocation in generated code.
   static ExternalReference new_space_allocation_top_address(Isolate* isolate);
   static ExternalReference new_space_allocation_limit_address(Isolate* isolate);
-  static ExternalReference old_pointer_space_allocation_top_address(
-      Isolate* isolate);
-  static ExternalReference old_pointer_space_allocation_limit_address(
-      Isolate* isolate);
-  static ExternalReference old_data_space_allocation_top_address(
-      Isolate* isolate);
-  static ExternalReference old_data_space_allocation_limit_address(
-      Isolate* isolate);
+  static ExternalReference old_space_allocation_top_address(Isolate* isolate);
+  static ExternalReference old_space_allocation_limit_address(Isolate* isolate);
 
   static ExternalReference mod_two_doubles_operation(Isolate* isolate);
   static ExternalReference power_double_double_function(Isolate* isolate);

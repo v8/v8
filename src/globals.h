@@ -408,17 +408,16 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 // consecutive.
 // Keep this enum in sync with the ObjectSpace enum in v8.h
 enum AllocationSpace {
-  NEW_SPACE,          // Semispaces collected with copying collector.
-  OLD_POINTER_SPACE,  // May contain pointers to new space.
-  OLD_DATA_SPACE,     // Must not have pointers to new space.
-  CODE_SPACE,         // No pointers to new space, marked executable.
-  MAP_SPACE,          // Only and all map objects.
-  CELL_SPACE,         // Only and all cell objects.
-  LO_SPACE,           // Promoted large objects.
+  NEW_SPACE,   // Semispaces collected with copying collector.
+  OLD_SPACE,   // May contain pointers to new space.
+  CODE_SPACE,  // No pointers to new space, marked executable.
+  MAP_SPACE,   // Only and all map objects.
+  CELL_SPACE,  // Only and all cell objects.
+  LO_SPACE,    // Promoted large objects.
 
   FIRST_SPACE = NEW_SPACE,
   LAST_SPACE = LO_SPACE,
-  FIRST_PAGED_SPACE = OLD_POINTER_SPACE,
+  FIRST_PAGED_SPACE = OLD_SPACE,
   LAST_PAGED_SPACE = CELL_SPACE
 };
 const int kSpaceTagSize = 3;
