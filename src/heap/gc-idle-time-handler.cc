@@ -253,9 +253,11 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
   }
 
   // TODO(hpayer): Estimate finalize sweeping time.
-  if (heap_state.sweeping_in_progress &&
-      static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {
-    return GCIdleTimeAction::FinalizeSweeping();
+  if (heap_state.sweeping_in_progress) {
+    if (static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {
+      return GCIdleTimeAction::FinalizeSweeping();
+    }
+    return NothingOrDone();
   }
 
   if (heap_state.incremental_marking_stopped &&
