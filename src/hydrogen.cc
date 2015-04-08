@@ -4220,7 +4220,8 @@ bool HOptimizedGraphBuilder::BuildGraph() {
     return false;
   }
 
-  if (current_info()->scope()->is_script_scope()) {
+  int slots = current_info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (current_info()->scope()->is_script_scope() && slots > 0) {
     Bailout(kScriptContext);
     return false;
   }
