@@ -118,6 +118,8 @@
 
   # TODO(mstarzinger): Crankshaft messes with debugger, investigate and fix!
   'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
+  'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
+  'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
 
   # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
   'test-js-typed-lowering/OrderCompareEffects': [SKIP],

@@ -102,6 +102,7 @@
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-step': [PASS, NO_VARIANTS],  # windows only.
   'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
+  'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'regress/regress-3717':[PASS, NO_VARIANTS],  # only in no-snap mode.
 
