@@ -1455,7 +1455,6 @@ class Assembler : public AssemblerBase {
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
   void dd(uint32_t data);
-  void dd(Label* label);
 
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);

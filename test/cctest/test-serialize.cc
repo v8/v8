@@ -1484,9 +1484,9 @@ TEST(SerializeWithHarmonyScoping) {
 
 
 TEST(SerializeInternalReference) {
-#ifdef V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   return;
-#endif  // V8_TARGET_ARCH_ARM64
+#endif
   // Disable experimental natives that are loaded after deserialization.
   FLAG_turbo_deoptimization = false;
   FLAG_context_specialization = false;
