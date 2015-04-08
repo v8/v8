@@ -84,6 +84,15 @@
   'ecma/String/15.5.4.8-1': [FAIL],
   'ecma/String/15.5.4.9-1': [FAIL],
 
+  # Boolean.prototype and Number.prototype are ordinary objects in ES6
+  'ecma/Boolean/15.6.3.1': [FAIL],
+  'ecma/Boolean/15.6.4': [FAIL],
+  'ecma/Boolean/15.6.4-1': [FAIL],
+  'ecma/Number/15.7.4-1': [FAIL],
+  'ecma/Number/15.7.4.2-1': [FAIL],
+  'ecma/Number/15.7.4.3-1': [FAIL],
+  'ecma/extensions/15.7.4': [FAIL],
+  'ecma_2/FunctionObjects/call-1': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 
