@@ -433,9 +433,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ Pop(a1, a2);
-        // Slack tracking counter is Map::kSlackTrackingCounterEnd after runtime
-        // call.
-        __ li(t2, Map::kSlackTrackingCounterEnd);
+        __ li(t2, Operand(Map::kSlackTrackingCounterEnd - 1));
 
         __ bind(&allocate);
       }
