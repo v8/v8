@@ -13,6 +13,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
@@ -32,17 +33,36 @@ void JSTypeFeedbackTable::Record(Node* node, TypeFeedbackId id) {
 
 
 Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
-  // TODO(turbofan): type feedback currently requires deoptimization.
-  if (!FLAG_turbo_deoptimization) return NoChange();
   switch (node->opcode()) {
-    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSLoadProperty: {
+      HeapObjectMatcher<Name> match(node->InputAt(1));
+      if (match.HasValue() && match.Value().handle()->IsName()) {
+        // LoadProperty(o, "constant") => LoadNamed["constant"](o).
+        Unique<Name> name = match.Value();
+        const VectorSlotPair& feedback =
+            LoadPropertyParametersOf(node->op()).feedback();
+        node->set_op(jsgraph()->javascript()->LoadNamed(name, feedback));
+        node->RemoveInput(1);
+        return ReduceJSLoadNamed(node);
+      }
       return ReduceJSLoadProperty(node);
+    }
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSStoreNamed:
       return ReduceJSStoreNamed(node);
-    case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSStoreProperty: {
+      HeapObjectMatcher<Name> match(node->InputAt(1));
+      if (match.HasValue() && match.Value().handle()->IsName()) {
+        // StoreProperty(o, "constant", v) => StoreNamed["constant"](o, v).
+        Unique<Name> name = match.Value();
+        LanguageMode language_mode = OpParameter<LanguageMode>(node);
+        node->set_op(jsgraph()->javascript()->StoreNamed(language_mode, name));
+        node->RemoveInput(1);
+        return ReduceJSStoreNamed(node);
+      }
       return ReduceJSStoreProperty(node);
+    }
     default:
       break;
   }
@@ -118,6 +138,9 @@ static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
+  // TODO(turbofan): type feedback currently requires deoptimization.
+  if (!FLAG_turbo_deoptimization) return NoChange();
+
   TypeFeedbackId id = js_type_feedback_->find(node);
   if (id.IsNone() || oracle()->LoadIsUninitialized(id)) return NoChange();
 
@@ -164,6 +187,9 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadProperty(Node* node) {
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
+  // TODO(turbofan): type feedback currently requires deoptimization.
+  if (!FLAG_turbo_deoptimization) return NoChange();
+
   TypeFeedbackId id = js_type_feedback_->find(node);
   if (id.IsNone() || oracle()->StoreIsUninitialized(id)) return NoChange();
 
