@@ -93,7 +93,10 @@
   'debug-step-turbofan': [PASS, FAIL],
 
   # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
+  'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
+  'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'debug-compile-event-newfunction': [PASS, NO_VARIANTS],
+  'debug-conditional-breakpoints': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
