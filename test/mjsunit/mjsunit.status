@@ -97,6 +97,7 @@
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-step': [PASS, NO_VARIANTS],  # windows only.
   'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'regress/regress-3717':[PASS, NO_VARIANTS],  # only in no-snap mode.
 
