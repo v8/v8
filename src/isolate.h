@@ -19,7 +19,7 @@
 #include "src/handles.h"
 #include "src/hashmap.h"
 #include "src/heap/heap.h"
-#include "src/optimizing-compile-dispatcher.h"
+#include "src/optimizing-compiler-thread.h"
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
@@ -1028,20 +1028,20 @@ class Isolate {
 
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
-    DCHECK(optimizing_compile_dispatcher_ == NULL ||
+    DCHECK(optimizing_compiler_thread_ == NULL ||
            FLAG_concurrent_recompilation);
-    return optimizing_compile_dispatcher_ != NULL;
+    return optimizing_compiler_thread_ != NULL;
   }
 
   bool concurrent_osr_enabled() const {
     // Thread is only available with flag enabled.
-    DCHECK(optimizing_compile_dispatcher_ == NULL ||
+    DCHECK(optimizing_compiler_thread_ == NULL ||
            FLAG_concurrent_recompilation);
-    return optimizing_compile_dispatcher_ != NULL && FLAG_concurrent_osr;
+    return optimizing_compiler_thread_ != NULL && FLAG_concurrent_osr;
   }
 
-  OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
-    return optimizing_compile_dispatcher_;
+  OptimizingCompilerThread* optimizing_compiler_thread() {
+    return optimizing_compiler_thread_;
   }
 
   int id() const { return static_cast<int>(id_); }
@@ -1329,7 +1329,7 @@ class Isolate {
 #endif
 
   DeferredHandles* deferred_handles_head_;
-  OptimizingCompileDispatcher* optimizing_compile_dispatcher_;
+  OptimizingCompilerThread* optimizing_compiler_thread_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
@@ -1350,7 +1350,7 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
-  friend class OptimizingCompileDispatcher;
+  friend class OptimizingCompilerThread;
   friend class SweeperThread;
   friend class ThreadManager;
   friend class Simulator;

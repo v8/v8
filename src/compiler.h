@@ -372,10 +372,12 @@ class CompilationInfo {
   }
 
   void AbortDueToDependencyChange() {
+    DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     aborted_due_to_dependency_change_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() const {
+    DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     return aborted_due_to_dependency_change_;
   }
 

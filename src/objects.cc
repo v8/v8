@@ -9706,7 +9706,7 @@ void JSFunction::AttemptConcurrentOptimization() {
     return;
   }
   if (isolate->concurrent_osr_enabled() &&
-      isolate->optimizing_compile_dispatcher()->IsQueuedForOSR(this)) {
+      isolate->optimizing_compiler_thread()->IsQueuedForOSR(this)) {
     // Do not attempt regular recompilation if we already queued this for OSR.
     // TODO(yangguo): This is necessary so that we don't install optimized
     // code on a function that is already optimized, since OSR and regular
