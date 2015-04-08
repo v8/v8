@@ -1484,12 +1484,6 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  // TODO(titzer): Some top-level code times out because of missing interrupt
-  // checks at back-branches, these are currently marked with --no-turbo-osr.
-  if (shared->is_toplevel() && !FLAG_turbo_osr) {
-    return MaybeHandle<Code>();
-  }
-
   info->SetOptimizing(osr_ast_id, current_code);
 
   if (mode == CONCURRENT) {

@@ -152,7 +152,6 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
       CcTest::isolate(), "try { loop(); fail(); } catch(e) { fail(); }");
-  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   v8::Script::Compile(source)->Run();
   CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   // Test that we can run the code again after thread termination.
@@ -193,7 +192,6 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
       CcTest::isolate(), "try { loop(); fail(); } catch(e) { fail(); }");
-  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   v8::Script::Compile(source)->Run();
 
   thread.Join();
@@ -362,7 +360,6 @@ TEST(TerminateCancelTerminateFromThreadItself) {
   CHECK(!v8::V8::IsExecutionTerminating(CcTest::isolate()));
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
       isolate, "try { doloop(); } catch(e) { fail(); } 'completed';");
-  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   // Check that execution completed with correct return value.
   CHECK(v8::Script::Compile(source)->Run()->Equals(v8_str("completed")));
 }
@@ -379,7 +376,6 @@ void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Enqueue another should-not-run task to ensure we clean out the queue
   // when we terminate.
   isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
-  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   CompileRun("terminate(); while (true) { }");
   CHECK(v8::V8::IsExecutionTerminating());
 }
@@ -509,7 +505,6 @@ TEST(TerminationInInnerTryCall) {
   v8::Context::Scope context_scope(context);
   {
     v8::TryCatch try_catch;
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("inner_try_call_terminate()");
     CHECK(try_catch.HasTerminated());
   }

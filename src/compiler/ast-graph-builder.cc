@@ -2487,6 +2487,12 @@ void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
                                          LoopBuilder* loop) {
   ControlScopeForIteration scope(this, stmt, loop);
+  // TODO(mstarzinger): For now we only allow to interrupt non-asm.js code,
+  // which is a gigantic hack and should be extended to all code at some point.
+  if (!info()->shared_info()->asm_function()) {
+    Node* node = NewNode(javascript()->StackCheck());
+    PrepareFrameState(node, stmt->StackCheckId());
+  }
   Visit(stmt->body());
 }
 

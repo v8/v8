@@ -20037,7 +20037,6 @@ class RequestInterruptTestWithFunctionCall
         isolate_, ShouldContinueCallback, v8::External::New(isolate_, this));
     env_->Global()->Set(v8_str("ShouldContinue"), func);
 
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("while (ShouldContinue()) { }");
   }
 };
@@ -20053,7 +20052,6 @@ class RequestInterruptTestWithMethodCall
         isolate_, ShouldContinueCallback, v8::External::New(isolate_, this)));
     env_->Global()->Set(v8_str("Klass"), t->GetFunction());
 
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("var obj = new Klass; while (obj.shouldContinue()) { }");
   }
 };
@@ -20069,7 +20067,6 @@ class RequestInterruptTestWithAccessor
         isolate_, ShouldContinueCallback, v8::External::New(isolate_, this)));
     env_->Global()->Set(v8_str("Klass"), t->GetFunction());
 
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("var obj = new Klass; while (obj.shouldContinue) { }");
   }
 };
@@ -20087,7 +20084,6 @@ class RequestInterruptTestWithNativeAccessor
         v8::External::New(isolate_, this));
     env_->Global()->Set(v8_str("Klass"), t->GetFunction());
 
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("var obj = new Klass; while (obj.shouldContinue) { }");
   }
 
@@ -20117,7 +20113,6 @@ class RequestInterruptTestWithMethodCallAndInterceptor
 
     env_->Global()->Set(v8_str("Klass"), t->GetFunction());
 
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("var obj = new Klass; while (obj.shouldContinue()) { }");
   }
 
@@ -20142,7 +20137,6 @@ class RequestInterruptTestWithMathAbs
         v8::External::New(isolate_, this)));
 
     i::FLAG_allow_natives_syntax = true;
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("function loopish(o) {"
                "  var pre = 10;"
                "  while (o.abs(1) > 0) {"
@@ -20226,7 +20220,6 @@ class RequestMultipleInterrupts : public RequestInterruptTestBase {
         isolate_, ShouldContinueCallback, v8::External::New(isolate_, this));
     env_->Global()->Set(v8_str("ShouldContinue"), func);
 
-    i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
     CompileRun("while (ShouldContinue()) { }");
   }
 
