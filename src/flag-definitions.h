@@ -446,6 +446,11 @@ DEFINE_BOOL(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_BOOL(enable_avx, true, "enable use of AVX instructions if available")
 DEFINE_BOOL(enable_fma3, true, "enable use of FMA3 instructions if available")
+DEFINE_BOOL(enable_bmi1, true, "enable use of BMI1 instructions if available")
+DEFINE_BOOL(enable_bmi2, true, "enable use of BMI2 instructions if available")
+DEFINE_BOOL(enable_lzcnt, true, "enable use of LZCNT instruction if available")
+DEFINE_BOOL(enable_popcnt, true,
+            "enable use of POPCNT instruction if available")
 DEFINE_BOOL(enable_vfp3, ENABLE_VFP3_DEFAULT,
             "enable use of VFP3 instructions if available")
 DEFINE_BOOL(enable_armv7, ENABLE_ARMV7_DEFAULT,

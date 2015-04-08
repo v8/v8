@@ -1405,6 +1405,183 @@ class Assembler : public AssemblerBase {
   void vss(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
+  // BMI instruction
+  void andnq(Register dst, Register src1, Register src2) {
+    bmi1q(0xf2, dst, src1, src2);
+  }
+  void andnq(Register dst, Register src1, const Operand& src2) {
+    bmi1q(0xf2, dst, src1, src2);
+  }
+  void andnl(Register dst, Register src1, Register src2) {
+    bmi1l(0xf2, dst, src1, src2);
+  }
+  void andnl(Register dst, Register src1, const Operand& src2) {
+    bmi1l(0xf2, dst, src1, src2);
+  }
+  void bextrq(Register dst, Register src1, Register src2) {
+    bmi1q(0xf7, dst, src2, src1);
+  }
+  void bextrq(Register dst, const Operand& src1, Register src2) {
+    bmi1q(0xf7, dst, src2, src1);
+  }
+  void bextrl(Register dst, Register src1, Register src2) {
+    bmi1l(0xf7, dst, src2, src1);
+  }
+  void bextrl(Register dst, const Operand& src1, Register src2) {
+    bmi1l(0xf7, dst, src2, src1);
+  }
+  void blsiq(Register dst, Register src) {
+    Register ireg = {3};
+    bmi1q(0xf3, ireg, dst, src);
+  }
+  void blsiq(Register dst, const Operand& src) {
+    Register ireg = {3};
+    bmi1q(0xf3, ireg, dst, src);
+  }
+  void blsil(Register dst, Register src) {
+    Register ireg = {3};
+    bmi1l(0xf3, ireg, dst, src);
+  }
+  void blsil(Register dst, const Operand& src) {
+    Register ireg = {3};
+    bmi1l(0xf3, ireg, dst, src);
+  }
+  void blsmskq(Register dst, Register src) {
+    Register ireg = {2};
+    bmi1q(0xf3, ireg, dst, src);
+  }
+  void blsmskq(Register dst, const Operand& src) {
+    Register ireg = {2};
+    bmi1q(0xf3, ireg, dst, src);
+  }
+  void blsmskl(Register dst, Register src) {
+    Register ireg = {2};
+    bmi1l(0xf3, ireg, dst, src);
+  }
+  void blsmskl(Register dst, const Operand& src) {
+    Register ireg = {2};
+    bmi1l(0xf3, ireg, dst, src);
+  }
+  void blsrq(Register dst, Register src) {
+    Register ireg = {1};
+    bmi1q(0xf3, ireg, dst, src);
+  }
+  void blsrq(Register dst, const Operand& src) {
+    Register ireg = {1};
+    bmi1q(0xf3, ireg, dst, src);
+  }
+  void blsrl(Register dst, Register src) {
+    Register ireg = {1};
+    bmi1l(0xf3, ireg, dst, src);
+  }
+  void blsrl(Register dst, const Operand& src) {
+    Register ireg = {1};
+    bmi1l(0xf3, ireg, dst, src);
+  }
+  void tzcntq(Register dst, Register src);
+  void tzcntq(Register dst, const Operand& src);
+  void tzcntl(Register dst, Register src);
+  void tzcntl(Register dst, const Operand& src);
+
+  void lzcntq(Register dst, Register src);
+  void lzcntq(Register dst, const Operand& src);
+  void lzcntl(Register dst, Register src);
+  void lzcntl(Register dst, const Operand& src);
+
+  void popcntq(Register dst, Register src);
+  void popcntq(Register dst, const Operand& src);
+  void popcntl(Register dst, Register src);
+  void popcntl(Register dst, const Operand& src);
+
+  void bzhiq(Register dst, Register src1, Register src2) {
+    bmi2q(kNone, 0xf5, dst, src2, src1);
+  }
+  void bzhiq(Register dst, const Operand& src1, Register src2) {
+    bmi2q(kNone, 0xf5, dst, src2, src1);
+  }
+  void bzhil(Register dst, Register src1, Register src2) {
+    bmi2l(kNone, 0xf5, dst, src2, src1);
+  }
+  void bzhil(Register dst, const Operand& src1, Register src2) {
+    bmi2l(kNone, 0xf5, dst, src2, src1);
+  }
+  void mulxq(Register dst1, Register dst2, Register src) {
+    bmi2q(kF2, 0xf6, dst1, dst2, src);
+  }
+  void mulxq(Register dst1, Register dst2, const Operand& src) {
+    bmi2q(kF2, 0xf6, dst1, dst2, src);
+  }
+  void mulxl(Register dst1, Register dst2, Register src) {
+    bmi2l(kF2, 0xf6, dst1, dst2, src);
+  }
+  void mulxl(Register dst1, Register dst2, const Operand& src) {
+    bmi2l(kF2, 0xf6, dst1, dst2, src);
+  }
+  void pdepq(Register dst, Register src1, Register src2) {
+    bmi2q(kF2, 0xf5, dst, src1, src2);
+  }
+  void pdepq(Register dst, Register src1, const Operand& src2) {
+    bmi2q(kF2, 0xf5, dst, src1, src2);
+  }
+  void pdepl(Register dst, Register src1, Register src2) {
+    bmi2l(kF2, 0xf5, dst, src1, src2);
+  }
+  void pdepl(Register dst, Register src1, const Operand& src2) {
+    bmi2l(kF2, 0xf5, dst, src1, src2);
+  }
+  void pextq(Register dst, Register src1, Register src2) {
+    bmi2q(kF3, 0xf5, dst, src1, src2);
+  }
+  void pextq(Register dst, Register src1, const Operand& src2) {
+    bmi2q(kF3, 0xf5, dst, src1, src2);
+  }
+  void pextl(Register dst, Register src1, Register src2) {
+    bmi2l(kF3, 0xf5, dst, src1, src2);
+  }
+  void pextl(Register dst, Register src1, const Operand& src2) {
+    bmi2l(kF3, 0xf5, dst, src1, src2);
+  }
+  void sarxq(Register dst, Register src1, Register src2) {
+    bmi2q(kF3, 0xf7, dst, src2, src1);
+  }
+  void sarxq(Register dst, const Operand& src1, Register src2) {
+    bmi2q(kF3, 0xf7, dst, src2, src1);
+  }
+  void sarxl(Register dst, Register src1, Register src2) {
+    bmi2l(kF3, 0xf7, dst, src2, src1);
+  }
+  void sarxl(Register dst, const Operand& src1, Register src2) {
+    bmi2l(kF3, 0xf7, dst, src2, src1);
+  }
+  void shlxq(Register dst, Register src1, Register src2) {
+    bmi2q(k66, 0xf7, dst, src2, src1);
+  }
+  void shlxq(Register dst, const Operand& src1, Register src2) {
+    bmi2q(k66, 0xf7, dst, src2, src1);
+  }
+  void shlxl(Register dst, Register src1, Register src2) {
+    bmi2l(k66, 0xf7, dst, src2, src1);
+  }
+  void shlxl(Register dst, const Operand& src1, Register src2) {
+    bmi2l(k66, 0xf7, dst, src2, src1);
+  }
+  void shrxq(Register dst, Register src1, Register src2) {
+    bmi2q(kF2, 0xf7, dst, src2, src1);
+  }
+  void shrxq(Register dst, const Operand& src1, Register src2) {
+    bmi2q(kF2, 0xf7, dst, src2, src1);
+  }
+  void shrxl(Register dst, Register src1, Register src2) {
+    bmi2l(kF2, 0xf7, dst, src2, src1);
+  }
+  void shrxl(Register dst, const Operand& src1, Register src2) {
+    bmi2l(kF2, 0xf7, dst, src2, src1);
+  }
+  void rorxq(Register dst, Register src, byte imm8);
+  void rorxq(Register dst, const Operand& src, byte imm8);
+  void rorxl(Register dst, Register src, byte imm8);
+  void rorxl(Register dst, const Operand& src, byte imm8);
+
   // Debugging
   void Print();
 
@@ -1602,9 +1779,9 @@ class Assembler : public AssemblerBase {
 
   // Emit vex prefix
   enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
-  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128 };
+  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
-  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x2 };
+  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
 
   void emit_vex2_byte0() { emit(0xc5); }
   inline void emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
@@ -1618,7 +1795,13 @@ class Assembler : public AssemblerBase {
   inline void emit_vex_prefix(XMMRegister reg, XMMRegister v, XMMRegister rm,
                               VectorLength l, SIMDPrefix pp, LeadingOpcode m,
                               VexW w);
+  inline void emit_vex_prefix(Register reg, Register v, Register rm,
+                              VectorLength l, SIMDPrefix pp, LeadingOpcode m,
+                              VexW w);
   inline void emit_vex_prefix(XMMRegister reg, XMMRegister v, const Operand& rm,
+                              VectorLength l, SIMDPrefix pp, LeadingOpcode m,
+                              VexW w);
+  inline void emit_vex_prefix(Register reg, Register v, const Operand& rm,
                               VectorLength l, SIMDPrefix pp, LeadingOpcode m,
                               VexW w);
 
@@ -1894,6 +2077,18 @@ class Assembler : public AssemblerBase {
   void emit_xor(const Operand& dst, Register src, int size) {
     arithmetic_op(0x31, src, dst, size);
   }
+
+  // Most BMI instructions are similiar.
+  void bmi1q(byte op, Register reg, Register vreg, Register rm);
+  void bmi1q(byte op, Register reg, Register vreg, const Operand& rm);
+  void bmi1l(byte op, Register reg, Register vreg, Register rm);
+  void bmi1l(byte op, Register reg, Register vreg, const Operand& rm);
+  void bmi2q(SIMDPrefix pp, byte op, Register reg, Register vreg, Register rm);
+  void bmi2q(SIMDPrefix pp, byte op, Register reg, Register vreg,
+             const Operand& rm);
+  void bmi2l(SIMDPrefix pp, byte op, Register reg, Register vreg, Register rm);
+  void bmi2l(SIMDPrefix pp, byte op, Register reg, Register vreg,
+             const Operand& rm);
 
   friend class CodePatcher;
   friend class EnsureSpace;

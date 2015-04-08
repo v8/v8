@@ -2886,7 +2886,11 @@ void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
 
 
 void MacroAssembler::Lzcntl(Register dst, Register src) {
-  // TODO(intel): Add support for LZCNT (BMI1/ABM).
+  if (CpuFeatures::IsSupported(LZCNT)) {
+    CpuFeatureScope scope(this, LZCNT);
+    lzcntl(dst, src);
+    return;
+  }
   Label not_zero_src;
   bsrl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
@@ -2897,7 +2901,11 @@ void MacroAssembler::Lzcntl(Register dst, Register src) {
 
 
 void MacroAssembler::Lzcntl(Register dst, const Operand& src) {
-  // TODO(intel): Add support for LZCNT (BMI1/ABM).
+  if (CpuFeatures::IsSupported(LZCNT)) {
+    CpuFeatureScope scope(this, LZCNT);
+    lzcntl(dst, src);
+    return;
+  }
   Label not_zero_src;
   bsrl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
