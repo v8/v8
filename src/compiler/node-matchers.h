@@ -570,6 +570,20 @@ struct DiamondMatcher : public NodeMatcher {
   Node* IfFalse() const { return if_false_; }
   Node* Merge() const { return node(); }
 
+  Node* TrueInputOf(Node* phi) const {
+    DCHECK(IrOpcode::IsPhiOpcode(phi->opcode()));
+    DCHECK_EQ(3, phi->InputCount());
+    DCHECK_EQ(Merge(), phi->InputAt(2));
+    return phi->InputAt(if_true_ == Merge()->InputAt(0) ? 0 : 1);
+  }
+
+  Node* FalseInputOf(Node* phi) const {
+    DCHECK(IrOpcode::IsPhiOpcode(phi->opcode()));
+    DCHECK_EQ(3, phi->InputCount());
+    DCHECK_EQ(Merge(), phi->InputAt(2));
+    return phi->InputAt(if_true_ == Merge()->InputAt(0) ? 1 : 0);
+  }
+
  private:
   Node* branch_;
   Node* if_true_;

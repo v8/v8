@@ -56,7 +56,8 @@ class ControlReducerImpl {
         common_(common),
         state_(jsgraph->graph()->NodeCount(), kUnvisited, zone_),
         stack_(zone_),
-        revisit_(zone_) {}
+        revisit_(zone_),
+        max_phis_for_select_(0) {}
 
   Zone* zone_;
   JSGraph* jsgraph_;
@@ -64,6 +65,7 @@ class ControlReducerImpl {
   ZoneVector<VisitState> state_;
   ZoneDeque<Node*> stack_;
   ZoneDeque<Node*> revisit_;
+  int max_phis_for_select_;
 
   void Reduce() {
     Push(graph()->end());
@@ -536,7 +538,7 @@ class ControlReducerImpl {
     if (live == 0) return dead();  // no remaining inputs.
 
     // Gather phis and effect phis to be edited.
-    ZoneVector<Node*> phis(zone_);
+    NodeVector phis(zone_);
     for (Node* const use : node->uses()) {
       if (NodeProperties::IsPhi(use)) phis.push_back(use);
     }
@@ -564,23 +566,47 @@ class ControlReducerImpl {
 
     DCHECK_EQ(live, node->InputCount());
 
-    // Check if it's an unused diamond.
-    if (live == 2 && phis.empty()) {
+    // Try to remove dead diamonds or introduce selects.
+    if (live == 2 && CheckPhisForSelect(phis)) {
       DiamondMatcher matcher(node);
       if (matcher.Matched() && matcher.IfProjectionsAreOwned()) {
-        // It's a dead diamond, i.e. neither the IfTrue nor the IfFalse nodes
-        // have uses except for the Merge and the Merge has no Phi or
-        // EffectPhi uses, so replace the Merge with the control input of the
-        // diamond.
-        TRACE("  DeadDiamond: #%d:Branch #%d:IfTrue #%d:IfFalse\n",
-              matcher.Branch()->id(), matcher.IfTrue()->id(),
-              matcher.IfFalse()->id());
-        // TODO(turbofan): replace single-phi diamonds with selects.
-        return NodeProperties::GetControlInput(matcher.Branch());
+        // Dead diamond, i.e. neither the IfTrue nor the IfFalse nodes
+        // have uses except for the Merge. Remove the branch if there
+        // are no phis or replace phis with selects.
+        Node* control = NodeProperties::GetControlInput(matcher.Branch());
+        if (phis.size() == 0) {
+          // No phis. Remove the branch altogether.
+          TRACE("  DeadDiamond: #%d:Branch #%d:IfTrue #%d:IfFalse\n",
+                matcher.Branch()->id(), matcher.IfTrue()->id(),
+                matcher.IfFalse()->id());
+          return control;
+        } else {
+          // A small number of phis. Replace with selects.
+          Node* cond = matcher.Branch()->InputAt(0);
+          for (Node* phi : phis) {
+            Node* select = graph()->NewNode(
+                common_->Select(OpParameter<MachineType>(phi),
+                                BranchHintOf(matcher.Branch()->op())),
+                cond, matcher.TrueInputOf(phi), matcher.FalseInputOf(phi));
+            TRACE("  MatchSelect: #%d:Branch #%d:IfTrue #%d:IfFalse -> #%d\n",
+                  matcher.Branch()->id(), matcher.IfTrue()->id(),
+                  matcher.IfFalse()->id(), select->id());
+            ReplaceNode(phi, select);
+          }
+          return control;
+        }
       }
     }
 
     return node;
+  }
+
+  bool CheckPhisForSelect(const NodeVector& phis) {
+    if (phis.size() > static_cast<size_t>(max_phis_for_select_)) return false;
+    for (Node* phi : phis) {
+      if (phi->opcode() != IrOpcode::kPhi) return false;  // no EffectPhis.
+    }
+    return true;
   }
 
   // Reduce if projections if the branch has a constant input.
@@ -638,8 +664,10 @@ class ControlReducerImpl {
 
 
 void ControlReducer::ReduceGraph(Zone* zone, JSGraph* jsgraph,
-                                 CommonOperatorBuilder* common) {
+                                 CommonOperatorBuilder* common,
+                                 int max_phis_for_select) {
   ControlReducerImpl impl(zone, jsgraph, common);
+  impl.max_phis_for_select_ = max_phis_for_select;
   impl.Reduce();
 }
 
@@ -651,9 +679,11 @@ void ControlReducer::TrimGraph(Zone* zone, JSGraph* jsgraph) {
 
 
 Node* ControlReducer::ReduceMerge(JSGraph* jsgraph,
-                                  CommonOperatorBuilder* common, Node* node) {
+                                  CommonOperatorBuilder* common, Node* node,
+                                  int max_phis_for_select) {
   Zone zone;
   ControlReducerImpl impl(&zone, jsgraph, common);
+  impl.max_phis_for_select_ = max_phis_for_select;
   return impl.ReduceMerge(node);
 }
 

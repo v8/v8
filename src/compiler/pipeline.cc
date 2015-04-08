@@ -593,22 +593,23 @@ struct ChangeLoweringPhase {
 };
 
 
-struct ControlReductionPhase {
+struct EarlyControlReductionPhase {
+  static const char* phase_name() { return "early control reduction"; }
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), data->common());
+    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), data->common(), 1);
   }
 };
 
 
-struct EarlyControlReductionPhase : ControlReductionPhase {
-  static const char* phase_name() { return "early control reduction"; }
-};
-
-
-struct LateControlReductionPhase : ControlReductionPhase {
+struct LateControlReductionPhase {
   static const char* phase_name() { return "late control reduction"; }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    SourcePositionTable::Scope pos(data->source_positions(),
+                                   SourcePosition::Unknown());
+    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), data->common(), 0);
+  }
 };
 
 
