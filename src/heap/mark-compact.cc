@@ -3138,6 +3138,7 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
   cell_base += (start_index - cell_base_start_index) * 32 * kPointerSize;
   Address address = cell_base + offset * kPointerSize;
   HeapObject* object = HeapObject::FromAddress(address);
+  CHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
   CHECK(object->address() < reinterpret_cast<Address>(slot));
   if (object->address() <= slot &&
       (object->address() + object->Size()) > slot) {
