@@ -116,6 +116,9 @@
   # TODO(mstarzinger): Crankshaft doesn't fire interceptors as expected.
   'test-api-interceptors/PrePropertyHandler': [PASS, NO_VARIANTS],
 
+  # TODO(mstarzinger): Crankshaft messes with debugger, investigate and fix!
+  'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
+
   # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
   'test-js-typed-lowering/OrderCompareEffects': [SKIP],
 
