@@ -24,8 +24,7 @@ var GlobalArray = global.Array;
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
   x = +x;
-  if (x > 0) return x;
-  return 0 - x;
+  return (x > 0) ? x : 0 - x;
 }
 
 // ECMA 262 - 15.8.2.2

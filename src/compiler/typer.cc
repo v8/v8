@@ -2134,6 +2134,12 @@ Bounds Typer::Visitor::TypeFloat32Min(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeFloat32Abs(Node* node) {
+  // TODO(turbofan): We should be able to infer a better type here.
+  return Bounds(Type::Number());
+}
+
+
 Bounds Typer::Visitor::TypeFloat32Sqrt(Node* node) {
   return Bounds(Type::Number());
 }
@@ -2185,6 +2191,12 @@ Bounds Typer::Visitor::TypeFloat64Max(Node* node) {
 
 
 Bounds Typer::Visitor::TypeFloat64Min(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64Abs(Node* node) {
+  // TODO(turbofan): We should be able to infer a better type here.
   return Bounds(Type::Number());
 }
 

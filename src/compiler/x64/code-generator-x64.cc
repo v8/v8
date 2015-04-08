@@ -726,6 +726,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat32Div:
       ASSEMBLE_SSE_BINOP(divss);
       break;
+    case kSSEFloat32Abs: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      // TODO(turbofan): Add AVX version with relaxed register constraints.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlq(kScratchDoubleReg, 33);
+      __ andps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      break;
+    }
     case kSSEFloat32Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       // TODO(turbofan): Add AVX version with relaxed register constraints.
@@ -799,6 +807,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Min:
       ASSEMBLE_SSE_BINOP(minsd);
       break;
+    case kSSEFloat64Abs: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      // TODO(turbofan): Add AVX version with relaxed register constraints.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlq(kScratchDoubleReg, 1);
+      __ andpd(i.OutputDoubleRegister(), kScratchDoubleReg);
+      break;
+    }
     case kSSEFloat64Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       // TODO(turbofan): Add AVX version with relaxed register constraints.

@@ -16,6 +16,7 @@ class CommonOperatorBuilder;
 class Graph;
 class JSGraph;
 class MachineOperatorBuilder;
+class Operator;
 
 
 // Performs strength reduction on nodes that have common operators.
@@ -30,6 +31,9 @@ class CommonOperatorReducer FINAL : public Reducer {
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceSelect(Node* node);
+
+  Reduction Change(Node* node, Operator const* op, Node* a);
+  Reduction Change(Node* node, Operator const* op, Node* a, Node* b);
 
   CommonOperatorBuilder* common() const;
   Graph* graph() const;

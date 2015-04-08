@@ -4945,6 +4945,40 @@ TEST(RunFloat64InsertHighWord32) {
 }
 
 
+TEST(RunFloat32Abs) {
+  float input = -1.0;
+  float result = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  if (!m.machine()->HasFloat32Abs()) return;
+  m.StoreToPointer(&result, kMachFloat32,
+                   m.Float32Abs(m.LoadFromPointer(&input, kMachFloat32)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT32_INPUTS(i) {
+    input = *i;
+    float expected = std::abs(input);
+    CHECK_EQ(0, m.Call());
+    CheckFloatEq(expected, result);
+  }
+}
+
+
+TEST(RunFloat64Abs) {
+  double input = -1.0;
+  double result = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  if (!m.machine()->HasFloat64Abs()) return;
+  m.StoreToPointer(&result, kMachFloat64,
+                   m.Float64Abs(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    input = *i;
+    double expected = std::abs(input);
+    CHECK_EQ(0, m.Call());
+    CheckDoubleEq(expected, result);
+  }
+}
+
+
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.
 static double two_52 = two_30 * (1 << 22);  // 2^52 is a precision boundary.
 static double kValues[] = {0.1,

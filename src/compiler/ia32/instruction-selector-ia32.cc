@@ -759,6 +759,18 @@ void InstructionSelector::VisitFloat64Min(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32Abs(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kSSEFloat32Abs, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64Abs(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kSSEFloat64Abs, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitROFloat(this, node, kSSEFloat32Sqrt);
 }
@@ -1196,8 +1208,10 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
+      MachineOperatorBuilder::kFloat32Abs |
       MachineOperatorBuilder::kFloat32Max |
       MachineOperatorBuilder::kFloat32Min |
+      MachineOperatorBuilder::kFloat64Abs |
       MachineOperatorBuilder::kFloat64Max |
       MachineOperatorBuilder::kFloat64Min |
       MachineOperatorBuilder::kWord32ShiftIsSafe;

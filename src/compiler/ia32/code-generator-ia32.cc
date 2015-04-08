@@ -477,6 +477,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat32Sqrt:
       __ sqrtss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kSSEFloat32Abs: {
+      // TODO(bmeurer): Use 128-bit constants.
+      // TODO(turbofan): Add AVX version with relaxed register constraints.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlq(kScratchDoubleReg, 33);
+      __ andps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      break;
+    }
     case kSSEFloat32Neg: {
       // TODO(bmeurer): Use 128-bit constants.
       // TODO(turbofan): Add AVX version with relaxed register constraints.
@@ -529,6 +537,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fstp_d(Operand(esp, 0));
       __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));
       __ add(esp, Immediate(kDoubleSize));
+      break;
+    }
+    case kSSEFloat64Abs: {
+      // TODO(bmeurer): Use 128-bit constants.
+      // TODO(turbofan): Add AVX version with relaxed register constraints.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlq(kScratchDoubleReg, 1);
+      __ andpd(i.OutputDoubleRegister(), kScratchDoubleReg);
       break;
     }
     case kSSEFloat64Neg: {

@@ -1044,6 +1044,16 @@ void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitFloat32Abs(Node* node) {
+  VisitRR(this, kArmVabsF32, node);
+}
+
+
+void InstructionSelector::VisitFloat64Abs(Node* node) {
+  VisitRR(this, kArmVabsF64, node);
+}
+
+
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kArmVsqrtF32, node);
 }
@@ -1502,6 +1512,8 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
+      MachineOperatorBuilder::kFloat32Abs |
+      MachineOperatorBuilder::kFloat64Abs |
       MachineOperatorBuilder::kInt32DivIsSafe |
       MachineOperatorBuilder::kUint32DivIsSafe;
 

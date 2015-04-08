@@ -983,6 +983,12 @@ void InstructionSelector::VisitFloat64Min(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32Abs(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitFloat64Abs(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kPPC_SqrtDouble, node);
 }

@@ -764,6 +764,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat32Min(node);
     case IrOpcode::kFloat32Max:
       return MarkAsDouble(node), VisitFloat32Max(node);
+    case IrOpcode::kFloat32Abs:
+      return MarkAsDouble(node), VisitFloat32Abs(node);
     case IrOpcode::kFloat32Sqrt:
       return MarkAsDouble(node), VisitFloat32Sqrt(node);
     case IrOpcode::kFloat32Equal:
@@ -786,6 +788,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat64Min(node);
     case IrOpcode::kFloat64Max:
       return MarkAsDouble(node), VisitFloat64Max(node);
+    case IrOpcode::kFloat64Abs:
+      return MarkAsDouble(node), VisitFloat64Abs(node);
     case IrOpcode::kFloat64Sqrt:
       return MarkAsDouble(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:

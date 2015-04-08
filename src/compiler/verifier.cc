@@ -793,6 +793,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat32Div:
     case IrOpcode::kFloat32Max:
     case IrOpcode::kFloat32Min:
+    case IrOpcode::kFloat32Abs:
     case IrOpcode::kFloat32Sqrt:
     case IrOpcode::kFloat32Equal:
     case IrOpcode::kFloat32LessThan:
@@ -804,6 +805,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Max:
     case IrOpcode::kFloat64Min:
+    case IrOpcode::kFloat64Abs:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:

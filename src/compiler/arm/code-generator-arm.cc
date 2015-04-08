@@ -554,6 +554,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVsqrtF32:
       __ vsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
+    case kArmVabsF32:
+      __ vabs(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArmVnegF32:
       __ vneg(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
@@ -615,6 +618,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kArmVsqrtF64:
       __ vsqrt(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
+    case kArmVabsF64:
+      __ vabs(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
     case kArmVnegF64:
       __ vneg(i.OutputFloat64Register(), i.InputFloat64Register(0));
@@ -805,7 +811,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_CHECKED_STORE_FLOAT(64);
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 // Assembles branches after an instruction.

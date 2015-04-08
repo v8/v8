@@ -203,12 +203,18 @@ Matcher<Node*> IsChangeUint32ToUint64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToFloat32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat32Max(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat32Min(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat32Abs(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Max(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Min(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Sub(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64Abs(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Sqrt(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundDown(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTruncate(const Matcher<Node*>& input_matcher);

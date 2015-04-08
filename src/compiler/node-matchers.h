@@ -30,6 +30,8 @@ struct NodeMatcher {
   }
   Node* InputAt(int index) const { return node()->InputAt(index); }
 
+  bool Equals(const Node* node) const { return node_ == node; }
+
   bool IsComparison() const;
 
 #define DEFINE_IS_OPCODE(Opcode) \
@@ -141,6 +143,7 @@ struct FloatMatcher FINAL : public ValueMatcher<T, kOpcode> {
     return this->Is(0.0) && std::signbit(this->Value());
   }
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
+  bool IsZero() const { return this->Is(0.0) && !std::signbit(this->Value()); }
 };
 
 typedef FloatMatcher<float, IrOpcode::kFloat32Constant> Float32Matcher;

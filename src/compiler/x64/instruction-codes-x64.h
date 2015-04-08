@@ -52,6 +52,7 @@ namespace compiler {
   V(SSEFloat32Sub)                 \
   V(SSEFloat32Mul)                 \
   V(SSEFloat32Div)                 \
+  V(SSEFloat32Abs)                 \
   V(SSEFloat32Neg)                 \
   V(SSEFloat32Sqrt)                \
   V(SSEFloat32Max)                 \
@@ -63,6 +64,7 @@ namespace compiler {
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat64Abs)                 \
   V(SSEFloat64Neg)                 \
   V(SSEFloat64Sqrt)                \
   V(SSEFloat64Round)               \

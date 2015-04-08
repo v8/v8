@@ -74,16 +74,18 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   // for operations that are unsupported by some back-ends.
   enum Flag {
     kNoFlags = 0u,
-    kFloat32Max = 1u << 0,
-    kFloat32Min = 1u << 1,
-    kFloat64Max = 1u << 2,
-    kFloat64Min = 1u << 3,
-    kFloat64RoundDown = 1u << 4,
-    kFloat64RoundTruncate = 1u << 5,
-    kFloat64RoundTiesAway = 1u << 6,
-    kInt32DivIsSafe = 1u << 7,
-    kUint32DivIsSafe = 1u << 8,
-    kWord32ShiftIsSafe = 1u << 9
+    kFloat32Abs = 1u << 0,
+    kFloat32Max = 1u << 1,
+    kFloat32Min = 1u << 2,
+    kFloat64Abs = 1u << 3,
+    kFloat64Max = 1u << 4,
+    kFloat64Min = 1u << 5,
+    kFloat64RoundDown = 1u << 6,
+    kFloat64RoundTruncate = 1u << 7,
+    kFloat64RoundTiesAway = 1u << 8,
+    kInt32DivIsSafe = 1u << 9,
+    kUint32DivIsSafe = 1u << 10,
+    kWord32ShiftIsSafe = 1u << 11
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -196,6 +198,14 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Float64Min();
   bool HasFloat64Max() { return flags_ & kFloat64Max; }
   bool HasFloat64Min() { return flags_ & kFloat64Min; }
+
+  // Floating point abs complying to IEEE 754 (single-precision).
+  const Operator* Float32Abs();
+  bool HasFloat32Abs() const { return flags_ & kFloat32Abs; }
+
+  // Floating point abs complying to IEEE 754 (double-precision).
+  const Operator* Float64Abs();
+  bool HasFloat64Abs() const { return flags_ & kFloat64Abs; }
 
   // Floating point rounding.
   const Operator* Float64RoundDown();

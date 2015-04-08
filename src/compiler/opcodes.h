@@ -249,6 +249,7 @@
   V(Float32Div)                 \
   V(Float32Max)                 \
   V(Float32Min)                 \
+  V(Float32Abs)                 \
   V(Float32Sqrt)                \
   V(Float64Add)                 \
   V(Float64Sub)                 \
@@ -257,6 +258,7 @@
   V(Float64Mod)                 \
   V(Float64Max)                 \
   V(Float64Min)                 \
+  V(Float64Abs)                 \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float64RoundTruncate)       \
