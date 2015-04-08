@@ -320,6 +320,9 @@
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
 
+  # BUG(v8:4016)
+  'regress/regress-crbug-467047': [SKIP],
+
   # Slow tests.
   'array-concat': [PASS, SLOW],
   'array-constructor': [PASS, SLOW],
