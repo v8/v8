@@ -34,7 +34,6 @@
   'intl402/12.2.3_b': [FAIL],
 
   # TODO(mstarzinger): Optimizing top-level code found some issues. Fix!
-  'language/expressions/addition/S9.3_A4.1_T2': [PASS, NO_VARIANTS],
   'language/expressions/addition/S11.6.1_A2.2_T2': [PASS, NO_VARIANTS],
   'language/expressions/addition/S11.6.1_A3.2_T2.2': [PASS, NO_VARIANTS],
   'language/expressions/addition/S11.6.1_A3.2_T2.4': [PASS, NO_VARIANTS],
