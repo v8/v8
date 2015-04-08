@@ -138,6 +138,11 @@ class GCIdleTimeHandler {
 
   static const size_t kMinTimeForOverApproximatingWeakClosureInMs;
 
+  // Number of times we will return a Nothing action per Idle round despite
+  // having idle time available before we returning a Done action to ensure we
+  // don't keep scheduling idle tasks and making no progress.
+  static const int kMaxNoProgressIdleTimesPerIdleRound = 10;
+
   class HeapState {
    public:
     void Print();
@@ -159,7 +164,8 @@ class GCIdleTimeHandler {
 
   GCIdleTimeHandler()
       : mark_compacts_since_idle_round_started_(0),
-        scavenges_since_last_idle_round_(0) {}
+        scavenges_since_last_idle_round_(0),
+        idle_times_which_made_no_progress_since_last_idle_round_(0) {}
 
   GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
 
@@ -203,7 +209,12 @@ class GCIdleTimeHandler {
       size_t new_space_allocation_throughput_in_bytes_per_ms);
 
  private:
-  void StartIdleRound() { mark_compacts_since_idle_round_started_ = 0; }
+  GCIdleTimeAction NothingOrDone();
+
+  void StartIdleRound() {
+    mark_compacts_since_idle_round_started_ = 0;
+    idle_times_which_made_no_progress_since_last_idle_round_ = 0;
+  }
   bool IsMarkCompactIdleRoundFinished() {
     return mark_compacts_since_idle_round_started_ ==
            kMaxMarkCompactsInIdleRound;
@@ -214,6 +225,7 @@ class GCIdleTimeHandler {
 
   int mark_compacts_since_idle_round_started_;
   int scavenges_since_last_idle_round_;
+  int idle_times_which_made_no_progress_since_last_idle_round_;
 
   DISALLOW_COPY_AND_ASSIGN(GCIdleTimeHandler);
 };
