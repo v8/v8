@@ -2119,6 +2119,11 @@ void Assembler::div_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 
+void Assembler::abs_s(FPURegister fd, FPURegister fs) {
+  GenInstrRegister(COP1, S, f0, fs, fd, ABS_D);
+}
+
+
 void Assembler::abs_d(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, D, f0, fs, fd, ABS_D);
 }

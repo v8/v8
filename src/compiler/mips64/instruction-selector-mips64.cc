@@ -612,10 +612,14 @@ void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
 
 
-void InstructionSelector::VisitFloat32Abs(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat32Abs(Node* node) {
+  VisitRR(this, kMips64AbsS, node);
+}
 
 
-void InstructionSelector::VisitFloat64Abs(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Abs(Node* node) {
+  VisitRR(this, kMips64AbsD, node);
+}
 
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
@@ -1182,7 +1186,9 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat64RoundDown |
+  return MachineOperatorBuilder::kFloat32Abs |
+         MachineOperatorBuilder::kFloat64Abs |
+         MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate;
 }
 

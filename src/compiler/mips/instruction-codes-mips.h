@@ -40,6 +40,7 @@ namespace compiler {
   V(MipsMulS)                      \
   V(MipsDivS)                      \
   V(MipsModS)                      \
+  V(MipsAbsS)                      \
   V(MipsSqrtS)                     \
   V(MipsCmpD)                      \
   V(MipsAddD)                      \
@@ -47,6 +48,7 @@ namespace compiler {
   V(MipsMulD)                      \
   V(MipsDivD)                      \
   V(MipsModD)                      \
+  V(MipsAbsD)                      \
   V(MipsSqrtD)                     \
   V(MipsFloat64RoundDown)          \
   V(MipsFloat64RoundTruncate)      \

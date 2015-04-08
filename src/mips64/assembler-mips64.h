@@ -923,6 +923,7 @@ class Assembler : public AssemblerBase {
   void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void div_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void abs_s(FPURegister fd, FPURegister fs);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
   void neg_s(FPURegister fd, FPURegister fs);
