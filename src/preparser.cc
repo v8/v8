@@ -410,8 +410,8 @@ PreParser::Statement PreParser::ParseVariableStatement(
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result =
-      ParseVariableDeclarations(var_context, nullptr, nullptr, CHECK_OK);
+  Statement result = ParseVariableDeclarations(var_context, nullptr, nullptr,
+                                               nullptr, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -424,7 +424,8 @@ PreParser::Statement PreParser::ParseVariableStatement(
 // of 'for-in' loops.
 PreParser::Statement PreParser::ParseVariableDeclarations(
     VariableDeclarationContext var_context, int* num_decl,
-    Scanner::Location* first_initializer_loc, bool* ok) {
+    Scanner::Location* first_initializer_loc, Scanner::Location* bindings_loc,
+    bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -478,6 +479,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   // of a let declared variable is the scope of the immediately enclosing
   // block.
   int nvars = 0;  // the number of variables declared
+  int bindings_start = peek_position();
   do {
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
@@ -496,6 +498,11 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     }
   } while (peek() == Token::COMMA);
+
+  if (bindings_loc) {
+    *bindings_loc =
+        Scanner::Location(bindings_start, scanner()->location().end_pos);
+  }
 
   if (num_decl != NULL) *num_decl = nvars;
   return Statement::Default();
@@ -732,17 +739,24 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
     ForEachStatement::VisitMode mode;
     if (peek() == Token::VAR || peek() == Token::CONST ||
         (peek() == Token::LET && is_strict(language_mode()))) {
-      bool is_lexical = peek() == Token::LET ||
-                        (peek() == Token::CONST && is_strict(language_mode()));
       int decl_count;
       Scanner::Location first_initializer_loc = Scanner::Location::invalid();
+      Scanner::Location bindings_loc = Scanner::Location::invalid();
       ParseVariableDeclarations(kForStatement, &decl_count,
-                                &first_initializer_loc, CHECK_OK);
-      bool has_initializers = first_initializer_loc.IsValid();
-      bool accept_IN = decl_count == 1 && !(is_lexical && has_initializers);
+                                &first_initializer_loc, &bindings_loc,
+                                CHECK_OK);
+      bool accept_IN = decl_count >= 1;
       bool accept_OF = true;
       if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
         if (!*ok) return Statement::Default();
+        if (decl_count != 1) {
+          const char* loop_type =
+              mode == ForEachStatement::ITERATE ? "for-of" : "for-in";
+          PreParserTraits::ReportMessageAt(
+              bindings_loc, "for_inof_loop_multi_bindings", loop_type);
+          *ok = false;
+          return Statement::Default();
+        }
         if (first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE)) {
           if (mode == ForEachStatement::ITERATE) {

@@ -199,7 +199,8 @@ var kMessages = {
   constructor_noncallable:       ["Class constructors cannot be invoked without 'new'"],
   array_not_subclassable:        ["Subclassing Arrays is not currently supported."],
   for_in_loop_initializer:       ["for-in loop variable declaration may not have an initializer."],
-  for_of_loop_initializer:       ["for-of loop variable declaration may not have an initializer."]
+  for_of_loop_initializer:       ["for-of loop variable declaration may not have an initializer."],
+  for_inof_loop_multi_bindings:  ["Invalid left-hand side in ", "%0", " loop: Must have a single binding."]
 };
 
 
