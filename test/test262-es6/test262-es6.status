@@ -35,6 +35,9 @@
 
   # TODO(mstarzinger): Optimizing top-level code found some issues. Fix!
   'language/expressions/addition/S9.3_A4.1_T2': [PASS, NO_VARIANTS],
+  'language/expressions/addition/S11.6.1_A2.2_T2': [PASS, NO_VARIANTS],
+  'language/expressions/addition/S11.6.1_A3.2_T2.2': [PASS, NO_VARIANTS],
+  'language/expressions/addition/S11.6.1_A3.2_T2.4': [PASS, NO_VARIANTS],
 
   # Unicode canonicalization is not available with i18n turned off.
   'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [['no_i18n', SKIP]],

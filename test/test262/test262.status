@@ -34,6 +34,9 @@
 
   # TODO(mstarzinger): Optimizing top-level code found some issues. Fix!
   'S9.3_A4.1_T2': [PASS, NO_VARIANTS],
+  'S11.6.1_A2.2_T2': [PASS, NO_VARIANTS],
+  'S11.6.1_A3.2_T2.2': [PASS, NO_VARIANTS],
+  'S11.6.1_A3.2_T2.4': [PASS, NO_VARIANTS],
 
   # BUG(v8:3455)
   '11.2.3_b': [FAIL],
