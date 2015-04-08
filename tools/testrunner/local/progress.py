@@ -66,6 +66,9 @@ class ProgressIndicator(object):
   def HasRun(self, test, has_unexpected_output):
     pass
 
+  def Heartbeat(self):
+    pass
+
   def PrintFailureHeader(self, test):
     if test.suite.IsNegativeTest(test):
       negative_marker = '[negative] '
@@ -127,6 +130,10 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     else:
       outcome = 'pass'
     print 'Done running %s: %s' % (test.GetLabel(), outcome)
+
+  def Heartbeat(self):
+    print 'Still working...'
+    sys.stdout.flush()
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
