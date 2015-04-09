@@ -294,14 +294,20 @@ class FrameInspector {
   FrameInspector(JavaScriptFrame* frame, int inlined_jsframe_index,
                  Isolate* isolate)
       : frame_(frame), deoptimized_frame_(NULL), isolate_(isolate) {
-    // Calculate the deoptimized frame.
-    if (frame->is_optimized()) {
-      deoptimized_frame_ = Deoptimizer::DebuggerInspectableFrame(
-          frame, inlined_jsframe_index, isolate);
-    }
     has_adapted_arguments_ = frame_->has_adapted_arguments();
     is_bottommost_ = inlined_jsframe_index == 0;
     is_optimized_ = frame_->is_optimized();
+    // Calculate the deoptimized frame.
+    if (frame->is_optimized()) {
+      // TODO(turbofan): Revisit once we support deoptimization.
+      if (frame->LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+        is_optimized_ = false;
+        return;
+      }
+
+      deoptimized_frame_ = Deoptimizer::DebuggerInspectableFrame(
+          frame, inlined_jsframe_index, isolate);
+    }
   }
 
   ~FrameInspector() {
@@ -325,6 +331,10 @@ class FrameInspector {
                          : frame_->GetParameter(index);
   }
   Object* GetExpression(int index) {
+    // TODO(turbofan): Revisit once we support deoptimization.
+    if (frame_->LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+      return isolate_->heap()->undefined_value();
+    }
     return is_optimized_ ? deoptimized_frame_->GetExpression(index)
                          : frame_->GetExpression(index);
   }
