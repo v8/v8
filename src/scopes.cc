@@ -328,8 +328,8 @@ void Scope::Initialize() {
     receiver_ = outer_scope()->receiver();
   }
 
-  if (is_function_scope()) {
-    // Declare 'arguments' variable which exists in all functions.
+  if (is_function_scope() && !is_arrow_scope()) {
+    // Declare 'arguments' variable which exists in all non arrow functions.
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
     variables_.Declare(this,
@@ -1295,11 +1295,13 @@ void Scope::AllocateHeapSlot(Variable* var) {
 void Scope::AllocateParameterLocals(Isolate* isolate) {
   DCHECK(is_function_scope());
   Variable* arguments = LookupLocal(ast_value_factory_->arguments_string());
-  DCHECK(arguments != NULL);  // functions have 'arguments' declared implicitly
+  // Functions have 'arguments' declared implicitly in all non arrow functions.
+  DCHECK(arguments != nullptr || is_arrow_scope());
 
   bool uses_sloppy_arguments = false;
 
-  if (MustAllocate(arguments) && !HasArgumentsParameter(isolate)) {
+  if (arguments != nullptr && MustAllocate(arguments) &&
+      !HasArgumentsParameter(isolate)) {
     // 'arguments' is used. Unless there is also a parameter called
     // 'arguments', we must be conservative and allocate all parameters to
     // the context assuming they will be captured by the arguments object.

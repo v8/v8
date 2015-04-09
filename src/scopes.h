@@ -394,7 +394,10 @@ class Scope: public ZoneObject {
   }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
-  Variable* arguments() const { return arguments_; }
+  Variable* arguments() const {
+    DCHECK(!is_arrow_scope() || arguments_ == nullptr);
+    return arguments_;
+  }
 
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
