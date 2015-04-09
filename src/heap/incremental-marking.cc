@@ -141,7 +141,6 @@ static inline void MarkBlackOrKeepBlack(HeapObject* heap_object,
   if (Marking::IsBlack(mark_bit)) return;
   Marking::MarkBlack(mark_bit);
   MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(), size);
-  DCHECK(Marking::IsBlack(mark_bit));
 }
 
 
@@ -251,7 +250,7 @@ class IncrementalMarkingMarkingVisitor
     HeapObject* heap_object = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (Marking::IsWhite(mark_bit)) {
-      mark_bit.Set();
+      Marking::MarkBlack(mark_bit);
       MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(),
                                             heap_object->Size());
       return true;

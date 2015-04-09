@@ -382,7 +382,8 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
   LargeObjectIterator it(heap_->lo_space());
   for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    if (chunk->scan_on_scavenge() && !Marking::MarkBitFrom(object).Get()) {
+    if (chunk->scan_on_scavenge() &&
+        Marking::IsWhite(Marking::MarkBitFrom(object))) {
       chunk->set_scan_on_scavenge(false);
     }
   }

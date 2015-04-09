@@ -28,10 +28,9 @@ void MarkCompactCollector::SetFlags(int flags) {
 
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
-  if (!mark_bit.Get()) {
-    mark_bit.Set();
+  if (Marking::IsWhite(mark_bit)) {
+    Marking::WhiteToBlack(mark_bit);
     MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    DCHECK(IsMarked(obj));
     DCHECK(obj->GetIsolate()->heap()->Contains(obj));
     marking_deque_.PushBlack(obj);
   }
@@ -39,9 +38,9 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 
 
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(!mark_bit.Get());
+  DCHECK(Marking::IsWhite(mark_bit));
   DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
-  mark_bit.Set();
+  Marking::WhiteToBlack(mark_bit);
   MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
 }
 
@@ -49,7 +48,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
 bool MarkCompactCollector::IsMarked(Object* obj) {
   DCHECK(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
-  return Marking::MarkBitFrom(heap_object).Get();
+  return Marking::IsBlackOrGrey(Marking::MarkBitFrom(heap_object));
 }
 
 

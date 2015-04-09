@@ -5771,7 +5771,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   bool SkipObject(HeapObject* object) {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
-    return !mark_bit.Get();
+    return Marking::IsWhite(mark_bit);
   }
 
  private:
@@ -5784,8 +5784,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         if (!(*p)->IsHeapObject()) continue;
         HeapObject* obj = HeapObject::cast(*p);
         MarkBit mark_bit = Marking::MarkBitFrom(obj);
-        if (!mark_bit.Get()) {
-          mark_bit.Set();
+        if (Marking::IsWhite(mark_bit)) {
+          Marking::WhiteToBlack(mark_bit);
           marking_stack_.Add(obj);
         }
       }

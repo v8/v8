@@ -2971,8 +2971,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     // pointer object is this big.
     bool is_pointer_object = object->IsFixedArray();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
-    if (mark_bit.Get()) {
-      mark_bit.Clear();
+    if (Marking::IsBlackOrGrey(mark_bit)) {
+      Marking::BlackToWhite(mark_bit);
       Page::FromAddress(object->address())->ResetProgressBar();
       Page::FromAddress(object->address())->ResetLiveBytes();
       previous = current;
@@ -3127,7 +3127,7 @@ void Page::Print() {
   unsigned mark_size = 0;
   for (HeapObject* object = objects.Next(); object != NULL;
        object = objects.Next()) {
-    bool is_marked = Marking::MarkBitFrom(object).Get();
+    bool is_marked = Marking::IsBlackOrGrey(Marking::MarkBitFrom(object));
     PrintF(" %c ", (is_marked ? '!' : ' '));  // Indent a little.
     if (is_marked) {
       mark_size += heap()->GcSafeSizeOfOldObjectFunction()(object);

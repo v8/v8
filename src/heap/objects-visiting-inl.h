@@ -680,7 +680,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(Heap* heap,
   // Code is either on stack, in compilation cache or referenced
   // by optimized version of function.
   MarkBit code_mark = Marking::MarkBitFrom(function->code());
-  if (code_mark.Get()) {
+  if (Marking::IsBlackOrGrey(code_mark)) {
     return false;
   }
 
@@ -709,7 +709,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   // Code is either on stack, in compilation cache or referenced
   // by optimized version of function.
   MarkBit code_mark = Marking::MarkBitFrom(shared_info->code());
-  if (code_mark.Get()) {
+  if (Marking::IsBlackOrGrey(code_mark)) {
     return false;
   }
 
