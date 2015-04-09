@@ -101,6 +101,7 @@
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-setbreakpoint': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-step': [PASS, NO_VARIANTS],  # windows only.
   'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
