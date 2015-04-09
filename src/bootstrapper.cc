@@ -135,15 +135,14 @@ class Genesis BASE_EMBEDDED {
   // Creates the empty function.  Used for creating a context from scratch.
   Handle<JSFunction> CreateEmptyFunction(Isolate* isolate);
   // Creates the ThrowTypeError function. ECMA 5th Ed. 13.2.3
-  Handle<JSFunction> GetStrictPoisonFunction();
-  // Poison for sloppy generator function arguments/callee.
-  Handle<JSFunction> GetGeneratorPoisonFunction();
+  Handle<JSFunction> GetRestrictedFunctionPropertiesThrower();
+  Handle<JSFunction> GetStrictArgumentsPoisonFunction();
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateStrongModeFunctionMaps(Handle<JSFunction> empty);
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
-  void PoisonArgumentsAndCaller(Handle<Map> map);
+  void AddRestrictedFunctionProperties(Handle<Map> map);
 
   // Creates the global objects using the global proxy and the template passed
   // in through the API.  We call this regardless of whether we are building a
@@ -297,7 +296,7 @@ class Genesis BASE_EMBEDDED {
   Handle<Map> sloppy_function_map_writable_prototype_;
   Handle<Map> strict_function_map_writable_prototype_;
   Handle<JSFunction> strict_poison_function;
-  Handle<JSFunction> generator_poison_function;
+  Handle<JSFunction> restricted_function_properties_thrower;
 
   BootstrapperActive active_;
   friend class Bootstrapper;
@@ -347,20 +346,25 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 
 static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
-                                          const char* name,
-                                          InstanceType type,
+                                          const char* name, InstanceType type,
                                           int instance_size,
                                           MaybeHandle<JSObject> maybe_prototype,
-                                          Builtins::Name call) {
+                                          Builtins::Name call,
+                                          bool strict_function_map = false) {
   Isolate* isolate = target->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<String> internalized_name = factory->InternalizeUtf8String(name);
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
   Handle<JSObject> prototype;
-  Handle<JSFunction> function = maybe_prototype.ToHandle(&prototype)
-      ? factory->NewFunction(internalized_name, call_code, prototype,
-                             type, instance_size)
-      : factory->NewFunctionWithoutPrototype(internalized_name, call_code);
+  static const bool kReadOnlyPrototype = false;
+  static const bool kInstallConstructor = false;
+  Handle<JSFunction> function =
+      maybe_prototype.ToHandle(&prototype)
+          ? factory->NewFunction(internalized_name, call_code, prototype, type,
+                                 instance_size, kReadOnlyPrototype,
+                                 kInstallConstructor, strict_function_map)
+          : factory->NewFunctionWithoutPrototype(internalized_name, call_code,
+                                                 strict_function_map);
   PropertyAttributes attributes;
   if (target->IsJSBuiltinsObject()) {
     attributes =
@@ -377,8 +381,8 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
 }
 
 
-void Genesis::SetFunctionInstanceDescriptor(
-    Handle<Map> map, FunctionMode function_mode) {
+void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
+                                            FunctionMode function_mode) {
   int size = IsFunctionModeWithPrototype(function_mode) ? 5 : 4;
   Map::EnsureDescriptorSlack(map, size);
 
@@ -460,7 +464,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // This map is installed in MakeFunctionInstancePrototypeWritable.
   sloppy_function_map_writable_prototype_ =
       CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
-
   Factory* factory = isolate->factory();
 
   Handle<String> object_name = factory->Object_string();
@@ -511,6 +514,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   DCHECK(!empty_function_map->is_dictionary_map());
   empty_function_map->SetPrototype(object_function_prototype);
   empty_function_map->set_is_prototype_map(true);
+
   empty_function->set_map(*empty_function_map);
 
   // --- E m p t y ---
@@ -526,18 +530,21 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   native_context()->sloppy_function_map()->SetPrototype(empty_function);
   native_context()->sloppy_function_without_prototype_map()->SetPrototype(
       empty_function);
+
   sloppy_function_map_writable_prototype_->SetPrototype(empty_function);
+
+  // ES6 draft 03-17-2015, section 8.2.2 step 12
+  AddRestrictedFunctionProperties(empty_function_map);
+
   return empty_function;
 }
 
 
-void Genesis::SetStrictFunctionInstanceDescriptor(
-    Handle<Map> map, FunctionMode function_mode) {
+void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
+                                                  FunctionMode function_mode) {
   int size = IsFunctionModeWithPrototype(function_mode) ? 5 : 4;
   Map::EnsureDescriptorSlack(map, size);
 
-  Handle<AccessorPair> arguments(factory()->NewAccessorPair());
-  Handle<AccessorPair> caller(factory()->NewAccessorPair());
   PropertyAttributes rw_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   PropertyAttributes ro_attribs =
@@ -565,16 +572,6 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   {  // Add name.
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
                                  roc_attribs);
-    map->AppendDescriptor(&d);
-  }
-  {  // Add arguments.
-    AccessorConstantDescriptor d(factory()->arguments_string(), arguments,
-                                 rw_attribs);
-    map->AppendDescriptor(&d);
-  }
-  {  // Add caller.
-    AccessorConstantDescriptor d(factory()->caller_string(), caller,
-                                 rw_attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -615,12 +612,31 @@ void Genesis::SetStrongFunctionInstanceDescriptor(Handle<Map> map) {
 
 
 // ECMAScript 5th Edition, 13.2.3
-Handle<JSFunction> Genesis::GetStrictPoisonFunction() {
+Handle<JSFunction> Genesis::GetRestrictedFunctionPropertiesThrower() {
+  if (restricted_function_properties_thrower.is_null()) {
+    Handle<String> name = factory()->InternalizeOneByteString(
+        STATIC_CHAR_VECTOR("ThrowTypeError"));
+    Handle<Code> code(isolate()->builtins()->builtin(
+        Builtins::kRestrictedFunctionPropertiesThrower));
+    restricted_function_properties_thrower =
+        factory()->NewFunctionWithoutPrototype(name, code);
+    restricted_function_properties_thrower->set_map(
+        native_context()->sloppy_function_map());
+    restricted_function_properties_thrower->shared()->DontAdaptArguments();
+
+    JSObject::PreventExtensions(restricted_function_properties_thrower)
+        .Assert();
+  }
+  return restricted_function_properties_thrower;
+}
+
+
+Handle<JSFunction> Genesis::GetStrictArgumentsPoisonFunction() {
   if (strict_poison_function.is_null()) {
     Handle<String> name = factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
-        Builtins::kStrictModePoisonPill));
+        Builtins::kRestrictedStrictArgumentsPropertiesThrower));
     strict_poison_function = factory()->NewFunctionWithoutPrototype(name, code);
     strict_poison_function->set_map(native_context()->sloppy_function_map());
     strict_poison_function->shared()->DontAdaptArguments();
@@ -631,26 +647,8 @@ Handle<JSFunction> Genesis::GetStrictPoisonFunction() {
 }
 
 
-Handle<JSFunction> Genesis::GetGeneratorPoisonFunction() {
-  if (generator_poison_function.is_null()) {
-    Handle<String> name = factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("ThrowTypeError"));
-    Handle<Code> code(isolate()->builtins()->builtin(
-        Builtins::kGeneratorPoisonPill));
-    generator_poison_function = factory()->NewFunctionWithoutPrototype(
-        name, code);
-    generator_poison_function->set_map(native_context()->sloppy_function_map());
-    generator_poison_function->shared()->DontAdaptArguments();
-
-    JSObject::PreventExtensions(generator_poison_function).Assert();
-  }
-  return generator_poison_function;
-}
-
-
 Handle<Map> Genesis::CreateStrictFunctionMap(
-    FunctionMode function_mode,
-    Handle<JSFunction> empty_function) {
+    FunctionMode function_mode, Handle<JSFunction> empty_function) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrictFunctionInstanceDescriptor(map, function_mode);
   map->set_function_with_prototype(IsFunctionModeWithPrototype(function_mode));
@@ -689,16 +687,11 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // This map is installed in MakeFunctionInstancePrototypeWritable.
   strict_function_map_writable_prototype_ =
       CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
+
   // Special map for bound functions.
   Handle<Map> bound_function_map =
       CreateStrictFunctionMap(BOUND_FUNCTION, empty);
   native_context()->set_bound_function_map(*bound_function_map);
-
-  // Complete the callbacks.
-  PoisonArgumentsAndCaller(strict_function_without_prototype_map);
-  PoisonArgumentsAndCaller(strict_function_map);
-  PoisonArgumentsAndCaller(strict_function_map_writable_prototype_);
-  PoisonArgumentsAndCaller(bound_function_map);
 }
 
 
@@ -709,17 +702,6 @@ void Genesis::CreateStrongModeFunctionMaps(Handle<JSFunction> empty) {
   // Constructors do, though.
   Handle<Map> strong_constructor_map = CreateStrongFunctionMap(empty, true);
   native_context()->set_strong_constructor_map(*strong_constructor_map);
-}
-
-
-static void SetAccessors(Handle<Map> map,
-                         Handle<String> name,
-                         Handle<JSFunction> func) {
-  DescriptorArray* descs = map->instance_descriptors();
-  int number = descs->SearchWithCache(*name, *map);
-  AccessorPair* accessors = AccessorPair::cast(descs->GetValue(number));
-  accessors->set_getter(*func);
-  accessors->set_setter(*func);
 }
 
 
@@ -734,9 +716,15 @@ static void ReplaceAccessors(Handle<Map> map,
 }
 
 
-void Genesis::PoisonArgumentsAndCaller(Handle<Map> map) {
-  SetAccessors(map, factory()->arguments_string(), GetStrictPoisonFunction());
-  SetAccessors(map, factory()->caller_string(), GetStrictPoisonFunction());
+void Genesis::AddRestrictedFunctionProperties(Handle<Map> map) {
+  PropertyAttributes rw_attribs = static_cast<PropertyAttributes>(DONT_ENUM);
+  Handle<JSFunction> thrower = GetRestrictedFunctionPropertiesThrower();
+  Handle<AccessorPair> accessors = factory()->NewAccessorPair();
+  accessors->set_getter(*thrower);
+  accessors->set_setter(*thrower);
+
+  ReplaceAccessors(map, factory()->arguments_string(), rw_attribs, accessors);
+  ReplaceAccessors(map, factory()->caller_string(), rw_attribs, accessors);
 }
 
 
@@ -1280,7 +1268,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<AccessorPair> callee = factory->NewAccessorPair();
     Handle<AccessorPair> caller = factory->NewAccessorPair();
 
-    Handle<JSFunction> poison = GetStrictPoisonFunction();
+    Handle<JSFunction> poison = GetStrictArgumentsPoisonFunction();
 
     // Install the ThrowTypeError functions.
     callee->set_getter(*poison);
@@ -2087,47 +2075,23 @@ bool Genesis::InstallNatives() {
         generator_object_prototype,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
+    static const bool kUseStrictFunctionMap = true;
     InstallFunction(builtins, "GeneratorFunction", JS_FUNCTION_TYPE,
                     JSFunction::kSize, generator_function_prototype,
-                    Builtins::kIllegal);
+                    Builtins::kIllegal, kUseStrictFunctionMap);
 
     // Create maps for generator functions and their prototypes.  Store those
-    // maps in the native context.
-    Handle<Map> generator_function_map =
-        Map::Copy(sloppy_function_map_writable_prototype_, "GeneratorFunction");
-    generator_function_map->SetPrototype(generator_function_prototype);
-    native_context()->set_sloppy_generator_function_map(
-        *generator_function_map);
-
-    // The "arguments" and "caller" instance properties aren't specified, so
-    // technically we could leave them out.  They make even less sense for
-    // generators than for functions.  Still, the same argument that it makes
-    // sense to keep them around but poisoned in strict mode applies to
-    // generators as well.  With poisoned accessors, naive callers can still
-    // iterate over the properties without accessing them.
-    //
-    // We can't use PoisonArgumentsAndCaller because that mutates accessor pairs
-    // in place, and the initial state of the generator function map shares the
-    // accessor pair with sloppy functions.  Also the error message should be
-    // different.  Also unhappily, we can't use the API accessors to implement
-    // poisoning, because API accessors present themselves as data properties,
-    // not accessor properties, and so getOwnPropertyDescriptor raises an
-    // exception as it tries to get the values.  Sadness.
-    Handle<AccessorPair> poison_pair(factory()->NewAccessorPair());
-    PropertyAttributes rw_attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    Handle<JSFunction> poison_function = GetGeneratorPoisonFunction();
-    poison_pair->set_getter(*poison_function);
-    poison_pair->set_setter(*poison_function);
-    ReplaceAccessors(generator_function_map, factory()->arguments_string(),
-                     rw_attribs, poison_pair);
-    ReplaceAccessors(generator_function_map, factory()->caller_string(),
-                     rw_attribs, poison_pair);
-
+    // maps in the native context. Generator functions do not have writable
+    // prototypes, nor do they have "caller" or "arguments" accessors.
     Handle<Map> strict_function_map(native_context()->strict_function_map());
+    Handle<Map> sloppy_generator_function_map =
+        Map::Copy(strict_function_map, "SloppyGeneratorFunction");
+    sloppy_generator_function_map->SetPrototype(generator_function_prototype);
+    native_context()->set_sloppy_generator_function_map(
+        *sloppy_generator_function_map);
+
     Handle<Map> strict_generator_function_map =
         Map::Copy(strict_function_map, "StrictGeneratorFunction");
-    // "arguments" and "caller" already poisoned.
     strict_generator_function_map->SetPrototype(generator_function_prototype);
     native_context()->set_strict_generator_function_map(
         *strict_generator_function_map);

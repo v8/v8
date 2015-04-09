@@ -482,13 +482,14 @@ class Factory FINAL {
   void BecomeJSObject(Handle<JSProxy> object);
   void BecomeJSFunction(Handle<JSProxy> object);
 
-  Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Code> code,
+  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
                                  Handle<Object> prototype,
-                                 bool read_only_prototype = false);
+                                 bool read_only_prototype = false,
+                                 bool is_strict = false);
   Handle<JSFunction> NewFunction(Handle<String> name);
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
-                                                 Handle<Code> code);
+                                                 Handle<Code> code,
+                                                 bool is_strict = false);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info,
@@ -499,7 +500,8 @@ class Factory FINAL {
                                  Handle<Object> prototype, InstanceType type,
                                  int instance_size,
                                  bool read_only_prototype = false,
-                                 bool install_constructor = false);
+                                 bool install_constructor = false,
+                                 bool is_strict = false);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
                                  InstanceType type,

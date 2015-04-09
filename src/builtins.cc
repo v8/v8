@@ -1000,22 +1000,23 @@ BUILTIN(ArrayConcat) {
 
 
 // -----------------------------------------------------------------------------
-// Generator and strict mode poison pills
+// Throwers for restricted function properties and strict arguments object
+// properties
 
 
-BUILTIN(StrictModePoisonPill) {
+BUILTIN(RestrictedFunctionPropertiesThrower) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError("restricted_function_properties",
+                                              HandleVector<Object>(NULL, 0)));
+}
+
+
+BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewTypeError("strict_poison_pill", HandleVector<Object>(NULL, 0)));
-}
-
-
-BUILTIN(GeneratorPoisonPill) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("generator_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 

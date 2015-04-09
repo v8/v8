@@ -6,6 +6,7 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/base/bits.h"
+#include "src/bootstrapper.h"
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
@@ -1280,7 +1281,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
           map.is_identical_to(
               isolate()->sloppy_function_without_prototype_map()) ||
           map.is_identical_to(
-              isolate()->sloppy_function_with_readonly_prototype_map())));
+              isolate()->sloppy_function_with_readonly_prototype_map()) ||
+          map.is_identical_to(isolate()->strict_function_map())));
   return NewFunction(map, info, context);
 }
 
@@ -1292,19 +1294,27 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name) {
 
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
-                                                        Handle<Code> code) {
-  return NewFunction(
-      isolate()->sloppy_function_without_prototype_map(), name, code);
+                                                        Handle<Code> code,
+                                                        bool is_strict) {
+  Handle<Map> map = is_strict
+                        ? isolate()->strict_function_without_prototype_map()
+                        : isolate()->sloppy_function_without_prototype_map();
+  return NewFunction(map, name, code);
 }
 
 
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        Handle<Code> code,
+Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
-                                        bool read_only_prototype) {
-  Handle<Map> map = read_only_prototype
-      ? isolate()->sloppy_function_with_readonly_prototype_map()
-      : isolate()->sloppy_function_map();
+                                        bool read_only_prototype,
+                                        bool is_strict) {
+  // In strict mode, readonly strict map is only available during bootstrap
+  DCHECK(!is_strict || !read_only_prototype ||
+         isolate()->bootstrapper()->IsActive());
+  Handle<Map> map =
+      is_strict ? isolate()->strict_function_map()
+                : read_only_prototype
+                      ? isolate()->sloppy_function_with_readonly_prototype_map()
+                      : isolate()->sloppy_function_map();
   Handle<JSFunction> result = NewFunction(map, name, code);
   result->set_prototype_or_initial_map(*prototype);
   return result;
@@ -1315,10 +1325,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
                                         InstanceType type, int instance_size,
                                         bool read_only_prototype,
-                                        bool install_constructor) {
+                                        bool install_constructor,
+                                        bool is_strict) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(
-      name, code, prototype, read_only_prototype);
+  Handle<JSFunction> function =
+      NewFunction(name, code, prototype, read_only_prototype, is_strict);
 
   ElementsKind elements_kind =
       type == JS_ARRAY_TYPE ? FAST_SMI_ELEMENTS : FAST_HOLEY_SMI_ELEMENTS;

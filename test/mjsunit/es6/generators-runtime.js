@@ -30,7 +30,7 @@
 // See:
 // http://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorfunction-objects
 
-function f() { }
+function f() { "use strict"; }
 function* g() { yield 1; }
 var GeneratorFunctionPrototype = Object.getPrototypeOf(g);
 var GeneratorFunction = GeneratorFunctionPrototype.constructor;
@@ -51,18 +51,16 @@ function TestGeneratorFunctionInstance() {
     var prop = f_own_property_names[i];
     var f_desc = Object.getOwnPropertyDescriptor(f, prop);
     var g_desc = Object.getOwnPropertyDescriptor(g, prop);
-    assertEquals(f_desc.configurable, g_desc.configurable, prop);
-    if (prop === 'arguments' || prop === 'caller') {
-      // Unlike sloppy functions, which have read-only data arguments and caller
-      // properties, sloppy generators have a poison pill implemented via
-      // accessors
-      assertFalse('writable' in g_desc, prop);
-      assertTrue(g_desc.get instanceof Function, prop);
-      assertEquals(g_desc.get, g_desc.set, prop);
+    if (prop === "prototype") {
+      // ES6 draft 03-17-2015 section 25.2.2.2
+      assertFalse(g_desc.writable, prop);
+      assertFalse(g_desc.enumerable, prop);
+      assertFalse(g_desc.configurable, prop);
     } else {
+      assertEquals(f_desc.configurable, g_desc.configurable, prop);
       assertEquals(f_desc.writable, g_desc.writable, prop);
+      assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
     }
-    assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
   }
 }
 TestGeneratorFunctionInstance();

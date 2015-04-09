@@ -595,6 +595,25 @@
   # 'es6/String.prototype.contains/String.prototype.contains_Success' : [FAIL_OK],
   # 'es6/String.prototype.contains/String.prototype.contains_SuccessNoLocation' : [FAIL_OK],
 
+  # Function restricted "caller" and "arguments" properties are defined only on
+  # the intrinsic %FunctionPrototype% (and sloppy functions) in ES6
+  'language/statements/function/13.2-29-s': [FAIL_OK],
+  'language/statements/function/13.2-30-s': [FAIL_OK],
+  'language/statements/function/13.2-31-s': [FAIL_OK],
+  'language/statements/function/13.2-32-s': [FAIL_OK],
+  'language/statements/function/13.2-33-s': [FAIL_OK],
+  'language/statements/function/13.2-34-s': [FAIL_OK],
+  'language/statements/function/13.2-35-s': [FAIL_OK],
+  'language/statements/function/13.2-36-s': [FAIL_OK],
+  'language/statements/function/S13.2.3_A1': [FAIL_OK],
+  'built-ins/Function/prototype/bind/15.3.4.5-20-1': [FAIL_OK],
+  'built-ins/Function/prototype/bind/15.3.4.5-20-4': [FAIL_OK],
+  'built-ins/Function/prototype/bind/15.3.4.5-20-5': [FAIL_OK],
+  'built-ins/Function/prototype/bind/15.3.4.5-21-1': [FAIL_OK],
+  'built-ins/Function/prototype/bind/15.3.4.5-21-4': [FAIL_OK],
+  'built-ins/Function/prototype/bind/15.3.4.5-21-5': [FAIL_OK],
+
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run in debug mode.

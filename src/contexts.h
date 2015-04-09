@@ -582,17 +582,16 @@ class Context: public FixedArray {
     }
 
     if (IsConstructor(kind)) {
-      return is_strong(language_mode) ? STRONG_CONSTRUCTOR_MAP_INDEX :
-             is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
-                                      : SLOPPY_FUNCTION_MAP_INDEX;
+      // Use strict function map (no own "caller" / "arguments")
+      return is_strong(language_mode) ? STRONG_CONSTRUCTOR_MAP_INDEX
+                                      : STRICT_FUNCTION_MAP_INDEX;
     }
 
     if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
         IsAccessorFunction(kind)) {
-      return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :
-             is_strict(language_mode) ?
-                 STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX :
-                 SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+      return is_strong(language_mode)
+                 ? STRONG_FUNCTION_MAP_INDEX
+                 : STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
     }
 
     return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :
