@@ -84,9 +84,12 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       InstructionOperand* input = instr->InputAt(i);
       EXPECT_NE(InstructionOperand::CONSTANT, input->kind());
       if (input->IsImmediate()) {
-        int index = ImmediateOperand::cast(input)->index();
-        s.immediates_.insert(
-            std::make_pair(index, sequence.GetImmediate(index)));
+        auto imm = ImmediateOperand::cast(input);
+        if (imm->type() == ImmediateOperand::INDEXED) {
+          int index = imm->indexed_value();
+          s.immediates_.insert(
+              std::make_pair(index, sequence.GetImmediate(imm)));
+        }
       }
     }
     s.instructions_.push_back(instr);

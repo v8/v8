@@ -44,8 +44,15 @@ std::ostream& operator<<(std::ostream& os,
     case InstructionOperand::CONSTANT:
       return os << "[constant:" << ConstantOperand::cast(op).virtual_register()
                 << "]";
-    case InstructionOperand::IMMEDIATE:
-      return os << "[immediate:" << ImmediateOperand::cast(op).index() << "]";
+    case InstructionOperand::IMMEDIATE: {
+      auto imm = ImmediateOperand::cast(op);
+      switch (imm.type()) {
+        case ImmediateOperand::INLINE:
+          return os << "#" << imm.inline_value();
+        case ImmediateOperand::INDEXED:
+          return os << "[immediate:" << imm.indexed_value() << "]";
+      }
+    }
     case InstructionOperand::ALLOCATED:
       switch (AllocatedOperand::cast(op).allocated_kind()) {
         case AllocatedOperand::STACK_SLOT:
@@ -606,7 +613,7 @@ RpoNumber InstructionSequence::InputRpo(Instruction* instr, size_t index) {
   InstructionOperand* operand = instr->InputAt(index);
   Constant constant =
       operand->IsImmediate()
-          ? GetImmediate(ImmediateOperand::cast(operand)->index())
+          ? GetImmediate(ImmediateOperand::cast(operand))
           : GetConstant(ConstantOperand::cast(operand)->virtual_register());
   return constant.ToRpoNumber();
 }

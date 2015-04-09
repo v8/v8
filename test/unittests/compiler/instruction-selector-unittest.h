@@ -209,8 +209,12 @@ class InstructionSelectorTest : public TestWithContext,
         EXPECT_FALSE(constants_.end() == i);
       } else {
         EXPECT_EQ(InstructionOperand::IMMEDIATE, operand->kind());
-        i = immediates_.find(ImmediateOperand::cast(operand)->index());
-        EXPECT_EQ(ImmediateOperand::cast(operand)->index(), i->first);
+        auto imm = ImmediateOperand::cast(operand);
+        if (imm->type() == ImmediateOperand::INLINE) {
+          return Constant(imm->inline_value());
+        }
+        i = immediates_.find(imm->indexed_value());
+        EXPECT_EQ(imm->indexed_value(), i->first);
         EXPECT_FALSE(immediates_.end() == i);
       }
       return i->second;

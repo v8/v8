@@ -317,22 +317,35 @@ class ConstantOperand : public InstructionOperand {
 
 class ImmediateOperand : public InstructionOperand {
  public:
-  explicit ImmediateOperand(int index) : InstructionOperand(IMMEDIATE) {
-    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
+  enum ImmediateType { INLINE, INDEXED };
+
+  explicit ImmediateOperand(ImmediateType type, int32_t value)
+      : InstructionOperand(IMMEDIATE) {
+    value_ |= TypeField::encode(type);
+    value_ |= static_cast<int64_t>(value) << ValueField::kShift;
   }
 
-  int index() const {
-    return static_cast<int64_t>(value_) >> IndexField::kShift;
+  ImmediateType type() const { return TypeField::decode(value_); }
+
+  int32_t inline_value() const {
+    DCHECK_EQ(INLINE, type());
+    return static_cast<int64_t>(value_) >> ValueField::kShift;
   }
 
-  static ImmediateOperand* New(Zone* zone, int index) {
-    return InstructionOperand::New(zone, ImmediateOperand(index));
+  int32_t indexed_value() const {
+    DCHECK_EQ(INDEXED, type());
+    return static_cast<int64_t>(value_) >> ValueField::kShift;
+  }
+
+  static ImmediateOperand* New(Zone* zone, ImmediateType type, int32_t value) {
+    return InstructionOperand::New(zone, ImmediateOperand(type, value));
   }
 
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE);
 
   STATIC_ASSERT(KindField::kSize == 3);
-  class IndexField : public BitField64<int32_t, 35, 29> {};
+  class TypeField : public BitField64<ImmediateType, 3, 1> {};
+  class ValueField : public BitField64<int32_t, 32, 32> {};
 };
 
 
@@ -1066,15 +1079,28 @@ class InstructionSequence FINAL : public ZoneObject {
   typedef ZoneVector<Constant> Immediates;
   Immediates& immediates() { return immediates_; }
 
-  int AddImmediate(Constant constant) {
+  ImmediateOperand AddImmediate(const Constant& constant) {
+    if (constant.type() == Constant::kInt32) {
+      return ImmediateOperand(ImmediateOperand::INLINE, constant.ToInt32());
+    }
     int index = static_cast<int>(immediates_.size());
     immediates_.push_back(constant);
-    return index;
+    return ImmediateOperand(ImmediateOperand::INDEXED, index);
   }
-  Constant GetImmediate(int index) const {
-    DCHECK(index >= 0);
-    DCHECK(index < static_cast<int>(immediates_.size()));
-    return immediates_[index];
+
+  Constant GetImmediate(const ImmediateOperand* op) const {
+    switch (op->type()) {
+      case ImmediateOperand::INLINE:
+        return Constant(op->inline_value());
+      case ImmediateOperand::INDEXED: {
+        int index = op->indexed_value();
+        DCHECK(index >= 0);
+        DCHECK(index < static_cast<int>(immediates_.size()));
+        return immediates_[index];
+      }
+    }
+    UNREACHABLE();
+    return Constant(static_cast<int32_t>(0));
   }
 
   class StateId {

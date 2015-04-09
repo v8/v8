@@ -122,8 +122,11 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     constraint->value_ = ConstantOperand::cast(op)->virtual_register();
     constraint->virtual_register_ = constraint->value_;
   } else if (op->IsImmediate()) {
+    auto imm = ImmediateOperand::cast(op);
+    int value = imm->type() == ImmediateOperand::INLINE ? imm->inline_value()
+                                                        : imm->indexed_value();
     constraint->type_ = kImmediate;
-    constraint->value_ = ImmediateOperand::cast(op)->index();
+    constraint->value_ = value;
   } else {
     CHECK(op->IsUnallocated());
     const auto* unallocated = UnallocatedOperand::cast(op);
@@ -183,10 +186,15 @@ void RegisterAllocatorVerifier::CheckConstraint(
       CHECK_EQ(ConstantOperand::cast(op)->virtual_register(),
                constraint->value_);
       return;
-    case kImmediate:
+    case kImmediate: {
       CHECK(op->IsImmediate());
-      CHECK_EQ(ImmediateOperand::cast(op)->index(), constraint->value_);
+      auto imm = ImmediateOperand::cast(op);
+      int value = imm->type() == ImmediateOperand::INLINE
+                      ? imm->inline_value()
+                      : imm->indexed_value();
+      CHECK_EQ(value, constraint->value_);
       return;
+    }
     case kRegister:
       CHECK(op->IsRegister());
       return;

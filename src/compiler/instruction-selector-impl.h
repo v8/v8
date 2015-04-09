@@ -119,8 +119,7 @@ class OperandGenerator {
   }
 
   InstructionOperand UseImmediate(Node* node) {
-    int index = sequence()->AddImmediate(ToConstant(node));
-    return ImmediateOperand(index);
+    return sequence()->AddImmediate(ToConstant(node));
   }
 
   InstructionOperand UseLocation(Node* node, LinkageLocation location,
@@ -149,8 +148,7 @@ class OperandGenerator {
   }
 
   InstructionOperand TempImmediate(int32_t imm) {
-    int index = sequence()->AddImmediate(Constant(imm));
-    return ImmediateOperand(index);
+    return sequence()->AddImmediate(Constant(imm));
   }
 
   InstructionOperand TempLocation(LinkageLocation location, MachineType type) {
@@ -159,9 +157,8 @@ class OperandGenerator {
   }
 
   InstructionOperand Label(BasicBlock* block) {
-    int index = sequence()->AddImmediate(
+    return sequence()->AddImmediate(
         Constant(RpoNumber::FromInt(block->rpo_number())));
-    return ImmediateOperand(index);
   }
 
  protected:
