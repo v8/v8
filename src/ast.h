@@ -92,6 +92,7 @@ namespace internal {
   V(CountOperation)             \
   V(BinaryOperation)            \
   V(CompareOperation)           \
+  V(Spread)                     \
   V(ThisFunction)               \
   V(SuperReference)             \
   V(CaseClause)
@@ -2263,6 +2264,26 @@ class CompareOperation FINAL : public Expression {
 };
 
 
+class Spread FINAL : public Expression {
+ public:
+  DECLARE_NODE_TYPE(Spread)
+
+  Expression* expression() const { return expression_; }
+
+  static int num_ids() { return parent_num_ids(); }
+
+ protected:
+  Spread(Zone* zone, Expression* expression, int pos)
+      : Expression(zone, pos), expression_(expression) {}
+  static int parent_num_ids() { return Expression::num_ids(); }
+
+ private:
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+
+  Expression* expression_;
+};
+
+
 class Conditional FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(Conditional)
@@ -3473,6 +3494,10 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
                                         Expression* right,
                                         int pos) {
     return new (zone_) CompareOperation(zone_, op, left, right, pos);
+  }
+
+  Spread* NewSpread(Expression* expression, int pos) {
+    return new (zone_) Spread(zone_, expression, pos);
   }
 
   Conditional* NewConditional(Expression* condition,

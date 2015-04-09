@@ -1069,7 +1069,10 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   }
   // Allow "eval" or "arguments" for backward compatibility.
   ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
-  ParseArguments(ok);
+  Scanner::Location spread_pos;
+  ParseArguments(&spread_pos, ok);
+
+  DCHECK(!spread_pos.IsValid());
 
   return Expression::Default();
 }

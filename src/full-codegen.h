@@ -558,7 +558,8 @@ class FullCodeGenerator: public AstVisitor {
   F(RegExpConstructResult)                \
   F(GetFromCache)                         \
   F(NumberToString)                       \
-  F(DebugIsActive)
+  F(DebugIsActive)                        \
+  F(CallSuperWithSpread)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
   FOR_EACH_FULL_CODE_INTRINSIC(GENERATOR_DECLARATION)
@@ -588,6 +589,10 @@ class FullCodeGenerator: public AstVisitor {
   // Platform-specific support for allocating a new closure based on
   // the given function info.
   void EmitNewClosure(Handle<SharedFunctionInfo> info, bool pretenure);
+
+  // Re-usable portions of CallRuntime
+  void EmitLoadJSRuntimeFunction(CallRuntime* expr);
+  void EmitCallJSRuntimeFunction(CallRuntime* expr);
 
   // Platform-specific support for compiling assignments.
 
@@ -686,6 +691,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
 
   void EmitLoadSuperConstructor();
+  void EmitInitializeThisAfterSuper(SuperReference* super_ref);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());

@@ -1667,6 +1667,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_reflect)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spreadcalls)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1695,6 +1696,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spreadcalls)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -1719,10 +1721,9 @@ void Genesis::InitializeGlobal_harmony_unicode_regexps() {
 
 
 void Genesis::InitializeGlobal_harmony_reflect() {
-  if (!FLAG_harmony_reflect) return;
   Handle<JSObject> builtins(native_context()->builtins());
   // Install references to functions of the Reflect object
-  {
+  if (FLAG_harmony_reflect || FLAG_harmony_spreadcalls) {
     Handle<JSFunction> apply =
         InstallFunction(builtins, "ReflectApply", JS_OBJECT_TYPE,
                         JSObject::kHeaderSize, MaybeHandle<JSObject>(),
@@ -1750,6 +1751,7 @@ void Genesis::InitializeGlobal_harmony_reflect() {
     construct->shared()->set_length(2);
   }
 
+  if (!FLAG_harmony_reflect) return;
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context()->global_object()));
   Handle<String> reflect_string =
@@ -2329,6 +2331,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_rest_parameters_natives[] = {NULL};
   static const char* harmony_reflect_natives[] = {"native harmony-reflect.js",
                                                   NULL};
+  static const char* harmony_spreadcalls_natives[] = {
+      "native harmony-spread.js", NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

@@ -362,6 +362,9 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+void AstNumberingVisitor::VisitSpread(Spread* node) { UNREACHABLE(); }
+
+
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();

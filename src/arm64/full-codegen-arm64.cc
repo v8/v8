@@ -2805,6 +2805,21 @@ void FullCodeGenerator::EmitLoadSuperConstructor() {
 }
 
 
+void FullCodeGenerator::EmitInitializeThisAfterSuper(
+    SuperReference* super_ref) {
+  Variable* this_var = super_ref->this_var()->var();
+  GetVar(x1, this_var);
+  Label uninitialized_this;
+  __ JumpIfRoot(x1, Heap::kTheHoleValueRootIndex, &uninitialized_this);
+  __ Mov(x0, Operand(this_var->name()));
+  __ Push(x0);
+  __ CallRuntime(Runtime::kThrowReferenceError, 1);
+  __ bind(&uninitialized_this);
+
+  EmitVariableAssignment(this_var, Token::INIT_CONST);
+}
+
+
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
@@ -3029,17 +3044,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   RecordJSReturnSite(expr);
 
-  SuperReference* super_ref = expr->expression()->AsSuperReference();
-  Variable* this_var = super_ref->this_var()->var();
-  GetVar(x1, this_var);
-  Label uninitialized_this;
-  __ JumpIfRoot(x1, Heap::kTheHoleValueRootIndex, &uninitialized_this);
-  __ Mov(x0, Operand(this_var->name()));
-  __ Push(x0);
-  __ CallRuntime(Runtime::kThrowReferenceError, 1);
-  __ bind(&uninitialized_this);
-
-  EmitVariableAssignment(this_var, Token::INIT_CONST);
+  EmitInitializeThisAfterSuper(expr->expression()->AsSuperReference());
   context()->Plug(x0);
 }
 
@@ -4294,28 +4299,81 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitCallSuperWithSpread(CallRuntime* expr) {
+  // Assert: expr === CallRuntime("ReflectConstruct")
+  CallRuntime* call = expr->arguments()->at(0)->AsCallRuntime();
+  ZoneList<Expression*>* args = call->arguments();
+  DCHECK_EQ(3, args->length());
+
+  SuperReference* super_reference = args->at(0)->AsSuperReference();
+
+  // Load ReflectConstruct function
+  EmitLoadJSRuntimeFunction(call);
+
+  // Push the target function under the receiver.
+  __ Pop(x10);
+  __ Push(x0, x10);
+
+  // Push super
+  EmitLoadSuperConstructor();
+  __ Push(result_register());
+
+  // Push arguments array
+  VisitForStackValue(args->at(1));
+
+  // Push NewTarget
+  DCHECK(args->at(2)->IsVariableProxy());
+  VisitForStackValue(args->at(2));
+
+  EmitCallJSRuntimeFunction(call);
+
+  // Restore context register.
+  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  context()->DropAndPlug(1, x0);
+
+  EmitInitializeThisAfterSuper(super_reference);
+}
+
+
+void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
+  // Push the builtins object as the receiver.
+  __ Ldr(x10, GlobalObjectMemOperand());
+  __ Ldr(LoadDescriptor::ReceiverRegister(),
+         FieldMemOperand(x10, GlobalObject::kBuiltinsOffset));
+  __ Push(LoadDescriptor::ReceiverRegister());
+
+  // Load the function from the receiver.
+  Handle<String> name = expr->name();
+  __ Mov(LoadDescriptor::NameRegister(), Operand(name));
+  if (FLAG_vector_ics) {
+    __ Mov(VectorLoadICDescriptor::SlotRegister(),
+           SmiFromSlot(expr->CallRuntimeFeedbackSlot()));
+    CallLoadIC(NOT_CONTEXTUAL);
+  } else {
+    CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
+  }
+}
+
+
+void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+
+  // Record source position of the IC call.
+  SetSourcePosition(expr->position());
+  CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
+  __ Peek(x1, (arg_count + 1) * kPointerSize);
+  __ CallStub(&stub);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
   if (expr->is_jsruntime()) {
     Comment cmnt(masm_, "[ CallRunTime");
-    // Push the builtins object as the receiver.
-    __ Ldr(x10, GlobalObjectMemOperand());
-    __ Ldr(LoadDescriptor::ReceiverRegister(),
-           FieldMemOperand(x10, GlobalObject::kBuiltinsOffset));
-    __ Push(LoadDescriptor::ReceiverRegister());
-
-    // Load the function from the receiver.
-    Handle<String> name = expr->name();
-    __ Mov(LoadDescriptor::NameRegister(), Operand(name));
-    if (FLAG_vector_ics) {
-      __ Mov(VectorLoadICDescriptor::SlotRegister(),
-             SmiFromSlot(expr->CallRuntimeFeedbackSlot()));
-      CallLoadIC(NOT_CONTEXTUAL);
-    } else {
-      CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
-    }
+    EmitLoadJSRuntimeFunction(expr);
 
     // Push the target function under the receiver.
     __ Pop(x10);
@@ -4325,11 +4383,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
       VisitForStackValue(args->at(i));
     }
 
-    // Record source position of the IC call.
-    SetSourcePosition(expr->position());
-    CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
-    __ Peek(x1, (arg_count + 1) * kPointerSize);
-    __ CallStub(&stub);
+    EmitCallJSRuntimeFunction(expr);
 
     // Restore context register.
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

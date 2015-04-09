@@ -1380,7 +1380,8 @@ enum ParserFlag {
   kAllowHarmonySloppy,
   kAllowHarmonyUnicode,
   kAllowHarmonyComputedPropertyNames,
-  kAllowStrongMode
+  kAllowStrongMode,
+  kAllowHarmonySpreadCalls
 };
 
 
@@ -1403,6 +1404,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_classes(flags.Contains(kAllowHarmonyClasses));
   parser->set_allow_harmony_rest_params(
       flags.Contains(kAllowHarmonyRestParameters));
+  parser->set_allow_harmony_spreadcalls(
+      flags.Contains(kAllowHarmonySpreadCalls));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_unicode(flags.Contains(kAllowHarmonyUnicode));
   parser->set_allow_harmony_computed_property_names(
@@ -5101,6 +5104,52 @@ TEST(RestParametersDuplicateEvalArguments) {
   // In sloppy mode, the error is that eval / arguments are duplicated
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
+}
+
+
+TEST(SpreadCall) {
+  const char* context_data[][2] = {{"function fn() { 'use strict';} fn(", ");"},
+                                   {"function fn() {} fn(", ");"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "...([1, 2, 3])", "...'123', ...'456'", "...new Set([1, 2, 3]), 4",
+      "1, ...[2, 3], 4", "...Array(...[1,2,3,4])", "...NaN",
+      "0, 1, ...[2, 3, 4], 5, 6, 7, ...'89'",
+      "0, 1, ...[2, 3, 4], 5, 6, 7, ...'89', 10",
+      "...[0, 1, 2], 3, 4, 5, 6, ...'7', 8, 9",
+      "...[0, 1, 2], 3, 4, 5, 6, ...'7', 8, 9, ...[10]", NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonySpreadCalls};
+
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(SpreadCallErrors) {
+  const char* context_data[][2] = {{"function fn() { 'use strict';} fn(", ");"},
+                                   {"function fn() {} fn(", ");"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {"(...[1, 2, 3])", "......[1,2,3]", NULL};
+
+  static const ParserFlag always_flags[] = {kAllowHarmonySpreadCalls};
+
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(BadRestSpread) {
+  const char* context_data[][2] = {{"function fn() { 'use strict';", "} fn();"},
+                                   {"function fn() { ", "} fn();"},
+                                   {NULL, NULL}};
+  const char* data[] = {"return ...[1,2,3];",     "var ...x = [1,2,3];",
+                        "var [...x,] = [1,2,3];", "var [...x, y] = [1,2,3];",
+                        "var {...x} = [1,2,3];",  "var { x } = {x: ...[1,2,3]}",
+                        NULL};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0);
 }
 
 

@@ -375,6 +375,13 @@ void CallPrinter::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+void CallPrinter::VisitSpread(Spread* node) {
+  Print("(...");
+  Find(node->expression(), true);
+  Print(")");
+}
+
+
 void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 
 
@@ -866,6 +873,13 @@ void PrettyPrinter::VisitCompareOperation(CompareOperation* node) {
   Visit(node->left());
   Print(" %s ", Token::String(node->op()));
   Visit(node->right());
+  Print(")");
+}
+
+
+void PrettyPrinter::VisitSpread(Spread* node) {
+  Print("(...");
+  Visit(node->expression());
   Print(")");
 }
 
@@ -1570,6 +1584,12 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
   IndentedScope indent(this, Token::Name(node->op()));
   Visit(node->left());
   Visit(node->right());
+}
+
+
+void AstPrinter::VisitSpread(Spread* node) {
+  IndentedScope indent(this, "...");
+  Visit(node->expression());
 }
 
 

@@ -2442,6 +2442,9 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void AstGraphBuilder::VisitSpread(Spread* expr) { UNREACHABLE(); }
+
+
 void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   Node* value = GetFunctionClosure();
   ast_context()->ProduceValue(value);

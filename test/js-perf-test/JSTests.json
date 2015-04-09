@@ -8,6 +8,21 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "SpreadCalls",
+      "path": ["SpreadCalls"],
+      "main": "run.js",
+      "resources": ["spreadcalls.js"],
+      "flags": ["--harmony-spreadcalls"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Call-Sum"},
+        {"name": "CallMethod-Sum"},
+        {"name": "CallNew-Sum"}
+      ]
+    },
+    {
       "name": "Classes",
       "path": ["Classes"],
       "main": "run.js",
