@@ -165,6 +165,7 @@ void LiveRange::SpillAtDefinition(Zone* zone, int gap_index,
 void LiveRange::CommitSpillsAtDefinition(InstructionSequence* sequence,
                                          InstructionOperand* op,
                                          bool might_be_duplicated) {
+  DCHECK_IMPLIES(op->IsConstant(), spills_at_definition_ == nullptr);
   DCHECK(!IsChild());
   auto zone = sequence->zone();
   for (auto to_spill = spills_at_definition_; to_spill != nullptr;
@@ -194,7 +195,7 @@ void LiveRange::CommitSpillsAtDefinition(InstructionSequence* sequence,
 
 void LiveRange::SetSpillOperand(InstructionOperand* operand) {
   DCHECK(HasNoSpillType());
-  DCHECK(!operand->IsUnallocated());
+  DCHECK(!operand->IsUnallocated() && !operand->IsImmediate());
   spill_type_ = SpillType::kSpillOperand;
   spill_operand_ = operand;
 }
@@ -208,9 +209,8 @@ void LiveRange::SetSpillRange(SpillRange* spill_range) {
 }
 
 
-void LiveRange::CommitSpillOperand(InstructionOperand* operand) {
+void LiveRange::CommitSpillOperand(AllocatedOperand* operand) {
   DCHECK(HasSpillRange());
-  DCHECK(!operand->IsUnallocated());
   DCHECK(!IsChild());
   spill_type_ = SpillType::kSpillOperand;
   spill_operand_ = operand;
@@ -274,9 +274,9 @@ InstructionOperand* LiveRange::GetAssignedOperand(
     DCHECK(!IsSpilled());
     switch (Kind()) {
       case GENERAL_REGISTERS:
-        return cache->RegisterOperand(assigned_register());
+        return cache->GetRegisterOperand(assigned_register());
       case DOUBLE_REGISTERS:
-        return cache->DoubleRegisterOperand(assigned_register());
+        return cache->GetDoubleRegisterOperand(assigned_register());
       default:
         UNREACHABLE();
     }
@@ -537,14 +537,14 @@ void LiveRange::ConvertUsesToOperand(InstructionOperand* op,
     switch (pos->type()) {
       case UsePositionType::kRequiresSlot:
         if (spill_op != nullptr) {
-          pos->operand()->ConvertTo(spill_op->kind(), spill_op->index());
+          InstructionOperand::ReplaceWith(pos->operand(), spill_op);
         }
         break;
       case UsePositionType::kRequiresRegister:
         DCHECK(op->IsRegister() || op->IsDoubleRegister());
       // Fall through.
       case UsePositionType::kAny:
-        pos->operand()->ConvertTo(op->kind(), op->index());
+        InstructionOperand::ReplaceWith(pos->operand(), op);
         break;
     }
   }
@@ -599,12 +599,10 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 
 InstructionOperandCache::InstructionOperandCache() {
   for (size_t i = 0; i < arraysize(general_register_operands_); ++i) {
-    general_register_operands_[i] =
-        i::compiler::RegisterOperand(static_cast<int>(i));
+    general_register_operands_[i] = RegisterOperand(static_cast<int>(i));
   }
   for (size_t i = 0; i < arraysize(double_register_operands_); ++i) {
-    double_register_operands_[i] =
-        i::compiler::DoubleRegisterOperand(static_cast<int>(i));
+    double_register_operands_[i] = DoubleRegisterOperand(static_cast<int>(i));
   }
 }
 
@@ -707,18 +705,20 @@ InstructionOperand* RegisterAllocator::AllocateFixed(
     UnallocatedOperand* operand, int pos, bool is_tagged) {
   TRACE("Allocating fixed reg for op %d\n", operand->virtual_register());
   DCHECK(operand->HasFixedPolicy());
+  InstructionOperand allocated;
   if (operand->HasFixedSlotPolicy()) {
-    operand->ConvertTo(InstructionOperand::STACK_SLOT,
-                       operand->fixed_slot_index());
+    allocated = AllocatedOperand(InstructionOperand::STACK_SLOT,
+                                 operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
-    int reg_index = operand->fixed_register_index();
-    operand->ConvertTo(InstructionOperand::REGISTER, reg_index);
+    allocated = AllocatedOperand(InstructionOperand::REGISTER,
+                                 operand->fixed_register_index());
   } else if (operand->HasFixedDoubleRegisterPolicy()) {
-    int reg_index = operand->fixed_register_index();
-    operand->ConvertTo(InstructionOperand::DOUBLE_REGISTER, reg_index);
+    allocated = AllocatedOperand(InstructionOperand::DOUBLE_REGISTER,
+                                 operand->fixed_register_index());
   } else {
     UNREACHABLE();
   }
+  InstructionOperand::ReplaceWith(operand, &allocated);
   if (is_tagged) {
     TRACE("Fixed reg is tagged at %d\n", pos);
     auto instr = InstructionAt(pos);
@@ -789,11 +789,12 @@ LiveRange* RegisterAllocator::LiveRangeFor(InstructionOperand* operand) {
   if (operand->IsUnallocated()) {
     return LiveRangeFor(UnallocatedOperand::cast(operand)->virtual_register());
   } else if (operand->IsConstant()) {
-    return LiveRangeFor(ConstantOperand::cast(operand)->index());
+    return LiveRangeFor(ConstantOperand::cast(operand)->virtual_register());
   } else if (operand->IsRegister()) {
-    return FixedLiveRangeFor(operand->index());
+    return FixedLiveRangeFor(RegisterOperand::cast(operand)->index());
   } else if (operand->IsDoubleRegister()) {
-    return FixedDoubleLiveRangeFor(operand->index());
+    return FixedDoubleLiveRangeFor(
+        DoubleRegisterOperand::cast(operand)->index());
   } else {
     return nullptr;
   }
@@ -922,7 +923,7 @@ bool SpillRange::TryMerge(SpillRange* other) {
 }
 
 
-void SpillRange::SetOperand(InstructionOperand* op) {
+void SpillRange::SetOperand(AllocatedOperand* op) {
   for (auto range : live_ranges()) {
     DCHECK(range->GetSpillRange() == this);
     range->CommitSpillOperand(op);
@@ -977,7 +978,7 @@ void RegisterAllocator::AssignSpillSlots() {
     auto op_kind = kind == DOUBLE_REGISTERS
                        ? InstructionOperand::DOUBLE_STACK_SLOT
                        : InstructionOperand::STACK_SLOT;
-    auto op = InstructionOperand::New(code_zone(), op_kind, index);
+    auto op = AllocatedOperand::New(code_zone(), op_kind, index);
     range->SetOperand(op);
   }
 }
@@ -1117,8 +1118,9 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       AllocateFixed(output, -1, false);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
-        DCHECK(output->index() < frame_->GetSpillSlotCount());
-        range->SetSpillOperand(output);
+        DCHECK(StackSlotOperand::cast(output)->index() <
+               frame_->GetSpillSlotCount());
+        range->SetSpillOperand(StackSlotOperand::cast(output));
         range->SetSpillStartIndex(end);
         assigned = true;
       }
@@ -1160,7 +1162,7 @@ void RegisterAllocator::MeetConstraintsAfter(int instr_index) {
   for (size_t i = 0; i < first->OutputCount(); i++) {
     InstructionOperand* output = first->OutputAt(i);
     if (output->IsConstant()) {
-      int output_vreg = output->index();
+      int output_vreg = ConstantOperand::cast(output)->virtual_register();
       auto range = LiveRangeFor(output_vreg);
       range->SetSpillStartIndex(instr_index + 1);
       range->SetSpillOperand(output);
@@ -1176,8 +1178,9 @@ void RegisterAllocator::MeetConstraintsAfter(int instr_index) {
 
       // This value is produced on the stack, we never need to spill it.
       if (first_output->IsStackSlot()) {
-        DCHECK(first_output->index() < frame_->GetSpillSlotCount());
-        range->SetSpillOperand(first_output);
+        DCHECK(StackSlotOperand::cast(first_output)->index() <
+               frame_->GetSpillSlotCount());
+        range->SetSpillOperand(StackSlotOperand::cast(first_output));
         range->SetSpillStartIndex(instr_index + 1);
         assigned = true;
       }
@@ -1241,7 +1244,8 @@ void RegisterAllocator::MeetConstraintsBefore(int instr_index) {
 bool RegisterAllocator::IsOutputRegisterOf(Instruction* instr, int index) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     auto output = instr->OutputAt(i);
-    if (output->IsRegister() && output->index() == index) return true;
+    if (output->IsRegister() && RegisterOperand::cast(output)->index() == index)
+      return true;
   }
   return false;
 }
@@ -1251,7 +1255,9 @@ bool RegisterAllocator::IsOutputDoubleRegisterOf(Instruction* instr,
                                                  int index) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     auto output = instr->OutputAt(i);
-    if (output->IsDoubleRegister() && output->index() == index) return true;
+    if (output->IsDoubleRegister() &&
+        DoubleRegisterOperand::cast(output)->index() == index)
+      return true;
   }
   return false;
 }
@@ -1279,7 +1285,7 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
         int out_vreg = UnallocatedOperand::cast(output)->virtual_register();
         live->Remove(out_vreg);
       } else if (output->IsConstant()) {
-        int out_vreg = output->index();
+        int out_vreg = ConstantOperand::cast(output)->virtual_register();
         live->Remove(out_vreg);
       }
       Define(curr_position, output, nullptr);
@@ -1367,7 +1373,6 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
           int to_vreg = UnallocatedOperand::cast(to)->virtual_register();
           auto to_range = LiveRangeFor(to_vreg);
           if (to_range->is_phi()) {
-            DCHECK(!FLAG_turbo_delay_ssa_decon);
             if (to_range->is_non_loop_phi()) {
               hint = to_range->current_hint_operand();
             }
@@ -1401,15 +1406,13 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
     DCHECK(res.second);
     USE(res);
     auto& output = phi->output();
-    if (!FLAG_turbo_delay_ssa_decon) {
-      for (size_t i = 0; i < phi->operands().size(); ++i) {
-        InstructionBlock* cur_block =
-            code()->InstructionBlockAt(block->predecessors()[i]);
-        AddGapMove(cur_block->last_instruction_index(), Instruction::END,
-                   &phi->inputs()[i], &output);
-        DCHECK(!InstructionAt(cur_block->last_instruction_index())
-                    ->HasPointerMap());
-      }
+    for (size_t i = 0; i < phi->operands().size(); ++i) {
+      InstructionBlock* cur_block =
+          code()->InstructionBlockAt(block->predecessors()[i]);
+      AddGapMove(cur_block->last_instruction_index(), Instruction::END,
+                 &phi->inputs()[i], &output);
+      DCHECK(
+          !InstructionAt(cur_block->last_instruction_index())->HasPointerMap());
     }
     auto live_range = LiveRangeFor(phi_vreg);
     int gap_index = block->first_instruction_index();
@@ -1664,27 +1667,6 @@ void RegisterAllocator::ResolveControlFlow() {
   LiveRangeFinder finder(*this);
   for (auto block : code()->instruction_blocks()) {
     if (CanEagerlyResolveControlFlow(block)) continue;
-    if (FLAG_turbo_delay_ssa_decon) {
-      // resolve phis
-      for (auto phi : block->phis()) {
-        auto* block_bound =
-            finder.ArrayFor(phi->virtual_register())->FindSucc(block);
-        auto phi_output =
-            block_bound->range_->GetAssignedOperand(operand_cache());
-        phi->output().ConvertTo(phi_output->kind(), phi_output->index());
-        size_t pred_index = 0;
-        for (auto pred : block->predecessors()) {
-          const InstructionBlock* pred_block = code()->InstructionBlockAt(pred);
-          auto* pred_bound = finder.ArrayFor(phi->operands()[pred_index])
-                                 ->FindPred(pred_block);
-          auto pred_op =
-              pred_bound->range_->GetAssignedOperand(operand_cache());
-          phi->inputs()[pred_index] = *pred_op;
-          ResolveControlFlow(block, phi_output, pred_block, pred_op);
-          pred_index++;
-        }
-      }
-    }
     auto live = live_in_sets_[block->rpo_number().ToInt()];
     BitVector::Iterator iterator(live);
     while (!iterator.Done()) {
@@ -1745,26 +1727,24 @@ void RegisterAllocator::BuildLiveRanges() {
       // block.
       int phi_vreg = phi->virtual_register();
       live->Remove(phi_vreg);
-      if (!FLAG_turbo_delay_ssa_decon) {
-        InstructionOperand* hint = nullptr;
-        InstructionOperand* phi_operand = nullptr;
-        auto instr = GetLastInstruction(
-            code()->InstructionBlockAt(block->predecessors()[0]));
-        auto move = instr->GetParallelMove(Instruction::END);
-        for (int j = 0; j < move->move_operands()->length(); ++j) {
-          auto to = move->move_operands()->at(j).destination();
-          if (to->IsUnallocated() &&
-              UnallocatedOperand::cast(to)->virtual_register() == phi_vreg) {
-            hint = move->move_operands()->at(j).source();
-            phi_operand = to;
-            break;
-          }
+      InstructionOperand* hint = nullptr;
+      InstructionOperand* phi_operand = nullptr;
+      auto instr = GetLastInstruction(
+          code()->InstructionBlockAt(block->predecessors()[0]));
+      auto move = instr->GetParallelMove(Instruction::END);
+      for (int j = 0; j < move->move_operands()->length(); ++j) {
+        auto to = move->move_operands()->at(j).destination();
+        if (to->IsUnallocated() &&
+            UnallocatedOperand::cast(to)->virtual_register() == phi_vreg) {
+          hint = move->move_operands()->at(j).source();
+          phi_operand = to;
+          break;
         }
-        DCHECK(hint != nullptr);
-        auto block_start = LifetimePosition::GapFromInstructionIndex(
-            block->first_instruction_index());
-        Define(block_start, phi_operand, hint);
       }
+      DCHECK(hint != nullptr);
+      auto block_start = LifetimePosition::GapFromInstructionIndex(
+          block->first_instruction_index());
+      Define(block_start, phi_operand, hint);
     }
 
     // Now live is live_in for this block except not including values live
@@ -2184,7 +2164,7 @@ bool RegisterAllocator::TryAllocateFreeReg(LiveRange* current) {
 
   auto hint = current->FirstHint();
   if (hint != nullptr && (hint->IsRegister() || hint->IsDoubleRegister())) {
-    int register_index = hint->index();
+    int register_index = AllocatedOperand::cast(hint)->index();
     TRACE("Found reg hint %s (free until [%d) for live range %d (end %d[).\n",
           RegisterName(register_index), free_until_pos[register_index].Value(),
           current->id(), current->End().Value());

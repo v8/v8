@@ -708,7 +708,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
     PrintIndent();
     os_ << range->id() << " " << type;
     if (range->HasRegisterAssigned()) {
-      InstructionOperand op = range->GetAssignedOperand();
+      AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
       int assigned_reg = op.index();
       if (op.IsDoubleRegister()) {
         os_ << " \"" << DoubleRegister::AllocationIndexToString(assigned_reg)
@@ -718,18 +718,21 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
         os_ << " \"" << Register::AllocationIndexToString(assigned_reg) << "\"";
       }
     } else if (range->IsSpilled()) {
+      auto top = range->TopLevel();
       int index = -1;
-      if (range->TopLevel()->HasSpillRange()) {
+      if (top->HasSpillRange()) {
         index = kMaxInt;  // This hasn't been set yet.
+      } else if (top->GetSpillOperand()->IsConstant()) {
+        os_ << " \"const(nostack):"
+            << ConstantOperand::cast(top->GetSpillOperand())->virtual_register()
+            << "\"";
       } else {
-        index = range->TopLevel()->GetSpillOperand()->index();
-      }
-      if (range->TopLevel()->Kind() == DOUBLE_REGISTERS) {
-        os_ << " \"double_stack:" << index << "\"";
-      } else if (range->TopLevel()->Kind() == GENERAL_REGISTERS) {
-        os_ << " \"stack:" << index << "\"";
-      } else {
-        os_ << " \"const(nostack):" << index << "\"";
+        index = AllocatedOperand::cast(top->GetSpillOperand())->index();
+        if (top->Kind() == DOUBLE_REGISTERS) {
+          os_ << " \"double_stack:" << index << "\"";
+        } else if (top->Kind() == GENERAL_REGISTERS) {
+          os_ << " \"stack:" << index << "\"";
+        }
       }
     }
     int parent_index = -1;

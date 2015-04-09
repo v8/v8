@@ -256,8 +256,7 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
       loads.push_back(move);
       // Replace source with copy for later use.
       auto dest = move->destination();
-      move->set_destination(
-          InstructionOperand::New(code_zone(), dest->kind(), dest->index()));
+      move->set_destination(InstructionOperand::New(code_zone(), *dest));
       continue;
     }
     if ((found->destination()->IsStackSlot() ||
@@ -266,12 +265,10 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
           move->destination()->IsDoubleStackSlot())) {
       // Found a better source for this load.  Smash it in place to affect other
       // loads that have already been split.
-      InstructionOperand::Kind found_kind = found->destination()->kind();
-      int found_index = found->destination()->index();
       auto next_dest =
-          InstructionOperand::New(code_zone(), found_kind, found_index);
+          InstructionOperand::New(code_zone(), *found->destination());
       auto dest = move->destination();
-      found->destination()->ConvertTo(dest->kind(), dest->index());
+      InstructionOperand::ReplaceWith(found->destination(), dest);
       move->set_destination(next_dest);
     }
     // move from load destination.

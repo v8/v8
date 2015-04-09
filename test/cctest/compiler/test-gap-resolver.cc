@@ -51,11 +51,22 @@ class InterpreterState {
   }
 
   static Key KeyFor(const InstructionOperand* op) {
-    return Key(op->kind(), op->index());
+    int v = op->IsConstant() ? ConstantOperand::cast(op)->virtual_register()
+                             : AllocatedOperand::cast(op)->index();
+    return Key(op->kind(), v);
   }
 
   static Value ValueFor(const InstructionOperand* op) {
-    return Value(op->kind(), op->index());
+    int v = op->IsConstant() ? ConstantOperand::cast(op)->virtual_register()
+                             : AllocatedOperand::cast(op)->index();
+    return Value(op->kind(), v);
+  }
+
+  static InstructionOperand FromKey(Key key) {
+    if (key.first == InstructionOperand::CONSTANT) {
+      return ConstantOperand(key.second);
+    }
+    return AllocatedOperand(key.first, key.second);
   }
 
   friend std::ostream& operator<<(std::ostream& os,
@@ -63,8 +74,8 @@ class InterpreterState {
     for (OperandMap::const_iterator it = is.values_.begin();
          it != is.values_.end(); ++it) {
       if (it != is.values_.begin()) os << " ";
-      InstructionOperand source(it->first.first, it->first.second);
-      InstructionOperand destination(it->second.first, it->second.second);
+      InstructionOperand source = FromKey(it->first);
+      InstructionOperand destination = FromKey(it->second);
       MoveOperands mo(&source, &destination);
       PrintableMoveOperands pmo = {RegisterConfiguration::ArchDefault(), &mo};
       os << pmo;
@@ -115,7 +126,7 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
     std::set<InstructionOperand*, InstructionOperandComparator> seen;
     for (int i = 0; i < size; ++i) {
-      MoveOperands mo(CreateRandomOperand(), CreateRandomOperand());
+      MoveOperands mo(CreateRandomOperand(true), CreateRandomOperand(false));
       if (!mo.IsRedundant() && seen.find(mo.destination()) == seen.end()) {
         parallel_move->AddMove(mo.source(), mo.destination(), main_zone());
         seen.insert(mo.destination());
@@ -128,24 +139,24 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   struct InstructionOperandComparator {
     bool operator()(const InstructionOperand* x,
                     const InstructionOperand* y) const {
-      return (x->kind() < y->kind()) ||
-             (x->kind() == y->kind() && x->index() < y->index());
+      return *x < *y;
     }
   };
 
-  InstructionOperand* CreateRandomOperand() {
+  InstructionOperand* CreateRandomOperand(bool is_source) {
     int index = rng_->NextInt(6);
-    switch (rng_->NextInt(5)) {
+    // destination can't be Constant.
+    switch (rng_->NextInt(is_source ? 5 : 4)) {
       case 0:
-        return ConstantOperand::New(index, main_zone());
+        return StackSlotOperand::New(main_zone(), index);
       case 1:
-        return StackSlotOperand::New(index, main_zone());
+        return DoubleStackSlotOperand::New(main_zone(), index);
       case 2:
-        return DoubleStackSlotOperand::New(index, main_zone());
+        return RegisterOperand::New(main_zone(), index);
       case 3:
-        return RegisterOperand::New(index, main_zone());
+        return DoubleRegisterOperand::New(main_zone(), index);
       case 4:
-        return DoubleRegisterOperand::New(index, main_zone());
+        return ConstantOperand::New(main_zone(), index);
     }
     UNREACHABLE();
     return NULL;

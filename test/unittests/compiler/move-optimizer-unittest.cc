@@ -67,12 +67,12 @@ class MoveOptimizerTest : public InstructionSequenceTest {
     CHECK_NE(kNoValue, op.value_);
     switch (op.type_) {
       case kConstant:
-        return ConstantOperand::New(op.value_, zone());
+        return ConstantOperand::New(zone(), op.value_);
       case kFixedSlot:
-        return StackSlotOperand::New(op.value_, zone());
+        return StackSlotOperand::New(zone(), op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand::New(op.value_, zone());
+        return RegisterOperand::New(zone(), op.value_);
       default:
         break;
     }

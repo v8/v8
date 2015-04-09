@@ -176,9 +176,11 @@ void CodeGenerator::RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
   for (int i = 0; i < operands->length(); i++) {
     InstructionOperand* pointer = operands->at(i);
     if (pointer->IsStackSlot()) {
-      safepoint.DefinePointerSlot(pointer->index(), zone());
+      safepoint.DefinePointerSlot(StackSlotOperand::cast(pointer)->index(),
+                                  zone());
     } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
-      Register reg = Register::FromAllocationIndex(pointer->index());
+      Register reg = Register::FromAllocationIndex(
+          RegisterOperand::cast(pointer)->index());
       safepoint.DefinePointerRegister(reg, zone());
     }
   }
@@ -512,18 +514,19 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     // rather than creating an int value.
     if (type == kMachBool || type == kRepBit || type == kMachInt32 ||
         type == kMachInt8 || type == kMachInt16) {
-      translation->StoreInt32StackSlot(op->index());
+      translation->StoreInt32StackSlot(StackSlotOperand::cast(op)->index());
     } else if (type == kMachUint32 || type == kMachUint16 ||
                type == kMachUint8) {
-      translation->StoreUint32StackSlot(op->index());
+      translation->StoreUint32StackSlot(StackSlotOperand::cast(op)->index());
     } else if ((type & kRepMask) == kRepTagged) {
-      translation->StoreStackSlot(op->index());
+      translation->StoreStackSlot(StackSlotOperand::cast(op)->index());
     } else {
       CHECK(false);
     }
   } else if (op->IsDoubleStackSlot()) {
     DCHECK((type & (kRepFloat32 | kRepFloat64)) != 0);
-    translation->StoreDoubleStackSlot(op->index());
+    translation->StoreDoubleStackSlot(
+        DoubleStackSlotOperand::cast(op)->index());
   } else if (op->IsRegister()) {
     InstructionOperandConverter converter(this, instr);
     // TODO(jarin) kMachBool and kRepBit should materialize true and false

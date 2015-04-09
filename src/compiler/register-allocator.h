@@ -215,15 +215,15 @@ class InstructionOperandCache FINAL : public ZoneObject {
  public:
   InstructionOperandCache();
 
-  InstructionOperand* RegisterOperand(int index) {
+  RegisterOperand* GetRegisterOperand(int index) {
     DCHECK(index >= 0 &&
            index < static_cast<int>(arraysize(general_register_operands_)));
-    return &general_register_operands_[index];
+    return RegisterOperand::cast(&general_register_operands_[index]);
   }
-  InstructionOperand* DoubleRegisterOperand(int index) {
+  DoubleRegisterOperand* GetDoubleRegisterOperand(int index) {
     DCHECK(index >= 0 &&
            index < static_cast<int>(arraysize(double_register_operands_)));
-    return &double_register_operands_[index];
+    return DoubleRegisterOperand::cast(&double_register_operands_[index]);
   }
 
  private:
@@ -345,7 +345,7 @@ class LiveRange FINAL : public ZoneObject {
                          InstructionOperand* operand);
   void SetSpillOperand(InstructionOperand* operand);
   void SetSpillRange(SpillRange* spill_range);
-  void CommitSpillOperand(InstructionOperand* operand);
+  void CommitSpillOperand(AllocatedOperand* operand);
   void CommitSpillsAtDefinition(InstructionSequence* sequence,
                                 InstructionOperand* operand,
                                 bool might_be_duplicated);
@@ -423,7 +423,7 @@ class SpillRange FINAL : public ZoneObject {
   RegisterKind Kind() const { return live_ranges_[0]->Kind(); }
   bool IsEmpty() const { return live_ranges_.empty(); }
   bool TryMerge(SpillRange* other);
-  void SetOperand(InstructionOperand* op);
+  void SetOperand(AllocatedOperand* op);
 
  private:
   LifetimePosition End() const { return end_position_; }

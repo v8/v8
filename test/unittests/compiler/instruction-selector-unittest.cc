@@ -76,16 +76,17 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       InstructionOperand* output = instr->OutputAt(i);
       EXPECT_NE(InstructionOperand::IMMEDIATE, output->kind());
       if (output->IsConstant()) {
-        s.constants_.insert(std::make_pair(
-            output->index(), sequence.GetConstant(output->index())));
+        int vreg = ConstantOperand::cast(output)->virtual_register();
+        s.constants_.insert(std::make_pair(vreg, sequence.GetConstant(vreg)));
       }
     }
     for (size_t i = 0; i < instr->InputCount(); ++i) {
       InstructionOperand* input = instr->InputAt(i);
       EXPECT_NE(InstructionOperand::CONSTANT, input->kind());
       if (input->IsImmediate()) {
-        s.immediates_.insert(std::make_pair(
-            input->index(), sequence.GetImmediate(input->index())));
+        int index = ImmediateOperand::cast(input)->index();
+        s.immediates_.insert(
+            std::make_pair(index, sequence.GetImmediate(index)));
       }
     }
     s.instructions_.push_back(instr);

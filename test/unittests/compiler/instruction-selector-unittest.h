@@ -166,7 +166,9 @@ class InstructionSelectorTest : public TestWithContext,
     }
 
     int ToVreg(const InstructionOperand* operand) const {
-      if (operand->IsConstant()) return operand->index();
+      if (operand->IsConstant()) {
+        return ConstantOperand::cast(operand)->virtual_register();
+      }
       EXPECT_EQ(InstructionOperand::UNALLOCATED, operand->kind());
       return UnallocatedOperand::cast(operand)->virtual_register();
     }
@@ -202,14 +204,15 @@ class InstructionSelectorTest : public TestWithContext,
     Constant ToConstant(const InstructionOperand* operand) const {
       ConstantMap::const_iterator i;
       if (operand->IsConstant()) {
-        i = constants_.find(operand->index());
+        i = constants_.find(ConstantOperand::cast(operand)->virtual_register());
+        EXPECT_EQ(ConstantOperand::cast(operand)->virtual_register(), i->first);
         EXPECT_FALSE(constants_.end() == i);
       } else {
         EXPECT_EQ(InstructionOperand::IMMEDIATE, operand->kind());
-        i = immediates_.find(operand->index());
+        i = immediates_.find(ImmediateOperand::cast(operand)->index());
+        EXPECT_EQ(ImmediateOperand::cast(operand)->index(), i->first);
         EXPECT_FALSE(immediates_.end() == i);
       }
-      EXPECT_EQ(operand->index(), i->first);
       return i->second;
     }
 
