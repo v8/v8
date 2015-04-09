@@ -598,7 +598,8 @@ struct EarlyControlReductionPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), data->common(), 1);
+    // TODO(turbofan): enable select matching in early control reduction.
+    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), data->common(), 0);
   }
 };
 
