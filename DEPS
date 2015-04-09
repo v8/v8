@@ -18,7 +18,7 @@ deps = {
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "29763965ab52f24565299976b936d1265cb6a271",  # from svn revision 501
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "7ec0c52c7a66cd94c96b8eb37bacd26d152e40e6",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "5e71fff34c77c4ee9056fe3f2124c433768e2282",
 }
 
 deps_os = {
