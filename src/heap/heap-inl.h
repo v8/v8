@@ -194,6 +194,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     }
   } else if (LO_SPACE == space) {
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+  } else if (CELL_SPACE == space) {
+    allocation = cell_space_->AllocateRaw(size_in_bytes);
   } else {
     DCHECK(MAP_SPACE == space);
     allocation = map_space_->AllocateRaw(size_in_bytes);
@@ -385,6 +387,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
     case CODE_SPACE:
       return dst == src && type == CODE_TYPE;
     case MAP_SPACE:
+    case CELL_SPACE:
     case LO_SPACE:
       return false;
   }

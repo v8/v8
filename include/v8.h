@@ -4750,7 +4750,8 @@ enum ObjectSpace {
   kObjectSpaceOldSpace = 1 << 1,
   kObjectSpaceCodeSpace = 1 << 2,
   kObjectSpaceMapSpace = 1 << 3,
-  kObjectSpaceLoSpace = 1 << 4,
+  kObjectSpaceCellSpace = 1 << 4,
+  kObjectSpaceLoSpace = 1 << 5,
   kObjectSpaceAll = kObjectSpaceNewSpace | kObjectSpaceOldSpace |
                     kObjectSpaceCodeSpace | kObjectSpaceMapSpace |
                     kObjectSpaceLoSpace
@@ -6740,7 +6741,7 @@ class Internals {
   static const int kJSObjectType = 0xbe;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
-  static const int kForeignType = 0x86;
+  static const int kForeignType = 0x87;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;

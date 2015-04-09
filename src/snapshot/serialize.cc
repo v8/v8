@@ -843,7 +843,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
   // but that may change.
   bool write_barrier_needed =
       (current_object_address != NULL && source_space != NEW_SPACE &&
-       source_space != CODE_SPACE);
+       source_space != CELL_SPACE && source_space != CODE_SPACE);
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
@@ -952,6 +952,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
   CASE_STATEMENT(where, how, within, OLD_SPACE)  \
   CASE_STATEMENT(where, how, within, CODE_SPACE) \
   CASE_STATEMENT(where, how, within, MAP_SPACE)  \
+  CASE_STATEMENT(where, how, within, CELL_SPACE) \
   CASE_STATEMENT(where, how, within, LO_SPACE)   \
   CASE_BODY(where, how, within, kAnyOldSpace)
 

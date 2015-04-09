@@ -537,6 +537,7 @@ void StoreBuffer::Compact() {
   // functions to reduce the number of unnecessary clashes.
   hash_sets_are_empty_ = false;  // Hash sets are in use.
   for (Address* current = start_; current < top; current++) {
+    DCHECK(!heap_->cell_space()->Contains(*current));
     DCHECK(!heap_->code_space()->Contains(*current));
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.

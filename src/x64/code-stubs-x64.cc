@@ -2754,12 +2754,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ movp(kScratchRegister,
             Operand(kScratchRegister, kOffsetToMapCheckValue));
     __ movp(Operand(kScratchRegister, 0), map);
-
-    __ movp(r8, map);
-    // Scratch points at the cell payload. Calculate the start of the object.
-    __ subp(kScratchRegister, Immediate(Cell::kValueOffset - 1));
-    __ RecordWriteField(kScratchRegister, Cell::kValueOffset, r8, function,
-                        kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
 
   // Loop through the prototype chain looking for the function prototype.
