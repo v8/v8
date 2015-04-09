@@ -299,6 +299,12 @@ class DisassemblerIA32 {
     return (checked & 4) != 1;
   }
 
+  bool vex_none() {
+    DCHECK(vex_byte0_ == 0xc4 || vex_byte0_ == 0xc5);
+    byte checked = vex_byte0_ == 0xc4 ? vex_byte2_ : vex_byte1_;
+    return (checked & 3) == 0;
+  }
+
   bool vex_66() {
     DCHECK(vex_byte0_ == 0xc4 || vex_byte0_ == 0xc5);
     byte checked = vex_byte0_ == 0xc4 ? vex_byte2_ : vex_byte1_;
@@ -804,6 +810,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0xf7:
+        AppendToBuffer("shlx %s,", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfCPURegister(vvvv));
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -877,6 +888,99 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vmaxss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+  } else if (vex_none() && vex_0f38()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    const char* mnem = "?";
+    switch (opcode) {
+      case 0xf2:
+        AppendToBuffer("andn %s,%s,", NameOfCPURegister(regop),
+                       NameOfCPURegister(vvvv));
+        current += PrintRightOperand(current);
+        break;
+      case 0xf5:
+        AppendToBuffer("bzhi %s,", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfCPURegister(vvvv));
+        break;
+      case 0xf7:
+        AppendToBuffer("bextr %s,", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfCPURegister(vvvv));
+        break;
+      case 0xf3:
+        switch (regop) {
+          case 1:
+            mnem = "blsr";
+            break;
+          case 2:
+            mnem = "blsmsk";
+            break;
+          case 3:
+            mnem = "blsi";
+            break;
+          default:
+            UnimplementedInstruction();
+        }
+        AppendToBuffer("%s %s,", mnem, NameOfCPURegister(vvvv));
+        current += PrintRightOperand(current);
+        mnem = "?";
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+  } else if (vex_f2() && vex_0f38()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0xf5:
+        AppendToBuffer("pdep %s,%s,", NameOfCPURegister(regop),
+                       NameOfCPURegister(vvvv));
+        current += PrintRightOperand(current);
+        break;
+      case 0xf6:
+        AppendToBuffer("mulx %s,%s,", NameOfCPURegister(regop),
+                       NameOfCPURegister(vvvv));
+        current += PrintRightOperand(current);
+        break;
+      case 0xf7:
+        AppendToBuffer("shrx %s,", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfCPURegister(vvvv));
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+  } else if (vex_f3() && vex_0f38()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0xf5:
+        AppendToBuffer("pext %s,%s,", NameOfCPURegister(regop),
+                       NameOfCPURegister(vvvv));
+        current += PrintRightOperand(current);
+        break;
+      case 0xf7:
+        AppendToBuffer("sarx %s,", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfCPURegister(vvvv));
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+  } else if (vex_f2() && vex_0f3a()) {
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0xf0:
+        AppendToBuffer("rorx %s,", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%d", *current & 0x1f);
+        current += 1;
         break;
       default:
         UnimplementedInstruction();
@@ -1900,6 +2004,24 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             data += PrintRightXMMOperand(data);
             AppendToBuffer(",%s", NameOfXMMRegister(regop));
+          } else if (b2 == 0xB8) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("popcnt %s,", NameOfCPURegister(regop));
+            data += PrintRightOperand(data);
+          } else if (b2 == 0xBC) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("tzcnt %s,", NameOfCPURegister(regop));
+            data += PrintRightOperand(data);
+          } else if (b2 == 0xBD) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("lzcnt %s,", NameOfCPURegister(regop));
+            data += PrintRightOperand(data);
           } else {
             const char* mnem = "?";
             switch (b2) {
