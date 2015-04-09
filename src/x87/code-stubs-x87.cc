@@ -3258,7 +3258,7 @@ void CompareICStub::GenerateSmis(MacroAssembler* masm) {
 void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   DCHECK(state() == CompareICState::NUMBER);
 
-  Label generic_stub;
+  Label generic_stub, check_left;
   Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
 
@@ -3271,13 +3271,13 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SSE2 or CMOV is unsupported.
-  __ mov(ecx, edx);
-  __ and_(ecx, eax);
-  __ JumpIfSmi(ecx, &generic_stub, Label::kNear);
-
+  __ JumpIfSmi(eax, &check_left, Label::kNear);
   __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
          isolate()->factory()->heap_number_map());
   __ j(not_equal, &maybe_undefined1, Label::kNear);
+
+  __ bind(&check_left);
+  __ JumpIfSmi(edx, &generic_stub, Label::kNear);
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
          isolate()->factory()->heap_number_map());
   __ j(not_equal, &maybe_undefined2, Label::kNear);
