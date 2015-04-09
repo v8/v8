@@ -2186,16 +2186,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ call(ebx);
   // Result is in eax or edx:eax - do not destroy these registers!
 
-  // Runtime functions should not return 'the hole'.  Allowing it to escape may
-  // lead to crashes in the IC code later.
-  if (FLAG_debug_code) {
-    Label okay;
-    __ cmp(eax, isolate()->factory()->the_hole_value());
-    __ j(not_equal, &okay, Label::kNear);
-    __ int3();
-    __ bind(&okay);
-  }
-
   // Check result for exception sentinel.
   Label exception_returned;
   __ cmp(eax, isolate()->factory()->exception());
