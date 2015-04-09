@@ -107,12 +107,6 @@
   # optimized and hence scripts don't "return" the correct value. Fix this.
   'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): These tests count the number of optimized code objects
-  # and therefore break because top-level code is optimized. Fix the tests.
-  'test-heap/NextCodeLinkIsWeak': [PASS, NO_VARIANTS],
-  'test-heap/TestInternalWeakLists': [PASS, NO_VARIANTS],
-  'test-heap/TestInternalWeakListsTraverseWithGC': [PASS, NO_VARIANTS],
-
   # TODO(mstarzinger): Crankshaft doesn't fire interceptors as expected.
   'test-api-interceptors/PrePropertyHandler': [PASS, NO_VARIANTS],
 

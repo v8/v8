@@ -1434,6 +1434,19 @@ TEST(CompilationCacheCachingBehavior) {
 }
 
 
+static void OptimizeEmptyFunction(const char* name) {
+  HandleScope scope(CcTest::i_isolate());
+  EmbeddedVector<char, 256> source;
+  SNPrintF(source,
+           "function %s() { return 0; }"
+           "%s(); %s();"
+           "%%OptimizeFunctionOnNextCall(%s);"
+           "%s();",
+           name, name, name, name, name);
+  CompileRun(source.start());
+}
+
+
 // Count the number of native contexts in the weak list of native contexts.
 int CountNativeContexts() {
   int count = 0;
@@ -1461,6 +1474,8 @@ static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
 
 
 TEST(TestInternalWeakLists) {
+  FLAG_always_opt = false;
+  FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
 
   // Some flags turn Scavenge collections into Mark-sweep collections
@@ -1474,6 +1489,7 @@ TEST(TestInternalWeakLists) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   v8::Handle<v8::Context> ctx[kNumTestContexts];
+  if (!isolate->use_crankshaft()) return;
 
   CHECK_EQ(0, CountNativeContexts());
 
@@ -1486,32 +1502,24 @@ TEST(TestInternalWeakLists) {
     isolate->compilation_cache()->Clear();
     heap->CollectAllGarbage(Heap::kNoGCFlags);
 
-    bool opt = (FLAG_always_opt && isolate->use_crankshaft());
-
     CHECK_EQ(i + 1, CountNativeContexts());
 
     ctx[i]->Enter();
 
-    // Create a handle scope so no function objects get stuch in the outer
-    // handle scope
+    // Create a handle scope so no function objects get stuck in the outer
+    // handle scope.
     HandleScope scope(isolate);
-    const char* source = "function f1() { };"
-                         "function f2() { };"
-                         "function f3() { };"
-                         "function f4() { };"
-                         "function f5() { };";
-    CompileRun(source);
     CHECK_EQ(0, CountOptimizedUserFunctions(ctx[i]));
-    CompileRun("f1()");
-    CHECK_EQ(opt ? 1 : 0, CountOptimizedUserFunctions(ctx[i]));
-    CompileRun("f2()");
-    CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
-    CompileRun("f3()");
-    CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
-    CompileRun("f4()");
-    CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
-    CompileRun("f5()");
-    CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[i]));
+    OptimizeEmptyFunction("f1");
+    CHECK_EQ(1, CountOptimizedUserFunctions(ctx[i]));
+    OptimizeEmptyFunction("f2");
+    CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
+    OptimizeEmptyFunction("f3");
+    CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
+    OptimizeEmptyFunction("f4");
+    CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
+    OptimizeEmptyFunction("f5");
+    CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
 
     // Remove function f1, and
     CompileRun("f1=null");
@@ -1519,29 +1527,29 @@ TEST(TestInternalWeakLists) {
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
       CcTest::heap()->CollectGarbage(NEW_SPACE);
-      CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[i]));
+      CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
     }
 
     // Mark compact handles the weak references.
     isolate->compilation_cache()->Clear();
     heap->CollectAllGarbage(Heap::kNoGCFlags);
-    CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
       CcTest::heap()->CollectGarbage(NEW_SPACE);
-      CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
+      CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-    CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       CcTest::heap()->CollectGarbage(NEW_SPACE);
-      CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
+      CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-    CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
   }
@@ -1612,13 +1620,16 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
 
 
 TEST(TestInternalWeakListsTraverseWithGC) {
+  FLAG_always_opt = false;
+  FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
-  Isolate* isolate = CcTest::i_isolate();
 
   static const int kNumTestContexts = 10;
 
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::Handle<v8::Context> ctx[kNumTestContexts];
+  if (!isolate->use_crankshaft()) return;
 
   CHECK_EQ(0, CountNativeContexts());
 
@@ -1630,33 +1641,26 @@ TEST(TestInternalWeakListsTraverseWithGC) {
     CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }
 
-  bool opt = (FLAG_always_opt && isolate->use_crankshaft());
+  ctx[0]->Enter();
 
   // Compile a number of functions the length of the weak list of optimized
   // functions both with and without GCs while iterating the list.
-  ctx[0]->Enter();
-  const char* source = "function f1() { };"
-                       "function f2() { };"
-                       "function f3() { };"
-                       "function f4() { };"
-                       "function f5() { };";
-  CompileRun(source);
   CHECK_EQ(0, CountOptimizedUserFunctions(ctx[0]));
-  CompileRun("f1()");
-  CHECK_EQ(opt ? 1 : 0, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(opt ? 1 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  CompileRun("f2()");
-  CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  CompileRun("f3()");
-  CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  CompileRun("f4()");
-  CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 2));
-  CompileRun("f5()");
-  CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 4));
+  OptimizeEmptyFunction("f1");
+  CHECK_EQ(1, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(1, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
+  OptimizeEmptyFunction("f2");
+  CHECK_EQ(2, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(2, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
+  OptimizeEmptyFunction("f3");
+  CHECK_EQ(3, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(3, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
+  OptimizeEmptyFunction("f4");
+  CHECK_EQ(4, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(4, CountOptimizedUserFunctionsWithGC(ctx[0], 2));
+  OptimizeEmptyFunction("f5");
+  CHECK_EQ(5, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(5, CountOptimizedUserFunctionsWithGC(ctx[0], 4));
 
   ctx[0]->Exit();
 }
@@ -4391,6 +4395,7 @@ static int GetCodeChainLength(Code* code) {
 
 
 TEST(NextCodeLinkIsWeak) {
+  i::FLAG_always_opt = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_turbo_deoptimization = true;
   CcTest::InitializeVM();
