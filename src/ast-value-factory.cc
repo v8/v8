@@ -114,19 +114,6 @@ bool AstRawString::IsOneByteEqualTo(const char* data) const {
 }
 
 
-bool AstRawString::Compare(void* a, void* b) {
-  return *static_cast<AstRawString*>(a) == *static_cast<AstRawString*>(b);
-}
-
-bool AstRawString::operator==(const AstRawString& rhs) const {
-  if (is_one_byte_ != rhs.is_one_byte_) return false;
-  if (hash_ != rhs.hash_) return false;
-  int len = literal_bytes_.length();
-  if (rhs.literal_bytes_.length() != len) return false;
-  return memcmp(literal_bytes_.start(), rhs.literal_bytes_.start(), len) == 0;
-}
-
-
 void AstConsString::Internalize(Isolate* isolate) {
   // AstRawStrings are internalized before AstConsStrings so left and right are
   // already internalized.
@@ -382,4 +369,13 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
 }
 
 
+bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
+  const AstRawString* lhs = static_cast<AstRawString*>(a);
+  const AstRawString* rhs = static_cast<AstRawString*>(b);
+  if (lhs->is_one_byte() != rhs->is_one_byte()) return false;
+  if (lhs->hash() != rhs->hash()) return false;
+  int len = lhs->byte_length();
+  if (rhs->byte_length() != len) return false;
+  return memcmp(lhs->raw_data(), rhs->raw_data(), len) == 0;
+}
 } }  // namespace v8::internal

@@ -20,8 +20,9 @@ void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
   ZoneAllocationPolicy allocator(zone);
 
   if (exports_ == nullptr) {
-    exports_ = new (zone->New(sizeof(ZoneHashMap))) ZoneHashMap(
-        AstRawString::Compare, ZoneHashMap::kDefaultHashMapCapacity, allocator);
+    exports_ = new (zone->New(sizeof(ZoneHashMap)))
+        ZoneHashMap(ZoneHashMap::PointersMatch,
+                    ZoneHashMap::kDefaultHashMapCapacity, allocator);
   }
 
   ZoneHashMap::Entry* p =

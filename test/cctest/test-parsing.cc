@@ -5450,13 +5450,11 @@ TEST(ModuleParsingInternals) {
   i::Handle<i::Script> script = factory->NewScript(source);
   i::Zone zone;
   i::ParseInfo info(&zone, script);
-  i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
   i::Parser parser(&info);
   parser.set_allow_harmony_modules(true);
   info.set_module();
   CHECK(parser.Parse(&info));
   CHECK(i::Compiler::Analyze(&info));
-
   i::FunctionLiteral* func = info.function();
   i::Scope* module_scope = func->scope();
   i::Scope* outer_scope = module_scope->outer_scope();
@@ -5466,11 +5464,11 @@ TEST(ModuleParsingInternals) {
   CHECK(module_scope->is_module_scope());
   CHECK_NOT_NULL(module_scope->module_var());
   CHECK_EQ(i::INTERNAL, module_scope->module_var()->mode());
-
   i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
   CHECK_EQ(1, descriptor->Length());
-  const i::AstRawString* export_name = avf.GetOneByteString("y");
+  const i::AstRawString* export_name =
+      info.ast_value_factory()->GetOneByteString("y");
   const i::AstRawString* local_name =
       descriptor->LookupLocalExport(export_name, &zone);
   CHECK_NOT_NULL(local_name);

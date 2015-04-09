@@ -70,6 +70,8 @@ class AstRawString : public AstString {
     return literal_bytes_.length() / 2;
   }
 
+  int byte_length() const { return literal_bytes_.length(); }
+
   void Internalize(Isolate* isolate) OVERRIDE;
 
   bool AsArrayIndex(uint32_t* index) const;
@@ -92,9 +94,6 @@ class AstRawString : public AstString {
   uint32_t hash() const {
     return hash_;
   }
-  static bool Compare(void* a, void* b);
-
-  bool operator==(const AstRawString& rhs) const;
 
  private:
   friend class AstValueFactory;
@@ -281,7 +280,7 @@ class AstValue : public ZoneObject {
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, uint32_t hash_seed)
-      : string_table_(AstRawString::Compare),
+      : string_table_(AstRawStringCompare),
         zone_(zone),
         isolate_(NULL),
         hash_seed_(hash_seed) {
@@ -343,6 +342,8 @@ class AstValueFactory {
   AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
+
+  static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
   HashMap string_table_;
