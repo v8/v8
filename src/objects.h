@@ -8120,11 +8120,12 @@ class JSRegExp: public JSObject {
       FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
 
   // In-object fields.
-  static const int kGlobalFieldIndex = 0;
-  static const int kIgnoreCaseFieldIndex = 1;
-  static const int kMultilineFieldIndex = 2;
-  static const int kLastIndexFieldIndex = 3;
-  static const int kInObjectFieldCount = 4;
+  static const int kSourceFieldIndex = 0;
+  static const int kGlobalFieldIndex = 1;
+  static const int kIgnoreCaseFieldIndex = 2;
+  static const int kMultilineFieldIndex = 3;
+  static const int kLastIndexFieldIndex = 4;
+  static const int kInObjectFieldCount = 5;
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;

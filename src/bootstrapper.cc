@@ -1066,11 +1066,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     {
       // ECMA-262, section 15.10.7.1.
-      Handle<AccessorInfo> regexp_source(
-          Accessors::RegExpSourceInfo(isolate, final));
-      AccessorConstantDescriptor d(factory->source_string(), regexp_source,
-                                   final);
-      initial_map->AppendDescriptor(&d);
+      DataDescriptor field(factory->source_string(),
+                           JSRegExp::kSourceFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.2.
@@ -1114,6 +1113,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<Map> proto_map = Map::Copy(initial_map, "RegExpPrototype");
     DCHECK(proto_map->prototype() == *isolate->initial_object_prototype());
     Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
+    proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
+                                 heap->query_colon_string());
     proto->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex,
                                  heap->false_value());
     proto->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex,
