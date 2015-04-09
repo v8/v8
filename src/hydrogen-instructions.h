@@ -5706,9 +5706,6 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
   while (object->IsInnerAllocatedObject()) {
     object = HInnerAllocatedObject::cast(object)->base_object();
   }
-  if (object->IsConstant() && HConstant::cast(object)->IsCell()) {
-    return false;
-  }
   if (object->IsConstant() &&
       HConstant::cast(object)->HasExternalReferenceValue()) {
     // Stores to external references require no write barriers

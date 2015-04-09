@@ -643,7 +643,6 @@ class Heap {
   OldSpace* old_space() { return old_space_; }
   OldSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
-  CellSpace* cell_space() { return cell_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
   PagedSpace* paged_space(int idx) {
     switch (idx) {
@@ -651,8 +650,6 @@ class Heap {
         return old_space();
       case MAP_SPACE:
         return map_space();
-      case CELL_SPACE:
-        return cell_space();
       case CODE_SPACE:
         return code_space();
       case NEW_SPACE:
@@ -1571,7 +1568,6 @@ class Heap {
   OldSpace* old_space_;
   OldSpace* code_space_;
   MapSpace* map_space_;
-  CellSpace* cell_space_;
   LargeObjectSpace* lo_space_;
   HeapState gc_state_;
   int gc_post_processing_depth_;
@@ -2176,20 +2172,18 @@ class HeapStats {
   intptr_t* code_space_capacity;           //  6
   intptr_t* map_space_size;                //  7
   intptr_t* map_space_capacity;            //  8
-  intptr_t* cell_space_size;               //  9
-  intptr_t* cell_space_capacity;           // 10
-  intptr_t* lo_space_size;                 // 11
-  int* global_handle_count;                // 12
-  int* weak_global_handle_count;           // 13
-  int* pending_global_handle_count;        // 14
-  int* near_death_global_handle_count;     // 15
-  int* free_global_handle_count;           // 16
-  intptr_t* memory_allocator_size;         // 17
-  intptr_t* memory_allocator_capacity;     // 18
-  int* objects_per_type;                   // 19
-  int* size_per_type;                      // 20
-  int* os_error;                           // 21
-  int* end_marker;                         // 22
+  intptr_t* lo_space_size;                 //  9
+  int* global_handle_count;                // 10
+  int* weak_global_handle_count;           // 11
+  int* pending_global_handle_count;        // 12
+  int* near_death_global_handle_count;     // 13
+  int* free_global_handle_count;           // 14
+  intptr_t* memory_allocator_size;         // 15
+  intptr_t* memory_allocator_capacity;     // 16
+  int* objects_per_type;                   // 17
+  int* size_per_type;                      // 18
+  int* os_error;                           // 19
+  int* end_marker;                         // 20
 };
 
 

@@ -1544,6 +1544,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // We have a cell, so need another level of dereferencing.
     __ Ldr(scratch1, MemOperand(scratch1));
     __ Str(map, FieldMemOperand(scratch1, Cell::kValueOffset));
+
+    __ Mov(x14, map);
+    // Scratch points at the cell payload. Calculate the start of the object.
+    __ RecordWriteField(scratch1, Cell::kValueOffset, x14, function,
+                        kLRHasNotBeenSaved, kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   } else {
     __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
     __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);

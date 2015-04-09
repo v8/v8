@@ -137,7 +137,6 @@ static void VerifyMarking(PagedSpace* space) {
 static void VerifyMarking(Heap* heap) {
   VerifyMarking(heap->old_space());
   VerifyMarking(heap->code_space());
-  VerifyMarking(heap->cell_space());
   VerifyMarking(heap->map_space());
   VerifyMarking(heap->new_space());
 
@@ -215,7 +214,6 @@ static void VerifyEvacuation(Heap* heap, PagedSpace* space) {
 static void VerifyEvacuation(Heap* heap) {
   VerifyEvacuation(heap, heap->old_space());
   VerifyEvacuation(heap, heap->code_space());
-  VerifyEvacuation(heap, heap->cell_space());
   VerifyEvacuation(heap, heap->map_space());
   VerifyEvacuation(heap->new_space());
 
@@ -268,7 +266,6 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
 
     if (FLAG_trace_fragmentation) {
       TraceFragmentation(heap()->map_space());
-      TraceFragmentation(heap()->cell_space());
     }
 
     heap()->old_space()->EvictEvacuationCandidatesFromFreeLists();
@@ -295,7 +292,6 @@ void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
 
   ClearInvalidSlotsBufferEntries(heap_->old_space());
   ClearInvalidSlotsBufferEntries(heap_->code_space());
-  ClearInvalidSlotsBufferEntries(heap_->cell_space());
   ClearInvalidSlotsBufferEntries(heap_->map_space());
 
   LargeObjectIterator it(heap_->lo_space());
@@ -321,7 +317,6 @@ static void VerifyValidStoreAndSlotsBufferEntries(Heap* heap) {
 
   VerifyValidSlotsBufferEntries(heap, heap->old_space());
   VerifyValidSlotsBufferEntries(heap, heap->code_space());
-  VerifyValidSlotsBufferEntries(heap, heap->cell_space());
   VerifyValidSlotsBufferEntries(heap, heap->map_space());
 
   LargeObjectIterator it(heap->lo_space());
@@ -412,7 +407,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
 void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->old_space());
   VerifyMarkbitsAreClean(heap_->code_space());
-  VerifyMarkbitsAreClean(heap_->cell_space());
   VerifyMarkbitsAreClean(heap_->map_space());
   VerifyMarkbitsAreClean(heap_->new_space());
 
@@ -469,7 +463,6 @@ void MarkCompactCollector::ClearMarkbits() {
   ClearMarkbitsInPagedSpace(heap_->code_space());
   ClearMarkbitsInPagedSpace(heap_->map_space());
   ClearMarkbitsInPagedSpace(heap_->old_space());
-  ClearMarkbitsInPagedSpace(heap_->cell_space());
   ClearMarkbitsInNewSpace(heap_->new_space());
 
   LargeObjectIterator it(heap_->lo_space());
@@ -636,8 +629,6 @@ const char* AllocationSpaceName(AllocationSpace space) {
       return "CODE_SPACE";
     case MAP_SPACE:
       return "MAP_SPACE";
-    case CELL_SPACE:
-      return "CELL_SPACE";
     case LO_SPACE:
       return "LO_SPACE";
     default:
@@ -2119,9 +2110,6 @@ void MarkCompactCollector::RefillMarkingDeque() {
   DiscoverGreyObjectsInSpace(heap(), &marking_deque_, heap()->map_space());
   if (marking_deque_.IsFull()) return;
 
-  DiscoverGreyObjectsInSpace(heap(), &marking_deque_, heap()->cell_space());
-  if (marking_deque_.IsFull()) return;
-
   LargeObjectIterator lo_it(heap()->lo_space());
   DiscoverGreyObjectsWithIterator(heap(), &marking_deque_, &lo_it);
   if (marking_deque_.IsFull()) return;
@@ -2311,23 +2299,6 @@ void MarkCompactCollector::MarkLiveObjects() {
   EnsureMarkingDequeIsCommittedAndInitialize();
 
   PrepareForCodeFlushing();
-
-  if (was_marked_incrementally_) {
-    // There is no write barrier on cells so we have to scan them now at the end
-    // of the incremental marking.
-    {
-      HeapObjectIterator cell_iterator(heap()->cell_space());
-      HeapObject* cell;
-      while ((cell = cell_iterator.Next()) != NULL) {
-        DCHECK(cell->IsCell());
-        if (IsMarked(cell)) {
-          int offset = Cell::kValueOffset;
-          MarkCompactMarkingVisitor::VisitPointer(
-              heap(), reinterpret_cast<Object**>(cell->address() + offset));
-        }
-      }
-    }
-  }
 
   RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
@@ -2881,6 +2852,16 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     for (Object** p = start; p < end; p++) UpdatePointer(p);
   }
 
+  void VisitCell(RelocInfo* rinfo) {
+    DCHECK(rinfo->rmode() == RelocInfo::CELL);
+    Object* cell = rinfo->target_cell();
+    Object* old_cell = cell;
+    VisitPointer(&cell);
+    if (cell != old_cell) {
+      rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
+    }
+  }
+
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     Object* target = rinfo->target_object();
@@ -2989,11 +2970,9 @@ void PointersUpdatingVisitor::CheckLayoutDescriptorAndDie(Heap* heap,
     space_owner_id = 4;
   } else if (heap->map_space()->ContainsSafe(slot_address)) {
     space_owner_id = 5;
-  } else if (heap->cell_space()->ContainsSafe(slot_address)) {
-    space_owner_id = 6;
   } else {
     // Lo space or other.
-    space_owner_id = 7;
+    space_owner_id = 6;
   }
   data[index++] = space_owner_id;
   data[index++] = 0x20aaaaaaaaUL;
@@ -3422,6 +3401,11 @@ static inline void UpdateSlot(Isolate* isolate, ObjectVisitor* v,
       rinfo.Visit(isolate, v);
       break;
     }
+    case SlotsBuffer::CELL_TARGET_SLOT: {
+      RelocInfo rinfo(addr, RelocInfo::CELL, 0, NULL);
+      rinfo.Visit(isolate, v);
+      break;
+    }
     case SlotsBuffer::CODE_ENTRY_SLOT: {
       v->VisitCodeEntry(addr);
       break;
@@ -3805,15 +3789,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   GCTracer::Scope gc_scope(heap()->tracer(),
                            GCTracer::Scope::MC_UPDATE_MISC_POINTERS);
-
-  // Update pointers from cells.
-  HeapObjectIterator cell_iterator(heap_->cell_space());
-  for (HeapObject* cell = cell_iterator.Next(); cell != NULL;
-       cell = cell_iterator.Next()) {
-    if (cell->IsCell()) {
-      Cell::BodyDescriptor::IterateBody(cell, &updating_visitor);
-    }
-  }
 
   heap_->string_table()->Iterate(&updating_visitor);
 
@@ -4429,12 +4404,6 @@ void MarkCompactCollector::SweepSpaces() {
     SweepSpace(heap()->code_space(), SEQUENTIAL_SWEEPING);
   }
 
-  {
-    GCTracer::Scope sweep_scope(heap()->tracer(),
-                                GCTracer::Scope::MC_SWEEP_CELL);
-    SweepSpace(heap()->cell_space(), SEQUENTIAL_SWEEPING);
-  }
-
   EvacuateNewSpaceAndCandidates();
 
   // ClearNonLiveReferences depends on precise sweeping of map space to
@@ -4613,6 +4582,8 @@ void SlotsBuffer::VerifySlots(Heap* heap, SlotsBuffer* buffer) {
 static inline SlotsBuffer::SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
   if (RelocInfo::IsCodeTarget(rmode)) {
     return SlotsBuffer::CODE_TARGET_SLOT;
+  } else if (RelocInfo::IsCell(rmode)) {
+    return SlotsBuffer::CELL_TARGET_SLOT;
   } else if (RelocInfo::IsEmbeddedObject(rmode)) {
     return SlotsBuffer::EMBEDDED_OBJECT_SLOT;
   } else if (RelocInfo::IsDebugBreakSlot(rmode)) {

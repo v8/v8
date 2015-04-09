@@ -233,7 +233,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(Heap* heap,
                                                     RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
-  // No need to record slots because the cell space is not compacted during GC.
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, cell);
   if (!rinfo->host()->IsWeakObject(cell)) {
     StaticVisitor::MarkObject(heap, cell);
   }
