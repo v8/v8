@@ -1009,7 +1009,8 @@ Object* PagedSpace::FindObject(Address addr) {
 
 bool PagedSpace::CanExpand() {
   DCHECK(max_capacity_ % AreaSize() == 0);
-  DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
+  DCHECK(heap()->mark_compact_collector()->is_compacting() ||
+         Capacity() <= heap()->MaxOldGenerationSize());
   DCHECK(heap()->CommittedOldGenerationMemory() <=
          heap()->MaxOldGenerationSize() +
              PagedSpace::MaxEmergencyMemoryAllocated());
