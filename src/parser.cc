@@ -1560,6 +1560,8 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
+  scope_->module()->AddModuleRequest(module_specifier, zone());
+
   if (module_instance_binding != NULL) {
     // TODO(ES6): Set the module specifier for the module namespace binding.
   }
@@ -1697,6 +1699,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
           }
         }
       } else {
+        scope_->module()->AddModuleRequest(indirect_export_module_specifier,
+                                           zone());
         for (int i = 0; i < length; ++i) {
           // TODO(ES6): scope_->module()->AddIndirectExport(...);(
         }

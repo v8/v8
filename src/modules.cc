@@ -35,6 +35,15 @@ void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
 }
 
 
+void ModuleDescriptor::AddModuleRequest(const AstRawString* module_specifier,
+                                        Zone* zone) {
+  // TODO(adamk): Avoid this O(N) operation on each insert by storing
+  // a HashMap, or by de-duping after parsing.
+  if (requested_modules_.Contains(module_specifier)) return;
+  requested_modules_.Add(module_specifier, zone);
+}
+
+
 const AstRawString* ModuleDescriptor::LookupLocalExport(
     const AstRawString* export_name, Zone* zone) {
   if (exports_ == nullptr) return nullptr;
