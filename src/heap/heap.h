@@ -232,6 +232,7 @@ namespace internal {
   V(sticky_string, "sticky")                                   \
   V(unicode_string, "unicode")                                 \
   V(harmony_regexps_string, "harmony_regexps")                 \
+  V(harmony_tostring_string, "harmony_tostring")               \
   V(harmony_unicode_regexps_string, "harmony_unicode_regexps") \
   V(input_string, "input")                                     \
   V(index_string, "index")                                     \

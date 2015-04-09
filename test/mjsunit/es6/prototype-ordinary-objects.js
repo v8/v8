@@ -48,6 +48,9 @@ var funcs = [
 
 for (var fun of funcs) {
   var p = fun.prototype;
+
+  // @@toStringTag is tested separately, and interferes with this test.
+  if (Symbol.toStringTag) delete p[Symbol.toStringTag];
   assertEquals('[object Object]', Object.prototype.toString.call(p));
 }
 
@@ -60,5 +63,5 @@ var funcs = [
 
 for (var fun of funcs) {
   var p = fun.prototype;
-  assertEquals('[object ' + fun.name + ']', Object.prototype.toString.call(p));
+  assertEquals(`[object ${fun.name}]`, Object.prototype.toString.call(p));
 }

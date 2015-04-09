@@ -216,12 +216,33 @@ SetUpGlobal();
 // ----------------------------------------------------------------------------
 // Object
 
-var DefaultObjectToString = NoSideEffectsObjectToString;
+var DefaultObjectToString = ObjectToString;
 // ECMA-262 - 15.2.4.2
 function NoSideEffectsObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
   return "[object " + %_ClassOf(TO_OBJECT_INLINE(this)) + "]";
+}
+
+
+function ObjectToString() {
+  if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
+  if (IS_NULL(this)) return "[object Null]";
+  var O = TO_OBJECT_INLINE(this);
+  var builtinTag = %_ClassOf(O);
+  var tag;
+
+  // TODO(caitp): cannot wait to get rid of this flag :>
+  if (harmony_tostring) {
+    var tag = O[symbolToStringTag];
+    if (!IS_STRING(tag)) {
+      tag = builtinTag;
+    }
+  } else {
+    tag = builtinTag;
+  }
+
+  return `[object ${tag}]`;
 }
 
 
@@ -1410,7 +1431,7 @@ function SetUpObject() {
 
   // Set up non-enumerable functions on the Object.prototype object.
   InstallFunctions($Object.prototype, DONT_ENUM, $Array(
-    "toString", NoSideEffectsObjectToString,
+    "toString", ObjectToString,
     "toLocaleString", ObjectToLocaleString,
     "valueOf", ObjectValueOf,
     "hasOwnProperty", ObjectHasOwnProperty,

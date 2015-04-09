@@ -342,5 +342,11 @@ RUNTIME_FUNCTION(Runtime_Unlikely) {
   DCHECK(args.length() == 1);
   return args[0];
 }
+
+
+RUNTIME_FUNCTION(Runtime_HarmonyToString) {
+  // TODO(caitp): Delete this runtime method when removing --harmony-tostring
+  return isolate->heap()->ToBoolean(FLAG_harmony_tostring);
+}
 }
 }  // namespace v8::internal

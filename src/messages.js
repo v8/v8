@@ -248,7 +248,7 @@ function NoSideEffectToString(obj) {
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
   if (IS_OBJECT(obj)
-      && %GetDataProperty(obj, "toString") === DefaultObjectToString) {
+      && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
       var constructorName = constructor.name;

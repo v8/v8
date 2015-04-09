@@ -1690,7 +1690,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_array_includes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_classes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_literals)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrow_functions)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode)
@@ -1759,6 +1758,17 @@ void Genesis::InitializeGlobal_harmony_reflect() {
   Handle<Object> reflect =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
+}
+
+
+void Genesis::InitializeGlobal_harmony_tostring() {
+  Handle<JSObject> builtins(native_context()->builtins());
+
+  Handle<HeapObject> flag(FLAG_harmony_tostring ? heap()->true_value()
+                                                : heap()->false_value());
+  Runtime::SetObjectProperty(isolate(), builtins,
+                             factory()->harmony_tostring_string(), flag,
+                             STRICT).Assert();
 }
 
 

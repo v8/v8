@@ -291,7 +291,8 @@ namespace internal {
   F(GetFromCache, 2, 1)                   \
   F(IncrementStatsCounter, 1, 1)          \
   F(Likely, 1, 1)                         \
-  F(Unlikely, 1, 1)
+  F(Unlikely, 1, 1)                       \
+  F(HarmonyToString, 0, 1)
 
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
