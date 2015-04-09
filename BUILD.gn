@@ -1527,7 +1527,7 @@ if (component_mode == "shared_library") {
       ":toolchain",
     ]
 
-    direct_dependent_configs = [ ":external_config" ]
+    public_configs = [ ":external_config" ]
 
     libs = []
     if (is_android && current_toolchain != host_toolchain) {
@@ -1554,7 +1554,7 @@ if (component_mode == "shared_library") {
       ]
     }
 
-    direct_dependent_configs = [ ":external_config" ]
+    public_configs = [ ":external_config" ]
   }
 }
 
@@ -1571,7 +1571,10 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
-      ":internal_config",
+      # Note: don't use :internal_config here because this target will get
+      # the :external_config applied to it by virtue of depending on :v8, and
+      # you can't have both applied to the same target.
+      ":internal_config_base",
       ":features",
       ":toolchain",
     ]
