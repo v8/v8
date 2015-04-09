@@ -35,8 +35,7 @@ class InstructionOperand {
   // kInvalidVirtualRegister and some DCHECKS.
   enum Kind { INVALID, UNALLOCATED, CONSTANT, IMMEDIATE, ALLOCATED };
 
-  InstructionOperand()
-      : InstructionOperand(INVALID, 0, kInvalidVirtualRegister) {}
+  InstructionOperand() : InstructionOperand(INVALID) {}
 
   Kind kind() const { return KindField::decode(value_); }
 
@@ -75,19 +74,9 @@ class InstructionOperand {
   }
 
  protected:
-  InstructionOperand(Kind kind, int index, int virtual_register) {
-    if (kind != UNALLOCATED && kind != CONSTANT) {
-      DCHECK(virtual_register == kInvalidVirtualRegister);
-    }
-    value_ = KindField::encode(kind);
-    value_ |=
-        VirtualRegisterField::encode(static_cast<uint32_t>(virtual_register));
-    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
-  }
+  explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
 
-  typedef BitField64<Kind, 0, 3> KindField;
-  typedef BitField64<uint32_t, 3, 32> VirtualRegisterField;
-  typedef BitField64<int32_t, 35, 29> IndexField;
+  class KindField : public BitField64<Kind, 0, 3> {};
 
   uint64_t value_;
 };
@@ -146,14 +135,14 @@ class UnallocatedOperand : public InstructionOperand {
   };
 
   UnallocatedOperand(ExtendedPolicy policy, int virtual_register)
-      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
+      : UnallocatedOperand(virtual_register) {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
   }
 
   UnallocatedOperand(BasicPolicy policy, int index, int virtual_register)
-      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
+      : UnallocatedOperand(virtual_register) {
     DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
     value_ |= static_cast<int64_t>(index) << FixedSlotIndexField::kShift;
@@ -161,7 +150,7 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   UnallocatedOperand(ExtendedPolicy policy, int index, int virtual_register)
-      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
+      : UnallocatedOperand(virtual_register) {
     DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
@@ -171,7 +160,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   UnallocatedOperand(ExtendedPolicy policy, Lifetime lifetime,
                      int virtual_register)
-      : InstructionOperand(UNALLOCATED, 0, virtual_register) {
+      : UnallocatedOperand(virtual_register) {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(lifetime);
@@ -182,40 +171,6 @@ class UnallocatedOperand : public InstructionOperand {
   UnallocatedOperand* CopyUnconstrained(Zone* zone) {
     return New(zone, UnallocatedOperand(ANY, virtual_register()));
   }
-
-  // The encoding used for UnallocatedOperand operands depends on the policy
-  // that is
-  // stored within the operand. The FIXED_SLOT policy uses a compact encoding
-  // because it accommodates a larger pay-load.
-  //
-  // For FIXED_SLOT policy:
-  //     +------------------------------------------------+
-  //     |      slot_index   | 0 | virtual_register | 001 |
-  //     +------------------------------------------------+
-  //
-  // For all other (extended) policies:
-  //     +-----------------------------------------------------+
-  //     |  reg_index  | L | PPP |  1 | virtual_register | 001 |
-  //     +-----------------------------------------------------+
-  //     L ... Lifetime
-  //     P ... Policy
-  //
-  // The slot index is a signed value which requires us to decode it manually
-  // instead of using the BitField utility class.
-
-  // All bits fit into the index field.
-  STATIC_ASSERT(IndexField::kShift == 35);
-
-  // BitFields for all unallocated operands.
-  class BasicPolicyField : public BitField64<BasicPolicy, 35, 1> {};
-
-  // BitFields specific to BasicPolicy::FIXED_SLOT.
-  class FixedSlotIndexField : public BitField64<int, 36, 28> {};
-
-  // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 36, 3> {};
-  class LifetimeField : public BitField64<Lifetime, 39, 1> {};
-  class FixedRegisterField : public BitField64<int, 40, 6> {};
 
   // Predicates for the operand policy.
   bool HasAnyPolicy() const {
@@ -292,13 +247,58 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED);
+
+  // The encoding used for UnallocatedOperand operands depends on the policy
+  // that is
+  // stored within the operand. The FIXED_SLOT policy uses a compact encoding
+  // because it accommodates a larger pay-load.
+  //
+  // For FIXED_SLOT policy:
+  //     +------------------------------------------------+
+  //     |      slot_index   | 0 | virtual_register | 001 |
+  //     +------------------------------------------------+
+  //
+  // For all other (extended) policies:
+  //     +-----------------------------------------------------+
+  //     |  reg_index  | L | PPP |  1 | virtual_register | 001 |
+  //     +-----------------------------------------------------+
+  //     L ... Lifetime
+  //     P ... Policy
+  //
+  // The slot index is a signed value which requires us to decode it manually
+  // instead of using the BitField utility class.
+
+  STATIC_ASSERT(KindField::kSize == 3);
+
+  class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
+
+  // BitFields for all unallocated operands.
+  class BasicPolicyField : public BitField64<BasicPolicy, 35, 1> {};
+
+  // BitFields specific to BasicPolicy::FIXED_SLOT.
+  class FixedSlotIndexField : public BitField64<int, 36, 28> {};
+
+  // BitFields specific to BasicPolicy::EXTENDED_POLICY.
+  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 36, 3> {};
+  class LifetimeField : public BitField64<Lifetime, 39, 1> {};
+  class FixedRegisterField : public BitField64<int, 40, 6> {};
+
+ private:
+  explicit UnallocatedOperand(int virtual_register)
+      : InstructionOperand(UNALLOCATED) {
+    value_ |=
+        VirtualRegisterField::encode(static_cast<uint32_t>(virtual_register));
+  }
 };
 
 
 class ConstantOperand : public InstructionOperand {
  public:
   explicit ConstantOperand(int virtual_register)
-      : InstructionOperand(CONSTANT, 0, virtual_register) {}
+      : InstructionOperand(CONSTANT) {
+    value_ |=
+        VirtualRegisterField::encode(static_cast<uint32_t>(virtual_register));
+  }
 
   int32_t virtual_register() const {
     return static_cast<int32_t>(VirtualRegisterField::decode(value_));
@@ -309,13 +309,17 @@ class ConstantOperand : public InstructionOperand {
   }
 
   INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT);
+
+  STATIC_ASSERT(KindField::kSize == 3);
+  class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
 };
 
 
 class ImmediateOperand : public InstructionOperand {
  public:
-  explicit ImmediateOperand(int index)
-      : InstructionOperand(IMMEDIATE, index, kInvalidVirtualRegister) {}
+  explicit ImmediateOperand(int index) : InstructionOperand(IMMEDIATE) {
+    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
+  }
 
   int index() const {
     return static_cast<int64_t>(value_) >> IndexField::kShift;
@@ -326,6 +330,9 @@ class ImmediateOperand : public InstructionOperand {
   }
 
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE);
+
+  STATIC_ASSERT(KindField::kSize == 3);
+  class IndexField : public BitField64<int32_t, 35, 29> {};
 };
 
 
@@ -339,9 +346,10 @@ class AllocatedOperand : public InstructionOperand {
   };
 
   AllocatedOperand(AllocatedKind kind, int index)
-      : InstructionOperand(ALLOCATED, index, kInvalidVirtualRegister) {
-    if (kind == REGISTER || kind == DOUBLE_REGISTER) DCHECK(index >= 0);
-    value_ = AllocatedKindField::update(value_, kind);
+      : InstructionOperand(ALLOCATED) {
+    DCHECK_IMPLIES(kind == REGISTER || kind == DOUBLE_REGISTER, index >= 0);
+    value_ |= AllocatedKindField::encode(kind);
+    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
   }
 
   int index() const {
@@ -358,8 +366,9 @@ class AllocatedOperand : public InstructionOperand {
 
   INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
 
- private:
-  typedef BitField64<AllocatedKind, 3, 2> AllocatedKindField;
+  STATIC_ASSERT(KindField::kSize == 3);
+  class AllocatedKindField : public BitField64<AllocatedKind, 3, 2> {};
+  class IndexField : public BitField64<int32_t, 35, 29> {};
 };
 
 
