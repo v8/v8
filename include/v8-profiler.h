@@ -24,11 +24,13 @@ struct CpuProfileDeoptFrame {
   size_t position;
 };
 
+}  // namespace v8
 
 #ifdef V8_OS_WIN
-template class V8_EXPORT std::vector<CpuProfileDeoptFrame>;
+template class V8_EXPORT std::vector<v8::CpuProfileDeoptFrame>;
 #endif
 
+namespace v8 {
 
 struct V8_EXPORT CpuProfileDeoptInfo {
   /** A pointer to a static string owned by v8. */
@@ -36,11 +38,13 @@ struct V8_EXPORT CpuProfileDeoptInfo {
   std::vector<CpuProfileDeoptFrame> stack;
 };
 
+}  // namespace v8
 
 #ifdef V8_OS_WIN
-template class V8_EXPORT std::vector<CpuProfileDeoptInfo>;
+template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 #endif
 
+namespace v8 {
 
 /**
  * CpuProfileNode represents a node in a call graph.
