@@ -65,6 +65,9 @@
                     "v8_win_compile_dbg": [
                         "defaulttests"
                     ],
+                    "v8_win_nosnap_shared_compile_rel": [
+                        "defaulttests"
+                    ],
                     "v8_win_rel": [
                         "defaulttests"
                     ]

@@ -251,6 +251,7 @@ def GetPreferredTryMasters(project, change):
       'v8_linux64_asan_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
       'v8_win_compile_dbg': set(['defaulttests']),
+      'v8_win_nosnap_shared_compile_rel': set(['defaulttests']),
       'v8_win64_rel': set(['defaulttests']),
       'v8_mac_rel': set(['defaulttests']),
       'v8_linux_arm_rel': set(['defaulttests']),
