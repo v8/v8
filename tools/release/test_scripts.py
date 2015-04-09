@@ -1014,10 +1014,11 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
           "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git branch", "", cwd=chrome_dir),
       Cmd("gclient sync --nohooks", "syncing...", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
-      Cmd("git new-branch v8-roll-roll_hsh", "", cwd=chrome_dir),
+      Cmd("git new-branch work-branch", "", cwd=chrome_dir),
       Cmd("roll-dep v8 roll_hsh", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"%s\" "
            "--author \"author@chromium.org <author@chromium.org>\"" %
@@ -1025,6 +1026,8 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f", "",
           cwd=chrome_dir),
+      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
     self.Expect(expectations)
 
