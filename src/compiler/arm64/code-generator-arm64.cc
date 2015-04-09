@@ -1126,7 +1126,21 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : scope.AcquireX();
       if (src.type() == Constant::kHeapObject) {
-        __ LoadObject(dst, src.ToHeapObject());
+        Handle<HeapObject> src_object = src.ToHeapObject();
+        if (info()->IsOptimizing() &&
+            src_object.is_identical_to(info()->context())) {
+          // Loading the context from the frame is way cheaper than
+          // materializing the actual context heap object address.
+          __ Ldr(dst, MemOperand(fp, StandardFrameConstants::kContextOffset));
+        } else if (info()->IsOptimizing() &&
+                   src_object.is_identical_to(info()->closure())) {
+          // Loading the JSFunction from the frame is way cheaper than
+          // materializing the actual JSFunction heap object address.
+          __ Ldr(dst,
+                 MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+        } else {
+          __ LoadObject(dst, src_object);
+        }
       } else {
         __ Mov(dst, g.ToImmediate(source));
       }

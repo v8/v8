@@ -1273,6 +1273,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ push(Operand(ebp, StandardFrameConstants::kContextOffset));
           __ pop(dst);
         }
+      } else if (info()->IsOptimizing() &&
+                 src.is_identical_to(info()->closure())) {
+        // Loading the JSFunction from the frame is way cheaper than
+        // materializing the actual JSFunction heap object address.
+        if (destination->IsRegister()) {
+          Register dst = g.ToRegister(destination);
+          __ mov(dst, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+        } else {
+          DCHECK(destination->IsStackSlot());
+          Operand dst = g.ToOperand(destination);
+          __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+          __ pop(dst);
+        }
       } else if (destination->IsRegister()) {
         Register dst = g.ToRegister(destination);
         __ LoadHeapObject(dst, src);

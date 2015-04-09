@@ -1464,6 +1464,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
             // Loading the context from the frame is way cheaper than
             // materializing the actual context heap object address.
             __ movp(dst, Operand(rbp, StandardFrameConstants::kContextOffset));
+          } else if (info()->IsOptimizing() &&
+                     src_object.is_identical_to(info()->closure())) {
+            // Loading the JSFunction from the frame is way cheaper than
+            // materializing the actual JSFunction heap object address.
+            __ movp(dst,
+                    Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
           } else {
             __ Move(dst, src_object);
           }
