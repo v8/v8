@@ -46,19 +46,22 @@ std::ostream& operator<<(std::ostream& os,
                 << "]";
     case InstructionOperand::IMMEDIATE:
       return os << "[immediate:" << ImmediateOperand::cast(op).index() << "]";
-    case InstructionOperand::STACK_SLOT:
-      return os << "[stack:" << StackSlotOperand::cast(op).index() << "]";
-    case InstructionOperand::DOUBLE_STACK_SLOT:
-      return os << "[double_stack:" << DoubleStackSlotOperand::cast(op).index()
-                << "]";
-    case InstructionOperand::REGISTER:
-      return os << "["
-                << conf->general_register_name(
-                       RegisterOperand::cast(op).index()) << "|R]";
-    case InstructionOperand::DOUBLE_REGISTER:
-      return os << "["
-                << conf->double_register_name(
-                       DoubleRegisterOperand::cast(op).index()) << "|R]";
+    case InstructionOperand::ALLOCATED:
+      switch (AllocatedOperand::cast(op).allocated_kind()) {
+        case AllocatedOperand::STACK_SLOT:
+          return os << "[stack:" << StackSlotOperand::cast(op).index() << "]";
+        case AllocatedOperand::DOUBLE_STACK_SLOT:
+          return os << "[double_stack:"
+                    << DoubleStackSlotOperand::cast(op).index() << "]";
+        case AllocatedOperand::REGISTER:
+          return os << "["
+                    << conf->general_register_name(
+                           RegisterOperand::cast(op).index()) << "|R]";
+        case AllocatedOperand::DOUBLE_REGISTER:
+          return os << "["
+                    << conf->double_register_name(
+                           DoubleRegisterOperand::cast(op).index()) << "|R]";
+      }
     case InstructionOperand::INVALID:
       return os << "(x)";
   }

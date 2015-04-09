@@ -32,8 +32,28 @@ class InterpreterState {
   }
 
  private:
+  struct Key {
+    bool is_constant;
+    AllocatedOperand::AllocatedKind kind;
+    int index;
+
+    bool operator<(const Key& other) const {
+      if (this->is_constant != other.is_constant) {
+        return this->is_constant;
+      }
+      if (this->kind != other.kind) {
+        return this->kind < other.kind;
+      }
+      return this->index < other.index;
+    }
+
+    bool operator==(const Key& other) const {
+      return this->is_constant == other.is_constant &&
+             this->kind == other.kind && this->index == other.index;
+    }
+  };
+
   // Internally, the state is a normalized permutation of (kind,index) pairs.
-  typedef std::pair<InstructionOperand::Kind, int> Key;
   typedef Key Value;
   typedef std::map<Key, Value> OperandMap;
 
@@ -51,22 +71,27 @@ class InterpreterState {
   }
 
   static Key KeyFor(const InstructionOperand* op) {
-    int v = op->IsConstant() ? ConstantOperand::cast(op)->virtual_register()
-                             : AllocatedOperand::cast(op)->index();
-    return Key(op->kind(), v);
+    bool is_constant = op->IsConstant();
+    AllocatedOperand::AllocatedKind kind;
+    int index;
+    if (!is_constant) {
+      index = AllocatedOperand::cast(op)->index();
+      kind = AllocatedOperand::cast(op)->allocated_kind();
+    } else {
+      index = ConstantOperand::cast(op)->virtual_register();
+      kind = AllocatedOperand::REGISTER;
+    }
+    Key key = {is_constant, kind, index};
+    return key;
   }
 
-  static Value ValueFor(const InstructionOperand* op) {
-    int v = op->IsConstant() ? ConstantOperand::cast(op)->virtual_register()
-                             : AllocatedOperand::cast(op)->index();
-    return Value(op->kind(), v);
-  }
+  static Value ValueFor(const InstructionOperand* op) { return KeyFor(op); }
 
   static InstructionOperand FromKey(Key key) {
-    if (key.first == InstructionOperand::CONSTANT) {
-      return ConstantOperand(key.second);
+    if (key.is_constant) {
+      return ConstantOperand(key.index);
     }
-    return AllocatedOperand(key.first, key.second);
+    return AllocatedOperand(key.kind, key.index);
   }
 
   friend std::ostream& operator<<(std::ostream& os,

@@ -707,13 +707,13 @@ InstructionOperand* RegisterAllocator::AllocateFixed(
   DCHECK(operand->HasFixedPolicy());
   InstructionOperand allocated;
   if (operand->HasFixedSlotPolicy()) {
-    allocated = AllocatedOperand(InstructionOperand::STACK_SLOT,
+    allocated = AllocatedOperand(AllocatedOperand::STACK_SLOT,
                                  operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
-    allocated = AllocatedOperand(InstructionOperand::REGISTER,
+    allocated = AllocatedOperand(AllocatedOperand::REGISTER,
                                  operand->fixed_register_index());
   } else if (operand->HasFixedDoubleRegisterPolicy()) {
-    allocated = AllocatedOperand(InstructionOperand::DOUBLE_REGISTER,
+    allocated = AllocatedOperand(AllocatedOperand::DOUBLE_REGISTER,
                                  operand->fixed_register_index());
   } else {
     UNREACHABLE();
@@ -976,8 +976,8 @@ void RegisterAllocator::AssignSpillSlots() {
     auto kind = range->Kind();
     int index = frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
     auto op_kind = kind == DOUBLE_REGISTERS
-                       ? InstructionOperand::DOUBLE_STACK_SLOT
-                       : InstructionOperand::STACK_SLOT;
+                       ? AllocatedOperand::DOUBLE_STACK_SLOT
+                       : AllocatedOperand::STACK_SLOT;
     auto op = AllocatedOperand::New(code_zone(), op_kind, index);
     range->SetOperand(op);
   }
