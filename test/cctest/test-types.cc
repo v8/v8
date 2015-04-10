@@ -106,7 +106,7 @@ struct Tests : Rep {
   TypesInstance T;
 
   Tests()
-      : isolate(CcTest::i_isolate()),
+      : isolate(CcTest::InitIsolateOnce()),
         scope(isolate),
         zone(),
         T(Rep::ToRegion(&zone, isolate), isolate,
@@ -1964,199 +1964,171 @@ typedef Tests<Type, Type*, Zone, ZoneRep> ZoneTests;
 typedef Tests<HeapType, Handle<HeapType>, Isolate, HeapRep> HeapTests;
 
 
-TEST(IsSomeType) {
-  CcTest::InitializeVM();
-  ZoneTests().IsSomeType();
-  HeapTests().IsSomeType();
-}
+TEST(IsSomeType_zone) { ZoneTests().IsSomeType(); }
 
 
-TEST(PointwiseRepresentation) {
-  CcTest::InitializeVM();
-  // ZoneTests().PointwiseRepresentation();
-  HeapTests().PointwiseRepresentation();
-}
+TEST(IsSomeType_heap) { HeapTests().IsSomeType(); }
 
 
-TEST(BitsetType) {
-  CcTest::InitializeVM();
-  ZoneTests().Bitset();
-  HeapTests().Bitset();
-}
+TEST(PointwiseRepresentation_zone) { ZoneTests().PointwiseRepresentation(); }
 
 
-TEST(ClassType) {
-  CcTest::InitializeVM();
-  ZoneTests().Class();
-  HeapTests().Class();
-}
+TEST(PointwiseRepresentation_heap) { HeapTests().PointwiseRepresentation(); }
 
 
-TEST(ConstantType) {
-  CcTest::InitializeVM();
-  ZoneTests().Constant();
-  HeapTests().Constant();
-}
+TEST(BitsetType_zone) { ZoneTests().Bitset(); }
 
 
-TEST(RangeType) {
-  CcTest::InitializeVM();
-  ZoneTests().Range();
-  HeapTests().Range();
-}
+TEST(BitsetType_heap) { HeapTests().Bitset(); }
 
 
-TEST(ArrayType) {
-  CcTest::InitializeVM();
-  ZoneTests().Array();
-  HeapTests().Array();
-}
+TEST(ClassType_zone) { ZoneTests().Class(); }
 
 
-TEST(FunctionType) {
-  CcTest::InitializeVM();
-  ZoneTests().Function();
-  HeapTests().Function();
-}
+TEST(ClassType_heap) { HeapTests().Class(); }
 
 
-TEST(Of) {
-  CcTest::InitializeVM();
-  ZoneTests().Of();
-  HeapTests().Of();
-}
+TEST(ConstantType_zone) { ZoneTests().Constant(); }
 
 
-TEST(NowOf) {
-  CcTest::InitializeVM();
-  ZoneTests().NowOf();
-  HeapTests().NowOf();
-}
+TEST(ConstantType_heap) { HeapTests().Constant(); }
 
 
-TEST(MinMax) {
-  CcTest::InitializeVM();
-  ZoneTests().MinMax();
-  HeapTests().MinMax();
-}
+TEST(RangeType_zone) { ZoneTests().Range(); }
 
 
-TEST(BitsetGlb) {
-  CcTest::InitializeVM();
-  ZoneTests().BitsetGlb();
-  HeapTests().BitsetGlb();
-}
+TEST(RangeType_heap) { HeapTests().Range(); }
 
 
-TEST(BitsetLub) {
-  CcTest::InitializeVM();
-  ZoneTests().BitsetLub();
-  HeapTests().BitsetLub();
-}
+TEST(ArrayType_zone) { ZoneTests().Array(); }
 
 
-TEST(Is1) {
-  CcTest::InitializeVM();
-  ZoneTests().Is1();
-  HeapTests().Is1();
-}
+TEST(ArrayType_heap) { HeapTests().Array(); }
 
 
-TEST(Is2) {
-  CcTest::InitializeVM();
-  ZoneTests().Is2();
-  HeapTests().Is2();
-}
+TEST(FunctionType_zone) { ZoneTests().Function(); }
 
 
-TEST(NowIs) {
-  CcTest::InitializeVM();
-  ZoneTests().NowIs();
-  HeapTests().NowIs();
-}
+TEST(FunctionType_heap) { HeapTests().Function(); }
 
 
-TEST(Contains) {
-  CcTest::InitializeVM();
-  ZoneTests().Contains();
-  HeapTests().Contains();
-}
+TEST(Of_zone) { ZoneTests().Of(); }
 
 
-TEST(NowContains) {
-  CcTest::InitializeVM();
-  ZoneTests().NowContains();
-  HeapTests().NowContains();
-}
+TEST(Of_heap) { HeapTests().Of(); }
 
 
-TEST(Maybe) {
-  CcTest::InitializeVM();
-  ZoneTests().Maybe();
-  HeapTests().Maybe();
-}
+TEST(NowOf_zone) { ZoneTests().NowOf(); }
 
 
-TEST(Union1) {
-  CcTest::InitializeVM();
-  ZoneTests().Union1();
-  HeapTests().Union1();
-}
+TEST(NowOf_heap) { HeapTests().NowOf(); }
 
 
-/*
-TEST(Union2) {
-  CcTest::InitializeVM();
-  ZoneTests().Union2();
-  HeapTests().Union2();
-}
-*/
+TEST(MinMax_zone) { ZoneTests().MinMax(); }
 
 
-TEST(Union3) {
-  CcTest::InitializeVM();
-  ZoneTests().Union3();
-  HeapTests().Union3();
-}
+TEST(MinMax_heap) { HeapTests().MinMax(); }
 
 
-TEST(Union4) {
-  CcTest::InitializeVM();
-  ZoneTests().Union4();
-  HeapTests().Union4();
-}
+TEST(BitsetGlb_zone) { ZoneTests().BitsetGlb(); }
 
 
-TEST(Intersect) {
-  CcTest::InitializeVM();
-  ZoneTests().Intersect();
-  HeapTests().Intersect();
-}
+TEST(BitsetGlb_heap) { HeapTests().BitsetGlb(); }
 
 
-TEST(Distributivity) {
-  CcTest::InitializeVM();
-  ZoneTests().Distributivity();
-  HeapTests().Distributivity();
-}
+TEST(BitsetLub_zone) { ZoneTests().BitsetLub(); }
 
 
-TEST(GetRange) {
-  CcTest::InitializeVM();
-  ZoneTests().GetRange();
-  HeapTests().GetRange();
-}
+TEST(BitsetLub_heap) { HeapTests().BitsetLub(); }
 
 
-TEST(Convert) {
-  CcTest::InitializeVM();
+TEST(Is1_zone) { ZoneTests().Is1(); }
+
+
+TEST(Is1_heap) { HeapTests().Is1(); }
+
+
+TEST(Is2_zone) { ZoneTests().Is2(); }
+
+
+TEST(Is2_heap) { HeapTests().Is2(); }
+
+
+TEST(NowIs_zone) { ZoneTests().NowIs(); }
+
+
+TEST(NowIs_heap) { HeapTests().NowIs(); }
+
+
+TEST(Contains_zone) { ZoneTests().Contains(); }
+
+
+TEST(Contains_heap) { HeapTests().Contains(); }
+
+
+TEST(NowContains_zone) { ZoneTests().NowContains(); }
+
+
+TEST(NowContains_heap) { HeapTests().NowContains(); }
+
+
+TEST(Maybe_zone) { ZoneTests().Maybe(); }
+
+
+TEST(Maybe_heap) { HeapTests().Maybe(); }
+
+
+TEST(Union1_zone) { ZoneTests().Union1(); }
+
+
+TEST(Union1_heap) { HeapTests().Union1(); }
+
+
+TEST(Union2_zone) { ZoneTests().Union2(); }
+
+
+TEST(Union2_heap) { HeapTests().Union2(); }
+
+
+TEST(Union3_zone) { ZoneTests().Union3(); }
+
+
+TEST(Union3_heap) { HeapTests().Union3(); }
+
+
+TEST(Union4_zone) { ZoneTests().Union4(); }
+
+
+TEST(Union4_heap) { HeapTests().Union4(); }
+
+
+TEST(Intersect_zone) { ZoneTests().Intersect(); }
+
+
+TEST(Intersect_heap) { HeapTests().Intersect(); }
+
+
+TEST(Distributivity_zone) { ZoneTests().Distributivity(); }
+
+
+TEST(Distributivity_heap) { HeapTests().Distributivity(); }
+
+
+TEST(GetRange_zone) { ZoneTests().GetRange(); }
+
+
+TEST(GetRange_heap) { HeapTests().GetRange(); }
+
+
+TEST(Convert_zone) {
   ZoneTests().Convert<HeapType, Handle<HeapType>, Isolate, HeapRep>();
-  HeapTests().Convert<Type, Type*, Zone, ZoneRep>();
 }
 
 
-TEST(HTypeFromType) {
-  CcTest::InitializeVM();
-  ZoneTests().HTypeFromType();
-  HeapTests().HTypeFromType();
-}
+TEST(Convert_heap) { HeapTests().Convert<Type, Type*, Zone, ZoneRep>(); }
+
+
+TEST(HTypeFromType_zone) { ZoneTests().HTypeFromType(); }
+
+
+TEST(HTypeFromType_heap) { HeapTests().HTypeFromType(); }
