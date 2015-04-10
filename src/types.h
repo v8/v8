@@ -208,7 +208,7 @@ namespace internal {
   V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPointer)) \
   V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPointer)) \
   V(Undetectable,        1u << 15 | REPRESENTATION(kTaggedPointer)) \
-  V(Array,               1u << 16 | REPRESENTATION(kTaggedPointer)) \
+  V(GlobalObject,        1u << 16 | REPRESENTATION(kTaggedPointer)) \
   V(OtherObject,         1u << 17 | REPRESENTATION(kTaggedPointer)) \
   V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
   V(Internal,            1u << 19 | REPRESENTATION(kTagged | kUntagged)) \
@@ -228,7 +228,7 @@ namespace internal {
   V(NumberOrString,      kNumber | kString) \
   V(PlainPrimitive,      kNumberOrString | kBoolean | kNull | kUndefined) \
   V(Primitive,           kSymbol | kPlainPrimitive) \
-  V(DetectableObject,    kArray | kOtherObject) \
+  V(DetectableObject,    kGlobalObject | kOtherObject) \
   V(DetectableReceiver,  kDetectableObject | kProxy) \
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
   V(Object,              kDetectableObject | kUndetectable) \

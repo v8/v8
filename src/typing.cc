@@ -433,7 +433,7 @@ void AstTyper::VisitArrayLiteral(ArrayLiteral* expr) {
     RECURSE(Visit(value));
   }
 
-  NarrowType(expr, Bounds(Type::Array(zone())));
+  NarrowType(expr, Bounds(Type::Object(zone())));
 }
 
 

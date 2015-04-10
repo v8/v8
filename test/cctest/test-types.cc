@@ -1018,16 +1018,23 @@ struct Tests : Rep {
     CheckUnordered(T.InternalizedString, T.Symbol);
 
     CheckSub(T.Object, T.Receiver);
-    CheckSub(T.Array, T.Object);
     CheckSub(T.Proxy, T.Receiver);
-    CheckUnordered(T.Object, T.Proxy);
+    CheckSub(T.OtherObject, T.Object);
+    CheckSub(T.Undetectable, T.Object);
+    CheckSub(T.DetectableObject, T.Object);
+    CheckSub(T.GlobalObject, T.DetectableObject);
+    CheckSub(T.OtherObject, T.DetectableObject);
+    CheckSub(T.GlobalObject, T.Object);
+    CheckSub(T.GlobalObject, T.Receiver);
 
+    CheckUnordered(T.Object, T.Proxy);
+    CheckUnordered(T.GlobalObject, T.OtherObject);
+    CheckUnordered(T.DetectableObject, T.Undetectable);
 
     // Subtyping between concrete structural types
 
     CheckSub(T.ObjectClass, T.Object);
-    CheckSub(T.ArrayClass, T.Object);
-    CheckSub(T.ArrayClass, T.Array);
+    CheckSub(T.ArrayClass, T.OtherObject);
     CheckSub(T.UninitializedClass, T.Internal);
     CheckUnordered(T.ObjectClass, T.ArrayClass);
     CheckUnordered(T.UninitializedClass, T.Null);
@@ -1039,7 +1046,8 @@ struct Tests : Rep {
     CheckSub(T.ObjectConstant1, T.Object);
     CheckSub(T.ObjectConstant2, T.Object);
     CheckSub(T.ArrayConstant, T.Object);
-    CheckSub(T.ArrayConstant, T.Array);
+    CheckSub(T.ArrayConstant, T.OtherObject);
+    CheckSub(T.ArrayConstant, T.Receiver);
     CheckSub(T.UninitializedConstant, T.Internal);
     CheckUnordered(T.ObjectConstant1, T.ObjectConstant2);
     CheckUnordered(T.ObjectConstant1, T.ArrayConstant);
@@ -1052,7 +1060,8 @@ struct Tests : Rep {
     CheckUnordered(T.ObjectConstant2, T.ArrayClass);
     CheckUnordered(T.ArrayConstant, T.ObjectClass);
 
-    CheckSub(T.NumberArray, T.Array);
+    CheckSub(T.NumberArray, T.OtherObject);
+    CheckSub(T.NumberArray, T.Receiver);
     CheckSub(T.NumberArray, T.Object);
     CheckUnordered(T.StringArray, T.AnyArray);
 
@@ -1341,7 +1350,8 @@ struct Tests : Rep {
     CheckDisjoint(T.String, T.Symbol);
     CheckDisjoint(T.InternalizedString, T.Symbol);
     CheckOverlap(T.Object, T.Receiver);
-    CheckOverlap(T.Array, T.Object);
+    CheckOverlap(T.OtherObject, T.Object);
+    CheckOverlap(T.GlobalObject, T.Object);
     CheckOverlap(T.Proxy, T.Receiver);
     CheckDisjoint(T.Object, T.Proxy);
 
@@ -1357,14 +1367,14 @@ struct Tests : Rep {
     CheckOverlap(T.ObjectConstant1, T.Object);
     CheckOverlap(T.ObjectConstant2, T.Object);
     CheckOverlap(T.ArrayConstant, T.Object);
-    CheckOverlap(T.ArrayConstant, T.Array);
+    CheckOverlap(T.ArrayConstant, T.Receiver);
     CheckOverlap(T.ObjectConstant1, T.ObjectConstant1);
     CheckDisjoint(T.ObjectConstant1, T.ObjectConstant2);
     CheckDisjoint(T.ObjectConstant1, T.ArrayConstant);
-    CheckDisjoint(T.ObjectConstant1, T.ArrayClass);
-    CheckDisjoint(T.ObjectConstant2, T.ArrayClass);
-    CheckDisjoint(T.ArrayConstant, T.ObjectClass);
-    CheckOverlap(T.NumberArray, T.Array);
+    CheckOverlap(T.ObjectConstant1, T.ArrayClass);
+    CheckOverlap(T.ObjectConstant2, T.ArrayClass);
+    CheckOverlap(T.ArrayConstant, T.ObjectClass);
+    CheckOverlap(T.NumberArray, T.Receiver);
     CheckDisjoint(T.NumberArray, T.AnyArray);
     CheckDisjoint(T.NumberArray, T.StringArray);
     CheckOverlap(T.MethodFunction, T.Object);
@@ -1511,28 +1521,28 @@ struct Tests : Rep {
   void Union4() {
     // Class-class
     CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Object);
-    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), T.Array);
-    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.Array);
+    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.OtherObject);
+    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.Receiver);
     CheckDisjoint(T.Union(T.ObjectClass, T.ArrayClass), T.Number);
 
     // Constant-constant
     CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Object);
-    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayConstant), T.Array);
+    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
     CheckUnordered(
         T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ObjectClass);
-    CheckOverlap(
-        T.Union(T.ObjectConstant1, T.ArrayConstant), T.Array);
+    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
     CheckDisjoint(
         T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
     CheckOverlap(
         T.Union(T.ObjectConstant1, T.ArrayConstant), T.ObjectClass);  // !!!
 
     // Bitset-array
-    CHECK(this->IsBitset(T.Union(T.AnyArray, T.Array)));
+    CHECK(this->IsBitset(T.Union(T.AnyArray, T.Receiver)));
     CHECK(this->IsUnion(T.Union(T.NumberArray, T.Number)));
 
-    CheckEqual(T.Union(T.AnyArray, T.Array), T.Array);
-    CheckUnordered(T.Union(T.AnyArray, T.String), T.Array);
+    CheckEqual(T.Union(T.AnyArray, T.Receiver), T.Receiver);
+    CheckEqual(T.Union(T.AnyArray, T.OtherObject), T.OtherObject);
+    CheckUnordered(T.Union(T.AnyArray, T.String), T.Receiver);
     CheckOverlap(T.Union(T.NumberArray, T.String), T.Object);
     CheckDisjoint(T.Union(T.NumberArray, T.String), T.Number);
 
@@ -1548,27 +1558,26 @@ struct Tests : Rep {
     // Bitset-class
     CheckSub(T.Union(T.ObjectClass, T.SignedSmall),
              T.Union(T.Object, T.Number));
-    CheckSub(T.Union(T.ObjectClass, T.Array), T.Object);
-    CheckUnordered(T.Union(T.ObjectClass, T.String), T.Array);
+    CheckSub(T.Union(T.ObjectClass, T.OtherObject), T.Object);
+    CheckUnordered(T.Union(T.ObjectClass, T.String), T.OtherObject);
     CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object);
     CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
 
     // Bitset-constant
     CheckSub(
         T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
-    CheckSub(T.Union(T.ObjectConstant1, T.Array), T.Object);
-    CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.Array);
+    CheckSub(T.Union(T.ObjectConstant1, T.OtherObject), T.Object);
+    CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.OtherObject);
     CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
     CheckDisjoint(T.Union(T.ObjectConstant1, T.String), T.Number);
 
     // Class-constant
     CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Object);
     CheckUnordered(T.ObjectClass, T.Union(T.ObjectConstant1, T.ArrayClass));
-    CheckSub(
-        T.Union(T.ObjectConstant1, T.ArrayClass), T.Union(T.Array, T.Object));
+    CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass),
+             T.Union(T.Receiver, T.Object));
     CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.ArrayConstant);
-    CheckDisjoint(
-        T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2);
+    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2);
     CheckOverlap(
         T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass);  // !!!
 
@@ -1603,7 +1612,7 @@ struct Tests : Rep {
     CheckEqual(
         T.Union(T.AnyArray, T.Union(T.NumberArray, T.AnyArray)),
         T.Union(T.AnyArray, T.NumberArray));
-    CheckSub(T.Union(T.AnyArray, T.NumberArray), T.Array);
+    CheckSub(T.Union(T.AnyArray, T.NumberArray), T.OtherObject);
 
     // Function-union
     CheckEqual(
@@ -1618,8 +1627,8 @@ struct Tests : Rep {
             T.Union(T.ObjectConstant1, T.ObjectConstant2)),
         T.Union(T.ObjectConstant2, T.ObjectConstant1));
     CheckEqual(T.Union(T.Union(T.Number, T.ArrayClass),
-                       T.Union(T.SignedSmall, T.Array)),
-               T.Union(T.Number, T.Array));
+                       T.Union(T.SignedSmall, T.Receiver)),
+               T.Union(T.Number, T.Receiver));
   }
 
   void Intersect() {
@@ -1763,7 +1772,6 @@ struct Tests : Rep {
 
     // Bitset-class
     CheckEqual(T.Intersect(T.ObjectClass, T.Object), T.ObjectClass);
-    CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.Array)), T.None);
     CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.Number)), T.None);
 
     // Bitset-array
@@ -1784,7 +1792,7 @@ struct Tests : Rep {
 
     // Class-constant
     CHECK(T.Intersect(T.ObjectConstant1, T.ObjectClass)->IsInhabited());  // !!!
-    CHECK(!T.Intersect(T.ArrayClass, T.ObjectConstant2)->IsInhabited());
+    CHECK(T.Intersect(T.ArrayClass, T.ObjectConstant2)->IsInhabited());
 
     // Array-union
     CheckEqual(
@@ -1834,13 +1842,11 @@ struct Tests : Rep {
 
     // Union-union
     CheckEqual(T.Intersect(T.Union(T.Number, T.ArrayClass),
-                           T.Union(T.SignedSmall, T.Array)),
+                           T.Union(T.SignedSmall, T.Receiver)),
                T.Union(T.SignedSmall, T.ArrayClass));
-    CheckEqual(
-        T.Intersect(
-            T.Union(T.Number, T.ObjectClass),
-            T.Union(T.Signed32, T.Array)),
-        T.Signed32);
+    CheckEqual(T.Intersect(T.Union(T.Number, T.ObjectClass),
+                           T.Union(T.Signed32, T.OtherObject)),
+               T.Union(T.Signed32, T.ObjectClass));
     CheckEqual(
         T.Intersect(
             T.Union(T.ObjectConstant2, T.ObjectConstant1),
@@ -1957,6 +1963,66 @@ struct Tests : Rep {
         CHECK(!type1->Is(type2) || htype1.IsSubtypeOf(htype2));
       }
     }
+  }
+
+  void GlobalObjectType() {
+    i::Handle<i::Context> context1 = v8::Utils::OpenHandle(
+        *v8::Context::New(reinterpret_cast<v8::Isolate*>(isolate)));
+    Handle<i::GlobalObject> global_object1(context1->global_object());
+    TypeHandle GlobalObjectConstant1 =
+        Type::Constant(global_object1, Rep::ToRegion(&zone, isolate));
+
+    i::Handle<i::Context> context2 = v8::Utils::OpenHandle(
+        *v8::Context::New(reinterpret_cast<v8::Isolate*>(isolate)));
+    Handle<i::GlobalObject> global_object2(context2->global_object());
+    TypeHandle GlobalObjectConstant2 =
+        Type::Constant(global_object2, Rep::ToRegion(&zone, isolate));
+
+    CheckSub(GlobalObjectConstant1, T.DetectableObject);
+    CheckSub(GlobalObjectConstant2, T.DetectableObject);
+    CheckSub(GlobalObjectConstant1, T.GlobalObject);
+    CheckSub(GlobalObjectConstant2, T.GlobalObject);
+    CheckSub(GlobalObjectConstant1, T.Object);
+    CheckSub(GlobalObjectConstant2, T.Object);
+
+    CheckUnordered(T.GlobalObject, T.OtherObject);
+    CheckUnordered(GlobalObjectConstant1, T.OtherObject);
+    CheckUnordered(GlobalObjectConstant2, T.OtherObject);
+    CheckUnordered(GlobalObjectConstant1, GlobalObjectConstant2);
+
+    CheckDisjoint(T.GlobalObject, T.ObjectClass);
+    CheckDisjoint(GlobalObjectConstant1, T.ObjectClass);
+    CheckDisjoint(GlobalObjectConstant2, T.ArrayClass);
+
+    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), T.GlobalObject);
+    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), GlobalObjectConstant1);
+    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), GlobalObjectConstant2);
+
+    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.GlobalObject);
+    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass),
+                   GlobalObjectConstant1);
+    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass),
+                   GlobalObjectConstant2);
+
+    CheckUnordered(T.Union(T.ObjectClass, T.String), T.GlobalObject);
+
+    CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass),
+             T.Union(T.GlobalObject, T.Object));
+
+    CheckDisjoint(T.Union(GlobalObjectConstant1, T.ArrayClass),
+                  GlobalObjectConstant2);
+
+    CheckEqual(T.Union(T.Union(T.Number, GlobalObjectConstant1),
+                       T.Union(T.SignedSmall, T.GlobalObject)),
+               T.Union(T.Number, T.GlobalObject));
+
+    CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.GlobalObject)), T.None);
+
+    CHECK(!T.Intersect(T.ArrayClass, GlobalObjectConstant2)->IsInhabited());
+
+    CheckEqual(T.Intersect(T.Union(T.Number, T.OtherObject),
+                           T.Union(T.Signed32, T.GlobalObject)),
+               T.Signed32);
   }
 };
 
@@ -2132,3 +2198,9 @@ TEST(HTypeFromType_zone) { ZoneTests().HTypeFromType(); }
 
 
 TEST(HTypeFromType_heap) { HeapTests().HTypeFromType(); }
+
+
+TEST(GlobalObjectType_zone) { ZoneTests().GlobalObjectType(); }
+
+
+TEST(GlobalObjectType_heap) { HeapTests().GlobalObjectType(); }
