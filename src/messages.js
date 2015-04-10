@@ -301,7 +301,7 @@ function ToStringCheckErrorObject(obj) {
 
 
 function ToDetailString(obj) {
-  if (obj != null && IS_OBJECT(obj) && obj.toString === DefaultObjectToString) {
+  if (obj != null && IS_OBJECT(obj) && obj.toString === ObjectToString) {
     var constructor = obj.constructor;
     if (typeof constructor == "function") {
       var constructorName = constructor.name;

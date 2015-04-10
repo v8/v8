@@ -216,7 +216,6 @@ SetUpGlobal();
 // ----------------------------------------------------------------------------
 // Object
 
-var DefaultObjectToString = ObjectToString;
 // ECMA-262 - 15.2.4.2
 function NoSideEffectsObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
