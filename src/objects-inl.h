@@ -4225,7 +4225,7 @@ void* FixedTypedArrayBase::DataPtr() {
 }
 
 
-int FixedTypedArrayBase::DataSize(InstanceType type) {
+int FixedTypedArrayBase::ElementSize(InstanceType type) {
   int element_size;
   switch (type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
@@ -4239,7 +4239,12 @@ int FixedTypedArrayBase::DataSize(InstanceType type) {
       UNREACHABLE();
       return 0;
   }
-  return length() * element_size;
+  return element_size;
+}
+
+
+int FixedTypedArrayBase::DataSize(InstanceType type) {
+  return length() * ElementSize(type);
 }
 
 
@@ -4255,6 +4260,11 @@ int FixedTypedArrayBase::size() {
 
 int FixedTypedArrayBase::TypedArraySize(InstanceType type) {
   return OBJECT_POINTER_ALIGN(kDataOffset + DataSize(type));
+}
+
+
+int FixedTypedArrayBase::TypedArraySize(InstanceType type, int length) {
+  return OBJECT_POINTER_ALIGN(kDataOffset + length * ElementSize(type));
 }
 
 
