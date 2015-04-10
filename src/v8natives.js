@@ -266,7 +266,7 @@ function ObjectHasOwnProperty(V) {
     if (IS_SYMBOL(V)) return false;
 
     var handler = %GetHandler(this);
-    return CallTrap1(handler, "hasOwn", DerivedHasOwnTrap, ToName(V));
+    return CallTrap1(handler, "hasOwn", $proxyDerivedHasOwnTrap, ToName(V));
   }
   return %HasOwnProperty(TO_OBJECT_INLINE(this), ToName(V));
 }
@@ -351,7 +351,7 @@ function ObjectKeys(obj) {
   obj = TO_OBJECT_INLINE(obj);
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
-    var names = CallTrap0(handler, "keys", DerivedKeysTrap);
+    var names = CallTrap0(handler, "keys", $proxyDerivedKeysTrap);
     return ToNameArray(names, "keys", false);
   }
   return %OwnKeys(obj);
@@ -1238,7 +1238,7 @@ function ProxyFix(obj) {
   if (%IsJSFunctionProxy(obj)) {
     var callTrap = %GetCallTrap(obj);
     var constructTrap = %GetConstructTrap(obj);
-    var code = DelegateCallAndConstruct(callTrap, constructTrap);
+    var code = $proxyDelegateCallAndConstruct(callTrap, constructTrap);
     %Fix(obj);  // becomes a regular function
     %SetCode(obj, code);
     // TODO(rossberg): What about length and other properties? Not specified.

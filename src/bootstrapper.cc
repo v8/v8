@@ -1572,10 +1572,10 @@ void Genesis::InstallNativeFunctions() {
 
 void Genesis::InstallExperimentalNativeFunctions() {
   if (FLAG_harmony_proxies) {
-    INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
-    INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
-    INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
-    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
+    INSTALL_NATIVE(JSFunction, "$proxyDerivedHasTrap", derived_has_trap);
+    INSTALL_NATIVE(JSFunction, "$proxyDerivedGetTrap", derived_get_trap);
+    INSTALL_NATIVE(JSFunction, "$proxyDerivedSetTrap", derived_set_trap);
+    INSTALL_NATIVE(JSFunction, "$proxyEnumerate", proxy_enumerate);
   }
 
 #define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
@@ -1662,10 +1662,10 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spreadcalls)
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
   if (FLAG_harmony_proxies) {
-    INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
-    INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
-    INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
-    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
+    INSTALL_NATIVE(JSFunction, "$proxyDerivedHasTrap", derived_has_trap);
+    INSTALL_NATIVE(JSFunction, "$proxyDerivedGetTrap", derived_get_trap);
+    INSTALL_NATIVE(JSFunction, "$proxyDerivedSetTrap", derived_set_trap);
+    INSTALL_NATIVE(JSFunction, "$proxyEnumerate", proxy_enumerate);
   }
 }
 

@@ -2,13 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $proxyDelegateCallAndConstruct;
+var $proxyDerivedGetTrap;
+var $proxyDerivedHasTrap;
+var $proxyDerivedHasOwnTrap;
+var $proxyDerivedKeysTrap;
+var $proxyDerivedSetTrap;
+var $proxyEnumerate;
+
+(function() {
+
 "use strict";
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Object = global.Object;
+%CheckIsBootstrapping();
 
-var $Proxy = new $Object();
+var GlobalObject = global.Object;
 
 // -------------------------------------------------------------------
 
@@ -42,25 +50,6 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
   return %CreateJSFunctionProxy(
     handler, callTrap, constructTrap, $Function.prototype)
 }
-
-
-// -------------------------------------------------------------------
-
-function SetUpProxy() {
-  %CheckIsBootstrapping()
-
-  var global_proxy = %GlobalProxy(global);
-  global_proxy.Proxy = $Proxy;
-
-  // Set up non-enumerable properties of the Proxy object.
-  InstallFunctions($Proxy, DONT_ENUM, [
-    "create", ProxyCreate,
-    "createFunction", ProxyCreateFunction
-  ])
-}
-
-SetUpProxy();
-
 
 // -------------------------------------------------------------------
 // Proxy Builtins
@@ -189,3 +178,24 @@ function ProxyEnumerate(proxy) {
     return ToNameArray(handler.enumerate(), "enumerate", false)
   }
 }
+
+//-------------------------------------------------------------------
+
+var Proxy = new GlobalObject();
+%AddNamedProperty(global, "Proxy", Proxy, DONT_ENUM);
+
+//Set up non-enumerable properties of the Proxy object.
+InstallFunctions(Proxy, DONT_ENUM, [
+  "create", ProxyCreate,
+  "createFunction", ProxyCreateFunction
+])
+
+$proxyDelegateCallAndConstruct = DelegateCallAndConstruct;
+$proxyDerivedGetTrap = DerivedGetTrap;
+$proxyDerivedHasTrap = DerivedHasTrap;
+$proxyDerivedHasOwnTrap = DerivedHasOwnTrap;
+$proxyDerivedKeysTrap = DerivedKeysTrap;
+$proxyDerivedSetTrap = DerivedSetTrap;
+$proxyEnumerate = ProxyEnumerate;
+
+})();
