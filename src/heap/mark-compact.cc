@@ -3349,12 +3349,13 @@ void MarkCompactCollector::EvacuatePages() {
     // Allocate emergency memory for the case when compaction fails due to out
     // of memory.
     if (!space->HasEmergencyMemory()) {
-      space->CreateEmergencyMemory();
+      space->CreateEmergencyMemory();  // If the OS lets us.
     }
     if (p->IsEvacuationCandidate()) {
-      // During compaction we might have to request a new page. Check that we
-      // have an emergency page and the space still has room for that.
-      if (space->HasEmergencyMemory() || space->CanExpand()) {
+      // During compaction we might have to request a new page in order to free
+      // up a page.  Check that we actually got an emergency page above so we
+      // can guarantee that this succeeds.
+      if (space->HasEmergencyMemory()) {
         EvacuateLiveObjectsFromPage(p);
         // Unlink the page from the list of pages here. We must not iterate
         // over that page later (e.g. when scan on scavenge pages are
