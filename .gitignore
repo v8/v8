@@ -53,6 +53,7 @@ shell_g
 /test/benchmarks/kraken
 /test/benchmarks/octane
 /test/benchmarks/sunspider
+/test/memory/snapshot.cc
 /test/mozilla/CHECKED_OUT_VERSION
 /test/mozilla/data
 /test/mozilla/data.old

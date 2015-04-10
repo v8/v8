@@ -1,0 +1,27 @@
+{
+  "name": "Memory",
+  "run_count": 5,
+  "units": "bytes",
+  "path" : ["."],
+  "binary": "mksnapshot",
+  "flags": ["snapshot.cc", "--profile-deserialization"],
+  "main": "",
+  "tests": [
+    {
+      "name": "ReservedMemoryIsolate",
+      "results_regexp": "(\\d+) bytes per isolate$"
+    },
+    {
+      "name": "ReservedMemoryContext",
+      "results_regexp": "(\\d+) bytes per context$"
+    },
+    {
+      "name": "SnapshotSizeStartup",
+      "results_regexp": "(\\d+) bytes for startup$"
+    },
+    {
+      "name": "SnapshotSizeStartup",
+      "results_regexp": "(\\d+) bytes for context$"
+    }
+  ]
+}

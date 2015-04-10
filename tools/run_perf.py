@@ -411,8 +411,8 @@ def MakeGraph(suite, arch, parent):
   if isinstance(parent, Runnable):
     # Below a runnable can only be traces.
     return Trace(suite, parent, arch)
-  elif suite.get("main"):
-    # A main file makes this graph runnable.
+  elif suite.get("main") is not None:
+    # A main file makes this graph runnable. Empty strings are accepted.
     if suite.get("tests"):
       # This graph has subgraphs (traces).
       return Runnable(suite, parent, arch)
