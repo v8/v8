@@ -221,6 +221,28 @@ TEST_F(CommonOperatorReducerTest, RedundantSelect) {
 }
 
 
+TEST_F(CommonOperatorReducerTest, SelectWithFalseConstant) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* select = graph()->NewNode(common()->Select(kMachAnyTagged),
+                                  FalseConstant(), p0, p1);
+  Reduction r = Reduce(select);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p1, r.replacement());
+}
+
+
+TEST_F(CommonOperatorReducerTest, SelectWithTrueConstant) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* select = graph()->NewNode(common()->Select(kMachAnyTagged),
+                                  TrueConstant(), p0, p1);
+  Reduction r = Reduce(select);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p0, r.replacement());
+}
+
+
 TEST_F(CommonOperatorReducerTest, SelectToFloat32Abs) {
   Node* p0 = Parameter(0);
   Node* c0 = Float32Constant(0.0);

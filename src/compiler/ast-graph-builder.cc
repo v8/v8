@@ -2728,16 +2728,10 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
 
 Node* AstGraphBuilder::BuildHoleCheckSilent(Node* value, Node* for_hole,
                                             Node* not_hole) {
-  IfBuilder hole_check(this);
   Node* the_hole = jsgraph()->TheHoleConstant();
   Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
-  hole_check.If(check);
-  hole_check.Then();
-  environment()->Push(for_hole);
-  hole_check.Else();
-  environment()->Push(not_hole);
-  hole_check.End();
-  return environment()->Pop();
+  return NewNode(common()->Select(kMachAnyTagged, BranchHint::kFalse), check,
+                 for_hole, not_hole);
 }
 
 

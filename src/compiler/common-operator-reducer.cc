@@ -109,40 +109,51 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
   Node* vtrue = NodeProperties::GetValueInput(node, 1);
   Node* vfalse = NodeProperties::GetValueInput(node, 2);
   if (vtrue == vfalse) return Replace(vtrue);
-  if (cond->opcode() == IrOpcode::kFloat32LessThan) {
-    Float32BinopMatcher mcond(cond);
-    if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
-        vfalse->opcode() == IrOpcode::kFloat32Sub &&
-        machine()->HasFloat32Abs()) {
-      Float32BinopMatcher mvfalse(vfalse);
-      if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
-        return Change(node, machine()->Float32Abs(), vtrue);
+  switch (cond->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      HeapObjectMatcher<HeapObject> mcond(cond);
+      return Replace(mcond.Value().handle()->BooleanValue() ? vtrue : vfalse);
+    }
+    case IrOpcode::kFloat32LessThan: {
+      Float32BinopMatcher mcond(cond);
+      if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
+          vfalse->opcode() == IrOpcode::kFloat32Sub &&
+          machine()->HasFloat32Abs()) {
+        Float32BinopMatcher mvfalse(vfalse);
+        if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
+          return Change(node, machine()->Float32Abs(), vtrue);
+        }
       }
-    }
-    if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-        machine()->HasFloat32Min()) {
-      return Change(node, machine()->Float32Min(), vtrue, vfalse);
-    } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-               machine()->HasFloat32Max()) {
-      return Change(node, machine()->Float32Max(), vtrue, vfalse);
-    }
-  } else if (cond->opcode() == IrOpcode::kFloat64LessThan) {
-    Float64BinopMatcher mcond(cond);
-    if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
-        vfalse->opcode() == IrOpcode::kFloat64Sub &&
-        machine()->HasFloat64Abs()) {
-      Float64BinopMatcher mvfalse(vfalse);
-      if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
-        return Change(node, machine()->Float64Abs(), vtrue);
+      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
+          machine()->HasFloat32Min()) {
+        return Change(node, machine()->Float32Min(), vtrue, vfalse);
+      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
+                 machine()->HasFloat32Max()) {
+        return Change(node, machine()->Float32Max(), vtrue, vfalse);
       }
+      break;
     }
-    if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-        machine()->HasFloat64Min()) {
-      return Change(node, machine()->Float64Min(), vtrue, vfalse);
-    } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-               machine()->HasFloat64Max()) {
-      return Change(node, machine()->Float64Max(), vtrue, vfalse);
+    case IrOpcode::kFloat64LessThan: {
+      Float64BinopMatcher mcond(cond);
+      if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
+          vfalse->opcode() == IrOpcode::kFloat64Sub &&
+          machine()->HasFloat64Abs()) {
+        Float64BinopMatcher mvfalse(vfalse);
+        if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
+          return Change(node, machine()->Float64Abs(), vtrue);
+        }
+      }
+      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
+          machine()->HasFloat64Min()) {
+        return Change(node, machine()->Float64Min(), vtrue, vfalse);
+      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
+                 machine()->HasFloat64Max()) {
+        return Change(node, machine()->Float64Max(), vtrue, vfalse);
+      }
+      break;
     }
+    default:
+      break;
   }
   return NoChange();
 }
