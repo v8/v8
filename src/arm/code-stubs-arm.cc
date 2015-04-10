@@ -1324,6 +1324,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ GetRelocatedValueLocation(r9, map_load_offset, scratch);
     __ ldr(map_load_offset, MemOperand(map_load_offset));
     __ str(map, FieldMemOperand(map_load_offset, Cell::kValueOffset));
+
+    __ mov(r8, map);
+    // |map_load_offset| points at the beginning of the cell. Calculate the
+    // field containing the map.
+    __ add(function, map_load_offset, Operand(Cell::kValueOffset - 1));
+    __ RecordWriteField(map_load_offset, Cell::kValueOffset, r8, function,
+                        kLRHasNotBeenSaved, kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
 
   // Register mapping: r3 is object map and r4 is function prototype.

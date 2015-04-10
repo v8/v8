@@ -1896,17 +1896,7 @@ void Oddball::set_kind(byte value) {
 }
 
 
-Object* Cell::value() const {
-  return READ_FIELD(this, kValueOffset);
-}
-
-
-void Cell::set_value(Object* val, WriteBarrierMode ignored) {
-  // The write barrier is not used for global property cells.
-  DCHECK(!val->IsPropertyCell() && !val->IsCell());
-  WRITE_FIELD(this, kValueOffset, val);
-}
-
+ACCESSORS(Cell, value, Object, kValueOffset)
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
 

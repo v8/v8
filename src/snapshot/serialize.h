@@ -299,23 +299,27 @@ class SerializerDeserializer: public ObjectVisitor {
   static int nop() { return kNop; }
 
   // No reservation for large object space necessary.
-  static const int kNumberOfPreallocatedSpaces = LO_SPACE;
+  static const int kNumberOfPreallocatedSpaces = LAST_PAGED_SPACE + 1;
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:
+  // The static assert below will trigger when the number of preallocated spaces
+  // changed. If that happens, update the bytecode ranges in the comments below.
+  STATIC_ASSERT(5 == kNumberOfSpaces);
   enum Where {
-    // 0x00..0x05  Allocate new object, in specified space.
+    // 0x00..0x04  Allocate new object, in specified space.
     kNewObject = 0,
+    // 0x05        Unused (including 0x25, 0x45, 0x65).
     // 0x06        Unused (including 0x26, 0x46, 0x66).
     // 0x07        Unused (including 0x27, 0x47, 0x67).
-    // 0x08..0x0d  Reference to previous object from space.
+    // 0x08..0x0c  Reference to previous object from space.
     kBackref = 0x08,
     // 0x0e        Unused (including 0x2e, 0x4e, 0x6e).
     // 0x0f        Unused (including 0x2f, 0x4f, 0x6f).
-    // 0x10..0x15  Reference to previous object from space after skip.
+    // 0x10..0x14  Reference to previous object from space after skip.
     kBackrefWithSkip = 0x10,
     // 0x16        Unused (including 0x36, 0x56, 0x76).
     // 0x17        Unused (including 0x37, 0x57, 0x77).

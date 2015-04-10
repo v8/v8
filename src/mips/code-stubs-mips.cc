@@ -1459,6 +1459,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Get the map location in scratch and patch it.
     __ GetRelocatedValue(inline_site, scratch, v1);  // v1 used as scratch.
     __ sw(map, FieldMemOperand(scratch, Cell::kValueOffset));
+
+    __ mov(t4, map);
+    // |scratch| points at the beginning of the cell. Calculate the field
+    // containing the map.
+    __ Addu(function, scratch, Operand(Cell::kValueOffset - 1));
+    __ RecordWriteField(scratch, Cell::kValueOffset, t4, function,
+                        kRAHasNotBeenSaved, kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
 
   // Register mapping: a3 is object map and t0 is function prototype.

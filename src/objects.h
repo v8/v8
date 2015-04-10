@@ -665,7 +665,6 @@ enum InstanceType {
   MAP_TYPE,
   CODE_TYPE,
   ODDBALL_TYPE,
-  CELL_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
@@ -720,6 +719,7 @@ enum InstanceType {
   FIXED_ARRAY_TYPE,
   CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
+  CELL_TYPE,
   WEAK_CELL_TYPE,
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
@@ -9780,7 +9780,6 @@ class Cell: public HeapObject {
 
   static inline Cell* FromValueAddress(Address value) {
     Object* result = FromAddress(value - kValueOffset);
-    DCHECK(result->IsCell());
     return static_cast<Cell*>(result);
   }
 

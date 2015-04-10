@@ -403,15 +403,12 @@ class AggregatedHistogramTimerScope {
   HP(external_fragmentation_code_space,                                        \
      V8.MemoryExternalFragmentationCodeSpace)                                  \
   HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
-  HP(external_fragmentation_cell_space,                                        \
-     V8.MemoryExternalFragmentationCellSpace)                                  \
   HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)   \
   /* Percentages of heap committed to each space. */                           \
   HP(heap_fraction_new_space, V8.MemoryHeapFractionNewSpace)                   \
   HP(heap_fraction_old_space, V8.MemoryHeapFractionOldSpace)                   \
   HP(heap_fraction_code_space, V8.MemoryHeapFractionCodeSpace)                 \
   HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
-  HP(heap_fraction_cell_space, V8.MemoryHeapFractionCellSpace)                 \
   HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)                     \
   /* Percentage of crankshafted codegen. */                                    \
   HP(codegen_fraction_crankshaft, V8.CodegenFractionCrankshaft)
@@ -422,8 +419,6 @@ class AggregatedHistogramTimerScope {
   HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)            \
   HM(heap_sample_map_space_committed,                                 \
      V8.MemoryHeapSampleMapSpaceCommitted)                            \
-  HM(heap_sample_cell_space_committed,                                \
-     V8.MemoryHeapSampleCellSpaceCommitted)                           \
   HM(heap_sample_code_space_committed,                                \
      V8.MemoryHeapSampleCodeSpaceCommitted)                           \
   HM(heap_sample_maximum_committed,                                   \
@@ -595,9 +590,6 @@ class AggregatedHistogramTimerScope {
   SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)               \
   SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)               \
   SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                         \
-  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)             \
-  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)             \
-  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)                       \
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)

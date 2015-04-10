@@ -319,6 +319,7 @@ class SlotsBuffer {
   enum SlotType {
     EMBEDDED_OBJECT_SLOT,
     RELOCATED_CODE_OBJECT,
+    CELL_TARGET_SLOT,
     CODE_TARGET_SLOT,
     CODE_ENTRY_SLOT,
     DEBUG_TARGET_SLOT,
@@ -332,6 +333,8 @@ class SlotsBuffer {
         return "EMBEDDED_OBJECT_SLOT";
       case RELOCATED_CODE_OBJECT:
         return "RELOCATED_CODE_OBJECT";
+      case CELL_TARGET_SLOT:
+        return "CELL_TARGET_SLOT";
       case CODE_TARGET_SLOT:
         return "CODE_TARGET_SLOT";
       case CODE_ENTRY_SLOT:
