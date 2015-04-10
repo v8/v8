@@ -16,7 +16,6 @@ enum GCIdleTimeActionType {
   DO_INCREMENTAL_MARKING,
   DO_SCAVENGE,
   DO_FULL_GC,
-  DO_FULL_GC_COMPACT,
   DO_FINALIZE_SWEEPING
 };
 
@@ -58,14 +57,6 @@ class GCIdleTimeAction {
   static GCIdleTimeAction FullGC() {
     GCIdleTimeAction result;
     result.type = DO_FULL_GC;
-    result.parameter = 0;
-    result.additional_work = false;
-    return result;
-  }
-
-  static GCIdleTimeAction FullGCCompact() {
-    GCIdleTimeAction result;
-    result.type = DO_FULL_GC_COMPACT;
     result.parameter = 0;
     result.additional_work = false;
     return result;
@@ -130,10 +121,6 @@ class GCIdleTimeHandler {
   // This is the maximum scheduled idle time. Note that it can be more than
   // 16 ms when there is currently no rendering going on.
   static const size_t kMaxScheduledIdleTime = 50;
-
-  // This is the minimum time needed to trigger a full garbage collection which
-  // tries to reduce memory footprint.
-  static const size_t kMinTimeForReduceMemory = 600;
 
   // We conservatively assume that in the next kTimeUntilNextIdleEvent ms
   // no idle notification happens.
@@ -207,8 +194,6 @@ class GCIdleTimeHandler {
   static bool ShouldDoMarkCompact(size_t idle_time_in_ms,
                                   size_t size_of_objects,
                                   size_t mark_compact_speed_in_bytes_per_ms);
-
-  static bool ShouldDoReduceMemoryMarkCompact(size_t idle_time_in_ms);
 
   static bool ShouldDoContextDisposalMarkCompact(int context_disposed,
                                                  double contexts_disposal_rate);

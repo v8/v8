@@ -4502,15 +4502,14 @@ void Heap::MakeHeapIterable() {
 }
 
 
-void Heap::IdleMarkCompact(bool reduce_memory, const char* message) {
+void Heap::IdleMarkCompact(const char* message) {
   bool uncommit = false;
   if (gc_count_at_last_idle_gc_ == gc_count_) {
     // No GC since the last full GC, the mutator is probably not active.
     isolate_->compilation_cache()->Clear();
     uncommit = true;
   }
-  int flags = reduce_memory ? kReduceMemoryFootprintMask : kNoGCFlags;
-  CollectAllGarbage(flags, message);
+  CollectAllGarbage(kReduceMemoryFootprintMask, message);
   gc_idle_time_handler_.NotifyIdleMarkCompact();
   gc_count_at_last_idle_gc_ = gc_count_;
   if (uncommit) {
@@ -4642,12 +4641,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
         gc_idle_time_handler_.NotifyIdleMarkCompact();
         gc_count_at_last_idle_gc_ = gc_count_;
       } else {
-        IdleMarkCompact(false, "idle notification: finalize idle round");
+        IdleMarkCompact("idle notification: finalize idle round");
       }
-      break;
-    }
-    case DO_FULL_GC_COMPACT: {
-      IdleMarkCompact(true, "idle notification: reduce memory footprint");
       break;
     }
     case DO_SCAVENGE:

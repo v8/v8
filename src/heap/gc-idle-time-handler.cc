@@ -39,9 +39,6 @@ void GCIdleTimeAction::Print() {
     case DO_FULL_GC:
       PrintF("full GC");
       break;
-    case DO_FULL_GC_COMPACT:
-      PrintF("full GC compact");
-      break;
     case DO_FINALIZE_SWEEPING:
       PrintF("finalize sweeping");
       break;
@@ -159,15 +156,10 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
 bool GCIdleTimeHandler::ShouldDoMarkCompact(
     size_t idle_time_in_ms, size_t size_of_objects,
     size_t mark_compact_speed_in_bytes_per_ms) {
-  return idle_time_in_ms >=
-         EstimateMarkCompactTime(size_of_objects,
-                                 mark_compact_speed_in_bytes_per_ms);
-}
-
-
-bool GCIdleTimeHandler::ShouldDoReduceMemoryMarkCompact(
-    size_t idle_time_in_ms) {
-  return idle_time_in_ms >= kMinTimeForReduceMemory;
+  return idle_time_in_ms >= kMaxScheduledIdleTime &&
+         idle_time_in_ms >=
+             EstimateMarkCompactTime(size_of_objects,
+                                     mark_compact_speed_in_bytes_per_ms);
 }
 
 
@@ -215,14 +207,13 @@ GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
 // (3) If there is currently no MarkCompact idle round going on, we start a
 // new idle round if enough garbage was created. Otherwise we do not perform
 // garbage collection to keep system utilization low.
-// (4) If we have long idle time, we try to reduce the memory footprint.
-// (5) If incremental marking is done, we perform a full garbage collection
-// if we are allowed to still do full garbage collections during this idle
+// (4) If incremental marking is done, we perform a full garbage collection
+// if  we are allowed to still do full garbage collections during this idle
 // round or if we are not allowed to start incremental marking. Otherwise we
 // do not perform garbage collection to keep system utilization low.
-// (6) If sweeping is in progress and we received a large enough idle time
+// (5) If sweeping is in progress and we received a large enough idle time
 // request, we finalize sweeping here.
-// (7) If incremental marking is in progress, we perform a marking step. Note,
+// (6) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
                                             HeapState heap_state) {
@@ -254,10 +245,6 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     } else {
       return GCIdleTimeAction::Done();
     }
-  }
-
-  if (ShouldDoReduceMemoryMarkCompact(static_cast<size_t>(idle_time_in_ms))) {
-    return GCIdleTimeAction::FullGCCompact();
   }
 
   if (heap_state.incremental_marking_stopped) {
