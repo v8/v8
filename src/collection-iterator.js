@@ -70,9 +70,9 @@ function SetUpSetIterator() {
   %SetCode(SetIterator, SetIteratorConstructor);
   %FunctionSetPrototype(SetIterator, new $Object());
   %FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
-  InstallFunctions(SetIterator.prototype, DONT_ENUM, $Array(
+  InstallFunctions(SetIterator.prototype, DONT_ENUM, [
     'next', SetIteratorNextJS
-  ));
+  ]);
 
   %FunctionSetName(SetIteratorSymbolIterator, '[Symbol.iterator]');
   %AddNamedProperty(SetIterator.prototype, symbolIterator,
@@ -87,11 +87,11 @@ SetUpSetIterator();
 function ExtendSetPrototype() {
   %CheckIsBootstrapping();
 
-  InstallFunctions($Set.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Set.prototype, DONT_ENUM, [
     'entries', SetEntries,
     'keys', SetValues,
     'values', SetValues
-  ));
+  ]);
 
   %AddNamedProperty($Set.prototype, symbolIterator, SetValues, DONT_ENUM);
 }
@@ -169,9 +169,9 @@ function SetUpMapIterator() {
   %SetCode(MapIterator, MapIteratorConstructor);
   %FunctionSetPrototype(MapIterator, new $Object());
   %FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
-  InstallFunctions(MapIterator.prototype, DONT_ENUM, $Array(
+  InstallFunctions(MapIterator.prototype, DONT_ENUM, [
     'next', MapIteratorNextJS
-  ));
+  ]);
 
   %FunctionSetName(MapIteratorSymbolIterator, '[Symbol.iterator]');
   %AddNamedProperty(MapIterator.prototype, symbolIterator,
@@ -186,11 +186,11 @@ SetUpMapIterator();
 function ExtendMapPrototype() {
   %CheckIsBootstrapping();
 
-  InstallFunctions($Map.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Map.prototype, DONT_ENUM, [
     'entries', MapEntries,
     'keys', MapKeys,
     'values', MapValues
-  ));
+  ]);
 
   %AddNamedProperty($Map.prototype, symbolIterator, MapEntries, DONT_ENUM);
 }

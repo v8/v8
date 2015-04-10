@@ -250,7 +250,7 @@ function DatePrintString(date) {
 // -------------------------------------------------------------------
 
 // Reused output buffer. Used when parsing date strings.
-var parse_buffer = $Array(8);
+var parse_buffer = new InternalArray(8);
 
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
@@ -765,18 +765,18 @@ function CreateDate(time) {
 %FunctionSetPrototype(GlobalDate, new GlobalDate(NAN));
 
 // Set up non-enumerable properties of the Date object itself.
-InstallFunctions(GlobalDate, DONT_ENUM, $Array(
+InstallFunctions(GlobalDate, DONT_ENUM, [
   "UTC", DateUTC,
   "parse", DateParse,
   "now", DateNow
-));
+]);
 
 // Set up non-enumerable constructor property of the Date prototype object.
 %AddNamedProperty(GlobalDate.prototype, "constructor", GlobalDate, DONT_ENUM);
 
 // Set up non-enumerable functions of the Date prototype object and
 // set their names.
-InstallFunctions(GlobalDate.prototype, DONT_ENUM, $Array(
+InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toString", DateToString,
   "toDateString", DateToDateString,
   "toTimeString", DateToTimeString,
@@ -823,7 +823,7 @@ InstallFunctions(GlobalDate.prototype, DONT_ENUM, $Array(
   "setYear", DateSetYear,
   "toISOString", DateToISOString,
   "toJSON", DateToJSON
-));
+]);
 
 // Expose to the global scope.
 $createDate = CreateDate;

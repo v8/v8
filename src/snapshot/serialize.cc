@@ -1576,6 +1576,12 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   FlushSkip(skip);
 
+  // Clear literal boilerplates.
+  if (obj->IsJSFunction() && !JSFunction::cast(obj)->shared()->bound()) {
+    FixedArray* literals = JSFunction::cast(obj)->literals();
+    for (int i = 0; i < literals->length(); i++) literals->set_undefined(i);
+  }
+
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
   serializer.Serialize();

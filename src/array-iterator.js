@@ -106,9 +106,9 @@ function SetUpArrayIterator() {
   %FunctionSetPrototype(ArrayIterator, new $Object());
   %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
 
-  InstallFunctions(ArrayIterator.prototype, DONT_ENUM, $Array(
+  InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
     'next', ArrayIteratorNext
-  ));
+  ]);
   %FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
   %AddNamedProperty(ArrayIterator.prototype, symbolIterator,
                     ArrayIteratorIterator, DONT_ENUM);
@@ -121,11 +121,11 @@ SetUpArrayIterator();
 function ExtendArrayPrototype() {
   %CheckIsBootstrapping();
 
-  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Array.prototype, DONT_ENUM, [
     // No 'values' since it breaks webcompat: http://crbug.com/409858
     'entries', ArrayEntries,
     'keys', ArrayKeys
-  ));
+  ]);
 
   %AddNamedProperty($Array.prototype, symbolIterator, ArrayValues, DONT_ENUM);
 }

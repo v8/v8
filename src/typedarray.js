@@ -322,10 +322,10 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
       DONT_ENUM | DONT_DELETE);
   InstallGetter(global.NAME.prototype, symbolToStringTag,
                 TypedArrayGetToStringTag);
-  InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(
-        "subarray", NAMESubArray,
-        "set", TypedArraySet
-  ));
+  InstallFunctions(global.NAME.prototype, DONT_ENUM, [
+    "subarray", NAMESubArray,
+    "set", TypedArraySet
+  ]);
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
@@ -455,31 +455,31 @@ function SetupDataView() {
   InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
   InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
 
-  InstallFunctions($DataView.prototype, DONT_ENUM, $Array(
-      "getInt8", DataViewGetInt8JS,
-      "setInt8", DataViewSetInt8JS,
+  InstallFunctions($DataView.prototype, DONT_ENUM, [
+    "getInt8", DataViewGetInt8JS,
+    "setInt8", DataViewSetInt8JS,
 
-      "getUint8", DataViewGetUint8JS,
-      "setUint8", DataViewSetUint8JS,
+    "getUint8", DataViewGetUint8JS,
+    "setUint8", DataViewSetUint8JS,
 
-      "getInt16", DataViewGetInt16JS,
-      "setInt16", DataViewSetInt16JS,
+    "getInt16", DataViewGetInt16JS,
+    "setInt16", DataViewSetInt16JS,
 
-      "getUint16", DataViewGetUint16JS,
-      "setUint16", DataViewSetUint16JS,
+    "getUint16", DataViewGetUint16JS,
+    "setUint16", DataViewSetUint16JS,
 
-      "getInt32", DataViewGetInt32JS,
-      "setInt32", DataViewSetInt32JS,
+    "getInt32", DataViewGetInt32JS,
+    "setInt32", DataViewSetInt32JS,
 
-      "getUint32", DataViewGetUint32JS,
-      "setUint32", DataViewSetUint32JS,
+    "getUint32", DataViewGetUint32JS,
+    "setUint32", DataViewSetUint32JS,
 
-      "getFloat32", DataViewGetFloat32JS,
-      "setFloat32", DataViewSetFloat32JS,
+    "getFloat32", DataViewGetFloat32JS,
+    "setFloat32", DataViewSetFloat32JS,
 
-      "getFloat64", DataViewGetFloat64JS,
-      "setFloat64", DataViewSetFloat64JS
-  ));
+    "getFloat64", DataViewGetFloat64JS,
+    "setFloat64", DataViewSetFloat64JS
+  ]);
 }
 
 SetupDataView();

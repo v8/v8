@@ -14,7 +14,6 @@ var harmony_unicode_regexps = false;
 %CheckIsBootstrapping();
 
 var GlobalRegExp = global.RegExp;
-var GlobalArray = global.Array;
 
 // Property of the builtins object for recording the result of the last
 // regexp match.  The property $regexpLastMatchInfo includes the matchIndices
@@ -364,12 +363,12 @@ function RegExpMakeCaptureGetter(n) {
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
 
-InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "exec", RegExpExecJS,
   "test", RegExpTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS
-));
+]);
 
 // The length of compile is 1 in SpiderMonkey.
 %FunctionSetLength(GlobalRegExp.prototype.compile, 1);

@@ -91,12 +91,12 @@ function SetUpWeakMap() {
       $WeakMap.prototype, symbolToStringTag, "WeakMap", DONT_ENUM | READ_ONLY);
 
   // Set up the non-enumerable functions on the WeakMap prototype object.
-  InstallFunctions($WeakMap.prototype, DONT_ENUM, $Array(
+  InstallFunctions($WeakMap.prototype, DONT_ENUM, [
     "get", WeakMapGet,
     "set", WeakMapSet,
     "has", WeakMapHas,
     "delete", WeakMapDelete
-  ));
+  ]);
 }
 
 SetUpWeakMap();
@@ -168,11 +168,11 @@ function SetUpWeakSet() {
       $WeakSet.prototype, symbolToStringTag, "WeakSet", DONT_ENUM | READ_ONLY);
 
   // Set up the non-enumerable functions on the WeakSet prototype object.
-  InstallFunctions($WeakSet.prototype, DONT_ENUM, $Array(
+  InstallFunctions($WeakSet.prototype, DONT_ENUM, [
     "add", WeakSetAdd,
     "has", WeakSetHas,
     "delete", WeakSetDelete
-  ));
+  ]);
 }
 
 SetUpWeakSet();

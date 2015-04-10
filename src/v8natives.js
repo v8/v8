@@ -201,13 +201,13 @@ function SetUpGlobal() {
   %AddNamedProperty(global, "undefined", UNDEFINED, attributes);
 
   // Set up non-enumerable function on the global object.
-  InstallFunctions(global, DONT_ENUM, $Array(
+  InstallFunctions(global, DONT_ENUM, [
     "isNaN", GlobalIsNaN,
     "isFinite", GlobalIsFinite,
     "parseInt", GlobalParseInt,
     "parseFloat", GlobalParseFloat,
     "eval", GlobalEval
-  ));
+  ]);
 }
 
 SetUpGlobal();
@@ -508,84 +508,85 @@ function PropertyDescriptor() {
   this.hasSetter_ = false;
 }
 
-SetUpLockedPrototype(PropertyDescriptor, $Array(
-    "value_",
-    "hasValue_",
-    "writable_",
-    "hasWritable_",
-    "enumerable_",
-    "hasEnumerable_",
-    "configurable_",
-    "hasConfigurable_",
-    "get_",
-    "hasGetter_",
-    "set_",
-    "hasSetter_"
-  ), $Array(
-    "toString", function PropertyDescriptor_ToString() {
-      return "[object PropertyDescriptor]";
-    },
-    "setValue", function PropertyDescriptor_SetValue(value) {
-      this.value_ = value;
-      this.hasValue_ = true;
-    },
-    "getValue", function PropertyDescriptor_GetValue() {
-      return this.value_;
-    },
-    "hasValue", function PropertyDescriptor_HasValue() {
-      return this.hasValue_;
-    },
-    "setEnumerable", function PropertyDescriptor_SetEnumerable(enumerable) {
-      this.enumerable_ = enumerable;
-        this.hasEnumerable_ = true;
-    },
-    "isEnumerable", function PropertyDescriptor_IsEnumerable() {
-      return this.enumerable_;
-    },
-    "hasEnumerable", function PropertyDescriptor_HasEnumerable() {
-      return this.hasEnumerable_;
-    },
-    "setWritable", function PropertyDescriptor_SetWritable(writable) {
-      this.writable_ = writable;
-      this.hasWritable_ = true;
-    },
-    "isWritable", function PropertyDescriptor_IsWritable() {
-      return this.writable_;
-    },
-    "hasWritable", function PropertyDescriptor_HasWritable() {
-      return this.hasWritable_;
-    },
-    "setConfigurable",
-    function PropertyDescriptor_SetConfigurable(configurable) {
-      this.configurable_ = configurable;
-      this.hasConfigurable_ = true;
-    },
-    "hasConfigurable", function PropertyDescriptor_HasConfigurable() {
-      return this.hasConfigurable_;
-    },
-    "isConfigurable", function PropertyDescriptor_IsConfigurable() {
-      return this.configurable_;
-    },
-    "setGet", function PropertyDescriptor_SetGetter(get) {
-      this.get_ = get;
-      this.hasGetter_ = true;
-    },
-    "getGet", function PropertyDescriptor_GetGetter() {
-      return this.get_;
-    },
-    "hasGetter", function PropertyDescriptor_HasGetter() {
-      return this.hasGetter_;
-    },
-    "setSet", function PropertyDescriptor_SetSetter(set) {
-      this.set_ = set;
-      this.hasSetter_ = true;
-    },
-    "getSet", function PropertyDescriptor_GetSetter() {
-      return this.set_;
-    },
-    "hasSetter", function PropertyDescriptor_HasSetter() {
-      return this.hasSetter_;
-  }));
+SetUpLockedPrototype(PropertyDescriptor, [
+  "value_",
+  "hasValue_",
+  "writable_",
+  "hasWritable_",
+  "enumerable_",
+  "hasEnumerable_",
+  "configurable_",
+  "hasConfigurable_",
+  "get_",
+  "hasGetter_",
+  "set_",
+  "hasSetter_"
+], [
+  "toString", function PropertyDescriptor_ToString() {
+    return "[object PropertyDescriptor]";
+  },
+  "setValue", function PropertyDescriptor_SetValue(value) {
+    this.value_ = value;
+    this.hasValue_ = true;
+  },
+  "getValue", function PropertyDescriptor_GetValue() {
+    return this.value_;
+  },
+  "hasValue", function PropertyDescriptor_HasValue() {
+    return this.hasValue_;
+  },
+  "setEnumerable", function PropertyDescriptor_SetEnumerable(enumerable) {
+    this.enumerable_ = enumerable;
+      this.hasEnumerable_ = true;
+  },
+  "isEnumerable", function PropertyDescriptor_IsEnumerable() {
+    return this.enumerable_;
+  },
+  "hasEnumerable", function PropertyDescriptor_HasEnumerable() {
+    return this.hasEnumerable_;
+  },
+  "setWritable", function PropertyDescriptor_SetWritable(writable) {
+    this.writable_ = writable;
+    this.hasWritable_ = true;
+  },
+  "isWritable", function PropertyDescriptor_IsWritable() {
+    return this.writable_;
+  },
+  "hasWritable", function PropertyDescriptor_HasWritable() {
+    return this.hasWritable_;
+  },
+  "setConfigurable",
+  function PropertyDescriptor_SetConfigurable(configurable) {
+    this.configurable_ = configurable;
+    this.hasConfigurable_ = true;
+  },
+  "hasConfigurable", function PropertyDescriptor_HasConfigurable() {
+    return this.hasConfigurable_;
+  },
+  "isConfigurable", function PropertyDescriptor_IsConfigurable() {
+    return this.configurable_;
+  },
+  "setGet", function PropertyDescriptor_SetGetter(get) {
+    this.get_ = get;
+    this.hasGetter_ = true;
+  },
+  "getGet", function PropertyDescriptor_GetGetter() {
+    return this.get_;
+  },
+  "hasGetter", function PropertyDescriptor_HasGetter() {
+    return this.hasGetter_;
+  },
+  "setSet", function PropertyDescriptor_SetSetter(set) {
+    this.set_ = set;
+    this.hasSetter_ = true;
+  },
+  "getSet", function PropertyDescriptor_GetSetter() {
+    return this.set_;
+  },
+  "hasSetter", function PropertyDescriptor_HasSetter() {
+    return this.hasSetter_;
+  }
+]);
 
 
 // Converts an array returned from Runtime_GetOwnProperty to an actual
@@ -1429,7 +1430,7 @@ function SetUpObject() {
   %AddNamedProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
 
   // Set up non-enumerable functions on the Object.prototype object.
-  InstallFunctions($Object.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Object.prototype, DONT_ENUM, [
     "toString", ObjectToString,
     "toLocaleString", ObjectToLocaleString,
     "valueOf", ObjectValueOf,
@@ -1440,12 +1441,12 @@ function SetUpObject() {
     "__lookupGetter__", ObjectLookupGetter,
     "__defineSetter__", ObjectDefineSetter,
     "__lookupSetter__", ObjectLookupSetter
-  ));
+  ]);
   InstallGetterSetter($Object.prototype, "__proto__",
                       ObjectGetProto, ObjectSetProto);
 
   // Set up non-enumerable functions in the Object object.
-  InstallFunctions($Object, DONT_ENUM, $Array(
+  InstallFunctions($Object, DONT_ENUM, [
     "keys", ObjectKeys,
     "create", ObjectCreate,
     "defineProperty", ObjectDefineProperty,
@@ -1464,7 +1465,7 @@ function SetUpObject() {
     "seal", ObjectSealJS
     // deliverChangeRecords, getNotifier, observe and unobserve are added
     // in object-observe.js.
-  ));
+  ]);
 }
 
 SetUpObject();
@@ -1515,10 +1516,10 @@ function SetUpBoolean () {
   %FunctionSetPrototype($Boolean, new $Object());
   %AddNamedProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
 
-  InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Boolean.prototype, DONT_ENUM, [
     "toString", BooleanToString,
     "valueOf", BooleanValueOf
-  ));
+  ]);
 }
 
 SetUpBoolean();
@@ -1697,44 +1698,44 @@ function SetUpNumber() {
   // Set up the constructor property on the Number prototype object.
   %AddNamedProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
-  InstallConstants($Number, $Array(
-      // ECMA-262 section 15.7.3.1.
-      "MAX_VALUE", 1.7976931348623157e+308,
-      // ECMA-262 section 15.7.3.2.
-      "MIN_VALUE", 5e-324,
-      // ECMA-262 section 15.7.3.3.
-      "NaN", NAN,
-      // ECMA-262 section 15.7.3.4.
-      "NEGATIVE_INFINITY", -INFINITY,
-      // ECMA-262 section 15.7.3.5.
-      "POSITIVE_INFINITY", INFINITY,
+  InstallConstants($Number, [
+    // ECMA-262 section 15.7.3.1.
+    "MAX_VALUE", 1.7976931348623157e+308,
+    // ECMA-262 section 15.7.3.2.
+    "MIN_VALUE", 5e-324,
+    // ECMA-262 section 15.7.3.3.
+    "NaN", NAN,
+    // ECMA-262 section 15.7.3.4.
+    "NEGATIVE_INFINITY", -INFINITY,
+    // ECMA-262 section 15.7.3.5.
+    "POSITIVE_INFINITY", INFINITY,
 
-      // --- Harmony constants (no spec refs until settled.)
+    // --- Harmony constants (no spec refs until settled.)
 
-      "MAX_SAFE_INTEGER", %_MathPow(2, 53) - 1,
-      "MIN_SAFE_INTEGER", -%_MathPow(2, 53) + 1,
-      "EPSILON", %_MathPow(2, -52)
-  ));
+    "MAX_SAFE_INTEGER", %_MathPow(2, 53) - 1,
+    "MIN_SAFE_INTEGER", -%_MathPow(2, 53) + 1,
+    "EPSILON", %_MathPow(2, -52)
+  ]);
 
   // Set up non-enumerable functions on the Number prototype object.
-  InstallFunctions($Number.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Number.prototype, DONT_ENUM, [
     "toString", NumberToStringJS,
     "toLocaleString", NumberToLocaleString,
     "valueOf", NumberValueOf,
     "toFixed", NumberToFixedJS,
     "toExponential", NumberToExponentialJS,
     "toPrecision", NumberToPrecisionJS
-  ));
+  ]);
 
   // Harmony Number constructor additions
-  InstallFunctions($Number, DONT_ENUM, $Array(
+  InstallFunctions($Number, DONT_ENUM, [
     "isFinite", NumberIsFinite,
     "isInteger", NumberIsInteger,
     "isNaN", NumberIsNaN,
     "isSafeInteger", NumberIsSafeInteger,
     "parseInt", GlobalParseInt,
     "parseFloat", GlobalParseFloat
-  ));
+  ]);
 
   %SetInlineBuiltinFlag(NumberIsNaN);
 }
@@ -1893,10 +1894,10 @@ function SetUpFunction() {
   %SetCode($Function, FunctionConstructor);
   %AddNamedProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
 
-  InstallFunctions($Function.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Function.prototype, DONT_ENUM, [
     "bind", FunctionBind,
     "toString", FunctionToString
-  ));
+  ]);
 }
 
 SetUpFunction();

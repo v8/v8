@@ -8,7 +8,6 @@
 
 %CheckIsBootstrapping();
 
-var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalString = global.String;
 
@@ -89,9 +88,9 @@ function StringPrototypeIterator() {
 %FunctionSetPrototype(StringIterator, new GlobalObject());
 %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
-InstallFunctions(StringIterator.prototype, DONT_ENUM, GlobalArray(
+InstallFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
-));
+]);
 %FunctionSetName(StringIteratorIterator, '[Symbol.iterator]');
 %AddNamedProperty(StringIterator.prototype, symbolIterator,
                   StringIteratorIterator, DONT_ENUM);

@@ -10,7 +10,6 @@ var $stringSubstring;
 
 %CheckIsBootstrapping();
 
-var GlobalArray = global.Array;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 
@@ -1125,14 +1124,14 @@ function StringRaw(callSite) {
     GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
 
 // Set up the non-enumerable functions on the String object.
-InstallFunctions(GlobalString, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalString, DONT_ENUM, [
   "fromCharCode", StringFromCharCode,
   "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
-));
+]);
 
 // Set up the non-enumerable functions on the String prototype object.
-InstallFunctions(GlobalString.prototype, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "valueOf", StringValueOf,
   "toString", StringToString,
   "charAt", StringCharAtJS,
@@ -1175,7 +1174,7 @@ InstallFunctions(GlobalString.prototype, DONT_ENUM, GlobalArray(
   "strike", StringStrike,
   "sub", StringSub,
   "sup", StringSup
-));
+]);
 
 $stringCharAt = StringCharAtJS;
 $stringIndexOf = StringIndexOfJS;

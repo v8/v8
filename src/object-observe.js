@@ -594,20 +594,20 @@ function ObserveMicrotaskRunner() {
 
 function SetupObjectObserve() {
   %CheckIsBootstrapping();
-  InstallFunctions($Object, DONT_ENUM, $Array(
+  InstallFunctions($Object, DONT_ENUM, [
     "deliverChangeRecords", ObjectDeliverChangeRecords,
     "getNotifier", ObjectGetNotifier,
     "observe", ObjectObserve,
     "unobserve", ObjectUnobserve
-  ));
-  InstallFunctions($Array, DONT_ENUM, $Array(
+  ]);
+  InstallFunctions($Array, DONT_ENUM, [
     "observe", ArrayObserve,
     "unobserve", ArrayUnobserve
-  ));
-  InstallFunctions(notifierPrototype, DONT_ENUM, $Array(
+  ]);
+  InstallFunctions(notifierPrototype, DONT_ENUM, [
     "notify", ObjectNotifierNotify,
     "performChange", ObjectNotifierPerformChange
-  ));
+  ]);
 }
 
 SetupObjectObserve();

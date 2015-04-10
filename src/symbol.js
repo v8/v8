@@ -18,7 +18,6 @@ var $symbolToString;
 
 %CheckIsBootstrapping();
 
-var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalSymbol = global.Symbol;
 
@@ -84,7 +83,7 @@ function ObjectGetOwnPropertySymbols(obj) {
 %SetCode(GlobalSymbol, SymbolConstructor);
 %FunctionSetPrototype(GlobalSymbol, new GlobalObject());
 
-InstallConstants(GlobalSymbol, GlobalArray(
+InstallConstants(GlobalSymbol, [
   // TODO(rossberg): expose when implemented.
   // "hasInstance", symbolHasInstance,
   // "isConcatSpreadable", symbolIsConcatSpreadable,
@@ -94,26 +93,26 @@ InstallConstants(GlobalSymbol, GlobalArray(
   // Move here when shipping
   // "toStringTag", symbolToStringTag,
   "unscopables", symbolUnscopables
-));
+]);
 
-InstallFunctions(GlobalSymbol, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalSymbol, DONT_ENUM, [
   "for", SymbolFor,
   "keyFor", SymbolKeyFor
-));
+]);
 
 %AddNamedProperty(
     GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
 %AddNamedProperty(
     GlobalSymbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
 
-InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
   "toString", SymbolToString,
   "valueOf", SymbolValueOf
-));
+]);
 
-InstallFunctions(GlobalObject, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalObject, DONT_ENUM, [
   "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
-));
+]);
 
 $symbolToString = SymbolToString;
 

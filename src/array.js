@@ -1521,9 +1521,9 @@ function SetUpArray() {
       DONT_ENUM | READ_ONLY);
 
   // Set up non-enumerable functions on the Array object.
-  InstallFunctions($Array, DONT_ENUM, $Array(
+  InstallFunctions($Array, DONT_ENUM, [
     "isArray", ArrayIsArray
-  ));
+  ]);
 
   var specialFunctions = %SpecialArrayFunctions();
 
@@ -1542,7 +1542,7 @@ function SetUpArray() {
   // set their names.
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
-  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Array.prototype, DONT_ENUM, [
     "toString", getFunction("toString", ArrayToString),
     "toLocaleString", getFunction("toLocaleString", ArrayToLocaleString),
     "join", getFunction("join", ArrayJoin),
@@ -1564,27 +1564,27 @@ function SetUpArray() {
     "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
     "reduce", getFunction("reduce", ArrayReduce, 1),
     "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1)
-  ));
+  ]);
 
   %FinishArrayPrototypeSetup($Array.prototype);
 
   // The internal Array prototype doesn't need to be fancy, since it's never
   // exposed to user code.
   // Adding only the functions that are actually used.
-  SetUpLockedPrototype(InternalArray, $Array(), $Array(
+  SetUpLockedPrototype(InternalArray, $Array(), [
     "concat", getFunction("concat", ArrayConcatJS),
     "indexOf", getFunction("indexOf", ArrayIndexOf),
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),
     "push", getFunction("push", ArrayPush),
     "splice", getFunction("splice", ArraySplice)
-  ));
+  ]);
 
-  SetUpLockedPrototype(InternalPackedArray, $Array(), $Array(
+  SetUpLockedPrototype(InternalPackedArray, $Array(), [
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),
     "push", getFunction("push", ArrayPush)
-  ));
+  ]);
 }
 
 SetUpArray();

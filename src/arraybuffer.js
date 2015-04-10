@@ -82,13 +82,13 @@ function SetUpArrayBuffer() {
 
   InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
-  InstallFunctions($ArrayBuffer, DONT_ENUM, $Array(
-      "isView", ArrayBufferIsViewJS
-  ));
+  InstallFunctions($ArrayBuffer, DONT_ENUM, [
+    "isView", ArrayBufferIsViewJS
+  ]);
 
-  InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, $Array(
-      "slice", ArrayBufferSlice
-  ));
+  InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, [
+    "slice", ArrayBufferSlice
+  ]);
 }
 
 SetUpArrayBuffer();

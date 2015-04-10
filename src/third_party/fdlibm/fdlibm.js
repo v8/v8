@@ -33,7 +33,6 @@ var rempio2result;
 %CheckIsBootstrapping();
 
 var GlobalMath = global.Math;
-var GlobalArray = global.Array;
 
 //-------------------------------------------------------------------
 
@@ -887,12 +886,12 @@ function MathLog10(x) {
   if (hx >= 0x7ff00000) return x;
 
   k += (hx >> 20) - 1023;
-  i = (k & 0x80000000) >> 31;
+  var i = (k & 0x80000000) >> 31;
   hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
-  y = k + i;
+  var y = k + i;
   x = %_ConstructDouble(hx, lx);
 
-  z = y * LOG10_2LO + IVLN10 * %_MathLogRT(x);
+  var z = y * LOG10_2LO + IVLN10 * %_MathLogRT(x);
   return z + y * LOG10_2HI;
 }
 
@@ -1013,7 +1012,7 @@ function MathLog2(x) {
 
 //-------------------------------------------------------------------
 
-InstallFunctions(GlobalMath, DONT_ENUM, GlobalArray(
+InstallFunctions(GlobalMath, DONT_ENUM, [
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,
@@ -1023,7 +1022,7 @@ InstallFunctions(GlobalMath, DONT_ENUM, GlobalArray(
   "log2", MathLog2,
   "log1p", MathLog1p,
   "expm1", MathExpm1
-));
+]);
 
 %SetInlineBuiltinFlag(MathSin);
 %SetInlineBuiltinFlag(MathCos);

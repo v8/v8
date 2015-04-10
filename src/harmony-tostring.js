@@ -7,10 +7,10 @@
 function HarmonyToStringExtendSymbolPrototype() {
   %CheckIsBootstrapping();
 
-  InstallConstants(global.Symbol, $Array(
-    // TODO(dslomov, caitp): Move to symbol.js when shipping
-   "toStringTag", symbolToStringTag
-  ));
+  InstallConstants(global.Symbol, [
+     // TODO(dslomov, caitp): Move to symbol.js when shipping
+     "toStringTag", symbolToStringTag
+  ]);
 }
 
 HarmonyToStringExtendSymbolPrototype();

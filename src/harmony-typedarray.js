@@ -79,14 +79,14 @@ macro EXTEND_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %CheckIsBootstrapping();
 
   // Set up non-enumerable functions on the object.
-  InstallFunctions(global.NAME, DONT_ENUM | DONT_DELETE | READ_ONLY, $Array(
+  InstallFunctions(global.NAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
     "of", NAMEOf
-  ));
+  ]);
 
   // Set up non-enumerable functions on the prototype object.
-  InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(
+  InstallFunctions(global.NAME.prototype, DONT_ENUM, [
     "forEach", NAMEForEach
-  ));
+  ]);
 endmacro
 
   TYPED_ARRAYS(EXTEND_TYPED_ARRAY)

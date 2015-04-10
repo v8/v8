@@ -49,7 +49,7 @@ function JSONParse(text, reviver) {
 
 function SerializeArray(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', $Array());
+    throw MakeTypeError('circular_structure', []);
   }
   var stepback = indent;
   indent += gap;
@@ -79,7 +79,7 @@ function SerializeArray(value, replacer, stack, indent, gap) {
 
 function SerializeObject(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', $Array());
+    throw MakeTypeError('circular_structure', []);
   }
   var stepback = indent;
   indent += gap;
@@ -223,10 +223,10 @@ function SetUpJSON() {
   %AddNamedProperty($JSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
 
   // Set up non-enumerable properties of the JSON object.
-  InstallFunctions($JSON, DONT_ENUM, $Array(
+  InstallFunctions($JSON, DONT_ENUM, [
     "parse", JSONParse,
     "stringify", JSONStringify
-  ));
+  ]);
 }
 
 SetUpJSON();

@@ -53,9 +53,9 @@ function HarmonyArrayIncludesExtendArrayPrototype() {
   %FunctionSetLength(ArrayIncludes, 1);
 
   // Set up the non-enumerable functions on the Array prototype object.
-  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Array.prototype, DONT_ENUM, [
     "includes", ArrayIncludes
-  ));
+  ]);
 }
 
 HarmonyArrayIncludesExtendArrayPrototype();

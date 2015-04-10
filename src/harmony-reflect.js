@@ -9,10 +9,10 @@ var $Reflect = global.Reflect;
 function SetUpReflect() {
   %CheckIsBootstrapping();
 
-  InstallFunctions($Reflect, DONT_ENUM, $Array(
-   "apply", ReflectApply,
-   "construct", ReflectConstruct
-  ));
+  InstallFunctions($Reflect, DONT_ENUM, [
+    "apply", ReflectApply,
+    "construct", ReflectConstruct
+  ]);
 }
 
 SetUpReflect();

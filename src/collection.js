@@ -245,13 +245,13 @@ function SetForEach(f, receiver) {
 
 // Set up the non-enumerable functions on the Set prototype object.
 InstallGetter($Set.prototype, "size", SetGetSize);
-InstallFunctions($Set.prototype, DONT_ENUM, $Array(
+InstallFunctions($Set.prototype, DONT_ENUM, [
   "add", SetAdd,
   "has", SetHas,
   "delete", SetDelete,
   "clear", SetClearJS,
   "forEach", SetForEach
-));
+]);
 
 
 // -------------------------------------------------------------------
@@ -433,13 +433,13 @@ function MapForEach(f, receiver) {
 
 // Set up the non-enumerable functions on the Map prototype object.
 InstallGetter($Map.prototype, "size", MapGetSize);
-InstallFunctions($Map.prototype, DONT_ENUM, $Array(
+InstallFunctions($Map.prototype, DONT_ENUM, [
   "get", MapGet,
   "set", MapSet,
   "has", MapHas,
   "delete", MapDelete,
   "clear", MapClearJS,
   "forEach", MapForEach
-));
+]);
 
 })();

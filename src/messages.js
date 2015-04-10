@@ -615,10 +615,15 @@ function ScriptNameOrSourceURL() {
 }
 
 
-SetUpLockedPrototype(Script,
-  $Array("source", "name", "source_url", "source_mapping_url", "line_ends",
-         "line_offset", "column_offset"),
-  $Array(
+SetUpLockedPrototype(Script, [
+    "source",
+    "name",
+    "source_url",
+    "source_mapping_url",
+    "line_ends",
+    "line_offset",
+    "column_offset"
+  ], [
     "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
     "locationFromLine", ScriptLocationFromLine,
@@ -626,7 +631,7 @@ SetUpLockedPrototype(Script,
     "sourceLine", ScriptSourceLine,
     "lineCount", ScriptLineCount,
     "nameOrSourceURL", ScriptNameOrSourceURL
-  )
+  ]
 );
 
 
@@ -675,10 +680,8 @@ function SourceLocationSourceText() {
 
 
 SetUpLockedPrototype(SourceLocation,
-  $Array("script", "position", "line", "column", "start", "end"),
-  $Array(
-    "sourceText", SourceLocationSourceText
- )
+  ["script", "position", "line", "column", "start", "end"],
+  ["sourceText", SourceLocationSourceText]
 );
 
 
@@ -721,8 +724,8 @@ function SourceSliceSourceText() {
 }
 
 SetUpLockedPrototype(SourceSlice,
-  $Array("script", "from_line", "to_line", "from_position", "to_position"),
-  $Array("sourceText", SourceSliceSourceText)
+  ["script", "from_line", "to_line", "from_position", "to_position"],
+  ["sourceText", SourceSliceSourceText]
 );
 
 
@@ -953,7 +956,7 @@ function CallSiteToString() {
   return line;
 }
 
-SetUpLockedPrototype(CallSite, $Array("receiver", "fun", "pos"), $Array(
+SetUpLockedPrototype(CallSite, ["receiver", "fun", "pos"], [
   "getThis", CallSiteGetThis,
   "getTypeName", CallSiteGetTypeName,
   "isToplevel", CallSiteIsToplevel,
@@ -970,7 +973,7 @@ SetUpLockedPrototype(CallSite, $Array("receiver", "fun", "pos"), $Array(
   "getPosition", CallSiteGetPosition,
   "isConstructor", CallSiteIsConstructor,
   "toString", CallSiteToString
-));
+]);
 
 
 function FormatEvalOrigin(script) {

@@ -17,7 +17,6 @@ var $min;
 %CheckIsBootstrapping();
 
 var GlobalObject = global.Object;
-var GlobalArray = global.Array;
 
 //-------------------------------------------------------------------
 
@@ -295,7 +294,7 @@ var Math = new MathConstructor();
 %AddNamedProperty(Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
-InstallConstants(Math, GlobalArray(
+InstallConstants(Math, [
   // ECMA-262, section 15.8.1.1.
   "E", 2.7182818284590452354,
   // ECMA-262, section 15.8.1.2.
@@ -308,11 +307,11 @@ InstallConstants(Math, GlobalArray(
   "PI", 3.1415926535897932,
   "SQRT1_2", 0.7071067811865476,
   "SQRT2", 1.4142135623730951
-));
+]);
 
 // Set up non-enumerable functions of the Math object and
 // set their names.
-InstallFunctions(Math, DONT_ENUM, GlobalArray(
+InstallFunctions(Math, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
   "acos", MathAcosJS,
@@ -339,7 +338,7 @@ InstallFunctions(Math, DONT_ENUM, GlobalArray(
   "fround", MathFroundJS,
   "clz32", MathClz32JS,
   "cbrt", MathCbrt
-));
+]);
 
 %SetInlineBuiltinFlag(MathAbs);
 %SetInlineBuiltinFlag(MathAcosJS);

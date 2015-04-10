@@ -211,10 +211,10 @@ function ArrayOf() {
 function HarmonyArrayExtendSymbolPrototype() {
   %CheckIsBootstrapping();
 
-  InstallConstants(global.Symbol, $Array(
+  InstallConstants(global.Symbol, [
     // TODO(dslomov, caitp): Move to symbol.js when shipping
-   "isConcatSpreadable", symbolIsConcatSpreadable
-  ));
+    "isConcatSpreadable", symbolIsConcatSpreadable
+  ]);
 }
 
 HarmonyArrayExtendSymbolPrototype();
@@ -225,17 +225,17 @@ function HarmonyArrayExtendArrayPrototype() {
   %FunctionSetLength(ArrayFrom, 1);
 
   // Set up non-enumerable functions on the Array object.
-  InstallFunctions($Array, DONT_ENUM, $Array(
+  InstallFunctions($Array, DONT_ENUM, [
     "from", ArrayFrom,
     "of", ArrayOf
-  ));
+  ]);
 
   // Set up the non-enumerable functions on the Array prototype object.
-  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Array.prototype, DONT_ENUM, [
     "find", ArrayFind,
     "findIndex", ArrayFindIndex,
     "fill", ArrayFill
-  ));
+  ]);
 }
 
 HarmonyArrayExtendArrayPrototype();
