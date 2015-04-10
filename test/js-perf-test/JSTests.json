@@ -17,9 +17,9 @@
       "units": "score",
       "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Call-Sum"},
-        {"name": "CallMethod-Sum"},
-        {"name": "CallNew-Sum"}
+        {"name": "Call"},
+        {"name": "CallMethod"},
+        {"name": "CallNew"}
       ]
     },
     {
