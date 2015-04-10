@@ -516,5 +516,18 @@ TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnIncrementalMarking) {
   EXPECT_EQ(DONE, action.type);
 }
 
+
+TEST_F(GCIdleTimeHandlerTest, ReduceMemory) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  double idle_time = GCIdleTimeHandler::kMinTimeForReduceMemory;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time, heap_state);
+    EXPECT_EQ(DO_FULL_GC_COMPACT, action.type);
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time, heap_state);
+  EXPECT_EQ(DONE, action.type);
+}
+
 }  // namespace internal
 }  // namespace v8

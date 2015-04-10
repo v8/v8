@@ -2049,7 +2049,7 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void IdleMarkCompact(const char* message);
+  void IdleMarkCompact(bool reduce_memory, const char* message);
 
   bool TryFinalizeIdleIncrementalMarking(
       double idle_time_in_ms, size_t size_of_objects,
