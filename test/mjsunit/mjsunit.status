@@ -111,6 +111,9 @@
   'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
 
+  # TODO(jarin): Fix for-in deopt points in turbofan.
+  'for-in-opt': [PASS, NO_VARIANTS],
+
   # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
   # issues on ARM and ARM64.
   'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
