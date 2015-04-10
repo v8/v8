@@ -3,9 +3,8 @@
   "run_count": 5,
   "units": "bytes",
   "path" : ["."],
-  "binary": "mksnapshot",
-  "flags": ["snapshot.cc", "--profile-deserialization"],
-  "main": "",
+  "binary": "cctest",
+  "main": "test-serialize/SerializationMemoryStats",
   "tests": [
     {
       "name": "ReservedMemoryIsolate",

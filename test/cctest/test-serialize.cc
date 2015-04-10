@@ -1549,3 +1549,11 @@ TEST(SerializeInternalReference) {
   }
   isolate->Dispose();
 }
+
+
+TEST(SerializationMemoryStats) {
+  FLAG_profile_deserialization = true;
+  FLAG_always_opt = false;
+  v8::StartupData blob = v8::V8::CreateSnapshotDataBlob();
+  delete[] blob.data;
+}
