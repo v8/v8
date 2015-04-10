@@ -6087,9 +6087,11 @@ class Map: public HeapObject {
   // [prototype]: implicit prototype object.
   DECL_ACCESSORS(prototype, Object)
   // TODO(jkummerow): make set_prototype private.
-  void SetPrototype(Handle<Object> prototype,
-                    PrototypeOptimizationMode proto_mode = FAST_PROTOTYPE);
-  bool ShouldRegisterAsPrototypeUser(Handle<JSObject> prototype);
+  static void SetPrototype(
+      Handle<Map> map, Handle<Object> prototype,
+      PrototypeOptimizationMode proto_mode = FAST_PROTOTYPE);
+  static bool ShouldRegisterAsPrototypeUser(Handle<Map> map,
+                                            Handle<JSObject> prototype);
   bool CanUseOptimizationsBasedOnPrototypeRegistry();
 
   // [constructor]: points back to the function responsible for this map.
@@ -6383,8 +6385,8 @@ class Map: public HeapObject {
       kPrototypeOffset + kPointerSize;
   // When there is only one transition, it is stored directly in this field;
   // otherwise a transition array is used.
-  // For prototype maps, this slot is used to store a pointer to the prototype
-  // object using this map.
+  // For prototype maps, this slot is used to store this map's PrototypeInfo
+  // struct.
   static const int kTransitionsOrPrototypeInfoOffset =
       kConstructorOrBackPointerOffset + kPointerSize;
   static const int kDescriptorsOffset =

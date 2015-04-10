@@ -6842,9 +6842,11 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 
 
 Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
-  Handle<Map> result = map->GetIsolate()->factory()->NewMap(
-      map->instance_type(), instance_size);
-  result->SetPrototype(handle(map->prototype(), map->GetIsolate()));
+  Isolate* isolate = map->GetIsolate();
+  Handle<Map> result =
+      isolate->factory()->NewMap(map->instance_type(), instance_size);
+  Handle<Object> prototype(map->prototype(), isolate);
+  Map::SetPrototype(result, prototype);
   result->set_constructor_or_backpointer(map->GetConstructor());
   result->set_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
@@ -7039,7 +7041,7 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
     TransitionArray::Insert(parent, name, child, flag);
     if (child->prototype()->IsJSObject()) {
       Handle<JSObject> proto(JSObject::cast(child->prototype()));
-      if (!child->ShouldRegisterAsPrototypeUser(proto)) {
+      if (!ShouldRegisterAsPrototypeUser(child, proto)) {
         JSObject::UnregisterPrototypeUser(proto, child);
       }
     }
@@ -10040,29 +10042,32 @@ void JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
 }
 
 
-void Map::SetPrototype(Handle<Object> prototype,
+// static
+void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        PrototypeOptimizationMode proto_mode) {
-  if (this->prototype()->IsJSObject() && FLAG_track_prototype_users) {
-    Handle<JSObject> old_prototype(JSObject::cast(this->prototype()));
-    JSObject::UnregisterPrototypeUser(old_prototype, handle(this));
+  if (map->prototype()->IsJSObject() && FLAG_track_prototype_users) {
+    Handle<JSObject> old_prototype(JSObject::cast(map->prototype()));
+    JSObject::UnregisterPrototypeUser(old_prototype, map);
   }
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
-    if (ShouldRegisterAsPrototypeUser(prototype_jsobj)) {
-      JSObject::RegisterPrototypeUser(prototype_jsobj, handle(this));
+    if (ShouldRegisterAsPrototypeUser(map, prototype_jsobj)) {
+      JSObject::RegisterPrototypeUser(prototype_jsobj, map);
     }
     JSObject::OptimizeAsPrototype(prototype_jsobj, proto_mode);
   }
   WriteBarrierMode wb_mode =
       prototype->IsNull() ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
-  set_prototype(*prototype, wb_mode);
+  map->set_prototype(*prototype, wb_mode);
 }
 
 
-bool Map::ShouldRegisterAsPrototypeUser(Handle<JSObject> prototype) {
+// static
+bool Map::ShouldRegisterAsPrototypeUser(Handle<Map> map,
+                                        Handle<JSObject> prototype) {
   if (!FLAG_track_prototype_users) return false;
-  if (this->is_prototype_map()) return true;
-  Object* back = GetBackPointer();
+  if (map->is_prototype_map()) return true;
+  Object* back = map->GetBackPointer();
   if (!back->IsMap()) return true;
   if (Map::cast(back)->prototype() != *prototype) return true;
   return false;
@@ -10215,7 +10220,7 @@ bool JSFunction::RemovePrototype() {
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<Object> prototype) {
   if (map->prototype() != *prototype) {
-    map->SetPrototype(prototype, FAST_PROTOTYPE);
+    Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
   }
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
@@ -12346,7 +12351,7 @@ Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
   if (new_map.is_null()) {
     new_map = Copy(map, "TransitionToPrototype");
     TransitionArray::PutPrototypeTransition(map, prototype, new_map);
-    new_map->SetPrototype(prototype, mode);
+    Map::SetPrototype(new_map, prototype, mode);
   }
   return new_map;
 }

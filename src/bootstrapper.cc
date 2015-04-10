@@ -328,7 +328,7 @@ static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map());
   Handle<Map> new_map = Map::Copy(old_map, "SetObjectPrototype");
-  new_map->SetPrototype(proto, FAST_PROTOTYPE);
+  Map::SetPrototype(new_map, proto, FAST_PROTOTYPE);
   JSObject::MigrateToMap(object, new_map);
 }
 
@@ -512,7 +512,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<Map> empty_function_map =
       CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
   DCHECK(!empty_function_map->is_dictionary_map());
-  empty_function_map->SetPrototype(object_function_prototype);
+  Map::SetPrototype(empty_function_map, object_function_prototype);
   empty_function_map->set_is_prototype_map(true);
 
   empty_function->set_map(*empty_function_map);
@@ -527,11 +527,13 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   empty_function->shared()->DontAdaptArguments();
 
   // Set prototypes for the function maps.
-  native_context()->sloppy_function_map()->SetPrototype(empty_function);
-  native_context()->sloppy_function_without_prototype_map()->SetPrototype(
-      empty_function);
-
-  sloppy_function_map_writable_prototype_->SetPrototype(empty_function);
+  Handle<Map> sloppy_function_map(native_context()->sloppy_function_map(),
+                                  isolate);
+  Handle<Map> sloppy_function_without_prototype_map(
+      native_context()->sloppy_function_without_prototype_map(), isolate);
+  Map::SetPrototype(sloppy_function_map, empty_function);
+  Map::SetPrototype(sloppy_function_without_prototype_map, empty_function);
+  Map::SetPrototype(sloppy_function_map_writable_prototype_, empty_function);
 
   // ES6 draft 03-17-2015, section 8.2.2 step 12
   AddRestrictedFunctionProperties(empty_function_map);
@@ -652,7 +654,7 @@ Handle<Map> Genesis::CreateStrictFunctionMap(
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrictFunctionInstanceDescriptor(map, function_mode);
   map->set_function_with_prototype(IsFunctionModeWithPrototype(function_mode));
-  map->SetPrototype(empty_function);
+  Map::SetPrototype(map, empty_function);
   return map;
 }
 
@@ -662,7 +664,7 @@ Handle<Map> Genesis::CreateStrongFunctionMap(
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrongFunctionInstanceDescriptor(map);
   map->set_function_with_prototype(is_constructor);
-  map->SetPrototype(empty_function);
+  Map::SetPrototype(map, empty_function);
   map->set_is_extensible(is_constructor);
   // TODO(rossberg): mark strong
   return map;
@@ -1113,7 +1115,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                                  Smi::FromInt(0),
                                  SKIP_WRITE_BARRIER);  // It's a Smi.
     proto_map->set_is_prototype_map(true);
-    initial_map->SetPrototype(proto);
+    Map::SetPrototype(initial_map, proto);
     factory->SetRegExpIrregexpData(Handle<JSRegExp>::cast(proto),
                                    JSRegExp::IRREGEXP, factory->empty_string(),
                                    JSRegExp::Flags(0), 0);
@@ -1302,7 +1304,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     map->set_function_with_prototype(true);
     DCHECK_EQ(native_context()->object_function()->prototype(),
               *isolate->initial_object_prototype());
-    map->SetPrototype(isolate->initial_object_prototype());
+    Map::SetPrototype(map, isolate->initial_object_prototype());
     map->set_pre_allocated_property_fields(1);
     map->set_inobject_properties(1);
 
@@ -2086,26 +2088,30 @@ bool Genesis::InstallNatives() {
     Handle<Map> strict_function_map(native_context()->strict_function_map());
     Handle<Map> sloppy_generator_function_map =
         Map::Copy(strict_function_map, "SloppyGeneratorFunction");
-    sloppy_generator_function_map->SetPrototype(generator_function_prototype);
+    Map::SetPrototype(sloppy_generator_function_map,
+                      generator_function_prototype);
     native_context()->set_sloppy_generator_function_map(
         *sloppy_generator_function_map);
 
     Handle<Map> strict_generator_function_map =
         Map::Copy(strict_function_map, "StrictGeneratorFunction");
-    strict_generator_function_map->SetPrototype(generator_function_prototype);
+    Map::SetPrototype(strict_generator_function_map,
+                      generator_function_prototype);
     native_context()->set_strict_generator_function_map(
         *strict_generator_function_map);
 
     Handle<Map> strong_function_map(native_context()->strong_function_map());
     Handle<Map> strong_generator_function_map =
         Map::Copy(strong_function_map, "StrongGeneratorFunction");
-    strong_generator_function_map->SetPrototype(generator_function_prototype);
+    Map::SetPrototype(strong_generator_function_map,
+                      generator_function_prototype);
     native_context()->set_strong_generator_function_map(
         *strong_generator_function_map);
 
     Handle<JSFunction> object_function(native_context()->object_function());
     Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
-    generator_object_prototype_map->SetPrototype(generator_object_prototype);
+    Map::SetPrototype(generator_object_prototype_map,
+                      generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
   }
@@ -2207,7 +2213,7 @@ bool Genesis::InstallNatives() {
 
     // Set prototype on map.
     initial_map->set_non_instance_prototype(false);
-    initial_map->SetPrototype(array_prototype);
+    Map::SetPrototype(initial_map, array_prototype);
 
     // Update map with length accessor from Array and add "index" and "input".
     Map::EnsureDescriptorSlack(initial_map, 3);

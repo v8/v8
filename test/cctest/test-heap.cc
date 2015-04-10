@@ -5242,7 +5242,7 @@ Handle<WeakCell> AddRetainedMap(Isolate* isolate, Heap* heap) {
         CompileRun("(function () { return {x : 10}; })();");
     Handle<JSObject> proto =
         v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
-    map->set_prototype(*proto);
+    Map::SetPrototype(map, proto);
     heap->AddRetainedMap(map);
     return inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
 }

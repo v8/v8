@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
 
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  map->SetPrototype(prototype_parent);
+  Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
 
