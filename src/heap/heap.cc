@@ -1722,7 +1722,6 @@ void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
       this, array_buffers_list(), retainer, stop_after_young);
   set_array_buffers_list(array_buffer_obj);
 
-#ifdef DEBUG
   // Verify invariant that young array buffers come before old array buffers
   // in array buffers list if there was no promotion failure.
   Object* undefined = undefined_value();
@@ -1733,10 +1732,9 @@ void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
     if (!old_objects_recorded) {
       old_objects_recorded = !InNewSpace(next);
     }
-    DCHECK((InNewSpace(next) && !old_objects_recorded) || !InNewSpace(next));
+    CHECK((InNewSpace(next) && !old_objects_recorded) || !InNewSpace(next));
     next = JSArrayBuffer::cast(next)->weak_next();
   }
-#endif
 }
 
 

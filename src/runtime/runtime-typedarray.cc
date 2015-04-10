@@ -52,6 +52,7 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_byte_length(*byte_length);
 
   array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
+  CHECK(isolate->heap()->InNewSpace(*array_buffer));
   isolate->heap()->set_array_buffers_list(*array_buffer);
   array_buffer->set_weak_first_view(isolate->heap()->undefined_value());
 }
