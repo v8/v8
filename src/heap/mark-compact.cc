@@ -764,8 +764,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   intptr_t estimated_release = 0;
 
-  Candidate candidates[kMaxMaxEvacuationCandidates];
-
   if (FLAG_trace_fragmentation &&
       max_evacuation_candidates >= kMaxMaxEvacuationCandidates) {
     PrintF("Hit max page compaction limit of %d pages\n",
@@ -774,10 +772,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   max_evacuation_candidates =
       Min(kMaxMaxEvacuationCandidates, max_evacuation_candidates);
 
+  std::vector<Candidate> candidates(max_evacuation_candidates);
+
   int count = 0;
   int fragmentation = 0;
   int page_number = 0;
-  Candidate* least = NULL;
+  int least_index = -1;
 
   PageIterator it(space);
   while (it.has_next()) {
@@ -841,17 +841,18 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       if (count < max_evacuation_candidates) {
         candidates[count++] = Candidate(fragmentation, p);
       } else {
-        if (least == NULL) {
+        if (least_index == -1) {
           for (int i = 0; i < max_evacuation_candidates; i++) {
-            if (least == NULL ||
-                candidates[i].fragmentation() < least->fragmentation()) {
-              least = candidates + i;
+            if (least_index == -1 ||
+                candidates[i].fragmentation() <
+                    candidates[least_index].fragmentation()) {
+              least_index = i;
             }
           }
         }
-        if (least->fragmentation() < fragmentation) {
-          *least = Candidate(fragmentation, p);
-          least = NULL;
+        if (candidates[least_index].fragmentation() < fragmentation) {
+          candidates[least_index] = Candidate(fragmentation, p);
+          least_index = -1;
         }
       }
     }
