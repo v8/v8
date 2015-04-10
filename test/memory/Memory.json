@@ -19,7 +19,7 @@
       "results_regexp": "(\\d+) bytes for startup$"
     },
     {
-      "name": "SnapshotSizeStartup",
+      "name": "SnapshotSizeContext",
       "results_regexp": "(\\d+) bytes for context$"
     }
   ]
