@@ -1105,13 +1105,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kX64StoreWriteBarrier: {
       Register object = i.InputRegister(0);
-      Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
-      __ movq(Operand(object, index, times_1, 0), value);
-      __ leaq(index, Operand(object, index, times_1, 0));
       SaveFPRegsMode mode =
           frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-      __ RecordWrite(object, index, value, mode);
+      if (HasImmediateInput(instr, 1)) {
+        int index = i.InputInt32(1);
+        Register scratch = i.TempRegister(1);
+        __ movq(Operand(object, index), value);
+        __ RecordWriteContextSlot(object, index, value, scratch, mode);
+      } else {
+        Register index = i.InputRegister(1);
+        __ movq(Operand(object, index, times_1, 0), value);
+        __ leaq(index, Operand(object, index, times_1, 0));
+        __ RecordWrite(object, index, value, mode);
+      }
       break;
     }
     case kCheckedLoadInt8:

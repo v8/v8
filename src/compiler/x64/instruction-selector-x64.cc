@@ -154,17 +154,24 @@ void InstructionSelector::VisitStore(Node* node) {
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
   MachineType rep = RepresentationOf(store_rep.machine_type());
   if (store_rep.write_barrier_kind() == kFullWriteBarrier) {
-    DCHECK(rep == kRepTagged);
+    DCHECK_EQ(kRepTagged, rep);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
-    // TODO(dcarney): handle immediate indices.
-    InstructionOperand temps[] = {g.TempRegister(rcx), g.TempRegister(rdx)};
-    Emit(kX64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, rbx),
-         g.UseFixed(index, rcx), g.UseFixed(value, rdx), arraysize(temps),
-         temps);
+    if (g.CanBeImmediate(index)) {
+      InstructionOperand temps[] = {g.TempRegister(rcx), g.TempRegister()};
+      Emit(kX64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, rbx),
+           g.UseImmediate(index), g.UseFixed(value, rcx), arraysize(temps),
+           temps);
+    } else {
+      InstructionOperand temps[] = {g.TempRegister(rcx), g.TempRegister(rdx)};
+      Emit(kX64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, rbx),
+           g.UseFixed(index, rcx), g.UseFixed(value, rdx), arraysize(temps),
+           temps);
+    }
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
+
   ArchOpcode opcode;
   switch (rep) {
     case kRepFloat32:

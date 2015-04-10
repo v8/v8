@@ -208,11 +208,17 @@ void InstructionSelector::VisitStore(Node* node) {
     DCHECK_EQ(kRepTagged, rep);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
-    // TODO(dcarney): handle immediate indices.
-    InstructionOperand temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
-    Emit(kIA32StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, ebx),
-         g.UseFixed(index, ecx), g.UseFixed(value, edx), arraysize(temps),
-         temps);
+    if (g.CanBeImmediate(index)) {
+      InstructionOperand temps[] = {g.TempRegister(ecx), g.TempRegister()};
+      Emit(kIA32StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, ebx),
+           g.UseImmediate(index), g.UseFixed(value, ecx), arraysize(temps),
+           temps);
+    } else {
+      InstructionOperand temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
+      Emit(kIA32StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, ebx),
+           g.UseFixed(index, ecx), g.UseFixed(value, edx), arraysize(temps),
+           temps);
+    }
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
