@@ -465,6 +465,9 @@ bool ParserTraits::IsEvalOrArguments(const AstRawString* identifier) const {
   return IsEval(identifier) || IsArguments(identifier);
 }
 
+bool ParserTraits::IsUndefined(const AstRawString* identifier) const {
+  return identifier == parser_->ast_value_factory()->undefined_string();
+}
 
 bool ParserTraits::IsPrototype(const AstRawString* identifier) const {
   return identifier == parser_->ast_value_factory()->prototype_string();
@@ -1476,6 +1479,10 @@ ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
       *ok = false;
       ReportMessage("strict_eval_arguments");
       return NULL;
+    } else if (is_strong(language_mode()) && IsUndefined(local_name)) {
+      *ok = false;
+      ReportMessage("strong_undefined");
+      return NULL;
     }
     VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
     ImportDeclaration* declaration =
@@ -1525,7 +1532,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   ImportDeclaration* import_default_declaration = NULL;
   if (tok != Token::MUL && tok != Token::LBRACE) {
     const AstRawString* local_name =
-        ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+        ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
     VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
     import_default_declaration = factory()->NewImportDeclaration(
         proxy, ast_value_factory()->default_string(), NULL, scope_, pos);
@@ -1540,7 +1547,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
         Consume(Token::MUL);
         ExpectContextualKeyword(CStrVector("as"), CHECK_OK);
         module_instance_binding =
-            ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+            ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
         // TODO(ES6): Add an appropriate declaration.
         break;
       }
@@ -2033,11 +2040,12 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   int pos = peek_position();
   Expect(Token::FUNCTION, CHECK_OK);
   // Allow "eval" or "arguments" for backward compatibility.
-  const AstRawString* name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+  const AstRawString* name =
+      ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   bool done = (peek() == Token::RPAREN);
   while (!done) {
-    ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+    ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
     done = (peek() == Token::RPAREN);
     if (!done) {
       Expect(Token::COMMA, CHECK_OK);
@@ -2319,7 +2327,7 @@ Block* Parser::ParseVariableDeclarations(
 
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    name = ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
     if (!first_name) first_name = name;
     Scanner::Location variable_loc = scanner()->location();
     if (fni_ != NULL) fni_->PushVariableName(name);
@@ -2671,7 +2679,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    label = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+    label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
   IterationStatement* target = LookupContinueTarget(label, CHECK_OK);
   if (target == NULL) {
@@ -2701,7 +2709,7 @@ Statement* Parser::ParseBreakStatement(ZoneList<const AstRawString*>* labels,
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    label = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+    label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
   // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
@@ -2926,7 +2934,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::LPAREN, CHECK_OK);
     catch_scope = NewScope(scope_, CATCH_SCOPE);
     catch_scope->set_start_position(scanner()->location().beg_pos);
-    name = ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    name = ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
 
     Expect(Token::RPAREN, CHECK_OK);
 
@@ -3873,6 +3881,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     Scanner::Location reserved_error_loc = Scanner::Location::invalid();
 
+    // Similarly for strong mode.
+    Scanner::Location undefined_error_loc = Scanner::Location::invalid();
+
     bool is_rest = false;
     bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
         (peek() == Token::RPAREN &&
@@ -3890,6 +3901,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // Store locations for possible future error reports.
       if (!eval_args_error_loc.IsValid() && IsEvalOrArguments(param_name)) {
         eval_args_error_loc = scanner()->location();
+      }
+      if (!undefined_error_loc.IsValid() && IsUndefined(param_name)) {
+        undefined_error_loc = scanner()->location();
       }
       if (!reserved_error_loc.IsValid() && is_strict_reserved) {
         reserved_error_loc = scanner()->location();
@@ -4009,8 +4023,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                       CHECK_OK);
     const bool use_strict_params = is_rest || IsConciseMethod(kind);
     CheckFunctionParameterNames(language_mode(), use_strict_params,
-                                eval_args_error_loc, dupe_error_loc,
-                                reserved_error_loc, CHECK_OK);
+                                eval_args_error_loc, undefined_error_loc,
+                                dupe_error_loc, reserved_error_loc, CHECK_OK);
 
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
@@ -4264,6 +4278,11 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     *ok = false;
     return NULL;
   }
+  if (is_strong(language_mode()) && IsUndefined(name)) {
+    ReportMessageAt(class_name_location, "strong_undefined");
+    *ok = false;
+    return NULL;
+  }
 
   // Create a block scope which is additionally tagged as class scope; this is
   // important for resolving variable references to the class name in the strong
@@ -4355,7 +4374,8 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   int pos = peek_position();
   Expect(Token::MOD, CHECK_OK);
   // Allow "eval" or "arguments" for backward compatibility.
-  const AstRawString* name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+  const AstRawString* name = ParseIdentifier(kAllowRestrictedIdentifiers,
+                                             CHECK_OK);
   Scanner::Location spread_pos;
   ZoneList<Expression*>* args = ParseArguments(&spread_pos, CHECK_OK);
 

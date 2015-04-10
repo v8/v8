@@ -151,9 +151,9 @@ class ParserBase : public Traits {
   void set_allow_strong_mode(bool allow) { allow_strong_mode_ = allow; }
 
  protected:
-  enum AllowEvalOrArgumentsAsIdentifier {
-    kAllowEvalOrArguments,
-    kDontAllowEvalOrArguments
+  enum AllowRestrictedIdentifiers {
+    kAllowRestrictedIdentifiers,
+    kDontAllowRestrictedIdentifiers
   };
 
   enum Mode {
@@ -484,6 +484,11 @@ class ParserBase : public Traits {
       *ok = false;
       return;
     }
+    if (is_strong(language_mode) && this->IsUndefined(function_name)) {
+      Traits::ReportMessageAt(function_name_loc, "strong_undefined");
+      *ok = false;
+      return;
+    }
   }
 
   // Checking the parameter names of a function literal. This has to be done
@@ -491,6 +496,7 @@ class ParserBase : public Traits {
   void CheckFunctionParameterNames(LanguageMode language_mode,
                                    bool strict_params,
                                    const Scanner::Location& eval_args_error_loc,
+                                   const Scanner::Location& undefined_error_loc,
                                    const Scanner::Location& dupe_error_loc,
                                    const Scanner::Location& reserved_loc,
                                    bool* ok) {
@@ -498,6 +504,11 @@ class ParserBase : public Traits {
 
     if (is_strict(language_mode) && eval_args_error_loc.IsValid()) {
       Traits::ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
+      *ok = false;
+      return;
+    }
+    if (is_strong(language_mode) && undefined_error_loc.IsValid()) {
+      Traits::ReportMessageAt(eval_args_error_loc, "strong_undefined");
       *ok = false;
       return;
     }
@@ -552,9 +563,7 @@ class ParserBase : public Traits {
   // allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
   // "arguments" as identifier even in strict mode (this is needed in cases like
   // "var foo = eval;").
-  IdentifierT ParseIdentifier(
-      AllowEvalOrArgumentsAsIdentifier,
-      bool* ok);
+  IdentifierT ParseIdentifier(AllowRestrictedIdentifiers, bool* ok);
   // Parses an identifier or a strict mode future reserved word, and indicate
   // whether it is strict mode future reserved.
   IdentifierT ParseIdentifierOrStrictReservedWord(
@@ -709,6 +718,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Arguments() {
     return PreParserIdentifier(kArgumentsIdentifier);
   }
+  static PreParserIdentifier Undefined() {
+    return PreParserIdentifier(kUndefinedIdentifier);
+  }
   static PreParserIdentifier FutureReserved() {
     return PreParserIdentifier(kFutureReservedIdentifier);
   }
@@ -733,6 +745,7 @@ class PreParserIdentifier {
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
+  bool IsUndefined() const { return type_ == kUndefinedIdentifier; }
   bool IsLet() const { return type_ == kLetIdentifier; }
   bool IsStatic() const { return type_ == kStaticIdentifier; }
   bool IsYield() const { return type_ == kYieldIdentifier; }
@@ -744,7 +757,6 @@ class PreParserIdentifier {
            type_ == kLetIdentifier || type_ == kStaticIdentifier ||
            type_ == kYieldIdentifier;
   }
-  bool IsValidStrictVariable() const { return type_ == kUnknownIdentifier; }
   V8_INLINE bool IsValidArrowParam() const {
     // A valid identifier can be an arrow function parameter
     // except for eval, arguments, yield, and reserved keywords.
@@ -769,6 +781,7 @@ class PreParserIdentifier {
     kYieldIdentifier,
     kEvalIdentifier,
     kArgumentsIdentifier,
+    kUndefinedIdentifier,
     kPrototypeIdentifier,
     kConstructorIdentifier
   };
@@ -1261,6 +1274,10 @@ class PreParserTraits {
 
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
     return identifier.IsEvalOrArguments();
+  }
+
+  static bool IsUndefined(PreParserIdentifier identifier) {
+    return identifier.IsUndefined();
   }
 
   static bool IsPrototype(PreParserIdentifier identifier) {
@@ -1785,16 +1802,19 @@ void ParserBase<Traits>::ReportUnexpectedTokenAt(
 }
 
 
-template<class Traits>
+template <class Traits>
 typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
-    AllowEvalOrArgumentsAsIdentifier allow_eval_or_arguments,
-    bool* ok) {
+    AllowRestrictedIdentifiers allow_restricted_identifiers, bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
     IdentifierT name = this->GetSymbol(scanner());
-    if (allow_eval_or_arguments == kDontAllowEvalOrArguments) {
+    if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
       if (is_strict(language_mode()) && this->IsEvalOrArguments(name)) {
         ReportMessage("strict_eval_arguments");
+        *ok = false;
+      }
+      if (is_strong(language_mode()) && this->IsUndefined(name)) {
+        ReportMessage("strong_undefined");
         *ok = false;
       }
     } else {
@@ -1816,7 +1836,6 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     return Traits::EmptyIdentifier();
   }
 }
-
 
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT ParserBase<
@@ -1956,7 +1975,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
-      IdentifierT name = ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+      IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
       result = this->ExpressionFromIdentifier(name, beg_pos, end_pos, scope_,
                                               factory());
       break;
@@ -3059,13 +3078,15 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     scope->set_end_position(scanner()->location().end_pos);
 
     // Arrow function *parameter lists* are always checked as in strict mode.
-    // TODO(arv): eval_args_error_loc and reserved_loc needs to be set by
-    // DeclareArrowParametersFromExpression.
+    // TODO(arv): eval_args_error_loc, undefined_error_loc, and reserved_loc
+    // needs to be set by DeclareArrowParametersFromExpression.
     Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
+    Scanner::Location undefined_error_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
     const bool use_strict_params = true;
     this->CheckFunctionParameterNames(language_mode(), use_strict_params,
-        eval_args_error_loc, dupe_error_loc, reserved_loc, CHECK_OK);
+                                      eval_args_error_loc, undefined_error_loc,
+                                      dupe_error_loc, reserved_loc, CHECK_OK);
 
     // Validate strict mode.
     if (is_strict(language_mode())) {
@@ -3189,12 +3210,21 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
     Traits>::CheckAndRewriteReferenceExpression(ExpressionT expression,
                                                 Scanner::Location location,
                                                 const char* message, bool* ok) {
-  if (is_strict(language_mode()) && this->IsIdentifier(expression) &&
-      this->IsEvalOrArguments(this->AsIdentifier(expression))) {
-    this->ReportMessageAt(location, "strict_eval_arguments", kSyntaxError);
-    *ok = false;
-    return this->EmptyExpression();
-  } else if (expression->IsValidReferenceExpression()) {
+  if (this->IsIdentifier(expression)) {
+    if (is_strict(language_mode()) &&
+        this->IsEvalOrArguments(this->AsIdentifier(expression))) {
+      this->ReportMessageAt(location, "strict_eval_arguments", kSyntaxError);
+      *ok = false;
+      return this->EmptyExpression();
+    }
+    if (is_strong(language_mode()) &&
+        this->IsUndefined(this->AsIdentifier(expression))) {
+      this->ReportMessageAt(location, "strong_undefined", kSyntaxError);
+      *ok = false;
+      return this->EmptyExpression();
+    }
+  }
+  if (expression->IsValidReferenceExpression()) {
     return expression;
   } else if (expression->IsCall()) {
     // If it is a call, make it a runtime error for legacy web compatibility.

@@ -53,6 +53,9 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   if (scanner->UnescapedLiteralMatches("arguments", 9)) {
     return PreParserIdentifier::Arguments();
   }
+  if (scanner->UnescapedLiteralMatches("undefined", 9)) {
+    return PreParserIdentifier::Undefined();
+  }
   if (scanner->LiteralMatches("prototype", 9)) {
     return PreParserIdentifier::Prototype();
   }
@@ -483,7 +486,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   do {
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
     if (peek() == Token::ASSIGN || require_initializer ||
@@ -588,7 +591,7 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
       tok != Token::RBRACE &&
       tok != Token::EOS) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+    ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Default();
@@ -606,7 +609,7 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
       tok != Token::RBRACE &&
       tok != Token::EOS) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+    ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Default();
@@ -853,7 +856,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
     Expect(Token::LPAREN, CHECK_OK);
-    ParseIdentifier(kDontAllowEvalOrArguments, CHECK_OK);
+    ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
       Scope* with_scope = NewScope(scope_, WITH_SCOPE);
@@ -917,6 +920,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   Scanner::Location dupe_error_loc = Scanner::Location::invalid();
   Scanner::Location reserved_error_loc = Scanner::Location::invalid();
 
+  // Similarly for strong mode.
+  Scanner::Location undefined_error_loc = Scanner::Location::invalid();
+
   bool is_rest = false;
   bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
       (peek() == Token::RPAREN &&
@@ -932,6 +938,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
         ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
     if (!eval_args_error_loc.IsValid() && param_name.IsEvalOrArguments()) {
       eval_args_error_loc = scanner()->location();
+    }
+    if (!undefined_error_loc.IsValid() && param_name.IsUndefined()) {
+      undefined_error_loc = scanner()->location();
     }
     if (!reserved_error_loc.IsValid() && is_strict_reserved) {
       reserved_error_loc = scanner()->location();
@@ -976,8 +985,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
                     name_is_strict_reserved, function_name_location, CHECK_OK);
   const bool use_strict_params = is_rest || IsConciseMethod(kind);
   CheckFunctionParameterNames(language_mode(), use_strict_params,
-                              eval_args_error_loc, dupe_error_loc,
-                              reserved_error_loc, CHECK_OK);
+                              eval_args_error_loc, undefined_error_loc,
+                              dupe_error_loc, reserved_error_loc, CHECK_OK);
 
   if (is_strict(language_mode())) {
     int end_position = scanner()->location().end_pos;
@@ -1026,11 +1035,17 @@ PreParserExpression PreParser::ParseClassLiteral(
     *ok = false;
     return EmptyExpression();
   }
+  LanguageMode class_language_mode = language_mode();
+  if (is_strong(class_language_mode) && IsUndefined(name)) {
+    ReportMessageAt(class_name_location, "strong_undefined");
+    *ok = false;
+    return EmptyExpression();
+  }
 
   Scope* scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, scope);
   scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
+      static_cast<LanguageMode>(class_language_mode | STRICT_BIT));
   // TODO(marja): Make PreParser use scope names too.
   // scope_->SetScopeName(name);
 
@@ -1068,7 +1083,7 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
     return Expression::Default();
   }
   // Allow "eval" or "arguments" for backward compatibility.
-  ParseIdentifier(kAllowEvalOrArguments, CHECK_OK);
+  ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   Scanner::Location spread_pos;
   ParseArguments(&spread_pos, ok);
 

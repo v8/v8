@@ -5845,6 +5845,37 @@ TEST(StrongConstructorReturns) {
 }
 
 
+TEST(StrongUndefinedLocal) {
+  const char* context_data[][2] = {{"", ""}, {NULL}};
+
+  const char* data[] = {
+      "function undefined() {'use strong';}",
+      "function* undefined() {'use strong';}",
+      "(function undefined() {'use strong';});",
+      "{foo: (function undefined(){'use strong';})};",
+      "(function* undefined() {'use strong';})",
+      "{foo: (function* undefined(){'use strong';})};",
+      "function foo(a, b, undefined, c, d) {'use strong';}",
+      "function* foo(a, b, undefined, c, d) {'use strong';}",
+      "(function foo(a, b, undefined, c, d) {'use strong';})",
+      "{foo: (function foo(a, b, undefined, c, d) {'use strong';})};",
+      "(function* foo(a, b, undefined, c, d) {'use strong';})",
+      "{foo: (function* foo(a, b, undefined, c, d) {'use strong';})};",
+      "class C { foo(a, b, undefined, c, d) {'use strong';} }",
+      "class C { *foo(a, b, undefined, c, d) {'use strong';} }",
+      "({ foo(a, b, undefined, c, d) {'use strong';} });",
+      "{ *foo(a, b, undefined, c, d) {'use strong';} });",
+      "class undefined {'use strong'}",
+      "(class undefined {'use strong'});",
+      NULL};
+
+  static const ParserFlag always_flags[] = {kAllowStrongMode};
+
+  RunParserSyncTest(context_data, data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
 TEST(ArrowFunctionASIErrors) {
   const char* context_data[][2] = {{"'use strict';", ""}, {"", ""},
                                    {NULL, NULL}};

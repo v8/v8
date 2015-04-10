@@ -265,6 +265,7 @@ class AstValue : public ZoneObject {
   F(this, "this")                                                          \
   F(throw_iterator_result_not_an_object, "ThrowIteratorResultNotAnObject") \
   F(to_string, "ToString")                                                 \
+  F(undefined, "undefined")                                                \
   F(use_asm, "use asm")                                                    \
   F(use_strong, "use strong")                                              \
   F(use_strict, "use strict")                                              \
