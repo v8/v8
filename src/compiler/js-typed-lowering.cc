@@ -537,7 +537,7 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     // JSUnaryNot(x:number) => NumberEqual(x,#0)
     node->set_op(simplified()->NumberEqual());
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    node->TrimInputCount(2);
+    DCHECK_EQ(2, node->InputCount());
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSUnaryNot(x:string) => NumberEqual(x.length,#0)
@@ -549,8 +549,8 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     node->set_op(simplified()->NumberEqual());
     node->ReplaceInput(0, length);
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    node->TrimInputCount(2);
     NodeProperties::ReplaceWithValue(node, node, length);
+    DCHECK_EQ(2, node->InputCount());
     return Changed(node);
   }
   return NoChange();
@@ -580,7 +580,7 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     node->set_op(simplified()->NumberLessThan());
     node->ReplaceInput(0, jsgraph()->ZeroConstant());
     node->ReplaceInput(1, length);
-    node->TrimInputCount(2);
+    DCHECK_EQ(2, node->InputCount());
     return Changed(node);
   }
   return NoChange();
