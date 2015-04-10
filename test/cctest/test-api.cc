@@ -3353,8 +3353,8 @@ class PhantomStdMapTraits : public v8::StdMapTraits<K, V> {
              v8::Object::GetAlignedPointerFromInternalField(value, 0));
   }
   static void DisposeWeak(
-      v8::Isolate* isolate,
-      const v8::WeakCallbackInfo<WeakCallbackDataType>& info, K key) {
+      const v8::WeakCallbackInfo<WeakCallbackDataType>& info) {
+    K key = KeyFromWeakCallbackInfo(info);
     CHECK_EQ(IntKeyToVoidPointer(key), info.GetInternalField(0));
     DisposeCallbackData(info.GetParameter());
   }

@@ -134,9 +134,8 @@ class DefaultGlobalMapTraits : public StdMapTraits<K, V> {
   }
   static void DisposeCallbackData(WeakCallbackInfoType* data) {}
   static void Dispose(Isolate* isolate, Global<V> value, K key) {}
-  static void DisposeWeak(Isolate* isolate,
-                          const WeakCallbackInfo<WeakCallbackInfoType>& data,
-                          K key) {}
+  // This is a second pass callback, so SetSecondPassCallback cannot be called.
+  static void DisposeWeak(const WeakCallbackInfo<WeakCallbackInfoType>& data) {}
 
  private:
   template <typename T>
@@ -453,7 +452,7 @@ class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
               : WeakCallbackType::kParameter;
       Local<V> value(Local<V>::New(this->isolate(), *persistent));
       persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
-          Traits::WeakCallbackParameter(this, key, value), WeakCallback,
+          Traits::WeakCallbackParameter(this, key, value), FirstWeakCallback,
           callback_type);
     }
     PersistentContainerValue old_value =
@@ -472,15 +471,19 @@ class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
   }
 
  private:
-  static void WeakCallback(
+  static void FirstWeakCallback(
       const WeakCallbackInfo<typename Traits::WeakCallbackDataType>& data) {
     if (Traits::kCallbackType != kNotWeak) {
-      GlobalValueMap<K, V, Traits>* persistentValueMap =
-          Traits::MapFromWeakCallbackInfo(data);
+      auto map = Traits::MapFromWeakCallbackInfo(data);
       K key = Traits::KeyFromWeakCallbackInfo(data);
-      persistentValueMap->RemoveWeak(key);
-      Traits::DisposeWeak(data.GetIsolate(), data, key);
+      map->RemoveWeak(key);
+      data.SetSecondPassCallback(SecondWeakCallback);
     }
+  }
+
+  static void SecondWeakCallback(
+      const WeakCallbackInfo<typename Traits::WeakCallbackDataType>& data) {
+    Traits::DisposeWeak(data);
   }
 };
 
