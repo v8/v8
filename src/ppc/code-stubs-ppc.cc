@@ -1404,6 +1404,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Get the map location in r8 and patch it.
     __ GetRelocatedValue(inline_site, offset, scratch);
     __ StoreP(map, FieldMemOperand(offset, Cell::kValueOffset), r0);
+
+    __ mr(r10, map);
+    __ RecordWriteField(offset, Cell::kValueOffset, r10, function,
+                        kLRHasNotBeenSaved, kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
 
   // Register mapping: r6 is object map and r7 is function prototype.
