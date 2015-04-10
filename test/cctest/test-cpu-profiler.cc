@@ -1721,7 +1721,7 @@ const char* GetBranchDeoptReason(i::CpuProfile* iprofile, const char* branch[],
   v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
   const ProfileNode* iopt_function = NULL;
   iopt_function = GetSimpleBranch(profile, branch, length);
-  CHECK_EQ(1, iopt_function->deopt_infos().size());
+  CHECK_EQ(1U, iopt_function->deopt_infos().size());
   return iopt_function->deopt_infos()[0].deopt_reason;
 }
 
@@ -1902,11 +1902,11 @@ TEST(DeoptAtFirstLevelInlinedSource) {
       GetSimpleBranch(profile, branch, arraysize(branch));
   const std::vector<v8::CpuProfileDeoptInfo>& deopt_infos =
       itest_node->deopt_infos();
-  CHECK_EQ(1, deopt_infos.size());
+  CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
   CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
-  CHECK_EQ(2, info.stack.size());
+  CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
   CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
   CHECK_EQ(script_id, info.stack[1].script_id);
@@ -1975,11 +1975,11 @@ TEST(DeoptAtSecondLevelInlinedSource) {
       GetSimpleBranch(profile, branch, arraysize(branch));
   const std::vector<v8::CpuProfileDeoptInfo>& deopt_infos =
       itest_node->deopt_infos();
-  CHECK_EQ(1, deopt_infos.size());
+  CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo info = deopt_infos[0];
   CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
-  CHECK_EQ(3, info.stack.size());
+  CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
   CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
   CHECK_EQ(script_id, info.stack[1].script_id);
@@ -2031,7 +2031,7 @@ TEST(DeoptUntrackedFunction) {
   const char* branch[] = {"", "test"};
   const ProfileNode* itest_node =
       GetSimpleBranch(profile, branch, arraysize(branch));
-  CHECK_EQ(0, itest_node->deopt_infos().size());
+  CHECK_EQ(0U, itest_node->deopt_infos().size());
 
   iprofiler->DeleteProfile(iprofile);
 }

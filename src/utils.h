@@ -41,7 +41,7 @@ inline int WhichPowerOf2(uint32_t x) {
   DCHECK(base::bits::IsPowerOfTwo32(x));
   int bits = 0;
 #ifdef DEBUG
-  int original_x = x;
+  uint32_t original_x = x;
 #endif
   if (x >= 0x10000) {
     bits += 16;
@@ -62,7 +62,7 @@ inline int WhichPowerOf2(uint32_t x) {
     case 2: bits++;  // Fall through.
     case 1: break;
   }
-  DCHECK_EQ(1 << bits, original_x);
+  DCHECK_EQ(static_cast<uint32_t>(1) << bits, original_x);
   return bits;
 }
 
@@ -97,7 +97,7 @@ inline int WhichPowerOf2_64(uint64_t x) {
     case 2: bits++;  // Fall through.
     case 1: break;
   }
-  DCHECK_EQ(1L << bits, original_x);
+  DCHECK_EQ(static_cast<uint64_t>(1) << bits, original_x);
   return bits;
 }
 
