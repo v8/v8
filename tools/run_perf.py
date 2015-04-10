@@ -486,8 +486,13 @@ class DesktopPlatform(Platform):
       node.ChangeCWD(path)
 
   def Run(self, runnable, count):
-    output = commands.Execute(runnable.GetCommand(self.shell_dir),
-                              timeout=runnable.timeout)
+    try:
+      output = commands.Execute(runnable.GetCommand(self.shell_dir),
+                                timeout=runnable.timeout)
+    except OSError as e:
+      print ">>> OSError (#%d):" % (count + 1)
+      print e
+      return ""
     print ">>> Stdout (#%d):" % (count + 1)
     print output.stdout
     if output.stderr:  # pragma: no cover
