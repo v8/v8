@@ -37,6 +37,7 @@ namespace internal {
   V(Oddball, null_value, NullValue)                                            \
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
+  V(String, empty_string, empty_string)                                        \
   V(Oddball, uninitialized_value, UninitializedValue)                          \
   V(Map, cell_map, CellMap)                                                    \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
@@ -214,7 +215,6 @@ namespace internal {
   V(constructor_string, "constructor")                         \
   V(dot_result_string, ".result")                              \
   V(eval_string, "eval")                                       \
-  V(empty_string, "")                                          \
   V(function_string, "function")                               \
   V(Function_string, "Function")                               \
   V(length_string, "length")                                   \
@@ -370,6 +370,7 @@ namespace internal {
   V(JSMessageObjectMap)                 \
   V(ForeignMap)                         \
   V(NeanderMap)                         \
+  V(empty_string)                       \
   PRIVATE_SYMBOL_LIST(V)
 
 // Forward declarations.

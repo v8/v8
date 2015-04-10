@@ -2510,6 +2510,7 @@ const Heap::StringTypeTable Heap::string_type_table[] = {
 
 
 const Heap::ConstantStringTable Heap::constant_string_table[] = {
+    {"", kempty_stringRootIndex},
 #define CONSTANT_STRING_ELEMENT(name, contents) \
   { contents, k##name##RootIndex }              \
   ,
