@@ -745,6 +745,7 @@ class ParserTraits {
 
   // Utility functions
   int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
+                                           Scanner::Location* undefined_loc,
                                            Scanner::Location* dupe_loc,
                                            bool* ok);
 

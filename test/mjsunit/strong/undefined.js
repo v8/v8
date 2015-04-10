@@ -107,11 +107,6 @@ assertThrows("({ foo(a, b, undefined, c, d) {'use strong';} });", SyntaxError);
 CheckStrongMode("({ *foo(a, b, undefined, c, d) {} });");
 assertThrows("({ *foo(a, b, undefined, c, d) {'use strong';} });", SyntaxError);
 
-// Arrow function expression with 'undefined' param
-// TODO(conradw): Checking arrow function heads is hard to modify just now
-// CheckStrongMode("(undefined => {})");
-// assertThrows("(undefined => {'use strong';})");
-
 // Class declaration named 'undefined'
 CheckStrongMode("class undefined {}");
 assertThrows("class undefined {'use strong'}", SyntaxError);
@@ -190,3 +185,16 @@ assertDoesNotThrow(function() {
 assertThrows(function() {
   Function("undefined", "'use strong';");
 }, SyntaxError);
+
+// Arrow functions with undefined parameters
+CheckStrongMode("(undefined => {return});");
+assertThrows("(undefined => {'use strong';});");
+
+CheckStrongMode("((undefined, b, c) => {return});");
+assertThrows("((undefined, b, c) => {'use strong';});");
+
+CheckStrongMode("((a, undefined, c) => {return});");
+assertThrows("((a, undefined, c) => {'use strong';});");
+
+CheckStrongMode("((a, b, undefined) => {return});");
+assertThrows("((a, b, undefined) => {'use strong';});");

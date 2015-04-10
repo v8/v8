@@ -495,27 +495,26 @@ class ParserBase : public Traits {
   // after parsing the function, since the function can declare itself strict.
   void CheckFunctionParameterNames(LanguageMode language_mode,
                                    bool strict_params,
-                                   const Scanner::Location& eval_args_error_loc,
-                                   const Scanner::Location& undefined_error_loc,
-                                   const Scanner::Location& dupe_error_loc,
+                                   const Scanner::Location& eval_args_loc,
+                                   const Scanner::Location& undefined_loc,
+                                   const Scanner::Location& dupe_loc,
                                    const Scanner::Location& reserved_loc,
                                    bool* ok) {
     if (is_sloppy(language_mode) && !strict_params) return;
-
-    if (is_strict(language_mode) && eval_args_error_loc.IsValid()) {
-      Traits::ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
+    if (is_strict(language_mode) && eval_args_loc.IsValid()) {
+      Traits::ReportMessageAt(eval_args_loc, "strict_eval_arguments");
       *ok = false;
       return;
     }
-    if (is_strong(language_mode) && undefined_error_loc.IsValid()) {
-      Traits::ReportMessageAt(eval_args_error_loc, "strong_undefined");
+    if (is_strong(language_mode) && undefined_loc.IsValid()) {
+      Traits::ReportMessageAt(undefined_loc, "strong_undefined");
       *ok = false;
       return;
     }
     // TODO(arv): When we add support for destructuring in setters we also need
     // to check for duplicate names.
-    if (dupe_error_loc.IsValid()) {
-      Traits::ReportMessageAt(dupe_error_loc, "strict_param_dupe");
+    if (dupe_loc.IsValid()) {
+      Traits::ReportMessageAt(dupe_loc, "strict_param_dupe");
       *ok = false;
       return;
     }
@@ -757,11 +756,6 @@ class PreParserIdentifier {
            type_ == kLetIdentifier || type_ == kStaticIdentifier ||
            type_ == kYieldIdentifier;
   }
-  V8_INLINE bool IsValidArrowParam() const {
-    // A valid identifier can be an arrow function parameter
-    // except for eval, arguments, yield, and reserved keywords.
-    return !(IsEval() || IsArguments() || IsFutureStrictReserved());
-  }
 
   // Allow identifier->name()[->length()] to work. The preparser
   // does not need the actual positions/lengths of the identifiers.
@@ -785,6 +779,7 @@ class PreParserIdentifier {
     kPrototypeIdentifier,
     kConstructorIdentifier
   };
+
   explicit PreParserIdentifier(Type type) : type_(type) {}
   Type type_;
 
@@ -810,10 +805,11 @@ class PreParserExpression {
   static PreParserExpression BinaryOperation(PreParserExpression left,
                                              Token::Value op,
                                              PreParserExpression right) {
-    bool valid_arrow_param_list =
-        op == Token::COMMA && !left.is_parenthesized() &&
-        !right.is_parenthesized() && left.IsValidArrowParams() &&
-        right.IsValidArrowParams();
+    ValidArrowParam valid_arrow_param_list =
+        (op == Token::COMMA && !left.is_parenthesized() &&
+         !right.is_parenthesized()) ?
+             std::min(left.ValidateArrowParams(), right.ValidateArrowParams())
+             : kInvalidArrowParam;
     return PreParserExpression(
         TypeField::encode(kBinaryOperationExpression) |
         IsValidArrowParamListField::encode(valid_arrow_param_list));
@@ -915,10 +911,21 @@ class PreParserExpression {
     return IsIdentifier() || IsProperty();
   }
 
-  bool IsValidArrowParamList() const {
-    return IsValidArrowParams() &&
-           ParenthesizationField::decode(code_) !=
-               kMultiParenthesizedExpression;
+  bool IsValidArrowParamList(Scanner::Location* undefined_loc) const {
+    ValidArrowParam valid = ValidateArrowParams();
+    if (ParenthesizationField::decode(code_) == kMultiParenthesizedExpression) {
+      return false;
+    }
+    if (valid == kValidArrowParam) {
+      return true;
+    } else if (valid == kInvalidStrongArrowParam) {
+      // Return true for now regardless of strong mode for compatibility with
+      // parser.
+      *undefined_loc = Scanner::Location();
+      return true;
+    } else {
+      return false;
+    }
   }
 
   // At the moment PreParser doesn't track these expression types.
@@ -984,13 +991,34 @@ class PreParserExpression {
     kNoTemplateTagExpression
   };
 
+  enum ValidArrowParam {
+    kInvalidArrowParam,
+    kInvalidStrongArrowParam,
+    kValidArrowParam
+  };
+
   explicit PreParserExpression(uint32_t expression_code)
       : code_(expression_code) {}
 
-  V8_INLINE bool IsValidArrowParams() const {
-    return IsBinaryOperation()
-               ? IsValidArrowParamListField::decode(code_)
-               : (IsIdentifier() && AsIdentifier().IsValidArrowParam());
+  V8_INLINE ValidArrowParam ValidateArrowParams() const {
+    if (IsBinaryOperation()) {
+      return IsValidArrowParamListField::decode(code_);
+    }
+    if (!IsIdentifier()) {
+      return kInvalidArrowParam;
+    }
+    PreParserIdentifier ident = AsIdentifier();
+    // A valid identifier can be an arrow function parameter
+    // except for eval, arguments, yield, and reserved keywords.
+    if (ident.IsEval() || ident.IsArguments() ||
+        ident.IsFutureStrictReserved()) {
+      return kInvalidArrowParam;
+    }
+    // In strong mode, 'undefined' is similarly restricted.
+    if (ident.IsUndefined()) {
+      return kInvalidStrongArrowParam;
+    }
+    return kValidArrowParam;
   }
 
   // The first five bits are for the Type and Parenthesization.
@@ -1003,7 +1031,7 @@ class PreParserExpression {
       ExpressionTypeField;
   typedef BitField<bool, ParenthesizationField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
-  typedef BitField<bool, ParenthesizationField::kNext, 1>
+  typedef BitField<ValidArrowParam, ParenthesizationField::kNext, 2>
       IsValidArrowParamListField;
   typedef BitField<PreParserIdentifier::Type, ParenthesizationField::kNext, 10>
       IdentifierTypeField;
@@ -1491,10 +1519,11 @@ class PreParserTraits {
   // Utility functions
   int DeclareArrowParametersFromExpression(PreParserExpression expression,
                                            Scope* scope,
+                                           Scanner::Location* undefined_loc,
                                            Scanner::Location* dupe_loc,
                                            bool* ok) {
     // TODO(aperez): Detect duplicated identifiers in paramlists.
-    *ok = expression.IsValidArrowParamList();
+    *ok = expression.IsValidArrowParamList(undefined_loc);
     return 0;
   }
 
@@ -3022,10 +3051,11 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kArrowFunction, &function_factory);
-    Scanner::Location dupe_error_loc = Scanner::Location::invalid();
-    // TODO(arv): Pass in eval_args_error_loc and reserved_loc here.
+    Scanner::Location undefined_loc = Scanner::Location::invalid();
+    Scanner::Location dupe_loc = Scanner::Location::invalid();
+    // TODO(arv): Pass in eval_args_loc and reserved_loc here.
     num_parameters = Traits::DeclareArrowParametersFromExpression(
-        params_ast, scope_, &dupe_error_loc, ok);
+        params_ast, scope_, &undefined_loc, &dupe_loc, ok);
     if (!*ok) {
       ReportMessageAt(
           Scanner::Location(start_pos, scanner()->location().beg_pos),
@@ -3033,6 +3063,11 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
       return this->EmptyExpression();
     }
 
+    if (undefined_loc.IsValid()) {
+      // Workaround for preparser not keeping track of positions.
+      undefined_loc = Scanner::Location(start_pos,
+                                        scanner()->location().end_pos);
+    }
     if (num_parameters > Code::kMaxArguments) {
       ReportMessageAt(Scanner::Location(params_ast->position(), position()),
                       "too_many_parameters");
@@ -3043,7 +3078,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     Expect(Token::ARROW, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
-      // Multiple statemente body
+      // Multiple statement body
       Consume(Token::LBRACE);
       bool is_lazily_parsed =
           (mode() == PARSE_LAZILY && scope_->AllowsLazyCompilation());
@@ -3078,15 +3113,14 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     scope->set_end_position(scanner()->location().end_pos);
 
     // Arrow function *parameter lists* are always checked as in strict mode.
-    // TODO(arv): eval_args_error_loc, undefined_error_loc, and reserved_loc
-    // needs to be set by DeclareArrowParametersFromExpression.
-    Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
-    Scanner::Location undefined_error_loc = Scanner::Location::invalid();
+    // TODO(arv): eval_args_loc and reserved_loc needs to be set by
+    // DeclareArrowParametersFromExpression.
+    Scanner::Location eval_args_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
     const bool use_strict_params = true;
     this->CheckFunctionParameterNames(language_mode(), use_strict_params,
-                                      eval_args_error_loc, undefined_error_loc,
-                                      dupe_error_loc, reserved_loc, CHECK_OK);
+                                      eval_args_loc, undefined_loc, dupe_loc,
+                                      reserved_loc, CHECK_OK);
 
     // Validate strict mode.
     if (is_strict(language_mode())) {
