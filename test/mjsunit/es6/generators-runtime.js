@@ -114,7 +114,28 @@ function TestGeneratorObjectPrototype() {
 
   assertArrayEquals(expected_property_names, found_property_names);
 
-  iterator_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
+  var constructor_desc = Object.getOwnPropertyDescriptor(
+      GeneratorObjectPrototype, "constructor");
+  assertTrue(constructor_desc !== undefined);
+  assertFalse(constructor_desc.writable);
+  assertFalse(constructor_desc.enumerable);
+  assertTrue(constructor_desc.configurable);
+
+  var next_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
+      "next");
+  assertTrue(next_desc !== undefined);
+  assertTrue(next_desc.writable);
+  assertFalse(next_desc.enumerable);
+  assertTrue(next_desc.configurable);
+
+  var throw_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
+      "throw");
+  assertTrue(next_desc !== undefined);
+  assertTrue(next_desc.writable);
+  assertFalse(next_desc.enumerable);
+  assertTrue(next_desc.configurable);
+
+  var iterator_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
       Symbol.iterator);
   assertTrue(iterator_desc !== undefined);
   assertFalse(iterator_desc.writable);

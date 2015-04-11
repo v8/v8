@@ -89,7 +89,7 @@ function SetUpGenerators() {
   // Set up non-enumerable functions on the generator prototype object.
   var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
   InstallFunctions(GeneratorObjectPrototype,
-                   DONT_ENUM | DONT_DELETE | READ_ONLY,
+                   DONT_ENUM,
                    ["next", GeneratorObjectNext,
                     "throw", GeneratorObjectThrow]);
 
