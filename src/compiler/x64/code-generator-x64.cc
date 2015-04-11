@@ -729,7 +729,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEFloat32Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      // TODO(turbofan): Add AVX version with relaxed register constraints.
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ psrlq(kScratchDoubleReg, 33);
       __ andps(i.OutputDoubleRegister(), kScratchDoubleReg);
@@ -737,7 +736,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kSSEFloat32Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      // TODO(turbofan): Add AVX version with relaxed register constraints.
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ psllq(kScratchDoubleReg, 31);
       __ xorps(i.OutputDoubleRegister(), kScratchDoubleReg);
@@ -810,7 +808,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEFloat64Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      // TODO(turbofan): Add AVX version with relaxed register constraints.
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ psrlq(kScratchDoubleReg, 1);
       __ andpd(i.OutputDoubleRegister(), kScratchDoubleReg);
@@ -818,7 +815,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kSSEFloat64Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      // TODO(turbofan): Add AVX version with relaxed register constraints.
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ psllq(kScratchDoubleReg, 63);
       __ xorpd(i.OutputDoubleRegister(), kScratchDoubleReg);
@@ -957,6 +953,62 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kAVXFloat64Min:
       ASSEMBLE_AVX_BINOP(vminsd);
       break;
+    case kAVXFloat32Abs: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlq(kScratchDoubleReg, 33);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ vandps(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputDoubleRegister(0));
+      } else {
+        __ vandps(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputOperand(0));
+      }
+      break;
+    }
+    case kAVXFloat32Neg: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psllq(kScratchDoubleReg, 31);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ vxorps(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputDoubleRegister(0));
+      } else {
+        __ vxorps(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputOperand(0));
+      }
+      break;
+    }
+    case kAVXFloat64Abs: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrlq(kScratchDoubleReg, 1);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ vandpd(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputDoubleRegister(0));
+      } else {
+        __ vandpd(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputOperand(0));
+      }
+      break;
+    }
+    case kAVXFloat64Neg: {
+      // TODO(bmeurer): Use RIP relative 128-bit constants.
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psllq(kScratchDoubleReg, 63);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputDoubleRegister(0));
+      } else {
+        __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg,
+                  i.InputOperand(0));
+      }
+      break;
+    }
     case kX64Movsxbl:
       ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());

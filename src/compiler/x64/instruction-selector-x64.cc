@@ -856,6 +856,18 @@ void VisitFloatBinop(InstructionSelector* selector, Node* node,
   }
 }
 
+
+void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
+                    ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+  X64OperandGenerator g(selector);
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.Use(input));
+  } else {
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
+  }
+}
+
+
 }  // namespace
 
 
@@ -868,8 +880,8 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   X64OperandGenerator g(this);
   Float32BinopMatcher m(node);
   if (m.left().IsMinusZero()) {
-    Emit(kSSEFloat32Neg, g.DefineSameAsFirst(node),
-         g.UseRegister(m.right().node()));
+    VisitFloatUnop(this, node, m.right().node(), kAVXFloat32Neg,
+                   kSSEFloat32Neg);
     return;
   }
   VisitFloatBinop(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
@@ -898,7 +910,7 @@ void InstructionSelector::VisitFloat32Min(Node* node) {
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat32Abs, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Abs, kSSEFloat32Abs);
 }
 
 
@@ -929,8 +941,8 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
         }
       }
     }
-    Emit(kSSEFloat64Neg, g.DefineSameAsFirst(node),
-         g.UseRegister(m.right().node()));
+    VisitFloatUnop(this, node, m.right().node(), kAVXFloat64Neg,
+                   kSSEFloat64Neg);
     return;
   }
   VisitFloatBinop(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
@@ -968,7 +980,7 @@ void InstructionSelector::VisitFloat64Min(Node* node) {
 
 void InstructionSelector::VisitFloat64Abs(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat64Abs, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Abs, kSSEFloat64Abs);
 }
 
 

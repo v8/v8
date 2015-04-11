@@ -876,13 +876,7 @@ int DisassemblerX64::SetCC(byte* data) {
 int DisassemblerX64::AVXInstruction(byte* data) {
   byte opcode = *data;
   byte* current = data + 1;
-  if (vex_0f() && opcode == 0x2e) {
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
-    AppendToBuffer("vucomis%c %s,", vex_66() ? 'd' : 's',
-                   NameOfXMMRegister(regop));
-    current += PrintRightXMMOperand(current);
-  } else if (vex_66() && vex_0f38()) {
+  if (vex_66() && vex_0f38()) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
@@ -1137,6 +1131,49 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       default:
         UnimplementedInstruction();
     }
+  } else if (vex_none() && vex_0f()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x2e:
+        AppendToBuffer("vucomiss %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x54:
+        AppendToBuffer("vandps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x57:
+        AppendToBuffer("vxorps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+  } else if (vex_66() && vex_0f()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x2e:
+        AppendToBuffer("vucomisd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x54:
+        AppendToBuffer("vandpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x57:
+        AppendToBuffer("vxorpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
+
   } else {
     UnimplementedInstruction();
   }

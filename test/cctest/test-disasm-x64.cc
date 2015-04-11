@@ -525,6 +525,16 @@ TEST(DisasmX64) {
       __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vucomisd(xmm9, xmm1);
       __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
+
+      __ vandps(xmm0, xmm9, xmm2);
+      __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vxorps(xmm0, xmm1, xmm9);
+      __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+
+      __ vandpd(xmm0, xmm9, xmm2);
+      __ vandpd(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vxorpd(xmm0, xmm1, xmm9);
+      __ vxorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
     }
   }
 

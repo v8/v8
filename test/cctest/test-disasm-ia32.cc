@@ -525,6 +525,16 @@ TEST(DisasmIa320) {
       __ vminss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmaxss(xmm0, xmm1, xmm2);
       __ vmaxss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vandps(xmm0, xmm1, xmm2);
+      __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vxorps(xmm0, xmm1, xmm2);
+      __ vxorps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vandpd(xmm0, xmm1, xmm2);
+      __ vandpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vxorpd(xmm0, xmm1, xmm2);
+      __ vxorpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
     }
   }
 

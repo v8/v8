@@ -1398,6 +1398,30 @@ class Assembler : public AssemblerBase {
   }
   void rorx(Register dst, const Operand& src, byte imm8);
 
+#define PACKED_OP_LIST(V) \
+  V(and, 0x54)            \
+  V(xor, 0x57)
+
+#define AVX_PACKED_OP_DECLARE(name, opcode)                                  \
+  void v##name##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vps(opcode, dst, src1, Operand(src2));                                   \
+  }                                                                          \
+  void v##name##ps(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vps(opcode, dst, src1, src2);                                            \
+  }                                                                          \
+  void v##name##pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vpd(opcode, dst, src1, Operand(src2));                                   \
+  }                                                                          \
+  void v##name##pd(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vpd(opcode, dst, src1, src2);                                            \
+  }
+
+  PACKED_OP_LIST(AVX_PACKED_OP_DECLARE);
+  void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vps(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+  void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vpd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
   // non-temporal

@@ -94,6 +94,10 @@ namespace compiler {
   V(AVXFloat64Div)                 \
   V(AVXFloat64Max)                 \
   V(AVXFloat64Min)                 \
+  V(AVXFloat64Abs)                 \
+  V(AVXFloat64Neg)                 \
+  V(AVXFloat32Abs)                 \
+  V(AVXFloat32Neg)                 \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
   V(X64Movb)                       \
