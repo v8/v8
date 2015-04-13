@@ -2,14 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function() {
-
 "use strict";
 
-%CheckIsBootstrapping();
-
-var GlobalArrayBuffer = global.ArrayBuffer;
-var GlobalObject = global.Object;
+var $ArrayBuffer = global.ArrayBuffer;
 
 // -------------------------------------------------------------------
 
@@ -61,7 +56,7 @@ function ArrayBufferSlice(start, end) {
   }
   var newLen = fin - first;
   // TODO(dslomov): implement inheritance
-  var result = new GlobalArrayBuffer(newLen);
+  var result = new $ArrayBuffer(newLen);
 
   %ArrayBufferSliceImpl(this, result, first);
   return result;
@@ -71,26 +66,29 @@ function ArrayBufferIsViewJS(obj) {
   return %ArrayBufferIsView(obj);
 }
 
+function SetUpArrayBuffer() {
+  %CheckIsBootstrapping();
 
-// Set up the ArrayBuffer constructor function.
-%SetCode(GlobalArrayBuffer, ArrayBufferConstructor);
-%FunctionSetPrototype(GlobalArrayBuffer, new GlobalObject());
+  // Set up the ArrayBuffer constructor function.
+  %SetCode($ArrayBuffer, ArrayBufferConstructor);
+  %FunctionSetPrototype($ArrayBuffer, new $Object());
 
-// Set up the constructor property on the ArrayBuffer prototype object.
-%AddNamedProperty(
-    GlobalArrayBuffer.prototype, "constructor", GlobalArrayBuffer, DONT_ENUM);
+  // Set up the constructor property on the ArrayBuffer prototype object.
+  %AddNamedProperty(
+      $ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
 
-%AddNamedProperty(GlobalArrayBuffer.prototype,
-    symbolToStringTag, "ArrayBuffer", DONT_ENUM | READ_ONLY);
+  %AddNamedProperty($ArrayBuffer.prototype,
+      symbolToStringTag, "ArrayBuffer", DONT_ENUM | READ_ONLY);
 
-InstallGetter(GlobalArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
+  InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
-InstallFunctions(GlobalArrayBuffer, DONT_ENUM, [
-  "isView", ArrayBufferIsViewJS
-]);
+  InstallFunctions($ArrayBuffer, DONT_ENUM, [
+    "isView", ArrayBufferIsViewJS
+  ]);
 
-InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
-  "slice", ArrayBufferSlice
-]);
+  InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, [
+    "slice", ArrayBufferSlice
+  ]);
+}
 
-})();
+SetUpArrayBuffer();
