@@ -602,7 +602,7 @@ MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
 void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
                                      const DoubleRegister src) {
   // Turn potential sNaN into qNaN.
-  fadd(dst, src, kDoubleRegZero);
+  fsub(dst, src, kDoubleRegZero);
 }
 
 
