@@ -1573,11 +1573,6 @@ void Heap::Scavenge() {
   ScavengeWeakObjectRetainer weak_object_retainer(this);
   ProcessYoungWeakReferences(&weak_object_retainer);
 
-  // Collects callback info for handles referenced by young generation that are
-  // pending (about to be collected) and either phantom or internal-fields.
-  // Releases the global handles.  See also PostGarbageCollectionProcessing.
-  isolate()->global_handles()->CollectYoungPhantomCallbackData();
-
   DCHECK(new_space_front == new_space_.top());
 
   // Set age mark.

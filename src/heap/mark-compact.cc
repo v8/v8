@@ -3800,11 +3800,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
 
-  // Collects callback info for handles that are pending (about to be
-  // collected) and either phantom or internal-fields.  Releases the global
-  // handles.  See also PostGarbageCollectionProcessing.
-  isolate()->global_handles()->CollectAllPhantomCallbackData();
-
   // Visit invalidated code (we ignored all slots on it) and clear mark-bits
   // under it.
   ProcessInvalidatedCode(&updating_visitor);
