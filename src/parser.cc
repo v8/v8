@@ -3706,8 +3706,7 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
                                    Scope* scope, int* num_params,
-                                   Scanner::Location* undefined_loc,
-                                   Scanner::Location* dupe_loc) {
+                                   FormalParameterErrorLocations* locs) {
   // Case for empty parameter lists:
   //   () => ...
   if (expression == NULL) return true;
@@ -3726,12 +3725,12 @@ bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
     if (traits->IsEvalOrArguments(raw_name) ||
         traits->IsFutureStrictReserved(raw_name))
       return false;
-    if (traits->IsUndefined(raw_name) && !undefined_loc->IsValid()) {
-      *undefined_loc = Scanner::Location(
+    if (traits->IsUndefined(raw_name) && !locs->undefined_.IsValid()) {
+      locs->undefined_ = Scanner::Location(
           expression->position(), expression->position() + raw_name->length());
     }
     if (scope->IsDeclared(raw_name)) {
-      *dupe_loc = Scanner::Location(
+      locs->duplicate_ = Scanner::Location(
           expression->position(), expression->position() + raw_name->length());
       return false;
     }
@@ -3754,9 +3753,9 @@ bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
       return false;
 
     return CheckAndDeclareArrowParameter(traits, binop->left(), scope,
-                                         num_params, undefined_loc, dupe_loc) &&
+                                         num_params, locs) &&
            CheckAndDeclareArrowParameter(traits, binop->right(), scope,
-                                         num_params, undefined_loc, dupe_loc);
+                                         num_params, locs);
   }
 
   // Any other kind of expression is not a valid parameter list.
@@ -3765,15 +3764,15 @@ bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
 
 
 int ParserTraits::DeclareArrowParametersFromExpression(
-    Expression* expression, Scope* scope, Scanner::Location* undefined_loc,
-    Scanner::Location* dupe_loc, bool* ok) {
+    Expression* expression, Scope* scope, FormalParameterErrorLocations* locs,
+    bool* ok) {
   int num_params = 0;
   // Always reset the flag: It only needs to be set for the first expression
   // parsed as arrow function parameter list, because only top-level functions
   // are parsed lazily.
   parser_->parsing_lazy_arrow_parameters_ = false;
-  *ok = CheckAndDeclareArrowParameter(this, expression, scope, &num_params,
-                                      undefined_loc, dupe_loc);
+  *ok =
+      CheckAndDeclareArrowParameter(this, expression, scope, &num_params, locs);
   return num_params;
 }
 
@@ -3873,22 +3872,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_state.set_generator_object_variable(temp);
     }
 
-    // We don't yet know if the function will be strict, so we cannot yet
-    // produce errors for parameter names or duplicates. However, we remember
-    // the locations of these errors if they occur and produce the errors later.
-    Scanner::Location eval_args_loc = Scanner::Location::invalid();
-    Scanner::Location dupe_loc = Scanner::Location::invalid();
-    Scanner::Location reserved_loc = Scanner::Location::invalid();
-
-    // Similarly for strong mode.
-    Scanner::Location undefined_loc = Scanner::Location::invalid();
-
+    FormalParameterErrorLocations error_locs;
     bool has_rest = false;
     Expect(Token::LPAREN, CHECK_OK);
     int start_position = scanner()->location().beg_pos;
     ZoneList<const AstRawString*>* params =
-        ParseFormalParameterList(&eval_args_loc, &undefined_loc, &dupe_loc,
-                                 &reserved_loc, &has_rest, CHECK_OK);
+        ParseFormalParameterList(&error_locs, &has_rest, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -3898,7 +3887,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     scope->set_start_position(start_position);
 
     num_parameters = params->length();
-    if (dupe_loc.IsValid()) {
+    if (error_locs.duplicate_.IsValid()) {
       duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
     }
 
@@ -3995,9 +3984,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                       name_is_strict_reserved, function_name_location,
                       CHECK_OK);
     const bool use_strict_params = has_rest || IsConciseMethod(kind);
-    CheckFunctionParameterNames(language_mode(), use_strict_params,
-                                eval_args_loc, undefined_loc, dupe_loc,
-                                reserved_loc, CHECK_OK);
+    CheckFunctionParameterNames(language_mode(), use_strict_params, error_locs,
+                                CHECK_OK);
 
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),

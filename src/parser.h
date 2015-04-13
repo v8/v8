@@ -755,8 +755,7 @@ class ParserTraits {
 
   // Utility functions
   int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
-                                           Scanner::Location* undefined_loc,
-                                           Scanner::Location* dupe_loc,
+                                           FormalParameterErrorLocations* locs,
                                            bool* ok);
 
   // Temporary glue; these functions will move to ParserBase.

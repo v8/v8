@@ -908,22 +908,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &factory);
-  // We don't yet know if the function will be strict, so we cannot yet produce
-  // errors for parameter names or duplicates. However, we remember the
-  // locations of these errors if they occur and produce the errors later.
-  Scanner::Location eval_args_loc = Scanner::Location::invalid();
-  Scanner::Location dupe_loc = Scanner::Location::invalid();
-  Scanner::Location reserved_loc = Scanner::Location::invalid();
-
-  // Similarly for strong mode.
-  Scanner::Location undefined_loc = Scanner::Location::invalid();
+  FormalParameterErrorLocations error_locs;
 
   bool is_rest = false;
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
   PreParserFormalParameterList params =
-      ParseFormalParameterList(&eval_args_loc, &undefined_loc, &dupe_loc,
-                               &reserved_loc, &is_rest, CHECK_OK);
+      ParseFormalParameterList(&error_locs, &is_rest, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
@@ -950,8 +941,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   CheckFunctionName(language_mode(), kind, function_name,
                     name_is_strict_reserved, function_name_location, CHECK_OK);
   const bool use_strict_params = is_rest || IsConciseMethod(kind);
-  CheckFunctionParameterNames(language_mode(), use_strict_params, eval_args_loc,
-                              undefined_loc, dupe_loc, reserved_loc, CHECK_OK);
+  CheckFunctionParameterNames(language_mode(), use_strict_params, error_locs,
+                              CHECK_OK);
 
   if (is_strict(language_mode())) {
     int end_position = scanner()->location().end_pos;

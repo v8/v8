@@ -17,6 +17,26 @@
 namespace v8 {
 namespace internal {
 
+
+// When parsing the formal parameters of a function, we usually don't yet know
+// if the function will be strict, so we cannot yet produce errors for
+// parameter names or duplicates.  Instead, we remember the locations of these
+// errors if they occur and produce the errors later.
+class FormalParameterErrorLocations BASE_EMBEDDED {
+ public:
+  FormalParameterErrorLocations()
+      : eval_or_arguments_(Scanner::Location::invalid()),
+        undefined_(Scanner::Location::invalid()),
+        duplicate_(Scanner::Location::invalid()),
+        reserved_(Scanner::Location::invalid()) {}
+
+  Scanner::Location eval_or_arguments_;
+  Scanner::Location undefined_;
+  Scanner::Location duplicate_;
+  Scanner::Location reserved_;
+};
+
+
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
 
@@ -499,31 +519,28 @@ class ParserBase : public Traits {
   // after parsing the function, since the function can declare itself strict.
   void CheckFunctionParameterNames(LanguageMode language_mode,
                                    bool strict_params,
-                                   const Scanner::Location& eval_args_loc,
-                                   const Scanner::Location& undefined_loc,
-                                   const Scanner::Location& dupe_loc,
-                                   const Scanner::Location& reserved_loc,
+                                   const FormalParameterErrorLocations& locs,
                                    bool* ok) {
     if (is_sloppy(language_mode) && !strict_params) return;
-    if (is_strict(language_mode) && eval_args_loc.IsValid()) {
-      Traits::ReportMessageAt(eval_args_loc, "strict_eval_arguments");
+    if (is_strict(language_mode) && locs.eval_or_arguments_.IsValid()) {
+      Traits::ReportMessageAt(locs.eval_or_arguments_, "strict_eval_arguments");
       *ok = false;
       return;
     }
-    if (is_strong(language_mode) && undefined_loc.IsValid()) {
-      Traits::ReportMessageAt(undefined_loc, "strong_undefined");
+    if (is_strong(language_mode) && locs.undefined_.IsValid()) {
+      Traits::ReportMessageAt(locs.undefined_, "strong_undefined");
       *ok = false;
       return;
     }
     // TODO(arv): When we add support for destructuring in setters we also need
     // to check for duplicate names.
-    if (dupe_loc.IsValid()) {
-      Traits::ReportMessageAt(dupe_loc, "strict_param_dupe");
+    if (locs.duplicate_.IsValid()) {
+      Traits::ReportMessageAt(locs.duplicate_, "strict_param_dupe");
       *ok = false;
       return;
     }
-    if (reserved_loc.IsValid()) {
-      Traits::ReportMessageAt(reserved_loc, "unexpected_strict_reserved");
+    if (locs.reserved_.IsValid()) {
+      Traits::ReportMessageAt(locs.reserved_, "unexpected_strict_reserved");
       *ok = false;
       return;
     }
@@ -611,15 +628,10 @@ class ParserBase : public Traits {
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
 
   FormalParameterT ParseFormalParameter(DuplicateFinder* duplicate_finder,
-                                        Scanner::Location* eval_args_error_loc,
-                                        Scanner::Location* undefined_error_loc,
-                                        Scanner::Location* dupe_error_loc,
-                                        Scanner::Location* reserved_error_loc,
+                                        FormalParameterErrorLocations* locs,
                                         bool* ok);
   FormalParameterListT ParseFormalParameterList(
-      Scanner::Location* eval_args_error_loc,
-      Scanner::Location* undefined_error_loc, Scanner::Location* dupe_error_loc,
-      Scanner::Location* reserved_error_loc, bool* is_rest, bool* ok);
+      FormalParameterErrorLocations* locs, bool* is_rest, bool* ok);
   void CheckArityRestrictions(
       int param_count, FunctionLiteral::ArityRestriction arity_restriction,
       int formals_start_pos, int formals_end_pos, bool* ok);
@@ -929,7 +941,7 @@ class PreParserExpression {
     return IsIdentifier() || IsProperty();
   }
 
-  bool IsValidArrowParamList(Scanner::Location* undefined_loc) const {
+  bool IsValidArrowParamList(FormalParameterErrorLocations* locs) const {
     ValidArrowParam valid = ValidateArrowParams();
     if (ParenthesizationField::decode(code_) == kMultiParenthesizedExpression) {
       return false;
@@ -939,7 +951,7 @@ class PreParserExpression {
     } else if (valid == kInvalidStrongArrowParam) {
       // Return true for now regardless of strong mode for compatibility with
       // parser.
-      *undefined_loc = Scanner::Location();
+      locs->undefined_ = Scanner::Location();
       return true;
     } else {
       return false;
@@ -1544,13 +1556,12 @@ class PreParserTraits {
                          FunctionKind kind, bool* ok);
 
   // Utility functions
-  int DeclareArrowParametersFromExpression(PreParserExpression expression,
-                                           Scope* scope,
-                                           Scanner::Location* undefined_loc,
-                                           Scanner::Location* dupe_loc,
-                                           bool* ok) {
-    // TODO(aperez): Detect duplicated identifiers in paramlists.
-    *ok = expression.IsValidArrowParamList(undefined_loc);
+  V8_INLINE int DeclareArrowParametersFromExpression(
+      PreParserExpression expression, Scope* scope,
+      FormalParameterErrorLocations* locs, bool* ok) {
+    // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect eval or
+    // arguments.  Detect reserved words.
+    *ok = expression.IsValidArrowParamList(locs);
     return 0;
   }
 
@@ -3055,10 +3066,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
 template <class Traits>
 typename ParserBase<Traits>::FormalParameterT
 ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
-                                         Scanner::Location* eval_args_error_loc,
-                                         Scanner::Location* undefined_error_loc,
-                                         Scanner::Location* dupe_error_loc,
-                                         Scanner::Location* reserved_error_loc,
+                                         FormalParameterErrorLocations* locs,
                                          bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
@@ -3068,18 +3076,18 @@ ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
   if (!*ok) return this->EmptyFormalParameter();
 
   // Store locations for possible future error reports.
-  if (!eval_args_error_loc->IsValid() && this->IsEvalOrArguments(name)) {
-    *eval_args_error_loc = scanner()->location();
+  if (!locs->eval_or_arguments_.IsValid() && this->IsEvalOrArguments(name)) {
+    locs->eval_or_arguments_ = scanner()->location();
   }
-  if (!undefined_error_loc->IsValid() && this->IsUndefined(name)) {
-    *undefined_error_loc = scanner()->location();
+  if (!locs->undefined_.IsValid() && this->IsUndefined(name)) {
+    locs->undefined_ = scanner()->location();
   }
-  if (!reserved_error_loc->IsValid() && is_strict_reserved) {
-    *reserved_error_loc = scanner()->location();
+  if (!locs->reserved_.IsValid() && is_strict_reserved) {
+    locs->reserved_ = scanner()->location();
   }
-  if (!dupe_error_loc->IsValid()) {
+  if (!locs->duplicate_.IsValid()) {
     int prev_value = scanner()->FindSymbol(duplicate_finder, 1);
-    if (prev_value != 0) *dupe_error_loc = scanner()->location();
+    if (prev_value != 0) locs->duplicate_ = scanner()->location();
   }
 
   return name;
@@ -3089,9 +3097,7 @@ ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
 template <class Traits>
 typename ParserBase<Traits>::FormalParameterListT
 ParserBase<Traits>::ParseFormalParameterList(
-    Scanner::Location* eval_args_error_loc,
-    Scanner::Location* undefined_error_loc, Scanner::Location* dupe_error_loc,
-    Scanner::Location* reserved_error_loc, bool* is_rest, bool* ok) {
+    FormalParameterErrorLocations* locs, bool* is_rest, bool* ok) {
   // FormalParameters[Yield,GeneratorParameter] :
   //   [empty]
   //   FormalParameterList[?Yield, ?GeneratorParameter]
@@ -3112,9 +3118,8 @@ ParserBase<Traits>::ParseFormalParameterList(
   if (peek() != Token::RPAREN) {
     do {
       *is_rest = allow_harmony_rest_params() && Check(Token::ELLIPSIS);
-      FormalParameterT param = ParseFormalParameter(
-          &duplicate_finder, eval_args_error_loc, undefined_error_loc,
-          dupe_error_loc, reserved_error_loc, ok);
+      FormalParameterT param =
+          ParseFormalParameter(&duplicate_finder, locs, ok);
       if (!*ok) return this->NullFormalParameterList();
       result->Add(param, zone());
       if (result->length() > Code::kMaxArguments) {
@@ -3185,11 +3190,9 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kArrowFunction, &function_factory);
-    Scanner::Location undefined_loc = Scanner::Location::invalid();
-    Scanner::Location dupe_loc = Scanner::Location::invalid();
-    // TODO(arv): Pass in eval_args_loc and reserved_loc here.
+    FormalParameterErrorLocations error_locs;
     num_parameters = Traits::DeclareArrowParametersFromExpression(
-        params_ast, scope_, &undefined_loc, &dupe_loc, ok);
+        params_ast, scope_, &error_locs, ok);
     if (!*ok) {
       ReportMessageAt(
           Scanner::Location(start_pos, scanner()->location().beg_pos),
@@ -3197,10 +3200,10 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
       return this->EmptyExpression();
     }
 
-    if (undefined_loc.IsValid()) {
+    if (error_locs.undefined_.IsValid()) {
       // Workaround for preparser not keeping track of positions.
-      undefined_loc = Scanner::Location(start_pos,
-                                        scanner()->location().end_pos);
+      error_locs.undefined_ =
+          Scanner::Location(start_pos, scanner()->location().end_pos);
     }
     if (num_parameters > Code::kMaxArguments) {
       ReportMessageAt(Scanner::Location(params_ast->position(), position()),
@@ -3246,15 +3249,13 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     scope->set_start_position(start_pos);
     scope->set_end_position(scanner()->location().end_pos);
 
-    // Arrow function *parameter lists* are always checked as in strict mode.
-    // TODO(arv): eval_args_loc and reserved_loc needs to be set by
-    // DeclareArrowParametersFromExpression.
-    Scanner::Location eval_args_loc = Scanner::Location::invalid();
-    Scanner::Location reserved_loc = Scanner::Location::invalid();
+    // Arrow function formal parameters are parsed as StrictFormalParameterList,
+    // which is not the same as "parameters of a strict function"; it only means
+    // that duplicates are not allowed.  Of course, the arrow function may
+    // itself be strict as well.
     const bool use_strict_params = true;
     this->CheckFunctionParameterNames(language_mode(), use_strict_params,
-                                      eval_args_loc, undefined_loc, dupe_loc,
-                                      reserved_loc, CHECK_OK);
+                                      error_locs, CHECK_OK);
 
     // Validate strict mode.
     if (is_strict(language_mode())) {
