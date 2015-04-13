@@ -5291,28 +5291,6 @@ class HCallStub FINAL : public HUnaryCall {
 
 class HTailCallThroughMegamorphicCache FINAL : public HInstruction {
  public:
-  enum Flags {
-    NONE = 0,
-    CALLED_FROM_KEYED_LOAD = 1 << 0,
-    PERFORM_MISS_ONLY = 1 << 1
-  };
-
-  static Flags ComputeFlags(bool called_from_keyed_load,
-                            bool perform_miss_only) {
-    Flags flags = NONE;
-    if (called_from_keyed_load) {
-      flags = static_cast<Flags>(flags | CALLED_FROM_KEYED_LOAD);
-    }
-    if (perform_miss_only) {
-      flags = static_cast<Flags>(flags | PERFORM_MISS_ONLY);
-    }
-    return flags;
-  }
-
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(
-      HTailCallThroughMegamorphicCache, HValue*, HValue*, HValue*, HValue*,
-      HTailCallThroughMegamorphicCache::Flags);
-
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HTailCallThroughMegamorphicCache,
                                               HValue*, HValue*);
 
@@ -5320,26 +5298,13 @@ class HTailCallThroughMegamorphicCache FINAL : public HInstruction {
     return Representation::Tagged();
   }
 
-  virtual int OperandCount() const FINAL OVERRIDE {
-    return FLAG_vector_ics ? 5 : 3;
-  }
+  virtual int OperandCount() const FINAL OVERRIDE { return 3; }
   virtual HValue* OperandAt(int i) const FINAL OVERRIDE { return inputs_[i]; }
 
   HValue* context() const { return OperandAt(0); }
   HValue* receiver() const { return OperandAt(1); }
   HValue* name() const { return OperandAt(2); }
-  HValue* slot() const {
-    DCHECK(FLAG_vector_ics);
-    return OperandAt(3);
-  }
-  HValue* vector() const {
-    DCHECK(FLAG_vector_ics);
-    return OperandAt(4);
-  }
   Code::Flags flags() const;
-
-  bool is_keyed_load() const { return flags_ & CALLED_FROM_KEYED_LOAD; }
-  bool is_just_miss() const { return flags_ & PERFORM_MISS_ONLY; }
 
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
@@ -5352,27 +5317,13 @@ class HTailCallThroughMegamorphicCache FINAL : public HInstruction {
 
  private:
   HTailCallThroughMegamorphicCache(HValue* context, HValue* receiver,
-                                   HValue* name, HValue* slot, HValue* vector,
-                                   Flags flags)
-      : flags_(flags) {
-    DCHECK(FLAG_vector_ics);
-    SetOperandAt(0, context);
-    SetOperandAt(1, receiver);
-    SetOperandAt(2, name);
-    SetOperandAt(3, slot);
-    SetOperandAt(4, vector);
-  }
-
-  HTailCallThroughMegamorphicCache(HValue* context, HValue* receiver,
-                                   HValue* name)
-      : flags_(NONE) {
+                                   HValue* name) {
     SetOperandAt(0, context);
     SetOperandAt(1, receiver);
     SetOperandAt(2, name);
   }
 
-  EmbeddedContainer<HValue*, 5> inputs_;
-  Flags flags_;
+  EmbeddedContainer<HValue*, 3> inputs_;
 };
 
 

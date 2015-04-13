@@ -2029,6 +2029,10 @@ HValue* CodeStubGraphBuilder<MegamorphicLoadStub>::BuildCodeStub() {
   // megamorphic case is handled as part of the default stub.
   DCHECK(!FLAG_vector_ics);
 
+  // This stub tail calls, and an erected frame presents complications we don't
+  // need.
+  info()->MarkMustNotHaveEagerFrame();
+
   // Probe the stub cache.
   Add<HTailCallThroughMegamorphicCache>(receiver, name);
 

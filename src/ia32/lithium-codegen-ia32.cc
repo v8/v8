@@ -3473,44 +3473,18 @@ void LCodeGen::DoTailCallThroughMegamorphicCache(
   Register name = ToRegister(instr->name());
   DCHECK(receiver.is(LoadDescriptor::ReceiverRegister()));
   DCHECK(name.is(LoadDescriptor::NameRegister()));
-  Register slot = FLAG_vector_ics ? ToRegister(instr->slot()) : no_reg;
-  Register vector = FLAG_vector_ics ? ToRegister(instr->vector()) : no_reg;
-
   Register scratch = ebx;
   Register extra = edi;
-  DCHECK(!extra.is(slot) && !extra.is(vector));
   DCHECK(!scratch.is(receiver) && !scratch.is(name));
   DCHECK(!extra.is(receiver) && !extra.is(name));
 
-  // Important for the tail-call.
-  bool must_teardown_frame = NeedsEagerFrame();
+  // The probe will tail call to a handler if found.
+  // If --vector-ics is on, then it knows to pop the two args first.
+  isolate()->stub_cache()->GenerateProbe(masm(), Code::LOAD_IC,
+                                         instr->hydrogen()->flags(), false,
+                                         receiver, name, scratch, extra);
 
-  if (!instr->hydrogen()->is_just_miss()) {
-    if (FLAG_vector_ics) {
-      __ push(slot);
-      __ push(vector);
-    }
-
-    // The probe will tail call to a handler if found.
-    // If --vector-ics is on, then it knows to pop the two args first.
-    DCHECK(!instr->hydrogen()->is_keyed_load());
-    isolate()->stub_cache()->GenerateProbe(
-        masm(), Code::LOAD_IC, instr->hydrogen()->flags(), must_teardown_frame,
-        receiver, name, scratch, extra);
-
-    if (FLAG_vector_ics) {
-      __ pop(vector);
-      __ pop(slot);
-    }
-  }
-
-  // Tail call to miss if we ended up here.
-  if (must_teardown_frame) __ leave();
-  if (instr->hydrogen()->is_keyed_load()) {
-    KeyedLoadIC::GenerateMiss(masm());
-  } else {
-    LoadIC::GenerateMiss(masm());
-  }
+  LoadIC::GenerateMiss(masm());
 }
 
 

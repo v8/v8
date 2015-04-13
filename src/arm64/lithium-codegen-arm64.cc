@@ -2024,29 +2024,14 @@ void LCodeGen::DoTailCallThroughMegamorphicCache(
   Register extra = x5;
   Register extra2 = x6;
   Register extra3 = x7;
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(ToRegister(instr->slot()), ToRegister(instr->vector()),
-                     scratch, extra, extra2, extra3));
 
-  // Important for the tail-call.
-  bool must_teardown_frame = NeedsEagerFrame();
-
-  if (!instr->hydrogen()->is_just_miss()) {
-    DCHECK(!instr->hydrogen()->is_keyed_load());
-
-    // The probe will tail call to a handler if found.
-    isolate()->stub_cache()->GenerateProbe(
-        masm(), Code::LOAD_IC, instr->hydrogen()->flags(), must_teardown_frame,
-        receiver, name, scratch, extra, extra2, extra3);
-  }
+  // The probe will tail call to a handler if found.
+  isolate()->stub_cache()->GenerateProbe(
+      masm(), Code::LOAD_IC, instr->hydrogen()->flags(), false, receiver, name,
+      scratch, extra, extra2, extra3);
 
   // Tail call to miss if we ended up here.
-  if (must_teardown_frame) __ LeaveFrame(StackFrame::INTERNAL);
-  if (instr->hydrogen()->is_keyed_load()) {
-    KeyedLoadIC::GenerateMiss(masm());
-  } else {
-    LoadIC::GenerateMiss(masm());
-  }
+  LoadIC::GenerateMiss(masm());
 }
 
 
