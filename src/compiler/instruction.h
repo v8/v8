@@ -62,6 +62,10 @@ class InstructionOperand {
     return value_ < op.value_;
   }
 
+  bool operator==(const InstructionOperand& op) const {
+    return value_ == op.value_;
+  }
+
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
     void* buffer = zone->New(sizeof(op));

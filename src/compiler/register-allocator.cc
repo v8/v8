@@ -137,12 +137,11 @@ LiveRange::LiveRange(int id, Zone* zone)
       spills_at_definition_(nullptr) {}
 
 
-void LiveRange::set_assigned_register(int reg,
-                                      InstructionOperandCache* operand_cache) {
+void LiveRange::set_assigned_register(int reg) {
   DCHECK(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
   // TODO(dcarney): stop aliasing hint operands.
-  ConvertUsesToOperand(GetAssignedOperand(operand_cache), nullptr);
+  ConvertUsesToOperand(GetAssignedOperand(), nullptr);
 }
 
 
@@ -265,27 +264,6 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) {
   auto use_pos = NextRegisterPosition(pos);
   if (use_pos == nullptr) return true;
   return use_pos->pos().Value() > pos.NextStart().End().Value();
-}
-
-
-InstructionOperand* LiveRange::GetAssignedOperand(
-    InstructionOperandCache* cache) const {
-  if (HasRegisterAssigned()) {
-    DCHECK(!IsSpilled());
-    switch (Kind()) {
-      case GENERAL_REGISTERS:
-        return cache->GetRegisterOperand(assigned_register());
-      case DOUBLE_REGISTERS:
-        return cache->GetDoubleRegisterOperand(assigned_register());
-      default:
-        UNREACHABLE();
-    }
-  }
-  DCHECK(IsSpilled());
-  DCHECK(!HasRegisterAssigned());
-  auto op = TopLevel()->GetSpillOperand();
-  DCHECK(!op->IsUnallocated());
-  return op;
 }
 
 
@@ -526,7 +504,7 @@ void LiveRange::AddUsePosition(LifetimePosition pos,
 }
 
 
-void LiveRange::ConvertUsesToOperand(InstructionOperand* op,
+void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
                                      InstructionOperand* spill_op) {
   for (auto pos = first_pos(); pos != nullptr; pos = pos->next()) {
     DCHECK(Start().Value() <= pos->pos().Value() &&
@@ -541,10 +519,10 @@ void LiveRange::ConvertUsesToOperand(InstructionOperand* op,
         }
         break;
       case UsePositionType::kRequiresRegister:
-        DCHECK(op->IsRegister() || op->IsDoubleRegister());
+        DCHECK(op.IsRegister() || op.IsDoubleRegister());
       // Fall through.
       case UsePositionType::kAny:
-        InstructionOperand::ReplaceWith(pos->operand(), op);
+        InstructionOperand::ReplaceWith(pos->operand(), &op);
         break;
     }
   }
@@ -597,16 +575,6 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
-InstructionOperandCache::InstructionOperandCache() {
-  for (size_t i = 0; i < arraysize(general_register_operands_); ++i) {
-    general_register_operands_[i] = RegisterOperand(static_cast<int>(i));
-  }
-  for (size_t i = 0; i < arraysize(double_register_operands_); ++i) {
-    double_register_operands_[i] = DoubleRegisterOperand(static_cast<int>(i));
-  }
-}
-
-
 RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
                                      Zone* zone, Frame* frame,
                                      InstructionSequence* code,
@@ -616,7 +584,6 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       code_(code),
       debug_name_(debug_name),
       config_(config),
-      operand_cache_(new (code_zone()) InstructionOperandCache()),
       phi_map_(local_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, local_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, nullptr, local_zone()),
@@ -987,11 +954,11 @@ void RegisterAllocator::AssignSpillSlots() {
 void RegisterAllocator::CommitAssignment() {
   for (auto range : live_ranges()) {
     if (range == nullptr || range->IsEmpty()) continue;
-    auto assigned = range->GetAssignedOperand(operand_cache());
     InstructionOperand* spill_operand = nullptr;
     if (!range->TopLevel()->HasNoSpillType()) {
       spill_operand = range->TopLevel()->GetSpillOperand();
     }
+    auto assigned = range->GetAssignedOperand();
     range->ConvertUsesToOperand(assigned, spill_operand);
     if (!range->IsChild() && spill_operand != nullptr) {
       range->CommitSpillsAtDefinition(code(), spill_operand,
@@ -1463,9 +1430,9 @@ void RegisterAllocator::ConnectRanges() {
           !CanEagerlyResolveControlFlow(GetInstructionBlock(pos))) {
         continue;
       }
-      auto prev_operand = first_range->GetAssignedOperand(operand_cache());
-      auto cur_operand = second_range->GetAssignedOperand(operand_cache());
-      if (prev_operand->Equals(cur_operand)) continue;
+      auto prev = first_range->GetAssignedOperand();
+      auto cur = second_range->GetAssignedOperand();
+      if (prev == cur) continue;
       bool delay_insertion = false;
       Instruction::GapPosition gap_pos;
       int gap_index = pos.ToInstructionIndex();
@@ -1481,6 +1448,8 @@ void RegisterAllocator::ConnectRanges() {
       }
       auto move = code()->InstructionAt(gap_index)->GetOrCreateParallelMove(
           gap_pos, code_zone());
+      auto prev_operand = InstructionOperand::New(code_zone(), prev);
+      auto cur_operand = InstructionOperand::New(code_zone(), cur);
       if (!delay_insertion) {
         move->AddMove(prev_operand, cur_operand, code_zone());
       } else {
@@ -1678,9 +1647,12 @@ void RegisterAllocator::ResolveControlFlow() {
         if (result.cur_cover_ == result.pred_cover_ ||
             result.cur_cover_->IsSpilled())
           continue;
-        auto pred_op = result.pred_cover_->GetAssignedOperand(operand_cache());
-        auto cur_op = result.cur_cover_->GetAssignedOperand(operand_cache());
-        ResolveControlFlow(block, cur_op, pred_block, pred_op);
+        auto pred_op = result.pred_cover_->GetAssignedOperand();
+        auto cur_op = result.cur_cover_->GetAssignedOperand();
+        if (pred_op == cur_op) continue;
+        auto pred_ptr = InstructionOperand::New(code_zone(), pred_op);
+        auto cur_ptr = InstructionOperand::New(code_zone(), cur_op);
+        ResolveControlFlow(block, cur_ptr, pred_block, pred_ptr);
       }
       iterator.Advance();
     }
@@ -1692,7 +1664,7 @@ void RegisterAllocator::ResolveControlFlow(const InstructionBlock* block,
                                            InstructionOperand* cur_op,
                                            const InstructionBlock* pred,
                                            InstructionOperand* pred_op) {
-  if (pred_op->Equals(cur_op)) return;
+  DCHECK(!pred_op->Equals(cur_op));
   int gap_index;
   Instruction::GapPosition position;
   if (block->PredecessorCount() == 1) {
@@ -2534,7 +2506,7 @@ void RegisterAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
     DCHECK(range->Kind() == GENERAL_REGISTERS);
     assigned_registers_->Add(reg);
   }
-  range->set_assigned_register(reg, operand_cache());
+  range->set_assigned_register(reg);
 }
 
 }  // namespace compiler
