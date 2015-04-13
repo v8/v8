@@ -2342,10 +2342,10 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
 }
 
 
-Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
-  if (String::Equals(name, undefined_string())) return undefined_value();
-  if (String::Equals(name, nan_string())) return nan_value();
-  if (String::Equals(name, infinity_string())) return infinity_value();
+Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {
+  if (Name::Equals(name, undefined_string())) return undefined_value();
+  if (Name::Equals(name, nan_string())) return nan_value();
+  if (Name::Equals(name, infinity_string())) return infinity_value();
   return Handle<Object>::null();
 }
 

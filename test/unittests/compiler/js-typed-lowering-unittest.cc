@@ -852,6 +852,43 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
   }
 }
 
+
+TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
+  Handle<String> names[] = {
+      Handle<String>(isolate()->heap()->undefined_string(), isolate()),
+      Handle<String>(isolate()->heap()->infinity_string(), isolate()),
+      Handle<String>(isolate()->heap()->nan_string(), isolate())  // --
+  };
+  Matcher<Node*> matches[] = {
+      IsHeapConstant(Unique<HeapObject>::CreateImmovable(
+          Handle<HeapObject>(isolate()->heap()->undefined_value(), isolate()))),
+      IsNumberConstant(std::numeric_limits<double>::infinity()),
+      IsNumberConstant(IsNaN())  // --
+  };
+
+  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
+                          FeedbackVectorICSlot::Invalid());
+  Node* global = Parameter(Type::GlobalObject());
+  Node* context = UndefinedConstant();
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+
+  for (size_t i = 0; i < arraysize(names); i++) {
+    Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
+    Node* node = graph()->NewNode(javascript()->LoadNamed(name, feedback),
+                                  global, context);
+    if (FLAG_turbo_deoptimization) {
+      node->AppendInput(zone(), EmptyFrameState());
+    }
+    node->AppendInput(zone(), effect);
+    node->AppendInput(zone(), control);
+
+    Reduction r = Reduce(node);
+
+    EXPECT_THAT(r.replacement(), matches[i]);
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

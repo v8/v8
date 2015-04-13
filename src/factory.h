@@ -668,7 +668,7 @@ class Factory FINAL {
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.
   // Returns a null handle when the given name is unknown.
-  Handle<Object> GlobalConstantFor(Handle<String> name);
+  Handle<Object> GlobalConstantFor(Handle<Name> name);
 
   // Converts the given boolean condition to JavaScript boolean value.
   Handle<Object> ToBoolean(bool value);

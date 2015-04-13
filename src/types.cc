@@ -277,6 +277,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
+    case PROPERTY_CELL_TYPE:
       return kInternal & kTaggedPointer;
     default:
       UNREACHABLE();

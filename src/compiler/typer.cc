@@ -1444,18 +1444,21 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
+  ContextAccess access = OpParameter<ContextAccess>(node);
   Bounds outer = Operand(node, 0);
   Type* context_type = outer.upper;
+  Type* upper = (access.index() == Context::GLOBAL_OBJECT_INDEX)
+                    ? Type::GlobalObject()
+                    : Type::Any();
   if (context_type->Is(Type::None())) {
     // Upper bound of context is not yet known.
-    return Bounds(Type::None(), Type::Any());
+    return Bounds(Type::None(), upper);
   }
 
   DCHECK(context_type->Maybe(Type::Internal()));
   // TODO(rossberg): More precisely, instead of the above assertion, we should
   // back-propagate the constraint that it has to be a subtype of Internal.
 
-  ContextAccess access = OpParameter<ContextAccess>(node);
   MaybeHandle<Context> context;
   if (context_type->IsConstant()) {
     context = Handle<Context>::cast(context_type->AsConstant()->Value());
@@ -1463,8 +1466,6 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   // Walk context chain (as far as known), mirroring dynamic lookup.
   // Since contexts are mutable, the information is only useful as a lower
   // bound.
-  // TODO(rossberg): Could use scope info to fix upper bounds for constant
-  // bindings if we know that this code is never shared.
   for (size_t i = access.depth(); i > 0; --i) {
     if (context_type->IsContext()) {
       context_type = context_type->AsContext()->Outer();
@@ -1475,15 +1476,13 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
       context = handle(context.ToHandleChecked()->previous(), isolate());
     }
   }
-  if (context.is_null()) {
-    return Bounds::Unbounded(zone());
-  } else {
-    Handle<Object> value =
+  Type* lower = Type::None();
+  if (!context.is_null()) {
+    lower = TypeConstant(
         handle(context.ToHandleChecked()->get(static_cast<int>(access.index())),
-               isolate());
-    Type* lower = TypeConstant(value);
-    return Bounds(lower, Type::Any());
+               isolate()));
   }
+  return Bounds(lower, upper);
 }
 
 
