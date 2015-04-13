@@ -2644,7 +2644,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     CompilationInfo* current_info() { return builder_->current_info(); }
 
     bool LoadResult(Handle<Map> map);
-    void LoadFieldMaps(Handle<Map> map);
+    bool LoadFieldMaps(Handle<Map> map);
     bool LookupDescriptor();
     bool LookupInPrototypes();
     bool IsIntegerIndexedExotic();

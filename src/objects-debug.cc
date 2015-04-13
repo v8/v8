@@ -290,7 +290,7 @@ void JSObject::JSObjectVerify() {
         if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
         HeapType* field_type = descriptors->GetFieldType(i);
         bool type_is_none = field_type->Is(HeapType::None());
-        bool type_is_any = field_type->Is(HeapType::Any());
+        bool type_is_any = HeapType::Any()->Is(field_type);
         if (r.IsNone()) {
           CHECK(type_is_none);
         } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
