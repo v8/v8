@@ -126,7 +126,7 @@ Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
                  TempCountField::encode(0) | IsCallField::encode(false)),
-      pointer_map_(NULL) {
+      reference_map_(NULL) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
 }
@@ -141,7 +141,7 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
                  InputCountField::encode(input_count) |
                  TempCountField::encode(temp_count) |
                  IsCallField::encode(false)),
-      pointer_map_(NULL) {
+      reference_map_(NULL) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
   size_t offset = 0;
@@ -187,42 +187,27 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
-void PointerMap::RecordPointer(InstructionOperand* op, Zone* zone) {
+void ReferenceMap::RecordReference(const InstructionOperand& op) {
   // Do not record arguments as pointers.
-  if (op->IsStackSlot() && StackSlotOperand::cast(op)->index() < 0) return;
-  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
-  pointer_operands_.Add(op, zone);
+  if (op.IsStackSlot() && StackSlotOperand::cast(op).index() < 0) return;
+  DCHECK(!op.IsDoubleRegister() && !op.IsDoubleStackSlot());
+  reference_operands_.push_back(op);
 }
 
 
-void PointerMap::RemovePointer(InstructionOperand* op) {
-  // Do not record arguments as pointers.
-  if (op->IsStackSlot() && StackSlotOperand::cast(op)->index() < 0) return;
-  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
-  for (int i = 0; i < pointer_operands_.length(); ++i) {
-    if (pointer_operands_[i]->Equals(op)) {
-      pointer_operands_.Remove(i);
-      --i;
-    }
-  }
-}
-
-
-void PointerMap::RecordUntagged(InstructionOperand* op, Zone* zone) {
-  // Do not record arguments as pointers.
-  if (op->IsStackSlot() && StackSlotOperand::cast(op)->index() < 0) return;
-  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
-  untagged_operands_.Add(op, zone);
-}
-
-
-std::ostream& operator<<(std::ostream& os, const PointerMap& pm) {
+std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   os << "{";
-  for (ZoneList<InstructionOperand*>::iterator op =
-           pm.pointer_operands_.begin();
-       op != pm.pointer_operands_.end(); ++op) {
-    if (op != pm.pointer_operands_.begin()) os << ";";
-    os << *op;
+  bool first = true;
+  PrintableInstructionOperand poi = {RegisterConfiguration::ArchDefault(),
+                                     nullptr};
+  for (auto& op : pm.reference_operands_) {
+    if (!first) {
+      os << ";";
+    } else {
+      first = false;
+    }
+    poi.op_ = &op;
+    os << poi;
   }
   return os << "}";
 }
@@ -501,7 +486,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       immediates_(zone()),
       instructions_(zone()),
       next_virtual_register_(0),
-      pointer_maps_(zone()),
+      reference_maps_(zone()),
       doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       deoptimization_entries_(zone()) {
@@ -546,12 +531,12 @@ void InstructionSequence::EndBlock(RpoNumber rpo) {
 int InstructionSequence::AddInstruction(Instruction* instr) {
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
-  if (instr->NeedsPointerMap()) {
-    DCHECK(instr->pointer_map() == NULL);
-    PointerMap* pointer_map = new (zone()) PointerMap(zone());
-    pointer_map->set_instruction_position(index);
-    instr->set_pointer_map(pointer_map);
-    pointer_maps_.push_back(pointer_map);
+  if (instr->NeedsReferenceMap()) {
+    DCHECK(instr->reference_map() == NULL);
+    ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+    reference_map->set_instruction_position(index);
+    instr->set_reference_map(reference_map);
+    reference_maps_.push_back(reference_map);
   }
   return index;
 }

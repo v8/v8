@@ -737,11 +737,11 @@ struct CommitAssignmentPhase {
 };
 
 
-struct PopulatePointerMapsPhase {
+struct PopulateReferenceMapsPhase {
   static const char* phase_name() { return "populate pointer maps"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->register_allocator()->PopulatePointerMaps();
+    data->register_allocator()->PopulateReferenceMaps();
   }
 };
 
@@ -1217,7 +1217,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();
-  Run<PopulatePointerMapsPhase>();
+  Run<PopulateReferenceMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
   if (FLAG_turbo_move_optimization) {

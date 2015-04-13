@@ -166,21 +166,18 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 }
 
 
-void CodeGenerator::RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
-                                    int arguments,
+void CodeGenerator::RecordSafepoint(ReferenceMap* references,
+                                    Safepoint::Kind kind, int arguments,
                                     Safepoint::DeoptMode deopt_mode) {
-  const ZoneList<InstructionOperand*>* operands =
-      pointers->GetNormalizedOperands();
   Safepoint safepoint =
       safepoints()->DefineSafepoint(masm(), kind, arguments, deopt_mode);
-  for (int i = 0; i < operands->length(); i++) {
-    InstructionOperand* pointer = operands->at(i);
-    if (pointer->IsStackSlot()) {
-      safepoint.DefinePointerSlot(StackSlotOperand::cast(pointer)->index(),
+  for (auto& operand : references->reference_operands()) {
+    if (operand.IsStackSlot()) {
+      safepoint.DefinePointerSlot(StackSlotOperand::cast(operand).index(),
                                   zone());
-    } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
-      Register reg = Register::FromAllocationIndex(
-          RegisterOperand::cast(pointer)->index());
+    } else if (operand.IsRegister() && (kind & Safepoint::kWithRegisters)) {
+      Register reg =
+          Register::FromAllocationIndex(RegisterOperand::cast(operand).index());
       safepoint.DefinePointerRegister(reg, zone());
     }
   }
@@ -339,7 +336,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
 
   RecordSafepoint(
-      instr->pointer_map(), Safepoint::kSimple, 0,
+      instr->reference_map(), Safepoint::kSimple, 0,
       needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
 
   if (flags & CallDescriptor::kHasExceptionHandler) {

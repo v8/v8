@@ -480,7 +480,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   void CommitAssignment();
 
   // Phase 7: compute values for pointer maps.
-  void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
+  void PopulateReferenceMaps();
 
   // Phase 8: reconnect split ranges with moves.
   void ConnectRanges();

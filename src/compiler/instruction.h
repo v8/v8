@@ -518,19 +518,13 @@ struct PrintableParallelMove {
 std::ostream& operator<<(std::ostream& os, const PrintableParallelMove& pm);
 
 
-class PointerMap FINAL : public ZoneObject {
+class ReferenceMap FINAL : public ZoneObject {
  public:
-  explicit PointerMap(Zone* zone)
-      : pointer_operands_(8, zone),
-        untagged_operands_(0, zone),
-        instruction_position_(-1) {}
+  explicit ReferenceMap(Zone* zone)
+      : reference_operands_(8, zone), instruction_position_(-1) {}
 
-  const ZoneList<InstructionOperand*>* GetNormalizedOperands() {
-    for (int i = 0; i < untagged_operands_.length(); ++i) {
-      RemovePointer(untagged_operands_[i]);
-    }
-    untagged_operands_.Clear();
-    return &pointer_operands_;
+  const ZoneVector<InstructionOperand>& reference_operands() const {
+    return reference_operands_;
   }
   int instruction_position() const { return instruction_position_; }
 
@@ -539,21 +533,17 @@ class PointerMap FINAL : public ZoneObject {
     instruction_position_ = pos;
   }
 
-  void RecordPointer(InstructionOperand* op, Zone* zone);
-  void RemovePointer(InstructionOperand* op);
-  void RecordUntagged(InstructionOperand* op, Zone* zone);
+  void RecordReference(const InstructionOperand& op);
 
  private:
-  friend std::ostream& operator<<(std::ostream& os, const PointerMap& pm);
+  friend std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
 
-  ZoneList<InstructionOperand*> pointer_operands_;
-  ZoneList<InstructionOperand*> untagged_operands_;
+  ZoneVector<InstructionOperand> reference_operands_;
   int instruction_position_;
 };
 
-std::ostream& operator<<(std::ostream& os, const PointerMap& pm);
+std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
 
-// TODO(titzer): s/PointerMap/ReferenceMap/
 class Instruction {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
@@ -627,8 +617,8 @@ class Instruction {
     return this;
   }
   bool IsCall() const { return IsCallField::decode(bit_field_); }
-  bool NeedsPointerMap() const { return IsCall(); }
-  bool HasPointerMap() const { return pointer_map_ != NULL; }
+  bool NeedsReferenceMap() const { return IsCall(); }
+  bool HasReferenceMap() const { return reference_map_ != NULL; }
 
   bool IsSourcePosition() const {
     return opcode() == kSourcePositionInstruction;
@@ -637,18 +627,18 @@ class Instruction {
   bool ClobbersRegisters() const { return IsCall(); }
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersDoubleRegisters() const { return IsCall(); }
-  PointerMap* pointer_map() const { return pointer_map_; }
+  ReferenceMap* reference_map() const { return reference_map_; }
 
-  void set_pointer_map(PointerMap* map) {
-    DCHECK(NeedsPointerMap());
-    DCHECK(!pointer_map_);
-    pointer_map_ = map;
+  void set_reference_map(ReferenceMap* map) {
+    DCHECK(NeedsReferenceMap());
+    DCHECK(!reference_map_);
+    reference_map_ = map;
   }
 
   void OverwriteWithNop() {
     opcode_ = ArchOpcodeField::encode(kArchNop);
     bit_field_ = 0;
-    pointer_map_ = NULL;
+    reference_map_ = NULL;
   }
 
   bool IsNop() const {
@@ -700,7 +690,7 @@ class Instruction {
   InstructionCode opcode_;
   uint32_t bit_field_;
   ParallelMove* parallel_moves_[2];
-  PointerMap* pointer_map_;
+  ReferenceMap* reference_map_;
   InstructionOperand operands_[1];
 
  private:
@@ -987,7 +977,7 @@ typedef std::map<int, Constant, std::less<int>,
                  zone_allocator<std::pair<int, Constant> > > ConstantMap;
 
 typedef ZoneDeque<Instruction*> InstructionDeque;
-typedef ZoneDeque<PointerMap*> PointerMapDeque;
+typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;
 typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 typedef ZoneVector<InstructionBlock*> InstructionBlocks;
 
@@ -1053,7 +1043,7 @@ class InstructionSequence FINAL : public ZoneObject {
   }
 
   Isolate* isolate() const { return isolate_; }
-  const PointerMapDeque* pointer_maps() const { return &pointer_maps_; }
+  const ReferenceMapDeque* reference_maps() const { return &reference_maps_; }
   Zone* zone() const { return zone_; }
 
   // Used by the instruction selector while adding instructions.
@@ -1133,7 +1123,7 @@ class InstructionSequence FINAL : public ZoneObject {
   Immediates immediates_;
   InstructionDeque instructions_;
   int next_virtual_register_;
-  PointerMapDeque pointer_maps_;
+  ReferenceMapDeque reference_maps_;
   VirtualRegisterSet doubles_;
   VirtualRegisterSet references_;
   DeoptimizationVector deoptimization_entries_;
