@@ -23,8 +23,11 @@ var funcs = [
   // https://code.google.com/p/v8/issues/detail?id=4006
   // String,
 
+  // Boolean,
+  // Number,
+  // https://code.google.com/p/v8/issues/detail?id=4001
+
   ArrayBuffer,
-  Boolean,
   DataView,
   Float32Array,
   Float64Array,
@@ -32,7 +35,6 @@ var funcs = [
   Int32Array,
   Int8Array,
   Map,
-  Number,
   Object,
   Promise,
   // Proxy,

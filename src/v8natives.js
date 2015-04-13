@@ -1513,7 +1513,7 @@ function SetUpBoolean () {
   %CheckIsBootstrapping();
 
   %SetCode($Boolean, BooleanConstructor);
-  %FunctionSetPrototype($Boolean, new $Object());
+  %FunctionSetPrototype($Boolean, new $Boolean(false));
   %AddNamedProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
 
   InstallFunctions($Boolean.prototype, DONT_ENUM, [
@@ -1692,7 +1692,7 @@ function SetUpNumber() {
   %CheckIsBootstrapping();
 
   %SetCode($Number, NumberConstructor);
-  %FunctionSetPrototype($Number, new $Object());
+  %FunctionSetPrototype($Number, new $Number(0));
 
   %OptimizeObjectForAddingMultipleProperties($Number.prototype, 8);
   // Set up the constructor property on the Number prototype object.
