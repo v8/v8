@@ -110,6 +110,8 @@
   'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
+  'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
+  'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
 
   # TODO(jarin): Fix for-in deopt points in turbofan.
   'for-in-opt': [PASS, NO_VARIANTS],
