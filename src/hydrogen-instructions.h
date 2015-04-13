@@ -6716,7 +6716,11 @@ class HLoadKeyedGeneric FINAL : public HTemplateInstruction<3> {
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
-  bool HasVectorAndSlot() const { return FLAG_vector_ics; }
+  bool HasVectorAndSlot() const {
+    DCHECK(!FLAG_vector_ics || initialization_state_ == MEGAMORPHIC ||
+           feedback_vector_.is_null());
+    return !feedback_vector_.is_null();
+  }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);
