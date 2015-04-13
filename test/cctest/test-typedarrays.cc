@@ -19,22 +19,11 @@ void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =
       v8::Local<v8::ArrayBufferView>::Cast(obj_a);
-  Handle<JSArrayBufferView> internal_view(
-      v8::Utils::OpenHandle(*array_buffer_view));
-  bool has_buffer = true;
-  if (internal_view->IsJSTypedArray()) {
-    Handle<JSTypedArray> typed_array(JSTypedArray::cast(*internal_view));
-    has_buffer = !typed_array->buffer()->IsSmi();
-  }
-  CHECK_EQ(has_buffer, should_use_buffer);
+  CHECK_EQ(array_buffer_view->HasBuffer(), should_use_buffer);
   unsigned char contents[4] = {23, 23, 23, 23};
   CHECK_EQ(sizeof(contents),
            array_buffer_view->CopyContents(contents, sizeof(contents)));
-  if (!has_buffer) {
-    CHECK(internal_view->IsJSTypedArray());
-    Handle<JSTypedArray> typed_array(JSTypedArray::cast(*internal_view));
-    CHECK(typed_array->buffer()->IsSmi());
-  }
+  CHECK_EQ(array_buffer_view->HasBuffer(), should_use_buffer);
   for (size_t i = 0; i < sizeof(contents); ++i) {
     CHECK_EQ(i, contents[i]);
   }
