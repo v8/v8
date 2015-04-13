@@ -2223,10 +2223,8 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
                "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
                reinterpret_cast<intptr_t>(object_slot),
                field_index);
-        PrintF(trace_scope_->file(),
-               "%" V8PRIdPTR " ; uint %s (%s)\n", value,
-               converter.NameOfCPURegister(input_reg),
-               TraceValueType(is_smi));
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; uint %s (%s)\n", value,
+               converter.NameOfCPURegister(input_reg), TraceValueType(is_smi));
       }
       if (is_smi) {
         intptr_t tagged_value =
@@ -2311,8 +2309,7 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
                "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
                reinterpret_cast<intptr_t>(object_slot),
                field_index);
-        PrintF(trace_scope_->file(),
-               "%" V8PRIdPTR " ; [sp + %d] (uint %s)\n",
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; [sp + %d] (uint %s)\n",
                value, input_offset, TraceValueType(is_smi));
       }
       if (is_smi) {
