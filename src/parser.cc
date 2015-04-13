@@ -3873,11 +3873,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_state.set_generator_object_variable(temp);
     }
 
-    //  FormalParameterList ::
-    //    '(' (Identifier)*[','] ')'
-    Expect(Token::LPAREN, CHECK_OK);
-    scope->set_start_position(scanner()->location().beg_pos);
-
     // We don't yet know if the function will be strict, so we cannot yet
     // produce errors for parameter names or duplicates. However, we remember
     // the locations of these errors if they occur and produce the errors later.
@@ -3888,36 +3883,28 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // Similarly for strong mode.
     Scanner::Location undefined_loc = Scanner::Location::invalid();
 
-    bool is_rest = false;
-    bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
-        (peek() == Token::RPAREN &&
-         arity_restriction != FunctionLiteral::SETTER_ARITY);
-    while (!done) {
-      bool is_strict_reserved = false;
-      is_rest = peek() == Token::ELLIPSIS && allow_harmony_rest_params();
-      if (is_rest) {
-        Consume(Token::ELLIPSIS);
-      }
+    bool has_rest = false;
+    Expect(Token::LPAREN, CHECK_OK);
+    int start_position = scanner()->location().beg_pos;
+    ZoneList<const AstRawString*>* params =
+        ParseFormalParameterList(&eval_args_loc, &undefined_loc, &dupe_loc,
+                                 &reserved_loc, &has_rest, CHECK_OK);
+    Expect(Token::RPAREN, CHECK_OK);
+    int formals_end_position = scanner()->location().end_pos;
 
-      const AstRawString* param_name =
-          ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+    CheckArityRestrictions(params->length(), arity_restriction, start_position,
+                           formals_end_position, CHECK_OK);
 
-      // Store locations for possible future error reports.
-      if (!eval_args_loc.IsValid() && IsEvalOrArguments(param_name)) {
-        eval_args_loc = scanner()->location();
-      }
-      if (!undefined_loc.IsValid() && IsUndefined(param_name)) {
-        undefined_loc = scanner()->location();
-      }
-      if (!reserved_loc.IsValid() && is_strict_reserved) {
-        reserved_loc = scanner()->location();
-      }
-      if (!dupe_loc.IsValid() &&
-          scope_->IsDeclaredParameter(param_name)) {
-        duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
-        dupe_loc = scanner()->location();
-      }
+    scope->set_start_position(start_position);
 
+    num_parameters = params->length();
+    if (dupe_loc.IsValid()) {
+      duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
+    }
+
+    for (int i = 0; i < params->length(); i++) {
+      const AstRawString* param_name = params->at(i);
+      int is_rest = has_rest && i == params->length() - 1;
       Variable* var = scope_->DeclareParameter(param_name, VAR, is_rest);
       if (is_sloppy(scope->language_mode())) {
         // TODO(sigurds) Mark every parameter as maybe assigned. This is a
@@ -3925,25 +3912,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // that are assigned via the arguments array.
         var->set_maybe_assigned();
       }
-
-      num_parameters++;
-      if (num_parameters > Code::kMaxArguments) {
-        ReportMessage("too_many_parameters");
-        *ok = false;
-        return NULL;
-      }
-      if (arity_restriction == FunctionLiteral::SETTER_ARITY) break;
-      done = (peek() == Token::RPAREN);
-      if (!done) {
-        if (is_rest) {
-          ReportMessageAt(scanner()->peek_location(), "param_after_rest");
-          *ok = false;
-          return NULL;
-        }
-        Expect(Token::COMMA, CHECK_OK);
-      }
     }
-    Expect(Token::RPAREN, CHECK_OK);
 
     Expect(Token::LBRACE, CHECK_OK);
 
@@ -4025,7 +3994,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     CheckFunctionName(language_mode(), kind, function_name,
                       name_is_strict_reserved, function_name_location,
                       CHECK_OK);
-    const bool use_strict_params = is_rest || IsConciseMethod(kind);
+    const bool use_strict_params = has_rest || IsConciseMethod(kind);
     CheckFunctionParameterNames(language_mode(), use_strict_params,
                                 eval_args_loc, undefined_loc, dupe_loc,
                                 reserved_loc, CHECK_OK);

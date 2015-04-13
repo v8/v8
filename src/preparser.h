@@ -51,6 +51,8 @@ namespace internal {
 //     typedef Literal;
 //     typedef ExpressionList;
 //     typedef PropertyList;
+//     typedef FormalParameter;
+//     typedef FormalParameterList;
 //     // For constructing objects returned by the traversing functions.
 //     typedef Factory;
 //   };
@@ -63,6 +65,8 @@ class ParserBase : public Traits {
   // Shorten type names defined by Traits.
   typedef typename Traits::Type::Expression ExpressionT;
   typedef typename Traits::Type::Identifier IdentifierT;
+  typedef typename Traits::Type::FormalParameter FormalParameterT;
+  typedef typename Traits::Type::FormalParameterList FormalParameterListT;
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
@@ -606,6 +610,20 @@ class ParserBase : public Traits {
   void AddTemplateExpression(ExpressionT);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
 
+  FormalParameterT ParseFormalParameter(DuplicateFinder* duplicate_finder,
+                                        Scanner::Location* eval_args_error_loc,
+                                        Scanner::Location* undefined_error_loc,
+                                        Scanner::Location* dupe_error_loc,
+                                        Scanner::Location* reserved_error_loc,
+                                        bool* ok);
+  FormalParameterListT ParseFormalParameterList(
+      Scanner::Location* eval_args_error_loc,
+      Scanner::Location* undefined_error_loc, Scanner::Location* dupe_error_loc,
+      Scanner::Location* reserved_error_loc, bool* is_rest, bool* ok);
+  void CheckArityRestrictions(
+      int param_count, FunctionLiteral::ArityRestriction arity_restriction,
+      int formals_start_pos, int formals_end_pos, bool* ok);
+
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
@@ -1040,18 +1058,23 @@ class PreParserExpression {
 };
 
 
-// PreParserExpressionList doesn't actually store the expressions because
-// PreParser doesn't need to.
-class PreParserExpressionList {
+// The pre-parser doesn't need to build lists of expressions, identifiers, or
+// the like.
+template <typename T>
+class PreParserList {
  public:
   // These functions make list->Add(some_expression) work (and do nothing).
-  PreParserExpressionList() : length_(0) {}
-  PreParserExpressionList* operator->() { return this; }
-  void Add(PreParserExpression, void*) { ++length_; }
+  PreParserList() : length_(0) {}
+  PreParserList* operator->() { return this; }
+  void Add(T, void*) { ++length_; }
   int length() const { return length_; }
  private:
   int length_;
 };
+
+
+typedef PreParserList<PreParserExpression> PreParserExpressionList;
+typedef PreParserList<PreParserIdentifier> PreParserFormalParameterList;
 
 
 class PreParserStatement {
@@ -1109,16 +1132,7 @@ class PreParserStatement {
 };
 
 
-
-// PreParserStatementList doesn't actually store the statements because
-// the PreParser does not need them.
-class PreParserStatementList {
- public:
-  // These functions make list->Add(some_expression) work as no-ops.
-  PreParserStatementList() {}
-  PreParserStatementList* operator->() { return this; }
-  void Add(PreParserStatement, void*) {}
-};
+typedef PreParserList<PreParserStatement> PreParserStatementList;
 
 
 class PreParserFactory {
@@ -1283,6 +1297,8 @@ class PreParserTraits {
     typedef PreParserExpression Literal;
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
+    typedef PreParserIdentifier FormalParameter;
+    typedef PreParserFormalParameterList FormalParameterList;
     typedef PreParserStatementList StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -1441,6 +1457,12 @@ class PreParserTraits {
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
   }
+  static PreParserIdentifier EmptyFormalParameter() {
+    return PreParserIdentifier::Default();
+  }
+  static PreParserFormalParameterList NullFormalParameterList() {
+    return PreParserFormalParameterList();
+  }
 
   // Odd-ball literal creators.
   static PreParserExpression GetLiteralTheHole(int position,
@@ -1503,6 +1525,11 @@ class PreParserTraits {
 
   static PreParserExpressionList NewPropertyList(int size, Zone* zone) {
     return PreParserExpressionList();
+  }
+
+  static PreParserFormalParameterList NewFormalParameterList(int size,
+                                                             Zone* zone) {
+    return PreParserFormalParameterList();
   }
 
   V8_INLINE void SkipLazyFunctionBody(PreParserIdentifier function_name,
@@ -3024,6 +3051,113 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
   return this->EmptyExpression();
 }
 
+
+template <class Traits>
+typename ParserBase<Traits>::FormalParameterT
+ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
+                                         Scanner::Location* eval_args_error_loc,
+                                         Scanner::Location* undefined_error_loc,
+                                         Scanner::Location* dupe_error_loc,
+                                         Scanner::Location* reserved_error_loc,
+                                         bool* ok) {
+  // FormalParameter[Yield,GeneratorParameter] :
+  //   BindingElement[?Yield, ?GeneratorParameter]
+  bool is_strict_reserved;
+  IdentifierT name =
+      ParseIdentifierOrStrictReservedWord(&is_strict_reserved, ok);
+  if (!*ok) return this->EmptyFormalParameter();
+
+  // Store locations for possible future error reports.
+  if (!eval_args_error_loc->IsValid() && this->IsEvalOrArguments(name)) {
+    *eval_args_error_loc = scanner()->location();
+  }
+  if (!undefined_error_loc->IsValid() && this->IsUndefined(name)) {
+    *undefined_error_loc = scanner()->location();
+  }
+  if (!reserved_error_loc->IsValid() && is_strict_reserved) {
+    *reserved_error_loc = scanner()->location();
+  }
+  if (!dupe_error_loc->IsValid()) {
+    int prev_value = scanner()->FindSymbol(duplicate_finder, 1);
+    if (prev_value != 0) *dupe_error_loc = scanner()->location();
+  }
+
+  return name;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::FormalParameterListT
+ParserBase<Traits>::ParseFormalParameterList(
+    Scanner::Location* eval_args_error_loc,
+    Scanner::Location* undefined_error_loc, Scanner::Location* dupe_error_loc,
+    Scanner::Location* reserved_error_loc, bool* is_rest, bool* ok) {
+  // FormalParameters[Yield,GeneratorParameter] :
+  //   [empty]
+  //   FormalParameterList[?Yield, ?GeneratorParameter]
+  //
+  // FormalParameterList[Yield,GeneratorParameter] :
+  //   FunctionRestParameter[?Yield]
+  //   FormalsList[?Yield, ?GeneratorParameter]
+  //   FormalsList[?Yield, ?GeneratorParameter] , FunctionRestParameter[?Yield]
+  //
+  // FormalsList[Yield,GeneratorParameter] :
+  //   FormalParameter[?Yield, ?GeneratorParameter]
+  //   FormalsList[?Yield, ?GeneratorParameter] ,
+  //     FormalParameter[?Yield,?GeneratorParameter]
+
+  FormalParameterListT result = this->NewFormalParameterList(4, zone_);
+  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+
+  if (peek() != Token::RPAREN) {
+    do {
+      *is_rest = allow_harmony_rest_params() && Check(Token::ELLIPSIS);
+      FormalParameterT param = ParseFormalParameter(
+          &duplicate_finder, eval_args_error_loc, undefined_error_loc,
+          dupe_error_loc, reserved_error_loc, ok);
+      if (!*ok) return this->NullFormalParameterList();
+      result->Add(param, zone());
+      if (result->length() > Code::kMaxArguments) {
+        ReportMessage("too_many_parameters");
+        *ok = false;
+        return this->NullFormalParameterList();
+      }
+    } while (!*is_rest && Check(Token::COMMA));
+  }
+
+  if (is_rest && peek() == Token::COMMA) {
+    ReportMessageAt(scanner()->peek_location(), "param_after_rest");
+    *ok = false;
+    return this->NullFormalParameterList();
+  }
+
+  return result;
+}
+
+
+template <class Traits>
+void ParserBase<Traits>::CheckArityRestrictions(
+    int param_count, FunctionLiteral::ArityRestriction arity_restriction,
+    int formals_start_pos, int formals_end_pos, bool* ok) {
+  switch (arity_restriction) {
+    case FunctionLiteral::GETTER_ARITY:
+      if (param_count != 0) {
+        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
+                        "bad_getter_arity");
+        *ok = false;
+      }
+      break;
+    case FunctionLiteral::SETTER_ARITY:
+      if (param_count != 1) {
+        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
+                        "bad_setter_arity");
+        *ok = false;
+      }
+      break;
+    default:
+      break;
+  }
+}
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT

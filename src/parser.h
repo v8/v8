@@ -557,6 +557,8 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+    typedef const v8::internal::AstRawString* FormalParameter;
+    typedef ZoneList<const v8::internal::AstRawString*>* FormalParameterList;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -705,6 +707,10 @@ class ParserTraits {
   static ZoneList<Expression*>* NullExpressionList() {
     return NULL;
   }
+  static const AstRawString* EmptyFormalParameter() { return NULL; }
+  static ZoneList<const AstRawString*>* NullFormalParameterList() {
+    return NULL;
+  }
 
   // Non-NULL empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString();
@@ -739,6 +745,10 @@ class ParserTraits {
   }
   ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
+  }
+  ZoneList<const v8::internal::AstRawString*>* NewFormalParameterList(
+      int size, Zone* zone) {
+    return new (zone) ZoneList<const v8::internal::AstRawString*>(size, zone);
   }
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);

@@ -201,7 +201,9 @@ var kMessages = {
   array_not_subclassable:        ["Subclassing Arrays is not currently supported."],
   for_in_loop_initializer:       ["for-in loop variable declaration may not have an initializer."],
   for_of_loop_initializer:       ["for-of loop variable declaration may not have an initializer."],
-  for_inof_loop_multi_bindings:  ["Invalid left-hand side in ", "%0", " loop: Must have a single binding."]
+  for_inof_loop_multi_bindings:  ["Invalid left-hand side in ", "%0", " loop: Must have a single binding."],
+  bad_getter_arity:              ["Getter must not have any formal parameters."],
+  bad_setter_arity:              ["Setter must have exactly one formal parameter."]
 };
 
 
