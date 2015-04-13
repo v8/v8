@@ -2452,6 +2452,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
     __ mov(scratch, Operand(scratch, kDeltaToCmpImmediate));
     __ mov(Operand(scratch, 0), map);
+    __ push(map);
+    // Scratch points at the cell payload. Calculate the start of the object.
+    __ sub(scratch, Immediate(Cell::kValueOffset - 1));
+    __ RecordWriteField(scratch, Cell::kValueOffset, map, function,
+                        kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+    __ pop(map);
   }
 
   // Loop through the prototype chain of the object looking for the function
