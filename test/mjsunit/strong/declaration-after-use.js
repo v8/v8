@@ -55,12 +55,6 @@ function assertThrowsHelper(code) {
       "  function f() { if (false) { x; } } var x; f(); \n" +
       "})()");
 
-  // Errors are also detected when the declaration and the use are in the same
-  // eval scope.
-  assertThrows("'use strong'; eval('if (false) { x; let x = 0;}')",
-               ReferenceError);
-  assertDoesNotThrow("'use strict'; eval('if (false) { x; let x = 0; }')");
-
   // Use occurring in the initializer of the declaration:
   assertThrowsHelper("let x = x + 1;");
   assertThrowsHelper("let x = x;");
@@ -214,14 +208,6 @@ function assertThrowsHelper(code) {
   function func6() {
     var1, var2a, var2b, var2c;
   }
-
-  (function eval1() {
-    let var7 = 0; // Declaration position will be something large.
-    // But use position will be something small, however, this is not an error,
-    // since the use is inside an eval scope.
-    eval("var7;");
-  })();
-
 
   class C1 { constructor() { C1; } }; new C1();
   let C2 = class C3 { constructor() { C3; } }; new C2();

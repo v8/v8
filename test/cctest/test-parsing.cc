@@ -5911,6 +5911,36 @@ TEST(StrongUndefinedArrow) {
 }
 
 
+TEST(StrongDirectEval) {
+  const char* context_data[][2] = {{"", ""}, {NULL}};
+
+  const char* error_data[] = {
+      "'use strong'; eval();",
+      "'use strong'; eval([]);",
+      "'use strong'; (eval)();",
+      "'use strong'; (((eval)))();",
+      "'use strong'; eval('function f() {}');",
+      "'use strong'; function f() {eval()}",
+      NULL};
+
+  const char* success_data[] = {
+      "'use strong'; eval;",
+      "'use strong'; eval`foo`;",
+      "'use strong'; let foo = eval; foo();",
+      "'use strong'; (1, eval)();",
+      NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowStrongMode
+  };
+
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
 TEST(ArrowFunctionASIErrors) {
   const char* context_data[][2] = {{"'use strict';", ""}, {"", ""},
                                    {NULL, NULL}};

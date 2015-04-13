@@ -168,6 +168,7 @@ var kMessages = {
   strong_ellision:               ["In strong mode, arrays with holes are deprecated, use maps instead"],
   strong_arguments:              ["In strong mode, 'arguments' is deprecated, use '...args' instead"],
   strong_undefined:              ["In strong mode, binding or assigning to 'undefined' is deprecated"],
+  strong_direct_eval:            ["In strong mode, direct calls to eval are deprecated"],
   strong_equal:                  ["In strong mode, '==' and '!=' are deprecated, use '===' and '!==' instead"],
   strong_delete:                 ["In strong mode, 'delete' is deprecated, use maps or sets instead"],
   strong_var:                    ["In strong mode, 'var' is deprecated, use 'let' or 'const' instead"],

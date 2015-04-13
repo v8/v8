@@ -9,16 +9,18 @@
 
 class C {}
 
+let indirect_eval = eval;
+
 function assertTypeError(script) { assertThrows(script, TypeError) }
 function assertSyntaxError(script) { assertThrows(script, SyntaxError) }
 function assertReferenceError(script) { assertThrows(script, ReferenceError) }
 
 (function ImmutableClassBindings() {
   class D {}
-  assertTypeError(function(){ eval("C = 0") });
-  assertTypeError(function(){ eval("D = 0") });
+  assertTypeError(function(){ indirect_eval("C = 0") });
   assertEquals('function', typeof C);
   assertEquals('function', typeof D);
+  assertTypeError("'use strong'; (function f() {class E {}; E = 0})()");
 })();
 
 function constructor(body) {

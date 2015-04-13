@@ -2804,6 +2804,12 @@ ParserBase<Traits>::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::LPAREN: {
+        if (is_strong(language_mode()) && this->IsIdentifier(result) &&
+            this->IsEval(this->AsIdentifier(result))) {
+          ReportMessage("strong_direct_eval");
+          *ok = false;
+          return this->EmptyExpression();
+        }
         int pos;
         if (scanner()->current_token() == Token::IDENTIFIER) {
           // For call of an identifier we want to report position of
