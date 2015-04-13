@@ -1935,27 +1935,26 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
       current_cell >>= 1;
 
       // TODO(hpayer): Refactor EvacuateObject and call this function instead.
-      if (heap()->ShouldBePromoted(object->address(), size)) {
-        if (!TryPromoteObject(object, size)) {
-          V8::FatalProcessOutOfMemory("Full GC promotion failed");
-        }
-      } else {
-        AllocationResult allocation = new_space->AllocateRaw(size);
-        if (allocation.IsRetry()) {
-          if (!new_space->AddFreshPage()) {
-            // Shouldn't happen. We are sweeping linearly, and to-space
-            // has the same number of pages as from-space, so there is
-            // always room.
-            UNREACHABLE();
-          }
-          allocation = new_space->AllocateRaw(size);
-          DCHECK(!allocation.IsRetry());
-        }
-        Object* target = allocation.ToObjectChecked();
-
-        MigrateObject(HeapObject::cast(target), object, size, NEW_SPACE);
-        heap()->IncrementSemiSpaceCopiedObjectSize(size);
+      if (heap()->ShouldBePromoted(object->address(), size) &&
+          TryPromoteObject(object, size)) {
+        continue;
       }
+
+      AllocationResult allocation = new_space->AllocateRaw(size);
+      if (allocation.IsRetry()) {
+        if (!new_space->AddFreshPage()) {
+          // Shouldn't happen. We are sweeping linearly, and to-space
+          // has the same number of pages as from-space, so there is
+          // always room.
+          UNREACHABLE();
+        }
+        allocation = new_space->AllocateRaw(size);
+        DCHECK(!allocation.IsRetry());
+      }
+      Object* target = allocation.ToObjectChecked();
+
+      MigrateObject(HeapObject::cast(target), object, size, NEW_SPACE);
+      heap()->IncrementSemiSpaceCopiedObjectSize(size);
     }
     *cells = 0;
   }
