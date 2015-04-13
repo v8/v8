@@ -5406,8 +5406,11 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
                                     variable->name(),
                                     ast_context()->is_for_typeof());
         if (FLAG_vector_ics) {
-          instr->SetVectorAndSlot(handle(current_feedback_vector(), isolate()),
-                                  expr->VariableFeedbackSlot());
+          Handle<SharedFunctionInfo> current_shared =
+              function_state()->compilation_info()->shared_info();
+          instr->SetVectorAndSlot(
+              handle(current_shared->feedback_vector(), isolate()),
+              expr->VariableFeedbackSlot());
         }
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
@@ -6898,8 +6901,10 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     HLoadNamedGeneric* result =
         New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
     if (FLAG_vector_ics) {
+      Handle<SharedFunctionInfo> current_shared =
+          function_state()->compilation_info()->shared_info();
       Handle<TypeFeedbackVector> vector =
-          handle(current_feedback_vector(), isolate());
+          handle(current_shared->feedback_vector(), isolate());
       FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
       result->SetVectorAndSlot(vector, slot);
     }
@@ -6919,10 +6924,16 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     HValue* key,
     HValue* value) {
   if (access_type == LOAD) {
-    // HLoadKeyedGeneric with vector ics benefits from being encoded as
-    // MEGAMORPHIC because the vector/slot combo becomes unnecessary.
-    HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
-        object, key, FLAG_vector_ics ? MEGAMORPHIC : PREMONOMORPHIC);
+    HLoadKeyedGeneric* result =
+        New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
+    if (FLAG_vector_ics) {
+      Handle<SharedFunctionInfo> current_shared =
+          function_state()->compilation_info()->shared_info();
+      Handle<TypeFeedbackVector> vector =
+          handle(current_shared->feedback_vector(), isolate());
+      FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
+      result->SetVectorAndSlot(vector, slot);
+    }
     return result;
   } else {
     return New<HStoreKeyedGeneric>(object, key, value, function_language_mode(),
@@ -9314,8 +9325,10 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           expr->IsUsingCallFeedbackICSlot(isolate())) {
         // We've never seen this call before, so let's have Crankshaft learn
         // through the type vector.
+        Handle<SharedFunctionInfo> current_shared =
+            function_state()->compilation_info()->shared_info();
         Handle<TypeFeedbackVector> vector =
-            handle(current_feedback_vector(), isolate());
+            handle(current_shared->feedback_vector(), isolate());
         FeedbackVectorICSlot slot = expr->CallFeedbackICSlot();
         call_function->SetVectorAndSlot(vector, slot);
       }

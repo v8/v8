@@ -3235,7 +3235,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(LoadDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->key()).is(LoadDescriptor::NameRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
+  if (FLAG_vector_ics) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
