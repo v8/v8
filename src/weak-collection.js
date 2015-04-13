@@ -85,6 +85,7 @@ function SetUpWeakMap() {
   %CheckIsBootstrapping();
 
   %SetCode($WeakMap, WeakMapConstructor);
+  %FunctionSetLength($WeakMap, 0);
   %FunctionSetPrototype($WeakMap, new $Object());
   %AddNamedProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
   %AddNamedProperty(
@@ -162,6 +163,7 @@ function SetUpWeakSet() {
   %CheckIsBootstrapping();
 
   %SetCode($WeakSet, WeakSetConstructor);
+  %FunctionSetLength($WeakSet, 0);
   %FunctionSetPrototype($WeakSet, new $Object());
   %AddNamedProperty($WeakSet.prototype, "constructor", $WeakSet, DONT_ENUM);
   %AddNamedProperty(

@@ -236,6 +236,7 @@ function SetForEach(f, receiver) {
 
 
 %SetCode($Set, SetConstructor);
+%FunctionSetLength($Set, 0);
 %FunctionSetPrototype($Set, new $Object());
 %AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
 %AddNamedProperty(
@@ -424,6 +425,7 @@ function MapForEach(f, receiver) {
 
 
 %SetCode($Map, MapConstructor);
+%FunctionSetLength($Map, 0);
 %FunctionSetPrototype($Map, new $Object());
 %AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 %AddNamedProperty(

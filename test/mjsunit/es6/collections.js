@@ -346,7 +346,7 @@ function TestConstructor(C) {
   assertFalse(C === Object.prototype.constructor);
   assertSame(C, C.prototype.constructor);
   assertSame(C, (new C).__proto__.constructor);
-  assertEquals(1, C.length);
+  assertEquals(0, C.length);
 }
 TestConstructor(Set);
 TestConstructor(Map);
