@@ -350,7 +350,7 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
   // against the AstRawStrings which are in the string_table_. We should not
   // return this AstRawString.
   AstRawString key(is_one_byte, literal_bytes, hash);
-  HashMap::Entry* entry = string_table_.Lookup(&key, hash, true);
+  HashMap::Entry* entry = string_table_.LookupOrInsert(&key, hash);
   if (entry->value == NULL) {
     // Copy literal contents for later comparison.
     int length = literal_bytes.length();

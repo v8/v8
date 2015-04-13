@@ -58,18 +58,14 @@ class CounterMap {
  public:
   CounterMap(): hash_map_(Match) { }
   Counter* Lookup(const char* name) {
-    i::HashMap::Entry* answer = hash_map_.Lookup(
-        const_cast<char*>(name),
-        Hash(name),
-        false);
+    i::HashMap::Entry* answer =
+        hash_map_.Lookup(const_cast<char*>(name), Hash(name));
     if (!answer) return NULL;
     return reinterpret_cast<Counter*>(answer->value);
   }
   void Set(const char* name, Counter* value) {
-    i::HashMap::Entry* answer = hash_map_.Lookup(
-        const_cast<char*>(name),
-        Hash(name),
-        true);
+    i::HashMap::Entry* answer =
+        hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
     DCHECK(answer != NULL);
     answer->value = value;
   }

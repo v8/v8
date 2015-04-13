@@ -1972,7 +1972,7 @@ static HashMap* GetLineMap() {
 
 static void PutLineInfo(Address addr, LineInfo* info) {
   HashMap* line_map = GetLineMap();
-  HashMap::Entry* e = line_map->Lookup(addr, HashCodeAddress(addr), true);
+  HashMap::Entry* e = line_map->LookupOrInsert(addr, HashCodeAddress(addr));
   if (e->value != NULL) delete static_cast<LineInfo*>(e->value);
   e->value = info;
 }

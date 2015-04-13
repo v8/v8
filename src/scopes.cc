@@ -36,8 +36,9 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
-  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->hash(),
-                                 true, ZoneAllocationPolicy(zone()));
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+                                  ZoneAllocationPolicy(zone()));
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     DCHECK(p->key == name);
@@ -49,8 +50,7 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
 
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
-  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->hash(),
-                                 false, ZoneAllocationPolicy(NULL));
+  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->hash());
   if (p != NULL) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
     DCHECK(p->value != NULL);

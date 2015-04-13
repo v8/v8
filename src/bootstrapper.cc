@@ -2498,7 +2498,7 @@ Genesis::ExtensionStates::ExtensionStates() : map_(HashMap::PointersMatch, 8) {}
 
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {
-  i::HashMap::Entry* entry = map_.Lookup(extension, Hash(extension), false);
+  i::HashMap::Entry* entry = map_.Lookup(extension, Hash(extension));
   if (entry == NULL) {
     return UNVISITED;
   }
@@ -2508,7 +2508,7 @@ Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
 
 void Genesis::ExtensionStates::set_state(RegisteredExtension* extension,
                                          ExtensionTraversalState state) {
-  map_.Lookup(extension, Hash(extension), true)->value =
+  map_.LookupOrInsert(extension, Hash(extension))->value =
       reinterpret_cast<void*>(static_cast<intptr_t>(state));
 }
 

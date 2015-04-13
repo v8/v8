@@ -81,7 +81,10 @@ class AddressMapBase {
 
   inline static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
                                             bool insert) {
-    return map->Lookup(Key(obj), Hash(obj), insert);
+    if (insert) {
+      map->LookupOrInsert(Key(obj), Hash(obj));
+    }
+    return map->Lookup(Key(obj), Hash(obj));
   }
 
  private:

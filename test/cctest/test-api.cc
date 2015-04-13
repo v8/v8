@@ -12347,10 +12347,8 @@ static void event_handler(const v8::JitCodeEvent* event) {
         CHECK(event->code_start != NULL);
         CHECK_NE(0, static_cast<int>(event->code_len));
         CHECK(event->name.str != NULL);
-        i::HashMap::Entry* entry =
-            code_map->Lookup(event->code_start,
-                             i::ComputePointerHash(event->code_start),
-                             true);
+        i::HashMap::Entry* entry = code_map->LookupOrInsert(
+            event->code_start, i::ComputePointerHash(event->code_start));
         entry->value = reinterpret_cast<void*>(event->code_len);
 
         if (FunctionNameIs("bar", event)) {
@@ -12368,18 +12366,16 @@ static void event_handler(const v8::JitCodeEvent* event) {
         // Compiler::RecordFunctionCompilation) and the line endings
         // calculations can cause a GC, which can move the newly created code
         // before its existence can be logged.
-        i::HashMap::Entry* entry =
-            code_map->Lookup(event->code_start, hash, false);
+        i::HashMap::Entry* entry = code_map->Lookup(event->code_start, hash);
         if (entry != NULL) {
           ++move_events;
 
           CHECK_EQ(reinterpret_cast<void*>(event->code_len), entry->value);
           code_map->Remove(event->code_start, hash);
 
-          entry = code_map->Lookup(event->new_code_start,
-                                   i::ComputePointerHash(event->new_code_start),
-                                   true);
-          CHECK(entry != NULL);
+          entry = code_map->LookupOrInsert(
+              event->new_code_start,
+              i::ComputePointerHash(event->new_code_start));
           entry->value = reinterpret_cast<void*>(event->code_len);
         }
       }
@@ -12397,10 +12393,8 @@ static void event_handler(const v8::JitCodeEvent* event) {
         DummyJitCodeLineInfo* line_info = new DummyJitCodeLineInfo();
         v8::JitCodeEvent* temp_event = const_cast<v8::JitCodeEvent*>(event);
         temp_event->user_data = line_info;
-        i::HashMap::Entry* entry =
-            jitcode_line_info->Lookup(line_info,
-                                      i::ComputePointerHash(line_info),
-                                      true);
+        i::HashMap::Entry* entry = jitcode_line_info->LookupOrInsert(
+            line_info, i::ComputePointerHash(line_info));
         entry->value = reinterpret_cast<void*>(line_info);
       }
       break;
@@ -12411,7 +12405,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
         CHECK(event->user_data != NULL);
         uint32_t hash = i::ComputePointerHash(event->user_data);
         i::HashMap::Entry* entry =
-            jitcode_line_info->Lookup(event->user_data, hash, false);
+            jitcode_line_info->Lookup(event->user_data, hash);
         CHECK(entry != NULL);
         delete reinterpret_cast<DummyJitCodeLineInfo*>(event->user_data);
       }
@@ -12421,7 +12415,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
         CHECK(event->user_data != NULL);
         uint32_t hash = i::ComputePointerHash(event->user_data);
         i::HashMap::Entry* entry =
-            jitcode_line_info->Lookup(event->user_data, hash, false);
+            jitcode_line_info->Lookup(event->user_data, hash);
         CHECK(entry != NULL);
       }
       break;

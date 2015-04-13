@@ -74,10 +74,9 @@ class NamedEntriesDetector {
       for (int i = 0; i < children.length(); ++i) {
         if (children[i]->type() == i::HeapGraphEdge::kShortcut) continue;
         i::HeapEntry* child = children[i]->to();
-        i::HashMap::Entry* entry = visited.Lookup(
+        i::HashMap::Entry* entry = visited.LookupOrInsert(
             reinterpret_cast<void*>(child),
-            static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)),
-            true);
+            static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)));
         if (entry->value)
           continue;
         entry->value = reinterpret_cast<void*>(1);
@@ -146,10 +145,9 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
   i::HashMap visited(AddressesMatch);
   i::List<i::HeapGraphEdge>& edges = heap_snapshot->edges();
   for (int i = 0; i < edges.length(); ++i) {
-    i::HashMap::Entry* entry = visited.Lookup(
+    i::HashMap::Entry* entry = visited.LookupOrInsert(
         reinterpret_cast<void*>(edges[i].to()),
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(edges[i].to())),
-        true);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(edges[i].to())));
     uint32_t ref_count = static_cast<uint32_t>(
         reinterpret_cast<uintptr_t>(entry->value));
     entry->value = reinterpret_cast<void*>(ref_count + 1);
@@ -159,8 +157,7 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
   for (int i = 0; i < entries.length(); ++i) {
     i::HashMap::Entry* entry = visited.Lookup(
         reinterpret_cast<void*>(&entries[i]),
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&entries[i])),
-        false);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&entries[i])));
     if (!entry && entries[i].id() != 1) {
         entries[i].Print("entry with no retainer", "", depth, 0);
         ++unretained_entries_count;

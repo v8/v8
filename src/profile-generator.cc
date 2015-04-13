@@ -152,8 +152,7 @@ void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
-  HashMap::Entry* map_entry =
-      children_.Lookup(entry, CodeEntryHash(entry), false);
+  HashMap::Entry* map_entry = children_.Lookup(entry, CodeEntryHash(entry));
   return map_entry != NULL ?
       reinterpret_cast<ProfileNode*>(map_entry->value) : NULL;
 }
@@ -161,7 +160,7 @@ ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
 
 ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
   HashMap::Entry* map_entry =
-      children_.Lookup(entry, CodeEntryHash(entry), true);
+      children_.LookupOrInsert(entry, CodeEntryHash(entry));
   ProfileNode* node = reinterpret_cast<ProfileNode*>(map_entry->value);
   if (node == NULL) {
     // New node added.
@@ -178,7 +177,7 @@ void ProfileNode::IncrementLineTicks(int src_line) {
   // Increment a hit counter of a certain source line.
   // Add a new source line if not found.
   HashMap::Entry* e =
-      line_ticks_.Lookup(reinterpret_cast<void*>(src_line), src_line, true);
+      line_ticks_.LookupOrInsert(reinterpret_cast<void*>(src_line), src_line);
   DCHECK(e);
   e->value = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(e->value) + 1);
 }
@@ -269,7 +268,7 @@ ProfileTree::~ProfileTree() {
 unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
   CodeEntry* code_entry = node->entry();
   HashMap::Entry* entry =
-      function_ids_.Lookup(code_entry, code_entry->GetHash(), true);
+      function_ids_.LookupOrInsert(code_entry, code_entry->GetHash());
   if (!entry->value) {
     entry->value = reinterpret_cast<void*>(next_function_id_++);
   }

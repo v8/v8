@@ -15,6 +15,7 @@ namespace internal {
 void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
                                       const AstRawString* local_name,
                                       Zone* zone, bool* ok) {
+  DCHECK(!IsFrozen());
   void* key = const_cast<AstRawString*>(export_name);
 
   ZoneAllocationPolicy allocator(zone);
@@ -26,9 +27,12 @@ void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
   }
 
   ZoneHashMap::Entry* p =
-      exports_->Lookup(key, export_name->hash(), !IsFrozen(), allocator);
-  if (p == nullptr || p->value != nullptr) {
+      exports_->LookupOrInsert(key, export_name->hash(), allocator);
+  DCHECK_NOT_NULL(p);
+  if (p->value != nullptr) {
+    // Duplicate export.
     *ok = false;
+    return;
   }
 
   p->value = const_cast<AstRawString*>(local_name);
@@ -47,10 +51,8 @@ void ModuleDescriptor::AddModuleRequest(const AstRawString* module_specifier,
 const AstRawString* ModuleDescriptor::LookupLocalExport(
     const AstRawString* export_name, Zone* zone) {
   if (exports_ == nullptr) return nullptr;
-  ZoneAllocationPolicy allocator(zone);
-  ZoneHashMap::Entry* entry =
-      exports_->Lookup(const_cast<AstRawString*>(export_name),
-                       export_name->hash(), false, allocator);
+  ZoneHashMap::Entry* entry = exports_->Lookup(
+      const_cast<AstRawString*>(export_name), export_name->hash());
   if (entry == nullptr) return nullptr;
   DCHECK_NOT_NULL(entry->value);
   return static_cast<const AstRawString*>(entry->value);
