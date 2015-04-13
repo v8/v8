@@ -1615,19 +1615,20 @@ bool PositionsRecorder::WriteRecordedPositions() {
     EnsureSpace ensure_space(assembler_);
     assembler_->RecordRelocInfo(RelocInfo::STATEMENT_POSITION,
                                 state_.current_statement_position);
-    state_.written_statement_position = state_.current_statement_position;
     written = true;
   }
+  state_.written_statement_position = state_.current_statement_position;
 
   // Write the position if it is different from what was written last time and
-  // also different from the written statement position.
+  // also different from the statement position that was just written.
   if (state_.current_position != state_.written_position &&
-      state_.current_position != state_.written_statement_position) {
+      (state_.current_position != state_.written_statement_position ||
+       !written)) {
     EnsureSpace ensure_space(assembler_);
     assembler_->RecordRelocInfo(RelocInfo::POSITION, state_.current_position);
-    state_.written_position = state_.current_position;
     written = true;
   }
+  state_.written_position = state_.current_position;
 
   // Return whether something was written.
   return written;

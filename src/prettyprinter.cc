@@ -325,7 +325,7 @@ void CallPrinter::VisitCall(Call* node) {
 
 
 void CallPrinter::VisitCallNew(CallNew* node) {
-  bool was_found = !found_ && node->expression()->position() == position_;
+  bool was_found = !found_ && node->position() == position_;
   if (was_found) found_ = true;
   Find(node->expression(), was_found);
   FindArguments(node->arguments());

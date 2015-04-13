@@ -5312,8 +5312,7 @@ void TryCatchMixedNestingCheck(v8::TryCatch* try_catch) {
   CHECK_EQ(0,
            strcmp(*v8::String::Utf8Value(message->Get()), "Uncaught Error: a"));
   CHECK_EQ(1, message->GetLineNumber());
-  // TODO(3995): Our compilers disagree about the position.
-  if (!i::FLAG_always_opt) CHECK_EQ(6, message->GetStartColumn());
+  CHECK_EQ(0, message->GetStartColumn());
 }
 
 
@@ -9795,11 +9794,7 @@ THREADED_TEST(ConstructorForObject) {
     value = CompileRun("new obj2(28)");
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
-    // TODO(3995): Our compilers disagree about the position (and message).
-    if (!i::FLAG_always_opt) {
-      CHECK_EQ(0,
-               strcmp("TypeError: obj2 is not a function", *exception_value1));
-    }
+    CHECK_EQ(0, strcmp("TypeError: obj2 is not a function", *exception_value1));
     try_catch.Reset();
 
     Local<Value> args[] = {v8_num(29)};
@@ -15005,11 +15000,9 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
     checkStackFrame(origin, "foo", 6, 3, false, false,
                     stackTrace->GetFrame(1));
     // This is the source string inside the eval which has the call to foo.
-    checkStackFrame(NULL, "", 1, 5, false, false,
-                    stackTrace->GetFrame(2));
+    checkStackFrame(NULL, "", 1, 1, false, false, stackTrace->GetFrame(2));
     // The last frame is an anonymous function which has the initial eval call.
-    checkStackFrame(origin, "", 8, 7, false, false,
-                    stackTrace->GetFrame(3));
+    checkStackFrame(origin, "", 8, 7, false, false, stackTrace->GetFrame(3));
 
     CHECK(stackTrace->AsArray()->IsArray());
   } else if (testGroup == kDetailedTest) {
@@ -15022,11 +15015,9 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
                     stackTrace->GetFrame(1));
     bool is_eval = true;
     // This is the source string inside the eval which has the call to baz.
-    checkStackFrame(NULL, "", 1, 5, is_eval, false,
-                    stackTrace->GetFrame(2));
+    checkStackFrame(NULL, "", 1, 1, is_eval, false, stackTrace->GetFrame(2));
     // The last frame is an anonymous function which has the initial eval call.
-    checkStackFrame(origin, "", 10, 1, false, false,
-                    stackTrace->GetFrame(3));
+    checkStackFrame(origin, "", 10, 1, false, false, stackTrace->GetFrame(3));
 
     CHECK(stackTrace->AsArray()->IsArray());
   }

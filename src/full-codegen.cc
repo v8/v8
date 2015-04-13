@@ -1639,6 +1639,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
+  SetSourcePosition(expr->position());
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
 }
