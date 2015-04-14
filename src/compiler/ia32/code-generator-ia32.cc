@@ -1309,29 +1309,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     Constant src_constant = g.ToConstant(source);
     if (src_constant.type() == Constant::kHeapObject) {
       Handle<HeapObject> src = src_constant.ToHeapObject();
-      if (info()->IsOptimizing() && src.is_identical_to(info()->context())) {
-        // Loading the context from the frame is way cheaper than materializing
-        // the actual context heap object address.
+      int offset;
+      if (IsMaterializableFromFrame(src, &offset)) {
         if (destination->IsRegister()) {
           Register dst = g.ToRegister(destination);
-          __ mov(dst, Operand(ebp, StandardFrameConstants::kContextOffset));
+          __ mov(dst, Operand(ebp, offset));
         } else {
           DCHECK(destination->IsStackSlot());
           Operand dst = g.ToOperand(destination);
-          __ push(Operand(ebp, StandardFrameConstants::kContextOffset));
-          __ pop(dst);
-        }
-      } else if (info()->IsOptimizing() &&
-                 src.is_identical_to(info()->closure())) {
-        // Loading the JSFunction from the frame is way cheaper than
-        // materializing the actual JSFunction heap object address.
-        if (destination->IsRegister()) {
-          Register dst = g.ToRegister(destination);
-          __ mov(dst, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-        } else {
-          DCHECK(destination->IsStackSlot());
-          Operand dst = g.ToOperand(destination);
-          __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+          __ push(Operand(ebp, offset));
           __ pop(dst);
         }
       } else if (destination->IsRegister()) {

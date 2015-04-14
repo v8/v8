@@ -184,6 +184,36 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
 }
 
 
+bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
+                                              int* offset_return) {
+  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
+    if (object.is_identical_to(info()->context())) {
+      *offset_return = StandardFrameConstants::kContextOffset;
+      return true;
+    } else if (object.is_identical_to(info()->closure())) {
+      *offset_return = JavaScriptFrameConstants::kFunctionOffset;
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool CodeGenerator::IsMaterializableFromRoot(
+    Handle<HeapObject> object, Heap::RootListIndex* index_return) {
+  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
+#define IMMORTAL_IMMOVABLE_ROOT(Name)                                 \
+  if (*object == isolate()->heap()->root(Heap::k##Name##RootIndex)) { \
+    *index_return = Heap::k##Name##RootIndex;                         \
+    return true;                                                      \
+  }
+    IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
+#undef IMMORTAL_IMMOVABLE_ROOT
+  }
+  return false;
+}
+
+
 void CodeGenerator::AssembleInstruction(Instruction* instr) {
   AssembleGaps(instr);
   AssembleSourcePosition(instr);
