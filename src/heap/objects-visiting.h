@@ -491,7 +491,7 @@ class WeakObjectRetainer;
 // access the next-element pointers.
 template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer,
-                      bool stop_after_young);
+                      bool stop_after_young, Object** list_tail);
 Object* VisitNewArrayBufferViewsWeakList(Heap* heap, Object* list,
                                          WeakObjectRetainer* retainer);
 }

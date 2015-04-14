@@ -51,9 +51,18 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
   CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
   array_buffer->set_byte_length(*byte_length);
 
-  array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
-  CHECK(isolate->heap()->InNewSpace(*array_buffer));
-  isolate->heap()->set_array_buffers_list(*array_buffer);
+  if (isolate->heap()->InNewSpace(*array_buffer) ||
+      isolate->heap()->array_buffers_list()->IsUndefined()) {
+    array_buffer->set_weak_next(isolate->heap()->array_buffers_list());
+    isolate->heap()->set_array_buffers_list(*array_buffer);
+    if (isolate->heap()->last_array_buffer_in_list()->IsUndefined()) {
+      isolate->heap()->set_last_array_buffer_in_list(*array_buffer);
+    }
+  } else {
+    JSArrayBuffer::cast(isolate->heap()->last_array_buffer_in_list())
+        ->set_weak_next(*array_buffer);
+    isolate->heap()->set_last_array_buffer_in_list(*array_buffer);
+  }
   array_buffer->set_weak_first_view(isolate->heap()->undefined_value());
 }
 

@@ -855,6 +855,13 @@ class Heap {
   void set_array_buffers_list(Object* object) { array_buffers_list_ = object; }
   Object* array_buffers_list() const { return array_buffers_list_; }
 
+  void set_last_array_buffer_in_list(Object* object) {
+    last_array_buffer_in_list_ = object;
+  }
+  Object* last_array_buffer_in_list() const {
+    return last_array_buffer_in_list_;
+  }
+
   void set_new_array_buffer_views_list(Object* object) {
     new_array_buffer_views_list_ = object;
   }
@@ -1638,6 +1645,7 @@ class Heap {
   // List heads are initialized lazily and contain the undefined_value at start.
   Object* native_contexts_list_;
   Object* array_buffers_list_;
+  Object* last_array_buffer_in_list_;
   Object* allocation_sites_list_;
 
   // This is a global list of array buffer views in new space. When the views

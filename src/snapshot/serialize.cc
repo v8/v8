@@ -565,6 +565,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
       isolate_->heap()->undefined_value());
   isolate_->heap()->set_array_buffers_list(
       isolate_->heap()->undefined_value());
+  isolate_->heap()->set_last_array_buffer_in_list(
+      isolate_->heap()->undefined_value());
   isolate->heap()->set_new_array_buffer_views_list(
       isolate_->heap()->undefined_value());
 
