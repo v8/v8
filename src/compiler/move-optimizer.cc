@@ -204,8 +204,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   bool first_iteration = true;
   for (auto pred_index : block->predecessors()) {
     auto pred = code()->InstructionBlockAt(pred_index);
-    auto instr = LastInstruction(pred);
-    auto move_ops = instr->parallel_moves()[0]->move_operands();
+    auto move_ops = LastInstruction(pred)->parallel_moves()[0]->move_operands();
     for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
       if (op->IsRedundant()) continue;
       MoveKey key = {*op->source(), *op->destination()};
