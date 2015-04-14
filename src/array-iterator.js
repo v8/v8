@@ -2,35 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $iteratorCreateResultObject;
-var $arrayValues;
-
-(function() {
-
 "use strict";
 
-%CheckIsBootstrapping();
 
-var GlobalArray = global.Array;
-var GlobalObject = global.Object;
+// This file relies on the fact that the following declaration has been made
+// in runtime.js:
+// var $Array = global.Array;
 
-macro TYPED_ARRAYS(FUNCTION)
-  FUNCTION(Uint8Array)
-  FUNCTION(Int8Array)
-  FUNCTION(Uint16Array)
-  FUNCTION(Int16Array)
-  FUNCTION(Uint32Array)
-  FUNCTION(Int32Array)
-  FUNCTION(Float32Array)
-  FUNCTION(Float64Array)
-  FUNCTION(Uint8ClampedArray)
-endmacro
-
-macro COPY_FROM_GLOBAL(NAME)
-  var GlobalNAME = global.NAME;
-endmacro
-
-TYPED_ARRAYS(COPY_FROM_GLOBAL)
 
 var arrayIteratorObjectSymbol = GLOBAL_PRIVATE("ArrayIterator#object");
 var arrayIteratorNextIndexSymbol = GLOBAL_PRIVATE("ArrayIterator#next");
@@ -122,38 +100,60 @@ function ArrayKeys() {
 }
 
 
-%FunctionSetPrototype(ArrayIterator, new GlobalObject());
-%FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
+function SetUpArrayIterator() {
+  %CheckIsBootstrapping();
 
-InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
-  'next', ArrayIteratorNext
-]);
-%FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
-%AddNamedProperty(ArrayIterator.prototype, symbolIterator,
-                  ArrayIteratorIterator, DONT_ENUM);
-%AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
-                  "Array Iterator", READ_ONLY | DONT_ENUM);
+  %FunctionSetPrototype(ArrayIterator, new $Object());
+  %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
 
-InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
-  // No 'values' since it breaks webcompat: http://crbug.com/409858
-  'entries', ArrayEntries,
-  'keys', ArrayKeys
-]);
+  InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
+    'next', ArrayIteratorNext
+  ]);
+  %FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
+  %AddNamedProperty(ArrayIterator.prototype, symbolIterator,
+                    ArrayIteratorIterator, DONT_ENUM);
+  %AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
+                    "Array Iterator", READ_ONLY | DONT_ENUM);
+}
+SetUpArrayIterator();
 
-%AddNamedProperty(GlobalArray.prototype, symbolIterator, ArrayValues,
-                  DONT_ENUM);
 
-macro EXTEND_TYPED_ARRAY(NAME)
-  %AddNamedProperty(GlobalNAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, 'values', ArrayValues, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, symbolIterator, ArrayValues,
-                    DONT_ENUM);
+function ExtendArrayPrototype() {
+  %CheckIsBootstrapping();
+
+  InstallFunctions($Array.prototype, DONT_ENUM, [
+    // No 'values' since it breaks webcompat: http://crbug.com/409858
+    'entries', ArrayEntries,
+    'keys', ArrayKeys
+  ]);
+
+  %AddNamedProperty($Array.prototype, symbolIterator, ArrayValues, DONT_ENUM);
+}
+ExtendArrayPrototype();
+
+
+function ExtendTypedArrayPrototypes() {
+  %CheckIsBootstrapping();
+
+macro TYPED_ARRAYS(FUNCTION)
+  FUNCTION(Uint8Array)
+  FUNCTION(Int8Array)
+  FUNCTION(Uint16Array)
+  FUNCTION(Int16Array)
+  FUNCTION(Uint32Array)
+  FUNCTION(Int32Array)
+  FUNCTION(Float32Array)
+  FUNCTION(Float64Array)
+  FUNCTION(Uint8ClampedArray)
 endmacro
 
-TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
+macro EXTEND_TYPED_ARRAY(NAME)
+  %AddNamedProperty($NAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
+  %AddNamedProperty($NAME.prototype, 'values', ArrayValues, DONT_ENUM);
+  %AddNamedProperty($NAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
+  %AddNamedProperty($NAME.prototype, symbolIterator, ArrayValues, DONT_ENUM);
+endmacro
 
-$iteratorCreateResultObject = CreateIteratorResultObject;
-$arrayValues = ArrayValues;
-
-})();
+  TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
+}
+ExtendTypedArrayPrototypes();
