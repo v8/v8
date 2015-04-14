@@ -232,8 +232,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     // Gate the OSR entry with a stack check.
     BackEdgeTable::AddStackCheck(caller_code, pc_offset);
     // Poll already queued compilation jobs.
-    OptimizingCompilerThread* thread = isolate->optimizing_compiler_thread();
-    if (thread->IsQueuedForOSR(function, ast_id)) {
+    OptimizingCompileDispatcher* dispatcher =
+        isolate->optimizing_compile_dispatcher();
+    if (dispatcher->IsQueuedForOSR(function, ast_id)) {
       if (FLAG_trace_osr) {
         PrintF("[OSR - Still waiting for queued: ");
         function->PrintName();
@@ -242,7 +243,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       return NULL;
     }
 
-    job = thread->FindReadyOSRCandidate(function, ast_id);
+    job = dispatcher->FindReadyOSRCandidate(function, ast_id);
   }
 
   if (job != NULL) {
@@ -324,7 +325,7 @@ RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
     return isolate->StackOverflow();
   }
 
-  isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
+  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   return (function->IsOptimized()) ? function->code()
                                    : function->shared()->code();
 }

@@ -430,7 +430,7 @@ void Heap::GarbageCollectionPrologue() {
   store_buffer()->GCPrologue();
 
   if (isolate()->concurrent_osr_enabled()) {
-    isolate()->optimizing_compiler_thread()->AgeBufferedOsrJobs();
+    isolate()->optimizing_compile_dispatcher()->AgeBufferedOsrJobs();
   }
 
   if (new_space_.IsAtMaximumCapacity()) {
@@ -767,7 +767,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   if (isolate()->concurrent_recompilation_enabled()) {
     // The optimizing compiler may be unnecessarily holding on to memory.
     DisallowHeapAllocation no_recursive_gc;
-    isolate()->optimizing_compiler_thread()->Flush();
+    isolate()->optimizing_compile_dispatcher()->Flush();
   }
   isolate()->ClearSerializerData();
   mark_compact_collector()->SetFlags(kMakeHeapIterableMask |
@@ -889,7 +889,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   }
   if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
-    isolate()->optimizing_compiler_thread()->Flush();
+    isolate()->optimizing_compile_dispatcher()->Flush();
   }
   AgeInlineCaches();
   set_retained_maps(ArrayList::cast(empty_fixed_array()));

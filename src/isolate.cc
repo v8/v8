@@ -1736,7 +1736,7 @@ Isolate::Isolate(bool enable_serializer)
       heap_profiler_(NULL),
       function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
-      optimizing_compiler_thread_(NULL),
+      optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
       next_optimization_id_(0),
 #if TRACE_MAPS
@@ -1833,9 +1833,9 @@ void Isolate::Deinit() {
   FreeThreadResources();
 
   if (concurrent_recompilation_enabled()) {
-    optimizing_compiler_thread_->Stop();
-    delete optimizing_compiler_thread_;
-    optimizing_compiler_thread_ = NULL;
+    optimizing_compile_dispatcher_->Stop();
+    delete optimizing_compile_dispatcher_;
+    optimizing_compile_dispatcher_ = NULL;
   }
 
   if (heap_.mark_compact_collector()->sweeping_in_progress()) {
@@ -2133,9 +2133,8 @@ bool Isolate::Init(Deserializer* des) {
 
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
-  } else if (OptimizingCompilerThread::Enabled(max_available_threads_)) {
-    optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
-    optimizing_compiler_thread_->Start();
+  } else if (OptimizingCompileDispatcher::Enabled(max_available_threads_)) {
+    optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(this);
   }
 
   // Initialize runtime profiler before deserialization, because collections may
