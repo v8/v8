@@ -819,7 +819,7 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
 
 static bool GetOptimizedCodeLater(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
+  if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
       info->closure()->ShortPrint();
@@ -840,7 +840,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
   OptimizedCompileJob* job = new (info->zone()) OptimizedCompileJob(info);
   OptimizedCompileJob::Status status = job->CreateGraph();
   if (status != OptimizedCompileJob::SUCCEEDED) return false;
-  isolate->optimizing_compiler_thread()->QueueForOptimization(job);
+  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");

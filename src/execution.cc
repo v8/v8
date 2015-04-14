@@ -677,7 +677,7 @@ Object* StackGuard::HandleInterrupts() {
 
   if (CheckAndClearInterrupt(INSTALL_CODE)) {
     DCHECK(isolate_->concurrent_recompilation_enabled());
-    isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
+    isolate_->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   }
 
   if (CheckAndClearInterrupt(API_INTERRUPT)) {

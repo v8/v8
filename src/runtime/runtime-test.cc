@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (isolate->concurrent_recompilation_enabled() &&
       sync_with_compiler_thread) {
     while (function->IsInOptimizationQueue()) {
-      isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
+      isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
       base::OS::Sleep(50);
     }
   }
@@ -200,7 +200,7 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   DCHECK(args.length() == 0);
   RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
   RUNTIME_ASSERT(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compiler_thread()->Unblock();
+  isolate->optimizing_compile_dispatcher()->Unblock();
   return isolate->heap()->undefined_value();
 }
 

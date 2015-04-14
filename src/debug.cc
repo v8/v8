@@ -1843,7 +1843,7 @@ void Debug::PrepareForBreakPoints() {
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
     if (isolate_->concurrent_recompilation_enabled()) {
-      isolate_->optimizing_compiler_thread()->Flush();
+      isolate_->optimizing_compile_dispatcher()->Flush();
     }
 
     Deoptimizer::DeoptimizeAll(isolate_);
