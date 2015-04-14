@@ -886,7 +886,7 @@ function MathLog10(x) {
   if (hx >= 0x7ff00000) return x;
 
   k += (hx >> 20) - 1023;
-  var i = (k & 0x80000000) >> 31;
+  var i = (k & 0x80000000) >>> 31;
   hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
   var y = k + i;
   x = %_ConstructDouble(hx, lx);
