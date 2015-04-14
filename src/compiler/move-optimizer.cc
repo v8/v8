@@ -15,9 +15,7 @@ typedef ZoneMap<MoveKey, unsigned> MoveMap;
 typedef ZoneSet<InstructionOperand> OperandSet;
 
 
-bool GapsCanMoveOver(Instruction* instr) {
-  return instr->IsSourcePosition() || instr->IsNop();
-}
+bool GapsCanMoveOver(Instruction* instr) { return instr->IsNop(); }
 
 
 int FindFirstNonEmptySlot(Instruction* instr) {
@@ -145,7 +143,6 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   for (auto pred_index : block->predecessors()) {
     auto pred = code()->InstructionBlockAt(pred_index);
     auto last_instr = code()->instructions()[pred->last_instruction_index()];
-    if (last_instr->IsSourcePosition()) continue;
     if (last_instr->IsCall()) return;
     if (last_instr->TempCount() != 0) return;
     if (last_instr->OutputCount() != 0) return;

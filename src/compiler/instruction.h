@@ -24,9 +24,6 @@ namespace compiler {
 
 class Schedule;
 
-// A couple of reserved opcodes are used for internal use.
-const InstructionCode kSourcePositionInstruction = -1;
-
 class InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
@@ -624,10 +621,6 @@ class Instruction {
   bool NeedsReferenceMap() const { return IsCall(); }
   bool HasReferenceMap() const { return reference_map_ != NULL; }
 
-  bool IsSourcePosition() const {
-    return opcode() == kSourcePositionInstruction;
-  }
-
   bool ClobbersRegisters() const { return IsCall(); }
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersDoubleRegisters() const { return IsCall(); }
@@ -707,37 +700,6 @@ struct PrintableInstruction {
   const Instruction* instr_;
 };
 std::ostream& operator<<(std::ostream& os, const PrintableInstruction& instr);
-
-
-class SourcePositionInstruction FINAL : public Instruction {
- public:
-  static SourcePositionInstruction* New(Zone* zone, SourcePosition position) {
-    void* buffer = zone->New(sizeof(SourcePositionInstruction));
-    return new (buffer) SourcePositionInstruction(position);
-  }
-
-  SourcePosition source_position() const { return source_position_; }
-
-  static SourcePositionInstruction* cast(Instruction* instr) {
-    DCHECK(instr->IsSourcePosition());
-    return static_cast<SourcePositionInstruction*>(instr);
-  }
-
-  static const SourcePositionInstruction* cast(const Instruction* instr) {
-    DCHECK(instr->IsSourcePosition());
-    return static_cast<const SourcePositionInstruction*>(instr);
-  }
-
- private:
-  explicit SourcePositionInstruction(SourcePosition source_position)
-      : Instruction(kSourcePositionInstruction),
-        source_position_(source_position) {
-    DCHECK(!source_position_.IsInvalid());
-    DCHECK(!source_position_.IsUnknown());
-  }
-
-  SourcePosition source_position_;
-};
 
 
 class RpoNumber FINAL {
@@ -1113,15 +1075,21 @@ class InstructionSequence FINAL : public ZoneObject {
 
   RpoNumber InputRpo(Instruction* instr, size_t index);
 
+  bool GetSourcePosition(const Instruction* instr,
+                         SourcePosition* result) const;
+  void SetSourcePosition(const Instruction* instr, SourcePosition value);
+
  private:
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrintableInstructionSequence& code);
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
+  typedef ZoneMap<const Instruction*, SourcePosition> SourcePositionMap;
 
   Isolate* isolate_;
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
+  SourcePositionMap source_positions_;
   IntVector block_starts_;
   ConstantMap constants_;
   Immediates immediates_;

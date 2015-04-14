@@ -319,21 +319,14 @@ std::ostream& operator<<(std::ostream& os,
   if (instr.OutputCount() > 1) os << ") = ";
   if (instr.OutputCount() == 1) os << " = ";
 
-  if (instr.IsSourcePosition()) {
-    const SourcePositionInstruction* pos =
-        SourcePositionInstruction::cast(&instr);
-    os << "position (" << pos->source_position().raw() << ")";
-  } else {
-    os << ArchOpcodeField::decode(instr.opcode());
-    AddressingMode am = AddressingModeField::decode(instr.opcode());
-    if (am != kMode_None) {
-      os << " : " << AddressingModeField::decode(instr.opcode());
-    }
-    FlagsMode fm = FlagsModeField::decode(instr.opcode());
-    if (fm != kFlags_none) {
-      os << " && " << fm << " if "
-         << FlagsConditionField::decode(instr.opcode());
-    }
+  os << ArchOpcodeField::decode(instr.opcode());
+  AddressingMode am = AddressingModeField::decode(instr.opcode());
+  if (am != kMode_None) {
+    os << " : " << AddressingModeField::decode(instr.opcode());
+  }
+  FlagsMode fm = FlagsModeField::decode(instr.opcode());
+  if (fm != kFlags_none) {
+    os << " && " << fm << " if " << FlagsConditionField::decode(instr.opcode());
   }
   if (instr.InputCount() > 0) {
     for (size_t i = 0; i < instr.InputCount(); i++) {
@@ -480,6 +473,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
     : isolate_(isolate),
       zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
+      source_positions_(zone()),
       block_starts_(zone()),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
@@ -601,6 +595,23 @@ RpoNumber InstructionSequence::InputRpo(Instruction* instr, size_t index) {
           ? GetImmediate(ImmediateOperand::cast(operand))
           : GetConstant(ConstantOperand::cast(operand)->virtual_register());
   return constant.ToRpoNumber();
+}
+
+
+bool InstructionSequence::GetSourcePosition(const Instruction* instr,
+                                            SourcePosition* result) const {
+  auto it = source_positions_.find(instr);
+  if (it == source_positions_.end()) return false;
+  *result = it->second;
+  return true;
+}
+
+
+void InstructionSequence::SetSourcePosition(const Instruction* instr,
+                                            SourcePosition value) {
+  DCHECK(!value.IsInvalid());
+  DCHECK(!value.IsUnknown());
+  source_positions_.insert(std::make_pair(instr, value));
 }
 
 

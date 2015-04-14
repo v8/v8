@@ -186,72 +186,69 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
 
 void CodeGenerator::AssembleInstruction(Instruction* instr) {
   AssembleGaps(instr);
-  if (instr->IsSourcePosition()) {
-    AssembleSourcePosition(SourcePositionInstruction::cast(instr));
-  } else {
-    // Assemble architecture-specific code for the instruction.
-    AssembleArchInstruction(instr);
+  AssembleSourcePosition(instr);
+  // Assemble architecture-specific code for the instruction.
+  AssembleArchInstruction(instr);
 
-    FlagsMode mode = FlagsModeField::decode(instr->opcode());
-    FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
-    if (mode == kFlags_branch) {
-      // Assemble a branch after this instruction.
-      InstructionOperandConverter i(this, instr);
-      RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
-      RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
+  if (mode == kFlags_branch) {
+    // Assemble a branch after this instruction.
+    InstructionOperandConverter i(this, instr);
+    RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
+    RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
 
-      if (true_rpo == false_rpo) {
-        // redundant branch.
-        if (!IsNextInAssemblyOrder(true_rpo)) {
-          AssembleArchJump(true_rpo);
-        }
-        return;
+    if (true_rpo == false_rpo) {
+      // redundant branch.
+      if (!IsNextInAssemblyOrder(true_rpo)) {
+        AssembleArchJump(true_rpo);
       }
-      if (IsNextInAssemblyOrder(true_rpo)) {
-        // true block is next, can fall through if condition negated.
-        std::swap(true_rpo, false_rpo);
-        condition = NegateFlagsCondition(condition);
-      }
-      BranchInfo branch;
-      branch.condition = condition;
-      branch.true_label = GetLabel(true_rpo);
-      branch.false_label = GetLabel(false_rpo);
-      branch.fallthru = IsNextInAssemblyOrder(false_rpo);
-      // Assemble architecture-specific branch.
-      AssembleArchBranch(instr, &branch);
-    } else if (mode == kFlags_set) {
-      // Assemble a boolean materialization after this instruction.
-      AssembleArchBoolean(instr, condition);
+      return;
     }
+    if (IsNextInAssemblyOrder(true_rpo)) {
+      // true block is next, can fall through if condition negated.
+      std::swap(true_rpo, false_rpo);
+      condition = NegateFlagsCondition(condition);
+    }
+    BranchInfo branch;
+    branch.condition = condition;
+    branch.true_label = GetLabel(true_rpo);
+    branch.false_label = GetLabel(false_rpo);
+    branch.fallthru = IsNextInAssemblyOrder(false_rpo);
+    // Assemble architecture-specific branch.
+    AssembleArchBranch(instr, &branch);
+  } else if (mode == kFlags_set) {
+    // Assemble a boolean materialization after this instruction.
+    AssembleArchBoolean(instr, condition);
   }
 }
 
 
-void CodeGenerator::AssembleSourcePosition(SourcePositionInstruction* instr) {
-  SourcePosition source_position = instr->source_position();
+void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
+  SourcePosition source_position;
+  if (!code()->GetSourcePosition(instr, &source_position)) return;
   if (source_position == current_source_position_) return;
   DCHECK(!source_position.IsInvalid());
-  if (!source_position.IsUnknown()) {
-    int code_pos = source_position.raw();
-    masm()->positions_recorder()->RecordPosition(source_position.raw());
-    masm()->positions_recorder()->WriteRecordedPositions();
-    if (FLAG_code_comments) {
-      Vector<char> buffer = Vector<char>::New(256);
-      CompilationInfo* info = this->info();
-      int ln = Script::GetLineNumber(info->script(), code_pos);
-      int cn = Script::GetColumnNumber(info->script(), code_pos);
-      if (info->script()->name()->IsString()) {
-        Handle<String> file(String::cast(info->script()->name()));
-        base::OS::SNPrintF(buffer.start(), buffer.length(), "-- %s:%d:%d --",
-                           file->ToCString().get(), ln, cn);
-      } else {
-        base::OS::SNPrintF(buffer.start(), buffer.length(),
-                           "-- <unknown>:%d:%d --", ln, cn);
-      }
-      masm()->RecordComment(buffer.start());
-    }
-  }
   current_source_position_ = source_position;
+  if (source_position.IsUnknown()) return;
+  int code_pos = source_position.raw();
+  masm()->positions_recorder()->RecordPosition(source_position.raw());
+  masm()->positions_recorder()->WriteRecordedPositions();
+  if (FLAG_code_comments) {
+    Vector<char> buffer = Vector<char>::New(256);
+    CompilationInfo* info = this->info();
+    int ln = Script::GetLineNumber(info->script(), code_pos);
+    int cn = Script::GetColumnNumber(info->script(), code_pos);
+    if (info->script()->name()->IsString()) {
+      Handle<String> file(String::cast(info->script()->name()));
+      base::OS::SNPrintF(buffer.start(), buffer.length(), "-- %s:%d:%d --",
+                         file->ToCString().get(), ln, cn);
+    } else {
+      base::OS::SNPrintF(buffer.start(), buffer.length(),
+                         "-- <unknown>:%d:%d --", ln, cn);
+    }
+    masm()->RecordComment(buffer.start());
+  }
 }
 
 

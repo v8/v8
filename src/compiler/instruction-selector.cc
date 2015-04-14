@@ -475,6 +475,15 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     size_t current_node_end = instructions_.size();
     VisitNode(node);
     std::reverse(instructions_.begin() + current_node_end, instructions_.end());
+    if (instructions_.size() == current_node_end) continue;
+    // Mark source position on first instruction emitted.
+    SourcePosition source_position = source_positions_->GetSourcePosition(node);
+    if (source_position.IsUnknown()) continue;
+    DCHECK(!source_position.IsInvalid());
+    if (FLAG_turbo_source_positions || node->opcode() == IrOpcode::kCall) {
+      sequence()->SetSourcePosition(instructions_[current_node_end],
+                                    source_position);
+    }
   }
 
   // We're done with the block.
@@ -581,13 +590,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
 
 void InstructionSelector::VisitNode(Node* node) {
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
-  SourcePosition source_position = source_positions_->GetSourcePosition(node);
-  if (!source_position.IsUnknown()) {
-    DCHECK(!source_position.IsInvalid());
-    if (FLAG_turbo_source_positions || node->opcode() == IrOpcode::kCall) {
-      Emit(SourcePositionInstruction::New(instruction_zone(), source_position));
-    }
-  }
   switch (node->opcode()) {
     case IrOpcode::kStart:
     case IrOpcode::kLoop:

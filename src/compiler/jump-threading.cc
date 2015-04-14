@@ -80,10 +80,6 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
           // can't skip instructions with non redundant moves.
           TRACE("  parallel move\n");
           fallthru = false;
-        } else if (instr->IsSourcePosition()) {
-          // skip source positions.
-          TRACE("  src pos\n");
-          continue;
         } else if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
           // can't skip instructions with flags continuations.
           TRACE("  flags\n");
