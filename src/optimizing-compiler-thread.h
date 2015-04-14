@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OPTIMIZING_COMPILE_DISPATCHER_H_
-#define V8_OPTIMIZING_COMPILE_DISPATCHER_H_
-
-#include <queue>
+#ifndef V8_OPTIMIZING_COMPILER_THREAD_H_
+#define V8_OPTIMIZING_COMPILER_THREAD_H_
 
 #include "src/base/atomicops.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "src/flags.h"
 #include "src/list.h"
+#include "src/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,10 +21,16 @@ class HOptimizedGraphBuilder;
 class OptimizedCompileJob;
 class SharedFunctionInfo;
 
-class OptimizingCompileDispatcher {
+class OptimizingCompilerThread : public base::Thread {
  public:
-  explicit OptimizingCompileDispatcher(Isolate* isolate)
-      : isolate_(isolate),
+  explicit OptimizingCompilerThread(Isolate* isolate)
+      : Thread(Options("OptimizingCompilerThread")),
+#ifdef DEBUG
+        thread_id_(0),
+#endif
+        isolate_(isolate),
+        stop_semaphore_(0),
+        input_queue_semaphore_(0),
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
         input_queue_length_(0),
         input_queue_shift_(0),
@@ -34,8 +40,11 @@ class OptimizingCompileDispatcher {
         osr_attempts_(0),
         blocked_jobs_(0),
         ref_count_(0),
+        tracing_enabled_(FLAG_trace_concurrent_recompilation),
+        job_based_recompilation_(FLAG_job_based_recompilation),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
-    base::NoBarrier_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
+    base::NoBarrier_Store(&stop_thread_,
+                          static_cast<base::AtomicWord>(CONTINUE));
     input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);
     if (FLAG_concurrent_osr) {
       // Allocate and mark OSR buffer slots as empty.
@@ -44,7 +53,7 @@ class OptimizingCompileDispatcher {
     }
   }
 
-  ~OptimizingCompileDispatcher();
+  ~OptimizingCompilerThread();
 
   void Run();
   void Stop();
@@ -74,11 +83,17 @@ class OptimizingCompileDispatcher {
     return (FLAG_concurrent_recompilation && max_available > 1);
   }
 
+#ifdef DEBUG
+  static bool IsOptimizerThread(Isolate* isolate);
+  bool IsOptimizerThread();
+#endif
+
  private:
   class CompileTask;
 
-  enum ModeFlag { COMPILE, FLUSH };
+  enum StopFlag { CONTINUE, STOP, FLUSH };
 
+  void FlushInputQueue(bool restore_function_code);
   void FlushOutputQueue(bool restore_function_code);
   void FlushOsrBuffer(bool restore_function_code);
   void CompileNext(OptimizedCompileJob* job);
@@ -95,7 +110,14 @@ class OptimizingCompileDispatcher {
     return result;
   }
 
+#ifdef DEBUG
+  int thread_id_;
+  base::Mutex thread_id_mutex_;
+#endif
+
   Isolate* isolate_;
+  base::Semaphore stop_semaphore_;
+  base::Semaphore input_queue_semaphore_;
 
   // Circular queue of incoming recompilation tasks (including OSR).
   OptimizedCompileJob** input_queue_;
@@ -105,7 +127,7 @@ class OptimizingCompileDispatcher {
   base::Mutex input_queue_mutex_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::queue<OptimizedCompileJob*> output_queue_;
+  UnboundQueue<OptimizedCompileJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;
@@ -115,7 +137,9 @@ class OptimizingCompileDispatcher {
   int osr_buffer_capacity_;
   int osr_buffer_cursor_;
 
-  volatile base::AtomicWord mode_;
+  volatile base::AtomicWord stop_thread_;
+  base::TimeDelta time_spent_compiling_;
+  base::TimeDelta time_spent_total_;
 
   int osr_hits_;
   int osr_attempts_;
@@ -126,14 +150,17 @@ class OptimizingCompileDispatcher {
   base::Mutex ref_count_mutex_;
   base::ConditionVariable ref_count_zero_;
 
-  // Copy of FLAG_concurrent_recompilation_delay that will be used from the
-  // background thread.
+  // Copies of FLAG_trace_concurrent_recompilation,
+  // FLAG_concurrent_recompilation_delay and
+  // FLAG_job_based_recompilation that will be used from the background thread.
   //
   // Since flags might get modified while the background thread is running, it
   // is not safe to access them directly.
+  bool tracing_enabled_;
+  bool job_based_recompilation_;
   int recompilation_delay_;
 };
-}
-}  // namespace v8::internal
 
-#endif  // V8_OPTIMIZING_COMPILE_DISPATCHER_H_
+} }  // namespace v8::internal
+
+#endif  // V8_OPTIMIZING_COMPILER_THREAD_H_
