@@ -180,10 +180,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     }
   }
   if (FLAG_always_opt) {
-    // We may have always opt, but that is more best-effort than a real
-    // promise, so we still say "no" if it is not optimized.
-    return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
-                                   : Smi::FromInt(2);  // 2 == "no".
+    // With --always-opt, optimization status expectations might not
+    // match up, so just return a sentinel.
+    return Smi::FromInt(3);  // 3 == "always".
   }
   if (FLAG_deopt_every_n_times) {
     return Smi::FromInt(6);  // 6 == "maybe deopted".

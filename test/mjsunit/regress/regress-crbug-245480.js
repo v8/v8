@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
 
 function isHoley(obj) {
   if (%HasFastHoleyElements(obj)) return true;

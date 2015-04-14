@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-// Flags: --noalways-opt
 
 function assertDoubleBits(hi, lo, x) {
   hi = hi | 0;
