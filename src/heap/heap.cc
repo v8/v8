@@ -5175,11 +5175,11 @@ intptr_t Heap::OldGenerationAllocationLimit(intptr_t old_gen_size,
   const int kMaxHandles = 1000;
   const int kMinHandles = 100;
   double min_factor = 1.1;
-  double max_factor = 4;
+  double max_factor = 1.5;
   // We set the old generation growing factor to 2 to grow the heap slower on
   // memory-constrained devices.
   if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice) {
-    max_factor = 2;
+    max_factor = 1.5;
   }
   // If there are many freed global handles, then the next full GC will
   // likely collect a lot of garbage. Choose the heap growing factor
