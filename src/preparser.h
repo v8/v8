@@ -527,6 +527,11 @@ class ParserBase : public Traits {
       *ok = false;
       return;
     }
+    if (is_strict(language_mode) && locs.reserved_.IsValid()) {
+      Traits::ReportMessageAt(locs.reserved_, "unexpected_strict_reserved");
+      *ok = false;
+      return;
+    }
     if (is_strong(language_mode) && locs.undefined_.IsValid()) {
       Traits::ReportMessageAt(locs.undefined_, "strong_undefined");
       *ok = false;
@@ -536,11 +541,6 @@ class ParserBase : public Traits {
     // to check for duplicate names.
     if (locs.duplicate_.IsValid()) {
       Traits::ReportMessageAt(locs.duplicate_, "strict_param_dupe");
-      *ok = false;
-      return;
-    }
-    if (locs.reserved_.IsValid()) {
-      Traits::ReportMessageAt(locs.reserved_, "unexpected_strict_reserved");
       *ok = false;
       return;
     }
@@ -621,8 +621,9 @@ class ParserBase : public Traits {
   ExpressionT ParseMemberExpression(bool* ok);
   ExpressionT ParseMemberExpressionContinuation(ExpressionT expression,
                                                 bool* ok);
-  ExpressionT ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
-                                        bool* ok);
+  ExpressionT ParseArrowFunctionLiteral(
+      int start_pos, FormalParameterListT params,
+      const FormalParameterErrorLocations& error_locs, bool has_rest, bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   void AddTemplateExpression(ExpressionT);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
@@ -845,12 +846,6 @@ class PreParserExpression {
         IsValidArrowParamListField::encode(valid_arrow_param_list));
   }
 
-  static PreParserExpression EmptyArrowParamList() {
-    // Any expression for which IsValidArrowParamList() returns true
-    // will work here.
-    return FromIdentifier(PreParserIdentifier::Default());
-  }
-
   static PreParserExpression StringLiteral() {
     return PreParserExpression(TypeField::encode(kStringLiteralExpression));
   }
@@ -941,20 +936,27 @@ class PreParserExpression {
     return IsIdentifier() || IsProperty();
   }
 
-  bool IsValidArrowParamList(FormalParameterErrorLocations* locs) const {
+  bool IsValidArrowParamList(FormalParameterErrorLocations* locs,
+                             const Scanner::Location& params_loc) const {
     ValidArrowParam valid = ValidateArrowParams();
     if (ParenthesizationField::decode(code_) == kMultiParenthesizedExpression) {
       return false;
     }
-    if (valid == kValidArrowParam) {
-      return true;
-    } else if (valid == kInvalidStrongArrowParam) {
-      // Return true for now regardless of strong mode for compatibility with
-      // parser.
-      locs->undefined_ = Scanner::Location();
-      return true;
-    } else {
-      return false;
+    switch (valid) {
+      case kInvalidArrowParam:
+        return false;
+      case kInvalidStrongArrowParam:
+        locs->undefined_ = params_loc;
+        return true;
+      case kInvalidStrictReservedArrowParam:
+        locs->reserved_ = params_loc;
+        return true;
+      case kInvalidStrictEvalArgumentsArrowParam:
+        locs->eval_or_arguments_ = params_loc;
+        return true;
+      default:
+        DCHECK_EQ(valid, kValidArrowParam);
+        return true;
     }
   }
 
@@ -1021,8 +1023,12 @@ class PreParserExpression {
     kNoTemplateTagExpression
   };
 
+  // These validity constraints are ordered such that a value of N implies lack
+  // of errors M < N.
   enum ValidArrowParam {
     kInvalidArrowParam,
+    kInvalidStrictEvalArgumentsArrowParam,
+    kInvalidStrictReservedArrowParam,
     kInvalidStrongArrowParam,
     kValidArrowParam
   };
@@ -1038,13 +1044,16 @@ class PreParserExpression {
       return kInvalidArrowParam;
     }
     PreParserIdentifier ident = AsIdentifier();
-    // A valid identifier can be an arrow function parameter
-    // except for eval, arguments, yield, and reserved keywords.
-    if (ident.IsEval() || ident.IsArguments() ||
-        ident.IsFutureStrictReserved()) {
-      return kInvalidArrowParam;
+    // In strict mode, eval and arguments are not valid formal parameter names.
+    if (ident.IsEval() || ident.IsArguments()) {
+      return kInvalidStrictEvalArgumentsArrowParam;
     }
-    // In strong mode, 'undefined' is similarly restricted.
+    // In strict mode, future reserved words are not valid either, and as they
+    // produce different errors we allot them their own error code.
+    if (ident.IsFutureStrictReserved()) {
+      return kInvalidStrictReservedArrowParam;
+    }
+    // In strong mode, 'undefined' isn't a valid formal parameter name either.
     if (ident.IsUndefined()) {
       return kInvalidStrongArrowParam;
     }
@@ -1061,7 +1070,7 @@ class PreParserExpression {
       ExpressionTypeField;
   typedef BitField<bool, ParenthesizationField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
-  typedef BitField<ValidArrowParam, ParenthesizationField::kNext, 2>
+  typedef BitField<ValidArrowParam, ParenthesizationField::kNext, 3>
       IsValidArrowParamListField;
   typedef BitField<PreParserIdentifier::Type, ParenthesizationField::kNext, 10>
       IdentifierTypeField;
@@ -1454,9 +1463,6 @@ class PreParserTraits {
   static PreParserExpression EmptyExpression() {
     return PreParserExpression::Default();
   }
-  static PreParserExpression EmptyArrowParamList() {
-    return PreParserExpression::EmptyArrowParamList();
-  }
   static PreParserExpression EmptyLiteral() {
     return PreParserExpression::Default();
   }
@@ -1555,15 +1561,9 @@ class PreParserTraits {
                          Variable* fvar, Token::Value fvar_init_op,
                          FunctionKind kind, bool* ok);
 
-  // Utility functions
-  V8_INLINE int DeclareArrowParametersFromExpression(
-      PreParserExpression expression, Scope* scope,
-      FormalParameterErrorLocations* locs, bool* ok) {
-    // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect eval or
-    // arguments.  Detect reserved words.
-    *ok = expression.IsValidArrowParamList(locs);
-    return 0;
-  }
+  V8_INLINE PreParserFormalParameterList ParseArrowFunctionFormalParameterList(
+      PreParserExpression expression, const Scanner::Location& params_loc,
+      FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok);
 
   struct TemplateLiteralState {};
 
@@ -1587,6 +1587,11 @@ class PreParserTraits {
   }
   static bool IsTaggedTemplate(const PreParserExpression tag) {
     return !tag.IsNoTemplateTag();
+  }
+
+  int DeclareFormalParameters(PreParserFormalParameterList params, Scope* scope,
+                              bool has_rest) {
+    return params->length();
   }
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
@@ -1774,6 +1779,22 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
                                                    PreParserExpressionList args,
                                                    int pos) {
   return pre_parser_->factory()->NewCallNew(function, args, pos);
+}
+
+
+PreParserFormalParameterList
+PreParserTraits::ParseArrowFunctionFormalParameterList(
+    PreParserExpression params, const Scanner::Location& params_loc,
+    FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok) {
+  // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
+  // lists that are too long.
+  if (!params.IsValidArrowParamList(error_locs, params_loc)) {
+    *ok = false;
+    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
+    return this->NullFormalParameterList();
+  }
+
+  return PreParserFormalParameterList();
 }
 
 
@@ -2072,12 +2093,13 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::LPAREN:
       Consume(Token::LPAREN);
-      if (allow_harmony_arrow_functions() && peek() == Token::RPAREN) {
-        // Arrow functions are the only expression type constructions
-        // for which an empty parameter list "()" is valid input.
-        Consume(Token::RPAREN);
-        result = this->ParseArrowFunctionLiteral(
-            beg_pos, this->EmptyArrowParamList(), CHECK_OK);
+      if (allow_harmony_arrow_functions() && Check(Token::RPAREN)) {
+        // As a primary expression, the only thing that can follow "()" is "=>".
+        FormalParameterListT params = this->NewFormalParameterList(0, zone());
+        FormalParameterErrorLocations error_locs;
+        bool has_rest = false;
+        result = this->ParseArrowFunctionLiteral(beg_pos, params, error_locs,
+                                                 has_rest, CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
         // seeing the call parentheses.
@@ -2535,8 +2557,13 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   if (allow_harmony_arrow_functions() && peek() == Token::ARROW) {
     checkpoint.Restore();
-    expression = this->ParseArrowFunctionLiteral(lhs_location.beg_pos,
-                                                 expression, CHECK_OK);
+    FormalParameterErrorLocations error_locs;
+    Scanner::Location loc(lhs_location.beg_pos, scanner()->location().end_pos);
+    bool has_rest = false;
+    FormalParameterListT params = this->ParseArrowFunctionFormalParameterList(
+        expression, loc, &error_locs, &has_rest, CHECK_OK);
+    expression = this->ParseArrowFunctionLiteral(
+        lhs_location.beg_pos, params, error_locs, has_rest, CHECK_OK);
     return expression;
   }
 
@@ -3091,7 +3118,7 @@ ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
   if (!locs->reserved_.IsValid() && is_strict_reserved) {
     locs->reserved_ = scanner()->location();
   }
-  if (!locs->duplicate_.IsValid()) {
+  if (!locs->duplicate_.IsValid() && duplicate_finder != nullptr) {
     int prev_value = scanner()->FindSymbol(duplicate_finder, 1);
     if (prev_value != 0) locs->duplicate_ = scanner()->location();
   }
@@ -3170,11 +3197,12 @@ void ParserBase<Traits>::CheckArityRestrictions(
   }
 }
 
+
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
-                                              ExpressionT params_ast,
-                                              bool* ok) {
+ParserBase<Traits>::ParseArrowFunctionLiteral(
+    int start_pos, FormalParameterListT params,
+    const FormalParameterErrorLocations& error_locs, bool has_rest, bool* ok) {
   if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
@@ -3196,27 +3224,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
     typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kArrowFunction, &function_factory);
-    FormalParameterErrorLocations error_locs;
-    num_parameters = Traits::DeclareArrowParametersFromExpression(
-        params_ast, scope_, &error_locs, ok);
-    if (!*ok) {
-      ReportMessageAt(
-          Scanner::Location(start_pos, scanner()->location().beg_pos),
-          "malformed_arrow_function_parameter_list");
-      return this->EmptyExpression();
-    }
-
-    if (error_locs.undefined_.IsValid()) {
-      // Workaround for preparser not keeping track of positions.
-      error_locs.undefined_ =
-          Scanner::Location(start_pos, scanner()->location().end_pos);
-    }
-    if (num_parameters > Code::kMaxArguments) {
-      ReportMessageAt(Scanner::Location(params_ast->position(), position()),
-                      "too_many_parameters");
-      *ok = false;
-      return this->EmptyExpression();
-    }
+    num_parameters = this->DeclareFormalParameters(params, scope_, has_rest);
 
     Expect(Token::ARROW, CHECK_OK);
 
