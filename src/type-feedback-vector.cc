@@ -137,6 +137,22 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 }
 
 
+bool TypeFeedbackVector::SpecDiffersFrom(
+    const ZoneFeedbackVectorSpec* other_spec) const {
+  if (other_spec->slots() != Slots() || other_spec->ic_slots() != ICSlots()) {
+    return true;
+  }
+
+  int ic_slots = ICSlots();
+  for (int i = 0; i < ic_slots; i++) {
+    if (GetKind(FeedbackVectorICSlot(i)) != other_spec->GetKind(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // This logic is copied from
 // StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
 static bool ClearLogic(Heap* heap) {

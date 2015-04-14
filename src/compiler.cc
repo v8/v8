@@ -251,7 +251,8 @@ bool CompilationInfo::ShouldSelfOptimize() {
 
 
 void CompilationInfo::EnsureFeedbackVector() {
-  if (feedback_vector_.is_null()) {
+  if (feedback_vector_.is_null() ||
+      feedback_vector_->SpecDiffersFrom(function()->feedback_vector_spec())) {
     feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
         function()->feedback_vector_spec());
   }

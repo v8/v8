@@ -134,6 +134,8 @@ class TypeFeedbackVector : public FixedArray {
 
   inline int ic_metadata_length() const;
 
+  bool SpecDiffersFrom(const ZoneFeedbackVectorSpec* other_spec) const;
+
   int Slots() const {
     if (length() == 0) return 0;
     return Max(
