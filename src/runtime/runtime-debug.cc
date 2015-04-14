@@ -2253,27 +2253,38 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   // [inner context] -> [function stack]+[function context] -> [outer context]
   // The function stack is not an actual context, it complements the function
   // context. In order to have the same lookup chain when debug-evaluating,
-  // we materialize the stack and insert it into the context chain as a
-  // with-context before the function context.
-  // [inner context] -> [with context] -> [function context] -> [outer context]
+  // we:
+  //  - clone inner context
+  //  - materialize the stack and insert it into the context chain as a
+  //    with-context before the function context.
+  // [inner context clone] -> [with context] -> [function context] ->
+  //      [outer context]
   // Ordering the with-context before the function context forces a dynamic
   // lookup instead of a static lookup that could fail as the scope info is
   // outdated and may expect variables to still be stack-allocated.
-  // Afterwards, we write changes to the with-context back to the stack
-  // and remove it from the context chain.
-  // This could cause lookup failures if debug-evaluate creates a closure that
-  // uses this temporary context chain.
+  // Afterwards, we write changes to the with-context back to the stack, and
+  // write changes in cloned contexts back to original contexts.
 
   DCHECK(!eval_context.is_null());
   Handle<Context> function_context = eval_context;
   Handle<Context> outer_context(function->context(), isolate);
   Handle<Context> inner_context;
-  // We iterate to find the function's context. If the function has no
-  // context-allocated variables, we iterate until we hit the outer context.
+  Handle<Context> innermost_context;
+
+  // We iterate to find the function's context, cloning until we hit it.
+  // If the function has no context-allocated variables, we iterate until
+  // we hit the outer context.
   while (!function_context->IsFunctionContext() &&
          !function_context->IsScriptContext() &&
          !function_context.is_identical_to(outer_context)) {
-    inner_context = function_context;
+    Handle<Context> clone = Handle<Context>::cast(
+        FixedArray::CopySize(function_context, function_context->length()));
+    if (!inner_context.is_null()) {
+      inner_context->set_previous(*clone);
+    } else {
+      innermost_context = clone;
+    }
+    inner_context = clone;
     function_context = Handle<Context>(function_context->previous(), isolate);
   }
 
@@ -2282,17 +2293,15 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   if (inner_context.is_null()) {
     // No inner context. The with-context is now inner-most.
-    eval_context = materialized_context;
+    innermost_context = materialized_context;
   } else {
     inner_context->set_previous(*materialized_context);
   }
 
   Handle<Object> receiver(frame->receiver(), isolate);
-  MaybeHandle<Object> maybe_result = DebugEvaluate(
-      isolate, outer_info, eval_context, context_extension, receiver, source);
-
-  // Remove with-context if it was inserted in between.
-  if (!inner_context.is_null()) inner_context->set_previous(*function_context);
+  MaybeHandle<Object> maybe_result =
+      DebugEvaluate(isolate, outer_info, innermost_context, context_extension,
+                    receiver, source);
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, maybe_result);
@@ -2300,6 +2309,15 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   // Write back potential changes to materialized stack locals to the stack.
   UpdateStackLocalsFromMaterializedObject(isolate, materialized, function,
                                           frame, inlined_jsframe_index);
+
+  while (!innermost_context.is_identical_to(materialized_context)) {
+    DCHECK(eval_context->map() == innermost_context->map());
+    innermost_context->CopyTo(
+        Context::MIN_CONTEXT_SLOTS, *eval_context, Context::MIN_CONTEXT_SLOTS,
+        innermost_context->length() - Context::MIN_CONTEXT_SLOTS);
+    innermost_context = handle(innermost_context->previous(), isolate);
+    eval_context = handle(eval_context->previous(), isolate);
+  }
 
   return *result;
 }
