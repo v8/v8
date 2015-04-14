@@ -47,6 +47,12 @@
                     "v8_linux_gcc_compile_rel": [
                         "defaulttests"
                     ],
+                    "v8_linux_mipsel_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_mips64el_compile_rel": [
+                        "defaulttests"
+                    ],
                     "v8_linux_nodcheck_rel": [
                         "defaulttests"
                     ],

@@ -256,6 +256,8 @@ def GetPreferredTryMasters(project, change):
       'v8_mac_rel': set(['defaulttests']),
       'v8_linux_arm_rel': set(['defaulttests']),
       'v8_linux_arm64_rel': set(['defaulttests']),
+      'v8_linux_mipsel_compile_rel': set(['defaulttests']),
+      'v8_linux_mips64el_compile_rel': set(['defaulttests']),
       'v8_android_arm_compile_rel': set(['defaulttests']),
       'v8_linux_chromium_gn_rel': set(['defaulttests']),
     },
