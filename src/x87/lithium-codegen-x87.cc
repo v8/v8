@@ -3572,7 +3572,6 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // object as a receiver to normal functions. Values have to be
   // passed unchanged to builtins and strict-mode functions.
   Label receiver_ok, global_object;
-  Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
   Register scratch = ToRegister(instr->temp());
 
   if (!instr->hydrogen()->known_function()) {
@@ -3582,19 +3581,19 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
            FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
               1 << SharedFunctionInfo::kStrictModeBitWithinByte);
-    __ j(not_equal, &receiver_ok, dist);
+    __ j(not_equal, &receiver_ok);
 
     // Do not transform the receiver to object for builtins.
     __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
               1 << SharedFunctionInfo::kNativeBitWithinByte);
-    __ j(not_equal, &receiver_ok, dist);
+    __ j(not_equal, &receiver_ok);
   }
 
   // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object);
   __ cmp(receiver, factory()->undefined_value());
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object);
 
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
