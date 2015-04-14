@@ -819,9 +819,8 @@ void Simulator::FlushICache(v8::internal::HashMap* i_cache,
 
 
 CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
-  v8::internal::HashMap::Entry* entry = i_cache->Lookup(page,
-                                                        ICacheHash(page),
-                                                        true);
+  v8::internal::HashMap::Entry* entry =
+      i_cache->LookupOrInsert(page, ICacheHash(page));
   if (entry->value == NULL) {
     CachePage* new_page = new CachePage();
     entry->value = new_page;
