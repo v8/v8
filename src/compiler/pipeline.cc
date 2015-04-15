@@ -294,7 +294,22 @@ struct TurboCfgFile : public std::ofstream {
 };
 
 
-static void TraceSchedule(Schedule* schedule) {
+static void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(info, NULL, "json", "a+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of << "{\"name\":\"Schedule\",\"type\":\"schedule\",\"data\":\"";
+      std::stringstream schedule_stream;
+      schedule_stream << *schedule;
+      std::string schedule_string(schedule_stream.str());
+      for (const auto& c : schedule_string) {
+        json_of << AsEscapedUC16ForJSON(c);
+      }
+      json_of << "\"},\n";
+      fclose(json_file);
+    }
+  }
   if (!FLAG_trace_turbo_graph && !FLAG_trace_turbo_scheduler) return;
   OFStream os(stdout);
   os << "-- Schedule --------------------------------------\n" << *schedule;
@@ -1093,7 +1108,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   CHECK(SupportedBackend());
 
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
-  TraceSchedule(data->schedule());
+  TraceSchedule(data->info(), data->schedule());
 
   BasicBlockProfiler::Data* profiler_data = NULL;
   if (FLAG_turbo_profiling) {
@@ -1111,6 +1126,12 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  data->sequence());
+  }
+
+  std::ostringstream source_position_output;
+  if (FLAG_trace_turbo) {
+    // Output source position information before the graph is deleted.
+    data_->source_positions()->Print(source_position_output);
   }
 
   data->DeleteGraphZone();
@@ -1161,7 +1182,10 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
         json_of << AsEscapedUC16ForJSON(c);
       }
 #endif  // ENABLE_DISASSEMBLER
-      json_of << "\"}\n]}";
+      json_of << "\"}\n],\n";
+      json_of << "\"nodePositions\":";
+      json_of << source_position_output.str();
+      json_of << "}";
       fclose(json_file);
     }
     OFStream os(stdout);

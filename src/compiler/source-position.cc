@@ -50,6 +50,24 @@ SourcePosition SourcePositionTable::GetSourcePosition(Node* node) const {
   return table_.Get(node);
 }
 
+
+void SourcePositionTable::Print(std::ostream& os) const {
+  os << "{";
+  bool needs_comma = false;
+  for (auto i : table_) {
+    SourcePosition pos = i.second;
+    if (!pos.IsUnknown()) {
+      if (needs_comma) {
+        os << ",";
+      }
+      os << "\"" << i.first << "\""
+         << ":" << pos.raw();
+      needs_comma = true;
+    }
+  }
+  os << "}";
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
