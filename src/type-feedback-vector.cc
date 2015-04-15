@@ -139,6 +139,8 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 
 bool TypeFeedbackVector::SpecDiffersFrom(
     const ZoneFeedbackVectorSpec* other_spec) const {
+  if (!FLAG_vector_ics) return false;
+
   if (other_spec->slots() != Slots() || other_spec->ic_slots() != ICSlots()) {
     return true;
   }
