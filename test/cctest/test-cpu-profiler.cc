@@ -1178,7 +1178,7 @@ TEST(FunctionCallSample) {
 
   // Collect garbage that might have be generated while installing
   // extensions.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CompileRun(call_function_test_source);
   v8::Local<v8::Function> function = GetFunction(*env, "start");

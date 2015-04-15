@@ -92,8 +92,8 @@ TEST(Promotion) {
   CHECK(heap->InSpace(*array, NEW_SPACE));
 
   // Call mark compact GC, so array becomes an old object.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
 
   // Array now sits in the old space
   CHECK(heap->InSpace(*array, OLD_SPACE));

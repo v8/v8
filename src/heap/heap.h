@@ -757,6 +757,7 @@ class Heap {
   static const int kNoGCFlags = 0;
   static const int kReduceMemoryFootprintMask = 1;
   static const int kAbortIncrementalMarkingMask = 2;
+  static const int kFinalizeIncrementalMarkingMask = 4;
 
   // Making the heap iterable requires us to abort incremental marking.
   static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
@@ -774,7 +775,7 @@ class Heap {
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.
   void CollectAllGarbage(
-      int flags, const char* gc_reason = NULL,
+      int flags = kFinalizeIncrementalMarkingMask, const char* gc_reason = NULL,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Last hope GC, should try to squeeze as much as possible.
