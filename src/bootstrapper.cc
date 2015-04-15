@@ -137,6 +137,7 @@ class Genesis BASE_EMBEDDED {
   // Creates the ThrowTypeError function. ECMA 5th Ed. 13.2.3
   Handle<JSFunction> GetRestrictedFunctionPropertiesThrower();
   Handle<JSFunction> GetStrictArgumentsPoisonFunction();
+  Handle<JSFunction> GetThrowTypeErrorIntrinsic(Builtins::Name builtin_name);
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateStrongModeFunctionMaps(Handle<JSFunction> empty);
@@ -295,8 +296,8 @@ class Genesis BASE_EMBEDDED {
   // prototype, maps.
   Handle<Map> sloppy_function_map_writable_prototype_;
   Handle<Map> strict_function_map_writable_prototype_;
-  Handle<JSFunction> strict_poison_function;
-  Handle<JSFunction> restricted_function_properties_thrower;
+  Handle<JSFunction> strict_poison_function_;
+  Handle<JSFunction> restricted_function_properties_thrower_;
 
   BootstrapperActive active_;
   friend class Bootstrapper;
@@ -613,39 +614,49 @@ void Genesis::SetStrongFunctionInstanceDescriptor(Handle<Map> map) {
 }
 
 
+// Creates the %ThrowTypeError% function.
+Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
+    Builtins::Name builtin_name) {
+  Handle<String> name =
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("ThrowTypeError"));
+  Handle<Code> code(isolate()->builtins()->builtin(builtin_name));
+  Handle<JSFunction> function =
+      factory()->NewFunctionWithoutPrototype(name, code);
+  function->set_map(native_context()->sloppy_function_map());
+  function->shared()->DontAdaptArguments();
+
+  // %ThrowTypeError% must not have a name property.
+  JSReceiver::DeleteProperty(function, factory()->name_string()).Assert();
+
+  // length needs to be non configurable.
+  Handle<Object> value(Smi::FromInt(function->shared()->length()), isolate());
+  JSObject::SetOwnPropertyIgnoreAttributes(
+      function, factory()->length_string(), value,
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
+      .Assert();
+
+  JSObject::PreventExtensions(function).Assert();
+
+  return function;
+}
+
+
 // ECMAScript 5th Edition, 13.2.3
 Handle<JSFunction> Genesis::GetRestrictedFunctionPropertiesThrower() {
-  if (restricted_function_properties_thrower.is_null()) {
-    Handle<String> name = factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("ThrowTypeError"));
-    Handle<Code> code(isolate()->builtins()->builtin(
-        Builtins::kRestrictedFunctionPropertiesThrower));
-    restricted_function_properties_thrower =
-        factory()->NewFunctionWithoutPrototype(name, code);
-    restricted_function_properties_thrower->set_map(
-        native_context()->sloppy_function_map());
-    restricted_function_properties_thrower->shared()->DontAdaptArguments();
-
-    JSObject::PreventExtensions(restricted_function_properties_thrower)
-        .Assert();
+  if (restricted_function_properties_thrower_.is_null()) {
+    restricted_function_properties_thrower_ = GetThrowTypeErrorIntrinsic(
+        Builtins::kRestrictedFunctionPropertiesThrower);
   }
-  return restricted_function_properties_thrower;
+  return restricted_function_properties_thrower_;
 }
 
 
 Handle<JSFunction> Genesis::GetStrictArgumentsPoisonFunction() {
-  if (strict_poison_function.is_null()) {
-    Handle<String> name = factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("ThrowTypeError"));
-    Handle<Code> code(isolate()->builtins()->builtin(
-        Builtins::kRestrictedStrictArgumentsPropertiesThrower));
-    strict_poison_function = factory()->NewFunctionWithoutPrototype(name, code);
-    strict_poison_function->set_map(native_context()->sloppy_function_map());
-    strict_poison_function->shared()->DontAdaptArguments();
-
-    JSObject::PreventExtensions(strict_poison_function).Assert();
+  if (strict_poison_function_.is_null()) {
+    strict_poison_function_ = GetThrowTypeErrorIntrinsic(
+        Builtins::kRestrictedStrictArgumentsPropertiesThrower);
   }
-  return strict_poison_function;
+  return strict_poison_function_;
 }
 
 
