@@ -381,7 +381,7 @@ class RetrieveChromiumV8Releases(Step):
 
 
 # TODO(machenbach): Unify common code with method above.
-class RietrieveChromiumBranches(Step):
+class RetrieveChromiumBranches(Step):
   MESSAGE = "Retrieve Chromium branch information."
 
   def RunStep(self):
@@ -433,6 +433,37 @@ class RietrieveChromiumBranches(Step):
       releases_dict.get(revision, {})["chromium_branch"] = ranges
 
 
+class RetrieveInformationOnChromeReleases(Step):
+  MESSAGE = 'Retrieves relevant information on the latest Chrome releases'
+
+  def Run(self):
+
+    params = None
+    result_raw = self.ReadURL(
+                             "http://omahaproxy.appspot.com/all.json",
+                             params,
+                             wait_plan=[5, 20]
+                             )
+    recent_releases = json.loads(result_raw)
+
+    canaries = []
+
+    for current_os in recent_releases:
+      for current_version in current_os["versions"]:
+        current_candidate = {
+                            "chrome_version": current_version["version"],
+                           "os": current_version["os"],
+                           "release_date": current_version["current_reldate"],
+                           "v8_version": current_version["v8_version"],
+                           }
+
+        if current_version["channel"] == "canary":
+          canaries.append(current_candidate)
+
+    chrome_releases = {"canaries": canaries}
+    self["chrome_releases"] = chrome_releases
+
+
 class CleanUp(Step):
   MESSAGE = "Clean up."
 
@@ -444,6 +475,12 @@ class WriteOutput(Step):
   MESSAGE = "Print output."
 
   def Run(self):
+
+    output = {
+              "releases": self["releases"],
+              "chrome_releases": self["chrome_releases"],
+              }
+
     if self._options.csv:
       with open(self._options.csv, "w") as f:
         writer = csv.DictWriter(f,
@@ -455,9 +492,9 @@ class WriteOutput(Step):
           writer.writerow(release)
     if self._options.json:
       with open(self._options.json, "w") as f:
-        f.write(json.dumps(self["releases"]))
+        f.write(json.dumps(output))
     if not self._options.csv and not self._options.json:
-      print self["releases"]  # pragma: no cover
+      print output  # pragma: no cover
 
 
 class Releases(ScriptsBase):
@@ -486,12 +523,14 @@ class Releases(ScriptsBase):
     }
 
   def _Steps(self):
+
     return [
       Preparation,
       RetrieveV8Releases,
       UpdateChromiumCheckout,
       RetrieveChromiumV8Releases,
-      RietrieveChromiumBranches,
+      RetrieveChromiumBranches,
+      RetrieveInformationOnChromeReleases,
       CleanUp,
       WriteOutput,
     ]
