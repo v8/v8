@@ -1832,6 +1832,7 @@ class JSObject: public JSReceiver {
                                     Handle<HeapObject> user);
   static void UnregisterPrototypeUser(Handle<JSObject> prototype,
                                       Handle<HeapObject> user);
+  static void InvalidatePrototypeChains(Map* map);
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
@@ -6027,6 +6028,15 @@ class Map: public HeapObject {
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_ACCESSORS(prototype_info, Object)
+
+  // [prototype chain validity cell]: Associated with a prototype object,
+  // stored in that object's map's PrototypeInfo, indicates that prototype
+  // chains through this object are currently valid. The cell will be
+  // invalidated and replaced when the prototype chain changes.
+  static Handle<Cell> GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
+                                                            Isolate* isolate);
+  static const int kPrototypeChainValid = 0;
+  static const int kPrototypeChainInvalid = 1;
 
   Map* FindRootMap();
   Map* FindFieldOwner(int descriptor);
