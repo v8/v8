@@ -94,6 +94,7 @@ namespace internal {
   V(kExternalStringExpectedButNotFound,                                        \
     "External string expected, but not found")                                 \
   V(kFailedBailedOutLastTime, "Failed/bailed out last time")                   \
+  V(kForInStatementIsNotFastCase, "ForInStatement is not fast case")           \
   V(kForInStatementOptimizationIsDisabled,                                     \
     "ForInStatement optimization is disabled")                                 \
   V(kForInStatementWithNonLocalEachVariable,                                   \
