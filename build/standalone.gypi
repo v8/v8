@@ -41,6 +41,7 @@
     'v8_deprecation_warnings': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
+    'release_extra_cflags%': '',
     'variables': {
       'variables': {
         'variables': {
@@ -196,7 +197,7 @@
         # Xcode insists on this empty entry.
       },
       'Release': {
-        # Xcode insists on this empty entry.
+        'cflags+': ['<@(release_extra_cflags)'],
       },
     },
     'conditions':[
