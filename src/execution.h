@@ -171,17 +171,13 @@ class StackGuard FINAL {
   #undef V
   };
 
+  uintptr_t climit() { return thread_local_.climit(); }
+  uintptr_t jslimit() { return thread_local_.jslimit(); }
   // This provides an asynchronous read of the stack limits for the current
   // thread.  There are no locks protecting this, but it is assumed that you
   // have the global V8 lock if you are using multiple V8 threads.
-  uintptr_t climit() {
-    return thread_local_.climit_;
-  }
   uintptr_t real_climit() {
     return thread_local_.real_climit_;
-  }
-  uintptr_t jslimit() {
-    return thread_local_.jslimit_;
   }
   uintptr_t real_jslimit() {
     return thread_local_.real_jslimit_;
@@ -256,9 +252,27 @@ class StackGuard FINAL {
     // fail. Both the generated code and the runtime system check against the
     // one without the real_ prefix.
     uintptr_t real_jslimit_;  // Actual JavaScript stack limit set for the VM.
-    uintptr_t jslimit_;
     uintptr_t real_climit_;  // Actual C++ stack limit set for the VM.
-    uintptr_t climit_;
+
+    // jslimit_ and climit_ can be read without any lock.
+    // Writing requires the ExecutionAccess lock.
+    base::AtomicWord jslimit_;
+    base::AtomicWord climit_;
+
+    uintptr_t jslimit() {
+      return bit_cast<uintptr_t>(base::NoBarrier_Load(&jslimit_));
+    }
+    void set_jslimit(uintptr_t limit) {
+      return base::NoBarrier_Store(&jslimit_,
+                                   static_cast<base::AtomicWord>(limit));
+    }
+    uintptr_t climit() {
+      return bit_cast<uintptr_t>(base::NoBarrier_Load(&climit_));
+    }
+    void set_climit(uintptr_t limit) {
+      return base::NoBarrier_Store(&climit_,
+                                   static_cast<base::AtomicWord>(limit));
+    }
 
     PostponeInterruptsScope* postpone_interrupts_;
     int interrupt_flags_;

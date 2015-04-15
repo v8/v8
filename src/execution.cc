@@ -20,16 +20,16 @@ StackGuard::StackGuard()
 
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
   DCHECK(isolate_ != NULL);
-  thread_local_.jslimit_ = kInterruptLimit;
-  thread_local_.climit_ = kInterruptLimit;
+  thread_local_.set_jslimit(kInterruptLimit);
+  thread_local_.set_climit(kInterruptLimit);
   isolate_->heap()->SetStackLimits();
 }
 
 
 void StackGuard::reset_limits(const ExecutionAccess& lock) {
   DCHECK(isolate_ != NULL);
-  thread_local_.jslimit_ = thread_local_.real_jslimit_;
-  thread_local_.climit_ = thread_local_.real_climit_;
+  thread_local_.set_jslimit(thread_local_.real_jslimit_);
+  thread_local_.set_climit(thread_local_.real_climit_);
   isolate_->heap()->SetStackLimits();
 }
 
@@ -354,11 +354,11 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   // If the current limits are special (e.g. due to a pending interrupt) then
   // leave them alone.
   uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, limit);
-  if (thread_local_.jslimit_ == thread_local_.real_jslimit_) {
-    thread_local_.jslimit_ = jslimit;
+  if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
+    thread_local_.set_jslimit(jslimit);
   }
-  if (thread_local_.climit_ == thread_local_.real_climit_) {
-    thread_local_.climit_ = limit;
+  if (thread_local_.climit() == thread_local_.real_climit_) {
+    thread_local_.set_climit(limit);
   }
   thread_local_.real_climit_ = limit;
   thread_local_.real_jslimit_ = jslimit;
@@ -474,9 +474,9 @@ void StackGuard::FreeThreadResources() {
 
 void StackGuard::ThreadLocal::Clear() {
   real_jslimit_ = kIllegalLimit;
-  jslimit_ = kIllegalLimit;
+  set_jslimit(kIllegalLimit);
   real_climit_ = kIllegalLimit;
-  climit_ = kIllegalLimit;
+  set_climit(kIllegalLimit);
   postpone_interrupts_ = NULL;
   interrupt_flags_ = 0;
 }
@@ -489,9 +489,9 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
     DCHECK(GetCurrentStackPosition() > kLimitSize);
     uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
     real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
-    jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
+    set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));
     real_climit_ = limit;
-    climit_ = limit;
+    set_climit(limit);
     should_set_stack_limits = true;
   }
   postpone_interrupts_ = NULL;
