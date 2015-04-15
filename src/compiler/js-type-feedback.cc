@@ -141,8 +141,11 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   // TODO(turbofan): type feedback currently requires deoptimization.
   if (!FLAG_turbo_deoptimization) return NoChange();
 
+  // TODO(turbofan): handle vector-based type feedback.
   TypeFeedbackId id = js_type_feedback_->find(node);
-  if (id.IsNone() || oracle()->LoadIsUninitialized(id)) return NoChange();
+  if (id.IsNone() || oracle()->LoadInlineCacheState(id) == UNINITIALIZED) {
+    return NoChange();
+  }
 
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
   SmallMapList maps;

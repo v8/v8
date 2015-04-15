@@ -495,10 +495,10 @@ void AstTyper::VisitProperty(Property* expr) {
   TypeFeedbackId id(TypeFeedbackId::None());
   if (FLAG_vector_ics) {
     slot = expr->PropertyFeedbackSlot();
-    expr->set_is_uninitialized(oracle()->LoadIsUninitialized(slot));
+    expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
   } else {
     id = expr->PropertyFeedbackId();
-    expr->set_is_uninitialized(oracle()->LoadIsUninitialized(id));
+    expr->set_inline_cache_state(oracle()->LoadInlineCacheState(id));
   }
 
   if (!expr->IsUninitialized()) {

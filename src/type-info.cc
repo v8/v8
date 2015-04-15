@@ -90,31 +90,33 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
 }
 
 
-bool TypeFeedbackOracle::LoadIsUninitialized(TypeFeedbackId id) {
+InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(TypeFeedbackId id) {
   Handle<Object> maybe_code = GetInfo(id);
   if (maybe_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(maybe_code);
-    return code->is_inline_cache_stub() && code->ic_state() == UNINITIALIZED;
+    if (code->is_inline_cache_stub()) return code->ic_state();
   }
-  return false;
+
+  // If we can't find an IC, assume we've seen *something*, but we don't know
+  // what. PREMONOMORPHIC roughly encodes this meaning.
+  return PREMONOMORPHIC;
 }
 
 
-bool TypeFeedbackOracle::LoadIsUninitialized(FeedbackVectorICSlot slot) {
+InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
+    FeedbackVectorICSlot slot) {
   Code::Kind kind = feedback_vector_->GetKind(slot);
   if (kind == Code::LOAD_IC) {
     LoadICNexus nexus(feedback_vector_, slot);
-    return nexus.StateFromFeedback() == UNINITIALIZED;
+    return nexus.StateFromFeedback();
   } else if (kind == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus nexus(feedback_vector_, slot);
-    return nexus.StateFromFeedback() == UNINITIALIZED;
-  } else if (kind == Code::NUMBER_OF_KINDS) {
-    // Code::NUMBER_OF_KINDS indicates a slot that was never even compiled
-    // in full code.
-    return true;
+    return nexus.StateFromFeedback();
   }
 
-  return false;
+  // If we can't find an IC, assume we've seen *something*, but we don't know
+  // what. PREMONOMORPHIC roughly encodes this meaning.
+  return PREMONOMORPHIC;
 }
 
 

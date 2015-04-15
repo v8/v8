@@ -1746,16 +1746,19 @@ class Property FINAL : public Expression {
     return !is_for_call() && HasNoTypeInformation();
   }
   bool HasNoTypeInformation() const {
-    return IsUninitializedField::decode(bit_field_);
+    return GetInlineCacheState() == UNINITIALIZED;
   }
-  void set_is_uninitialized(bool b) {
-    bit_field_ = IsUninitializedField::update(bit_field_, b);
+  InlineCacheState GetInlineCacheState() const {
+    return InlineCacheStateField::decode(bit_field_);
   }
   void set_is_string_access(bool b) {
     bit_field_ = IsStringAccessField::update(bit_field_, b);
   }
   void set_key_type(IcCheckType key_type) {
     bit_field_ = KeyTypeField::update(bit_field_, key_type);
+  }
+  void set_inline_cache_state(InlineCacheState state) {
+    bit_field_ = InlineCacheStateField::update(bit_field_, state);
   }
   void mark_for_call() {
     bit_field_ = IsForCallField::update(bit_field_, true);
@@ -1787,8 +1790,8 @@ class Property FINAL : public Expression {
   Property(Zone* zone, Expression* obj, Expression* key, int pos)
       : Expression(zone, pos),
         bit_field_(IsForCallField::encode(false) |
-                   IsUninitializedField::encode(false) |
-                   IsStringAccessField::encode(false)),
+                   IsStringAccessField::encode(false) |
+                   InlineCacheStateField::encode(UNINITIALIZED)),
         property_feedback_slot_(FeedbackVectorICSlot::Invalid()),
         obj_(obj),
         key_(key) {}
@@ -1798,9 +1801,9 @@ class Property FINAL : public Expression {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   class IsForCallField : public BitField8<bool, 0, 1> {};
-  class IsUninitializedField : public BitField8<bool, 1, 1> {};
-  class IsStringAccessField : public BitField8<bool, 2, 1> {};
-  class KeyTypeField : public BitField8<IcCheckType, 3, 1> {};
+  class IsStringAccessField : public BitField8<bool, 1, 1> {};
+  class KeyTypeField : public BitField8<IcCheckType, 2, 1> {};
+  class InlineCacheStateField : public BitField8<InlineCacheState, 3, 4> {};
   uint8_t bit_field_;
   FeedbackVectorICSlot property_feedback_slot_;
   Expression* obj_;
