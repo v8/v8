@@ -1270,8 +1270,7 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
     // is gone.
     Node* res = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
                         function, obj, value);
-    // TODO(jarin): provide real bailout id.
-    PrepareFrameState(res, BailoutId::None());
+    PrepareFrameState(res, stmt->FilterId(), OutputFrameStateCombine::Push());
     Node* property_missing =
         NewNode(javascript()->StrictEqual(), res, jsgraph()->ZeroConstant());
     {

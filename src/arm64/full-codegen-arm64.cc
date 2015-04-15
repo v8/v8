@@ -1272,6 +1272,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // just skip it.
   __ Push(x1, x3);
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
+  PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
   __ Mov(x3, x0);
   __ Cbz(x0, loop_statement.continue_label());
 

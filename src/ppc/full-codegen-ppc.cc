@@ -1241,6 +1241,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // just skip it.
   __ Push(r4, r6);  // Enumerable and current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
+  PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
   __ mr(r6, r3);
   __ cmpi(r6, Operand::Zero());
   __ beq(loop_statement.continue_label());
