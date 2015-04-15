@@ -1005,7 +1005,7 @@ Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
 
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, State initialization_state) {
-  if (FLAG_vector_ics) {
+  if (FLAG_vector_ics && initialization_state != MEGAMORPHIC) {
     return VectorRawKeyedLoadStub(isolate).GetCode();
   }
   switch (initialization_state) {
