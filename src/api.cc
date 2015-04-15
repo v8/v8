@@ -444,6 +444,11 @@ ResourceConstraints::ResourceConstraints()
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit,
                                             uint32_t number_of_processors) {
+  ConfigureDefaults(physical_memory, virtual_memory_limit);
+}
+
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
+                                            uint64_t virtual_memory_limit) {
 #if V8_OS_ANDROID
   // Android has higher physical memory requirements before raising the maximum
   // heap size limits since it has no swap space.
@@ -474,8 +479,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
     set_max_executable_size(i::Heap::kMaxExecutableSizeHugeMemoryDevice);
   }
 
-  set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
-
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most
     // kMaximalCodeRangeSize.
@@ -501,8 +504,6 @@ void SetResourceConstraints(i::Isolate* isolate,
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints.stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
-
-  isolate->set_max_available_threads(constraints.max_available_threads());
 }
 
 

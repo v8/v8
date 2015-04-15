@@ -5271,8 +5271,7 @@ bool Heap::SetUp() {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  concurrent_sweeping_enabled_ =
-      FLAG_concurrent_sweeping && isolate_->max_available_threads() > 1;
+  concurrent_sweeping_enabled_ = FLAG_concurrent_sweeping;
 
   base::CallOnce(&initialize_gc_once, &InitializeGCOnce);
 

@@ -1638,8 +1638,7 @@ int Shell::Main(int argc, char* argv[]) {
 #ifndef V8_SHARED
   create_params.constraints.ConfigureDefaults(
       base::SysInfo::AmountOfPhysicalMemory(),
-      base::SysInfo::AmountOfVirtualMemory(),
-      base::SysInfo::NumberOfProcessors());
+      base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
   if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {

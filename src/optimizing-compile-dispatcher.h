@@ -70,9 +70,7 @@ class OptimizingCompileDispatcher {
     AddToOsrBuffer(NULL);
   }
 
-  static bool Enabled(int max_available) {
-    return (FLAG_concurrent_recompilation && max_available > 1);
-  }
+  static bool Enabled() { return FLAG_concurrent_recompilation; }
 
  private:
   class CompileTask;
