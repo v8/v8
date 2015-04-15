@@ -10416,6 +10416,11 @@ class JSArray: public JSObject {
   // capacity is non-zero.
   static void Initialize(Handle<JSArray> array, int capacity, int length = 0);
 
+  // If the JSArray has fast elements, and new_length would result in
+  // normalization, returns true.
+  static inline bool SetElementsLengthWouldNormalize(
+      Heap* heap, Handle<Object> new_length_handle);
+
   // Initializes the array to a certain length.
   inline bool AllowsSetElementsLength();
   // Can cause GC.

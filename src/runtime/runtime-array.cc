@@ -1045,15 +1045,20 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
 
   bool holey = false;
   bool can_use_type_feedback = true;
+  bool can_inline_array_constructor = true;
   if (caller_args->length() == 1) {
     Handle<Object> argument_one = caller_args->at<Object>(0);
     if (argument_one->IsSmi()) {
       int value = Handle<Smi>::cast(argument_one)->value();
-      if (value < 0 || value >= JSObject::kInitialMaxFastElementArray) {
+      if (value < 0 || JSArray::SetElementsLengthWouldNormalize(isolate->heap(),
+                                                                argument_one)) {
         // the array is a dictionary in this case.
         can_use_type_feedback = false;
       } else if (value != 0) {
         holey = true;
+        if (value >= JSObject::kInitialMaxFastElementArray) {
+          can_inline_array_constructor = false;
+        }
       }
     } else {
       // Non-smi length argument produces a dictionary
@@ -1104,7 +1109,8 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, ArrayConstructInitializeElements(array, caller_args));
   if (!site.is_null() &&
-      (old_kind != array->GetElementsKind() || !can_use_type_feedback)) {
+      (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
+       !can_inline_array_constructor)) {
     // The arguments passed in caused a transition. This kind of complexity
     // can't be dealt with in the inlined hydrogen array constructor case.
     // We must mark the allocationsite as un-inlinable.

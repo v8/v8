@@ -2430,10 +2430,9 @@ class HCallNew FINAL : public HBinaryCall {
 
 class HCallNewArray FINAL : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallNewArray,
-                                              HValue*,
-                                              int,
-                                              ElementsKind);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HCallNewArray, HValue*, int,
+                                              ElementsKind,
+                                              Handle<AllocationSite>);
 
   HValue* context() { return first(); }
   HValue* constructor() { return second(); }
@@ -2441,16 +2440,19 @@ class HCallNewArray FINAL : public HBinaryCall {
   std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
 
   ElementsKind elements_kind() const { return elements_kind_; }
+  Handle<AllocationSite> site() const { return site_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNewArray)
 
  private:
   HCallNewArray(HValue* context, HValue* constructor, int argument_count,
-                ElementsKind elements_kind)
+                ElementsKind elements_kind, Handle<AllocationSite> site)
       : HBinaryCall(context, constructor, argument_count),
-        elements_kind_(elements_kind) {}
+        elements_kind_(elements_kind),
+        site_(site) {}
 
   ElementsKind elements_kind_;
+  Handle<AllocationSite> site_;
 };
 
 
