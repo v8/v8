@@ -915,6 +915,7 @@ void MacroAssembler::SafePush(Smi* src) {
 
 
 Register MacroAssembler::GetSmiConstant(Smi* source) {
+  STATIC_ASSERT(kSmiTag == 0);
   int value = source->value();
   if (value == 0) {
     xorl(kScratchRegister, kScratchRegister);
@@ -926,7 +927,13 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
-  Move(dst, source, Assembler::RelocInfoNone());
+  STATIC_ASSERT(kSmiTag == 0);
+  int value = source->value();
+  if (value == 0) {
+    xorl(dst, dst);
+  } else {
+    Move(dst, source, Assembler::RelocInfoNone());
+  }
 }
 
 
