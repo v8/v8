@@ -10,12 +10,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-static size_t OperandCount(const Instruction* instr) {
+namespace {
+
+size_t OperandCount(const Instruction* instr) {
   return instr->InputCount() + instr->OutputCount() + instr->TempCount();
 }
 
 
-static void VerifyEmptyGaps(const Instruction* instr) {
+void VerifyEmptyGaps(const Instruction* instr) {
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     Instruction::GapPosition inner_pos =
@@ -23,6 +25,24 @@ static void VerifyEmptyGaps(const Instruction* instr) {
     CHECK(instr->GetParallelMove(inner_pos) == nullptr);
   }
 }
+
+
+void VerifyAllocatedGaps(const Instruction* instr) {
+  for (int i = Instruction::FIRST_GAP_POSITION;
+       i <= Instruction::LAST_GAP_POSITION; i++) {
+    Instruction::GapPosition inner_pos =
+        static_cast<Instruction::GapPosition>(i);
+    auto moves = instr->GetParallelMove(inner_pos);
+    if (moves == nullptr) continue;
+    for (auto move : *moves) {
+      if (move->IsRedundant()) continue;
+      CHECK(move->source().IsAllocated() || move->source().IsConstant());
+      CHECK(move->destination().IsAllocated());
+    }
+  }
+}
+
+}  // namespace
 
 
 void RegisterAllocatorVerifier::VerifyInput(
@@ -94,6 +114,8 @@ void RegisterAllocatorVerifier::VerifyAssignment() {
   auto instr_it = sequence()->begin();
   for (const auto& instr_constraint : *constraints()) {
     const auto* instr = instr_constraint.instruction_;
+    // All gaps should be totally allocated at this point.
+    VerifyAllocatedGaps(instr);
     const size_t operand_count = instr_constraint.operand_constaints_size_;
     const auto* op_constraints = instr_constraint.operand_constraints_;
     CHECK_EQ(instr, *instr_it);
@@ -298,7 +320,7 @@ class OperandMap : public ZoneObject {
           this->erase(it++);
           if (it == this->end()) return;
         }
-        if (it->first->Equals(o.first)) {
+        if (*it->first == *o.first) {
           ++it;
           if (it == this->end()) return;
         } else {
@@ -312,23 +334,22 @@ class OperandMap : public ZoneObject {
 
   Map& map() { return map_; }
 
-  void RunParallelMoves(Zone* zone, const ParallelMove* move) {
+  void RunParallelMoves(Zone* zone, const ParallelMove* moves) {
     // Compute outgoing mappings.
     Map to_insert(zone);
-    auto moves = move->move_operands();
-    for (auto i = moves->begin(); i != moves->end(); ++i) {
-      if (i->IsEliminated()) continue;
-      auto cur = map().find(i->source());
+    for (auto move : *moves) {
+      if (move->IsEliminated()) continue;
+      auto cur = map().find(&move->source());
       CHECK(cur != map().end());
       auto res =
-          to_insert.insert(std::make_pair(i->destination(), cur->second));
+          to_insert.insert(std::make_pair(&move->destination(), cur->second));
       // Ensure injectivity of moves.
       CHECK(res.second);
     }
     // Drop current mappings.
-    for (auto i = moves->begin(); i != moves->end(); ++i) {
-      if (i->IsEliminated()) continue;
-      auto cur = map().find(i->destination());
+    for (auto move : *moves) {
+      if (move->IsEliminated()) continue;
+      auto cur = map().find(&move->destination());
       if (cur != map().end()) map().erase(cur);
     }
     // Insert new values.

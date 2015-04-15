@@ -16,26 +16,24 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   void AddMove(Instruction* instr, TestOperand from, TestOperand to,
                Instruction::GapPosition pos = Instruction::START) {
     auto parallel_move = instr->GetOrCreateParallelMove(pos, zone());
-    parallel_move->AddMove(ConvertMoveArg(from), ConvertMoveArg(to), zone());
+    parallel_move->AddMove(ConvertMoveArg(from), ConvertMoveArg(to));
   }
 
-  int NonRedundantSize(ParallelMove* move) {
+  int NonRedundantSize(ParallelMove* moves) {
     int i = 0;
-    auto ops = move->move_operands();
-    for (auto op = ops->begin(); op != ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
+    for (auto move : *moves) {
+      if (move->IsRedundant()) continue;
       i++;
     }
     return i;
   }
 
-  bool Contains(ParallelMove* move, TestOperand from_op, TestOperand to_op) {
+  bool Contains(ParallelMove* moves, TestOperand from_op, TestOperand to_op) {
     auto from = ConvertMoveArg(from_op);
     auto to = ConvertMoveArg(to_op);
-    auto ops = move->move_operands();
-    for (auto op = ops->begin(); op != ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
-      if (op->source()->Equals(from) && op->destination()->Equals(to)) {
+    for (auto move : *moves) {
+      if (move->IsRedundant()) continue;
+      if (move->source() == from && move->destination() == to) {
         return true;
       }
     }
@@ -62,22 +60,22 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   }
 
  private:
-  InstructionOperand* ConvertMoveArg(TestOperand op) {
+  InstructionOperand ConvertMoveArg(TestOperand op) {
     CHECK_EQ(kNoValue, op.vreg_.value_);
     CHECK_NE(kNoValue, op.value_);
     switch (op.type_) {
       case kConstant:
-        return ConstantOperand::New(zone(), op.value_);
+        return ConstantOperand(op.value_);
       case kFixedSlot:
-        return StackSlotOperand::New(zone(), op.value_);
+        return StackSlotOperand(op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand::New(zone(), op.value_);
+        return RegisterOperand(op.value_);
       default:
         break;
     }
     CHECK(false);
-    return nullptr;
+    return InstructionOperand();
   }
 };
 

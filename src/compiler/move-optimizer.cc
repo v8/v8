@@ -21,16 +21,13 @@ bool GapsCanMoveOver(Instruction* instr) { return instr->IsNop(); }
 int FindFirstNonEmptySlot(Instruction* instr) {
   int i = Instruction::FIRST_GAP_POSITION;
   for (; i <= Instruction::LAST_GAP_POSITION; i++) {
-    auto move = instr->parallel_moves()[i];
-    if (move == nullptr) continue;
-    auto move_ops = move->move_operands();
-    auto op = move_ops->begin();
-    for (; op != move_ops->end(); ++op) {
-      if (!op->IsRedundant()) break;
-      op->Eliminate();
+    auto moves = instr->parallel_moves()[i];
+    if (moves == nullptr) continue;
+    for (auto move : *moves) {
+      if (!move->IsRedundant()) return i;
+      move->Eliminate();
     }
-    if (op != move_ops->end()) break;  // Found non-redundant move.
-    move_ops->Rewind(0);               // Clear this redundant move.
+    moves->clear();  // Clear this redundant move.
   }
   return i;
 }
@@ -63,29 +60,27 @@ void MoveOptimizer::Run() {
 void MoveOptimizer::CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
                                   ParallelMove* right) {
   DCHECK(eliminated->empty());
-  auto move_ops = right->move_operands();
-  if (!left->move_operands()->is_empty()) {
+  if (!left->empty()) {
     // Modify the right moves in place and collect moves that will be killed by
     // merging the two gaps.
-    for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
-      auto to_eliminate = left->PrepareInsertAfter(op);
+    for (auto move : *right) {
+      if (move->IsRedundant()) continue;
+      auto to_eliminate = left->PrepareInsertAfter(move);
       if (to_eliminate != nullptr) eliminated->push_back(to_eliminate);
     }
-    // Eliminate dead moves.  Must happen before insertion of new moves as the
-    // contents of eliminated are pointers into a list.
+    // Eliminate dead moves.
     for (auto to_eliminate : *eliminated) {
       to_eliminate->Eliminate();
     }
     eliminated->clear();
   }
   // Add all possibly modified moves from right side.
-  for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
-    if (op->IsRedundant()) continue;
-    left->move_operands()->Add(*op, code_zone());
+  for (auto move : *right) {
+    if (move->IsRedundant()) continue;
+    left->push_back(move);
   }
   // Nuke right.
-  move_ops->Rewind(0);
+  right->clear();
 }
 
 
@@ -159,14 +154,13 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
     auto pred = code()->InstructionBlockAt(pred_index);
     auto instr = LastInstruction(pred);
     if (instr->parallel_moves()[0] == nullptr ||
-        instr->parallel_moves()[0]->move_operands()->is_empty()) {
+        instr->parallel_moves()[0]->empty()) {
       return;
     }
-    auto move_ops = instr->parallel_moves()[0]->move_operands();
-    for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
-      auto src = *op->source();
-      auto dst = *op->destination();
+    for (auto move : *instr->parallel_moves()[0]) {
+      if (move->IsRedundant()) continue;
+      auto src = move->source();
+      auto dst = move->destination();
       MoveKey key = {src, dst};
       auto res = move_map.insert(std::make_pair(key, 1));
       if (!res.second) {
@@ -188,30 +182,29 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   DCHECK(instr != nullptr);
   bool gap_initialized = true;
   if (instr->parallel_moves()[0] == nullptr ||
-      instr->parallel_moves()[0]->move_operands()->is_empty()) {
+      instr->parallel_moves()[0]->empty()) {
     to_finalize_.push_back(instr);
   } else {
     // Will compress after insertion.
     gap_initialized = false;
     std::swap(instr->parallel_moves()[0], instr->parallel_moves()[1]);
   }
-  auto move = instr->GetOrCreateParallelMove(
+  auto moves = instr->GetOrCreateParallelMove(
       static_cast<Instruction::GapPosition>(0), code_zone());
   // Delete relevant entries in predecessors and move everything to block.
   bool first_iteration = true;
   for (auto pred_index : block->predecessors()) {
     auto pred = code()->InstructionBlockAt(pred_index);
-    auto move_ops = LastInstruction(pred)->parallel_moves()[0]->move_operands();
-    for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
-      MoveKey key = {*op->source(), *op->destination()};
+    for (auto move : *LastInstruction(pred)->parallel_moves()[0]) {
+      if (move->IsRedundant()) continue;
+      MoveKey key = {move->source(), move->destination()};
       auto it = move_map.find(key);
       USE(it);
       DCHECK(it != move_map.end());
       if (first_iteration) {
-        move->AddMove(op->source(), op->destination(), code_zone());
+        moves->AddMove(move->source(), move->destination());
       }
-      op->Eliminate();
+      move->Eliminate();
     }
     first_iteration = false;
   }
@@ -223,70 +216,55 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
 }
 
 
+namespace {
+
+bool IsSlot(const InstructionOperand& op) {
+  return op.IsStackSlot() || op.IsDoubleStackSlot();
+}
+
+
+bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
+  if (a->source() != b->source()) return a->source() < b->source();
+  if (IsSlot(a->destination()) && !IsSlot(b->destination())) return false;
+  if (!IsSlot(a->destination()) && IsSlot(b->destination())) return true;
+  return a->destination() < b->destination();
+}
+
+}  // namespace
+
+
 // Split multiple loads of the same constant or stack slot off into the second
 // slot and keep remaining moves in the first slot.
 void MoveOptimizer::FinalizeMoves(Instruction* instr) {
   auto loads = temp_vector_0();
   DCHECK(loads.empty());
-  auto new_moves = temp_vector_1();
-  DCHECK(new_moves.empty());
-  auto move_ops = instr->parallel_moves()[0]->move_operands();
-  for (auto move = move_ops->begin(); move != move_ops->end(); ++move) {
-    if (move->IsRedundant()) {
-      move->Eliminate();
-      continue;
-    }
-    if (!(move->source()->IsConstant() || move->source()->IsStackSlot() ||
-          move->source()->IsDoubleStackSlot()))
-      continue;
-    // Search for existing move to this slot.
-    MoveOperands* found = nullptr;
-    for (auto load : loads) {
-      if (load->source()->Equals(move->source())) {
-        found = load;
-        break;
-      }
-    }
-    // Not found so insert.
-    if (found == nullptr) {
+  // Find all the loads.
+  for (auto move : *instr->parallel_moves()[0]) {
+    if (move->IsRedundant()) continue;
+    if (move->source().IsConstant() || IsSlot(move->source())) {
       loads.push_back(move);
-      // Replace source with copy for later use.
-      auto dest = move->destination();
-      move->set_destination(InstructionOperand::New(code_zone(), *dest));
+    }
+  }
+  if (loads.empty()) return;
+  // Group the loads by source, moving the preferred destination to the
+  // beginning of the group.
+  std::sort(loads.begin(), loads.end(), LoadCompare);
+  MoveOperands* group_begin = nullptr;
+  for (auto load : loads) {
+    // New group.
+    if (group_begin == nullptr || load->source() != group_begin->source()) {
+      group_begin = load;
       continue;
     }
-    if ((found->destination()->IsStackSlot() ||
-         found->destination()->IsDoubleStackSlot()) &&
-        !(move->destination()->IsStackSlot() ||
-          move->destination()->IsDoubleStackSlot())) {
-      // Found a better source for this load.  Smash it in place to affect other
-      // loads that have already been split.
-      auto next_dest =
-          InstructionOperand::New(code_zone(), *found->destination());
-      auto dest = move->destination();
-      InstructionOperand::ReplaceWith(found->destination(), dest);
-      move->set_destination(next_dest);
-    }
-    // move from load destination.
-    move->set_source(found->destination());
-    new_moves.push_back(move);
+    // Nothing to be gained from splitting here.
+    if (IsSlot(group_begin->destination())) continue;
+    // Insert new move into slot 1.
+    auto slot_1 = instr->GetOrCreateParallelMove(
+        static_cast<Instruction::GapPosition>(1), code_zone());
+    slot_1->AddMove(group_begin->destination(), load->destination());
+    load->Eliminate();
   }
   loads.clear();
-  if (new_moves.empty()) return;
-  // Insert all new moves into slot 1.
-  auto slot_1 = instr->GetOrCreateParallelMove(
-      static_cast<Instruction::GapPosition>(1), code_zone());
-  DCHECK(slot_1->move_operands()->is_empty());
-  slot_1->move_operands()->AddBlock(MoveOperands(nullptr, nullptr),
-                                    static_cast<int>(new_moves.size()),
-                                    code_zone());
-  auto it = slot_1->move_operands()->begin();
-  for (auto new_move : new_moves) {
-    std::swap(*new_move, *it);
-    ++it;
-  }
-  DCHECK_EQ(it, slot_1->move_operands()->end());
-  new_moves.clear();
 }
 
 }  // namespace compiler

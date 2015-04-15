@@ -34,7 +34,7 @@ class GapResolver FINAL {
  private:
   // Perform the given move, possibly requiring other moves to satisfy
   // dependencies.
-  void PerformMove(ZoneList<MoveOperands>* moves, MoveOperands* move) const;
+  void PerformMove(ParallelMove* moves, MoveOperands* move) const;
 
   // Assembler used to emit moves and save registers.
   Assembler* const assembler_;

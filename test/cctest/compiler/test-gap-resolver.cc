@@ -14,12 +14,10 @@ using namespace v8::internal::compiler;
 // that the actual values don't really matter, all we care about is equality.
 class InterpreterState {
  public:
-  typedef std::vector<MoveOperands> Moves;
-
-  void ExecuteInParallel(Moves moves) {
+  void ExecuteInParallel(const ParallelMove* moves) {
     InterpreterState copy(*this);
-    for (Moves::iterator it = moves.begin(); it != moves.end(); ++it) {
-      if (!it->IsRedundant()) write(it->destination(), copy.read(it->source()));
+    for (const auto m : *moves) {
+      if (!m->IsRedundant()) write(m->destination(), copy.read(m->source()));
     }
   }
 
@@ -57,12 +55,12 @@ class InterpreterState {
   typedef Key Value;
   typedef std::map<Key, Value> OperandMap;
 
-  Value read(const InstructionOperand* op) const {
+  Value read(const InstructionOperand& op) const {
     OperandMap::const_iterator it = values_.find(KeyFor(op));
     return (it == values_.end()) ? ValueFor(op) : it->second;
   }
 
-  void write(const InstructionOperand* op, Value v) {
+  void write(const InstructionOperand& op, Value v) {
     if (v == ValueFor(op)) {
       values_.erase(KeyFor(op));
     } else {
@@ -70,22 +68,22 @@ class InterpreterState {
     }
   }
 
-  static Key KeyFor(const InstructionOperand* op) {
-    bool is_constant = op->IsConstant();
+  static Key KeyFor(const InstructionOperand& op) {
+    bool is_constant = op.IsConstant();
     AllocatedOperand::AllocatedKind kind;
     int index;
     if (!is_constant) {
-      index = AllocatedOperand::cast(op)->index();
-      kind = AllocatedOperand::cast(op)->allocated_kind();
+      index = AllocatedOperand::cast(op).index();
+      kind = AllocatedOperand::cast(op).allocated_kind();
     } else {
-      index = ConstantOperand::cast(op)->virtual_register();
+      index = ConstantOperand::cast(op).virtual_register();
       kind = AllocatedOperand::REGISTER;
     }
     Key key = {is_constant, kind, index};
     return key;
   }
 
-  static Value ValueFor(const InstructionOperand* op) { return KeyFor(op); }
+  static Value ValueFor(const InstructionOperand& op) { return KeyFor(op); }
 
   static InstructionOperand FromKey(Key key) {
     if (key.is_constant) {
@@ -101,7 +99,7 @@ class InterpreterState {
       if (it != is.values_.begin()) os << " ";
       InstructionOperand source = FromKey(it->first);
       InstructionOperand destination = FromKey(it->second);
-      MoveOperands mo(&source, &destination);
+      MoveOperands mo(source, destination);
       PrintableMoveOperands pmo = {RegisterConfiguration::ArchDefault(), &mo};
       os << pmo;
     }
@@ -115,30 +113,31 @@ class InterpreterState {
 // An abstract interpreter for moves, swaps and parallel moves.
 class MoveInterpreter : public GapResolver::Assembler {
  public:
+  explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
+
   virtual void AssembleMove(InstructionOperand* source,
                             InstructionOperand* destination) OVERRIDE {
-    InterpreterState::Moves moves;
-    moves.push_back(MoveOperands(source, destination));
+    ParallelMove* moves = new (zone_) ParallelMove(zone_);
+    moves->AddMove(*source, *destination);
     state_.ExecuteInParallel(moves);
   }
 
   virtual void AssembleSwap(InstructionOperand* source,
                             InstructionOperand* destination) OVERRIDE {
-    InterpreterState::Moves moves;
-    moves.push_back(MoveOperands(source, destination));
-    moves.push_back(MoveOperands(destination, source));
+    ParallelMove* moves = new (zone_) ParallelMove(zone_);
+    moves->AddMove(*source, *destination);
+    moves->AddMove(*destination, *source);
     state_.ExecuteInParallel(moves);
   }
 
-  void AssembleParallelMove(const ParallelMove* pm) {
-    InterpreterState::Moves moves(pm->move_operands()->begin(),
-                                  pm->move_operands()->end());
+  void AssembleParallelMove(const ParallelMove* moves) {
     state_.ExecuteInParallel(moves);
   }
 
   InterpreterState state() const { return state_; }
 
  private:
+  Zone* const zone_;
   InterpreterState state_;
 };
 
@@ -149,11 +148,11 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
   ParallelMove* Create(int size) {
     ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
-    std::set<InstructionOperand*, InstructionOperandComparator> seen;
+    std::set<InstructionOperand> seen;
     for (int i = 0; i < size; ++i) {
       MoveOperands mo(CreateRandomOperand(true), CreateRandomOperand(false));
       if (!mo.IsRedundant() && seen.find(mo.destination()) == seen.end()) {
-        parallel_move->AddMove(mo.source(), mo.destination(), main_zone());
+        parallel_move->AddMove(mo.source(), mo.destination());
         seen.insert(mo.destination());
       }
     }
@@ -161,30 +160,23 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   }
 
  private:
-  struct InstructionOperandComparator {
-    bool operator()(const InstructionOperand* x,
-                    const InstructionOperand* y) const {
-      return *x < *y;
-    }
-  };
-
-  InstructionOperand* CreateRandomOperand(bool is_source) {
+  InstructionOperand CreateRandomOperand(bool is_source) {
     int index = rng_->NextInt(6);
     // destination can't be Constant.
     switch (rng_->NextInt(is_source ? 5 : 4)) {
       case 0:
-        return StackSlotOperand::New(main_zone(), index);
+        return StackSlotOperand(index);
       case 1:
-        return DoubleStackSlotOperand::New(main_zone(), index);
+        return DoubleStackSlotOperand(index);
       case 2:
-        return RegisterOperand::New(main_zone(), index);
+        return RegisterOperand(index);
       case 3:
-        return DoubleRegisterOperand::New(main_zone(), index);
+        return DoubleRegisterOperand(index);
       case 4:
-        return ConstantOperand::New(main_zone(), index);
+        return ConstantOperand(index);
     }
     UNREACHABLE();
-    return NULL;
+    return InstructionOperand();
   }
 
  private:
@@ -199,10 +191,10 @@ TEST(FuzzResolver) {
       ParallelMove* pm = pmc.Create(size);
 
       // Note: The gap resolver modifies the ParallelMove, so interpret first.
-      MoveInterpreter mi1;
+      MoveInterpreter mi1(pmc.main_zone());
       mi1.AssembleParallelMove(pm);
 
-      MoveInterpreter mi2;
+      MoveInterpreter mi2(pmc.main_zone());
       GapResolver resolver(&mi2);
       resolver.Resolve(pm);
 

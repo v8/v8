@@ -50,10 +50,6 @@ class InstructionOperand {
   inline bool IsStackSlot() const;
   inline bool IsDoubleStackSlot() const;
 
-  bool Equals(const InstructionOperand* other) const {
-    return value_ == other->value_;
-  }
-
   // Useful for map/set keys.
   bool operator<(const InstructionOperand& op) const {
     return value_ < op.value_;
@@ -61,6 +57,10 @@ class InstructionOperand {
 
   bool operator==(const InstructionOperand& op) const {
     return value_ == op.value_;
+  }
+
+  bool operator!=(const InstructionOperand& op) const {
+    return value_ != op.value_;
   }
 
   template <typename SubKindOperand>
@@ -84,7 +84,7 @@ class InstructionOperand {
 
 struct PrintableInstructionOperand {
   const RegisterConfiguration* register_configuration_;
-  const InstructionOperand* op_;
+  InstructionOperand op_;
 };
 
 std::ostream& operator<<(std::ostream& os,
@@ -165,12 +165,6 @@ class UnallocatedOperand : public InstructionOperand {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(lifetime);
-  }
-
-  UnallocatedOperand* Copy(Zone* zone) { return New(zone, *this); }
-
-  UnallocatedOperand* CopyUnconstrained(Zone* zone) {
-    return New(zone, UnallocatedOperand(ANY, virtual_register()));
   }
 
   // Predicates for the operand policy.
@@ -435,43 +429,55 @@ ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_CLASS)
 #undef ALLOCATED_OPERAND_CLASS
 
 
-class MoveOperands FINAL {
+class MoveOperands FINAL : public ZoneObject {
  public:
-  MoveOperands(InstructionOperand* source, InstructionOperand* destination)
-      : source_(source), destination_(destination) {}
+  MoveOperands(const InstructionOperand& source,
+               const InstructionOperand& destination)
+      : source_(source), destination_(destination) {
+    DCHECK(!source.IsInvalid() && !destination.IsInvalid());
+  }
 
-  InstructionOperand* source() const { return source_; }
-  void set_source(InstructionOperand* operand) { source_ = operand; }
+  const InstructionOperand& source() const { return source_; }
+  InstructionOperand& source() { return source_; }
+  void set_source(const InstructionOperand& operand) { source_ = operand; }
 
-  InstructionOperand* destination() const { return destination_; }
-  void set_destination(InstructionOperand* operand) { destination_ = operand; }
+  const InstructionOperand& destination() const { return destination_; }
+  InstructionOperand& destination() { return destination_; }
+  void set_destination(const InstructionOperand& operand) {
+    destination_ = operand;
+  }
 
   // The gap resolver marks moves as "in-progress" by clearing the
   // destination (but not the source).
-  bool IsPending() const { return destination_ == NULL && source_ != NULL; }
+  bool IsPending() const {
+    return destination_.IsInvalid() && !source_.IsInvalid();
+  }
+  void SetPending() { destination_ = InstructionOperand(); }
 
   // True if this move a move into the given destination operand.
-  bool Blocks(InstructionOperand* operand) const {
-    return !IsEliminated() && source()->Equals(operand);
+  bool Blocks(const InstructionOperand& operand) const {
+    return !IsEliminated() && source() == operand;
   }
 
   // A move is redundant if it's been eliminated or if its source and
   // destination are the same.
   bool IsRedundant() const {
-    DCHECK_IMPLIES(destination_ != nullptr, !destination_->IsConstant());
-    return IsEliminated() || source_->Equals(destination_);
+    DCHECK_IMPLIES(!destination_.IsInvalid(), !destination_.IsConstant());
+    return IsEliminated() || source_ == destination_;
   }
 
   // We clear both operands to indicate move that's been eliminated.
-  void Eliminate() { source_ = destination_ = NULL; }
+  void Eliminate() { source_ = destination_ = InstructionOperand(); }
   bool IsEliminated() const {
-    DCHECK(source_ != NULL || destination_ == NULL);
-    return source_ == NULL;
+    DCHECK_IMPLIES(source_.IsInvalid(), destination_.IsInvalid());
+    return source_.IsInvalid();
   }
 
  private:
-  InstructionOperand* source_;
-  InstructionOperand* destination_;
+  InstructionOperand source_;
+  InstructionOperand destination_;
+
+  DISALLOW_COPY_AND_ASSIGN(MoveOperands);
 };
 
 
@@ -484,29 +490,29 @@ struct PrintableMoveOperands {
 std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
 
 
-class ParallelMove FINAL : public ZoneObject {
+class ParallelMove FINAL : public ZoneVector<MoveOperands*>, public ZoneObject {
  public:
-  explicit ParallelMove(Zone* zone) : move_operands_(4, zone) {}
+  explicit ParallelMove(Zone* zone) : ZoneVector<MoveOperands*>(zone) {
+    reserve(4);
+  }
 
-  void AddMove(InstructionOperand* from, InstructionOperand* to, Zone* zone) {
-    move_operands_.Add(MoveOperands(from, to), zone);
+  MoveOperands* AddMove(const InstructionOperand& from,
+                        const InstructionOperand& to) {
+    auto zone = get_allocator().zone();
+    auto move = new (zone) MoveOperands(from, to);
+    push_back(move);
+    return move;
   }
 
   bool IsRedundant() const;
 
-  ZoneList<MoveOperands>* move_operands() { return &move_operands_; }
-  const ZoneList<MoveOperands>* move_operands() const {
-    return &move_operands_;
-  }
-
   // Prepare this ParallelMove to insert move as if it happened in a subsequent
   // ParallelMove.  move->source() may be changed.  The MoveOperand returned
-  // must be Eliminated and, as it points directly into move_operands_, it must
-  // be Eliminated before any further mutation.
+  // must be Eliminated.
   MoveOperands* PrepareInsertAfter(MoveOperands* move) const;
 
  private:
-  ZoneList<MoveOperands> move_operands_;
+  DISALLOW_COPY_AND_ASSIGN(ParallelMove);
 };
 
 
@@ -856,18 +862,15 @@ class PhiInstruction FINAL : public ZoneObject {
   int virtual_register() const { return virtual_register_; }
   const IntVector& operands() const { return operands_; }
 
+  // TODO(dcarney): this has no real business being here, since it's internal to
+  // the register allocator, but putting it here was convenient.
   const InstructionOperand& output() const { return output_; }
   InstructionOperand& output() { return output_; }
-  const Inputs& inputs() const { return inputs_; }
-  Inputs& inputs() { return inputs_; }
 
  private:
-  // TODO(dcarney): some of these fields are only for verification, move them to
-  // verifier.
   const int virtual_register_;
   InstructionOperand output_;
   IntVector operands_;
-  Inputs inputs_;
 };
 
 

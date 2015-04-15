@@ -509,8 +509,9 @@ class RegisterAllocator FINAL : public ZoneObject {
               InstructionOperand* hint);
   void Use(LifetimePosition block_start, LifetimePosition position,
            InstructionOperand* operand, InstructionOperand* hint);
-  void AddGapMove(int index, Instruction::GapPosition position,
-                  InstructionOperand* from, InstructionOperand* to);
+  MoveOperands* AddGapMove(int index, Instruction::GapPosition position,
+                           const InstructionOperand& from,
+                           const InstructionOperand& to);
 
   // Helper methods for updating the life range lists.
   void AddToActive(LiveRange* range);
@@ -574,9 +575,9 @@ class RegisterAllocator FINAL : public ZoneObject {
 
   // Helper methods for resolving control flow.
   void ResolveControlFlow(const InstructionBlock* block,
-                          InstructionOperand* cur_op,
+                          const InstructionOperand& cur_op,
                           const InstructionBlock* pred,
-                          InstructionOperand* pred_op);
+                          const InstructionOperand& pred_op);
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
 
@@ -595,6 +596,7 @@ class RegisterAllocator FINAL : public ZoneObject {
   const char* RegisterName(int allocation_index);
 
   Instruction* InstructionAt(int index) { return code()->InstructionAt(index); }
+  void AssignPhiInput(LiveRange* range, const InstructionOperand& assignment);
 
   Frame* frame() const { return frame_; }
   const char* debug_name() const { return debug_name_; }
@@ -613,13 +615,17 @@ class RegisterAllocator FINAL : public ZoneObject {
   }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
 
-  struct PhiMapValue {
-    PhiMapValue(PhiInstruction* phi, const InstructionBlock* block)
-        : phi(phi), block(block) {}
+  class PhiMapValue : public ZoneObject {
+   public:
+    PhiMapValue(PhiInstruction* phi, const InstructionBlock* block, Zone* zone)
+        : phi(phi), block(block), incoming_moves(zone) {
+      incoming_moves.reserve(phi->operands().size());
+    }
     PhiInstruction* const phi;
     const InstructionBlock* const block;
+    ZoneVector<MoveOperands*> incoming_moves;
   };
-  typedef ZoneMap<int, PhiMapValue> PhiMap;
+  typedef ZoneMap<int, PhiMapValue*> PhiMap;
 
   Zone* const local_zone_;
   Frame* const frame_;

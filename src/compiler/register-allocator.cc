@@ -140,8 +140,6 @@ LiveRange::LiveRange(int id, Zone* zone)
 void LiveRange::set_assigned_register(int reg) {
   DCHECK(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
-  // TODO(dcarney): stop aliasing hint operands.
-  ConvertUsesToOperand(GetAssignedOperand(), nullptr);
 }
 
 
@@ -175,19 +173,17 @@ void LiveRange::CommitSpillsAtDefinition(InstructionSequence* sequence,
     // constraint move from a fixed output register to a slot.
     if (might_be_duplicated) {
       bool found = false;
-      auto move_ops = move->move_operands();
-      for (auto move_op = move_ops->begin(); move_op != move_ops->end();
-           ++move_op) {
+      for (auto move_op : *move) {
         if (move_op->IsEliminated()) continue;
-        if (move_op->source()->Equals(to_spill->operand) &&
-            move_op->destination()->Equals(op)) {
+        if (move_op->source() == *to_spill->operand &&
+            move_op->destination() == *op) {
           found = true;
           break;
         }
       }
       if (found) continue;
     }
-    move->AddMove(to_spill->operand, op, zone);
+    move->AddMove(*to_spill->operand, *op);
   }
 }
 
@@ -803,12 +799,13 @@ void RegisterAllocator::Use(LifetimePosition block_start,
 }
 
 
-void RegisterAllocator::AddGapMove(int index, Instruction::GapPosition position,
-                                   InstructionOperand* from,
-                                   InstructionOperand* to) {
+MoveOperands* RegisterAllocator::AddGapMove(int index,
+                                            Instruction::GapPosition position,
+                                            const InstructionOperand& from,
+                                            const InstructionOperand& to) {
   auto instr = code()->InstructionAt(index);
-  auto move = instr->GetOrCreateParallelMove(position, code_zone());
-  move->AddMove(from, to, code_zone());
+  auto moves = instr->GetOrCreateParallelMove(position, code_zone());
+  return moves->AddMove(from, to);
 }
 
 
@@ -960,6 +957,7 @@ void RegisterAllocator::CommitAssignment() {
     }
     auto assigned = range->GetAssignedOperand();
     range->ConvertUsesToOperand(assigned, spill_operand);
+    if (range->is_phi()) AssignPhiInput(range, assigned);
     if (!range->IsChild() && spill_operand != nullptr) {
       range->CommitSpillsAtDefinition(code(), spill_operand,
                                       range->has_slot_use());
@@ -981,8 +979,8 @@ bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
 
   auto lookup = phi_map_.find(range->id());
   DCHECK(lookup != phi_map_.end());
-  auto phi = lookup->second.phi;
-  auto block = lookup->second.block;
+  auto phi = lookup->second->phi;
+  auto block = lookup->second->block;
   // Count the number of spilled operands.
   size_t spilled_count = 0;
   LiveRange* first_op = nullptr;
@@ -1098,10 +1096,8 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
         int gap_index = successor->first_instruction_index();
         // Create an unconstrained operand for the same virtual register
         // and insert a gap move from the fixed output to the operand.
-        UnallocatedOperand* output_copy =
-            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg)
-                .Copy(code_zone());
-        AddGapMove(gap_index, Instruction::START, output, output_copy);
+        UnallocatedOperand output_copy(UnallocatedOperand::ANY, output_vreg);
+        AddGapMove(gap_index, Instruction::START, *output, output_copy);
       }
     }
 
@@ -1139,8 +1135,9 @@ void RegisterAllocator::MeetConstraintsAfter(int instr_index) {
     auto range = LiveRangeFor(first_output->virtual_register());
     bool assigned = false;
     if (first_output->HasFixedPolicy()) {
-      auto output_copy = first_output->CopyUnconstrained(code_zone());
-      bool is_tagged = HasTaggedValue(first_output->virtual_register());
+      int output_vreg = first_output->virtual_register();
+      UnallocatedOperand output_copy(UnallocatedOperand::ANY, output_vreg);
+      bool is_tagged = HasTaggedValue(output_vreg);
       AllocateFixed(first_output, instr_index, is_tagged);
 
       // This value is produced on the stack, we never need to spill it.
@@ -1151,7 +1148,7 @@ void RegisterAllocator::MeetConstraintsAfter(int instr_index) {
         range->SetSpillStartIndex(instr_index + 1);
         assigned = true;
       }
-      AddGapMove(instr_index + 1, Instruction::START, first_output,
+      AddGapMove(instr_index + 1, Instruction::START, *first_output,
                  output_copy);
     }
     // Make sure we add a gap move for spilling (if we have not done
@@ -1172,10 +1169,11 @@ void RegisterAllocator::MeetConstraintsBefore(int instr_index) {
     if (input->IsImmediate()) continue;  // Ignore immediates.
     auto cur_input = UnallocatedOperand::cast(input);
     if (cur_input->HasFixedPolicy()) {
-      auto input_copy = cur_input->CopyUnconstrained(code_zone());
-      bool is_tagged = HasTaggedValue(cur_input->virtual_register());
+      int input_vreg = cur_input->virtual_register();
+      UnallocatedOperand input_copy(UnallocatedOperand::ANY, input_vreg);
+      bool is_tagged = HasTaggedValue(input_vreg);
       AllocateFixed(cur_input, instr_index, is_tagged);
-      AddGapMove(instr_index, Instruction::END, input_copy, cur_input);
+      AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
     }
   }
   // Handle "output same as input" for second instruction.
@@ -1189,12 +1187,12 @@ void RegisterAllocator::MeetConstraintsBefore(int instr_index) {
         UnallocatedOperand::cast(second->InputAt(0));
     int output_vreg = second_output->virtual_register();
     int input_vreg = cur_input->virtual_register();
-    auto input_copy = cur_input->CopyUnconstrained(code_zone());
+    UnallocatedOperand input_copy(UnallocatedOperand::ANY, input_vreg);
     cur_input->set_virtual_register(second_output->virtual_register());
-    AddGapMove(instr_index, Instruction::END, input_copy, cur_input);
+    AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
     if (HasTaggedValue(input_vreg) && !HasTaggedValue(output_vreg)) {
       if (second->HasReferenceMap()) {
-        second->reference_map()->RecordReference(*input_copy);
+        second->reference_map()->RecordReference(input_copy);
       }
     } else if (!HasTaggedValue(input_vreg) && HasTaggedValue(output_vreg)) {
       // The input is assumed to immediately have a tagged representation,
@@ -1331,13 +1329,12 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
       } else {
         curr_position = curr_position.Start();
       }
-      auto move_ops = move->move_operands();
-      for (auto cur = move_ops->begin(); cur != move_ops->end(); ++cur) {
-        auto from = cur->source();
-        auto to = cur->destination();
-        auto hint = to;
-        if (to->IsUnallocated()) {
-          int to_vreg = UnallocatedOperand::cast(to)->virtual_register();
+      for (auto cur : *move) {
+        auto& from = cur->source();
+        auto& to = cur->destination();
+        auto hint = &to;
+        if (to.IsUnallocated()) {
+          int to_vreg = UnallocatedOperand::cast(to).virtual_register();
           auto to_range = LiveRangeFor(to_vreg);
           if (to_range->is_phi()) {
             if (to_range->is_non_loop_phi()) {
@@ -1345,7 +1342,7 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
             }
           } else {
             if (live->Contains(to_vreg)) {
-              Define(curr_position, to, from);
+              Define(curr_position, &to, &from);
               live->Remove(to_vreg);
             } else {
               cur->Eliminate();
@@ -1353,11 +1350,11 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
             }
           }
         } else {
-          Define(curr_position, to, from);
+          Define(curr_position, &to, &from);
         }
-        Use(block_start_position, curr_position, from, hint);
-        if (from->IsUnallocated()) {
-          live->Add(UnallocatedOperand::cast(from)->virtual_register());
+        Use(block_start_position, curr_position, &from, hint);
+        if (from.IsUnallocated()) {
+          live->Add(UnallocatedOperand::cast(from).virtual_register());
         }
       }
     }
@@ -1368,16 +1365,18 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
 void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
   for (auto phi : block->phis()) {
     int phi_vreg = phi->virtual_register();
-    auto res =
-        phi_map_.insert(std::make_pair(phi_vreg, PhiMapValue(phi, block)));
+    auto map_value = new (local_zone()) PhiMapValue(phi, block, local_zone());
+    auto res = phi_map_.insert(std::make_pair(phi_vreg, map_value));
     DCHECK(res.second);
     USE(res);
     auto& output = phi->output();
     for (size_t i = 0; i < phi->operands().size(); ++i) {
       InstructionBlock* cur_block =
           code()->InstructionBlockAt(block->predecessors()[i]);
-      AddGapMove(cur_block->last_instruction_index(), Instruction::END,
-                 &phi->inputs()[i], &output);
+      UnallocatedOperand input(UnallocatedOperand::ANY, phi->operands()[i]);
+      auto move = AddGapMove(cur_block->last_instruction_index(),
+                             Instruction::END, input, output);
+      map_value->incoming_moves.push_back(move);
       DCHECK(!InstructionAt(cur_block->last_instruction_index())
                   ->HasReferenceMap());
     }
@@ -1388,6 +1387,17 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
     // We use the phi-ness of some nodes in some later heuristics.
     live_range->set_is_phi(true);
     live_range->set_is_non_loop_phi(!block->IsLoopHeader());
+  }
+}
+
+
+void RegisterAllocator::AssignPhiInput(LiveRange* range,
+                                       const InstructionOperand& assignment) {
+  DCHECK(range->is_phi());
+  auto it = phi_map_.find(range->id());
+  DCHECK(it != phi_map_.end());
+  for (auto move : it->second->incoming_moves) {
+    move->set_destination(assignment);
   }
 }
 
@@ -1415,7 +1425,7 @@ const InstructionBlock* RegisterAllocator::GetInstructionBlock(
 
 
 void RegisterAllocator::ConnectRanges() {
-  ZoneMap<std::pair<ParallelMove*, InstructionOperand*>, InstructionOperand*>
+  ZoneMap<std::pair<ParallelMove*, InstructionOperand>, InstructionOperand>
       delayed_insertion_map(local_zone());
   for (auto first_range : live_ranges()) {
     if (first_range == nullptr || first_range->IsChild()) continue;
@@ -1430,9 +1440,9 @@ void RegisterAllocator::ConnectRanges() {
           !CanEagerlyResolveControlFlow(GetInstructionBlock(pos))) {
         continue;
       }
-      auto prev = first_range->GetAssignedOperand();
-      auto cur = second_range->GetAssignedOperand();
-      if (prev == cur) continue;
+      auto prev_operand = first_range->GetAssignedOperand();
+      auto cur_operand = second_range->GetAssignedOperand();
+      if (prev_operand == cur_operand) continue;
       bool delay_insertion = false;
       Instruction::GapPosition gap_pos;
       int gap_index = pos.ToInstructionIndex();
@@ -1448,10 +1458,8 @@ void RegisterAllocator::ConnectRanges() {
       }
       auto move = code()->InstructionAt(gap_index)->GetOrCreateParallelMove(
           gap_pos, code_zone());
-      auto prev_operand = InstructionOperand::New(code_zone(), prev);
-      auto cur_operand = InstructionOperand::New(code_zone(), cur);
       if (!delay_insertion) {
-        move->AddMove(prev_operand, cur_operand, code_zone());
+        move->AddMove(prev_operand, cur_operand);
       } else {
         delayed_insertion_map.insert(
             std::make_pair(std::make_pair(move, prev_operand), cur_operand));
@@ -1460,31 +1468,31 @@ void RegisterAllocator::ConnectRanges() {
   }
   if (delayed_insertion_map.empty()) return;
   // Insert all the moves which should occur after the stored move.
-  ZoneVector<MoveOperands> to_insert(local_zone());
+  ZoneVector<MoveOperands*> to_insert(local_zone());
   ZoneVector<MoveOperands*> to_eliminate(local_zone());
   to_insert.reserve(4);
   to_eliminate.reserve(4);
-  auto move = delayed_insertion_map.begin()->first.first;
+  auto moves = delayed_insertion_map.begin()->first.first;
   for (auto it = delayed_insertion_map.begin();; ++it) {
     bool done = it == delayed_insertion_map.end();
-    if (done || it->first.first != move) {
+    if (done || it->first.first != moves) {
       // Commit the MoveOperands for current ParallelMove.
-      for (auto move_ops : to_eliminate) {
-        move_ops->Eliminate();
+      for (auto move : to_eliminate) {
+        move->Eliminate();
       }
-      for (auto move_ops : to_insert) {
-        move->AddMove(move_ops.source(), move_ops.destination(), code_zone());
+      for (auto move : to_insert) {
+        moves->push_back(move);
       }
       if (done) break;
       // Reset state.
       to_eliminate.clear();
       to_insert.clear();
-      move = it->first.first;
+      moves = it->first.first;
     }
     // Gather all MoveOperands for a single ParallelMove.
-    MoveOperands move_ops(it->first.second, it->second);
-    auto eliminate = move->PrepareInsertAfter(&move_ops);
-    to_insert.push_back(move_ops);
+    auto move = new (code_zone()) MoveOperands(it->first.second, it->second);
+    auto eliminate = moves->PrepareInsertAfter(move);
+    to_insert.push_back(move);
     if (eliminate != nullptr) to_eliminate.push_back(eliminate);
   }
 }
@@ -1650,9 +1658,7 @@ void RegisterAllocator::ResolveControlFlow() {
         auto pred_op = result.pred_cover_->GetAssignedOperand();
         auto cur_op = result.cur_cover_->GetAssignedOperand();
         if (pred_op == cur_op) continue;
-        auto pred_ptr = InstructionOperand::New(code_zone(), pred_op);
-        auto cur_ptr = InstructionOperand::New(code_zone(), cur_op);
-        ResolveControlFlow(block, cur_ptr, pred_block, pred_ptr);
+        ResolveControlFlow(block, cur_op, pred_block, pred_op);
       }
       iterator.Advance();
     }
@@ -1661,10 +1667,10 @@ void RegisterAllocator::ResolveControlFlow() {
 
 
 void RegisterAllocator::ResolveControlFlow(const InstructionBlock* block,
-                                           InstructionOperand* cur_op,
+                                           const InstructionOperand& cur_op,
                                            const InstructionBlock* pred,
-                                           InstructionOperand* pred_op) {
-  DCHECK(!pred_op->Equals(cur_op));
+                                           const InstructionOperand& pred_op) {
+  DCHECK(pred_op != cur_op);
   int gap_index;
   Instruction::GapPosition position;
   if (block->PredecessorCount() == 1) {
@@ -1700,23 +1706,20 @@ void RegisterAllocator::BuildLiveRanges() {
       int phi_vreg = phi->virtual_register();
       live->Remove(phi_vreg);
       InstructionOperand* hint = nullptr;
-      InstructionOperand* phi_operand = nullptr;
       auto instr = GetLastInstruction(
           code()->InstructionBlockAt(block->predecessors()[0]));
-      auto move = instr->GetParallelMove(Instruction::END);
-      for (int j = 0; j < move->move_operands()->length(); ++j) {
-        auto to = move->move_operands()->at(j).destination();
-        if (to->IsUnallocated() &&
-            UnallocatedOperand::cast(to)->virtual_register() == phi_vreg) {
-          hint = move->move_operands()->at(j).source();
-          phi_operand = to;
+      for (auto move : *instr->GetParallelMove(Instruction::END)) {
+        auto& to = move->destination();
+        if (to.IsUnallocated() &&
+            UnallocatedOperand::cast(to).virtual_register() == phi_vreg) {
+          hint = &move->source();
           break;
         }
       }
       DCHECK(hint != nullptr);
       auto block_start = LifetimePosition::GapFromInstructionIndex(
           block->first_instruction_index());
-      Define(block_start, phi_operand, hint);
+      Define(block_start, &phi->output(), hint);
     }
 
     // Now live is live_in for this block except not including values live
@@ -2507,6 +2510,10 @@ void RegisterAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
     assigned_registers_->Add(reg);
   }
   range->set_assigned_register(reg);
+  auto assignment = range->GetAssignedOperand();
+  // TODO(dcarney): stop aliasing hint operands.
+  range->ConvertUsesToOperand(assignment, nullptr);
+  if (range->is_phi()) AssignPhiInput(range, assignment);
 }
 
 }  // namespace compiler

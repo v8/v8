@@ -59,15 +59,13 @@ class TestCode : public HandleAndZoneScope {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, RegisterOperand::New(main_zone(), 13),
-               RegisterOperand::New(main_zone(), 13));
+    AddGapMove(index, RegisterOperand(13), RegisterOperand(13));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, ConstantOperand::New(main_zone(), 11),
-               RegisterOperand::New(main_zone(), 11));
+    AddGapMove(index, ConstantOperand(11), RegisterOperand(11));
   }
   void Other() {
     Start();
@@ -95,10 +93,11 @@ class TestCode : public HandleAndZoneScope {
     CHECK(current_ == NULL);
     Start(true);
   }
-  void AddGapMove(int index, InstructionOperand* from, InstructionOperand* to) {
+  void AddGapMove(int index, const InstructionOperand& from,
+                  const InstructionOperand& to) {
     sequence_.InstructionAt(index)
         ->GetOrCreateParallelMove(Instruction::START, main_zone())
-        ->AddMove(from, to, main_zone());
+        ->AddMove(from, to);
   }
 };
 

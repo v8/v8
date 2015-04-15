@@ -13,7 +13,7 @@ namespace compiler {
 
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& printable) {
-  const InstructionOperand& op = *printable.op_;
+  const InstructionOperand& op = printable.op_;
   const RegisterConfiguration* conf = printable.register_configuration_;
   switch (op.kind()) {
     case InstructionOperand::UNALLOCATED: {
@@ -82,9 +82,8 @@ std::ostream& operator<<(std::ostream& os,
   const MoveOperands& mo = *printable.move_operands_;
   PrintableInstructionOperand printable_op = {printable.register_configuration_,
                                               mo.destination()};
-
   os << printable_op;
-  if (!mo.source()->Equals(mo.destination())) {
+  if (mo.source() != mo.destination()) {
     printable_op.op_ = mo.source();
     os << " = " << printable_op;
   }
@@ -93,24 +92,23 @@ std::ostream& operator<<(std::ostream& os,
 
 
 bool ParallelMove::IsRedundant() const {
-  for (int i = 0; i < move_operands_.length(); ++i) {
-    if (!move_operands_[i].IsRedundant()) return false;
+  for (auto move : *this) {
+    if (!move->IsRedundant()) return false;
   }
   return true;
 }
 
 
 MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
-  auto move_ops = move_operands();
   MoveOperands* replacement = nullptr;
   MoveOperands* to_eliminate = nullptr;
-  for (auto curr = move_ops->begin(); curr != move_ops->end(); ++curr) {
+  for (auto curr : *this) {
     if (curr->IsEliminated()) continue;
-    if (curr->destination()->Equals(move->source())) {
+    if (curr->destination() == move->source()) {
       DCHECK(!replacement);
       replacement = curr;
       if (to_eliminate != nullptr) break;
-    } else if (curr->destination()->Equals(move->destination())) {
+    } else if (curr->destination() == move->destination()) {
       DCHECK(!to_eliminate);
       to_eliminate = curr;
       if (replacement != nullptr) break;
@@ -175,8 +173,7 @@ std::ostream& operator<<(std::ostream& os,
                          const PrintableParallelMove& printable) {
   const ParallelMove& pm = *printable.parallel_move_;
   bool first = true;
-  for (ZoneList<MoveOperands>::iterator move = pm.move_operands()->begin();
-       move != pm.move_operands()->end(); ++move) {
+  for (auto move : pm) {
     if (move->IsEliminated()) continue;
     if (!first) os << " ";
     first = false;
@@ -199,14 +196,14 @@ std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   os << "{";
   bool first = true;
   PrintableInstructionOperand poi = {RegisterConfiguration::ArchDefault(),
-                                     nullptr};
+                                     InstructionOperand()};
   for (auto& op : pm.reference_operands_) {
     if (!first) {
       os << ";";
     } else {
       first = false;
     }
-    poi.op_ = &op;
+    poi.op_ = op;
     os << poi;
   }
   return os << "}";
@@ -295,7 +292,7 @@ std::ostream& operator<<(std::ostream& os,
                          const PrintableInstruction& printable) {
   const Instruction& instr = *printable.instr_;
   PrintableInstructionOperand printable_op = {printable.register_configuration_,
-                                              NULL};
+                                              InstructionOperand()};
   os << "gap ";
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
@@ -312,7 +309,7 @@ std::ostream& operator<<(std::ostream& os,
   if (instr.OutputCount() > 1) os << "(";
   for (size_t i = 0; i < instr.OutputCount(); i++) {
     if (i > 0) os << ", ";
-    printable_op.op_ = instr.OutputAt(i);
+    printable_op.op_ = *instr.OutputAt(i);
     os << printable_op;
   }
 
@@ -330,7 +327,7 @@ std::ostream& operator<<(std::ostream& os,
   }
   if (instr.InputCount() > 0) {
     for (size_t i = 0; i < instr.InputCount(); i++) {
-      printable_op.op_ = instr.InputAt(i);
+      printable_op.op_ = *instr.InputAt(i);
       os << " " << printable_op;
     }
   }
@@ -368,14 +365,12 @@ PhiInstruction::PhiInstruction(Zone* zone, int virtual_register,
                                size_t input_count)
     : virtual_register_(virtual_register),
       output_(UnallocatedOperand(UnallocatedOperand::NONE, virtual_register)),
-      operands_(input_count, zone),
-      inputs_(input_count, zone) {}
+      operands_(input_count, InstructionOperand::kInvalidVirtualRegister,
+                zone) {}
 
 
 void PhiInstruction::SetInput(size_t offset, int virtual_register) {
-  DCHECK(inputs_[offset].IsInvalid());
-  auto input = UnallocatedOperand(UnallocatedOperand::ANY, virtual_register);
-  inputs_[offset] = input;
+  DCHECK_EQ(InstructionOperand::kInvalidVirtualRegister, operands_[offset]);
   operands_[offset] = virtual_register;
 }
 
@@ -726,11 +721,10 @@ std::ostream& operator<<(std::ostream& os,
 
     for (auto phi : block->phis()) {
       PrintableInstructionOperand printable_op = {
-          printable.register_configuration_, &phi->output()};
+          printable.register_configuration_, phi->output()};
       os << "     phi: " << printable_op << " =";
-      for (auto input : phi->inputs()) {
-        printable_op.op_ = &input;
-        os << " " << printable_op;
+      for (auto input : phi->operands()) {
+        os << " v" << input;
       }
       os << "\n";
     }
