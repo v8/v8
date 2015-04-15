@@ -630,7 +630,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
  protected:
   friend class TypeImpl<Config>;
 
-  enum {
+  enum : uint32_t {
     #define DECLARE_TYPE(type, value) k##type = (value),
     BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
