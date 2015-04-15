@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
+
 "use strict";
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
-var $ArrayBuffer = global.ArrayBuffer;
+%CheckIsBootstrapping();
 
+var GlobalArray = global.Array;
+var GlobalArrayBuffer = global.ArrayBuffer;
 
 // --------------- Typed Arrays ---------------------
 macro TYPED_ARRAYS(FUNCTION)
@@ -78,7 +79,7 @@ function NAMEConstructByLength(obj, length) {
   }
   var byteLength = l * ELEMENT_SIZE;
   if (byteLength > %_TypedArrayMaxSizeInHeap()) {
-    var buffer = new $ArrayBuffer(byteLength);
+    var buffer = new GlobalArrayBuffer(byteLength);
     %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
   } else {
     %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength);
@@ -243,7 +244,7 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   }
   var rightIndex = CopyRightPart();
 
-  var temp = new $Array(rightIndex + 1 - leftIndex);
+  var temp = new GlobalArray(rightIndex + 1 - leftIndex);
   for (var i = leftIndex; i <= rightIndex; i++) {
     temp[i - leftIndex] = source[i];
   }
@@ -300,9 +301,7 @@ function TypedArrayGetToStringTag() {
 
 // -------------------------------------------------------------------
 
-function SetupTypedArrays() {
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
-  %CheckIsBootstrapping();
   %SetCode(global.NAME, NAMEConstructor);
   %FunctionSetPrototype(global.NAME, new $Object());
 
@@ -329,9 +328,6 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
-}
-
-SetupTypedArrays();
 
 // --------------------------- DataView -----------------------------
 
@@ -439,47 +435,43 @@ endmacro
 
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 
-function SetupDataView() {
-  %CheckIsBootstrapping();
+// Setup the DataView constructor.
+%SetCode($DataView, DataViewConstructor);
+%FunctionSetPrototype($DataView, new $Object);
 
-  // Setup the DataView constructor.
-  %SetCode($DataView, DataViewConstructor);
-  %FunctionSetPrototype($DataView, new $Object);
+// Set up constructor property on the DataView prototype.
+%AddNamedProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
+%AddNamedProperty(
+    $DataView.prototype, symbolToStringTag, "DataView", READ_ONLY|DONT_ENUM);
 
-  // Set up constructor property on the DataView prototype.
-  %AddNamedProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
-  %AddNamedProperty(
-      $DataView.prototype, symbolToStringTag, "DataView", READ_ONLY|DONT_ENUM);
+InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
+InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
+InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
 
-  InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
-  InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
-  InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
+InstallFunctions($DataView.prototype, DONT_ENUM, [
+  "getInt8", DataViewGetInt8JS,
+  "setInt8", DataViewSetInt8JS,
 
-  InstallFunctions($DataView.prototype, DONT_ENUM, [
-    "getInt8", DataViewGetInt8JS,
-    "setInt8", DataViewSetInt8JS,
+  "getUint8", DataViewGetUint8JS,
+  "setUint8", DataViewSetUint8JS,
 
-    "getUint8", DataViewGetUint8JS,
-    "setUint8", DataViewSetUint8JS,
+  "getInt16", DataViewGetInt16JS,
+  "setInt16", DataViewSetInt16JS,
 
-    "getInt16", DataViewGetInt16JS,
-    "setInt16", DataViewSetInt16JS,
+  "getUint16", DataViewGetUint16JS,
+  "setUint16", DataViewSetUint16JS,
 
-    "getUint16", DataViewGetUint16JS,
-    "setUint16", DataViewSetUint16JS,
+  "getInt32", DataViewGetInt32JS,
+  "setInt32", DataViewSetInt32JS,
 
-    "getInt32", DataViewGetInt32JS,
-    "setInt32", DataViewSetInt32JS,
+  "getUint32", DataViewGetUint32JS,
+  "setUint32", DataViewSetUint32JS,
 
-    "getUint32", DataViewGetUint32JS,
-    "setUint32", DataViewSetUint32JS,
+  "getFloat32", DataViewGetFloat32JS,
+  "setFloat32", DataViewSetFloat32JS,
 
-    "getFloat32", DataViewGetFloat32JS,
-    "setFloat32", DataViewSetFloat32JS,
+  "getFloat64", DataViewGetFloat64JS,
+  "setFloat64", DataViewSetFloat64JS
+]);
 
-    "getFloat64", DataViewGetFloat64JS,
-    "setFloat64", DataViewSetFloat64JS
-  ]);
-}
-
-SetupDataView();
+})();
