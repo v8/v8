@@ -2230,7 +2230,9 @@ int32_t InductionVariableData::ComputeIncrement(HPhi* phi,
     HSub* operation = HSub::cast(phi_operand);
     if (operation->left() == phi &&
         operation->right()->IsInteger32Constant()) {
-      return -operation->right()->GetInteger32Constant();
+      int constant = operation->right()->GetInteger32Constant();
+      if (constant == kMinInt) return 0;
+      return -constant;
     }
   }
 

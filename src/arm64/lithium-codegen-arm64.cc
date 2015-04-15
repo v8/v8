@@ -4317,7 +4317,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
   Register left =
       is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left()) ;
   int32_t right = ToInteger32(instr->right());
-  DCHECK((right > -kMaxInt) || (right < kMaxInt));
+  DCHECK((right > -kMaxInt) && (right < kMaxInt));
 
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   bool bailout_on_minus_zero =

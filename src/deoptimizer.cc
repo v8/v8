@@ -2899,6 +2899,8 @@ Object* FrameDescription::GetExpression(int index) {
 
 
 void TranslationBuffer::Add(int32_t value, Zone* zone) {
+  // This wouldn't handle kMinInt correctly if it ever encountered it.
+  DCHECK(value != kMinInt);
   // Encode the sign bit in the least significant bit.
   bool is_negative = (value < 0);
   uint32_t bits = ((is_negative ? -value : value) << 1) |

@@ -2209,6 +2209,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   // Vd(15-12) | 1011(11-8) | offset
   int u = 1;
   if (offset < 0) {
+    CHECK(offset != kMinInt);
     offset = -offset;
     u = 0;
   }
@@ -2305,6 +2306,7 @@ void Assembler::vstr(const DwVfpRegister src,
   // Vd(15-12) | 1011(11-8) | (offset/4)
   int u = 1;
   if (offset < 0) {
+    CHECK(offset != kMinInt);
     offset = -offset;
     u = 0;
   }
@@ -2353,6 +2355,7 @@ void Assembler::vstr(const SwVfpRegister src,
   // Vdst(15-12) | 1010(11-8) | (offset/4)
   int u = 1;
   if (offset < 0) {
+    CHECK(offset != kMinInt);
     offset = -offset;
     u = 0;
   }
