@@ -659,10 +659,6 @@ class MarkCompactCollector {
 
   bool abort_incremental_marking() const { return abort_incremental_marking_; }
 
-  bool finalize_incremental_marking() const {
-    return finalize_incremental_marking_;
-  }
-
   bool is_compacting() const { return compacting_; }
 
   MarkingParity marking_parity() { return marking_parity_; }
@@ -752,8 +748,6 @@ class MarkCompactCollector {
   bool reduce_memory_footprint_;
 
   bool abort_incremental_marking_;
-
-  bool finalize_incremental_marking_;
 
   MarkingParity marking_parity_;
 

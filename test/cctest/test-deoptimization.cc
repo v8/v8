@@ -99,7 +99,7 @@ class AllowNativesSyntaxNoInlining {
 // Abort any ongoing incremental marking to make sure that all weak global
 // handle callbacks are processed.
 static void NonIncrementalGC(i::Isolate* isolate) {
-  isolate->heap()->CollectAllGarbage();
+  isolate->heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 }
 
 

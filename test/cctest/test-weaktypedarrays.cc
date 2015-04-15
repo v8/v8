@@ -128,7 +128,7 @@ TEST(WeakArrayBuffersFromApi) {
       CHECK(HasArrayBufferInWeakList(isolate->heap(), *iab1));
       CHECK(HasArrayBufferInWeakList(isolate->heap(), *iab2));
     }
-    isolate->heap()->CollectAllGarbage();
+    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
     CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()) - start);
     {
       HandleScope scope2(isolate);
@@ -138,7 +138,7 @@ TEST(WeakArrayBuffersFromApi) {
     }
   }
 
-  isolate->heap()->CollectAllGarbage();
+  isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(start, CountArrayBuffersInWeakList(isolate->heap()));
 }
 
@@ -180,7 +180,7 @@ TEST(WeakArrayBuffersFromScript) {
       i::ScopedVector<char> source(1024);
       i::SNPrintF(source, "ab%d = null;", i);
       CompileRun(source.start());
-      isolate->heap()->CollectAllGarbage();
+      isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
       CHECK_EQ(2, CountArrayBuffersInWeakList(isolate->heap()) - start);
 
@@ -199,7 +199,7 @@ TEST(WeakArrayBuffersFromScript) {
       CompileRun("ab1 = null; ab2 = null; ab3 = null;");
     }
 
-    isolate->heap()->CollectAllGarbage();
+    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
     CHECK_EQ(start, CountArrayBuffersInWeakList(isolate->heap()));
   }
 }
@@ -227,12 +227,12 @@ void TestViewFromApi() {
       CHECK(HasViewInWeakList(isolate->heap(), *iab, *ita1));
       CHECK(HasViewInWeakList(isolate->heap(), *iab, *ita2));
     }
-    isolate->heap()->CollectAllGarbage();
+    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
     CHECK_EQ(1, CountViews(isolate->heap(), *iab));
     Handle<JSArrayBufferView> ita1 = v8::Utils::OpenHandle(*ta1);
     CHECK(HasViewInWeakList(isolate->heap(), *iab, *ita1));
   }
-  isolate->heap()->CollectAllGarbage();
+  isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK_EQ(0, CountViews(isolate->heap(), *iab));
 }
@@ -333,7 +333,7 @@ static void TestTypedArrayFromScript(const char* constructor) {
 
     i::SNPrintF(source, "ta%d = null;", i);
     CompileRun(source.start());
-    isolate->heap()->CollectAllGarbage();
+    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
     CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()) - start);
 
@@ -354,7 +354,7 @@ static void TestTypedArrayFromScript(const char* constructor) {
     }
 
     CompileRun("ta1 = null; ta2 = null; ta3 = null;");
-    isolate->heap()->CollectAllGarbage();
+    isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
     CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()) - start);
 

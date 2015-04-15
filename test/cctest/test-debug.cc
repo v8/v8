@@ -397,7 +397,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
   CcTest::heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Iterate the head and check that there are no debugger related objects left.
@@ -870,7 +870,7 @@ static void DebugEventBreakPointCollectGarbage(
       CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
     } else {
       // Mark sweep compact.
-      CcTest::heap()->CollectAllGarbage();
+      CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
     }
   }
 }
@@ -1376,7 +1376,7 @@ static void CallAndGC(v8::Local<v8::Object> recv,
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    CcTest::heap()->CollectAllGarbage();
+    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -2220,7 +2220,7 @@ TEST(ScriptBreakPointLineTopLevel) {
   f = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
 
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 3, -1);
 

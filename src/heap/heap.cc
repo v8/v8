@@ -830,7 +830,6 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   }
 
   if (collector == MARK_COMPACTOR &&
-      !mark_compact_collector()->finalize_incremental_marking() &&
       !mark_compact_collector()->abort_incremental_marking() &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&

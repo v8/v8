@@ -277,7 +277,7 @@ static void CheckAccessorArgsCorrect(
   CHECK(info.This() == info.Holder());
   CHECK(
       info.Data()->Equals(v8::String::NewFromUtf8(CcTest::isolate(), "data")));
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(
