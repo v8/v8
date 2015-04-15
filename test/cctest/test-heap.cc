@@ -4864,7 +4864,7 @@ TEST(WeakCellsWithIncrementalMarking) {
     CHECK(weak_cell->value()->IsFixedArray());
     weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
   }
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(*survivor, weak_cells[0]->value());
   for (int i = 1; i < N; i++) {
     CHECK(weak_cells[i]->cleared());
