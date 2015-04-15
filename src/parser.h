@@ -884,7 +884,8 @@ class Parser : public ParserBase<ParserTraits> {
                              Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(ParseInfo* info);
+  FunctionLiteral* DoParseProgram(ParseInfo* info, Scope** scope,
+                                  Scope** ad_hoc_eval_scope);
 
   void SetCachedData(ParseInfo* info);
 
