@@ -584,8 +584,8 @@ Local<Value> V8::GetEternal(Isolate* v8_isolate, int index) {
 }
 
 
-void V8::CheckIsJust(bool is_just) {
-  Utils::ApiCheck(is_just, "v8::FromJust", "Maybe value is Nothing.");
+void V8::FromJustIsNothing() {
+  Utils::ApiCheck(false, "v8::FromJust", "Maybe value is Nothing.");
 }
 
 
