@@ -6731,8 +6731,8 @@ TEST(Backtrace) {
 
   v8::Debug::SetMessageHandler(BacktraceData::MessageHandler);
 
-  // TODO(3995): This doesn't work with --always-opt because we don't have
-  // correct source positions in optimized code. Enable once we have.
+  // TODO(mstarzinger): This doesn't work with --always-opt because we don't
+  // have correct source positions in optimized code. Enable once we have.
   i::FLAG_always_opt = false;
 
   const int kBufferSize = 1000;

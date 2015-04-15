@@ -10162,11 +10162,7 @@ THREADED_TEST(CallAsFunction) {
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
     // TODO(verwaest): Better message
-    // TODO(3995): Our compilers disagree about the position (and message).
-    if (!i::FLAG_always_opt) {
-      CHECK_EQ(0,
-               strcmp("TypeError: obj2 is not a function", *exception_value1));
-    }
+    CHECK_EQ(0, strcmp("TypeError: obj2 is not a function", *exception_value1));
     try_catch.Reset();
 
     // Call an object without call-as-function handler through the API
@@ -10722,11 +10718,8 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
       "}");
   CHECK(try_catch.HasCaught());
   // TODO(verwaest): Adjust message.
-  // TODO(3995): Our compilers disagree about the position (and message).
-  if (!i::FLAG_always_opt) {
-    CHECK(v8_str("TypeError: receiver.method is not a function")
-              ->Equals(try_catch.Exception()->ToString(isolate)));
-  }
+  CHECK(v8_str("TypeError: receiver.method is not a function")
+            ->Equals(try_catch.Exception()->ToString(isolate)));
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
   CHECK_GE(interceptor_call_count, 50);
 }
@@ -10900,11 +10893,8 @@ THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
       "}");
   CHECK(try_catch.HasCaught());
   // TODO(verwaest): Adjust message.
-  // TODO(3995): Our compilers disagree about the position (and message).
-  if (!i::FLAG_always_opt) {
-    CHECK(v8_str("TypeError: receiver.method is not a function")
-              ->Equals(try_catch.Exception()->ToString(isolate)));
-  }
+  CHECK(v8_str("TypeError: receiver.method is not a function")
+            ->Equals(try_catch.Exception()->ToString(isolate)));
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
 
