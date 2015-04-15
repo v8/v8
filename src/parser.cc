@@ -3720,12 +3720,12 @@ void ParserTraits::RecordArrowFunctionParameter(
     return;
   }
 
-  if (!error_locs->eval_or_arguments_.IsValid() && IsEvalOrArguments(raw_name))
-    error_locs->eval_or_arguments_ = param_location;
-  if (!error_locs->reserved_.IsValid() && IsFutureStrictReserved(raw_name))
-    error_locs->reserved_ = param_location;
-  if (!error_locs->undefined_.IsValid() && IsUndefined(raw_name))
-    error_locs->undefined_ = param_location;
+  if (!error_locs->eval_or_arguments.IsValid() && IsEvalOrArguments(raw_name))
+    error_locs->eval_or_arguments = param_location;
+  if (!error_locs->reserved.IsValid() && IsFutureStrictReserved(raw_name))
+    error_locs->reserved = param_location;
+  if (!error_locs->undefined.IsValid() && IsUndefined(raw_name))
+    error_locs->undefined = param_location;
 
   // TODO(wingo): Fix quadratic check.  (Scope::IsDeclaredParameter has the same
   // issue.)
@@ -3955,7 +3955,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     scope->set_start_position(start_position);
 
     num_parameters = DeclareFormalParameters(params, scope_, has_rest);
-    if (error_locs.duplicate_.IsValid()) {
+    if (error_locs.duplicate.IsValid()) {
       duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
     }
 

@@ -25,15 +25,15 @@ namespace internal {
 class FormalParameterErrorLocations BASE_EMBEDDED {
  public:
   FormalParameterErrorLocations()
-      : eval_or_arguments_(Scanner::Location::invalid()),
-        undefined_(Scanner::Location::invalid()),
-        duplicate_(Scanner::Location::invalid()),
-        reserved_(Scanner::Location::invalid()) {}
+      : eval_or_arguments(Scanner::Location::invalid()),
+        undefined(Scanner::Location::invalid()),
+        duplicate(Scanner::Location::invalid()),
+        reserved(Scanner::Location::invalid()) {}
 
-  Scanner::Location eval_or_arguments_;
-  Scanner::Location undefined_;
-  Scanner::Location duplicate_;
-  Scanner::Location reserved_;
+  Scanner::Location eval_or_arguments;
+  Scanner::Location undefined;
+  Scanner::Location duplicate;
+  Scanner::Location reserved;
 };
 
 
@@ -522,25 +522,25 @@ class ParserBase : public Traits {
                                    const FormalParameterErrorLocations& locs,
                                    bool* ok) {
     if (is_sloppy(language_mode) && !strict_params) return;
-    if (is_strict(language_mode) && locs.eval_or_arguments_.IsValid()) {
-      Traits::ReportMessageAt(locs.eval_or_arguments_, "strict_eval_arguments");
+    if (is_strict(language_mode) && locs.eval_or_arguments.IsValid()) {
+      Traits::ReportMessageAt(locs.eval_or_arguments, "strict_eval_arguments");
       *ok = false;
       return;
     }
-    if (is_strict(language_mode) && locs.reserved_.IsValid()) {
-      Traits::ReportMessageAt(locs.reserved_, "unexpected_strict_reserved");
+    if (is_strict(language_mode) && locs.reserved.IsValid()) {
+      Traits::ReportMessageAt(locs.reserved, "unexpected_strict_reserved");
       *ok = false;
       return;
     }
-    if (is_strong(language_mode) && locs.undefined_.IsValid()) {
-      Traits::ReportMessageAt(locs.undefined_, "strong_undefined");
+    if (is_strong(language_mode) && locs.undefined.IsValid()) {
+      Traits::ReportMessageAt(locs.undefined, "strong_undefined");
       *ok = false;
       return;
     }
     // TODO(arv): When we add support for destructuring in setters we also need
     // to check for duplicate names.
-    if (locs.duplicate_.IsValid()) {
-      Traits::ReportMessageAt(locs.duplicate_, "strict_param_dupe");
+    if (locs.duplicate.IsValid()) {
+      Traits::ReportMessageAt(locs.duplicate, "strict_param_dupe");
       *ok = false;
       return;
     }
@@ -946,13 +946,13 @@ class PreParserExpression {
       case kInvalidArrowParam:
         return false;
       case kInvalidStrongArrowParam:
-        locs->undefined_ = params_loc;
+        locs->undefined = params_loc;
         return true;
       case kInvalidStrictReservedArrowParam:
-        locs->reserved_ = params_loc;
+        locs->reserved = params_loc;
         return true;
       case kInvalidStrictEvalArgumentsArrowParam:
-        locs->eval_or_arguments_ = params_loc;
+        locs->eval_or_arguments = params_loc;
         return true;
       default:
         DCHECK_EQ(valid, kValidArrowParam);
@@ -3109,18 +3109,18 @@ ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
   if (!*ok) return this->EmptyFormalParameter();
 
   // Store locations for possible future error reports.
-  if (!locs->eval_or_arguments_.IsValid() && this->IsEvalOrArguments(name)) {
-    locs->eval_or_arguments_ = scanner()->location();
+  if (!locs->eval_or_arguments.IsValid() && this->IsEvalOrArguments(name)) {
+    locs->eval_or_arguments = scanner()->location();
   }
-  if (!locs->undefined_.IsValid() && this->IsUndefined(name)) {
-    locs->undefined_ = scanner()->location();
+  if (!locs->undefined.IsValid() && this->IsUndefined(name)) {
+    locs->undefined = scanner()->location();
   }
-  if (!locs->reserved_.IsValid() && is_strict_reserved) {
-    locs->reserved_ = scanner()->location();
+  if (!locs->reserved.IsValid() && is_strict_reserved) {
+    locs->reserved = scanner()->location();
   }
-  if (!locs->duplicate_.IsValid() && duplicate_finder != nullptr) {
+  if (!locs->duplicate.IsValid() && duplicate_finder != nullptr) {
     int prev_value = scanner()->FindSymbol(duplicate_finder, 1);
-    if (prev_value != 0) locs->duplicate_ = scanner()->location();
+    if (prev_value != 0) locs->duplicate = scanner()->location();
   }
 
   return name;
