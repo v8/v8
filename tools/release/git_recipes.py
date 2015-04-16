@@ -280,3 +280,6 @@ class GitRecipesMixin(object):
         return match.group(1)
     raise GitFailedException("Couldn't determine commit position for %s" %
                              git_hash)
+
+  def GitGetHashOfTag(self, tag_name, **kwargs):
+    return self.Git("rev-list -1 " + tag_name).strip().encode("ascii", "ignore")

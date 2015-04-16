@@ -1422,13 +1422,20 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
       URL("http://omahaproxy.appspot.com/all.json", """[{
         "os": "win",
         "versions": [{
-          "version": "1.1.1.1",
-          "v8_version": "2.2.2.2",
+          "version": "2.2.2.2",
+          "v8_version": "22.2.2.2",
           "current_reldate": "04/09/15",
           "os": "win",
-          "channel": "canary"
+          "channel": "canary",
+          "previous_version": "1.1.1.0"
           }]
         }]"""),
+      URL("http://omahaproxy.appspot.com/v8.json?version=1.1.1.0", """{
+        "chromium_version": "1.1.1.0",
+        "v8_version": "11.1.1.0"
+        }"""),
+      Cmd("git rev-list -1 11.1.1", "v8_previous_version_hash"),
+      Cmd("git rev-list -1 22.2.2.2", "v8_version_hash"),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], "")
     ])
@@ -1449,10 +1456,13 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
     expected_json = {"chrome_releases":{
                                         "canaries": [
                                                      {
-                           "chrome_version": "1.1.1.1",
+                           "chrome_version": "2.2.2.2",
                            "os": "win",
                            "release_date": "04/09/15",
-                           "v8_version": "2.2.2.2",
+                           "v8_version": "22.2.2.2",
+                           "v8_version_hash": "v8_version_hash",
+                           "v8_previous_version": "11.1.1.0",
+                           "v8_previous_version_hash": "v8_previous_version_hash"
                            }]},
                      "releases":[
       {

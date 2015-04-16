@@ -60,6 +60,7 @@ DEPS_RE = re.compile(r"""^\s*(?:["']v8_revision["']: ["']"""
 BLEEDING_EDGE_TAGS_RE = re.compile(
     r"A \/tags\/([^\s]+) \(from \/branches\/bleeding_edge\:(\d+)\)")
 
+OMAHA_PROXY_URL = "http://omahaproxy.appspot.com/"
 
 def SortBranches(branches):
   """Sort branches with version number names."""
@@ -440,7 +441,7 @@ class RetrieveInformationOnChromeReleases(Step):
 
     params = None
     result_raw = self.ReadURL(
-                             "http://omahaproxy.appspot.com/all.json",
+                             OMAHA_PROXY_URL + "all.json",
                              params,
                              wait_plan=[5, 20]
                              )
@@ -450,18 +451,46 @@ class RetrieveInformationOnChromeReleases(Step):
 
     for current_os in recent_releases:
       for current_version in current_os["versions"]:
-        current_candidate = {
-                            "chrome_version": current_version["version"],
-                           "os": current_version["os"],
-                           "release_date": current_version["current_reldate"],
-                           "v8_version": current_version["v8_version"],
-                           }
+        if current_version["channel"] != "canary":
+          continue
 
-        if current_version["channel"] == "canary":
-          canaries.append(current_candidate)
+        current_candidate = self._CreateCandidate(current_version)
+        canaries.append(current_candidate)
 
     chrome_releases = {"canaries": canaries}
     self["chrome_releases"] = chrome_releases
+
+  def _GetGitHashForV8Version(self, v8_version):
+    if v8_version.split(".")[3]== "0":
+      return self.GitGetHashOfTag(v8_version[:-2])
+
+    return self.GitGetHashOfTag(v8_version)
+
+  def _CreateCandidate(self, current_version):
+    params = None
+    url_to_call = (OMAHA_PROXY_URL + "v8.json?version="
+                   + current_version["previous_version"])
+    result_raw = self.ReadURL(
+                         url_to_call,
+                         params,
+                         wait_plan=[5, 20]
+                         )
+    previous_v8_version = json.loads(result_raw)["v8_version"]
+    v8_previous_version_hash = self._GetGitHashForV8Version(previous_v8_version)
+
+    current_v8_version = current_version["v8_version"]
+    v8_version_hash = self._GetGitHashForV8Version(current_v8_version)
+
+    current_candidate = {
+                        "chrome_version": current_version["version"],
+                        "os": current_version["os"],
+                        "release_date": current_version["current_reldate"],
+                        "v8_version": current_v8_version,
+                        "v8_version_hash": v8_version_hash,
+                        "v8_previous_version": previous_v8_version,
+                        "v8_previous_version_hash": v8_previous_version_hash,
+                       }
+    return current_candidate
 
 
 class CleanUp(Step):
