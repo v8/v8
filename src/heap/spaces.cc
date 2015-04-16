@@ -875,30 +875,28 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
                                              Address start, size_t commit_size,
                                              size_t reserved_size) {
   // Commit page header (not executable).
-  if (!vm->Commit(start, CodePageGuardStartOffset(), false)) {
-    return false;
+  Address header = start;
+  size_t header_size = CodePageGuardStartOffset();
+  if (vm->Commit(header, header_size, false)) {
+    // Create guard page after the header.
+    if (vm->Guard(start + CodePageGuardStartOffset())) {
+      // Commit page body (executable).
+      Address body = start + CodePageAreaStartOffset();
+      size_t body_size = commit_size - CodePageGuardStartOffset();
+      if (vm->Commit(body, body_size, true)) {
+        // Create guard page before the end.
+        if (vm->Guard(start + reserved_size - CodePageGuardSize())) {
+          UpdateAllocatedSpaceLimits(start, start + CodePageAreaStartOffset() +
+                                                commit_size -
+                                                CodePageGuardStartOffset());
+          return true;
+        }
+        vm->Uncommit(body, body_size);
+      }
+    }
+    vm->Uncommit(header, header_size);
   }
-
-  // Create guard page after the header.
-  if (!vm->Guard(start + CodePageGuardStartOffset())) {
-    return false;
-  }
-
-  // Commit page body (executable).
-  if (!vm->Commit(start + CodePageAreaStartOffset(),
-                  commit_size - CodePageGuardStartOffset(), true)) {
-    return false;
-  }
-
-  // Create guard page before the end.
-  if (!vm->Guard(start + reserved_size - CodePageGuardSize())) {
-    return false;
-  }
-
-  UpdateAllocatedSpaceLimits(start, start + CodePageAreaStartOffset() +
-                                        commit_size -
-                                        CodePageGuardStartOffset());
-  return true;
+  return false;
 }
 
 
