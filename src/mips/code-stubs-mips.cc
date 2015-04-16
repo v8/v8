@@ -3089,8 +3089,8 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // have a chance to overwrite it.
   __ Move(index_, v0);
   if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
-    __ Pop(VectorLoadICDescriptor::SlotRegister(),
-           VectorLoadICDescriptor::VectorRegister(), object_);
+    __ Pop(VectorLoadICDescriptor::VectorRegister(),
+           VectorLoadICDescriptor::SlotRegister(), object_);
   } else {
     __ pop(object_);
   }
