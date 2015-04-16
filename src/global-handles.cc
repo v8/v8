@@ -596,20 +596,12 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
     if (node->IsWeakRetainer()) {
-      // Weakness type can be normal or phantom, with or without internal
-      // fields).  For normal weakness we mark through the handle so that the
-      // object and things reachable from it are available to the callback.
-      if (node->state() == Node::PENDING) {
-        if (node->weakness_type() == NORMAL_WEAK) {
-          v->VisitPointer(node->location());
-        } else {
+      // Pending weak phantom handles die immediately. Everything else survives.
+      if (node->state() == Node::PENDING &&
+          node->weakness_type() != NORMAL_WEAK) {
           node->CollectPhantomCallbackData(isolate(),
                                            &pending_phantom_callbacks_);
-        }
       } else {
-        // Node is not pending, so that means the object survived.  We still
-        // need to visit the pointer in case the object moved, eg. because of
-        // compaction.
         v->VisitPointer(node->location());
       }
     }
@@ -657,11 +649,13 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || node->is_partially_dependent()) &&
         node->IsWeakRetainer()) {
-      if (node->weakness_type() == NORMAL_WEAK) {
-        v->VisitPointer(node->location());
-      } else if (node->state() == Node::PENDING) {
+      // Pending weak phantom handles die immediately. Everything else survives.
+      if (node->state() == Node::PENDING &&
+          node->weakness_type() != NORMAL_WEAK) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
+      } else {
+        v->VisitPointer(node->location());
       }
     }
   }
