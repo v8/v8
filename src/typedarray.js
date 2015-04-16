@@ -119,32 +119,28 @@ function NAMEConstructor(arg1, arg2, arg3) {
 
 function NAME_GetBuffer() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.buffer", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.buffer", this);
   }
   return %TypedArrayGetBuffer(this);
 }
 
 function NAME_GetByteLength() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.byteLength", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteLength", this);
   }
   return %_ArrayBufferViewGetByteLength(this);
 }
 
 function NAME_GetByteOffset() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.byteOffset", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteOffset", this);
   }
   return %_ArrayBufferViewGetByteOffset(this);
 }
 
 function NAME_GetLength() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.length", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.length", this);
   }
   return %_TypedArrayGetLength(this);
 }
@@ -153,8 +149,7 @@ var $NAME = global.NAME;
 
 function NAMESubArray(begin, end) {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.subarray", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.subarray", this);
   }
   var beginInt = TO_INTEGER(begin);
   if (!IS_UNDEFINED(end)) {
@@ -366,24 +361,23 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
 
 function DataViewGetBufferJS() {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.buffer', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, 'DataView.buffer', this);
   }
   return %DataViewGetBuffer(this);
 }
 
 function DataViewGetByteOffset() {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.byteOffset', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.byteOffset', this);
   }
   return %_ArrayBufferViewGetByteOffset(this);
 }
 
 function DataViewGetByteLength() {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.byteLength', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.byteLength', this);
   }
   return %_ArrayBufferViewGetByteLength(this);
 }
@@ -407,8 +401,8 @@ function ToPositiveDataViewOffset(offset) {
 macro DATA_VIEW_GETTER_SETTER(TYPENAME)
 function DataViewGetTYPENAMEJS(offset, little_endian) {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getTYPENAME', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.getTYPENAME', this);
   }
   if (%_ArgumentsLength() < 1) {
     throw MakeTypeError('invalid_argument');
@@ -420,8 +414,8 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
 
 function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setTYPENAME', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.setTYPENAME', this);
   }
   if (%_ArgumentsLength() < 2) {
     throw MakeTypeError('invalid_argument');

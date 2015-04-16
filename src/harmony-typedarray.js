@@ -31,9 +31,7 @@ function NAMEForEach(f /* thisArg */) {  // length == 1
   if (!%IsTypedArray(this)) {
     throw MakeTypeError('not_typed_array', []);
   }
-  if (!IS_SPEC_FUNCTION(f)) {
-    throw MakeTypeError('called_non_callable', [ f ]);
-  }
+  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var length = %_TypedArrayGetLength(this);
   var receiver;

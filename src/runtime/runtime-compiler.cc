@@ -398,7 +398,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
         native_context->ErrorMessageForCodeGenerationFromStrings();
     Handle<Object> error;
     MaybeHandle<Object> maybe_error = isolate->factory()->NewEvalError(
-        "code_gen_from_strings", HandleVector<Object>(&error_message, 1));
+        MessageTemplate::kCodeGenFromStrings, error_message);
     if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
     return MakePair(isolate->heap()->exception(), NULL);
   }

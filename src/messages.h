@@ -88,9 +88,17 @@ class MessageHandler {
 };
 
 
-#define MESSAGE_TEMPLATES(T)                                           \
-  T(PropertyNotFunction, "Property '%' of object % is not a function") \
-  T(WithExpression, "% has no properties")
+#define MESSAGE_TEMPLATES(T)                                                  \
+  /* Error */                                                                 \
+  T(CyclicProto, "Cyclic __proto__ value")                                    \
+  /* TypeError */                                                             \
+  T(CalledNonCallable, "% is not a function")                                 \
+  T(GeneratorRunning, "Generator is already running")                         \
+  T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %") \
+  T(PropertyNotFunction, "Property '%' of object % is not a function")        \
+  T(WithExpression, "% has no properties")                                    \
+  /* EvalError */                                                             \
+  T(CodeGenFromStrings, "%")
 
 class MessageTemplate {
  public:

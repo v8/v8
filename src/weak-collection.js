@@ -25,7 +25,7 @@ function WeakMapConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, ['set', this]);
+      throw MakeTypeError(kPropertyNotFunction, 'set', this);
     }
     for (var nextItem of iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
@@ -39,8 +39,8 @@ function WeakMapConstructor(iterable) {
 
 function WeakMapGet(key) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakMap.prototype.get', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakMap.prototype.get', this);
   }
   if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
   return %WeakCollectionGet(this, key);
@@ -49,8 +49,8 @@ function WeakMapGet(key) {
 
 function WeakMapSet(key, value) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakMap.prototype.set', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakMap.prototype.set', this);
   }
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
@@ -61,8 +61,8 @@ function WeakMapSet(key, value) {
 
 function WeakMapHas(key) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakMap.prototype.has', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakMap.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
   return %WeakCollectionHas(this, key);
@@ -71,8 +71,8 @@ function WeakMapHas(key) {
 
 function WeakMapDelete(key) {
   if (!IS_WEAKMAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakMap.prototype.delete', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakMap.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
   return %WeakCollectionDelete(this, key);
@@ -116,7 +116,7 @@ function WeakSetConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, ['add', this]);
+      throw MakeTypeError(kPropertyNotFunction, 'add', this);
     }
     for (var value of iterable) {
       %_CallFunction(this, value, adder);
@@ -127,8 +127,8 @@ function WeakSetConstructor(iterable) {
 
 function WeakSetAdd(value) {
   if (!IS_WEAKSET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakSet.prototype.add', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakSet.prototype.add', this);
   }
   if (!IS_SPEC_OBJECT(value)) {
     throw %MakeTypeError('invalid_weakset_value', [this, value]);
@@ -139,8 +139,8 @@ function WeakSetAdd(value) {
 
 function WeakSetHas(value) {
   if (!IS_WEAKSET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakSet.prototype.has', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakSet.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
   return %WeakCollectionHas(this, value);
@@ -149,8 +149,8 @@ function WeakSetHas(value) {
 
 function WeakSetDelete(value) {
   if (!IS_WEAKSET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['WeakSet.prototype.delete', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'WeakSet.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
   return %WeakCollectionDelete(this, value);

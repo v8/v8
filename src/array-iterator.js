@@ -73,8 +73,8 @@ function ArrayIteratorNext() {
   var iterator = ToObject(this);
 
   if (!HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Array Iterator.prototype.next']);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Array Iterator.prototype.next', this);
   }
 
   var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
