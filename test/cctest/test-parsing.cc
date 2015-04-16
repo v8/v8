@@ -5805,7 +5805,7 @@ TEST(StrongEmptySubStatements) {
   const char* strict_context_data[][2] = {{"'use strict';", ""}, {NULL}};
   const char* strong_context_data[][2] = {{"'use strong';", ""}, {NULL}};
 
-  const char* data[] = {
+  const char* data_error[] = {
       "if (1);",
       "if (1) {} else;",
       "while (1);",
@@ -5818,15 +5818,24 @@ TEST(StrongEmptySubStatements) {
       "for (const x of []);",
       NULL};
 
+  const char* data_success[] =  {
+      "if (1) {} else {}",
+      "switch(1) {}",
+      "1+1;;",
+      "1+1; ;",
+      NULL};
+
   static const ParserFlag always_flags[] = {
       kAllowStrongMode,
   };
-  RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strict_context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strong_context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(sloppy_context_data, data_error, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, data_error, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, data_error, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, data_success, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -5975,31 +5984,93 @@ TEST(StrongUndefinedArrow) {
 
 
 TEST(StrongDirectEval) {
-  const char* context_data[][2] = {{"", ""}, {NULL}};
+  const char* sloppy_context_data[][2] = {{"", ""}, {NULL}};
+  const char* strong_context_data[][2] = {{"'use strong';", ""}, {NULL}};
 
   const char* error_data[] = {
-      "'use strong'; eval();",
-      "'use strong'; eval([]);",
-      "'use strong'; (eval)();",
-      "'use strong'; (((eval)))();",
-      "'use strong'; eval('function f() {}');",
-      "'use strong'; function f() {eval()}",
+      "eval();",
+      "eval([]);",
+      "(eval)();",
+      "(((eval)))();",
+      "eval('function f() {}');",
+      "function f() {eval()}",
       NULL};
 
   const char* success_data[] = {
-      "'use strong'; eval;",
-      "'use strong'; eval`foo`;",
-      "'use strong'; let foo = eval; foo();",
-      "'use strong'; (1, eval)();",
+      "eval;",
+      "eval`foo`;",
+      "let foo = eval; foo();",
+      "(1, eval)();",
       NULL};
 
   static const ParserFlag always_flags[] = {
       kAllowStrongMode
   };
 
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0,
+  RunParserSyncTest(sloppy_context_data, error_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
-  RunParserSyncTest(context_data, success_data, kSuccess, NULL, 0,
+  RunParserSyncTest(strong_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(StrongSwitchFallthrough) {
+  const char* sloppy_context_data[][2] = {
+      {"function f() { foo:for(;;) { switch(1) {", "};}}"},
+      {NULL, NULL}
+  };
+  const char* strong_context_data[][2] = {
+      {"function f() { 'use strong'; foo:for(;;) { switch(1) {", "};}}"},
+      {NULL, NULL}
+  };
+
+  const char* data_success[] = {
+      "",
+      "case 1:",
+      "case 1: case 2:",
+      "case 1: break;",
+      "default: throw new TypeError();",
+      "case 1: case 2: null",
+      "case 1: case 2: default: 1+1",
+      "case 1: break; case 2: return; default:",
+      "case 1: break foo; case 2: return; default:",
+      "case 1: case 2: break; case 3: continue; case 4: default:",
+      "case 1: case 2: break; case 3: continue foo; case 4: default:",
+      "case 1: case 2: {{return;}} case 3: default:",
+      "case 1: case 2: case 3: default: {1+1;{continue;}}",
+      "case 1: case 2: {1+1;{1+1;{continue;}}} case 3: default:",
+      "case 1: if (1) break; else continue; case 2: case 3: default:",
+      "case 1: case 2: if (1) {{break;}} else break; case 3: default:",
+      "case 1: if (1) break; else {if (1) break; else break;} case 2: default:",
+      "case 1: if (1) {if (1) break; else break;} else break; case 2: default:",
+      NULL};
+
+  const char* data_error[] = {
+      "case 1: case 2: (function(){return}); default:",
+      "case 1: 1+1; case 2:",
+      "case 1: bar: break bar; case 2: break;",
+      "case 1: bar:return; case 2:",
+      "case 1: bar:{ continue;} case 2:",
+      "case 1: break; case 2: bar:{ throw new TypeError() } default:",
+      "case 1: case 2: { bar:{ { break;} } } default: break;",
+      "case 1: if (1) break; else {}; case 2: default:",
+      "case 1: case 2: if (1) break; default:",
+      "case 1: case 2: if (1) break; else 0; default:",
+      "case 1: case 2: if (1) 0; else break; default:",
+      "case 1: case 2: case 3: if (1) {} default:",
+      "case 1: bar:if (1) break; else continue; case 2: case 3: default:",
+      NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowStrongMode
+  };
+  RunParserSyncTest(strong_context_data, data_success, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(sloppy_context_data, data_error, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, data_error, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
 

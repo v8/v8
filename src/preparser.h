@@ -1104,6 +1104,10 @@ class PreParserStatement {
     return PreParserStatement(kUnknownStatement);
   }
 
+  static PreParserStatement Jump() {
+    return PreParserStatement(kJumpStatement);
+  }
+
   static PreParserStatement FunctionDeclaration() {
     return PreParserStatement(kFunctionDeclaration);
   }
@@ -1139,9 +1143,14 @@ class PreParserStatement {
     return code_ == kFunctionDeclaration;
   }
 
+  bool IsJumpStatement() {
+    return code_ == kJumpStatement;
+  }
+
  private:
   enum Type {
     kUnknownStatement,
+    kJumpStatement,
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
     kUseStrongExpressionStatement,

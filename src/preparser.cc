@@ -235,6 +235,11 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
   // Statement ::
   //   EmptyStatement
   //   ...
+
+  if (peek() == Token::SEMICOLON) {
+    Next();
+    return Statement::Default();
+  }
   return ParseSubStatement(ok);
 }
 
@@ -395,15 +400,16 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // (ECMA-262, 3rd, 12.2)
   //
   Expect(Token::LBRACE, CHECK_OK);
+  Statement final = Statement::Default();
   while (peek() != Token::RBRACE) {
     if (is_strict(language_mode())) {
-      ParseStatementListItem(CHECK_OK);
+      final = ParseStatementListItem(CHECK_OK);
     } else {
-      ParseStatement(CHECK_OK);
+      final = ParseStatement(CHECK_OK);
     }
   }
   Expect(Token::RBRACE, ok);
-  return Statement::Default();
+  return final;
 }
 
 
@@ -545,7 +551,8 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     DCHECK(is_sloppy(language_mode()) ||
            !IsFutureStrictReserved(expr.AsIdentifier()));
     Consume(Token::COLON);
-    return ParseStatement(ok);
+    Statement statement = ParseStatement(ok);
+    return statement.IsJumpStatement() ? Statement::Default() : statement;
     // Preparsing is disabled for extensions (because the extension details
     // aren't passed to lazily compiled functions), so we don't
     // accept "native function" in the preparser.
@@ -571,12 +578,16 @@ PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  ParseSubStatement(CHECK_OK);
+  Statement stat = ParseSubStatement(CHECK_OK);
   if (peek() == Token::ELSE) {
     Next();
-    ParseSubStatement(CHECK_OK);
+    Statement else_stat = ParseSubStatement(CHECK_OK);
+    stat = (stat.IsJumpStatement() && else_stat.IsJumpStatement()) ?
+        Statement::Jump() : Statement::Default();
+  } else {
+    stat = Statement::Default();
   }
-  return Statement::Default();
+  return stat;
 }
 
 
@@ -594,7 +605,7 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
     ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
-  return Statement::Default();
+  return Statement::Jump();
 }
 
 
@@ -612,7 +623,7 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
     ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
-  return Statement::Default();
+  return Statement::Jump();
 }
 
 
@@ -647,7 +658,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
     ParseExpression(true, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
-  return Statement::Default();
+  return Statement::Jump();
 }
 
 
@@ -691,11 +702,18 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
     }
     Expect(Token::COLON, CHECK_OK);
     token = peek();
+    Statement statement = Statement::Jump();
     while (token != Token::CASE &&
            token != Token::DEFAULT &&
            token != Token::RBRACE) {
-      ParseStatementListItem(CHECK_OK);
+      statement = ParseStatementListItem(CHECK_OK);
       token = peek();
+    }
+    if (is_strong(language_mode()) && !statement.IsJumpStatement() &&
+        token != Token::RBRACE) {
+      ReportMessageAt(scanner()->location(), "strong_switch_fallthrough");
+      *ok = false;
+      return Statement::Default();
     }
   }
   Expect(Token::RBRACE, ok);
@@ -827,7 +845,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
   }
   ParseExpression(true, CHECK_OK);
   ExpectSemicolon(ok);
-  return Statement::Default();
+  return Statement::Jump();
 }
 
 

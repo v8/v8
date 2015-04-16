@@ -1821,36 +1821,29 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
       return ParseForStatement(labels, ok);
 
     case Token::CONTINUE:
-      return ParseContinueStatement(ok);
-
     case Token::BREAK:
-      return ParseBreakStatement(labels, ok);
-
     case Token::RETURN:
-      return ParseReturnStatement(ok);
+    case Token::THROW:
+    case Token::TRY: {
+      // These statements must have their labels preserved in an enclosing
+      // block
+      if (labels == NULL) {
+        return ParseStatementAsUnlabelled(labels, ok);
+      } else {
+        Block* result =
+            factory()->NewBlock(labels, 1, false, RelocInfo::kNoPosition);
+        Target target(&this->target_stack_, result);
+        Statement* statement = ParseStatementAsUnlabelled(labels, CHECK_OK);
+        if (result) result->AddStatement(statement, zone());
+        return result;
+      }
+    }
 
     case Token::WITH:
       return ParseWithStatement(labels, ok);
 
     case Token::SWITCH:
       return ParseSwitchStatement(labels, ok);
-
-    case Token::THROW:
-      return ParseThrowStatement(ok);
-
-    case Token::TRY: {
-      // NOTE: It is somewhat complicated to have labels on
-      // try-statements. When breaking out of a try-finally statement,
-      // one must take great care not to treat it as a
-      // fall-through. It is much easier just to wrap the entire
-      // try-statement in a statement block and put the labels there
-      Block* result =
-          factory()->NewBlock(labels, 1, false, RelocInfo::kNoPosition);
-      Target target(&this->target_stack_, result);
-      TryStatement* statement = ParseTryStatement(CHECK_OK);
-      if (result) result->AddStatement(statement, zone());
-      return result;
-    }
 
     case Token::FUNCTION: {
       // FunctionDeclaration is only allowed in the context of SourceElements
@@ -1889,6 +1882,30 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
     // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(labels, ok);
+  }
+}
+
+Statement* Parser::ParseStatementAsUnlabelled(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  switch (peek()) {
+    case Token::CONTINUE:
+      return ParseContinueStatement(ok);
+
+    case Token::BREAK:
+      return ParseBreakStatement(labels, ok);
+
+    case Token::RETURN:
+      return ParseReturnStatement(ok);
+
+    case Token::THROW:
+      return ParseThrowStatement(ok);
+
+    case Token::TRY:
+      return ParseTryStatement(ok);
+
+    default:
+      UNREACHABLE();
+      return NULL;
   }
 }
 
@@ -2847,13 +2864,19 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   int pos = position();
   ZoneList<Statement*>* statements =
       new(zone()) ZoneList<Statement*>(5, zone());
+  Statement* stat = NULL;
   while (peek() != Token::CASE &&
          peek() != Token::DEFAULT &&
          peek() != Token::RBRACE) {
-    Statement* stat = ParseStatementListItem(CHECK_OK);
+    stat = ParseStatementListItem(CHECK_OK);
     statements->Add(stat, zone());
   }
-
+  if (is_strong(language_mode()) && stat != NULL && !stat->IsJump() &&
+      peek() != Token::RBRACE) {
+    ReportMessageAt(scanner()->location(), "strong_switch_fallthrough");
+    *ok = false;
+    return NULL;
+  }
   return factory()->NewCaseClause(label, statements, pos);
 }
 
@@ -4469,7 +4492,6 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
 
 // ----------------------------------------------------------------------------
 // Parser support
-
 
 bool Parser::TargetStackContainsLabel(const AstRawString* label) {
   for (Target* t = target_stack_; t != NULL; t = t->previous()) {
