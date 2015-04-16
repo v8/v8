@@ -119,8 +119,11 @@ class GCIdleTimeHandler {
   static const int kIdleScavengeThreshold;
 
   // This is the maximum scheduled idle time. Note that it can be more than
-  // 16 ms when there is currently no rendering going on.
+  // 16.66 ms when there is currently no rendering going on.
   static const size_t kMaxScheduledIdleTime = 50;
+
+  // The maximum idle time when frames are rendered is 16.66ms.
+  static const size_t kMaxFrameRenderingIdleTime = 17;
 
   // We conservatively assume that in the next kTimeUntilNextIdleEvent ms
   // no idle notification happens.
