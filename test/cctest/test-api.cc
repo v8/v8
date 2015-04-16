@@ -6646,8 +6646,7 @@ void InternalFieldCallback(bool global_gc) {
     }
   }
   if (global_gc) {
-    CcTest::heap()->CollectAllGarbage(
-        TestHeap::Heap::kAbortIncrementalMarkingMask);
+    CcTest::heap()->CollectAllGarbage(TestHeap::Heap::kNoGCFlags);
   } else {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }
