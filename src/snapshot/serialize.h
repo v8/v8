@@ -788,9 +788,8 @@ class PartialSerializer : public Serializer {
     // unique ID, and deserializing several partial snapshots containing script
     // would cause dupes.
     DCHECK(!o->IsScript());
-    return o->IsName() || o->IsSharedFunctionInfo() ||
-           o->IsHeapNumber() || o->IsCode() ||
-           o->IsScopeInfo() ||
+    return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
+           o->IsCode() || o->IsScopeInfo() || o->IsExecutableAccessorInfo() ||
            o->map() ==
                startup_serializer_->isolate()->heap()->fixed_cow_array_map();
   }
