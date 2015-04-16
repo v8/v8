@@ -732,6 +732,8 @@ DEFINE_INT(hash_seed, 0,
 // snapshot-common.cc
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
+DEFINE_BOOL(serialization_statistics, false,
+            "Collect statistics on serialized objects.")
 
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
