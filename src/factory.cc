@@ -1994,7 +1994,8 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
   if (size_difference > 0) {
     Address address = proxy->address();
     heap->CreateFillerObjectAt(address + map->instance_size(), size_difference);
-    heap->AdjustLiveBytes(address, -size_difference, Heap::FROM_MUTATOR);
+    heap->AdjustLiveBytes(address, -size_difference,
+                          Heap::CONCURRENT_TO_SWEEPER);
   }
 
   // Reset the map for the object.

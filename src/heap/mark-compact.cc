@@ -2562,7 +2562,7 @@ void MarkCompactCollector::ClearMapTransitions(Map* map, Map* dead_transition) {
     // Non-full-TransitionArray cases can never reach this point.
     DCHECK(TransitionArray::IsFullTransitionArray(transitions));
     TransitionArray* t = TransitionArray::cast(transitions);
-    heap_->RightTrimFixedArray<Heap::FROM_GC>(
+    heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
         t, trim * TransitionArray::kTransitionSize);
     t->SetNumberOfTransitions(transition_index);
     // The map still has a full transition array.
@@ -2578,7 +2578,7 @@ void MarkCompactCollector::TrimDescriptorArray(Map* map,
   int to_trim = number_of_descriptors - number_of_own_descriptors;
   if (to_trim == 0) return;
 
-  heap_->RightTrimFixedArray<Heap::FROM_GC>(
+  heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
       descriptors, to_trim * DescriptorArray::kDescriptorSize);
   descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
@@ -2606,12 +2606,13 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 
   int to_trim = enum_cache->length() - live_enum;
   if (to_trim <= 0) return;
-  heap_->RightTrimFixedArray<Heap::FROM_GC>(descriptors->GetEnumCache(),
-                                            to_trim);
+  heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
+      descriptors->GetEnumCache(), to_trim);
 
   if (!descriptors->HasEnumIndicesCache()) return;
   FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
-  heap_->RightTrimFixedArray<Heap::FROM_GC>(enum_indices_cache, to_trim);
+  heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(enum_indices_cache,
+                                                          to_trim);
 }
 
 

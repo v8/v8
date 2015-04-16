@@ -884,7 +884,7 @@ class FastElementsAccessor
         if (length == 0) {
           array->initialize_elements();
         } else {
-          isolate->heap()->RightTrimFixedArray<Heap::FROM_MUTATOR>(
+          isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
               *backing_store, old_capacity - length);
         }
       } else {

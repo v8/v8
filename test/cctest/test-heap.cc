@@ -5328,7 +5328,8 @@ static void TestRightTrimFixedTypedArray(v8::ExternalArrayType type,
   Handle<FixedTypedArrayBase> array =
       factory->NewFixedTypedArray(initial_length, type);
   int old_size = array->size();
-  heap->RightTrimFixedArray<Heap::FROM_MUTATOR>(*array, elements_to_trim);
+  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array,
+                                                         elements_to_trim);
 
   // Check that free space filler is at the right place and did not smash the
   // array header.

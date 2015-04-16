@@ -729,9 +729,11 @@ class Heap {
 
   bool CanMoveObjectStart(HeapObject* object);
 
-  // Indicates whether live bytes adjustment is triggered from within the GC
-  // code or from mutator code.
-  enum InvocationMode { FROM_GC, FROM_MUTATOR };
+  // Indicates whether live bytes adjustment is triggered
+  // - from within the GC code before sweeping started (SEQUENTIAL_TO_SWEEPER),
+  // - or from within GC (CONCURRENT_TO_SWEEPER),
+  // - or mutator code (CONCURRENT_TO_SWEEPER).
+  enum InvocationMode { SEQUENTIAL_TO_SWEEPER, CONCURRENT_TO_SWEEPER };
 
   // Maintain consistency of live bytes during incremental marking.
   void AdjustLiveBytes(Address address, int by, InvocationMode mode);

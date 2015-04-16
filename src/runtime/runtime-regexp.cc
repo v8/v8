@@ -638,7 +638,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // thread can not get confused with the filler creation. No synchronization
   // needed.
   heap->CreateFillerObjectAt(end_of_string, delta);
-  heap->AdjustLiveBytes(answer->address(), -delta, Heap::FROM_MUTATOR);
+  heap->AdjustLiveBytes(answer->address(), -delta, Heap::CONCURRENT_TO_SWEEPER);
   return *answer;
 }
 
