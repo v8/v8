@@ -400,6 +400,24 @@ TEST(Trim_constants) {
 }
 
 
+TEST(Trim_EmptyFrameState1) {
+  ControlReducerTester T;
+
+  Node* node = T.jsgraph.EmptyFrameState();
+  T.Trim();
+
+  for (Node* input : node->inputs()) {
+    CHECK_NOT_NULL(input);
+  }
+}
+
+
+TEST(Trim_EmptyFrameState2) {
+  ControlReducerTester T;
+  CheckTrimConstant(&T, T.jsgraph.EmptyFrameState());
+}
+
+
 TEST(CReducePhi1) {
   ControlReducerTester R;
 

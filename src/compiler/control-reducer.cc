@@ -100,7 +100,7 @@ class ControlReducerImpl {
     // Gather all nodes backwards-reachable from end (through inputs).
     ReachabilityMarker marked(graph());
     NodeVector nodes(zone_);
-    AddNodesReachableFromEnd(marked, nodes);
+    AddNodesReachableFromRoots(marked, nodes);
 
     // Walk forward through control nodes, looking for back edges to nodes
     // that are not connected to end. Those are non-terminating loops (NTLs).
@@ -158,7 +158,6 @@ class ControlReducerImpl {
     }
 
     // Trim references from dead nodes to live nodes first.
-    jsgraph_->GetCachedNodes(&nodes);
     TrimNodes(marked, nodes);
 
     // Any control nodes not reachable from start are dead, even loops.
@@ -251,13 +250,14 @@ class ControlReducerImpl {
     return ret;
   }
 
-  void AddNodesReachableFromEnd(ReachabilityMarker& marked, NodeVector& nodes) {
+  void AddNodesReachableFromRoots(ReachabilityMarker& marked,
+                                  NodeVector& nodes) {
+    jsgraph_->GetCachedNodes(&nodes);  // Consider cached nodes roots.
     Node* end = graph()->end();
     marked.SetReachableFromEnd(end);
-    if (!end->IsDead()) {
-      nodes.push_back(end);
-      AddBackwardsReachableNodes(marked, nodes, nodes.size() - 1);
-    }
+    if (!end->IsDead()) nodes.push_back(end);  // Consider end to be a root.
+    for (Node* node : nodes) marked.SetReachableFromEnd(node);
+    AddBackwardsReachableNodes(marked, nodes, 0);
   }
 
   void AddBackwardsReachableNodes(ReachabilityMarker& marked, NodeVector& nodes,
@@ -276,10 +276,8 @@ class ControlReducerImpl {
     // Gather all nodes backwards-reachable from end through inputs.
     ReachabilityMarker marked(graph());
     NodeVector nodes(zone_);
-    AddNodesReachableFromEnd(marked, nodes);
-
-    // Process cached nodes in the JSGraph too.
     jsgraph_->GetCachedNodes(&nodes);
+    AddNodesReachableFromRoots(marked, nodes);
     TrimNodes(marked, nodes);
   }
 
