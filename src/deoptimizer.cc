@@ -2803,7 +2803,10 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   MemoryChunk* chunk = data->deopt_entry_code_[type];
   CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
         desc.instr_size);
-  chunk->CommitArea(desc.instr_size);
+  if (!chunk->CommitArea(desc.instr_size)) {
+    V8::FatalProcessOutOfMemory(
+        "Deoptimizer::EnsureCodeForDeoptimizationEntry");
+  }
   CopyBytes(chunk->area_start(), desc.buffer,
       static_cast<size_t>(desc.instr_size));
   CpuFeatures::FlushICache(chunk->area_start(), desc.instr_size);
