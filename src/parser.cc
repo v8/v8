@@ -914,8 +914,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   source = String::Flatten(source);
   FunctionLiteral* result;
 
-  Scope* top_scope = NULL;
-  Scope* eval_scope = NULL;
   if (source->IsExternalTwoByteString()) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
@@ -923,15 +921,14 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info, &top_scope, &eval_scope);
+    result = DoParseProgram(info);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info, &top_scope, &eval_scope);
+    result = DoParseProgram(info);
   }
-  top_scope->set_end_position(source->length());
-  if (eval_scope != NULL) {
-    eval_scope->set_end_position(source->length());
+  if (result != NULL) {
+    DCHECK_EQ(scanner_.peek_location().beg_pos, source->length());
   }
   HandleSourceURLComments(isolate, info->script());
 
@@ -956,8 +953,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 }
 
 
-FunctionLiteral* Parser::DoParseProgram(ParseInfo* info, Scope** scope,
-                                        Scope** eval_scope) {
+FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   // Note that this function can be called from the main thread or from a
   // background thread. We should not access anything Isolate / heap dependent
   // via ParseInfo, and also not pass it forward.
@@ -966,11 +962,11 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info, Scope** scope,
 
   FunctionLiteral* result = NULL;
   {
-    *scope = NewScope(scope_, SCRIPT_SCOPE);
-    info->set_script_scope(*scope);
+    Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
+    info->set_script_scope(scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
-      *scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
-                                            *info->context(), *scope);
+      scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
+                                           *info->context(), scope);
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
       // string table to internalize strings and values right after they're
@@ -978,28 +974,27 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info, Scope** scope,
       DCHECK(parsing_on_main_thread_);
       ast_value_factory()->Internalize(info->isolate());
     }
-    original_scope_ = *scope;
+    original_scope_ = scope;
     if (info->is_eval()) {
-      if (!(*scope)->is_script_scope() || is_strict(info->language_mode())) {
-        *scope = NewScope(*scope, EVAL_SCOPE);
+      if (!scope->is_script_scope() || is_strict(info->language_mode())) {
+        scope = NewScope(scope, EVAL_SCOPE);
       }
     } else if (info->is_module()) {
-      *scope = NewScope(*scope, MODULE_SCOPE);
+      scope = NewScope(scope, MODULE_SCOPE);
     }
-    (*scope)->set_start_position(0);
-    // End position will be set by the caller.
+
+    scope->set_start_position(0);
 
     // Compute the parsing mode.
     Mode mode = (FLAG_lazy && allow_lazy()) ? PARSE_LAZILY : PARSE_EAGERLY;
-    if (allow_natives() || extension_ != NULL ||
-        (*scope)->is_eval_scope()) {
+    if (allow_natives() || extension_ != NULL || scope->is_eval_scope()) {
       mode = PARSE_EAGERLY;
     }
     ParsingModeScope parsing_mode(this, mode);
 
     // Enters 'scope'.
     AstNodeFactory function_factory(ast_value_factory());
-    FunctionState function_state(&function_state_, &scope_, *scope,
+    FunctionState function_state(&function_state_, &scope_, scope,
                                  kNormalFunction, &function_factory);
 
     scope_->SetLanguageMode(info->language_mode());
@@ -1010,8 +1005,15 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info, Scope** scope,
       DCHECK(allow_harmony_modules());
       ParseModuleItemList(body, &ok);
     } else {
-      ParseStatementList(body, Token::EOS, info->is_eval(), eval_scope, &ok);
+      Scope* eval_scope = nullptr;
+      ParseStatementList(body, Token::EOS, info->is_eval(), &eval_scope, &ok);
+      if (eval_scope != nullptr)
+        eval_scope->set_end_position(scanner()->peek_location().beg_pos);
     }
+
+    // The parser will peek but not consume EOS.  Our scope logically goes all
+    // the way to the EOS, though.
+    scope->set_end_position(scanner()->peek_location().beg_pos);
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
@@ -5524,14 +5526,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // don't). We work around this by storing all the scopes which need their end
   // position set at the end of the script (the top scope and possible eval
   // scopes) and set their end position after we know the script length.
-  Scope* top_scope = NULL;
-  Scope* eval_scope = NULL;
-  result = DoParseProgram(info, &top_scope, &eval_scope);
-
-  top_scope->set_end_position(scanner()->location().end_pos);
-  if (eval_scope != NULL) {
-    eval_scope->set_end_position(scanner()->location().end_pos);
-  }
+  result = DoParseProgram(info);
 
   info->set_literal(result);
 
