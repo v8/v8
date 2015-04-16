@@ -2258,6 +2258,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void VisitLoopBody(IterationStatement* stmt,
                      HBasicBlock* loop_entry);
 
+  void BuildForInBody(ForInStatement* stmt, Variable* each_var,
+                      HValue* enumerable);
+
   // Create a back edge in the flow graph.  body_exit is the predecessor
   // block and loop_entry is the successor block.  loop_successor is the
   // block where control flow exits the loop normally (e.g., via failure of

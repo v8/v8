@@ -160,7 +160,8 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kUnknownMap, "Unknown map")                                                \
   V(kValueMismatch, "value mismatch")                                          \
   V(kWrongInstanceType, "wrong instance type")                                 \
-  V(kWrongMap, "wrong map")
+  V(kWrongMap, "wrong map")                                                    \
+  V(kUndefinedOrNullInForIn, "null or undefined in for-in")
 
 
 class Deoptimizer : public Malloced {

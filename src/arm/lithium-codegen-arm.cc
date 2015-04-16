@@ -5762,15 +5762,6 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 
 
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, ip);
-  DeoptimizeIf(eq, instr, Deoptimizer::kUndefined);
-
-  Register null_value = r5;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ cmp(r0, null_value);
-  DeoptimizeIf(eq, instr, Deoptimizer::kNull);
-
   __ SmiTst(r0);
   DeoptimizeIf(eq, instr, Deoptimizer::kSmi);
 
@@ -5779,6 +5770,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DeoptimizeIf(le, instr, Deoptimizer::kWrongInstanceType);
 
   Label use_cache, call_runtime;
+  Register null_value = r5;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ CheckEnumCache(null_value, &call_runtime);
 
   __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));

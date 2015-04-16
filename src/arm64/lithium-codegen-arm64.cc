@@ -2897,13 +2897,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DCHECK(instr->IsMarkedAsCall());
   DCHECK(object.Is(x0));
 
-  DeoptimizeIfRoot(object, Heap::kUndefinedValueRootIndex, instr,
-                   Deoptimizer::kUndefined);
-
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ Cmp(object, null_value);
-  DeoptimizeIf(eq, instr, Deoptimizer::kNull);
-
   DeoptimizeIfSmi(object, instr, Deoptimizer::kSmi);
 
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -2911,6 +2904,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DeoptimizeIf(le, instr, Deoptimizer::kNotAJavaScriptObject);
 
   Label use_cache, call_runtime;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ CheckEnumCache(object, null_value, x1, x2, x3, x4, &call_runtime);
 
   __ Ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));

@@ -5772,12 +5772,7 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  DeoptimizeIf(equal, instr, Deoptimizer::kUndefined);
 
-  Register null_value = rdi;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ cmpp(rax, null_value);
   DeoptimizeIf(equal, instr, Deoptimizer::kNull);
 
   Condition cc = masm()->CheckSmi(rax);
@@ -5788,6 +5783,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DeoptimizeIf(below_equal, instr, Deoptimizer::kWrongInstanceType);
 
   Label use_cache, call_runtime;
+  Register null_value = rdi;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ CheckEnumCache(null_value, &call_runtime);
 
   __ movp(rax, FieldOperand(rax, HeapObject::kMapOffset));

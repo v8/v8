@@ -5819,13 +5819,6 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   Register result = ToRegister(instr->result());
   Register object = ToRegister(instr->object());
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  DeoptimizeIf(eq, instr, Deoptimizer::kUndefined, object, Operand(at));
-
-  Register null_value = t1;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  DeoptimizeIf(eq, instr, Deoptimizer::kNull, object, Operand(null_value));
-
   __ And(at, object, kSmiTagMask);
   DeoptimizeIf(eq, instr, Deoptimizer::kSmi, at, Operand(zero_reg));
 
@@ -5836,6 +5829,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 
   Label use_cache, call_runtime;
   DCHECK(object.is(a0));
+  Register null_value = t1;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ CheckEnumCache(null_value, &call_runtime);
 
   __ lw(result, FieldMemOperand(object, HeapObject::kMapOffset));
