@@ -33,6 +33,10 @@ function assertThrowsHelper(code) {
   assertThrowsHelper("function f() { x; let x = 0; }");
   assertThrowsHelper("function f() { x; } let x = 0;");
 
+  assertThrowsHelper("x; const x = 0;");
+  assertThrowsHelper("function f() { x; const x = 0; }");
+  assertThrowsHelper("function f() { x; } const x = 0;");
+
   // These tests needs to be done a bit more manually, since var is not allowed
   // in strong mode:
   assertThrows(
@@ -78,6 +82,16 @@ function assertThrowsHelper(code) {
 
 
 (function DeclarationAfterUseInClasses() {
+  // Referring to a variable declared later
+  assertThrowsHelper("class C { m() { x; } } let x = 0;");
+  assertThrowsHelper("class C { static m() { x; } } let x = 0;");
+  assertThrowsHelper("class C { [x]() { } } let x = 0;");
+
+  assertThrowsHelper("class C { m() { x; } } const x = 0;");
+  assertThrowsHelper("class C { static m() { x; } } const x = 0;");
+  assertThrowsHelper("class C { [x]() { } } const x = 0;");
+
+  // Referring to the class name.
   assertThrowsHelper("class C extends C { }");
   assertThrowsHelper("let C = class C2 extends C { }");
   assertThrowsHelper("let C = class C2 extends C2 { }");

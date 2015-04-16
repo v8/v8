@@ -568,14 +568,15 @@ class VariableDeclaration FINAL : public Declaration {
     return mode() == VAR ? kCreatedInitialized : kNeedsInitialization;
   }
 
+  bool is_class_declaration() const { return is_class_declaration_; }
+
  protected:
-  VariableDeclaration(Zone* zone,
-                      VariableProxy* proxy,
-                      VariableMode mode,
-                      Scope* scope,
-                      int pos)
-      : Declaration(zone, proxy, mode, scope, pos) {
-  }
+  VariableDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
+                      Scope* scope, int pos, bool is_class_declaration = false)
+      : Declaration(zone, proxy, mode, scope, pos),
+        is_class_declaration_(is_class_declaration) {}
+
+  bool is_class_declaration_;
 };
 
 
@@ -3215,11 +3216,11 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
       : zone_(ast_value_factory->zone()),
         ast_value_factory_(ast_value_factory) {}
 
-  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
-                                              VariableMode mode,
-                                              Scope* scope,
-                                              int pos) {
-    return new (zone_) VariableDeclaration(zone_, proxy, mode, scope, pos);
+  VariableDeclaration* NewVariableDeclaration(
+      VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
+      bool is_class_declaration = false) {
+    return new (zone_) VariableDeclaration(zone_, proxy, mode, scope, pos,
+                                           is_class_declaration);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,

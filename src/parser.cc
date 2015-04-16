@@ -1948,11 +1948,15 @@ Variable* Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     var = declaration_scope->LookupLocal(name);
     if (var == NULL) {
       // Declare the name.
+      Variable::Kind kind = Variable::NORMAL;
+      if (declaration->IsFunctionDeclaration()) {
+        kind = Variable::FUNCTION;
+      } else if (declaration->IsVariableDeclaration() &&
+                 declaration->AsVariableDeclaration()->is_class_declaration()) {
+        kind = Variable::CLASS;
+      }
       var = declaration_scope->DeclareLocal(
-          name, mode, declaration->initialization(),
-          declaration->IsFunctionDeclaration() ? Variable::FUNCTION
-                                               : Variable::NORMAL,
-          kNotAssigned);
+          name, mode, declaration->initialization(), kind, kNotAssigned);
     } else if (IsLexicalVariableMode(mode) ||
                IsLexicalVariableMode(var->mode()) ||
                ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
@@ -2170,8 +2174,9 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
 
   VariableMode mode = is_strong(language_mode()) ? CONST : LET;
   VariableProxy* proxy = NewUnresolved(name, mode);
-  Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
+  const bool is_class_declaration = true;
+  Declaration* declaration = factory()->NewVariableDeclaration(
+      proxy, mode, scope_, pos, is_class_declaration);
   Declare(declaration, true, CHECK_OK);
   proxy->var()->set_initializer_position(position());
 
