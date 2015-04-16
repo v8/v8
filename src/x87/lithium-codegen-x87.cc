@@ -4379,7 +4379,15 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->result()).is(eax));
 
   __ Move(eax, Immediate(instr->arity()));
-  __ mov(ebx, isolate()->factory()->undefined_value());
+  if (instr->arity() == 1) {
+    // We only need the allocation site for the case we have a length argument.
+    // The case may bail out to the runtime, which will determine the correct
+    // elements kind with the site.
+    __ mov(ebx, instr->hydrogen()->site());
+  } else {
+    __ mov(ebx, isolate()->factory()->undefined_value());
+  }
+
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
