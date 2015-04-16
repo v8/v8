@@ -50,7 +50,10 @@ class IncrementalMarking {
 
   INLINE(bool IsMarking()) { return state() >= MARKING; }
 
-  inline bool IsMarkingIncomplete() { return state() == MARKING; }
+  inline bool CanDoSteps() {
+    return FLAG_incremental_marking_steps &&
+           (state() == MARKING || state() == SWEEPING);
+  }
 
   inline bool IsComplete() { return state() == COMPLETE; }
 
@@ -102,6 +105,8 @@ class IncrementalMarking {
   // But if we are promoting a lot of data we need to mark faster to keep up
   // with the data that is entering the old space through promotion.
   static const intptr_t kFastMarking = 3;
+  static const intptr_t kOldSpaceAllocationMarkingFactor =
+      kFastMarking / kInitialMarkingSpeed;
   // After this many steps we increase the marking/allocating factor.
   static const intptr_t kMarkingSpeedAccellerationInterval = 1024;
   // This is how much we increase the marking/allocating factor by.

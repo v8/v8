@@ -815,7 +815,7 @@ void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
   if (IsStopped() && ShouldActivate()) {
     Start();
   } else {
-    Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
+    Step(allocated * kOldSpaceAllocationMarkingFactor, GC_VIA_STACK_GUARD);
   }
 }
 
@@ -891,8 +891,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
                                   ForceMarkingAction marking,
                                   ForceCompletionAction completion) {
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      !FLAG_incremental_marking_steps ||
-      (state_ != SWEEPING && state_ != MARKING)) {
+      !CanDoSteps()) {
     return 0;
   }
 
