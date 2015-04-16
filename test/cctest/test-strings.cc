@@ -36,6 +36,7 @@
 
 #include "src/api.h"
 #include "src/factory.h"
+#include "src/messages.h"
 #include "src/objects.h"
 #include "src/unicode-decoder.h"
 #include "test/cctest/cctest.h"
@@ -1459,3 +1460,20 @@ INVALID_STRING_TEST(NewStringFromUtf8, char)
 INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
 
 #undef INVALID_STRING_TEST
+
+
+TEST(FormatMessage) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Handle<String> arg0 = isolate->factory()->NewStringFromAsciiChecked("arg0");
+  Handle<String> arg1 = isolate->factory()->NewStringFromAsciiChecked("arg1");
+  Handle<String> arg2 = isolate->factory()->NewStringFromAsciiChecked("arg2");
+  Handle<String> result =
+      MessageTemplate::FormatMessage(MessageTemplate::kPropertyNotFunction,
+                                     arg0, arg1, arg2).ToHandleChecked();
+  Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
+      "Property 'arg0' of object arg1 is not a function");
+  CHECK(String::Equals(result, expected));
+}

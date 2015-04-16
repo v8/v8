@@ -8,6 +8,7 @@
 #include "src/execution.h"
 #include "src/heap/spaces-inl.h"
 #include "src/messages.h"
+#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -162,4 +163,39 @@ SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
 }
 
 
+MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
+                                                   Handle<String> arg0,
+                                                   Handle<String> arg1,
+                                                   Handle<String> arg2) {
+  const char* template_string;
+  switch (template_index) {
+#define CASE(NAME, STRING)    \
+  case k##NAME:               \
+    template_string = STRING; \
+    break;
+    MESSAGE_TEMPLATES(CASE)
+#undef CASE
+    case kLastMessage:
+    default:
+      UNREACHABLE();
+      template_string = "";
+      break;
+  }
+
+  Isolate* isolate = arg0->GetIsolate();
+  IncrementalStringBuilder builder(isolate);
+
+  int i = 0;
+  Handle<String> args[] = {arg0, arg1, arg2};
+  for (const char* c = template_string; *c != '\0'; c++) {
+    if (*c == '%') {
+      builder.AppendString(args[i++]);
+      DCHECK(i < arraysize(args));
+    } else {
+      builder.AppendCharacter(*c);
+    }
+  }
+
+  return builder.Finish();
+}
 } }  // namespace v8::internal

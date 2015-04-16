@@ -305,6 +305,21 @@ RUNTIME_FUNCTION(Runtime_MessageGetScript) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FormatMessageString) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, arg0, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, arg1, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, arg2, 3);
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      MessageTemplate::FormatMessage(template_index, arg0, arg1, arg2));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
   return NULL;

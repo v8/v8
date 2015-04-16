@@ -201,6 +201,8 @@ action("js2c") {
   inputs = [ "tools/jsmin.py" ]
 
   sources = [
+    "src/macros.py",
+    "src/messages.h",  
     "src/runtime.js",
     "src/v8natives.js",
     "src/symbol.js",
@@ -227,7 +229,6 @@ action("js2c") {
     "src/mirror-debugger.js",
     "src/liveedit-debugger.js",
     "src/templates.js",
-    "src/macros.py",
   ]
 
   outputs = [
@@ -263,6 +264,7 @@ action("js2c_experimental") {
 
   sources = [
     "src/macros.py",
+    "src/messages.h",  
     "src/proxy.js",
     "src/generator.js",
     "src/harmony-array.js",

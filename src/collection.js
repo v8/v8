@@ -102,7 +102,7 @@ function SetConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
-      throw MakeTypeError('property_not_function', ['add', this]);
+      throw MakeTypeError(kPropertyNotFunction, ['add', this]);
     }
 
     for (var value of iterable) {
@@ -268,7 +268,7 @@ function MapConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
-      throw MakeTypeError('property_not_function', ['set', this]);
+      throw MakeTypeError(kPropertyNotFunction, ['set', this]);
     }
 
     for (var nextItem of iterable) {

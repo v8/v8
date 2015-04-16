@@ -69,6 +69,7 @@ def ReadFile(filename):
 
 EVAL_PATTERN = re.compile(r'\beval\s*\(')
 WITH_PATTERN = re.compile(r'\bwith\s*\(')
+INVALID_ERROR_MESSAGE_PATTERN = re.compile(r'Make\w*Error\((k\w+),')
 
 def Validate(lines):
   # Because of simplified context setup, eval and with is not
@@ -77,7 +78,9 @@ def Validate(lines):
     raise Error("Eval disallowed in natives.")
   if WITH_PATTERN.search(lines):
     raise Error("With statements disallowed in natives.")
-
+  invalid_error = INVALID_ERROR_MESSAGE_PATTERN.search(lines)
+  if invalid_error:
+    raise Error("Unknown error message template '%s'" % invalid_error.group(1))
   # Pass lines through unchanged.
   return lines
 
@@ -187,6 +190,21 @@ def ReadMacros(lines):
         else:
           raise Error("Illegal line: " + line)
   return (constants, macros)
+
+
+TEMPLATE_PATTERN = re.compile(r'^\s+T\(([a-zA-Z]+), ".+"\)')
+
+def ReadMessageTemplates(lines):
+  templates = []
+  index = 0
+  for line in lines.split('\n'):
+    template_match = TEMPLATE_PATTERN.match(line)
+    if template_match:
+      name = "k%s" % template_match.group(1)
+      value = index
+      index = index + 1
+      templates.append((re.compile("\\b%s\\b" % name), value))
+  return templates
 
 INLINE_MACRO_PATTERN = re.compile(r'macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\n')
 INLINE_MACRO_END_PATTERN = re.compile(r'endmacro\s*\n')
@@ -311,7 +329,7 @@ GET_SCRIPT_NAME_CASE = """\
 """
 
 
-def BuildFilterChain(macro_filename):
+def BuildFilterChain(macro_filename, message_template_file):
   """Build the chain of filter functions to be applied to the sources.
 
   Args:
@@ -326,6 +344,10 @@ def BuildFilterChain(macro_filename):
     (consts, macros) = ReadMacros(ReadFile(macro_filename))
     filter_chain.append(lambda l: ExpandConstants(l, consts))
     filter_chain.append(lambda l: ExpandMacros(l, macros))
+
+  if message_template_file:
+    message_templates = ReadMessageTemplates(ReadFile(message_template_file))
+    filter_chain.append(lambda l: ExpandConstants(l, message_templates))
 
   filter_chain.extend([
     RemoveCommentsAndTrailingWhitespace,
@@ -354,6 +376,9 @@ def IsDebuggerFile(filename):
 def IsMacroFile(filename):
   return filename.endswith("macros.py")
 
+def IsMessageTemplateFile(filename):
+  return filename.endswith("messages.h")
+
 
 def PrepareSources(source_files):
   """Read, prepare and assemble the list of source files.
@@ -372,7 +397,14 @@ def PrepareSources(source_files):
     source_files.remove(macro_files[0])
     macro_file = macro_files[0]
 
-  filters = BuildFilterChain(macro_file)
+  message_template_file = None
+  message_template_files = filter(IsMessageTemplateFile, source_files)
+  assert len(message_template_files) in [0, 1]
+  if message_template_files:
+    source_files.remove(message_template_files[0])
+    message_template_file = message_template_files[0]
+
+  filters = BuildFilterChain(macro_file, message_template_file)
 
   # Sort 'debugger' sources first.
   source_files = sorted(source_files,

@@ -10,8 +10,6 @@
 #ifndef V8_MESSAGES_H_
 #define V8_MESSAGES_H_
 
-#include "src/handles-inl.h"
-
 // Forward declaration of MessageLocation.
 namespace v8 {
 namespace internal {
@@ -89,6 +87,25 @@ class MessageHandler {
                                                      Handle<Object> data);
 };
 
+
+#define MESSAGE_TEMPLATES(T)                                           \
+  T(PropertyNotFunction, "Property '%' of object % is not a function") \
+  T(WithExpression, "% has no properties")
+
+class MessageTemplate {
+ public:
+  enum Template {
+#define TEMPLATE(NAME, STRING) k##NAME,
+    MESSAGE_TEMPLATES(TEMPLATE)
+#undef TEMPLATE
+        kLastMessage
+  };
+
+  static MaybeHandle<String> FormatMessage(int template_index,
+                                           Handle<String> arg0,
+                                           Handle<String> arg1,
+                                           Handle<String> arg2);
+};
 } }  // namespace v8::internal
 
 #endif  // V8_MESSAGES_H_

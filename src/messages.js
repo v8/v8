@@ -39,7 +39,6 @@ var kMessages = {
   stack_trace:                   ["Stack Trace:\n", "%0"],
   called_non_callable:           ["%0", " is not a function"],
   undefined_method:              ["Object ", "%1", " has no method '", "%0", "'"],
-  property_not_function:         ["Property '", "%0", "' of object ", "%1", " is not a function"],
   cannot_convert_to_primitive:   ["Cannot convert object to primitive value"],
   not_constructor:               ["%0", " is not a constructor"],
   not_defined:                   ["%0", " is not defined"],
@@ -47,7 +46,6 @@ var kMessages = {
   unsupported_super:             ["Unsupported reference to 'super'"],
   non_object_property_load:      ["Cannot read property '", "%0", "' of ", "%1"],
   non_object_property_store:     ["Cannot set property '", "%0", "' of ", "%1"],
-  with_expression:               ["%0", " has no properties"],
   illegal_invocation:            ["Illegal invocation"],
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
   apply_non_function:            ["Function.prototype.apply was called on ", "%0", ", which is a ", "%1", " and not a function"],
@@ -325,6 +323,11 @@ function MakeGenericError(constructor, type, args) {
 }
 
 
+function MakeGenericError2(constructor, type, arg0, arg1, arg2) {
+  return new constructor(FormatMessage(type, arg0, arg1, arg2));
+}
+
+
 /**
  * Set up the Script function and constructor.
  */
@@ -338,10 +341,21 @@ function MakeGenericError(constructor, type, args) {
 
 
 // Helper functions; called from the runtime system.
-function FormatMessage(type, args) {
+function FormatMessage(type, arg0, arg1, arg2) {
+  if (IS_NUMBER(type)) {
+    var arg0 = NoSideEffectToString(arg0);
+    var arg1 = NoSideEffectToString(arg1);
+    var arg2 = NoSideEffectToString(arg2);
+    try {
+      return %FormatMessageString(type, arg0, arg1, arg2);
+    } catch (e) {
+      return "";
+    }
+  }
+  // TODO(yangguo): remove this code path once we migrated all messages.
   var format = kMessages[type];
   if (!format) return "<unknown message " + type + ">";
-  return FormatString(format, args);
+  return FormatString(format, arg0);
 }
 
 
@@ -368,6 +382,12 @@ function GetSourceLine(message) {
 
 function MakeTypeError(type, args) {
   return MakeGenericError($TypeError, type, args);
+}
+
+
+// TODO(yangguo): rename this once we migrated all messages.
+function MakeTypeError2(type, arg0, arg1, arg2) {
+  return MakeGenericError2($TypeError, type, arg0, arg1, arg2);
 }
 
 
