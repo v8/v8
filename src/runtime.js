@@ -379,7 +379,7 @@ function CALL_NON_FUNCTION() {
   if (!IS_FUNCTION(delegate)) {
     var callsite = %RenderCallSite();
     if (callsite == "") callsite = typeof this;
-    throw %MakeTypeError(kCalledNonCallable, callsite);
+    throw %MakeTypeError('called_non_callable', [callsite]);
   }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
@@ -390,7 +390,7 @@ function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
   if (!IS_FUNCTION(delegate)) {
     var callsite = %RenderCallSite();
     if (callsite == "") callsite = typeof this;
-    throw %MakeTypeError(kCalledNonCallable, callsite);
+    throw %MakeTypeError('called_non_callable', [callsite]);
   }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
@@ -463,7 +463,7 @@ function REFLECT_APPLY_PREPARE(args) {
   }
 
   if (!IS_SPEC_FUNCTION(this)) {
-    throw %MakeTypeError(kCalledNonCallable, %ToString(this));
+    throw %MakeTypeError('called_non_callable', [ %ToString(this) ]);
   }
 
   if (!IS_SPEC_OBJECT(args)) {
@@ -503,7 +503,7 @@ function REFLECT_CONSTRUCT_PREPARE(args, newTarget) {
 
   if (!ctorOk) {
     if (!IS_SPEC_FUNCTION(this)) {
-      throw %MakeTypeError(kCalledNonCallable, %ToString(this));
+      throw %MakeTypeError('called_non_callable', [ %ToString(this) ]);
     } else {
       throw %MakeTypeError('not_constructor', [ %ToString(this) ]);
     }
@@ -511,7 +511,7 @@ function REFLECT_CONSTRUCT_PREPARE(args, newTarget) {
 
   if (!newTargetOk) {
     if (!IS_SPEC_FUNCTION(newTarget)) {
-      throw %MakeTypeError(kCalledNonCallable, %ToString(newTarget));
+      throw %MakeTypeError('called_non_callable', [ %ToString(newTarget) ]);
     } else {
       throw %MakeTypeError('not_constructor', [ %ToString(newTarget) ]);
     }

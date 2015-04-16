@@ -33,7 +33,6 @@
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
-#include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/prototype.h"
 #include "src/safepoint-table.h"
@@ -298,9 +297,10 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
   if (structure->IsAccessorInfo()) {
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
+      Handle<Object> args[] = {name, receiver};
       THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                   name, receiver),
+                      NewTypeError("incompatible_method_receiver",
+                                   HandleVector(args, arraysize(args))),
                       Object);
     }
 
@@ -362,9 +362,10 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     // api style callbacks
     ExecutableAccessorInfo* info = ExecutableAccessorInfo::cast(*structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
+      Handle<Object> args[] = {name, receiver};
       THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                   name, receiver),
+                      NewTypeError("incompatible_method_receiver",
+                                   HandleVector(args, arraysize(args))),
                       Object);
     }
     Object* call_obj = info->setter();
@@ -12488,7 +12489,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
        !iter.IsAtEnd(); iter.Advance()) {
     if (JSReceiver::cast(iter.GetCurrent()) == *object) {
       // Cycle detected.
-      THROW_NEW_ERROR(isolate, NewError(MessageTemplate::kCyclicProto), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewError("cyclic_proto", HandleVector<Object>(NULL, 0)),
+                      Object);
     }
   }
 

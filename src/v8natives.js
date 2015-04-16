@@ -691,7 +691,7 @@ function GetMethod(obj, p) {
   var func = obj[p];
   if (IS_NULL_OR_UNDEFINED(func)) return UNDEFINED;
   if (IS_SPEC_FUNCTION(func)) return func;
-  throw MakeTypeError(kCalledNonCallable, typeof func);
+  throw MakeTypeError('called_non_callable', [typeof func]);
 }
 
 
@@ -1587,8 +1587,8 @@ function NumberToFixedJS(fractionDigits) {
   var x = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
-      throw MakeTypeError(kIncompatibleMethodReceiver,
-                          "Number.prototype.toFixed", this);
+      throw MakeTypeError("incompatible_method_receiver",
+                          ["Number.prototype.toFixed", this]);
     }
     // Get the value of this number in case it's an object.
     x = %_ValueOf(this);
@@ -1612,8 +1612,8 @@ function NumberToExponentialJS(fractionDigits) {
   var x = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
-      throw MakeTypeError(kIncompatibleMethodReceiver,
-                          "Number.prototype.toExponential", this);
+      throw MakeTypeError("incompatible_method_receiver",
+                          ["Number.prototype.toExponential", this]);
     }
     // Get the value of this number in case it's an object.
     x = %_ValueOf(this);
@@ -1638,8 +1638,8 @@ function NumberToPrecisionJS(precision) {
   var x = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
-      throw MakeTypeError(kIncompatibleMethodReceiver,
-                          "Number.prototype.toPrecision", this);
+      throw MakeTypeError("incompatible_method_receiver",
+                          ["Number.prototype.toPrecision", this]);
     }
     // Get the value of this number in case it's an object.
     x = %_ValueOf(this);

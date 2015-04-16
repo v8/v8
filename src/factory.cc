@@ -1080,6 +1080,13 @@ Handle<Object> Factory::NewTypeError(const char* message,
 }
 
 
+Handle<Object> Factory::NewTypeError(MessageTemplate::Template template_index,
+                                     Handle<Object> arg0, Handle<Object> arg1,
+                                     Handle<Object> arg2) {
+  return NewError("MakeTypeError2", template_index, arg0, arg1, arg2);
+}
+
+
 Handle<Object> Factory::NewTypeError(Handle<String> message) {
   return NewError("$TypeError", message);
 }
@@ -1177,24 +1184,9 @@ Handle<Object> Factory::NewEvalError(const char* message,
 }
 
 
-Handle<Object> Factory::NewError(MessageTemplate::Template template_index,
-                                 Handle<Object> arg0, Handle<Object> arg1,
-                                 Handle<Object> arg2) {
-  return NewError("MakeError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewTypeError(MessageTemplate::Template template_index,
-                                     Handle<Object> arg0, Handle<Object> arg1,
-                                     Handle<Object> arg2) {
-  return NewError("MakeTypeError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewEvalError(MessageTemplate::Template template_index,
-                                     Handle<Object> arg0, Handle<Object> arg1,
-                                     Handle<Object> arg2) {
-  return NewError("MakeEvalError", template_index, arg0, arg1, arg2);
+Handle<Object> Factory::NewError(const char* message,
+                                 Vector<Handle<Object> > args) {
+  return NewError("MakeError", message, args);
 }
 
 

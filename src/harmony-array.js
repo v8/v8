@@ -18,7 +18,7 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
   var length = ToInteger(array.length);
 
   if (!IS_SPEC_FUNCTION(predicate)) {
-    throw MakeTypeError(kCalledNonCallable, predicate);
+    throw MakeTypeError('called_non_callable', [predicate]);
   }
 
   var thisArg;
@@ -55,7 +55,7 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
   var length = ToInteger(array.length);
 
   if (!IS_SPEC_FUNCTION(predicate)) {
-    throw MakeTypeError(kCalledNonCallable, predicate);
+    throw MakeTypeError('called_non_callable', [predicate]);
   }
 
   var thisArg;
@@ -134,7 +134,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
 
   if (mapping) {
     if (!IS_SPEC_FUNCTION(mapfn)) {
-      throw MakeTypeError(kCalledNonCallable, mapfn);
+      throw MakeTypeError('called_non_callable', [ mapfn ]);
     } else if (IS_NULL_OR_UNDEFINED(receiver)) {
       receiver = %GetDefaultReceiver(mapfn) || receiver;
     } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(mapfn)) {

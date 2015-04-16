@@ -88,8 +88,8 @@ function RegExpCompileJS(pattern, flags) {
   // behavior.
   if (this == GlobalRegExp.prototype) {
     // We don't allow recompiling RegExp.prototype.
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.compile', this);
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['RegExp.prototype.compile', this]);
   }
   if (IS_UNDEFINED(pattern) && %_ArgumentsLength() != 0) {
     DoConstructRegExp(this, 'undefined', flags);
@@ -146,8 +146,8 @@ function RegExpExecNoTests(regexp, string, start) {
 
 function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.exec', this);
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['RegExp.prototype.exec', this]);
   }
 
   string = TO_STRING_INLINE(string);
@@ -194,8 +194,8 @@ var regexp_val;
 // else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.test', this);
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['RegExp.prototype.test', this]);
   }
   string = TO_STRING_INLINE(string);
 
@@ -256,8 +256,8 @@ function TrimRegExp(regexp) {
 
 function RegExpToString() {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.toString', this);
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['RegExp.prototype.toString', this]);
   }
   var result = '/' + this.source + '/';
   if (this.global) result += 'g';

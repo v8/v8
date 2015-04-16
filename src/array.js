@@ -1142,7 +1142,9 @@ function ArrayFilter(f, receiver) {
   var array = ToObject(this);
   var length = ToUint32(array.length);
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [ f ]);
+  }
   var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
@@ -1179,7 +1181,9 @@ function ArrayForEach(f, receiver) {
   var array = ToObject(this);
   var length = TO_UINT32(array.length);
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [ f ]);
+  }
   var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
@@ -1211,7 +1215,9 @@ function ArraySome(f, receiver) {
   var array = ToObject(this);
   var length = TO_UINT32(array.length);
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [ f ]);
+  }
   var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
@@ -1242,7 +1248,9 @@ function ArrayEvery(f, receiver) {
   var array = ToObject(this);
   var length = TO_UINT32(array.length);
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [ f ]);
+  }
   var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
@@ -1272,7 +1280,9 @@ function ArrayMap(f, receiver) {
   var array = ToObject(this);
   var length = TO_UINT32(array.length);
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_SPEC_FUNCTION(f)) {
+    throw MakeTypeError('called_non_callable', [ f ]);
+  }
   var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
@@ -1417,7 +1427,7 @@ function ArrayReduce(callback, current) {
   var length = ToUint32(array.length);
 
   if (!IS_SPEC_FUNCTION(callback)) {
-    throw MakeTypeError(kCalledNonCallable, callback);
+    throw MakeTypeError('called_non_callable', [callback]);
   }
 
   var is_array = IS_ARRAY(array);
@@ -1454,7 +1464,7 @@ function ArrayReduceRight(callback, current) {
   var length = ToUint32(array.length);
 
   if (!IS_SPEC_FUNCTION(callback)) {
-    throw MakeTypeError(kCalledNonCallable, callback);
+    throw MakeTypeError('called_non_callable', [callback]);
   }
 
   var is_array = IS_ARRAY(array);

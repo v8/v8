@@ -24,8 +24,8 @@ function ArrayBufferConstructor(length) { // length = 1
 
 function ArrayBufferGetByteLen() {
   if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'ArrayBuffer.prototype.byteLength', this);
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['ArrayBuffer.prototype.byteLength', this]);
   }
   return %_ArrayBufferGetByteLength(this);
 }
@@ -33,8 +33,8 @@ function ArrayBufferGetByteLen() {
 // ES6 Draft 15.13.5.5.3
 function ArrayBufferSlice(start, end) {
   if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'ArrayBuffer.prototype.slice', this);
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['ArrayBuffer.prototype.slice', this]);
   }
 
   var relativeStart = TO_INTEGER(start);
