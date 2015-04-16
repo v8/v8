@@ -202,13 +202,7 @@ bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
 bool CodeGenerator::IsMaterializableFromRoot(
     Handle<HeapObject> object, Heap::RootListIndex* index_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-#define IMMORTAL_IMMOVABLE_ROOT(Name)                                 \
-  if (*object == isolate()->heap()->root(Heap::k##Name##RootIndex)) { \
-    *index_return = Heap::k##Name##RootIndex;                         \
-    return true;                                                      \
-  }
-    IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
-#undef IMMORTAL_IMMOVABLE_ROOT
+    return isolate()->heap()->GetRootListIndex(object, index_return);
   }
   return false;
 }
