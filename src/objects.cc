@@ -10126,8 +10126,8 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     PrototypeIterator iter(isolate, prototype);
     prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
-  PrototypeInfo* proto_info =
-      PrototypeInfo::cast(prototype->map()->prototype_info());
+  Handle<PrototypeInfo> proto_info(
+      PrototypeInfo::cast(prototype->map()->prototype_info()));
   Object* maybe_cell = proto_info->validity_cell();
   // Return existing cell if it's still valid.
   if (maybe_cell->IsCell()) {
