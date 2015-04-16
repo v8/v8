@@ -747,14 +747,10 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
 }
 
 
-static bool IsGlobalObject(Node* node) {
-  return NodeProperties::IsTyped(node) &&
-         NodeProperties::GetBounds(node).upper->Is(Type::GlobalObject());
-}
-
-
 Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
-  if (IsGlobalObject(node->InputAt(0))) {
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Type* object_type = NodeProperties::GetBounds(object).upper;
+  if (object_type->Is(Type::GlobalObject())) {
     // Optimize global constants like "undefined", "Infinity", and "NaN".
     Handle<Name> name = LoadNamedParametersOf(node->op()).name().handle();
     Handle<Object> constant_value = factory()->GlobalConstantFor(name);
