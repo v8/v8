@@ -185,7 +185,7 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
   Isolate* isolate = arg0->GetIsolate();
   IncrementalStringBuilder builder(isolate);
 
-  int i = 0;
+  unsigned int i = 0;
   Handle<String> args[] = {arg0, arg1, arg2};
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
