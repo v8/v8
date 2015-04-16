@@ -4301,7 +4301,14 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->result()).is(r3));
 
   __ mov(r3, Operand(instr->arity()));
-  __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
+  if (instr->arity() == 1) {
+    // We only need the allocation site for the case we have a length argument.
+    // The case may bail out to the runtime, which will determine the correct
+    // elements kind with the site.
+    __ Move(r5, instr->hydrogen()->site());
+  } else {
+    __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
+  }
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
       (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE)
