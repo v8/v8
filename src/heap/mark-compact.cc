@@ -774,6 +774,11 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   while (it.has_next()) {
     Page* p = it.next();
     if (p->NeverEvacuate()) continue;
+    if (p->IsFlagSet(Page::POPULAR_PAGE)) {
+      // This page had slots buffer overflow on previous GC, skip it.
+      p->ClearFlag(Page::POPULAR_PAGE);
+      continue;
+    }
 
     // Invariant: Evacuation candidates are just created when marking is
     // started. At the end of a GC all evacuation candidates are cleared and
@@ -4617,13 +4622,13 @@ void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo, Object* target) {
           SlotTypeForRMode(rmode), rinfo->pc(), SlotsBuffer::FAIL_ON_OVERFLOW);
     }
     if (!success) {
-      EvictEvacuationCandidate(target_page);
+      EvictPopularEvacuationCandidate(target_page);
     }
   }
 }
 
 
-void MarkCompactCollector::EvictEvacuationCandidate(Page* page) {
+void MarkCompactCollector::EvictPopularEvacuationCandidate(Page* page) {
   if (FLAG_trace_fragmentation) {
     PrintF("Page %p is too popular. Disabling evacuation.\n",
            reinterpret_cast<void*>(page));
@@ -4634,6 +4639,9 @@ void MarkCompactCollector::EvictEvacuationCandidate(Page* page) {
   // TODO(gc) If all evacuation candidates are too popular we
   // should stop slots recording entirely.
   page->ClearEvacuationCandidate();
+
+  DCHECK(!page->IsFlagSet(Page::POPULAR_PAGE));
+  page->SetFlag(Page::POPULAR_PAGE);
 
   // We were not collecting slots on this page that point
   // to other evacuation candidates thus we have to
@@ -4651,7 +4659,7 @@ void MarkCompactCollector::RecordCodeEntrySlot(Address slot, Code* target) {
                             target_page->slots_buffer_address(),
                             SlotsBuffer::CODE_ENTRY_SLOT, slot,
                             SlotsBuffer::FAIL_ON_OVERFLOW)) {
-      EvictEvacuationCandidate(target_page);
+      EvictPopularEvacuationCandidate(target_page);
     }
   }
 }

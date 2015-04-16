@@ -367,6 +367,7 @@ class MemoryChunk {
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
     NEVER_EVACUATE,  // May contain immortal immutables.
+    POPULAR_PAGE,    // Slots buffer of this page overflowed on the previous GC.
 
     // WAS_SWEPT indicates that marking bits have been cleared by the sweeper,
     // otherwise marking bits are still intact.

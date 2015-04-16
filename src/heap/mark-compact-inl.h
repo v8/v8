@@ -60,7 +60,7 @@ void MarkCompactCollector::RecordSlot(Object** anchor_slot, Object** slot,
       !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
     if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
                             object_page->slots_buffer_address(), slot, mode)) {
-      EvictEvacuationCandidate(object_page);
+      EvictPopularEvacuationCandidate(object_page);
     }
   }
 }
