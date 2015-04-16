@@ -2385,6 +2385,9 @@ void MarkCompactCollector::AfterMarking() {
   }
 
   if (FLAG_track_gc_object_stats) {
+    if (FLAG_trace_gc_object_stats) {
+      heap()->TraceObjectStats();
+    }
     heap()->CheckpointObjectStats();
   }
 }

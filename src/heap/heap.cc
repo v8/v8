@@ -6253,12 +6253,57 @@ void Heap::ClearObjectStats(bool clear_last_time_stats) {
 }
 
 
-static base::LazyMutex checkpoint_object_stats_mutex = LAZY_MUTEX_INITIALIZER;
+static base::LazyMutex object_stats_mutex = LAZY_MUTEX_INITIALIZER;
+
+
+static void TraceObjectStat(const char* name, int count, int size) {
+  if (size > 0) {
+    PrintF("%40s\tcount= %6d\t size= %6d kb\n", name, count, size);
+  }
+}
+
+
+void Heap::TraceObjectStats() {
+  base::LockGuard<base::Mutex> lock_guard(object_stats_mutex.Pointer());
+  int index;
+  int count;
+  int size;
+  int total_size = 0;
+#define TRACE_OBJECT_COUNT(name)                     \
+  count = static_cast<int>(object_counts_[name]);    \
+  size = static_cast<int>(object_sizes_[name]) / KB; \
+  total_size += size;                                \
+  TraceObjectStat(#name, count, size);
+  INSTANCE_TYPE_LIST(TRACE_OBJECT_COUNT)
+#undef TRACE_OBJECT_COUNT
+#define TRACE_OBJECT_COUNT(name)                      \
+  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;      \
+  count = static_cast<int>(object_counts_[index]);    \
+  size = static_cast<int>(object_sizes_[index]) / KB; \
+  TraceObjectStat("CODE_" #name, count, size);
+  CODE_KIND_LIST(TRACE_OBJECT_COUNT)
+#undef TRACE_OBJECT_COUNT
+#define TRACE_OBJECT_COUNT(name)                      \
+  index = FIRST_FIXED_ARRAY_SUB_TYPE + name;          \
+  count = static_cast<int>(object_counts_[index]);    \
+  size = static_cast<int>(object_sizes_[index]) / KB; \
+  TraceObjectStat("FIXED_ARRAY_" #name, count, size);
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(TRACE_OBJECT_COUNT)
+#undef TRACE_OBJECT_COUNT
+#define TRACE_OBJECT_COUNT(name)                                              \
+  index =                                                                     \
+      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
+  count = static_cast<int>(object_counts_[index]);                            \
+  size = static_cast<int>(object_sizes_[index]) / KB;                         \
+  TraceObjectStat("CODE_AGE_" #name, count, size);
+  CODE_AGE_LIST_COMPLETE(TRACE_OBJECT_COUNT)
+#undef TRACE_OBJECT_COUNT
+  PrintF("Total size= %d kb\n", total_size);
+}
 
 
 void Heap::CheckpointObjectStats() {
-  base::LockGuard<base::Mutex> lock_guard(
-      checkpoint_object_stats_mutex.Pointer());
+  base::LockGuard<base::Mutex> lock_guard(object_stats_mutex.Pointer());
   Counters* counters = isolate()->counters();
 #define ADJUST_LAST_TIME_OBJECT_COUNT(name)              \
   counters->count_of_##name()->Increment(                \

@@ -1429,6 +1429,7 @@ class Heap {
     object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
   }
 
+  void TraceObjectStats();
   void CheckpointObjectStats();
 
   // We don't use a LockGuard here since we want to lock the heap
