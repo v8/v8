@@ -7,7 +7,6 @@
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // var $Object = global.Object
-// var $WeakMap = global.WeakMap
 
 // For bootstrapper.
 

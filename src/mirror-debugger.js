@@ -1384,7 +1384,7 @@ MapMirror.prototype.entries = function(opt_limit) {
     return result;
   }
 
-  var iter = %_CallFunction(this.value_, builtins.MapEntries);
+  var iter = %_CallFunction(this.value_, builtins.$mapEntries);
   var next;
   while ((!opt_limit || result.length < opt_limit) &&
          !(next = iter.next()).done) {
@@ -1426,8 +1426,8 @@ SetMirror.prototype.values = function(opt_limit) {
     return %GetWeakSetValues(this.value_, opt_limit || 0);
   }
 
-  var iter = %_CallFunction(this.value_, builtins.SetValues);
-  return IteratorGetValues_(iter, builtins.SetIteratorNextJS, opt_limit);
+  var iter = %_CallFunction(this.value_, builtins.$setValues);
+  return IteratorGetValues_(iter, builtins.$setIteratorNext, opt_limit);
 };
 
 
@@ -1447,11 +1447,11 @@ inherits(IteratorMirror, ObjectMirror);
 IteratorMirror.prototype.preview = function(opt_limit) {
   if (IS_MAP_ITERATOR(this.value_)) {
     return IteratorGetValues_(%MapIteratorClone(this.value_),
-                              builtins.MapIteratorNextJS,
+                              builtins.$mapIteratorNext,
                               opt_limit);
   } else if (IS_SET_ITERATOR(this.value_)) {
     return IteratorGetValues_(%SetIteratorClone(this.value_),
-                              builtins.SetIteratorNextJS,
+                              builtins.$setIteratorNext,
                               opt_limit);
   }
 };

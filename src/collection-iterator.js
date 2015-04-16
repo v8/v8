@@ -2,14 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $mapEntries;
+var $mapIteratorNext;
+var $setIteratorNext;
+var $setValues;
+
+(function() {
+
 "use strict";
 
+%CheckIsBootstrapping();
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Set = global.Set;
-// var $Map = global.Map;
+var GlobalMap = global.Map;
+var GlobalObject = global.Object;
+var GlobalSet = global.Set;
 
+// -------------------------------------------------------------------
 
 function SetIteratorConstructor(set, kind) {
   %SetIteratorInitialize(this, set, kind);
@@ -63,42 +71,33 @@ function SetValues() {
   return new SetIterator(this, ITERATOR_KIND_VALUES);
 }
 
+// -------------------------------------------------------------------
 
-function SetUpSetIterator() {
-  %CheckIsBootstrapping();
+%SetCode(SetIterator, SetIteratorConstructor);
+%FunctionSetPrototype(SetIterator, new GlobalObject());
+%FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
+InstallFunctions(SetIterator.prototype, DONT_ENUM, [
+  'next', SetIteratorNextJS
+]);
 
-  %SetCode(SetIterator, SetIteratorConstructor);
-  %FunctionSetPrototype(SetIterator, new $Object());
-  %FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
-  InstallFunctions(SetIterator.prototype, DONT_ENUM, [
-    'next', SetIteratorNextJS
-  ]);
+%FunctionSetName(SetIteratorSymbolIterator, '[Symbol.iterator]');
+%AddNamedProperty(SetIterator.prototype, symbolIterator,
+    SetIteratorSymbolIterator, DONT_ENUM);
+%AddNamedProperty(SetIterator.prototype, symbolToStringTag,
+    "Set Iterator", READ_ONLY | DONT_ENUM);
 
-  %FunctionSetName(SetIteratorSymbolIterator, '[Symbol.iterator]');
-  %AddNamedProperty(SetIterator.prototype, symbolIterator,
-      SetIteratorSymbolIterator, DONT_ENUM);
-  %AddNamedProperty(SetIterator.prototype, symbolToStringTag,
-      "Set Iterator", READ_ONLY | DONT_ENUM);
-}
+InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
+  'entries', SetEntries,
+  'keys', SetValues,
+  'values', SetValues
+]);
 
-SetUpSetIterator();
+%AddNamedProperty(GlobalSet.prototype, symbolIterator, SetValues, DONT_ENUM);
 
+$setIteratorNext = SetIteratorNextJS;
+$setValues = SetValues;
 
-function ExtendSetPrototype() {
-  %CheckIsBootstrapping();
-
-  InstallFunctions($Set.prototype, DONT_ENUM, [
-    'entries', SetEntries,
-    'keys', SetValues,
-    'values', SetValues
-  ]);
-
-  %AddNamedProperty($Set.prototype, symbolIterator, SetValues, DONT_ENUM);
-}
-
-ExtendSetPrototype();
-
-
+// -------------------------------------------------------------------
 
 function MapIteratorConstructor(map, kind) {
   %MapIteratorInitialize(this, map, kind);
@@ -162,37 +161,31 @@ function MapValues() {
   return new MapIterator(this, ITERATOR_KIND_VALUES);
 }
 
+// -------------------------------------------------------------------
 
-function SetUpMapIterator() {
-  %CheckIsBootstrapping();
+%SetCode(MapIterator, MapIteratorConstructor);
+%FunctionSetPrototype(MapIterator, new GlobalObject());
+%FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
+InstallFunctions(MapIterator.prototype, DONT_ENUM, [
+  'next', MapIteratorNextJS
+]);
 
-  %SetCode(MapIterator, MapIteratorConstructor);
-  %FunctionSetPrototype(MapIterator, new $Object());
-  %FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
-  InstallFunctions(MapIterator.prototype, DONT_ENUM, [
-    'next', MapIteratorNextJS
-  ]);
-
-  %FunctionSetName(MapIteratorSymbolIterator, '[Symbol.iterator]');
-  %AddNamedProperty(MapIterator.prototype, symbolIterator,
-      MapIteratorSymbolIterator, DONT_ENUM);
-  %AddNamedProperty(MapIterator.prototype, symbolToStringTag,
-      "Map Iterator", READ_ONLY | DONT_ENUM);
-}
-
-SetUpMapIterator();
+%FunctionSetName(MapIteratorSymbolIterator, '[Symbol.iterator]');
+%AddNamedProperty(MapIterator.prototype, symbolIterator,
+    MapIteratorSymbolIterator, DONT_ENUM);
+%AddNamedProperty(MapIterator.prototype, symbolToStringTag,
+    "Map Iterator", READ_ONLY | DONT_ENUM);
 
 
-function ExtendMapPrototype() {
-  %CheckIsBootstrapping();
+InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
+  'entries', MapEntries,
+  'keys', MapKeys,
+  'values', MapValues
+]);
 
-  InstallFunctions($Map.prototype, DONT_ENUM, [
-    'entries', MapEntries,
-    'keys', MapKeys,
-    'values', MapValues
-  ]);
+%AddNamedProperty(GlobalMap.prototype, symbolIterator, MapEntries, DONT_ENUM);
 
-  %AddNamedProperty($Map.prototype, symbolIterator, MapEntries, DONT_ENUM);
-}
+$mapEntries = MapEntries;
+$mapIteratorNext = MapIteratorNextJS;
 
-ExtendMapPrototype();
+})();

@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
-
-var $Set = global.Set;
-var $Map = global.Map;
-
-
 (function() {
+
+"use strict";
 
 %CheckIsBootstrapping();
 
+var GlobalMap = global.Map;
+var GlobalObject = global.Object;
+var GlobalSet = global.Set;
+
+// -------------------------------------------------------------------
 
 function HashToEntry(table, hash, numBuckets) {
   var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
@@ -230,19 +227,20 @@ function SetForEach(f, receiver) {
   }
 }
 
+// -------------------------------------------------------------------
 
-%SetCode($Set, SetConstructor);
-%FunctionSetLength($Set, 0);
-%FunctionSetPrototype($Set, new $Object());
-%AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
-%AddNamedProperty(
-    $Set.prototype, symbolToStringTag, "Set", DONT_ENUM | READ_ONLY);
+%SetCode(GlobalSet, SetConstructor);
+%FunctionSetLength(GlobalSet, 0);
+%FunctionSetPrototype(GlobalSet, new GlobalObject());
+%AddNamedProperty(GlobalSet.prototype, "constructor", GlobalSet, DONT_ENUM);
+%AddNamedProperty(GlobalSet.prototype, symbolToStringTag, "Set",
+                  DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(SetForEach, 1);
 
 // Set up the non-enumerable functions on the Set prototype object.
-InstallGetter($Set.prototype, "size", SetGetSize);
-InstallFunctions($Set.prototype, DONT_ENUM, [
+InstallGetter(GlobalSet.prototype, "size", SetGetSize);
+InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
   "add", SetAdd,
   "has", SetHas,
   "delete", SetDelete,
@@ -417,19 +415,20 @@ function MapForEach(f, receiver) {
   }
 }
 
+// -------------------------------------------------------------------
 
-%SetCode($Map, MapConstructor);
-%FunctionSetLength($Map, 0);
-%FunctionSetPrototype($Map, new $Object());
-%AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
+%SetCode(GlobalMap, MapConstructor);
+%FunctionSetLength(GlobalMap, 0);
+%FunctionSetPrototype(GlobalMap, new GlobalObject());
+%AddNamedProperty(GlobalMap.prototype, "constructor", GlobalMap, DONT_ENUM);
 %AddNamedProperty(
-    $Map.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
+    GlobalMap.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(MapForEach, 1);
 
 // Set up the non-enumerable functions on the Map prototype object.
-InstallGetter($Map.prototype, "size", MapGetSize);
-InstallFunctions($Map.prototype, DONT_ENUM, [
+InstallGetter(GlobalMap.prototype, "size", MapGetSize);
+InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   "get", MapGet,
   "set", MapSet,
   "has", MapHas,

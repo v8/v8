@@ -5605,7 +5605,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     int cooked_idx = function_state_->NextMaterializedLiteralIndex();
     int raw_idx = function_state_->NextMaterializedLiteralIndex();
 
-    // GetTemplateCallSite
+    // $getTemplateCallSite
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
     args->Add(factory()->NewArrayLiteral(
                   const_cast<ZoneList<Expression*>*>(cooked_strings),

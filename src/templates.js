@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
 // Called from a desugaring in the parser.
-var GetTemplateCallSite;
+
+var $getTemplateCallSite;
 
 (function() {
 
+"use strict";
+
 %CheckIsBootstrapping();
 
-var callSiteCache = new $Map;
-var mapGetFn = $Map.prototype.get;
-var mapSetFn = $Map.prototype.set;
+var callSiteCache = new global.Map;
+var mapGetFn = global.Map.prototype.get;
+var mapSetFn = global.Map.prototype.set;
 
 
 function SameCallSiteElements(rawStrings, other) {
@@ -58,7 +59,7 @@ function SetCachedCallSite(siteObj, hash) {
 }
 
 
-GetTemplateCallSite = function(siteObj, rawStrings, hash) {
+$getTemplateCallSite = function(siteObj, rawStrings, hash) {
   var cached = GetCachedCallSite(rawStrings, hash);
 
   if (!IS_UNDEFINED(cached)) return cached;
