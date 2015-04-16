@@ -6,10 +6,16 @@
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Factory;
+
+
 namespace compiler {
 
 // Forward declarations.
