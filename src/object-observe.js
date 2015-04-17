@@ -2,7 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $observeNotifyChange;
+var $observeEnqueueSpliceRecord;
+var $observeBeginPerformSplice;
+var $observeEndPerformSplice;
+var $observeNativeObjectObserve;
+var $observeNativeObjectGetNotifier;
+var $observeNativeObjectNotifierPerformChange;
+
+(function() {
+
 "use strict";
+
+%CheckIsBootstrapping();
+
+var GlobalArray = global.Array;
+var GlobalObject = global.Object;
+
+// -------------------------------------------------------------------
 
 // Overview:
 //
@@ -35,6 +52,8 @@
 
 var observationState;
 
+var notifierPrototype = {};
+
 // We have to wait until after bootstrapping to grab a reference to the
 // observationState object, since it's not possible to serialize that
 // reference into the snapshot.
@@ -56,33 +75,41 @@ function GetObservationStateJS() {
   return observationState;
 }
 
+
 function GetPendingObservers() {
   return GetObservationStateJS().pendingObservers;
 }
+
 
 function SetPendingObservers(pendingObservers) {
   GetObservationStateJS().pendingObservers = pendingObservers;
 }
 
+
 function GetNextCallbackPriority() {
   return GetObservationStateJS().nextCallbackPriority++;
 }
+
 
 function nullProtoObject() {
   return { __proto__: null };
 }
 
+
 function TypeMapCreate() {
   return nullProtoObject();
 }
+
 
 function TypeMapAddType(typeMap, type, ignoreDuplicate) {
   typeMap[type] = ignoreDuplicate ? 1 : (typeMap[type] || 0) + 1;
 }
 
+
 function TypeMapRemoveType(typeMap, type) {
   typeMap[type]--;
 }
+
 
 function TypeMapCreateFromList(typeList, length) {
   var typeMap = TypeMapCreate();
@@ -92,9 +119,11 @@ function TypeMapCreateFromList(typeList, length) {
   return typeMap;
 }
 
+
 function TypeMapHasType(typeMap, type) {
   return !!typeMap[type];
 }
+
 
 function TypeMapIsDisjointFrom(typeMap1, typeMap2) {
   if (!typeMap1 || !typeMap2)
@@ -108,6 +137,7 @@ function TypeMapIsDisjointFrom(typeMap1, typeMap2) {
   return true;
 }
 
+
 var defaultAcceptTypes = (function() {
   var defaultTypes = [
     'add',
@@ -119,6 +149,7 @@ var defaultAcceptTypes = (function() {
   ];
   return TypeMapCreateFromList(defaultTypes, defaultTypes.length);
 })();
+
 
 // An Observer is a registration to observe an object by a callback with
 // a given set of accept types. If the set of accept types is the default
@@ -134,18 +165,22 @@ function ObserverCreate(callback, acceptList) {
   return observer;
 }
 
+
 function ObserverGetCallback(observer) {
   return IS_SPEC_FUNCTION(observer) ? observer : observer.callback;
 }
+
 
 function ObserverGetAcceptTypes(observer) {
   return IS_SPEC_FUNCTION(observer) ? defaultAcceptTypes : observer.accept;
 }
 
+
 function ObserverIsActive(observer, objectInfo) {
   return TypeMapIsDisjointFrom(ObjectInfoGetPerformingTypes(objectInfo),
                                ObserverGetAcceptTypes(observer));
 }
+
 
 function ObjectInfoGetOrCreate(object) {
   var objectInfo = ObjectInfoGet(object);
@@ -166,14 +201,17 @@ function ObjectInfoGetOrCreate(object) {
   return objectInfo;
 }
 
+
 function ObjectInfoGet(object) {
   return %WeakCollectionGet(GetObservationStateJS().objectInfoMap, object);
 }
+
 
 function ObjectInfoGetFromNotifier(notifier) {
   return %WeakCollectionGet(GetObservationStateJS().notifierObjectInfoMap,
                             notifier);
 }
+
 
 function ObjectInfoGetNotifier(objectInfo) {
   if (IS_NULL(objectInfo.notifier)) {
@@ -185,10 +223,12 @@ function ObjectInfoGetNotifier(objectInfo) {
   return objectInfo.notifier;
 }
 
+
 function ChangeObserversIsOptimized(changeObservers) {
   return IS_SPEC_FUNCTION(changeObservers) ||
          IS_SPEC_FUNCTION(changeObservers.callback);
 }
+
 
 // The set of observers on an object is called 'changeObservers'. The first
 // observer is referenced directly via objectInfo.changeObservers. When a second
@@ -204,6 +244,7 @@ function ObjectInfoNormalizeChangeObservers(objectInfo) {
     objectInfo.changeObservers[priority] = observer;
   }
 }
+
 
 function ObjectInfoAddObserver(objectInfo, callback, acceptList) {
   var callbackInfo = CallbackInfoGetOrCreate(callback);
@@ -250,20 +291,24 @@ function ObjectInfoHasActiveObservers(objectInfo) {
   return false;
 }
 
+
 function ObjectInfoAddPerformingType(objectInfo, type) {
   objectInfo.performing = objectInfo.performing || TypeMapCreate();
   TypeMapAddType(objectInfo.performing, type);
   objectInfo.performingCount++;
 }
 
+
 function ObjectInfoRemovePerformingType(objectInfo, type) {
   objectInfo.performingCount--;
   TypeMapRemoveType(objectInfo.performing, type);
 }
 
+
 function ObjectInfoGetPerformingTypes(objectInfo) {
   return objectInfo.performingCount > 0 ? objectInfo.performing : null;
 }
+
 
 function ConvertAcceptListToTypeMap(arg) {
   // We use undefined as a sentinel for the default accept list.
@@ -279,6 +324,7 @@ function ConvertAcceptListToTypeMap(arg) {
   return TypeMapCreateFromList(arg, len);
 }
 
+
 // CallbackInfo's optimized state is just a number which represents its global
 // priority. When a change record must be enqueued for the callback, it
 // normalizes. When delivery clears any pending change records, it re-optimizes.
@@ -286,10 +332,12 @@ function CallbackInfoGet(callback) {
   return %WeakCollectionGet(GetObservationStateJS().callbackInfoMap, callback);
 }
 
+
 function CallbackInfoSet(callback, callbackInfo) {
   %WeakCollectionSet(GetObservationStateJS().callbackInfoMap,
                      callback, callbackInfo);
 }
+
 
 function CallbackInfoGetOrCreate(callback) {
   var callbackInfo = CallbackInfoGet(callback);
@@ -301,12 +349,14 @@ function CallbackInfoGetOrCreate(callback) {
   return priority;
 }
 
+
 function CallbackInfoGetPriority(callbackInfo) {
   if (IS_NUMBER(callbackInfo))
     return callbackInfo;
   else
     return callbackInfo.priority;
 }
+
 
 function CallbackInfoNormalize(callback) {
   var callbackInfo = CallbackInfoGet(callback);
@@ -318,6 +368,7 @@ function CallbackInfoNormalize(callback) {
   }
   return callbackInfo;
 }
+
 
 function ObjectObserve(object, callback, acceptList) {
   if (!IS_SPEC_OBJECT(object))
@@ -333,12 +384,14 @@ function ObjectObserve(object, callback, acceptList) {
   return objectObserveFn(object, callback, acceptList);
 }
 
+
 function NativeObjectObserve(object, callback, acceptList) {
   var objectInfo = ObjectInfoGetOrCreate(object);
   var typeList = ConvertAcceptListToTypeMap(acceptList);
   ObjectInfoAddObserver(objectInfo, callback, typeList);
   return object;
 }
+
 
 function ObjectUnobserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))
@@ -356,6 +409,7 @@ function ObjectUnobserve(object, callback) {
   return object;
 }
 
+
 function ArrayObserve(object, callback) {
   return ObjectObserve(object, callback, ['add',
                                           'update',
@@ -363,9 +417,11 @@ function ArrayObserve(object, callback) {
                                           'splice']);
 }
 
+
 function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
+
 
 function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   if (!ObserverIsActive(observer, objectInfo) ||
@@ -399,6 +455,7 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   callbackInfo.push(changeRecord);
 }
 
+
 function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
   if (!ObjectInfoHasActiveObservers(objectInfo))
     return;
@@ -418,6 +475,7 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
 
+
 function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
@@ -436,17 +494,20 @@ function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord) {
   }
 }
 
+
 function BeginPerformSplice(array) {
   var objectInfo = ObjectInfoGet(array);
   if (!IS_UNDEFINED(objectInfo))
     ObjectInfoAddPerformingType(objectInfo, 'splice');
 }
 
+
 function EndPerformSplice(array) {
   var objectInfo = ObjectInfoGet(array);
   if (!IS_UNDEFINED(objectInfo))
     ObjectInfoRemovePerformingType(objectInfo, 'splice');
 }
+
 
 function EnqueueSpliceRecord(array, index, removed, addedCount) {
   var objectInfo = ObjectInfoGet(array);
@@ -465,6 +526,7 @@ function EnqueueSpliceRecord(array, index, removed, addedCount) {
   ObjectFreezeJS(changeRecord.removed);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
+
 
 function NotifyChange(type, object, name, oldValue) {
   var objectInfo = ObjectInfoGet(object);
@@ -489,7 +551,6 @@ function NotifyChange(type, object, name, oldValue) {
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
-var notifierPrototype = {};
 
 function ObjectNotifierNotify(changeRecord) {
   if (!IS_SPEC_OBJECT(this))
@@ -503,6 +564,7 @@ function ObjectNotifierNotify(changeRecord) {
 
   ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord);
 }
+
 
 function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_OBJECT(this))
@@ -520,6 +582,7 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
   performChangeFn(objectInfo, changeType, changeFn);
 }
 
+
 function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
   ObjectInfoAddPerformingType(objectInfo, changeType);
 
@@ -533,6 +596,7 @@ function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
   if (IS_SPEC_OBJECT(changeRecord))
     ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, changeType);
 }
+
 
 function ObjectGetNotifier(object) {
   if (!IS_SPEC_OBJECT(object))
@@ -548,10 +612,12 @@ function ObjectGetNotifier(object) {
   return getNotifierFn(object);
 }
 
+
 function NativeObjectGetNotifier(object) {
   var objectInfo = ObjectInfoGetOrCreate(object);
   return ObjectInfoGetNotifier(objectInfo);
 }
+
 
 function CallbackDeliverPending(callback) {
   var callbackInfo = CallbackInfoGet(callback);
@@ -575,12 +641,14 @@ function CallbackDeliverPending(callback) {
   return true;
 }
 
+
 function ObjectDeliverChangeRecords(callback) {
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["deliverChangeRecords"]);
 
   while (CallbackDeliverPending(callback)) {}
 }
+
 
 function ObserveMicrotaskRunner() {
   var pendingObservers = GetPendingObservers();
@@ -592,22 +660,29 @@ function ObserveMicrotaskRunner() {
   }
 }
 
-function SetupObjectObserve() {
-  %CheckIsBootstrapping();
-  InstallFunctions($Object, DONT_ENUM, [
-    "deliverChangeRecords", ObjectDeliverChangeRecords,
-    "getNotifier", ObjectGetNotifier,
-    "observe", ObjectObserve,
-    "unobserve", ObjectUnobserve
-  ]);
-  InstallFunctions($Array, DONT_ENUM, [
-    "observe", ArrayObserve,
-    "unobserve", ArrayUnobserve
-  ]);
-  InstallFunctions(notifierPrototype, DONT_ENUM, [
-    "notify", ObjectNotifierNotify,
-    "performChange", ObjectNotifierPerformChange
-  ]);
-}
+// -------------------------------------------------------------------
 
-SetupObjectObserve();
+InstallFunctions(GlobalObject, DONT_ENUM, [
+  "deliverChangeRecords", ObjectDeliverChangeRecords,
+  "getNotifier", ObjectGetNotifier,
+  "observe", ObjectObserve,
+  "unobserve", ObjectUnobserve
+]);
+InstallFunctions(GlobalArray, DONT_ENUM, [
+  "observe", ArrayObserve,
+  "unobserve", ArrayUnobserve
+]);
+InstallFunctions(notifierPrototype, DONT_ENUM, [
+  "notify", ObjectNotifierNotify,
+  "performChange", ObjectNotifierPerformChange
+]);
+
+$observeNotifyChange = NotifyChange;
+$observeEnqueueSpliceRecord = EnqueueSpliceRecord;
+$observeBeginPerformSplice = BeginPerformSplice;
+$observeEndPerformSplice = EndPerformSplice;
+$observeNativeObjectObserve = NativeObjectObserve;
+$observeNativeObjectGetNotifier = NativeObjectGetNotifier;
+$observeNativeObjectNotifierPerformChange = NativeObjectNotifierPerformChange;
+
+})();

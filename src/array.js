@@ -407,12 +407,12 @@ function ObservedArrayPop(n) {
   var value = this[n];
 
   try {
-    BeginPerformSplice(this);
+    $observeBeginPerformSplice(this);
     delete this[n];
     this.length = n;
   } finally {
-    EndPerformSplice(this);
-    EnqueueSpliceRecord(this, n, [value], 0);
+    $observeEndPerformSplice(this);
+    $observeEnqueueSpliceRecord(this, n, [value], 0);
   }
 
   return value;
@@ -446,15 +446,15 @@ function ObservedArrayPush() {
   var m = %_ArgumentsLength();
 
   try {
-    BeginPerformSplice(this);
+    $observeBeginPerformSplice(this);
     for (var i = 0; i < m; i++) {
       this[i+n] = %_Arguments(i);
     }
     var new_length = n + m;
     this.length = new_length;
   } finally {
-    EndPerformSplice(this);
-    EnqueueSpliceRecord(this, n, [], m);
+    $observeEndPerformSplice(this);
+    $observeEnqueueSpliceRecord(this, n, [], m);
   }
 
   return new_length;
@@ -584,12 +584,12 @@ function ObservedArrayShift(len) {
   var first = this[0];
 
   try {
-    BeginPerformSplice(this);
+    $observeBeginPerformSplice(this);
     SimpleMove(this, 0, 1, len, 0);
     this.length = len - 1;
   } finally {
-    EndPerformSplice(this);
-    EnqueueSpliceRecord(this, 0, [first], 0);
+    $observeEndPerformSplice(this);
+    $observeEnqueueSpliceRecord(this, 0, [first], 0);
   }
 
   return first;
@@ -632,7 +632,7 @@ function ObservedArrayUnshift() {
   var num_arguments = %_ArgumentsLength();
 
   try {
-    BeginPerformSplice(this);
+    $observeBeginPerformSplice(this);
     SimpleMove(this, 0, 0, len, num_arguments);
     for (var i = 0; i < num_arguments; i++) {
       this[i] = %_Arguments(i);
@@ -640,8 +640,8 @@ function ObservedArrayUnshift() {
     var new_length = len + num_arguments;
     this.length = new_length;
   } finally {
-    EndPerformSplice(this);
-    EnqueueSpliceRecord(this, 0, [], num_arguments);
+    $observeEndPerformSplice(this);
+    $observeEnqueueSpliceRecord(this, 0, [], num_arguments);
   }
 
   return new_length;
@@ -758,7 +758,7 @@ function ObservedArraySplice(start, delete_count) {
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
   try {
-    BeginPerformSplice(this);
+    $observeBeginPerformSplice(this);
 
     SimpleSlice(this, start_i, del_count, len, deleted_elements);
     SimpleMove(this, start_i, del_count, len, num_elements_to_add);
@@ -774,12 +774,12 @@ function ObservedArraySplice(start, delete_count) {
     this.length = len - del_count + num_elements_to_add;
 
   } finally {
-    EndPerformSplice(this);
+    $observeEndPerformSplice(this);
     if (deleted_elements.length || num_elements_to_add) {
-       EnqueueSpliceRecord(this,
-                           start_i,
-                           deleted_elements.slice(),
-                           num_elements_to_add);
+      $observeEnqueueSpliceRecord(this,
+                                  start_i,
+                                  deleted_elements.slice(),
+                                  num_elements_to_add);
     }
   }
 
