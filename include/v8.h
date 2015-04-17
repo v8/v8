@@ -4901,7 +4901,7 @@ class V8_EXPORT HeapStatistics {
 };
 
 
-class HeapSpaceStatistics {
+class V8_EXPORT HeapSpaceStatistics {
  public:
   HeapSpaceStatistics();
   const char* space_name() { return space_name_; }
