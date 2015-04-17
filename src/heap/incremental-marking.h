@@ -64,9 +64,9 @@ class IncrementalMarking {
 
   GCRequestType request_type() const { return request_type_; }
 
-  bool WorthActivating();
+  bool CanBeActivated();
 
-  bool ShouldActivate();
+  bool ShouldActivateEvenWithoutIdleNotification();
 
   bool WasActivated();
 

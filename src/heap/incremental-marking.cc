@@ -386,9 +386,9 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 }
 
 
-bool IncrementalMarking::ShouldActivate() {
-  return WorthActivating() &&
-         heap_->NextGCIsLikelyToBeFull(
+bool IncrementalMarking::ShouldActivateEvenWithoutIdleNotification() {
+  return CanBeActivated() &&
+         heap_->HeapIsFullEnoughToStartIncrementalMarking(
              heap_->old_generation_allocation_limit());
 }
 
@@ -396,7 +396,7 @@ bool IncrementalMarking::ShouldActivate() {
 bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 
-bool IncrementalMarking::WorthActivating() {
+bool IncrementalMarking::CanBeActivated() {
 #ifndef DEBUG
   static const intptr_t kActivationThreshold = 8 * MB;
 #else
@@ -407,6 +407,7 @@ bool IncrementalMarking::WorthActivating() {
   // Only start incremental marking in a safe state: 1) when incremental
   // marking is turned on, 2) when we are currently not in a GC, and
   // 3) when we are currently not serializing or deserializing the heap.
+  // Don't switch on for very small heaps.
   return FLAG_incremental_marking && FLAG_incremental_marking_steps &&
          heap_->gc_state() == Heap::NOT_IN_GC &&
          heap_->deserialization_complete() &&
@@ -814,7 +815,7 @@ void IncrementalMarking::Epilogue() {
 
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
-  if (IsStopped() && ShouldActivate()) {
+  if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
     Start();
   } else {
     Step(allocated * kOldSpaceAllocationMarkingFactor, GC_VIA_STACK_GUARD);

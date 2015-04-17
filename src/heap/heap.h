@@ -1241,9 +1241,7 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline bool NextGCIsLikelyToBeFull(intptr_t limit) {
-    if (FLAG_gc_global) return true;
-
+  inline bool HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
     if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
 
     intptr_t adjusted_allocation_limit = limit - new_space_.Capacity();
@@ -2082,8 +2080,6 @@ class Heap {
   bool TryFinalizeIdleIncrementalMarking(
       double idle_time_in_ms, size_t size_of_objects,
       size_t mark_compact_speed_in_bytes_per_ms);
-
-  bool WorthActivatingIncrementalMarking();
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 

@@ -874,7 +874,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
   if (!mark_compact_collector()->abort_incremental_marking() &&
-      WorthActivatingIncrementalMarking()) {
+      incremental_marking()->IsStopped() &&
+      incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
     incremental_marking()->Start();
   }
 
@@ -4545,12 +4546,6 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
 }
 
 
-bool Heap::WorthActivatingIncrementalMarking() {
-  return incremental_marking()->IsStopped() &&
-         incremental_marking()->ShouldActivate();
-}
-
-
 static double MonotonicallyIncreasingTimeInMs() {
   return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
          static_cast<double>(base::Time::kMillisecondsPerSecond);
@@ -4588,8 +4583,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   }
 
   heap_state.can_start_incremental_marking =
-      incremental_marking()->WorthActivating() &&
-      NextGCIsLikelyToBeFull(limit) && FLAG_incremental_marking &&
+      incremental_marking()->CanBeActivated() &&
+      HeapIsFullEnoughToStartIncrementalMarking(limit) &&
       !mark_compact_collector()->sweeping_in_progress();
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
