@@ -66,6 +66,10 @@
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
+      'asan%': 0,
+      'lsan%': 0,
+      'msan%': 0,
+      'tsan%': 0,
 
       # goma settings.
       # 1 to use goma.
@@ -87,6 +91,10 @@
     'werror%': '-Werror',
     'use_goma%': '<(use_goma)',
     'gomadir%': '<(gomadir)',
+    'asan%': '<(asan)',
+    'lsan%': '<(lsan)',
+    'msan%': '<(msan)',
+    'tsan%': '<(tsan)',
 
     # .gyp files or targets should set v8_code to 1 if they build V8 specific
     # code, as opposed to external code.  This variable is used to control such
@@ -157,6 +165,10 @@
         'host_clang%': '1',
       }, {
         'host_clang%': '0',
+      }],
+      ['asan==1 or lsan==1 or msan==1 or tsan==1', {
+        'clang%': 1,
+        'use_allocator%': 'none',
       }],
     ],
     # Default ARM variable settings.
