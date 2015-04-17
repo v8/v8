@@ -1524,9 +1524,8 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   // 'import' ModuleSpecifier ';'
   if (tok == Token::STRING) {
     const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
+    scope_->module()->AddModuleRequest(module_specifier, zone());
     ExpectSemicolon(CHECK_OK);
-    // TODO(ES6): Add module to the requested modules of scope_->module().
-    USE(module_specifier);
     return factory()->NewEmptyStatement(pos);
   }
 
@@ -1567,8 +1566,6 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
   const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-
   scope_->module()->AddModuleRequest(module_specifier, zone());
 
   if (module_instance_binding != NULL) {
@@ -1585,6 +1582,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
     }
   }
 
+  ExpectSemicolon(CHECK_OK);
   return factory()->NewEmptyStatement(pos);
 }
 
@@ -1660,9 +1658,9 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       Consume(Token::MUL);
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
       const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-      ExpectSemicolon(CHECK_OK);
+      scope_->module()->AddModuleRequest(module_specifier, zone());
       // TODO(ES6): scope_->module()->AddStarExport(...)
-      USE(module_specifier);
+      ExpectSemicolon(CHECK_OK);
       return factory()->NewEmptyStatement(pos);
     }
 

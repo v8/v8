@@ -5446,7 +5446,9 @@ TEST(ModuleParsingInternals) {
       "export { x as y };"
       "import { q as z } from 'm.js';"
       "import n from 'n.js';"
-      "export { a as b } from 'm.js';";
+      "export { a as b } from 'm.js';"
+      "export * from 'p.js';"
+      "import 'q.js'";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::Zone zone;
@@ -5487,11 +5489,14 @@ TEST(ModuleParsingInternals) {
   CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("n"));
   CHECK(import_decl->module_specifier()->IsOneByteEqualTo("n.js"));
   // TODO(adamk): Add test for indirect exports once they're fully implemented.
+  // TODO(adamk): Add test for star exports once they're fully implemented.
   const i::ZoneList<const i::AstRawString*>& requested_modules =
       descriptor->requested_modules();
-  CHECK_EQ(2, requested_modules.length());
+  CHECK_EQ(4, requested_modules.length());
   CHECK(requested_modules[0]->IsOneByteEqualTo("m.js"));
   CHECK(requested_modules[1]->IsOneByteEqualTo("n.js"));
+  CHECK(requested_modules[2]->IsOneByteEqualTo("p.js"));
+  CHECK(requested_modules[3]->IsOneByteEqualTo("q.js"));
 }
 
 
