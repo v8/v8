@@ -5989,7 +5989,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     access_ = HObjectAccess::ForField(map, index, representation(), name_);
 
     // Load field map for heap objects.
-    LoadFieldMaps(map);
+    return LoadFieldMaps(map);
   } else if (IsAccessorConstant()) {
     Handle<Object> accessors = GetAccessorsFromMap(map);
     if (!accessors->IsAccessorPair()) return false;
@@ -6015,7 +6015,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 }
 
 
-void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
+bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
     Handle<Map> map) {
   // Clear any previously collected field maps/type.
   field_maps_.Clear();
@@ -6026,19 +6026,26 @@ void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
 
   // Collect the (stable) maps from the field type.
   int num_field_maps = field_type->NumClasses();
-  if (num_field_maps == 0) return;
-  DCHECK(access_.representation().IsHeapObject());
-  field_maps_.Reserve(num_field_maps, zone());
-  HeapType::Iterator<Map> it = field_type->Classes();
-  while (!it.Done()) {
-    Handle<Map> field_map = it.Current();
-    if (!field_map->is_stable()) {
-      field_maps_.Clear();
-      return;
+  if (num_field_maps > 0) {
+    DCHECK(access_.representation().IsHeapObject());
+    field_maps_.Reserve(num_field_maps, zone());
+    HeapType::Iterator<Map> it = field_type->Classes();
+    while (!it.Done()) {
+      Handle<Map> field_map = it.Current();
+      if (!field_map->is_stable()) {
+        field_maps_.Clear();
+        break;
+      }
+      field_maps_.Add(field_map, zone());
+      it.Advance();
     }
-    field_maps_.Add(field_map, zone());
-    it.Advance();
   }
+
+  if (field_maps_.is_empty()) {
+    // Store is not safe if the field map was cleared.
+    return IsLoad() || !field_type->Is(HeapType::None());
+  }
+
   field_maps_.Sort();
   DCHECK_EQ(num_field_maps, field_maps_.length());
 
@@ -6049,6 +6056,7 @@ void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   // Add dependency on the map that introduced the field.
   Map::AddDependentCompilationInfo(GetFieldOwnerFromMap(map),
                                    DependentCode::kFieldTypeGroup, top_info());
+  return true;
 }
 
 
@@ -6106,8 +6114,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
     access_ = HObjectAccess::ForField(map_, index, representation, name_);
 
     // Load field map for heap objects.
-    LoadFieldMaps(transition());
-    return true;
+    return LoadFieldMaps(transition());
   }
   return false;
 }

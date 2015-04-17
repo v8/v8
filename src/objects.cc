@@ -2367,10 +2367,17 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
   Handle<DescriptorArray> descriptors(
       field_owner->instance_descriptors(), isolate);
   DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
+  bool old_field_type_was_cleared =
+      old_field_type->Is(HeapType::None()) && old_representation.IsHeapObject();
 
-  // Determine the generalized new field type.
-  new_field_type = Map::GeneralizeFieldType(
-      old_field_type, new_field_type, isolate);
+  // Determine the generalized new field type. Conservatively assume type Any
+  // for cleared field types because the cleared type could have been a
+  // deprecated map and there still could be live instances with a non-
+  // deprecated version of the map.
+  new_field_type =
+      old_field_type_was_cleared
+          ? HeapType::Any(isolate)
+          : Map::GeneralizeFieldType(old_field_type, new_field_type, isolate);
 
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index));
