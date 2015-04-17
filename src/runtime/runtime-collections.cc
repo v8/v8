@@ -266,6 +266,11 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   }
   Handle<FixedArray> entries =
       isolate->factory()->NewFixedArray(max_entries * 2);
+  // Allocation can cause GC can delete weak elements. Reload.
+  if (max_entries > table->NumberOfElements()) {
+    max_entries = table->NumberOfElements();
+  }
+
   {
     DisallowHeapAllocation no_gc;
     int count = 0;
