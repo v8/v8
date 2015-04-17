@@ -87,7 +87,7 @@ class CompilationInfoWithZone : public CompilationInfo {
   // called when cast as a CompilationInfo.
   virtual ~CompilationInfoWithZone() {
     DisableFutureOptimization();
-    dependencies()->Rollback();
+    RollbackDependencies();
     delete parse_info_;
     parse_info_ = nullptr;
   }
@@ -143,7 +143,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(nullptr),
-      dependencies_(isolate, zone),
       bailout_reason_(kNoReason),
       prologue_offset_(Code::kPrologueOffsetNotSet),
       no_frame_ranges_(isolate->cpu_profiler()->is_profiling()
@@ -154,7 +153,10 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
       parameter_count_(0),
       optimization_id_(-1),
-      osr_expr_stack_height_(0) {}
+      aborted_due_to_dependency_change_(false),
+      osr_expr_stack_height_(0) {
+  std::fill_n(dependencies_, DependentCode::kGroupCount, nullptr);
+}
 
 
 CompilationInfo::~CompilationInfo() {
@@ -164,8 +166,57 @@ CompilationInfo::~CompilationInfo() {
 #ifdef DEBUG
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
-  DCHECK(dependencies()->IsEmpty());
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    DCHECK(!dependencies_[i]);
+  }
 #endif  // DEBUG
+}
+
+
+void CompilationInfo::CommitDependencies(Handle<Code> code) {
+  bool has_dependencies = false;
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    has_dependencies |=
+        dependencies_[i] != NULL && dependencies_[i]->length() > 0;
+  }
+  // Avoid creating a weak cell for code with no dependencies.
+  if (!has_dependencies) return;
+
+  AllowDeferredHandleDereference get_object_wrapper;
+  WeakCell* cell = *Code::WeakCellFor(code);
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
+    if (group_objects == NULL) continue;
+    DCHECK(!object_wrapper_.is_null());
+    for (int j = 0; j < group_objects->length(); j++) {
+      DependentCode::DependencyGroup group =
+          static_cast<DependentCode::DependencyGroup>(i);
+      Foreign* info = *object_wrapper();
+      DependentCode* dependent_code =
+          DependentCode::ForObject(group_objects->at(j), group);
+      dependent_code->UpdateToFinishedCode(group, info, cell);
+    }
+    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
+  }
+}
+
+
+void CompilationInfo::RollbackDependencies() {
+  AllowDeferredHandleDereference get_object_wrapper;
+  // Unregister from all dependent maps if not yet committed.
+  for (int i = 0; i < DependentCode::kGroupCount; i++) {
+    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
+    if (group_objects == NULL) continue;
+    for (int j = 0; j < group_objects->length(); j++) {
+      DependentCode::DependencyGroup group =
+          static_cast<DependentCode::DependencyGroup>(i);
+      Foreign* info = *object_wrapper();
+      DependentCode* dependent_code =
+          DependentCode::ForObject(group_objects->at(j), group);
+      dependent_code->RemoveCompilationInfo(group, info);
+    }
+    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
+  }
 }
 
 
@@ -442,7 +493,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   if (graph_ == NULL) return SetLastStatus(BAILED_OUT);
 
-  if (info()->dependencies()->HasAborted()) {
+  if (info()->HasAbortedDueToDependencyChange()) {
     // Dependency has changed during graph creation. Let's try again later.
     return RetryOptimization(kBailedOutDueToDependencyChange);
   }
@@ -490,7 +541,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     return last_status();
   }
 
-  DCHECK(!info()->dependencies()->HasAborted());
+  DCHECK(!info()->HasAbortedDueToDependencyChange());
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate());
   {  // Scope for timer.
@@ -1471,7 +1522,7 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   if (job->last_status() == OptimizedCompileJob::SUCCEEDED) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(kOptimizationDisabled);
-    } else if (info->dependencies()->HasAborted()) {
+    } else if (info->HasAbortedDueToDependencyChange()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (isolate->debug()->has_break_points()) {
       job->RetryOptimization(kDebuggerHasBreakPoints);

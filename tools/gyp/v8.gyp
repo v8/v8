@@ -422,8 +422,6 @@
         '../../src/codegen.h',
         '../../src/compilation-cache.cc',
         '../../src/compilation-cache.h',
-        '../../src/compilation-dependencies.cc',
-        '../../src/compilation-dependencies.h',
         '../../src/compilation-statistics.cc',
         '../../src/compilation-statistics.h',
         '../../src/compiler/access-builder.cc',

@@ -591,9 +591,10 @@ static void TestGeneralizeRepresentation(
   // Create new maps by generalizing representation of propX field.
   Handle<Map> field_owner(map->FindFieldOwner(property_index), isolate);
   CompilationInfo info(&stub, isolate, &zone);
-  CHECK(!info.dependencies()->HasAborted());
+  CHECK(!info.HasAbortedDueToDependencyChange());
 
-  info.dependencies()->AssumeFieldType(field_owner);
+  Map::AddDependentCompilationInfo(field_owner, DependentCode::kFieldTypeGroup,
+                                   &info);
 
   Handle<Map> new_map =
       Map::ReconfigureProperty(map, property_index, kData, NONE,
@@ -609,22 +610,23 @@ static void TestGeneralizeRepresentation(
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
     CHECK_EQ(expected_field_type_dependency && !field_owner->is_deprecated(),
-             info.dependencies()->HasAborted());
+             info.HasAbortedDueToDependencyChange());
 
   } else if (expected_deprecation) {
     CHECK(map->is_deprecated());
     CHECK(field_owner->is_deprecated());
     CHECK_NE(*map, *new_map);
-    CHECK(!info.dependencies()->HasAborted());
+    CHECK(!info.HasAbortedDueToDependencyChange());
 
   } else {
     CHECK(!field_owner->is_deprecated());
     CHECK_EQ(*map, *new_map);
 
-    CHECK_EQ(expected_field_type_dependency, info.dependencies()->HasAborted());
+    CHECK_EQ(expected_field_type_dependency,
+             info.HasAbortedDueToDependencyChange());
   }
 
-  info.dependencies()->Rollback();  // Properly cleanup compilation info.
+  info.RollbackDependencies();  // Properly cleanup compilation info.
 
   // Update all deprecated maps and check that they are now the same.
   Handle<Map> updated_map = Map::Update(map);
@@ -959,8 +961,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   FakeStubForTesting stub(isolate);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationInfo info(&stub, isolate, &zone);
-  CHECK(!info.dependencies()->HasAborted());
-  info.dependencies()->AssumeFieldType(field_owner);
+  CHECK(!info.HasAbortedDueToDependencyChange());
+  Map::AddDependentCompilationInfo(field_owner, DependentCode::kFieldTypeGroup,
+                                   &info);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -977,8 +980,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
     expectations.SetDataField(i, expected_representation, expected_type);
   }
   CHECK(map->is_deprecated());
-  CHECK(!info.dependencies()->HasAborted());
-  info.dependencies()->Rollback();  // Properly cleanup compilation info.
+  CHECK(!info.HasAbortedDueToDependencyChange());
+  info.RollbackDependencies();  // Properly cleanup compilation info.
   CHECK_NE(*map, *new_map);
 
   CHECK(!new_map->is_deprecated());
@@ -1044,8 +1047,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   FakeStubForTesting stub(isolate);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationInfo info(&stub, isolate, &zone);
-  CHECK(!info.dependencies()->HasAborted());
-  info.dependencies()->AssumeFieldType(field_owner);
+  CHECK(!info.HasAbortedDueToDependencyChange());
+  Map::AddDependentCompilationInfo(field_owner, DependentCode::kFieldTypeGroup,
+                                   &info);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1066,8 +1070,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   }
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
-  CHECK_EQ(expected_field_type_dependency, info.dependencies()->HasAborted());
-  info.dependencies()->Rollback();  // Properly cleanup compilation info.
+  CHECK_EQ(expected_field_type_dependency,
+           info.HasAbortedDueToDependencyChange());
+  info.RollbackDependencies();  // Properly cleanup compilation info.
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
