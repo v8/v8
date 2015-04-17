@@ -3133,7 +3133,14 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
   unsigned int cell_base_start_index = Bitmap::IndexToCell(
       Bitmap::CellAlignIndex(p->AddressToMarkbitIndex(cell_base)));
 
-  // First check if the object is in the current cell.
+  // Check if the slot points to the start of an object. This can happen e.g.
+  // when we left trim a fixed array. Such slots are invalid and we can remove
+  // them.
+  if ((cells[start_index] & index_in_cell) != 0) {
+    return false;
+  }
+
+  // Check if the object is in the current cell.
   MarkBit::CellType slot_mask;
   if ((cells[start_index] == 0) ||
       (base::bits::CountTrailingZeros32(cells[start_index]) >
@@ -3155,23 +3162,26 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
     // The object is in a preceding cell. Set the mask to find any object.
     slot_mask = 0xffffffff;
   } else {
+    // The object start is before the the slot index. Hence, in this case the
+    // slot index can not be at the beginning of the cell.
+    CHECK(index_in_cell > 1);
     // We are interested in object mark bits right before the slot.
     slot_mask = index_in_cell - 1;
   }
 
   MarkBit::CellType current_cell = cells[start_index];
-  DCHECK(current_cell != 0);
+  CHECK(current_cell != 0);
 
   // Find the last live object in the cell.
   unsigned int leading_zeros =
       base::bits::CountLeadingZeros32(current_cell & slot_mask);
-  DCHECK(leading_zeros != 32);
+  CHECK(leading_zeros != 32);
   unsigned int offset = Bitmap::kBitIndexMask - leading_zeros;
 
   cell_base += (start_index - cell_base_start_index) * 32 * kPointerSize;
   Address address = cell_base + offset * kPointerSize;
   HeapObject* object = HeapObject::FromAddress(address);
-  DCHECK(object->address() < reinterpret_cast<Address>(slot));
+  CHECK(object->address() < reinterpret_cast<Address>(slot));
   if (object->address() <= slot &&
       (object->address() + object->Size()) > slot) {
     // If the slot is within the last found object in the cell, the slot is
