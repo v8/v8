@@ -17,26 +17,6 @@
 namespace v8 {
 namespace internal {
 
-
-// When parsing the formal parameters of a function, we usually don't yet know
-// if the function will be strict, so we cannot yet produce errors for
-// parameter names or duplicates.  Instead, we remember the locations of these
-// errors if they occur and produce the errors later.
-class FormalParameterErrorLocations BASE_EMBEDDED {
- public:
-  FormalParameterErrorLocations()
-      : eval_or_arguments(Scanner::Location::invalid()),
-        undefined(Scanner::Location::invalid()),
-        duplicate(Scanner::Location::invalid()),
-        reserved(Scanner::Location::invalid()) {}
-
-  Scanner::Location eval_or_arguments;
-  Scanner::Location undefined;
-  Scanner::Location duplicate;
-  Scanner::Location reserved;
-};
-
-
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
 
@@ -71,8 +51,6 @@ class FormalParameterErrorLocations BASE_EMBEDDED {
 //     typedef Literal;
 //     typedef ExpressionList;
 //     typedef PropertyList;
-//     typedef FormalParameter;
-//     typedef FormalParameterList;
 //     // For constructing objects returned by the traversing functions.
 //     typedef Factory;
 //   };
@@ -85,8 +63,6 @@ class ParserBase : public Traits {
   // Shorten type names defined by Traits.
   typedef typename Traits::Type::Expression ExpressionT;
   typedef typename Traits::Type::Identifier IdentifierT;
-  typedef typename Traits::Type::FormalParameter FormalParameterT;
-  typedef typename Traits::Type::FormalParameterList FormalParameterListT;
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
@@ -519,28 +495,31 @@ class ParserBase : public Traits {
   // after parsing the function, since the function can declare itself strict.
   void CheckFunctionParameterNames(LanguageMode language_mode,
                                    bool strict_params,
-                                   const FormalParameterErrorLocations& locs,
+                                   const Scanner::Location& eval_args_loc,
+                                   const Scanner::Location& undefined_loc,
+                                   const Scanner::Location& dupe_loc,
+                                   const Scanner::Location& reserved_loc,
                                    bool* ok) {
     if (is_sloppy(language_mode) && !strict_params) return;
-    if (is_strict(language_mode) && locs.eval_or_arguments.IsValid()) {
-      Traits::ReportMessageAt(locs.eval_or_arguments, "strict_eval_arguments");
+    if (is_strict(language_mode) && eval_args_loc.IsValid()) {
+      Traits::ReportMessageAt(eval_args_loc, "strict_eval_arguments");
       *ok = false;
       return;
     }
-    if (is_strict(language_mode) && locs.reserved.IsValid()) {
-      Traits::ReportMessageAt(locs.reserved, "unexpected_strict_reserved");
-      *ok = false;
-      return;
-    }
-    if (is_strong(language_mode) && locs.undefined.IsValid()) {
-      Traits::ReportMessageAt(locs.undefined, "strong_undefined");
+    if (is_strong(language_mode) && undefined_loc.IsValid()) {
+      Traits::ReportMessageAt(undefined_loc, "strong_undefined");
       *ok = false;
       return;
     }
     // TODO(arv): When we add support for destructuring in setters we also need
     // to check for duplicate names.
-    if (locs.duplicate.IsValid()) {
-      Traits::ReportMessageAt(locs.duplicate, "strict_param_dupe");
+    if (dupe_loc.IsValid()) {
+      Traits::ReportMessageAt(dupe_loc, "strict_param_dupe");
+      *ok = false;
+      return;
+    }
+    if (reserved_loc.IsValid()) {
+      Traits::ReportMessageAt(reserved_loc, "unexpected_strict_reserved");
       *ok = false;
       return;
     }
@@ -621,21 +600,11 @@ class ParserBase : public Traits {
   ExpressionT ParseMemberExpression(bool* ok);
   ExpressionT ParseMemberExpressionContinuation(ExpressionT expression,
                                                 bool* ok);
-  ExpressionT ParseArrowFunctionLiteral(
-      int start_pos, FormalParameterListT params,
-      const FormalParameterErrorLocations& error_locs, bool has_rest, bool* ok);
+  ExpressionT ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
+                                        bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   void AddTemplateExpression(ExpressionT);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
-
-  FormalParameterT ParseFormalParameter(DuplicateFinder* duplicate_finder,
-                                        FormalParameterErrorLocations* locs,
-                                        bool* ok);
-  FormalParameterListT ParseFormalParameterList(
-      FormalParameterErrorLocations* locs, bool* is_rest, bool* ok);
-  void CheckArityRestrictions(
-      int param_count, FunctionLiteral::ArityRestriction arity_restriction,
-      int formals_start_pos, int formals_end_pos, bool* ok);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -846,6 +815,12 @@ class PreParserExpression {
         IsValidArrowParamListField::encode(valid_arrow_param_list));
   }
 
+  static PreParserExpression EmptyArrowParamList() {
+    // Any expression for which IsValidArrowParamList() returns true
+    // will work here.
+    return FromIdentifier(PreParserIdentifier::Default());
+  }
+
   static PreParserExpression StringLiteral() {
     return PreParserExpression(TypeField::encode(kStringLiteralExpression));
   }
@@ -936,27 +911,20 @@ class PreParserExpression {
     return IsIdentifier() || IsProperty();
   }
 
-  bool IsValidArrowParamList(FormalParameterErrorLocations* locs,
-                             const Scanner::Location& params_loc) const {
+  bool IsValidArrowParamList(Scanner::Location* undefined_loc) const {
     ValidArrowParam valid = ValidateArrowParams();
     if (ParenthesizationField::decode(code_) == kMultiParenthesizedExpression) {
       return false;
     }
-    switch (valid) {
-      case kInvalidArrowParam:
-        return false;
-      case kInvalidStrongArrowParam:
-        locs->undefined = params_loc;
-        return true;
-      case kInvalidStrictReservedArrowParam:
-        locs->reserved = params_loc;
-        return true;
-      case kInvalidStrictEvalArgumentsArrowParam:
-        locs->eval_or_arguments = params_loc;
-        return true;
-      default:
-        DCHECK_EQ(valid, kValidArrowParam);
-        return true;
+    if (valid == kValidArrowParam) {
+      return true;
+    } else if (valid == kInvalidStrongArrowParam) {
+      // Return true for now regardless of strong mode for compatibility with
+      // parser.
+      *undefined_loc = Scanner::Location();
+      return true;
+    } else {
+      return false;
     }
   }
 
@@ -1023,12 +991,8 @@ class PreParserExpression {
     kNoTemplateTagExpression
   };
 
-  // These validity constraints are ordered such that a value of N implies lack
-  // of errors M < N.
   enum ValidArrowParam {
     kInvalidArrowParam,
-    kInvalidStrictEvalArgumentsArrowParam,
-    kInvalidStrictReservedArrowParam,
     kInvalidStrongArrowParam,
     kValidArrowParam
   };
@@ -1044,16 +1008,13 @@ class PreParserExpression {
       return kInvalidArrowParam;
     }
     PreParserIdentifier ident = AsIdentifier();
-    // In strict mode, eval and arguments are not valid formal parameter names.
-    if (ident.IsEval() || ident.IsArguments()) {
-      return kInvalidStrictEvalArgumentsArrowParam;
+    // A valid identifier can be an arrow function parameter
+    // except for eval, arguments, yield, and reserved keywords.
+    if (ident.IsEval() || ident.IsArguments() ||
+        ident.IsFutureStrictReserved()) {
+      return kInvalidArrowParam;
     }
-    // In strict mode, future reserved words are not valid either, and as they
-    // produce different errors we allot them their own error code.
-    if (ident.IsFutureStrictReserved()) {
-      return kInvalidStrictReservedArrowParam;
-    }
-    // In strong mode, 'undefined' isn't a valid formal parameter name either.
+    // In strong mode, 'undefined' is similarly restricted.
     if (ident.IsUndefined()) {
       return kInvalidStrongArrowParam;
     }
@@ -1070,7 +1031,7 @@ class PreParserExpression {
       ExpressionTypeField;
   typedef BitField<bool, ParenthesizationField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
-  typedef BitField<ValidArrowParam, ParenthesizationField::kNext, 3>
+  typedef BitField<ValidArrowParam, ParenthesizationField::kNext, 2>
       IsValidArrowParamListField;
   typedef BitField<PreParserIdentifier::Type, ParenthesizationField::kNext, 10>
       IdentifierTypeField;
@@ -1079,23 +1040,18 @@ class PreParserExpression {
 };
 
 
-// The pre-parser doesn't need to build lists of expressions, identifiers, or
-// the like.
-template <typename T>
-class PreParserList {
+// PreParserExpressionList doesn't actually store the expressions because
+// PreParser doesn't need to.
+class PreParserExpressionList {
  public:
   // These functions make list->Add(some_expression) work (and do nothing).
-  PreParserList() : length_(0) {}
-  PreParserList* operator->() { return this; }
-  void Add(T, void*) { ++length_; }
+  PreParserExpressionList() : length_(0) {}
+  PreParserExpressionList* operator->() { return this; }
+  void Add(PreParserExpression, void*) { ++length_; }
   int length() const { return length_; }
  private:
   int length_;
 };
-
-
-typedef PreParserList<PreParserExpression> PreParserExpressionList;
-typedef PreParserList<PreParserIdentifier> PreParserFormalParameterList;
 
 
 class PreParserStatement {
@@ -1162,7 +1118,16 @@ class PreParserStatement {
 };
 
 
-typedef PreParserList<PreParserStatement> PreParserStatementList;
+
+// PreParserStatementList doesn't actually store the statements because
+// the PreParser does not need them.
+class PreParserStatementList {
+ public:
+  // These functions make list->Add(some_expression) work as no-ops.
+  PreParserStatementList() {}
+  PreParserStatementList* operator->() { return this; }
+  void Add(PreParserStatement, void*) {}
+};
 
 
 class PreParserFactory {
@@ -1327,8 +1292,6 @@ class PreParserTraits {
     typedef PreParserExpression Literal;
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
-    typedef PreParserIdentifier FormalParameter;
-    typedef PreParserFormalParameterList FormalParameterList;
     typedef PreParserStatementList StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -1472,6 +1435,9 @@ class PreParserTraits {
   static PreParserExpression EmptyExpression() {
     return PreParserExpression::Default();
   }
+  static PreParserExpression EmptyArrowParamList() {
+    return PreParserExpression::EmptyArrowParamList();
+  }
   static PreParserExpression EmptyLiteral() {
     return PreParserExpression::Default();
   }
@@ -1483,12 +1449,6 @@ class PreParserTraits {
   }
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
-  }
-  static PreParserIdentifier EmptyFormalParameter() {
-    return PreParserIdentifier::Default();
-  }
-  static PreParserFormalParameterList NullFormalParameterList() {
-    return PreParserFormalParameterList();
   }
 
   // Odd-ball literal creators.
@@ -1554,11 +1514,6 @@ class PreParserTraits {
     return PreParserExpressionList();
   }
 
-  static PreParserFormalParameterList NewFormalParameterList(int size,
-                                                             Zone* zone) {
-    return PreParserFormalParameterList();
-  }
-
   V8_INLINE void SkipLazyFunctionBody(PreParserIdentifier function_name,
                                       int* materialized_literal_count,
                                       int* expected_property_count, bool* ok) {
@@ -1570,9 +1525,16 @@ class PreParserTraits {
                          Variable* fvar, Token::Value fvar_init_op,
                          FunctionKind kind, bool* ok);
 
-  V8_INLINE PreParserFormalParameterList ParseArrowFunctionFormalParameterList(
-      PreParserExpression expression, const Scanner::Location& params_loc,
-      FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok);
+  // Utility functions
+  int DeclareArrowParametersFromExpression(PreParserExpression expression,
+                                           Scope* scope,
+                                           Scanner::Location* undefined_loc,
+                                           Scanner::Location* dupe_loc,
+                                           bool* ok) {
+    // TODO(aperez): Detect duplicated identifiers in paramlists.
+    *ok = expression.IsValidArrowParamList(undefined_loc);
+    return 0;
+  }
 
   struct TemplateLiteralState {};
 
@@ -1596,11 +1558,6 @@ class PreParserTraits {
   }
   static bool IsTaggedTemplate(const PreParserExpression tag) {
     return !tag.IsNoTemplateTag();
-  }
-
-  int DeclareFormalParameters(PreParserFormalParameterList params, Scope* scope,
-                              bool has_rest) {
-    return params->length();
   }
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
@@ -1788,22 +1745,6 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
                                                    PreParserExpressionList args,
                                                    int pos) {
   return pre_parser_->factory()->NewCallNew(function, args, pos);
-}
-
-
-PreParserFormalParameterList
-PreParserTraits::ParseArrowFunctionFormalParameterList(
-    PreParserExpression params, const Scanner::Location& params_loc,
-    FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok) {
-  // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
-  // lists that are too long.
-  if (!params.IsValidArrowParamList(error_locs, params_loc)) {
-    *ok = false;
-    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
-    return this->NullFormalParameterList();
-  }
-
-  return PreParserFormalParameterList();
 }
 
 
@@ -2102,13 +2043,12 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
 
     case Token::LPAREN:
       Consume(Token::LPAREN);
-      if (allow_harmony_arrow_functions() && Check(Token::RPAREN)) {
-        // As a primary expression, the only thing that can follow "()" is "=>".
-        FormalParameterListT params = this->NewFormalParameterList(0, zone());
-        FormalParameterErrorLocations error_locs;
-        bool has_rest = false;
-        result = this->ParseArrowFunctionLiteral(beg_pos, params, error_locs,
-                                                 has_rest, CHECK_OK);
+      if (allow_harmony_arrow_functions() && peek() == Token::RPAREN) {
+        // Arrow functions are the only expression type constructions
+        // for which an empty parameter list "()" is valid input.
+        Consume(Token::RPAREN);
+        result = this->ParseArrowFunctionLiteral(
+            beg_pos, this->EmptyArrowParamList(), CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
         // seeing the call parentheses.
@@ -2566,13 +2506,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   if (allow_harmony_arrow_functions() && peek() == Token::ARROW) {
     checkpoint.Restore();
-    FormalParameterErrorLocations error_locs;
-    Scanner::Location loc(lhs_location.beg_pos, scanner()->location().end_pos);
-    bool has_rest = false;
-    FormalParameterListT params = this->ParseArrowFunctionFormalParameterList(
-        expression, loc, &error_locs, &has_rest, CHECK_OK);
-    expression = this->ParseArrowFunctionLiteral(
-        lhs_location.beg_pos, params, error_locs, has_rest, CHECK_OK);
+    expression = this->ParseArrowFunctionLiteral(lhs_location.beg_pos,
+                                                 expression, CHECK_OK);
     return expression;
   }
 
@@ -3106,112 +3041,10 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
 
 
 template <class Traits>
-typename ParserBase<Traits>::FormalParameterT
-ParserBase<Traits>::ParseFormalParameter(DuplicateFinder* duplicate_finder,
-                                         FormalParameterErrorLocations* locs,
-                                         bool* ok) {
-  // FormalParameter[Yield,GeneratorParameter] :
-  //   BindingElement[?Yield, ?GeneratorParameter]
-  bool is_strict_reserved;
-  IdentifierT name =
-      ParseIdentifierOrStrictReservedWord(&is_strict_reserved, ok);
-  if (!*ok) return this->EmptyFormalParameter();
-
-  // Store locations for possible future error reports.
-  if (!locs->eval_or_arguments.IsValid() && this->IsEvalOrArguments(name)) {
-    locs->eval_or_arguments = scanner()->location();
-  }
-  if (!locs->undefined.IsValid() && this->IsUndefined(name)) {
-    locs->undefined = scanner()->location();
-  }
-  if (!locs->reserved.IsValid() && is_strict_reserved) {
-    locs->reserved = scanner()->location();
-  }
-  if (!locs->duplicate.IsValid() && duplicate_finder != nullptr) {
-    int prev_value = scanner()->FindSymbol(duplicate_finder, 1);
-    if (prev_value != 0) locs->duplicate = scanner()->location();
-  }
-
-  return name;
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::FormalParameterListT
-ParserBase<Traits>::ParseFormalParameterList(
-    FormalParameterErrorLocations* locs, bool* is_rest, bool* ok) {
-  // FormalParameters[Yield,GeneratorParameter] :
-  //   [empty]
-  //   FormalParameterList[?Yield, ?GeneratorParameter]
-  //
-  // FormalParameterList[Yield,GeneratorParameter] :
-  //   FunctionRestParameter[?Yield]
-  //   FormalsList[?Yield, ?GeneratorParameter]
-  //   FormalsList[?Yield, ?GeneratorParameter] , FunctionRestParameter[?Yield]
-  //
-  // FormalsList[Yield,GeneratorParameter] :
-  //   FormalParameter[?Yield, ?GeneratorParameter]
-  //   FormalsList[?Yield, ?GeneratorParameter] ,
-  //     FormalParameter[?Yield,?GeneratorParameter]
-
-  FormalParameterListT result = this->NewFormalParameterList(4, zone_);
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
-
-  if (peek() != Token::RPAREN) {
-    do {
-      *is_rest = allow_harmony_rest_params() && Check(Token::ELLIPSIS);
-      FormalParameterT param =
-          ParseFormalParameter(&duplicate_finder, locs, ok);
-      if (!*ok) return this->NullFormalParameterList();
-      result->Add(param, zone());
-      if (result->length() > Code::kMaxArguments) {
-        ReportMessage("too_many_parameters");
-        *ok = false;
-        return this->NullFormalParameterList();
-      }
-    } while (!*is_rest && Check(Token::COMMA));
-  }
-
-  if (is_rest && peek() == Token::COMMA) {
-    ReportMessageAt(scanner()->peek_location(), "param_after_rest");
-    *ok = false;
-    return this->NullFormalParameterList();
-  }
-
-  return result;
-}
-
-
-template <class Traits>
-void ParserBase<Traits>::CheckArityRestrictions(
-    int param_count, FunctionLiteral::ArityRestriction arity_restriction,
-    int formals_start_pos, int formals_end_pos, bool* ok) {
-  switch (arity_restriction) {
-    case FunctionLiteral::GETTER_ARITY:
-      if (param_count != 0) {
-        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
-                        "bad_getter_arity");
-        *ok = false;
-      }
-      break;
-    case FunctionLiteral::SETTER_ARITY:
-      if (param_count != 1) {
-        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
-                        "bad_setter_arity");
-        *ok = false;
-      }
-      break;
-    default:
-      break;
-  }
-}
-
-
-template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseArrowFunctionLiteral(
-    int start_pos, FormalParameterListT params,
-    const FormalParameterErrorLocations& error_locs, bool has_rest, bool* ok) {
+ParserBase<Traits>::ParseArrowFunctionLiteral(int start_pos,
+                                              ExpressionT params_ast,
+                                              bool* ok) {
   if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
@@ -3233,7 +3066,29 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kArrowFunction, &function_factory);
-    num_parameters = this->DeclareFormalParameters(params, scope_, has_rest);
+    Scanner::Location undefined_loc = Scanner::Location::invalid();
+    Scanner::Location dupe_loc = Scanner::Location::invalid();
+    // TODO(arv): Pass in eval_args_loc and reserved_loc here.
+    num_parameters = Traits::DeclareArrowParametersFromExpression(
+        params_ast, scope_, &undefined_loc, &dupe_loc, ok);
+    if (!*ok) {
+      ReportMessageAt(
+          Scanner::Location(start_pos, scanner()->location().beg_pos),
+          "malformed_arrow_function_parameter_list");
+      return this->EmptyExpression();
+    }
+
+    if (undefined_loc.IsValid()) {
+      // Workaround for preparser not keeping track of positions.
+      undefined_loc = Scanner::Location(start_pos,
+                                        scanner()->location().end_pos);
+    }
+    if (num_parameters > Code::kMaxArguments) {
+      ReportMessageAt(Scanner::Location(params_ast->position(), position()),
+                      "too_many_parameters");
+      *ok = false;
+      return this->EmptyExpression();
+    }
 
     Expect(Token::ARROW, CHECK_OK);
 
@@ -3272,13 +3127,15 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     scope->set_start_position(start_pos);
     scope->set_end_position(scanner()->location().end_pos);
 
-    // Arrow function formal parameters are parsed as StrictFormalParameterList,
-    // which is not the same as "parameters of a strict function"; it only means
-    // that duplicates are not allowed.  Of course, the arrow function may
-    // itself be strict as well.
+    // Arrow function *parameter lists* are always checked as in strict mode.
+    // TODO(arv): eval_args_loc and reserved_loc needs to be set by
+    // DeclareArrowParametersFromExpression.
+    Scanner::Location eval_args_loc = Scanner::Location::invalid();
+    Scanner::Location reserved_loc = Scanner::Location::invalid();
     const bool use_strict_params = true;
     this->CheckFunctionParameterNames(language_mode(), use_strict_params,
-                                      error_locs, CHECK_OK);
+                                      eval_args_loc, undefined_loc, dupe_loc,
+                                      reserved_loc, CHECK_OK);
 
     // Validate strict mode.
     if (is_strict(language_mode())) {

@@ -557,8 +557,6 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
-    typedef const v8::internal::AstRawString* FormalParameter;
-    typedef ZoneList<const v8::internal::AstRawString*>* FormalParameterList;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -696,6 +694,7 @@ class ParserTraits {
   static Expression* EmptyExpression() {
     return NULL;
   }
+  static Expression* EmptyArrowParamList() { return NULL; }
   static Literal* EmptyLiteral() {
     return NULL;
   }
@@ -704,10 +703,6 @@ class ParserTraits {
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
-    return NULL;
-  }
-  static const AstRawString* EmptyFormalParameter() { return NULL; }
-  static ZoneList<const AstRawString*>* NullFormalParameterList() {
     return NULL;
   }
 
@@ -745,20 +740,14 @@ class ParserTraits {
   ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
-  ZoneList<const v8::internal::AstRawString*>* NewFormalParameterList(
-      int size, Zone* zone) {
-    return new (zone) ZoneList<const v8::internal::AstRawString*>(size, zone);
-  }
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
-  void RecordArrowFunctionParameter(ZoneList<const AstRawString*>* params,
-                                    VariableProxy* proxy,
-                                    FormalParameterErrorLocations* error_locs,
-                                    bool* ok);
-  ZoneList<const AstRawString*>* ParseArrowFunctionFormalParameterList(
-      Expression* params, const Scanner::Location& params_loc,
-      FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok);
+  // Utility functions
+  int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
+                                           Scanner::Location* undefined_loc,
+                                           Scanner::Location* dupe_loc,
+                                           bool* ok);
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
@@ -778,9 +767,6 @@ class ParserTraits {
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
                                   bool* ok);
-
-  int DeclareFormalParameters(ZoneList<const AstRawString*>* params,
-                              Scope* scope, bool has_rest);
 
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                  bool* ok);
@@ -1058,6 +1044,8 @@ class Parser : public ParserBase<ParserTraits> {
   Target* target_stack_;  // for break, continue statements
   ScriptCompiler::CompileOptions compile_options_;
   ParseData* cached_parse_data_;
+
+  bool parsing_lazy_arrow_parameters_;  // for lazily parsed arrow functions.
 
   PendingCompilationErrorHandler pending_error_handler_;
 
