@@ -6206,12 +6206,6 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
-  __ cmp(eax, isolate()->factory()->undefined_value());
-  DeoptimizeIf(equal, instr, Deoptimizer::kUndefined);
-
-  __ cmp(eax, isolate()->factory()->null_value());
-  DeoptimizeIf(equal, instr, Deoptimizer::kNull);
-
   __ test(eax, Immediate(kSmiTagMask));
   DeoptimizeIf(zero, instr, Deoptimizer::kSmi);
 
