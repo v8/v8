@@ -192,7 +192,7 @@ def ReadMacros(lines):
   return (constants, macros)
 
 
-TEMPLATE_PATTERN = re.compile(r'^\s+T\(([a-zA-Z]+), ".+"\)')
+TEMPLATE_PATTERN = re.compile(r'^\s+T\(([A-Z][a-zA-Z]*),')
 
 def ReadMessageTemplates(lines):
   templates = []

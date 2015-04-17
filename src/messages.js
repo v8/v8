@@ -33,8 +33,6 @@ var kMessages = {
   unknown_label:                 ["Undefined label '", "%0", "'"],
   uncaught_exception:            ["Uncaught ", "%0"],
   undefined_method:              ["Object ", "%1", " has no method '", "%0", "'"],
-  cannot_convert_to_primitive:   ["Cannot convert object to primitive value"],
-  not_constructor:               ["%0", " is not a constructor"],
   not_defined:                   ["%0", " is not defined"],
   non_method:                    ["'super' is referenced from non-method"],
   unsupported_super:             ["Unsupported reference to 'super'"],
@@ -42,15 +40,7 @@ var kMessages = {
   non_object_property_store:     ["Cannot set property '", "%0", "' of ", "%1"],
   illegal_invocation:            ["Illegal invocation"],
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
-  apply_non_function:            ["Function.prototype.apply was called on ", "%0", ", which is a ", "%1", " and not a function"],
-  apply_wrong_args:              ["Function.prototype.apply: Arguments list has wrong type"],
-  reflect_apply_wrong_args:      ["Reflect.apply: Arguments list has wrong type"],
-  reflect_construct_wrong_args:  ["Reflect.construct: Arguments list has wrong type"],
   flags_getter_non_object:       ["RegExp.prototype.flags getter called on non-object ", "%0"],
-  invalid_in_operator_use:       ["Cannot use 'in' operator to search for '", "%0", "' in ", "%1"],
-  instanceof_function_expected:  ["Expecting a function in instanceof check, but got ", "%0"],
-  instanceof_nonobject_proto:    ["Function has non-object prototype '", "%0", "' in instanceof check"],
-  undefined_or_null_to_object:   ["Cannot convert undefined or null to object"],
   reduce_no_initial:             ["Reduce of empty array with no initial value"],
   getter_must_be_callable:       ["Getter must be a function: ", "%0"],
   setter_must_be_callable:       ["Setter must be a function: ", "%0"],
@@ -113,7 +103,6 @@ var kMessages = {
   invalid_data_view_accessor_offset:
                                  ["Offset is outside the bounds of the DataView"],
 
-  stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   invalid_count_value:           ["Invalid count value"],
   invalid_code_point:            ["Invalid code point ", "%0"],
@@ -179,9 +168,6 @@ var kMessages = {
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
   redef_external_array_element:  ["Cannot redefine a property of an object with external array elements"],
   const_assign:                  ["Assignment to constant variable."],
-  symbol_to_string:              ["Cannot convert a Symbol value to a string"],
-  symbol_to_primitive:           ["Cannot convert a Symbol wrapper object to a primitive value"],
-  symbol_to_number:              ["Cannot convert a Symbol value to a number"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
   duplicate_export:              ["Duplicate export of '", "%0", "'"],
   unexpected_super:              ["'super' keyword unexpected here"],
@@ -1287,7 +1273,7 @@ InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
 function SetUpStackOverflowBoilerplate() {
-  var boilerplate = MakeRangeError('stack_overflow', []);
+  var boilerplate = MakeRangeError(kStackOverflow);
 
   %DefineAccessorPropertyUnchecked(
       boilerplate, 'stack', StackTraceGetter, StackTraceSetter, DONT_ENUM);

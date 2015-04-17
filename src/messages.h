@@ -92,11 +92,29 @@ class MessageHandler {
   /* Error */                                                                 \
   T(CyclicProto, "Cyclic __proto__ value")                                    \
   /* TypeError */                                                             \
+  T(ApplyNonFunction,                                                         \
+    "Function.prototype.apply was called on %, which is a % and not a "       \
+    "function")                                                               \
   T(CalledNonCallable, "% is not a function")                                 \
+  T(CannotConvertToPrimitive, "Cannot convert object to primitive value")     \
   T(GeneratorRunning, "Generator is already running")                         \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %") \
+  T(InstanceofFunctionExpected,                                               \
+    "Expecting a function in instanceof check, but got %")                    \
+  T(InstanceofNonobjectProto,                                                 \
+    "Function has non-object prototype '%' in instanceof check")              \
+  T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")  \
+  T(NotConstructor, "% is not a constructor")                                 \
   T(PropertyNotFunction, "Property '%' of object % is not a function")        \
+  T(SymbolToPrimitive,                                                        \
+    "Cannot convert a Symbol wrapper object to a primitive value")            \
+  T(SymbolToNumber, "Cannot convert a Symbol value to a number")              \
+  T(SymbolToString, "Cannot convert a Symbol value to a string")              \
+  T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")    \
   T(WithExpression, "% has no properties")                                    \
+  T(WrongArgs, "%: Arguments list has wrong type")                            \
+  /* RangeError */                                                            \
+  T(StackOverflow, "Maximum call stack size exceeded")                        \
   /* EvalError */                                                             \
   T(CodeGenFromStrings, "%")
 

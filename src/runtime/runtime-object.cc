@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
 #include "src/debug.h"
+#include "src/messages.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -1208,9 +1209,8 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
                                        Handle<AllocationSite> site) {
   // If the constructor isn't a proper function we throw a type error.
   if (!constructor->IsJSFunction()) {
-    Vector<Handle<Object> > arguments = HandleVector(&constructor, 1);
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                   NewTypeError("not_constructor", arguments));
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
   }
 
   Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
@@ -1223,9 +1223,8 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
   // If function should not have prototype, construction is not allowed. In this
   // case generated code bailouts here, since function has no initial_map.
   if (!function->should_have_prototype() && !function->shared()->bound()) {
-    Vector<Handle<Object> > arguments = HandleVector(&constructor, 1);
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                   NewTypeError("not_constructor", arguments));
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
   }
 
   Debug* debug = isolate->debug();

@@ -24,9 +24,7 @@ var GlobalSymbol = global.Symbol;
 // -------------------------------------------------------------------
 
 function SymbolConstructor(x) {
-  if (%_IsConstructCall()) {
-    throw MakeTypeError('not_constructor', ["Symbol"]);
-  }
+  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Symbol");
   // NOTE: Passing in a Symbol value will throw on ToString().
   return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
 }

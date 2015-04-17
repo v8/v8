@@ -320,7 +320,7 @@ function DELETE(key, language_mode) {
 // ECMA-262, section 11.8.7, page 54.
 function IN(x) {
   if (!IS_SPEC_OBJECT(x)) {
-    throw %MakeTypeError('invalid_in_operator_use', [this, x]);
+    throw %MakeTypeError(kInvalidInOperatorUse, this, x);
   }
   if (%_IsNonNegativeSmi(this)) {
     if (IS_ARRAY(x) && %_HasFastPackedElements(x)) {
@@ -339,7 +339,7 @@ function IN(x) {
 function INSTANCE_OF(F) {
   var V = this;
   if (!IS_SPEC_FUNCTION(F)) {
-    throw %MakeTypeError('instanceof_function_expected', [F]);
+    throw %MakeTypeError(kInstanceofFunctionExpected, F);
   }
 
   // If V is not an object, return false.
@@ -356,7 +356,7 @@ function INSTANCE_OF(F) {
   // Get the prototype of F; if it is not an object, throw an error.
   var O = F.prototype;
   if (!IS_SPEC_OBJECT(O)) {
-    throw %MakeTypeError('instanceof_nonobject_proto', [O]);
+    throw %MakeTypeError(kInstanceofNonobjectProto, O);
   }
 
   // Return whether or not O is in the prototype chain of V.
@@ -429,18 +429,15 @@ function APPLY_PREPARE(args) {
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
   // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) {
-    throw %MakeRangeError('stack_overflow', []);
-  }
+  if (length > kSafeArgumentsLength) throw %MakeRangeError(kStackOverflow);
 
   if (!IS_SPEC_FUNCTION(this)) {
-    throw %MakeTypeError('apply_non_function',
-                         [ %ToString(this), typeof this ]);
+    throw %MakeTypeError(kApplyNonFunction, %ToString(this), typeof this);
   }
 
   // Make sure the arguments list has the right type.
   if (args != null && !IS_SPEC_OBJECT(args)) {
-    throw %MakeTypeError('apply_wrong_args', []);
+    throw %MakeTypeError(kWrongArgs, "Function.prototype.apply");
   }
 
   // Return the length which is the number of arguments to copy to the
@@ -467,7 +464,7 @@ function REFLECT_APPLY_PREPARE(args) {
   }
 
   if (!IS_SPEC_OBJECT(args)) {
-    throw %MakeTypeError('reflect_apply_wrong_args', [ ]);
+    throw %MakeTypeError(kWrongArgs, "Reflect.apply");
   }
 
   length = %ToLength(args.length);
@@ -475,9 +472,7 @@ function REFLECT_APPLY_PREPARE(args) {
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
   // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) {
-    throw %MakeRangeError('stack_overflow', []);
-  }
+  if (length > kSafeArgumentsLength) throw %MakeRangeError(kStackOverflow);
 
   // Return the length which is the number of arguments to copy to the
   // stack. It is guaranteed to be a small integer at this point.
@@ -505,7 +500,7 @@ function REFLECT_CONSTRUCT_PREPARE(args, newTarget) {
     if (!IS_SPEC_FUNCTION(this)) {
       throw %MakeTypeError(kCalledNonCallable, %ToString(this));
     } else {
-      throw %MakeTypeError('not_constructor', [ %ToString(this) ]);
+      throw %MakeTypeError(kNotConstructor, %ToString(this));
     }
   }
 
@@ -513,12 +508,12 @@ function REFLECT_CONSTRUCT_PREPARE(args, newTarget) {
     if (!IS_SPEC_FUNCTION(newTarget)) {
       throw %MakeTypeError(kCalledNonCallable, %ToString(newTarget));
     } else {
-      throw %MakeTypeError('not_constructor', [ %ToString(newTarget) ]);
+      throw %MakeTypeError(kNotConstructor, %ToString(newTarget));
     }
   }
 
   if (!IS_SPEC_OBJECT(args)) {
-    throw %MakeTypeError('reflect_construct_wrong_args', [ ]);
+    throw %MakeTypeError(kWrongArgs, "Reflect.construct");
   }
 
   length = %ToLength(args.length);
@@ -526,9 +521,7 @@ function REFLECT_CONSTRUCT_PREPARE(args, newTarget) {
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
   // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) {
-    throw %MakeRangeError('stack_overflow', []);
-  }
+  if (length > kSafeArgumentsLength) throw %MakeRangeError(kStackOverflow);
 
   // Return the length which is the number of arguments to copy to the
   // stack. It is guaranteed to be a small integer at this point.
@@ -537,7 +530,7 @@ function REFLECT_CONSTRUCT_PREPARE(args, newTarget) {
 
 
 function STACK_OVERFLOW(length) {
-  throw %MakeRangeError('stack_overflow', []);
+  throw %MakeRangeError(kStackOverflow);
 }
 
 
@@ -577,7 +570,7 @@ function ToPrimitive(x, hint) {
   if (IS_STRING(x)) return x;
   // Normal behavior.
   if (!IS_SPEC_OBJECT(x)) return x;
-  if (IS_SYMBOL_WRAPPER(x)) throw MakeTypeError('symbol_to_primitive', []);
+  if (IS_SYMBOL_WRAPPER(x)) throw MakeTypeError(kSymbolToPrimitive);
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
 }
@@ -602,7 +595,7 @@ function ToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return NAN;
-  if (IS_SYMBOL(x)) throw MakeTypeError('symbol_to_number', []);
+  if (IS_SYMBOL(x)) throw MakeTypeError(kSymbolToNumber);
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -613,7 +606,7 @@ function NonNumberToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return NAN;
-  if (IS_SYMBOL(x)) throw MakeTypeError('symbol_to_number', []);
+  if (IS_SYMBOL(x)) throw MakeTypeError(kSymbolToNumber);
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -624,7 +617,7 @@ function ToString(x) {
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
-  if (IS_SYMBOL(x)) throw %MakeTypeError('symbol_to_string', []);
+  if (IS_SYMBOL(x)) throw %MakeTypeError(kSymbolToString);
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
 }
 
@@ -632,7 +625,7 @@ function NonStringToString(x) {
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
-  if (IS_SYMBOL(x)) throw %MakeTypeError('symbol_to_string', []);
+  if (IS_SYMBOL(x)) throw %MakeTypeError(kSymbolToString);
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
 }
 
@@ -650,7 +643,7 @@ function ToObject(x) {
   if (IS_BOOLEAN(x)) return new $Boolean(x);
   if (IS_SYMBOL(x)) return %NewSymbolWrapper(x);
   if (IS_NULL_OR_UNDEFINED(x) && !IS_UNDETECTABLE(x)) {
-    throw %MakeTypeError('undefined_or_null_to_object', []);
+    throw %MakeTypeError(kUndefinedOrNullToObject);
   }
   return x;
 }
@@ -747,7 +740,7 @@ function DefaultNumber(x) {
       if (%IsPrimitive(s)) return s;
     }
   }
-  throw %MakeTypeError('cannot_convert_to_primitive', []);
+  throw %MakeTypeError(kCannotConvertToPrimitive);
 }
 
 // ECMA-262, section 8.6.2.6, page 28.
@@ -765,7 +758,7 @@ function DefaultString(x) {
       if (%IsPrimitive(v)) return v;
     }
   }
-  throw %MakeTypeError('cannot_convert_to_primitive', []);
+  throw %MakeTypeError(kCannotConvertToPrimitive);
 }
 
 function ToPositiveInteger(x, rangeErrorName) {
