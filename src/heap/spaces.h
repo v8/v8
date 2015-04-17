@@ -842,6 +842,15 @@ class Space : public Malloced {
   // (e.g. see LargeObjectSpace).
   virtual intptr_t SizeOfObjects() { return Size(); }
 
+  // Return the total amount of memory committed for new space.
+  virtual intptr_t CommittedMemory() = 0;
+
+  // Approximate amount of physical memory committed for this space.
+  virtual size_t CommittedPhysicalMemory() = 0;
+
+  // Return the available bytes without growing.
+  virtual intptr_t Available() = 0;
+
   virtual int RoundSizeDownToObjectAlignment(int size) {
     if (id_ == CODE_SPACE) {
       return RoundDown(size, kCodeAlignment);
@@ -1684,13 +1693,13 @@ class PagedSpace : public Space {
 
   // Total amount of memory committed for this space.  For paged
   // spaces this equals the capacity.
-  intptr_t CommittedMemory() { return Capacity(); }
+  intptr_t CommittedMemory() override { return Capacity(); }
 
   // The maximum amount of memory ever committed for this space.
   intptr_t MaximumCommittedMemory() { return accounting_stats_.MaxCapacity(); }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
   struct SizeStats {
     intptr_t Total() {
@@ -1725,17 +1734,17 @@ class PagedSpace : public Space {
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
   // immediately added to the free list so they show up here.
-  intptr_t Available() { return free_list_.available(); }
+  intptr_t Available() override { return free_list_.available(); }
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
   // concurrent sweeping are counted as being allocated!  The bytes in the
   // current linear allocation area (between top and limit) are also counted
   // here.
-  virtual intptr_t Size() { return accounting_stats_.Size(); }
+  intptr_t Size() override { return accounting_stats_.Size(); }
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
   // in the current linear allocation area are not included.
-  virtual intptr_t SizeOfObjects();
+  intptr_t SizeOfObjects() override;
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.  They do not include the
@@ -1804,7 +1813,7 @@ class PagedSpace : public Space {
 
 #ifdef DEBUG
   // Print meta info and objects in this space.
-  virtual void Print();
+  void Print() override;
 
   // Reports statistics for the space
   void ReportStatistics();
@@ -2129,11 +2138,25 @@ class SemiSpace : public Space {
   }
 
   // If we don't have these here then SemiSpace will be abstract.  However
-  // they should never be called.
-  virtual intptr_t Size() {
+  // they should never be called:
+
+  intptr_t Size() override {
     UNREACHABLE();
     return 0;
   }
+
+  intptr_t SizeOfObjects() override { return Size(); }
+
+  intptr_t CommittedMemory() override {
+    UNREACHABLE();
+    return 0;
+  }
+
+  intptr_t Available() override {
+    UNREACHABLE();
+    return 0;
+  }
+
 
   bool is_committed() { return committed_; }
   bool Commit();
@@ -2147,7 +2170,7 @@ class SemiSpace : public Space {
 #endif
 
 #ifdef DEBUG
-  virtual void Print();
+  void Print() override;
   // Validate a range of of addresses in a SemiSpace.
   // The "from" address must be on a page prior to the "to" address,
   // in the linked page order, or it must be earlier on the same page.
@@ -2177,7 +2200,7 @@ class SemiSpace : public Space {
   size_t MaximumCommittedMemory() { return maximum_committed_; }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
  private:
   // Flips the semispace between being from-space and to-space.
@@ -2356,7 +2379,7 @@ class NewSpace : public Space {
   }
 
   // Return the allocated bytes in the active semispace.
-  virtual intptr_t Size() {
+  intptr_t Size() override {
     return pages_used_ * NewSpacePage::kAreaSize +
            static_cast<int>(top() - to_space_.page_low());
   }
@@ -2381,7 +2404,7 @@ class NewSpace : public Space {
   }
 
   // Return the total amount of memory committed for new space.
-  intptr_t CommittedMemory() {
+  intptr_t CommittedMemory() override {
     if (from_space_.is_committed()) return 2 * Capacity();
     return TotalCapacity();
   }
@@ -2393,10 +2416,10 @@ class NewSpace : public Space {
   }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
   // Return the available bytes without growing.
-  intptr_t Available() { return Capacity() - Size(); }
+  intptr_t Available() override { return Capacity() - Size(); }
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
@@ -2513,7 +2536,7 @@ class NewSpace : public Space {
 
 #ifdef DEBUG
   // Print the active semispace.
-  virtual void Print() { to_space_.Print(); }
+  void Print() override { to_space_.Print(); }
 #endif
 
   // Iterates the active semispace to collect statistics.
@@ -2684,18 +2707,18 @@ class LargeObjectSpace : public Space {
   bool CanAllocateSize(int size) { return Size() + size <= max_capacity_; }
 
   // Available bytes for objects in this space.
-  inline intptr_t Available();
+  inline intptr_t Available() override;
 
-  virtual intptr_t Size() { return size_; }
+  intptr_t Size() override { return size_; }
 
-  virtual intptr_t SizeOfObjects() { return objects_size_; }
+  intptr_t SizeOfObjects() override { return objects_size_; }
 
   intptr_t MaximumCommittedMemory() { return maximum_committed_; }
 
-  intptr_t CommittedMemory() { return Size(); }
+  intptr_t CommittedMemory() override { return Size(); }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
   int PageCount() { return page_count_; }
 
@@ -2723,7 +2746,7 @@ class LargeObjectSpace : public Space {
 #endif
 
 #ifdef DEBUG
-  virtual void Print();
+  void Print() override;
   void ReportStatistics();
   void CollectCodeStatistics();
 #endif

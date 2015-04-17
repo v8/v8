@@ -30,6 +30,7 @@
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
+#include "src/heap/spaces.h"
 #include "src/heap-profiler.h"
 #include "src/heap-snapshot-generator-inl.h"
 #include "src/icu_util.h"
@@ -5463,6 +5464,13 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   heap_size_limit_(0) { }
 
 
+HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
+                                            space_size_(0),
+                                            space_used_size_(0),
+                                            space_available_size_(0),
+                                            physical_space_size_(0) { }
+
+
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
 }
@@ -6997,6 +7005,31 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
   heap_statistics->used_heap_size_ = heap->SizeOfObjects();
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
+}
+
+
+size_t Isolate::NumberOfHeapSpaces() {
+  return i::LAST_SPACE - i::FIRST_SPACE + 1;
+}
+
+
+bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
+                                     size_t index) {
+  if (!space_statistics)
+    return false;
+  if (index > i::LAST_SPACE || index < i::FIRST_SPACE)
+    return false;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  i::Space* space = heap->space(static_cast<int>(index));
+
+  space_statistics->space_name_ = heap->GetSpaceName(static_cast<int>(index));
+  space_statistics->space_size_ = space->CommittedMemory();
+  space_statistics->space_used_size_ = space->Size();
+  space_statistics->space_available_size_ = space->Available();
+  space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+  return true;
 }
 
 

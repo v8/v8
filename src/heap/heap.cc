@@ -452,6 +452,25 @@ intptr_t Heap::SizeOfObjects() {
 }
 
 
+const char* Heap::GetSpaceName(int idx) {
+  switch (idx) {
+    case NEW_SPACE:
+      return "new_space";
+    case OLD_SPACE:
+      return "old_space";
+    case MAP_SPACE:
+      return "map_space";
+    case CODE_SPACE:
+      return "code_space";
+    case LO_SPACE:
+      return "large_object_space";
+    default:
+      UNREACHABLE();
+  }
+  return nullptr;
+}
+
+
 void Heap::ClearAllICsByKind(Code::Kind kind) {
   HeapObjectIterator it(code_space());
 

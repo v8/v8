@@ -4901,6 +4901,26 @@ class V8_EXPORT HeapStatistics {
 };
 
 
+class HeapSpaceStatistics {
+ public:
+  HeapSpaceStatistics();
+  const char* space_name() { return space_name_; }
+  size_t space_size() { return space_size_; }
+  size_t space_used_size() { return space_used_size_; }
+  size_t space_available_size() { return space_available_size_; }
+  size_t physical_space_size() { return physical_space_size_; }
+
+ private:
+  const char* space_name_;
+  size_t space_size_;
+  size_t space_used_size_;
+  size_t space_available_size_;
+  size_t physical_space_size_;
+
+  friend class Isolate;
+};
+
+
 class RetainedObjectInfo;
 
 
@@ -5261,6 +5281,23 @@ class V8_EXPORT Isolate {
    * Get statistics about the heap memory usage.
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
+
+  /**
+   * Returns the number of spaces in the heap.
+   */
+  size_t NumberOfHeapSpaces();
+
+  /**
+   * Get the memory usage of a space in the heap.
+   *
+   * \param space_statistics The HeapSpaceStatistics object to fill in
+   *   statistics.
+   * \param index The index of the space to get statistics from, which ranges
+   *   from 0 to NumberOfHeapSpaces() - 1.
+   * \returns true on success.
+   */
+  bool GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
+                              size_t index);
 
   /**
    * Get a call stack sample from the isolate.
