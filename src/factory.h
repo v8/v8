@@ -537,20 +537,12 @@ class Factory FINAL {
   Handle<Object> NewError(const char* maker, const char* message,
                           Vector<Handle<Object> > args);
   Handle<Object> NewError(const char* message, Vector<Handle<Object> > args);
-  Handle<Object> NewError(const char* maker,
-                          MessageTemplate::Template template_index,
-                          Handle<Object> arg0, Handle<Object> arg1,
-                          Handle<Object> arg2);
 
   Handle<Object> NewError(Handle<String> message);
   Handle<Object> NewError(const char* constructor, Handle<String> message);
 
   Handle<Object> NewTypeError(const char* message,
                               Vector<Handle<Object> > args);
-  Handle<Object> NewTypeError(MessageTemplate::Template template_index,
-                              Handle<Object> arg0 = Handle<Object>(),
-                              Handle<Object> arg1 = Handle<Object>(),
-                              Handle<Object> arg2 = Handle<Object>());
   Handle<Object> NewTypeError(Handle<String> message);
 
   Handle<Object> NewRangeError(const char* message,
@@ -572,6 +564,26 @@ class Factory FINAL {
 
   Handle<Object> NewEvalError(const char* message,
                               Vector<Handle<Object> > args);
+
+  Handle<Object> NewError(const char* maker,
+                          MessageTemplate::Template template_index,
+                          Handle<Object> arg0, Handle<Object> arg1,
+                          Handle<Object> arg2);
+
+  Handle<Object> NewError(MessageTemplate::Template template_index,
+                          Handle<Object> arg0 = Handle<Object>(),
+                          Handle<Object> arg1 = Handle<Object>(),
+                          Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewTypeError(MessageTemplate::Template template_index,
+                              Handle<Object> arg0 = Handle<Object>(),
+                              Handle<Object> arg1 = Handle<Object>(),
+                              Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewEvalError(MessageTemplate::Template template_index,
+                              Handle<Object> arg0 = Handle<Object>(),
+                              Handle<Object> arg1 = Handle<Object>(),
+                              Handle<Object> arg2 = Handle<Object>());
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);

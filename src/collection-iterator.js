@@ -26,8 +26,8 @@ function SetIteratorConstructor(set, kind) {
 
 function SetIteratorNextJS() {
   if (!IS_SET_ITERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set Iterator.prototype.next', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set Iterator.prototype.next', this);
   }
 
   var value_array = [UNDEFINED, UNDEFINED];
@@ -56,8 +56,8 @@ function SetIteratorSymbolIterator() {
 
 function SetEntries() {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.entries', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set.prototype.entries', this);
   }
   return new SetIterator(this, ITERATOR_KIND_ENTRIES);
 }
@@ -65,8 +65,8 @@ function SetEntries() {
 
 function SetValues() {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.values', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set.prototype.values', this);
   }
   return new SetIterator(this, ITERATOR_KIND_VALUES);
 }
@@ -111,8 +111,8 @@ function MapIteratorSymbolIterator() {
 
 function MapIteratorNextJS() {
   if (!IS_MAP_ITERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map Iterator.prototype.next', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map Iterator.prototype.next', this);
   }
 
   var value_array = [UNDEFINED, UNDEFINED];
@@ -137,8 +137,8 @@ function MapIteratorNextJS() {
 
 function MapEntries() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.entries', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.entries', this);
   }
   return new MapIterator(this, ITERATOR_KIND_ENTRIES);
 }
@@ -146,8 +146,8 @@ function MapEntries() {
 
 function MapKeys() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.keys', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.keys', this);
   }
   return new MapIterator(this, ITERATOR_KIND_KEYS);
 }
@@ -155,8 +155,8 @@ function MapKeys() {
 
 function MapValues() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.values', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.values', this);
   }
   return new MapIterator(this, ITERATOR_KIND_VALUES);
 }

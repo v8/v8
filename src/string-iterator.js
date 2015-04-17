@@ -42,8 +42,8 @@ function StringIteratorNext() {
   var iterator = ToObject(this);
 
   if (!HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['String Iterator.prototype.next']);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'String Iterator.prototype.next');
   }
 
   var s = GET_PRIVATE(iterator, stringIteratorIteratedStringSymbol);

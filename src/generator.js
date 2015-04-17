@@ -16,8 +16,8 @@
 
 function GeneratorObjectNext(value) {
   if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.next', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        '[Generator].prototype.next', this);
   }
 
   var continuation = %GeneratorGetContinuation(this);
@@ -35,14 +35,14 @@ function GeneratorObjectNext(value) {
     return { value: void 0, done: true };
   } else {
     // Generator is running.
-    throw MakeTypeError('generator_running', []);
+    throw MakeTypeError(kGeneratorRunning);
   }
 }
 
 function GeneratorObjectThrow(exn) {
   if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.throw', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        '[Generator].prototype.throw', this);
   }
 
   var continuation = %GeneratorGetContinuation(this);
@@ -59,7 +59,7 @@ function GeneratorObjectThrow(exn) {
     throw exn;
   } else {
     // Generator is running.
-    throw MakeTypeError('generator_running', []);
+    throw MakeTypeError(kGeneratorRunning);
   }
 }
 

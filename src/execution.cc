@@ -8,6 +8,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/isolate-inl.h"
+#include "src/messages.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -279,8 +280,8 @@ MaybeHandle<Object> Execution::TryGetFunctionDelegate(Isolate* isolate,
 
   // If the Object doesn't have an instance-call handler we should
   // throw a non-callable exception.
-  THROW_NEW_ERROR(isolate, NewTypeError("called_non_callable",
-                                        i::HandleVector<i::Object>(&object, 1)),
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kCalledNonCallable, object),
                   Object);
 }
 
@@ -335,8 +336,8 @@ MaybeHandle<Object> Execution::TryGetConstructorDelegate(
 
   // If the Object doesn't have an instance-call handler we should
   // throw a non-callable exception.
-  THROW_NEW_ERROR(isolate, NewTypeError("called_non_callable",
-                                        i::HandleVector<i::Object>(&object, 1)),
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kCalledNonCallable, object),
                   Object);
 }
 
