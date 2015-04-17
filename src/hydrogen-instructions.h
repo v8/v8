@@ -2576,7 +2576,9 @@ class HUnaryMathOperation FINAL : public HTemplateInstruction<2> {
   // Math.round.
   bool SupportsFlexibleFloorAndRound() const {
 #ifdef V8_TARGET_ARCH_ARM64
-    return true;
+    // TODO(rmcilroy): Re-enable this for Arm64 once http://crbug.com/476477 is
+    // fixed.
+    return false;
 #else
     return false;
 #endif
