@@ -129,6 +129,15 @@ class JSONGraphNodeWriter {
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
                                                                : "false");
+    if (NodeProperties::IsTyped(node)) {
+      Bounds bounds = NodeProperties::GetBounds(node);
+      std::ostringstream upper;
+      bounds.upper->PrintTo(upper);
+      std::ostringstream lower;
+      bounds.lower->PrintTo(lower);
+      os_ << ",\"upper_type\":\"" << Escaped(upper, "\"") << "\"";
+      os_ << ",\"lower_type\":\"" << Escaped(lower, "\"") << "\"";
+    }
     os_ << "}";
   }
 
