@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $jsonSerializeAdapter;
+
+(function() {
+
 "use strict";
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Array = global.Array;
-// var $String = global.String;
+%CheckIsBootstrapping();
 
-var $JSON = global.JSON;
+var GlobalJSON = global.JSON;
 
 // -------------------------------------------------------------------
 
@@ -19,7 +20,7 @@ function Revive(holder, name, reviver) {
     if (IS_ARRAY(val)) {
       var length = val.length;
       for (var i = 0; i < length; i++) {
-        var newElement = Revive(val, $String(i), reviver);
+        var newElement = Revive(val, %_NumberToString(i), reviver);
         val[i] = newElement;
       }
     } else {
@@ -38,6 +39,7 @@ function Revive(holder, name, reviver) {
   return %_CallFunction(holder, name, val, reviver);
 }
 
+
 function JSONParse(text, reviver) {
   var unfiltered = %ParseJson(TO_STRING_INLINE(text));
   if (IS_SPEC_FUNCTION(reviver)) {
@@ -46,6 +48,7 @@ function JSONParse(text, reviver) {
     return unfiltered;
   }
 }
+
 
 function SerializeArray(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
@@ -56,7 +59,7 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   var partial = new InternalArray();
   var len = value.length;
   for (var i = 0; i < len; i++) {
-    var strP = JSONSerialize($String(i), value, replacer, stack,
+    var strP = JSONSerialize(%_NumberToString(i), value, replacer, stack,
                              indent, gap);
     if (IS_UNDEFINED(strP)) {
       strP = "null";
@@ -76,6 +79,7 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   stack.pop();
   return final;
 }
+
 
 function SerializeObject(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
@@ -124,6 +128,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   stack.pop();
   return final;
 }
+
 
 function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
@@ -214,30 +219,24 @@ function JSONStringify(value, replacer, space) {
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 
-
 // -------------------------------------------------------------------
 
-function SetUpJSON() {
-  %CheckIsBootstrapping();
+%AddNamedProperty(GlobalJSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
 
-  %AddNamedProperty($JSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
-
-  // Set up non-enumerable properties of the JSON object.
-  InstallFunctions($JSON, DONT_ENUM, [
-    "parse", JSONParse,
-    "stringify", JSONStringify
-  ]);
-}
-
-SetUpJSON();
-
+// Set up non-enumerable properties of the JSON object.
+InstallFunctions(GlobalJSON, DONT_ENUM, [
+  "parse", JSONParse,
+  "stringify", JSONStringify
+]);
 
 // -------------------------------------------------------------------
 // JSON Builtins
 
-function JSONSerializeAdapter(key, object) {
+$jsonSerializeAdapter = function(key, object) {
   var holder = {};
   holder[key] = object;
   // No need to pass the actual holder since there is no replacer function.
   return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
+
+})();
