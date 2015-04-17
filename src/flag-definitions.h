@@ -678,11 +678,13 @@ DEFINE_INT(random_seed, 0,
            "(0, the default, means to use system random).")
 
 // objects.cc
-DEFINE_BOOL(trace_weak_arrays, false, "trace WeakFixedArray usage")
+DEFINE_BOOL(trace_weak_arrays, false, "Trace WeakFixedArray usage")
 DEFINE_BOOL(track_prototype_users, false,
-            "keep track of which maps refer to a given prototype object")
+            "Keep track of which maps refer to a given prototype object")
+DEFINE_BOOL(trace_prototype_users, false,
+            "Trace updates to prototype user tracking")
 DEFINE_BOOL(eliminate_prototype_chain_checks, true,
-            "collapse prototype chain checks into single-cell checks")
+            "Collapse prototype chain checks into single-cell checks")
 DEFINE_IMPLICATION(eliminate_prototype_chain_checks, track_prototype_users)
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")
 #if TRACE_MAPS

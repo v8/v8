@@ -1940,6 +1940,12 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     DCHECK(object->map() == *new_map);
     new_map->set_prototype_info(old_map->prototype_info());
     old_map->set_prototype_info(Smi::FromInt(0));
+    if (FLAG_trace_prototype_users) {
+      PrintF("Moving prototype_info %p from map %p to map %p.\n",
+             reinterpret_cast<void*>(new_map->prototype_info()),
+             reinterpret_cast<void*>(*old_map),
+             reinterpret_cast<void*>(*new_map));
+    }
   }
 }
 
@@ -4721,6 +4727,12 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     DCHECK(new_map->is_prototype_map());
     new_map->set_prototype_info(object->map()->prototype_info());
     object->map()->set_prototype_info(Smi::FromInt(0));
+    if (FLAG_trace_prototype_users) {
+      PrintF("Moving prototype_info %p from map %p to map %p.\n",
+             reinterpret_cast<void*>(new_map->prototype_info()),
+             reinterpret_cast<void*>(object->map()),
+             reinterpret_cast<void*>(*new_map));
+    }
   }
 
 #if TRACE_MAPS
@@ -6892,7 +6904,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
   Isolate* isolate = fast_map->GetIsolate();
   Handle<Object> maybe_cache(isolate->native_context()->normalized_map_cache(),
                              isolate);
-  bool use_cache = !maybe_cache->IsUndefined();
+  bool use_cache = !fast_map->is_prototype_map() && !maybe_cache->IsUndefined();
   Handle<NormalizedMapCache> cache;
   if (use_cache) cache = Handle<NormalizedMapCache>::cast(maybe_cache);
 
@@ -10053,6 +10065,10 @@ void JSObject::RegisterPrototypeUser(Handle<JSObject> prototype,
   if (!maybe_registry.is_identical_to(new_array)) {
     proto_info->set_prototype_users(*new_array);
   }
+  if (FLAG_trace_prototype_users) {
+    PrintF("Registering %p as a user of prototype %p.\n",
+           reinterpret_cast<void*>(*user), reinterpret_cast<void*>(*prototype));
+  }
 }
 
 
@@ -10072,6 +10088,10 @@ void JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
   Object* maybe_registry = proto_info->prototype_users();
   if (!maybe_registry->IsWeakFixedArray()) return;
   WeakFixedArray::cast(maybe_registry)->Remove(user);
+  if (FLAG_trace_prototype_users) {
+    PrintF("Unregistering %p as a user of prototype %p.\n",
+           reinterpret_cast<void*>(*user), reinterpret_cast<void*>(*prototype));
+  }
 }
 
 
@@ -10126,7 +10146,7 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
   Handle<PrototypeInfo> proto_info(
-      PrototypeInfo::cast(prototype->map()->prototype_info()));
+      PrototypeInfo::cast(prototype->map()->prototype_info()), isolate);
   Object* maybe_cell = proto_info->validity_cell();
   // Return existing cell if it's still valid.
   if (maybe_cell->IsCell()) {
