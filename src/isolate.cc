@@ -285,7 +285,7 @@ void Isolate::PushStackTraceAndDie(unsigned int magic,
                                    Object* object,
                                    Map* map,
                                    unsigned int magic2) {
-  const int kMaxStackTraceSize = 8192;
+  const int kMaxStackTraceSize = 32 * KB;
   Handle<String> trace = StackTraceString();
   uint8_t buffer[kMaxStackTraceSize];
   int length = Min(kMaxStackTraceSize - 1, trace->length());
