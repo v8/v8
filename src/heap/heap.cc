@@ -101,6 +101,8 @@ Heap::Heap()
       allocation_timeout_(0),
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
+      idle_old_generation_allocation_limit_(
+          kMinimumOldGenerationAllocationLimit),
       old_gen_exhausted_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
