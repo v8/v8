@@ -6307,10 +6307,9 @@ void Heap::ClearObjectStats(bool clear_last_time_stats) {
 static base::LazyMutex object_stats_mutex = LAZY_MUTEX_INITIALIZER;
 
 
-static void TraceObjectStat(const char* name, int count, int size) {
-  if (size > 0) {
-    PrintF("%40s\tcount= %6d\t size= %6d kb\n", name, count, size);
-  }
+void Heap::TraceObjectStat(const char* name, int count, int size, double time) {
+  PrintPID("heap:%p, time:%f, gc:%d, type:%s, count:%d, size:%d\n",
+           static_cast<void*>(this), time, ms_count_, name, count, size);
 }
 
 
@@ -6320,25 +6319,26 @@ void Heap::TraceObjectStats() {
   int count;
   int size;
   int total_size = 0;
+  double time = isolate_->time_millis_since_init();
 #define TRACE_OBJECT_COUNT(name)                     \
   count = static_cast<int>(object_counts_[name]);    \
   size = static_cast<int>(object_sizes_[name]) / KB; \
   total_size += size;                                \
-  TraceObjectStat(#name, count, size);
+  TraceObjectStat(#name, count, size, time);
   INSTANCE_TYPE_LIST(TRACE_OBJECT_COUNT)
 #undef TRACE_OBJECT_COUNT
 #define TRACE_OBJECT_COUNT(name)                      \
   index = FIRST_CODE_KIND_SUB_TYPE + Code::name;      \
   count = static_cast<int>(object_counts_[index]);    \
   size = static_cast<int>(object_sizes_[index]) / KB; \
-  TraceObjectStat("CODE_" #name, count, size);
+  TraceObjectStat("*CODE_" #name, count, size, time);
   CODE_KIND_LIST(TRACE_OBJECT_COUNT)
 #undef TRACE_OBJECT_COUNT
 #define TRACE_OBJECT_COUNT(name)                      \
   index = FIRST_FIXED_ARRAY_SUB_TYPE + name;          \
   count = static_cast<int>(object_counts_[index]);    \
   size = static_cast<int>(object_sizes_[index]) / KB; \
-  TraceObjectStat("FIXED_ARRAY_" #name, count, size);
+  TraceObjectStat("*FIXED_ARRAY_" #name, count, size, time);
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(TRACE_OBJECT_COUNT)
 #undef TRACE_OBJECT_COUNT
 #define TRACE_OBJECT_COUNT(name)                                              \
@@ -6346,10 +6346,9 @@ void Heap::TraceObjectStats() {
       FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
   count = static_cast<int>(object_counts_[index]);                            \
   size = static_cast<int>(object_sizes_[index]) / KB;                         \
-  TraceObjectStat("CODE_AGE_" #name, count, size);
+  TraceObjectStat("*CODE_AGE_" #name, count, size, time);
   CODE_AGE_LIST_COMPLETE(TRACE_OBJECT_COUNT)
 #undef TRACE_OBJECT_COUNT
-  PrintF("Total size= %d kb\n", total_size);
 }
 
 

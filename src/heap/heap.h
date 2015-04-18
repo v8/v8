@@ -1454,6 +1454,7 @@ class Heap {
   }
 
   void TraceObjectStats();
+  void TraceObjectStat(const char* name, int count, int size, double time);
   void CheckpointObjectStats();
 
   // We don't use a LockGuard here since we want to lock the heap
