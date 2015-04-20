@@ -1246,10 +1246,10 @@ Serializer::~Serializer() {
 
 
 #ifdef OBJECT_PRINT
-void Serializer::CountInstanceType(HeapObject* obj) {
-  int instance_type = obj->map()->instance_type();
+void Serializer::CountInstanceType(Map* map, int size) {
+  int instance_type = map->instance_type();
   instance_type_count_[instance_type]++;
-  instance_type_size_[instance_type] += obj->Size();
+  instance_type_size_[instance_type] += size;
 }
 #endif  // OBJECT_PRINT
 
@@ -1696,7 +1696,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
 
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
-    serializer_->CountInstanceType(object_);
+    serializer_->CountInstanceType(map, size);
   }
 #endif  // OBJECT_PRINT
 

@@ -618,7 +618,7 @@ class Serializer : public SerializerDeserializer {
   RootIndexMap* root_index_map() { return &root_index_map_; }
 
 #ifdef OBJECT_PRINT
-  void CountInstanceType(HeapObject* obj);
+  void CountInstanceType(Map* map, int size);
 #endif  // OBJECT_PRINT
 
  protected:
