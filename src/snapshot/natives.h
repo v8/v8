@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+#ifndef V8_SNAPSHOT_NATIVES_H_
+#define V8_SNAPSHOT_NATIVES_H_
 
 #include "src/vector.h"
 
@@ -46,4 +46,4 @@ void DisposeNatives();
 
 } }  // namespace v8::internal
 
-#endif  // V8_NATIVES_H_
+#endif  // V8_SNAPSHOT_NATIVES_H_

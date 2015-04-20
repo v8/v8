@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SERIALIZE_H_
-#define V8_SERIALIZE_H_
+#ifndef V8_SNAPSHOT_SERIALIZE_H_
+#define V8_SNAPSHOT_SERIALIZE_H_
 
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
@@ -1001,4 +1001,4 @@ class SerializedCodeData : public SerializedData {
 };
 } }  // namespace v8::internal
 
-#endif  // V8_SERIALIZE_H_
+#endif  // V8_SNAPSHOT_SERIALIZE_H_
