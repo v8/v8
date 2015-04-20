@@ -797,7 +797,8 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL) &&
+    if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL,
+                        v8::kGCCallbackFlagForced) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
