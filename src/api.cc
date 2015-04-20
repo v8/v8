@@ -2674,11 +2674,11 @@ bool Value::IsTypedArray() const {
 }
 
 
-#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)            \
-  bool Value::Is##Type##Array() const {                                    \
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);                    \
-    return obj->IsJSTypedArray() &&                                        \
-           i::JSTypedArray::cast(*obj)->type() == kExternal##Type##Array;  \
+#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)              \
+  bool Value::Is##Type##Array() const {                                      \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);                      \
+    return obj->IsJSTypedArray() &&                                          \
+           i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array; \
   }
 
 TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
@@ -3092,11 +3092,10 @@ void v8::TypedArray::CheckCast(Value* that) {
 #define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype, size)             \
   void v8::Type##Array::CheckCast(Value* that) {                              \
     i::Handle<i::Object> obj = Utils::OpenHandle(that);                       \
-    Utils::ApiCheck(obj->IsJSTypedArray() &&                                  \
-                    i::JSTypedArray::cast(*obj)->type() ==                    \
-                        kExternal##Type##Array,                               \
-                    "v8::" #Type "Array::Cast()",                             \
-                    "Could not convert to " #Type "Array");                   \
+    Utils::ApiCheck(                                                          \
+        obj->IsJSTypedArray() &&                                              \
+            i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array, \
+        "v8::" #Type "Array::Cast()", "Could not convert to " #Type "Array"); \
   }
 
 
@@ -4196,147 +4195,6 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
       isolate->factory()->InternalizeString(key_obj);
   i::JSObject::DeleteHiddenProperty(self, key_string);
   return true;
-}
-
-
-namespace {
-
-static i::ElementsKind GetElementsKindFromExternalArrayType(
-    ExternalArrayType array_type) {
-  switch (array_type) {
-#define ARRAY_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype, size)            \
-    case kExternal##Type##Array:                                              \
-      return i::EXTERNAL_##TYPE##_ELEMENTS;
-
-    TYPED_ARRAYS(ARRAY_TYPE_TO_ELEMENTS_KIND)
-#undef ARRAY_TYPE_TO_ELEMENTS_KIND
-  }
-  UNREACHABLE();
-  return i::DICTIONARY_ELEMENTS;
-}
-
-
-void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
-                                  void* data,
-                                  ExternalArrayType array_type,
-                                  int length) {
-  i::Isolate* isolate = object->GetIsolate();
-  i::Handle<i::ExternalArray> array =
-      isolate->factory()->NewExternalArray(length, array_type, data);
-
-  i::Handle<i::Map> external_array_map =
-      i::JSObject::GetElementsTransitionMap(
-          object,
-          GetElementsKindFromExternalArrayType(array_type));
-
-  i::JSObject::SetMapAndElements(object, external_array_map, array);
-}
-
-}  // namespace
-
-
-void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  if (!Utils::ApiCheck(length >= 0 &&
-                       length <= i::ExternalUint8ClampedArray::kMaxLength,
-                       "v8::Object::SetIndexedPropertiesToPixelData()",
-                       "length exceeds max acceptable value")) {
-    return;
-  }
-  if (!Utils::ApiCheck(!self->IsJSArray(),
-                       "v8::Object::SetIndexedPropertiesToPixelData()",
-                       "JSArray is not supported")) {
-    return;
-  }
-  PrepareExternalArrayElements(self, data, kExternalUint8ClampedArray, length);
-}
-
-
-bool v8::Object::HasIndexedPropertiesInPixelData() {
-  auto self = Utils::OpenHandle(this);
-  return self->HasExternalUint8ClampedElements();
-}
-
-
-uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalUint8ClampedElements()) {
-    return i::ExternalUint8ClampedArray::cast(self->elements())->
-        external_uint8_clamped_pointer();
-  }
-  return nullptr;
-}
-
-
-int v8::Object::GetIndexedPropertiesPixelDataLength() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalUint8ClampedElements()) {
-    return i::ExternalUint8ClampedArray::cast(self->elements())->length();
-  }
-  return -1;
-}
-
-
-void v8::Object::SetIndexedPropertiesToExternalArrayData(
-    void* data,
-    ExternalArrayType array_type,
-    int length) {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  if (!Utils::ApiCheck(length >= 0 && length <= i::ExternalArray::kMaxLength,
-                       "v8::Object::SetIndexedPropertiesToExternalArrayData()",
-                       "length exceeds max acceptable value")) {
-    return;
-  }
-  if (!Utils::ApiCheck(!self->IsJSArray(),
-                       "v8::Object::SetIndexedPropertiesToExternalArrayData()",
-                       "JSArray is not supported")) {
-    return;
-  }
-  PrepareExternalArrayElements(self, data, array_type, length);
-}
-
-
-bool v8::Object::HasIndexedPropertiesInExternalArrayData() {
-  auto self = Utils::OpenHandle(this);
-  return self->HasExternalArrayElements();
-}
-
-
-void* v8::Object::GetIndexedPropertiesExternalArrayData() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalArrayElements()) {
-    return i::ExternalArray::cast(self->elements())->external_pointer();
-  }
-  return nullptr;
-}
-
-
-ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
-  auto self = Utils::OpenHandle(this);
-  switch (self->elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
-    case i::EXTERNAL_##TYPE##_ARRAY_TYPE:                                     \
-      return kExternal##Type##Array;
-    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
-#undef INSTANCE_TYPE_TO_ARRAY_TYPE
-    default:
-      return static_cast<ExternalArrayType>(-1);
-  }
-}
-
-
-int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalArrayElements()) {
-    return i::ExternalArray::cast(self->elements())->length();
-  }
-  return -1;
 }
 
 
@@ -6522,7 +6380,7 @@ size_t v8::TypedArray::Length() {
     }                                                                        \
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);   \
     i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(    \
-        v8::kExternal##Type##Array, buffer, byte_offset, length);            \
+        i::kExternal##Type##Array, buffer, byte_offset, length);             \
     return Utils::ToLocal##Type##Array(obj);                                 \
   }
 

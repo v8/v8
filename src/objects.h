@@ -186,6 +186,19 @@ enum MutableMode {
 };
 
 
+enum ExternalArrayType {
+  kExternalInt8Array = 1,
+  kExternalUint8Array,
+  kExternalInt16Array,
+  kExternalUint16Array,
+  kExternalInt32Array,
+  kExternalUint32Array,
+  kExternalFloat32Array,
+  kExternalFloat64Array,
+  kExternalUint8ClampedArray,
+};
+
+
 static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
     STANDARD_STORE;
 STATIC_ASSERT(STANDARD_STORE == 0);

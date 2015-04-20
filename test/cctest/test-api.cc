@@ -13507,491 +13507,12 @@ static void CheckElementValue(i::Isolate* isolate,
 }
 
 
-THREADED_TEST(PixelArray) {
-  LocalContext context;
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  const int kElementCount = 260;
-  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::ExternalUint8ClampedArray> pixels =
-      i::Handle<i::ExternalUint8ClampedArray>::cast(
-          factory->NewExternalArray(kElementCount,
-                                    v8::kExternalUint8ClampedArray,
-                                    pixel_data));
-  // Force GC to trigger verification.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < kElementCount; i++) {
-    pixels->set(i, i % 256);
-  }
-  // Force GC to trigger verification.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(i % 256, pixels->get_scalar(i));
-    CHECK_EQ(i % 256, pixel_data[i]);
-  }
-
-  v8::Handle<v8::Object> obj = v8::Object::New(context->GetIsolate());
-  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
-  // Set the elements to be the pixels.
-  // jsobj->set_elements(*pixels);
-  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
-  CheckElementValue(isolate, 1, jsobj, 1);
-  obj->Set(v8_str("field"), v8::Int32::New(CcTest::isolate(), 1503));
-  context->Global()->Set(v8_str("pixels"), obj);
-  v8::Handle<v8::Value> result = CompileRun("pixels.field");
-  CHECK_EQ(1503, result->Int32Value());
-  result = CompileRun("pixels[1]");
-  CHECK_EQ(1, result->Int32Value());
-
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i] = pixels[i] = -i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(-28, result->Int32Value());
-
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i] = pixels[i] = 0;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(0, result->Int32Value());
-
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i] = pixels[i] = 255;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(8 * 255, result->Int32Value());
-
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i] = pixels[i] = 256 + i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(2076, result->Int32Value());
-
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i] = pixels[i] = i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(28, result->Int32Value());
-
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i];"
-                      "}"
-                      "sum;");
-  CHECK_EQ(28, result->Int32Value());
-
-  i::Handle<i::Smi> value(i::Smi::FromInt(2),
-                          reinterpret_cast<i::Isolate*>(context->GetIsolate()));
-  i::Handle<i::Object> no_failure;
-  no_failure = i::JSObject::SetElement(
-      jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
-  DCHECK(!no_failure.is_null());
-  USE(no_failure);
-  CheckElementValue(isolate, 2, jsobj, 1);
-  *value.location() = i::Smi::FromInt(256);
-  no_failure = i::JSObject::SetElement(
-      jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
-  DCHECK(!no_failure.is_null());
-  USE(no_failure);
-  CheckElementValue(isolate, 255, jsobj, 1);
-  *value.location() = i::Smi::FromInt(-1);
-  no_failure = i::JSObject::SetElement(
-      jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
-  DCHECK(!no_failure.is_null());
-  USE(no_failure);
-  CheckElementValue(isolate, 0, jsobj, 1);
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[i] = (i * 65) - 109;"
-                      "}"
-                      "pixels[1] + pixels[6];");
-  CHECK_EQ(255, result->Int32Value());
-  CheckElementValue(isolate, 0, jsobj, 0);
-  CheckElementValue(isolate, 0, jsobj, 1);
-  CheckElementValue(isolate, 21, jsobj, 2);
-  CheckElementValue(isolate, 86, jsobj, 3);
-  CheckElementValue(isolate, 151, jsobj, 4);
-  CheckElementValue(isolate, 216, jsobj, 5);
-  CheckElementValue(isolate, 255, jsobj, 6);
-  CheckElementValue(isolate, 255, jsobj, 7);
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i];"
-                      "}"
-                      "sum;");
-  CHECK_EQ(984, result->Int32Value());
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[i] = (i * 1.1);"
-                      "}"
-                      "pixels[1] + pixels[6];");
-  CHECK_EQ(8, result->Int32Value());
-  CheckElementValue(isolate, 0, jsobj, 0);
-  CheckElementValue(isolate, 1, jsobj, 1);
-  CheckElementValue(isolate, 2, jsobj, 2);
-  CheckElementValue(isolate, 3, jsobj, 3);
-  CheckElementValue(isolate, 4, jsobj, 4);
-  CheckElementValue(isolate, 6, jsobj, 5);
-  CheckElementValue(isolate, 7, jsobj, 6);
-  CheckElementValue(isolate, 8, jsobj, 7);
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[7] = undefined;"
-                      "}"
-                      "pixels[7];");
-  CHECK_EQ(0, result->Int32Value());
-  CheckElementValue(isolate, 0, jsobj, 7);
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[6] = '2.3';"
-                      "}"
-                      "pixels[6];");
-  CHECK_EQ(2, result->Int32Value());
-  CheckElementValue(isolate, 2, jsobj, 6);
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[5] = NaN;"
-                      "}"
-                      "pixels[5];");
-  CHECK_EQ(0, result->Int32Value());
-  CheckElementValue(isolate, 0, jsobj, 5);
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[8] = Infinity;"
-                      "}"
-                      "pixels[8];");
-  CHECK_EQ(255, result->Int32Value());
-  CheckElementValue(isolate, 255, jsobj, 8);
-
-  result = CompileRun("for (var i = 0; i < 8; i++) {"
-                      "  pixels[9] = -Infinity;"
-                      "}"
-                      "pixels[9];");
-  CHECK_EQ(0, result->Int32Value());
-  CheckElementValue(isolate, 0, jsobj, 9);
-
-  result = CompileRun("pixels[3] = 33;"
-                      "delete pixels[3];"
-                      "pixels[3];");
-  CHECK_EQ(33, result->Int32Value());
-
-  result = CompileRun("pixels[0] = 10; pixels[1] = 11;"
-                      "pixels[2] = 12; pixels[3] = 13;"
-                      "pixels.__defineGetter__('2',"
-                      "function() { return 120; });"
-                      "pixels[2];");
-  CHECK_EQ(12, result->Int32Value());
-
-  result = CompileRun("var js_array = new Array(40);"
-                      "js_array[0] = 77;"
-                      "js_array;");
-  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
-
-  result = CompileRun("pixels[1] = 23;"
-                      "pixels.__proto__ = [];"
-                      "js_array.__proto__ = pixels;"
-                      "js_array.concat(pixels);");
-  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
-  CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
-
-  result = CompileRun("pixels[1] = 23;");
-  CHECK_EQ(23, result->Int32Value());
-
-  // Test for index greater than 255.  Regression test for:
-  // http://code.google.com/p/chromium/issues/detail?id=26337.
-  result = CompileRun("pixels[256] = 255;");
-  CHECK_EQ(255, result->Int32Value());
-  result = CompileRun("var i = 0;"
-                      "for (var j = 0; j < 8; j++) { i = pixels[256]; }"
-                      "i");
-  CHECK_EQ(255, result->Int32Value());
-
-  // Make sure that pixel array ICs recognize when a non-pixel array
-  // is passed to it.
-  result = CompileRun("function pa_load(p) {"
-                      "  var sum = 0;"
-                      "  for (var j = 0; j < 256; j++) { sum += p[j]; }"
-                      "  return sum;"
-                      "}"
-                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(pixels); }"
-                      "just_ints = new Object();"
-                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
-                      "for (var i = 0; i < 10; ++i) {"
-                      "  result = pa_load(just_ints);"
-                      "}"
-                      "result");
-  CHECK_EQ(32640, result->Int32Value());
-
-  // Make sure that pixel array ICs recognize out-of-bound accesses.
-  result = CompileRun("function pa_load(p, start) {"
-                      "  var sum = 0;"
-                      "  for (var j = start; j < 256; j++) { sum += p[j]; }"
-                      "  return sum;"
-                      "}"
-                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(pixels,0); }"
-                      "for (var i = 0; i < 10; ++i) {"
-                      "  result = pa_load(pixels,-10);"
-                      "}"
-                      "result");
-  CHECK_EQ(0, result->Int32Value());
-
-  // Make sure that generic ICs properly handles a pixel array.
-  result = CompileRun("function pa_load(p) {"
-                      "  var sum = 0;"
-                      "  for (var j = 0; j < 256; j++) { sum += p[j]; }"
-                      "  return sum;"
-                      "}"
-                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "just_ints = new Object();"
-                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(just_ints); }"
-                      "for (var i = 0; i < 10; ++i) {"
-                      "  result = pa_load(pixels);"
-                      "}"
-                      "result");
-  CHECK_EQ(32640, result->Int32Value());
-
-  // Make sure that generic load ICs recognize out-of-bound accesses in
-  // pixel arrays.
-  result = CompileRun("function pa_load(p, start) {"
-                      "  var sum = 0;"
-                      "  for (var j = start; j < 256; j++) { sum += p[j]; }"
-                      "  return sum;"
-                      "}"
-                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "just_ints = new Object();"
-                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(just_ints,0); }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(pixels,0); }"
-                      "for (var i = 0; i < 10; ++i) {"
-                      "  result = pa_load(pixels,-10);"
-                      "}"
-                      "result");
-  CHECK_EQ(0, result->Int32Value());
-
-  // Make sure that generic ICs properly handles other types than pixel
-  // arrays (that the inlined fast pixel array test leaves the right information
-  // in the right registers).
-  result = CompileRun("function pa_load(p) {"
-                      "  var sum = 0;"
-                      "  for (var j = 0; j < 256; j++) { sum += p[j]; }"
-                      "  return sum;"
-                      "}"
-                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "just_ints = new Object();"
-                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(just_ints); }"
-                      "for (var i = 0; i < 10; ++i) { pa_load(pixels); }"
-                      "sparse_array = new Object();"
-                      "for (var i = 0; i < 256; ++i) { sparse_array[i] = i; }"
-                      "sparse_array[1000000] = 3;"
-                      "for (var i = 0; i < 10; ++i) {"
-                      "  result = pa_load(sparse_array);"
-                      "}"
-                      "result");
-  CHECK_EQ(32640, result->Int32Value());
-
-  // Make sure that pixel array store ICs clamp values correctly.
-  result = CompileRun("function pa_store(p) {"
-                      "  for (var j = 0; j < 256; j++) { p[j] = j * 2; }"
-                      "}"
-                      "pa_store(pixels);"
-                      "var sum = 0;"
-                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
-                      "sum");
-  CHECK_EQ(48896, result->Int32Value());
-
-  // Make sure that pixel array stores correctly handle accesses outside
-  // of the pixel array..
-  result = CompileRun("function pa_store(p,start) {"
-                      "  for (var j = 0; j < 256; j++) {"
-                      "    p[j+start] = j * 2;"
-                      "  }"
-                      "}"
-                      "pa_store(pixels,0);"
-                      "pa_store(pixels,-128);"
-                      "var sum = 0;"
-                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
-                      "sum");
-  CHECK_EQ(65280, result->Int32Value());
-
-  // Make sure that the generic store stub correctly handle accesses outside
-  // of the pixel array..
-  result = CompileRun("function pa_store(p,start) {"
-                      "  for (var j = 0; j < 256; j++) {"
-                      "    p[j+start] = j * 2;"
-                      "  }"
-                      "}"
-                      "pa_store(pixels,0);"
-                      "just_ints = new Object();"
-                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
-                      "pa_store(just_ints, 0);"
-                      "pa_store(pixels,-128);"
-                      "var sum = 0;"
-                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
-                      "sum");
-  CHECK_EQ(65280, result->Int32Value());
-
-  // Make sure that the generic keyed store stub clamps pixel array values
-  // correctly.
-  result = CompileRun("function pa_store(p) {"
-                      "  for (var j = 0; j < 256; j++) { p[j] = j * 2; }"
-                      "}"
-                      "pa_store(pixels);"
-                      "just_ints = new Object();"
-                      "pa_store(just_ints);"
-                      "pa_store(pixels);"
-                      "var sum = 0;"
-                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
-                      "sum");
-  CHECK_EQ(48896, result->Int32Value());
-
-  // Make sure that pixel array loads are optimized by crankshaft.
-  result = CompileRun("function pa_load(p) {"
-                      "  var sum = 0;"
-                      "  for (var i=0; i<256; ++i) {"
-                      "    sum += p[i];"
-                      "  }"
-                      "  return sum; "
-                      "}"
-                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "for (var i = 0; i < 5000; ++i) {"
-                      "  result = pa_load(pixels);"
-                      "}"
-                      "result");
-  CHECK_EQ(32640, result->Int32Value());
-
-  // Make sure that pixel array stores are optimized by crankshaft.
-  result = CompileRun("function pa_init(p) {"
-                      "for (var i = 0; i < 256; ++i) { p[i] = i; }"
-                      "}"
-                      "function pa_load(p) {"
-                      "  var sum = 0;"
-                      "  for (var i=0; i<256; ++i) {"
-                      "    sum += p[i];"
-                      "  }"
-                      "  return sum; "
-                      "}"
-                      "for (var i = 0; i < 5000; ++i) {"
-                      "  pa_init(pixels);"
-                      "}"
-                      "result = pa_load(pixels);"
-                      "result");
-  CHECK_EQ(32640, result->Int32Value());
-
-  free(pixel_data);
-}
-
-
-THREADED_TEST(PixelArrayInfo) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  for (int size = 0; size < 100; size += 10) {
-    uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(size));
-    v8::Handle<v8::Object> obj = v8::Object::New(context->GetIsolate());
-    obj->SetIndexedPropertiesToPixelData(pixel_data, size);
-    CHECK(obj->HasIndexedPropertiesInPixelData());
-    CHECK_EQ(pixel_data, obj->GetIndexedPropertiesPixelData());
-    CHECK_EQ(size, obj->GetIndexedPropertiesPixelDataLength());
-    free(pixel_data);
-  }
-}
-
-
-static void NotHandledIndexedPropertyGetter(
-    uint32_t index,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  ApiTestFuzzer::Fuzz();
-}
-
-
-static void NotHandledIndexedPropertySetter(
-    uint32_t index,
-    Local<Value> value,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  ApiTestFuzzer::Fuzz();
-}
-
-
-THREADED_TEST(PixelArrayWithInterceptor) {
-  LocalContext context;
-  i::Factory* factory = CcTest::i_isolate()->factory();
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  const int kElementCount = 260;
-  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::ExternalUint8ClampedArray> pixels =
-      i::Handle<i::ExternalUint8ClampedArray>::cast(
-          factory->NewExternalArray(kElementCount,
-                                    v8::kExternalUint8ClampedArray,
-                                    pixel_data));
-  for (int i = 0; i < kElementCount; i++) {
-    pixels->set(i, i % 256);
-  }
-  v8::Handle<v8::ObjectTemplate> templ =
-      v8::ObjectTemplate::New(context->GetIsolate());
-  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NotHandledIndexedPropertyGetter, NotHandledIndexedPropertySetter));
-  v8::Handle<v8::Object> obj = templ->NewInstance();
-  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
-  context->Global()->Set(v8_str("pixels"), obj);
-  v8::Handle<v8::Value> result = CompileRun("pixels[1]");
-  CHECK_EQ(1, result->Int32Value());
-  result = CompileRun("var sum = 0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  sum += pixels[i] = pixels[i] = -i;"
-                      "}"
-                      "sum;");
-  CHECK_EQ(-28, result->Int32Value());
-  result = CompileRun("pixels.hasOwnProperty('1')");
-  CHECK(result->BooleanValue());
-  free(pixel_data);
-}
-
-
-static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
-  switch (array_type) {
-    case v8::kExternalInt8Array:
-    case v8::kExternalUint8Array:
-    case v8::kExternalUint8ClampedArray:
-      return 1;
-      break;
-    case v8::kExternalInt16Array:
-    case v8::kExternalUint16Array:
-      return 2;
-      break;
-    case v8::kExternalInt32Array:
-    case v8::kExternalUint32Array:
-    case v8::kExternalFloat32Array:
-      return 4;
-      break;
-    case v8::kExternalFloat64Array:
-      return 8;
-      break;
-    default:
-      UNREACHABLE();
-      return -1;
-  }
-  UNREACHABLE();
-  return -1;
-}
-
-
 template <class ExternalArrayClass, class ElementType>
-static void ObjectWithExternalArrayTestHelper(
-    Handle<Context> context,
-    v8::Handle<Object> obj,
-    int element_count,
-    v8::ExternalArrayType array_type,
-    int64_t low, int64_t high) {
+static void ObjectWithExternalArrayTestHelper(Handle<Context> context,
+                                              v8::Handle<Object> obj,
+                                              int element_count,
+                                              i::ExternalArrayType array_type,
+                                              int64_t low, int64_t high) {
   i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
   i::Isolate* isolate = jsobj->GetIsolate();
   obj->Set(v8_str("field"),
@@ -14135,8 +13656,8 @@ static void ObjectWithExternalArrayTestHelper(
                       "}"
                       "ext_array[7];");
   CHECK_EQ(0, result->Int32Value());
-  if (array_type == v8::kExternalFloat64Array ||
-      array_type == v8::kExternalFloat32Array) {
+  if (array_type == i::kExternalFloat64Array ||
+      array_type == i::kExternalFloat32Array) {
     CHECK(std::isnan(
         i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked()->Number()));
   } else {
@@ -14153,8 +13674,8 @@ static void ObjectWithExternalArrayTestHelper(
                i::Object::GetElement(
                    isolate, jsobj, 6).ToHandleChecked()->Number()));
 
-  if (array_type != v8::kExternalFloat32Array &&
-      array_type != v8::kExternalFloat64Array) {
+  if (array_type != i::kExternalFloat32Array &&
+      array_type != i::kExternalFloat64Array) {
     // Though the specification doesn't state it, be explicit about
     // converting NaNs and +/-Infinity to zero.
     result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -14175,7 +13696,7 @@ static void ObjectWithExternalArrayTestHelper(
                         "}"
                         "ext_array[5];");
     int expected_value =
-        (array_type == v8::kExternalUint8ClampedArray) ? 255 : 0;
+        (array_type == i::kExternalUint8ClampedArray) ? 255 : 0;
     CHECK_EQ(expected_value, result->Int32Value());
     CheckElementValue(isolate, expected_value, jsobj, 5);
 
@@ -14199,11 +13720,10 @@ static void ObjectWithExternalArrayTestHelper(
     const char* pixel_data =
         "var source_data = [0.6, 10.6];"
         "var expected_results = [1, 11];";
-    bool is_unsigned =
-        (array_type == v8::kExternalUint8Array ||
-         array_type == v8::kExternalUint16Array ||
-         array_type == v8::kExternalUint32Array);
-    bool is_pixel_data = array_type == v8::kExternalUint8ClampedArray;
+    bool is_unsigned = (array_type == i::kExternalUint8Array ||
+                        array_type == i::kExternalUint16Array ||
+                        array_type == i::kExternalUint32Array);
+    bool is_pixel_data = array_type == i::kExternalUint8ClampedArray;
 
     i::SNPrintF(test_buf,
                 "%s"
@@ -14288,13 +13808,10 @@ static void ObjectWithExternalArrayTestHelper(
 }
 
 
-template <class FixedTypedArrayClass,
-          i::ElementsKind elements_kind,
+template <class FixedTypedArrayClass, i::ElementsKind elements_kind,
           class ElementType>
-static void FixedTypedArrayTestHelper(
-    v8::ExternalArrayType array_type,
-    ElementType low,
-    ElementType high) {
+static void FixedTypedArrayTestHelper(i::ExternalArrayType array_type,
+                                      ElementType low, ElementType high) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext context;
   i::Isolate* isolate = CcTest::i_isolate();
@@ -14333,442 +13850,62 @@ static void FixedTypedArrayTestHelper(
 
 THREADED_TEST(FixedUint8Array) {
   FixedTypedArrayTestHelper<i::FixedUint8Array, i::UINT8_ELEMENTS, uint8_t>(
-    v8::kExternalUint8Array,
-    0x0, 0xFF);
+      i::kExternalUint8Array, 0x0, 0xFF);
 }
 
 
 THREADED_TEST(FixedUint8ClampedArray) {
   FixedTypedArrayTestHelper<i::FixedUint8ClampedArray,
                             i::UINT8_CLAMPED_ELEMENTS, uint8_t>(
-    v8::kExternalUint8ClampedArray,
-    0x0, 0xFF);
+      i::kExternalUint8ClampedArray, 0x0, 0xFF);
 }
 
 
 THREADED_TEST(FixedInt8Array) {
   FixedTypedArrayTestHelper<i::FixedInt8Array, i::INT8_ELEMENTS, int8_t>(
-    v8::kExternalInt8Array,
-    -0x80, 0x7F);
+      i::kExternalInt8Array, -0x80, 0x7F);
 }
 
 
 THREADED_TEST(FixedUint16Array) {
   FixedTypedArrayTestHelper<i::FixedUint16Array, i::UINT16_ELEMENTS, uint16_t>(
-    v8::kExternalUint16Array,
-    0x0, 0xFFFF);
+      i::kExternalUint16Array, 0x0, 0xFFFF);
 }
 
 
 THREADED_TEST(FixedInt16Array) {
   FixedTypedArrayTestHelper<i::FixedInt16Array, i::INT16_ELEMENTS, int16_t>(
-    v8::kExternalInt16Array,
-    -0x8000, 0x7FFF);
+      i::kExternalInt16Array, -0x8000, 0x7FFF);
 }
 
 
 THREADED_TEST(FixedUint32Array) {
   FixedTypedArrayTestHelper<i::FixedUint32Array, i::UINT32_ELEMENTS, uint32_t>(
-    v8::kExternalUint32Array,
-    0x0, UINT_MAX);
+      i::kExternalUint32Array, 0x0, UINT_MAX);
 }
 
 
 THREADED_TEST(FixedInt32Array) {
   FixedTypedArrayTestHelper<i::FixedInt32Array, i::INT32_ELEMENTS, int32_t>(
-    v8::kExternalInt32Array,
-    INT_MIN, INT_MAX);
+      i::kExternalInt32Array, INT_MIN, INT_MAX);
 }
 
 
 THREADED_TEST(FixedFloat32Array) {
   FixedTypedArrayTestHelper<i::FixedFloat32Array, i::FLOAT32_ELEMENTS, float>(
-    v8::kExternalFloat32Array,
-    -500, 500);
+      i::kExternalFloat32Array, -500, 500);
 }
 
 
 THREADED_TEST(FixedFloat64Array) {
   FixedTypedArrayTestHelper<i::FixedFloat64Array, i::FLOAT64_ELEMENTS, float>(
-    v8::kExternalFloat64Array,
-    -500, 500);
+      i::kExternalFloat64Array, -500, 500);
 }
 
 
-template <class ExternalArrayClass, class ElementType>
-static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
-                                    int64_t low,
-                                    int64_t high) {
-  LocalContext context;
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  const int kElementCount = 40;
-  int element_size = ExternalArrayElementSize(array_type);
-  ElementType* array_data =
-      static_cast<ElementType*>(malloc(kElementCount * element_size));
-  i::Handle<ExternalArrayClass> array =
-      i::Handle<ExternalArrayClass>::cast(
-          factory->NewExternalArray(kElementCount, array_type, array_data));
-  // Force GC to trigger verification.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < kElementCount; i++) {
-    array->set(i, static_cast<ElementType>(i));
-  }
-  // Force GC to trigger verification.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(static_cast<int64_t>(i),
-             static_cast<int64_t>(array->get_scalar(i)));
-    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
-  }
-
-  v8::Handle<v8::Object> obj = v8::Object::New(context->GetIsolate());
-  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
-  // Set the elements to be the external array.
-  obj->SetIndexedPropertiesToExternalArrayData(array_data,
-                                               array_type,
-                                               kElementCount);
-  CHECK_EQ(1,
-           static_cast<int>(
-               i::Object::GetElement(
-                   isolate, jsobj, 1).ToHandleChecked()->Number()));
-
-  ObjectWithExternalArrayTestHelper<ExternalArrayClass, ElementType>(
-      context.local(), obj, kElementCount, array_type, low, high);
-
-  v8::Handle<v8::Value> result;
-
-  // Test more complex manipulations which cause eax to contain values
-  // that won't be completely overwritten by loads from the arrays.
-  // This catches bugs in the instructions used for the KeyedLoadIC
-  // for byte and word types.
-  {
-    const int kXSize = 300;
-    const int kYSize = 300;
-    const int kLargeElementCount = kXSize * kYSize * 4;
-    ElementType* large_array_data =
-        static_cast<ElementType*>(malloc(kLargeElementCount * element_size));
-    v8::Handle<v8::Object> large_obj = v8::Object::New(context->GetIsolate());
-    // Set the elements to be the external array.
-    large_obj->SetIndexedPropertiesToExternalArrayData(large_array_data,
-                                                       array_type,
-                                                       kLargeElementCount);
-    context->Global()->Set(v8_str("large_array"), large_obj);
-    // Initialize contents of a few rows.
-    for (int x = 0; x < 300; x++) {
-      int row = 0;
-      int offset = row * 300 * 4;
-      large_array_data[offset + 4 * x + 0] = (ElementType) 127;
-      large_array_data[offset + 4 * x + 1] = (ElementType) 0;
-      large_array_data[offset + 4 * x + 2] = (ElementType) 0;
-      large_array_data[offset + 4 * x + 3] = (ElementType) 127;
-      row = 150;
-      offset = row * 300 * 4;
-      large_array_data[offset + 4 * x + 0] = (ElementType) 127;
-      large_array_data[offset + 4 * x + 1] = (ElementType) 0;
-      large_array_data[offset + 4 * x + 2] = (ElementType) 0;
-      large_array_data[offset + 4 * x + 3] = (ElementType) 127;
-      row = 298;
-      offset = row * 300 * 4;
-      large_array_data[offset + 4 * x + 0] = (ElementType) 127;
-      large_array_data[offset + 4 * x + 1] = (ElementType) 0;
-      large_array_data[offset + 4 * x + 2] = (ElementType) 0;
-      large_array_data[offset + 4 * x + 3] = (ElementType) 127;
-    }
-    // The goal of the code below is to make "offset" large enough
-    // that the computation of the index (which goes into eax) has
-    // high bits set which will not be overwritten by a byte or short
-    // load.
-    result = CompileRun("var failed = false;"
-                        "var offset = 0;"
-                        "for (var i = 0; i < 300; i++) {"
-                        "  if (large_array[4 * i] != 127 ||"
-                        "      large_array[4 * i + 1] != 0 ||"
-                        "      large_array[4 * i + 2] != 0 ||"
-                        "      large_array[4 * i + 3] != 127) {"
-                        "    failed = true;"
-                        "  }"
-                        "}"
-                        "offset = 150 * 300 * 4;"
-                        "for (var i = 0; i < 300; i++) {"
-                        "  if (large_array[offset + 4 * i] != 127 ||"
-                        "      large_array[offset + 4 * i + 1] != 0 ||"
-                        "      large_array[offset + 4 * i + 2] != 0 ||"
-                        "      large_array[offset + 4 * i + 3] != 127) {"
-                        "    failed = true;"
-                        "  }"
-                        "}"
-                        "offset = 298 * 300 * 4;"
-                        "for (var i = 0; i < 300; i++) {"
-                        "  if (large_array[offset + 4 * i] != 127 ||"
-                        "      large_array[offset + 4 * i + 1] != 0 ||"
-                        "      large_array[offset + 4 * i + 2] != 0 ||"
-                        "      large_array[offset + 4 * i + 3] != 127) {"
-                        "    failed = true;"
-                        "  }"
-                        "}"
-                        "!failed;");
-    CHECK_EQ(true, result->BooleanValue());
-    free(large_array_data);
-  }
-
-  // The "" property descriptor is overloaded to store information about
-  // the external array. Ensure that setting and accessing the "" property
-  // works (it should overwrite the information cached about the external
-  // array in the DescriptorArray) in various situations.
-  result = CompileRun("ext_array[''] = 23; ext_array['']");
-  CHECK_EQ(23, result->Int32Value());
-
-  // Property "" set after the external array is associated with the object.
-  {
-    v8::Handle<v8::Object> obj2 = v8::Object::New(context->GetIsolate());
-    obj2->Set(v8_str("ee_test_field"),
-              v8::Int32::New(context->GetIsolate(), 256));
-    obj2->Set(v8_str(""), v8::Int32::New(context->GetIsolate(), 1503));
-    // Set the elements to be the external array.
-    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
-                                                  array_type,
-                                                  kElementCount);
-    context->Global()->Set(v8_str("ext_array"), obj2);
-    result = CompileRun("ext_array['']");
-    CHECK_EQ(1503, result->Int32Value());
-  }
-
-  // Property "" set after the external array is associated with the object.
-  {
-    v8::Handle<v8::Object> obj2 = v8::Object::New(context->GetIsolate());
-    obj2->Set(v8_str("ee_test_field_2"),
-              v8::Int32::New(context->GetIsolate(), 256));
-    // Set the elements to be the external array.
-    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
-                                                  array_type,
-                                                  kElementCount);
-    obj2->Set(v8_str(""), v8::Int32::New(context->GetIsolate(), 1503));
-    context->Global()->Set(v8_str("ext_array"), obj2);
-    result = CompileRun("ext_array['']");
-    CHECK_EQ(1503, result->Int32Value());
-  }
-
-  // Should reuse the map from previous test.
-  {
-    v8::Handle<v8::Object> obj2 = v8::Object::New(context->GetIsolate());
-    obj2->Set(v8_str("ee_test_field_2"),
-              v8::Int32::New(context->GetIsolate(), 256));
-    // Set the elements to be the external array. Should re-use the map
-    // from previous test.
-    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
-                                                  array_type,
-                                                  kElementCount);
-    context->Global()->Set(v8_str("ext_array"), obj2);
-    result = CompileRun("ext_array['']");
-  }
-
-  // Property "" is a constant function that shouldn't not be interfered with
-  // when an external array is set.
-  {
-    v8::Handle<v8::Object> obj2 = v8::Object::New(context->GetIsolate());
-    // Start
-    obj2->Set(v8_str("ee_test_field3"),
-              v8::Int32::New(context->GetIsolate(), 256));
-
-    // Add a constant function to an object.
-    context->Global()->Set(v8_str("ext_array"), obj2);
-    result = CompileRun("ext_array[''] = function() {return 1503;};"
-                        "ext_array['']();");
-
-    // Add an external array transition to the same map that
-    // has the constant transition.
-    v8::Handle<v8::Object> obj3 = v8::Object::New(context->GetIsolate());
-    obj3->Set(v8_str("ee_test_field3"),
-              v8::Int32::New(context->GetIsolate(), 256));
-    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
-                                                  array_type,
-                                                  kElementCount);
-    context->Global()->Set(v8_str("ext_array"), obj3);
-  }
-
-  // If a external array transition is in the map, it should get clobbered
-  // by a constant function.
-  {
-    // Add an external array transition.
-    v8::Handle<v8::Object> obj3 = v8::Object::New(context->GetIsolate());
-    obj3->Set(v8_str("ee_test_field4"),
-              v8::Int32::New(context->GetIsolate(), 256));
-    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
-                                                  array_type,
-                                                  kElementCount);
-
-    // Add a constant function to the same map that just got an external array
-    // transition.
-    v8::Handle<v8::Object> obj2 = v8::Object::New(context->GetIsolate());
-    obj2->Set(v8_str("ee_test_field4"),
-              v8::Int32::New(context->GetIsolate(), 256));
-    context->Global()->Set(v8_str("ext_array"), obj2);
-    result = CompileRun("ext_array[''] = function() {return 1503;};"
-                        "ext_array['']();");
-  }
-
-  free(array_data);
-}
-
-
-THREADED_TEST(ExternalInt8Array) {
-  ExternalArrayTestHelper<i::ExternalInt8Array, int8_t>(
-      v8::kExternalInt8Array,
-      -128,
-      127);
-}
-
-
-THREADED_TEST(ExternalUint8Array) {
-  ExternalArrayTestHelper<i::ExternalUint8Array, uint8_t>(
-      v8::kExternalUint8Array,
-      0,
-      255);
-}
-
-
-THREADED_TEST(ExternalUint8ClampedArray) {
-  ExternalArrayTestHelper<i::ExternalUint8ClampedArray, uint8_t>(
-      v8::kExternalUint8ClampedArray,
-      0,
-      255);
-}
-
-
-THREADED_TEST(ExternalInt16Array) {
-  ExternalArrayTestHelper<i::ExternalInt16Array, int16_t>(
-      v8::kExternalInt16Array,
-      -32768,
-      32767);
-}
-
-
-THREADED_TEST(ExternalUint16Array) {
-  ExternalArrayTestHelper<i::ExternalUint16Array, uint16_t>(
-      v8::kExternalUint16Array,
-      0,
-      65535);
-}
-
-
-THREADED_TEST(ExternalInt32Array) {
-  ExternalArrayTestHelper<i::ExternalInt32Array, int32_t>(
-      v8::kExternalInt32Array,
-      INT_MIN,   // -2147483648
-      INT_MAX);  //  2147483647
-}
-
-
-THREADED_TEST(ExternalUint32Array) {
-  ExternalArrayTestHelper<i::ExternalUint32Array, uint32_t>(
-      v8::kExternalUint32Array,
-      0,
-      UINT_MAX);  // 4294967295
-}
-
-
-THREADED_TEST(ExternalFloat32Array) {
-  ExternalArrayTestHelper<i::ExternalFloat32Array, float>(
-      v8::kExternalFloat32Array,
-      -500,
-      500);
-}
-
-
-THREADED_TEST(ExternalFloat64Array) {
-  ExternalArrayTestHelper<i::ExternalFloat64Array, double>(
-      v8::kExternalFloat64Array,
-      -500,
-      500);
-}
-
-
-THREADED_TEST(ExternalArrays) {
-  TestExternalInt8Array();
-  TestExternalUint8Array();
-  TestExternalInt16Array();
-  TestExternalUint16Array();
-  TestExternalInt32Array();
-  TestExternalUint32Array();
-  TestExternalFloat32Array();
-}
-
-
-void ExternalArrayInfoTestHelper(v8::ExternalArrayType array_type) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  for (int size = 0; size < 100; size += 10) {
-    int element_size = ExternalArrayElementSize(array_type);
-    void* external_data = malloc(size * element_size);
-    v8::Handle<v8::Object> obj = v8::Object::New(context->GetIsolate());
-    obj->SetIndexedPropertiesToExternalArrayData(
-        external_data, array_type, size);
-    CHECK(obj->HasIndexedPropertiesInExternalArrayData());
-    CHECK_EQ(external_data, obj->GetIndexedPropertiesExternalArrayData());
-    CHECK_EQ(array_type, obj->GetIndexedPropertiesExternalArrayDataType());
-    CHECK_EQ(size, obj->GetIndexedPropertiesExternalArrayDataLength());
-    free(external_data);
-  }
-}
-
-
-THREADED_TEST(ExternalArrayInfo) {
-  ExternalArrayInfoTestHelper(v8::kExternalInt8Array);
-  ExternalArrayInfoTestHelper(v8::kExternalUint8Array);
-  ExternalArrayInfoTestHelper(v8::kExternalInt16Array);
-  ExternalArrayInfoTestHelper(v8::kExternalUint16Array);
-  ExternalArrayInfoTestHelper(v8::kExternalInt32Array);
-  ExternalArrayInfoTestHelper(v8::kExternalUint32Array);
-  ExternalArrayInfoTestHelper(v8::kExternalFloat32Array);
-  ExternalArrayInfoTestHelper(v8::kExternalFloat64Array);
-  ExternalArrayInfoTestHelper(v8::kExternalUint8ClampedArray);
-}
-
-
-void ExtArrayLimitsHelper(v8::Isolate* isolate,
-                          v8::ExternalArrayType array_type,
-                          int size) {
-  v8::Handle<v8::Object> obj = v8::Object::New(isolate);
-  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
-  last_location = last_message = NULL;
-  obj->SetIndexedPropertiesToExternalArrayData(NULL, array_type, size);
-  CHECK(!obj->HasIndexedPropertiesInExternalArrayData());
-  CHECK(last_location);
-  CHECK(last_message);
-}
-
-
-TEST(ExternalArrayLimits) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  ExtArrayLimitsHelper(isolate, v8::kExternalInt8Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalInt8Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint8Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint8Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalInt16Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalInt16Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint16Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint16Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalInt32Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalInt32Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint32Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint32Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalFloat32Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalFloat32Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalFloat64Array, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalFloat64Array, 0xffffffff);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint8ClampedArray, 0x40000000);
-  ExtArrayLimitsHelper(isolate, v8::kExternalUint8ClampedArray, 0xffffffff);
-}
-
-
-template <typename ElementType, typename TypedArray,
-          class ExternalArrayClass>
-void TypedArrayTestHelper(v8::ExternalArrayType array_type,
-                          int64_t low, int64_t high) {
+template <typename ElementType, typename TypedArray, class ExternalArrayClass>
+void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
+                          int64_t high) {
   const int kElementCount = 50;
 
   i::ScopedVector<ElementType> backing_store(kElementCount+2);
@@ -14800,58 +13937,56 @@ void TypedArrayTestHelper(v8::ExternalArrayType array_type,
 
 THREADED_TEST(Uint8Array) {
   TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::ExternalUint8Array>(
-      v8::kExternalUint8Array, 0, 0xFF);
+      i::kExternalUint8Array, 0, 0xFF);
 }
 
 
 THREADED_TEST(Int8Array) {
   TypedArrayTestHelper<int8_t, v8::Int8Array, i::ExternalInt8Array>(
-      v8::kExternalInt8Array, -0x80, 0x7F);
+      i::kExternalInt8Array, -0x80, 0x7F);
 }
 
 
 THREADED_TEST(Uint16Array) {
-  TypedArrayTestHelper<uint16_t,
-                       v8::Uint16Array,
-                       i::ExternalUint16Array>(
-      v8::kExternalUint16Array, 0, 0xFFFF);
+  TypedArrayTestHelper<uint16_t, v8::Uint16Array, i::ExternalUint16Array>(
+      i::kExternalUint16Array, 0, 0xFFFF);
 }
 
 
 THREADED_TEST(Int16Array) {
   TypedArrayTestHelper<int16_t, v8::Int16Array, i::ExternalInt16Array>(
-      v8::kExternalInt16Array, -0x8000, 0x7FFF);
+      i::kExternalInt16Array, -0x8000, 0x7FFF);
 }
 
 
 THREADED_TEST(Uint32Array) {
   TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::ExternalUint32Array>(
-      v8::kExternalUint32Array, 0, UINT_MAX);
+      i::kExternalUint32Array, 0, UINT_MAX);
 }
 
 
 THREADED_TEST(Int32Array) {
   TypedArrayTestHelper<int32_t, v8::Int32Array, i::ExternalInt32Array>(
-      v8::kExternalInt32Array, INT_MIN, INT_MAX);
+      i::kExternalInt32Array, INT_MIN, INT_MAX);
 }
 
 
 THREADED_TEST(Float32Array) {
   TypedArrayTestHelper<float, v8::Float32Array, i::ExternalFloat32Array>(
-      v8::kExternalFloat32Array, -500, 500);
+      i::kExternalFloat32Array, -500, 500);
 }
 
 
 THREADED_TEST(Float64Array) {
   TypedArrayTestHelper<double, v8::Float64Array, i::ExternalFloat64Array>(
-      v8::kExternalFloat64Array, -500, 500);
+      i::kExternalFloat64Array, -500, 500);
 }
 
 
 THREADED_TEST(Uint8ClampedArray) {
-  TypedArrayTestHelper<uint8_t,
-                       v8::Uint8ClampedArray, i::ExternalUint8ClampedArray>(
-      v8::kExternalUint8ClampedArray, 0, 0xFF);
+  TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray,
+                       i::ExternalUint8ClampedArray>(
+      i::kExternalUint8ClampedArray, 0, 0xFF);
 }
 
 
@@ -19580,23 +18715,6 @@ THREADED_TEST(Regress142088) {
              "var o = Object.create(obj);"
              "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
              "load(o); load(o); load(o); load(o);");
-}
-
-
-THREADED_TEST(Regress3337) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<v8::Object> o1 = Object::New(isolate);
-  Local<v8::Object> o2 = Object::New(isolate);
-  i::Handle<i::JSObject> io1 = v8::Utils::OpenHandle(*o1);
-  i::Handle<i::JSObject> io2 = v8::Utils::OpenHandle(*o2);
-  CHECK(io1->map() == io2->map());
-  o1->SetIndexedPropertiesToExternalArrayData(
-      NULL, v8::kExternalUint32Array, 0);
-  o2->SetIndexedPropertiesToExternalArrayData(
-      NULL, v8::kExternalUint32Array, 0);
-  CHECK(io1->map() == io2->map());
 }
 
 

@@ -2593,29 +2593,6 @@ enum PropertyAttribute {
   DontDelete = 1 << 2
 };
 
-enum ExternalArrayType {
-  kExternalInt8Array = 1,
-  kExternalUint8Array,
-  kExternalInt16Array,
-  kExternalUint16Array,
-  kExternalInt32Array,
-  kExternalUint32Array,
-  kExternalFloat32Array,
-  kExternalFloat64Array,
-  kExternalUint8ClampedArray,
-
-  // Legacy constant names
-  kExternalByteArray = kExternalInt8Array,
-  kExternalUnsignedByteArray = kExternalUint8Array,
-  kExternalShortArray = kExternalInt16Array,
-  kExternalUnsignedShortArray = kExternalUint16Array,
-  kExternalIntArray = kExternalInt32Array,
-  kExternalUnsignedIntArray = kExternalUint32Array,
-  kExternalFloatArray = kExternalFloat32Array,
-  kExternalDoubleArray = kExternalFloat64Array,
-  kExternalPixelArray = kExternalUint8ClampedArray
-};
-
 /**
  * Accessor[Getter|Setter] are used as callback functions when
  * setting|getting a particular property. See Object and ObjectTemplate's
@@ -2964,33 +2941,6 @@ class V8_EXPORT Object : public Value {
    * Returns the context in which the object was created.
    */
   Local<Context> CreationContext();
-
-  /**
-   * Set the backing store of the indexed properties to be managed by the
-   * embedding layer. Access to the indexed properties will follow the rules
-   * spelled out in CanvasPixelArray.
-   * Note: The embedding program still owns the data and needs to ensure that
-   *       the backing store is preserved while V8 has a reference.
-   */
-  void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
-  bool HasIndexedPropertiesInPixelData();
-  uint8_t* GetIndexedPropertiesPixelData();
-  int GetIndexedPropertiesPixelDataLength();
-
-  /**
-   * Set the backing store of the indexed properties to be managed by the
-   * embedding layer. Access to the indexed properties will follow the rules
-   * spelled out for the CanvasArray subtypes in the WebGL specification.
-   * Note: The embedding program still owns the data and needs to ensure that
-   *       the backing store is preserved while V8 has a reference.
-   */
-  void SetIndexedPropertiesToExternalArrayData(void* data,
-                                               ExternalArrayType array_type,
-                                               int number_of_elements);
-  bool HasIndexedPropertiesInExternalArrayData();
-  void* GetIndexedPropertiesExternalArrayData();
-  ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
-  int GetIndexedPropertiesExternalArrayDataLength();
 
   /**
    * Checks whether a callback is set by the

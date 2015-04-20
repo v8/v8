@@ -5317,7 +5317,7 @@ TEST(WritableVsImmortalRoots) {
 }
 
 
-static void TestRightTrimFixedTypedArray(v8::ExternalArrayType type,
+static void TestRightTrimFixedTypedArray(i::ExternalArrayType type,
                                          int initial_length,
                                          int elements_to_trim) {
   v8::HandleScope scope(CcTest::isolate());
@@ -5353,17 +5353,17 @@ TEST(Regress472513) {
   // typed array header smashing with free space filler (crbug/472513).
 
   // 64-bit cases.
-  TestRightTrimFixedTypedArray(v8::kExternalUint8Array, 32, 6);
-  TestRightTrimFixedTypedArray(v8::kExternalUint8Array, 32 - 7, 6);
-  TestRightTrimFixedTypedArray(v8::kExternalUint16Array, 16, 6);
-  TestRightTrimFixedTypedArray(v8::kExternalUint16Array, 16 - 3, 6);
-  TestRightTrimFixedTypedArray(v8::kExternalUint32Array, 8, 6);
-  TestRightTrimFixedTypedArray(v8::kExternalUint32Array, 8 - 1, 6);
+  TestRightTrimFixedTypedArray(i::kExternalUint8Array, 32, 6);
+  TestRightTrimFixedTypedArray(i::kExternalUint8Array, 32 - 7, 6);
+  TestRightTrimFixedTypedArray(i::kExternalUint16Array, 16, 6);
+  TestRightTrimFixedTypedArray(i::kExternalUint16Array, 16 - 3, 6);
+  TestRightTrimFixedTypedArray(i::kExternalUint32Array, 8, 6);
+  TestRightTrimFixedTypedArray(i::kExternalUint32Array, 8 - 1, 6);
 
   // 32-bit cases.
-  TestRightTrimFixedTypedArray(v8::kExternalUint8Array, 16, 3);
-  TestRightTrimFixedTypedArray(v8::kExternalUint8Array, 16 - 3, 3);
-  TestRightTrimFixedTypedArray(v8::kExternalUint16Array, 8, 3);
-  TestRightTrimFixedTypedArray(v8::kExternalUint16Array, 8 - 1, 3);
-  TestRightTrimFixedTypedArray(v8::kExternalUint32Array, 4, 3);
+  TestRightTrimFixedTypedArray(i::kExternalUint8Array, 16, 3);
+  TestRightTrimFixedTypedArray(i::kExternalUint8Array, 16 - 3, 3);
+  TestRightTrimFixedTypedArray(i::kExternalUint16Array, 8, 3);
+  TestRightTrimFixedTypedArray(i::kExternalUint16Array, 8 - 1, 3);
+  TestRightTrimFixedTypedArray(i::kExternalUint32Array, 4, 3);
 }

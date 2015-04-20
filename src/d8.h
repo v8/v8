@@ -385,24 +385,6 @@ class Shell : public i::AllStatic {
   static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static Handle<FunctionTemplate> CreateArrayBufferTemplate(FunctionCallback);
   static Handle<FunctionTemplate> CreateArrayTemplate(FunctionCallback);
-  static Handle<Value> CreateExternalArrayBuffer(Isolate* isolate,
-                                                 Handle<Object> buffer,
-                                                 int32_t size);
-  static Handle<Object> CreateExternalArray(Isolate* isolate,
-                                            Handle<Object> array,
-                                            Handle<Object> buffer,
-                                            ExternalArrayType type,
-                                            int32_t length,
-                                            int32_t byteLength,
-                                            int32_t byteOffset,
-                                            int32_t element_size);
-  static void CreateExternalArray(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      ExternalArrayType type,
-      int32_t element_size);
-  static void ExternalArrayWeakCallback(Isolate* isolate,
-                                        Persistent<Object>* object,
-                                        uint8_t* data);
 };
 
 
