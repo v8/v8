@@ -1072,7 +1072,7 @@ function FormatStackTrace(obj, raw_stack) {
     }
     lines.push("    at " + line);
   }
-  return %_CallFunction(lines, "\n", ArrayJoin);
+  return %_CallFunction(lines, "\n", $arrayJoin);
 }
 
 
