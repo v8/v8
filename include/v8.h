@@ -3301,6 +3301,10 @@ class V8_EXPORT Promise : public Object {
 #define V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT 2
 #endif
 
+
+enum class ArrayBufferCreationMode { kInternalized, kExternalized };
+
+
 /**
  * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
  * This API is experimental and may change significantly.
@@ -3376,12 +3380,13 @@ class V8_EXPORT ArrayBuffer : public Object {
 
   /**
    * Create a new ArrayBuffer over an existing memory block.
-   * The created array buffer is immediately in externalized state.
+   * The created array buffer is by default immediately in externalized state.
    * The memory block will not be reclaimed when a created ArrayBuffer
    * is garbage-collected.
    */
-  static Local<ArrayBuffer> New(Isolate* isolate, void* data,
-                                size_t byte_length);
+  static Local<ArrayBuffer> New(
+      Isolate* isolate, void* data, size_t byte_length,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
    * Returns true if ArrayBuffer is extrenalized, that is, does not
@@ -3412,6 +3417,18 @@ class V8_EXPORT ArrayBuffer : public Object {
    * that has been set with V8::SetArrayBufferAllocator.
    */
   Contents Externalize();
+
+  /**
+   * Get a pointer to the ArrayBuffer's underlying memory block without
+   * externalizing it. If the ArrayBuffer is not externalized, this pointer
+   * will become invalid as soon as the ArrayBuffer became garbage collected.
+   *
+   * The embedder should make sure to hold a strong reference to the
+   * ArrayBuffer while accessing this pointer.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|.
+   */
+  Contents GetContents();
 
   V8_INLINE static ArrayBuffer* Cast(Value* obj);
 

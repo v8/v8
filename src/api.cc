@@ -6234,14 +6234,19 @@ bool v8::ArrayBuffer::IsNeuterable() const {
 
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
-  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  Utils::ApiCheck(!obj->is_external(),
-                  "v8::ArrayBuffer::Externalize",
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(!self->is_external(), "v8::ArrayBuffer::Externalize",
                   "ArrayBuffer already externalized");
-  obj->set_is_external(true);
-  size_t byte_length = static_cast<size_t>(obj->byte_length()->Number());
+  self->set_is_external(true);
+  return GetContents();
+}
+
+
+v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
   Contents contents;
-  contents.data_ = obj->backing_store();
+  contents.data_ = self->backing_store();
   contents.byte_length_ = byte_length;
   return contents;
 }
@@ -6279,13 +6284,16 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
 
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
-                                        size_t byte_length) {
+                                        size_t byte_length,
+                                        ArrayBufferCreationMode mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "v8::ArrayBuffer::New(void*, size_t)");
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer();
-  i::Runtime::SetupArrayBuffer(i_isolate, obj, true, data, byte_length);
+  i::Runtime::SetupArrayBuffer(i_isolate, obj,
+                               mode == ArrayBufferCreationMode::kExternalized,
+                               data, byte_length);
   return Utils::ToLocal(obj);
 }
 
