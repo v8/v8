@@ -28,7 +28,7 @@ namespace base {
 // architectures. For each architecture the file cpu_<arch>.cc contains the
 // implementation of these static functions.
 
-class CPU FINAL {
+class CPU final {
  public:
   CPU();
 

@@ -22,7 +22,7 @@ enum ImmediateMode {
 
 
 // Adds PPC-specific methods for generating operands.
-class PPCOperandGenerator FINAL : public OperandGenerator {
+class PPCOperandGenerator final : public OperandGenerator {
  public:
   explicit PPCOperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}

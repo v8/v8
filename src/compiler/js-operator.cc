@@ -247,9 +247,9 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(CreateScriptContext, Operator::kNoProperties, 2, 1)
 
 
-struct JSOperatorGlobalCache FINAL {
+struct JSOperatorGlobalCache final {
 #define CACHED(Name, properties, value_input_count, value_output_count)  \
-  struct Name##Operator FINAL : public Operator {                        \
+  struct Name##Operator final : public Operator {                        \
     Name##Operator()                                                     \
         : Operator(IrOpcode::kJS##Name, properties, "JS" #Name,          \
                    value_input_count, Operator::ZeroIfPure(properties),  \
@@ -262,7 +262,7 @@ struct JSOperatorGlobalCache FINAL {
 #undef CACHED
 
   template <LanguageMode kLanguageMode>
-  struct StorePropertyOperator FINAL : public Operator1<LanguageMode> {
+  struct StorePropertyOperator final : public Operator1<LanguageMode> {
     StorePropertyOperator()
         : Operator1<LanguageMode>(IrOpcode::kJSStoreProperty,
                                   Operator::kNoProperties, "JSStoreProperty", 3,

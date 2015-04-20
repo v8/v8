@@ -42,7 +42,7 @@ enum LazyCachedType {
 
 // Constructs and caches types lazily.
 // TODO(turbofan): these types could be globally cached or cached per isolate.
-class LazyTypeCache FINAL : public ZoneObject {
+class LazyTypeCache final : public ZoneObject {
  public:
   explicit LazyTypeCache(Isolate* isolate, Zone* zone)
       : isolate_(isolate), zone_(zone) {
@@ -141,10 +141,10 @@ class LazyTypeCache FINAL : public ZoneObject {
 };
 
 
-class Typer::Decorator FINAL : public GraphDecorator {
+class Typer::Decorator final : public GraphDecorator {
  public:
   explicit Decorator(Typer* typer) : typer_(typer) {}
-  void Decorate(Node* node, bool incomplete) FINAL;
+  void Decorate(Node* node, bool incomplete) final;
 
  private:
   Typer* typer_;
@@ -215,7 +215,7 @@ class Typer::Visitor : public Reducer {
   explicit Visitor(Typer* typer)
       : typer_(typer), weakened_nodes_(typer->zone()) {}
 
-  Reduction Reduce(Node* node) OVERRIDE {
+  Reduction Reduce(Node* node) override {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
     switch (node->opcode()) {
 #define DECLARE_CASE(x) \

@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 // Associates a body of code with an interface descriptor.
-class Callable FINAL BASE_EMBEDDED {
+class Callable final BASE_EMBEDDED {
  public:
   Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
       : code_(code), descriptor_(descriptor) {}
@@ -29,7 +29,7 @@ class Callable FINAL BASE_EMBEDDED {
 };
 
 
-class CodeFactory FINAL {
+class CodeFactory final {
  public:
   // Initial states for ICs.
   static Callable LoadGlobalIC(Isolate* isolate, Handle<GlobalObject> global,

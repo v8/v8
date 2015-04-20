@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 
-class AstNumberingVisitor FINAL : public AstVisitor {
+class AstNumberingVisitor final : public AstVisitor {
  public:
   explicit AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
@@ -27,14 +27,14 @@ class AstNumberingVisitor FINAL : public AstVisitor {
 
  private:
 // AST node visitor interface.
-#define DEFINE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+#define DEFINE_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
   bool Finish(FunctionLiteral* node);
 
-  void VisitStatements(ZoneList<Statement*>* statements) OVERRIDE;
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
 

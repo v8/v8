@@ -101,10 +101,10 @@ class NewABReducer : public Reducer {
 
 
 // Wraps all "kOpA0" nodes in "kOpB1" operators by allocating new nodes.
-class A0Wrapper FINAL : public Reducer {
+class A0Wrapper final : public Reducer {
  public:
   explicit A0Wrapper(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) OVERRIDE {
+  virtual Reduction Reduce(Node* node) override {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
         EXPECT_EQ(0, node->InputCount());
@@ -117,10 +117,10 @@ class A0Wrapper FINAL : public Reducer {
 
 
 // Wraps all "kOpB0" nodes in two "kOpC1" operators by allocating new nodes.
-class B0Wrapper FINAL : public Reducer {
+class B0Wrapper final : public Reducer {
  public:
   explicit B0Wrapper(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) OVERRIDE {
+  virtual Reduction Reduce(Node* node) override {
     switch (node->op()->opcode()) {
       case kOpcodeB0:
         EXPECT_EQ(0, node->InputCount());

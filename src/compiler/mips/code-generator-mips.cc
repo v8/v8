@@ -34,7 +34,7 @@ namespace compiler {
 
 
 // Adds Mips-specific methods to convert InstructionOperands.
-class MipsOperandConverter FINAL : public InstructionOperandConverter {
+class MipsOperandConverter final : public InstructionOperandConverter {
  public:
   MipsOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
@@ -124,12 +124,12 @@ static inline bool HasRegisterInput(Instruction* instr, size_t index) {
 
 namespace {
 
-class OutOfLineLoadSingle FINAL : public OutOfLineCode {
+class OutOfLineLoadSingle final : public OutOfLineCode {
  public:
   OutOfLineLoadSingle(CodeGenerator* gen, FloatRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ Move(result_, std::numeric_limits<float>::quiet_NaN());
   }
 
@@ -138,12 +138,12 @@ class OutOfLineLoadSingle FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadDouble FINAL : public OutOfLineCode {
+class OutOfLineLoadDouble final : public OutOfLineCode {
  public:
   OutOfLineLoadDouble(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ Move(result_, std::numeric_limits<double>::quiet_NaN());
   }
 
@@ -152,12 +152,12 @@ class OutOfLineLoadDouble FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+class OutOfLineLoadInteger final : public OutOfLineCode {
  public:
   OutOfLineLoadInteger(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ mov(result_, zero_reg); }
+  void Generate() final { __ mov(result_, zero_reg); }
 
  private:
   Register const result_;
@@ -169,7 +169,7 @@ class OutOfLineRound : public OutOfLineCode {
   OutOfLineRound(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     // Handle rounding to zero case where sign has to be preserved.
     // High bits of double input already in kScratchReg.
     __ srl(at, kScratchReg, 31);
@@ -182,21 +182,21 @@ class OutOfLineRound : public OutOfLineCode {
 };
 
 
-class OutOfLineTruncate FINAL : public OutOfLineRound {
+class OutOfLineTruncate final : public OutOfLineRound {
  public:
   OutOfLineTruncate(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineRound(gen, result) {}
 };
 
 
-class OutOfLineFloor FINAL : public OutOfLineRound {
+class OutOfLineFloor final : public OutOfLineRound {
  public:
   OutOfLineFloor(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineRound(gen, result) {}
 };
 
 
-class OutOfLineCeil FINAL : public OutOfLineRound {
+class OutOfLineCeil final : public OutOfLineRound {
  public:
   OutOfLineCeil(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineRound(gen, result) {}

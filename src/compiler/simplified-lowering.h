@@ -18,7 +18,7 @@ namespace compiler {
 class RepresentationChanger;
 class SourcePositionTable;
 
-class SimplifiedLowering FINAL {
+class SimplifiedLowering final {
  public:
   SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                      SourcePositionTable* source_positions)

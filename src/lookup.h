@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class LookupIterator FINAL BASE_EMBEDDED {
+class LookupIterator final BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.

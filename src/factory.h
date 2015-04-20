@@ -14,7 +14,7 @@ namespace internal {
 class FeedbackVectorSpec;
 
 // Interface for handle based allocation.
-class Factory FINAL {
+class Factory final {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map,
                              const char* to_string,

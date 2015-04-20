@@ -10,12 +10,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SourcePositionTable::Decorator FINAL : public GraphDecorator {
+class SourcePositionTable::Decorator final : public GraphDecorator {
  public:
   explicit Decorator(SourcePositionTable* source_positions)
       : source_positions_(source_positions) {}
 
-  void Decorate(Node* node, bool incomplete) FINAL {
+  void Decorate(Node* node, bool incomplete) final {
     DCHECK(!source_positions_->current_position_.IsInvalid());
     source_positions_->table_.Set(node, source_positions_->current_position_);
   }

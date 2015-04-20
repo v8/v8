@@ -20,7 +20,7 @@ class CommonOperatorReducerTest : public GraphTest {
  public:
   explicit CommonOperatorReducerTest(int num_parameters = 1)
       : GraphTest(num_parameters), machine_(zone()) {}
-  ~CommonOperatorReducerTest() OVERRIDE {}
+  ~CommonOperatorReducerTest() override {}
 
  protected:
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =

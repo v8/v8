@@ -163,8 +163,6 @@
 //  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
 //  V8_HAS_CXX11_STATIC_ASSERT  - static_assert() supported
 //  V8_HAS_CXX11_DELETE         - deleted functions supported
-//  V8_HAS_CXX11_FINAL          - final marker supported
-//  V8_HAS_CXX11_OVERRIDE       - override marker supported
 //
 // Compiler-specific feature detection
 //
@@ -231,8 +229,6 @@
 # define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
 # define V8_HAS_CXX11_STATIC_ASSERT (__has_feature(cxx_static_assert))
 # define V8_HAS_CXX11_DELETE (__has_feature(cxx_deleted_functions))
-# define V8_HAS_CXX11_FINAL (__has_feature(cxx_override_control))
-# define V8_HAS_CXX11_OVERRIDE (__has_feature(cxx_override_control))
 
 #elif defined(__GNUC__)
 

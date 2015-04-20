@@ -26,12 +26,12 @@ class MachineOperatorBuilder;
 
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering FINAL : public Reducer {
+class JSTypedLowering final : public Reducer {
  public:
   JSTypedLowering(JSGraph* jsgraph, Zone* zone);
-  ~JSTypedLowering() FINAL {}
+  ~JSTypedLowering() final {}
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   friend class JSBinopReduction;

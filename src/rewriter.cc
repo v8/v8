@@ -57,7 +57,7 @@ class Processor: public AstVisitor {
   }
 
   // Node visitors.
-#define DEF_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+#define DEF_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 

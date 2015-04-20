@@ -176,7 +176,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
-  struct Name##Operator FINAL : public Operator {                              \
+  struct Name##Operator final : public Operator {                              \
     Name##Operator()                                                           \
         : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name,     \
                    value_input_count, 0, control_input_count, output_count, 0, \
@@ -187,13 +187,13 @@ struct MachineOperatorGlobalCache {
 #undef PURE
 
 #define LOAD(Type)                                                             \
-  struct Load##Type##Operator FINAL : public Operator1<LoadRepresentation> {   \
+  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
     Load##Type##Operator()                                                     \
         : Operator1<LoadRepresentation>(                                       \
               IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite,        \
               "Load", 2, 1, 1, 1, 1, 0, k##Type) {}                            \
   };                                                                           \
-  struct CheckedLoad##Type##Operator FINAL                                     \
+  struct CheckedLoad##Type##Operator final                                     \
       : public Operator1<CheckedLoadRepresentation> {                          \
     CheckedLoad##Type##Operator()                                              \
         : Operator1<CheckedLoadRepresentation>(                                \
@@ -213,17 +213,17 @@ struct MachineOperatorGlobalCache {
               "Store", 3, 1, 1, 0, 1, 0,                                       \
               StoreRepresentation(k##Type, write_barrier_kind)) {}             \
   };                                                                           \
-  struct Store##Type##NoWriteBarrier##Operator FINAL                           \
+  struct Store##Type##NoWriteBarrier##Operator final                           \
       : public Store##Type##Operator {                                         \
     Store##Type##NoWriteBarrier##Operator()                                    \
         : Store##Type##Operator(kNoWriteBarrier) {}                            \
   };                                                                           \
-  struct Store##Type##FullWriteBarrier##Operator FINAL                         \
+  struct Store##Type##FullWriteBarrier##Operator final                         \
       : public Store##Type##Operator {                                         \
     Store##Type##FullWriteBarrier##Operator()                                  \
         : Store##Type##Operator(kFullWriteBarrier) {}                          \
   };                                                                           \
-  struct CheckedStore##Type##Operator FINAL                                    \
+  struct CheckedStore##Type##Operator final                                    \
       : public Operator1<CheckedStoreRepresentation> {                         \
     CheckedStore##Type##Operator()                                             \
         : Operator1<CheckedStoreRepresentation>(                               \

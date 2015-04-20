@@ -29,7 +29,7 @@ typedef MachineType LoadRepresentation;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
-class StoreRepresentation FINAL {
+class StoreRepresentation final {
  public:
   StoreRepresentation(MachineType machine_type,
                       WriteBarrierKind write_barrier_kind)
@@ -68,7 +68,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
-class MachineOperatorBuilder FINAL : public ZoneObject {
+class MachineOperatorBuilder final : public ZoneObject {
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.

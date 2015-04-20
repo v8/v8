@@ -58,7 +58,7 @@ class JSTypeFeedbackSpecializer : public Reducer {
     CHECK(js_type_feedback);
   }
 
-  Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) override;
 
   // Visible for unit testing.
   Reduction ReduceJSLoadNamed(Node* node);

@@ -19,7 +19,7 @@ namespace compiler {
 class NodeMatcherTest : public GraphTest {
  public:
   NodeMatcherTest() : machine_(zone()) {}
-  ~NodeMatcherTest() OVERRIDE {}
+  ~NodeMatcherTest() override {}
 
   MachineOperatorBuilder* machine() { return &machine_; }
 

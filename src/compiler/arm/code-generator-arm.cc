@@ -21,7 +21,7 @@ namespace compiler {
 
 
 // Adds Arm-specific methods to convert InstructionOperands.
-class ArmOperandConverter FINAL : public InstructionOperandConverter {
+class ArmOperandConverter final : public InstructionOperandConverter {
  public:
   ArmOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
@@ -160,12 +160,12 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
 
 namespace {
 
-class OutOfLineLoadFloat32 FINAL : public OutOfLineCode {
+class OutOfLineLoadFloat32 final : public OutOfLineCode {
  public:
   OutOfLineLoadFloat32(CodeGenerator* gen, SwVfpRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ vmov(result_, std::numeric_limits<float>::quiet_NaN());
   }
 
@@ -174,12 +174,12 @@ class OutOfLineLoadFloat32 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadFloat64 FINAL : public OutOfLineCode {
+class OutOfLineLoadFloat64 final : public OutOfLineCode {
  public:
   OutOfLineLoadFloat64(CodeGenerator* gen, DwVfpRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ vmov(result_, std::numeric_limits<double>::quiet_NaN(), kScratchReg);
   }
 
@@ -188,12 +188,12 @@ class OutOfLineLoadFloat64 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+class OutOfLineLoadInteger final : public OutOfLineCode {
  public:
   OutOfLineLoadInteger(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ mov(result_, Operand::Zero()); }
+  void Generate() final { __ mov(result_, Operand::Zero()); }
 
  private:
   Register const result_;

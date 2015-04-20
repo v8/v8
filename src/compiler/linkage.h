@@ -46,7 +46,7 @@ typedef Signature<LinkageLocation> LocationSignature;
 
 // Describes a call to various parts of the compiler. Every call has the notion
 // of a "target", which is the first input to the call.
-class CallDescriptor FINAL : public ZoneObject {
+class CallDescriptor final : public ZoneObject {
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {

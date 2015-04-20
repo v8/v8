@@ -255,7 +255,7 @@ class LUnallocated : public LOperand {
 };
 
 
-class LMoveOperands FINAL BASE_EMBEDDED {
+class LMoveOperands final BASE_EMBEDDED {
  public:
   LMoveOperands(LOperand* source, LOperand* destination)
       : source_(source), destination_(destination) {
@@ -302,8 +302,8 @@ class LMoveOperands FINAL BASE_EMBEDDED {
 };
 
 
-template<LOperand::Kind kOperandKind, int kNumCachedOperands>
-class LSubKindOperand FINAL : public LOperand {
+template <LOperand::Kind kOperandKind, int kNumCachedOperands>
+class LSubKindOperand final : public LOperand {
  public:
   static LSubKindOperand* Create(int index, Zone* zone) {
     DCHECK(index >= 0);
@@ -333,7 +333,7 @@ LITHIUM_OPERAND_LIST(LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS)
 #undef LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS
 
 
-class LParallelMove FINAL : public ZoneObject {
+class LParallelMove final : public ZoneObject {
  public:
   explicit LParallelMove(Zone* zone) : move_operands_(4, zone) { }
 
@@ -352,7 +352,7 @@ class LParallelMove FINAL : public ZoneObject {
 };
 
 
-class LPointerMap FINAL : public ZoneObject {
+class LPointerMap final : public ZoneObject {
  public:
   explicit LPointerMap(Zone* zone)
       : pointer_operands_(8, zone),
@@ -385,7 +385,7 @@ class LPointerMap FINAL : public ZoneObject {
 };
 
 
-class LEnvironment FINAL : public ZoneObject {
+class LEnvironment final : public ZoneObject {
  public:
   LEnvironment(Handle<JSFunction> closure,
                FrameType frame_type,
@@ -535,7 +535,7 @@ class LEnvironment FINAL : public ZoneObject {
 
 
 // Iterates over the non-null, non-constant operands in an environment.
-class ShallowIterator FINAL BASE_EMBEDDED {
+class ShallowIterator final BASE_EMBEDDED {
  public:
   explicit ShallowIterator(LEnvironment* env)
       : env_(env),
@@ -579,7 +579,7 @@ class ShallowIterator FINAL BASE_EMBEDDED {
 
 
 // Iterator for non-null, non-constant operands incl. outer environments.
-class DeepIterator FINAL BASE_EMBEDDED {
+class DeepIterator final BASE_EMBEDDED {
  public:
   explicit DeepIterator(LEnvironment* env)
       : current_iterator_(env) {

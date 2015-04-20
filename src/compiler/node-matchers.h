@@ -105,7 +105,7 @@ inline ValueMatcher<uint64_t, IrOpcode::kInt64Constant>::ValueMatcher(
 
 // A pattern matcher for integer constants.
 template <typename T, IrOpcode::Value kOpcode>
-struct IntMatcher FINAL : public ValueMatcher<T, kOpcode> {
+struct IntMatcher final : public ValueMatcher<T, kOpcode> {
   explicit IntMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
   bool IsMultipleOf(T n) const {
@@ -136,7 +136,7 @@ typedef Uint64Matcher UintPtrMatcher;
 
 // A pattern matcher for floating point constants.
 template <typename T, IrOpcode::Value kOpcode>
-struct FloatMatcher FINAL : public ValueMatcher<T, kOpcode> {
+struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   explicit FloatMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
   bool IsMinusZero() const {
@@ -153,7 +153,7 @@ typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
 // A pattern matcher for heap object constants.
 template <typename T>
-struct HeapObjectMatcher FINAL
+struct HeapObjectMatcher final
     : public ValueMatcher<Unique<T>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
       : ValueMatcher<Unique<T>, IrOpcode::kHeapConstant>(node) {}
@@ -161,7 +161,7 @@ struct HeapObjectMatcher FINAL
 
 
 // A pattern matcher for external reference constants.
-struct ExternalReferenceMatcher FINAL
+struct ExternalReferenceMatcher final
     : public ValueMatcher<ExternalReference, IrOpcode::kExternalConstant> {
   explicit ExternalReferenceMatcher(Node* node)
       : ValueMatcher<ExternalReference, IrOpcode::kExternalConstant>(node) {}

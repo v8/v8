@@ -147,7 +147,7 @@ struct timespec TimeDelta::ToTimespec() const {
 // We implement time using the high-resolution timers so that we can get
 // timeouts which are smaller than 10-15ms. To avoid any drift, we
 // periodically resync the internal clock to the system clock.
-class Clock FINAL {
+class Clock final {
  public:
   Clock() : initial_ticks_(GetSystemTicks()), initial_time_(GetSystemTime()) {}
 
@@ -399,7 +399,7 @@ class TickClock {
 // (3) System time. The system time provides a low-resolution (typically 10ms
 // to 55 milliseconds) time stamp but is comparatively less expensive to
 // retrieve and more reliable.
-class HighResolutionTickClock FINAL : public TickClock {
+class HighResolutionTickClock final : public TickClock {
  public:
   explicit HighResolutionTickClock(int64_t ticks_per_second)
       : ticks_per_second_(ticks_per_second) {
@@ -407,7 +407,7 @@ class HighResolutionTickClock FINAL : public TickClock {
   }
   virtual ~HighResolutionTickClock() {}
 
-  int64_t Now() OVERRIDE {
+  int64_t Now() override {
     LARGE_INTEGER now;
     BOOL result = QueryPerformanceCounter(&now);
     DCHECK(result);
@@ -425,21 +425,21 @@ class HighResolutionTickClock FINAL : public TickClock {
     return ticks + 1;
   }
 
-  bool IsHighResolution() OVERRIDE { return true; }
+  bool IsHighResolution() override { return true; }
 
  private:
   int64_t ticks_per_second_;
 };
 
 
-class RolloverProtectedTickClock FINAL : public TickClock {
+class RolloverProtectedTickClock final : public TickClock {
  public:
   // We initialize rollover_ms_ to 1 to ensure that we will never
   // return 0 from TimeTicks::HighResolutionNow() and TimeTicks::Now() below.
   RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
   virtual ~RolloverProtectedTickClock() {}
 
-  int64_t Now() OVERRIDE {
+  int64_t Now() override {
     LockGuard<Mutex> lock_guard(&mutex_);
     // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
     // every ~49.7 days. We try to track rollover ourselves, which works if
@@ -458,7 +458,7 @@ class RolloverProtectedTickClock FINAL : public TickClock {
     return (now + rollover_ms_) * Time::kMicrosecondsPerMillisecond;
   }
 
-  bool IsHighResolution() OVERRIDE { return false; }
+  bool IsHighResolution() override { return false; }
 
  private:
   Mutex mutex_;

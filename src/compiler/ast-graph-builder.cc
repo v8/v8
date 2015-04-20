@@ -71,35 +71,35 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
 
 
 // Context to evaluate expression for its side effects only.
-class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
+class AstGraphBuilder::AstEffectContext final : public AstContext {
  public:
   explicit AstEffectContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {}
-  ~AstEffectContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
+  ~AstEffectContext() final;
+  void ProduceValue(Node* value) final;
+  Node* ConsumeValue() final;
 };
 
 
 // Context to evaluate expression for its value (and side effects).
-class AstGraphBuilder::AstValueContext FINAL : public AstContext {
+class AstGraphBuilder::AstValueContext final : public AstContext {
  public:
   explicit AstValueContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kValue) {}
-  ~AstValueContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
+  ~AstValueContext() final;
+  void ProduceValue(Node* value) final;
+  Node* ConsumeValue() final;
 };
 
 
 // Context to evaluate expression for a condition value (and side effects).
-class AstGraphBuilder::AstTestContext FINAL : public AstContext {
+class AstGraphBuilder::AstTestContext final : public AstContext {
  public:
   explicit AstTestContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kTest) {}
-  ~AstTestContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
+  ~AstTestContext() final;
+  void ProduceValue(Node* value) final;
+  Node* ConsumeValue() final;
 };
 
 
@@ -279,7 +279,7 @@ class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -307,7 +307,7 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -341,7 +341,7 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
   }
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     switch (cmd) {
       case CMD_THROW:
         control_->Throw(value);
@@ -372,7 +372,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
   }
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     Node* token = commands_->RecordCommand(cmd, target, value);
     control_->LeaveTry(token, value);
     return true;

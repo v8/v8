@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class CodeGenerator::JumpTable FINAL : public ZoneObject {
+class CodeGenerator::JumpTable final : public ZoneObject {
  public:
   JumpTable(JumpTable* next, Label** targets, size_t target_count)
       : next_(next), targets_(targets), target_count_(target_count) {}

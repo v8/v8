@@ -19,7 +19,7 @@ struct JSOperatorGlobalCache;
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
-class CallFunctionParameters FINAL {
+class CallFunctionParameters final {
  public:
   CallFunctionParameters(size_t arity, CallFunctionFlags flags)
       : arity_(arity), flags_(flags) {}
@@ -44,7 +44,7 @@ const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
-class CallRuntimeParameters FINAL {
+class CallRuntimeParameters final {
  public:
   CallRuntimeParameters(Runtime::FunctionId id, size_t arity)
       : id_(id), arity_(arity) {}
@@ -70,7 +70,7 @@ const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op);
 // Defines the location of a context slot relative to a specific scope. This is
 // used as a parameter by JSLoadContext and JSStoreContext operators and allows
 // accessing a context-allocated variable without keeping track of the scope.
-class ContextAccess FINAL {
+class ContextAccess final {
  public:
   ContextAccess(size_t depth, size_t index, bool immutable);
 
@@ -117,7 +117,7 @@ bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs);
 
 // Defines the property being loaded from an object by a named load. This is
 // used as a parameter by JSLoadNamed operators.
-class LoadNamedParameters FINAL {
+class LoadNamedParameters final {
  public:
   LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
                       ContextualMode contextual_mode)
@@ -146,7 +146,7 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 
 // Defines the property being loaded from an object. This is
 // used as a parameter by JSLoadProperty operators.
-class LoadPropertyParameters FINAL {
+class LoadPropertyParameters final {
  public:
   explicit LoadPropertyParameters(const VectorSlotPair& feedback)
       : feedback_(feedback) {}
@@ -169,7 +169,7 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 
 // Defines the property being stored to an object by a named store. This is
 // used as a parameter by JSStoreNamed operators.
-class StoreNamedParameters FINAL {
+class StoreNamedParameters final {
  public:
   StoreNamedParameters(LanguageMode language_mode, const Unique<Name>& name)
       : language_mode_(language_mode), name_(name) {}
@@ -195,7 +195,7 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
-class JSOperatorBuilder FINAL : public ZoneObject {
+class JSOperatorBuilder final : public ZoneObject {
  public:
   explicit JSOperatorBuilder(Zone* zone);
 

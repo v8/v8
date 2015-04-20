@@ -56,20 +56,20 @@ class AstRawStringInternalizationKey : public HashTableKey {
   explicit AstRawStringInternalizationKey(const AstRawString* string)
       : string_(string) {}
 
-  bool IsMatch(Object* other) OVERRIDE {
+  bool IsMatch(Object* other) override {
     if (string_->is_one_byte_)
       return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
     return String::cast(other)->IsTwoByteEqualTo(
         Vector<const uint16_t>::cast(string_->literal_bytes_));
   }
 
-  uint32_t Hash() OVERRIDE { return string_->hash() >> Name::kHashShift; }
+  uint32_t Hash() override { return string_->hash() >> Name::kHashShift; }
 
-  uint32_t HashForObject(Object* key) OVERRIDE {
+  uint32_t HashForObject(Object* key) override {
     return String::cast(key)->Hash();
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) override {
     if (string_->is_one_byte_)
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash());

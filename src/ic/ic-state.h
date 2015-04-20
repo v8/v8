@@ -22,7 +22,7 @@ class ICUtility : public AllStatic {
 };
 
 
-class CallICState FINAL BASE_EMBEDDED {
+class CallICState final BASE_EMBEDDED {
  public:
   explicit CallICState(ExtraICState extra_ic_state);
 
@@ -54,7 +54,7 @@ class CallICState FINAL BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os, const CallICState& s);
 
 
-class BinaryOpICState FINAL BASE_EMBEDDED {
+class BinaryOpICState final BASE_EMBEDDED {
  public:
   BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state);
 
@@ -195,7 +195,7 @@ class CompareICState {
 };
 
 
-class LoadICState FINAL BASE_EMBEDDED {
+class LoadICState final BASE_EMBEDDED {
  public:
   explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 

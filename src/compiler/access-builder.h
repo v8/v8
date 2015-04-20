@@ -14,7 +14,7 @@ namespace compiler {
 // This access builder provides a set of static methods constructing commonly
 // used FieldAccess and ElementAccess descriptors. These descriptors serve as
 // parameters to simplified load/store operators.
-class AccessBuilder FINAL : public AllStatic {
+class AccessBuilder final : public AllStatic {
  public:
   // Provides access to HeapObject::map() field.
   static FieldAccess ForMap();

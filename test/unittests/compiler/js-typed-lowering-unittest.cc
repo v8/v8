@@ -72,7 +72,7 @@ const LanguageMode kLanguageModes[] = {SLOPPY, STRICT, STRONG};
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
   JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
-  ~JSTypedLoweringTest() OVERRIDE {}
+  ~JSTypedLoweringTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {

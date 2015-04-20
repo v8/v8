@@ -18,7 +18,7 @@ namespace compiler {
 
 
 // Adds Arm64-specific methods to convert InstructionOperands.
-class Arm64OperandConverter FINAL : public InstructionOperandConverter {
+class Arm64OperandConverter final : public InstructionOperandConverter {
  public:
   Arm64OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
@@ -198,12 +198,12 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
 
 namespace {
 
-class OutOfLineLoadNaN32 FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN32 final : public OutOfLineCode {
  public:
   OutOfLineLoadNaN32(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ Fmov(result_, std::numeric_limits<float>::quiet_NaN());
   }
 
@@ -212,12 +212,12 @@ class OutOfLineLoadNaN32 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadNaN64 FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN64 final : public OutOfLineCode {
  public:
   OutOfLineLoadNaN64(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ Fmov(result_, std::numeric_limits<double>::quiet_NaN());
   }
 
@@ -226,12 +226,12 @@ class OutOfLineLoadNaN64 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadZero FINAL : public OutOfLineCode {
+class OutOfLineLoadZero final : public OutOfLineCode {
  public:
   OutOfLineLoadZero(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ Mov(result_, 0); }
+  void Generate() final { __ Mov(result_, 0); }
 
  private:
   Register const result_;

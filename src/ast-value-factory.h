@@ -64,7 +64,7 @@ class AstString : public ZoneObject {
 
 class AstRawString : public AstString {
  public:
-  int length() const OVERRIDE {
+  int length() const override {
     if (is_one_byte_)
       return literal_bytes_.length();
     return literal_bytes_.length() / 2;
@@ -72,7 +72,7 @@ class AstRawString : public AstString {
 
   int byte_length() const { return literal_bytes_.length(); }
 
-  void Internalize(Isolate* isolate) OVERRIDE;
+  void Internalize(Isolate* isolate) override;
 
   bool AsArrayIndex(uint32_t* index) const;
 
@@ -121,9 +121,9 @@ class AstConsString : public AstString {
       : left_(left),
         right_(right) {}
 
-  int length() const OVERRIDE { return left_->length() + right_->length(); }
+  int length() const override { return left_->length() + right_->length(); }
 
-  void Internalize(Isolate* isolate) OVERRIDE;
+  void Internalize(Isolate* isolate) override;
 
  private:
   friend class AstValueFactory;

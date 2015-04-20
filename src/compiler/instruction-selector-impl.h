@@ -243,7 +243,7 @@ class OperandGenerator {
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
-class FlagsContinuation FINAL {
+class FlagsContinuation final {
  public:
   FlagsContinuation() : mode_(kFlags_none) {}
 

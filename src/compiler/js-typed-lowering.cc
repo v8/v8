@@ -59,7 +59,7 @@ Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
 // JSOperator. This class manages the rewriting of context, control, and effect
 // dependencies during lowering of a binop and contains numerous helper
 // functions for matching the types of inputs to an operation.
-class JSBinopReduction FINAL {
+class JSBinopReduction final {
  public:
   JSBinopReduction(JSTypedLowering* lowering, Node* node)
       : lowering_(lowering), node_(node) {}

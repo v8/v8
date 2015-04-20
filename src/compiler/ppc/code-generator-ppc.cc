@@ -21,7 +21,7 @@ namespace compiler {
 
 
 // Adds PPC-specific methods to convert InstructionOperands.
-class PPCOperandConverter FINAL : public InstructionOperandConverter {
+class PPCOperandConverter final : public InstructionOperandConverter {
  public:
   PPCOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
@@ -117,12 +117,12 @@ static inline bool HasRegisterInput(Instruction* instr, size_t index) {
 
 namespace {
 
-class OutOfLineLoadNAN32 FINAL : public OutOfLineCode {
+class OutOfLineLoadNAN32 final : public OutOfLineCode {
  public:
   OutOfLineLoadNAN32(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ LoadDoubleLiteral(result_, std::numeric_limits<float>::quiet_NaN(),
                          kScratchReg);
   }
@@ -132,12 +132,12 @@ class OutOfLineLoadNAN32 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadNAN64 FINAL : public OutOfLineCode {
+class OutOfLineLoadNAN64 final : public OutOfLineCode {
  public:
   OutOfLineLoadNAN64(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ LoadDoubleLiteral(result_, std::numeric_limits<double>::quiet_NaN(),
                          kScratchReg);
   }
@@ -147,12 +147,12 @@ class OutOfLineLoadNAN64 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadZero FINAL : public OutOfLineCode {
+class OutOfLineLoadZero final : public OutOfLineCode {
  public:
   OutOfLineLoadZero(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ li(result_, Operand::Zero()); }
+  void Generate() final { __ li(result_, Operand::Zero()); }
 
  private:
   Register const result_;

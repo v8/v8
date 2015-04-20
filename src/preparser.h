@@ -644,7 +644,7 @@ class ParserBase : public Traits {
         : ObjectLiteralCheckerBase(parser), has_seen_proto_(false) {}
 
     void CheckProperty(Token::Value property, PropertyKind type, bool is_static,
-                       bool is_generator, bool* ok) OVERRIDE;
+                       bool is_generator, bool* ok) override;
 
    private:
     bool IsProto() { return this->scanner()->LiteralMatches("__proto__", 9); }
@@ -659,7 +659,7 @@ class ParserBase : public Traits {
         : ObjectLiteralCheckerBase(parser), has_seen_constructor_(false) {}
 
     void CheckProperty(Token::Value property, PropertyKind type, bool is_static,
-                       bool is_generator, bool* ok) OVERRIDE;
+                       bool is_generator, bool* ok) override;
 
    private:
     bool IsConstructor() {

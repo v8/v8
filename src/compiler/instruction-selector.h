@@ -28,7 +28,7 @@ typedef ZoneVector<InstructionOperand> InstructionOperandVector;
 
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
-class InstructionSelector FINAL {
+class InstructionSelector final {
  public:
   // Forward declarations.
   class Features;
@@ -81,7 +81,7 @@ class InstructionSelector FINAL {
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
-  class Features FINAL {
+  class Features final {
    public:
     Features() : bits_(0) {}
     explicit Features(unsigned bits) : bits_(bits) {}

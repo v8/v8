@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MoveOptimizer FINAL {
+class MoveOptimizer final {
  public:
   MoveOptimizer(Zone* local_zone, InstructionSequence* code);
   void Run();

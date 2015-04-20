@@ -47,7 +47,7 @@ class RawMachineAssembler : public GraphBuilder {
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
-  ~RawMachineAssembler() OVERRIDE {}
+  ~RawMachineAssembler() override {}
 
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
@@ -489,7 +489,7 @@ class RawMachineAssembler : public GraphBuilder {
 
  protected:
   Node* MakeNode(const Operator* op, int input_count, Node** inputs,
-                 bool incomplete) FINAL;
+                 bool incomplete) final;
 
   bool ScheduleValid() { return schedule_ != NULL; }
 

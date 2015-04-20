@@ -187,9 +187,9 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ObjectIsNonNegativeSmi, Operator::kNoProperties, 1)
 
 
-struct SimplifiedOperatorGlobalCache FINAL {
+struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
-  struct Name##Operator FINAL : public Operator {                          \
+  struct Name##Operator final : public Operator {                          \
     Name##Operator()                                                       \
         : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name, \
                    input_count, 0, 0, 1, 0, 0) {}                          \
@@ -199,14 +199,14 @@ struct SimplifiedOperatorGlobalCache FINAL {
 #undef PURE
 
 #define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
-  struct LoadBuffer##Type##Operator FINAL : public Operator1<BufferAccess> {  \
+  struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
     LoadBuffer##Type##Operator()                                              \
         : Operator1<BufferAccess>(IrOpcode::kLoadBuffer,                      \
                                   Operator::kNoThrow | Operator::kNoWrite,    \
                                   "LoadBuffer", 3, 1, 1, 1, 1, 0,             \
                                   BufferAccess(kExternal##Type##Array)) {}    \
   };                                                                          \
-  struct StoreBuffer##Type##Operator FINAL : public Operator1<BufferAccess> { \
+  struct StoreBuffer##Type##Operator final : public Operator1<BufferAccess> { \
     StoreBuffer##Type##Operator()                                             \
         : Operator1<BufferAccess>(IrOpcode::kStoreBuffer,                     \
                                   Operator::kNoRead | Operator::kNoThrow,     \

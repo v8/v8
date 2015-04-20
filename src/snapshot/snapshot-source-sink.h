@@ -17,7 +17,7 @@ namespace internal {
  *
  * Note: Memory ownership remains with callee.
  */
-class SnapshotByteSource FINAL {
+class SnapshotByteSource final {
  public:
   SnapshotByteSource(const char* data, int length)
       : data_(reinterpret_cast<const byte*>(data)),

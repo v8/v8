@@ -17,7 +17,7 @@ class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class NodeProperties FINAL {
+class NodeProperties final {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.

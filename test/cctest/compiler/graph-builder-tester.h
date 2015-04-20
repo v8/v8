@@ -28,7 +28,7 @@ class DirectGraphBuilder : public GraphBuilder {
 
  protected:
   virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs, bool incomplete) FINAL {
+                         Node** value_inputs, bool incomplete) final {
     return graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   }
 };

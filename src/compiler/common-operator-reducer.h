@@ -20,12 +20,12 @@ class Operator;
 
 
 // Performs strength reduction on nodes that have common operators.
-class CommonOperatorReducer FINAL : public Reducer {
+class CommonOperatorReducer final : public Reducer {
  public:
   explicit CommonOperatorReducer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
-  ~CommonOperatorReducer() FINAL {}
+  ~CommonOperatorReducer() final {}
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   Reduction ReduceEffectPhi(Node* node);

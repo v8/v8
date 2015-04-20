@@ -25,7 +25,7 @@ class ControlFlowOptimizerTest : public GraphTest {
         machine_(zone()),
         javascript_(zone()),
         jsgraph_(isolate(), graph(), common(), javascript(), machine()) {}
-  ~ControlFlowOptimizerTest() OVERRIDE {}
+  ~ControlFlowOptimizerTest() override {}
 
  protected:
   void Optimize() {

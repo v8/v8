@@ -18,7 +18,7 @@ namespace compiler {
 
 
 // Adds Mips-specific methods for generating InstructionOperands.
-class Mips64OperandGenerator FINAL : public OperandGenerator {
+class Mips64OperandGenerator final : public OperandGenerator {
  public:
   explicit Mips64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}

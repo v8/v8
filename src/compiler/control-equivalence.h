@@ -28,7 +28,7 @@ namespace compiler {
 // control regions in linear time" by Johnson, Pearson & Pingali (PLDI94) which
 // also contains proofs for the aforementioned equivalence. References to line
 // numbers in the algorithm from figure 4 have been added [line:x].
-class ControlEquivalence FINAL : public ZoneObject {
+class ControlEquivalence final : public ZoneObject {
  public:
   ControlEquivalence(Zone* zone, Graph* graph)
       : zone_(zone),

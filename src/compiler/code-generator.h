@@ -28,7 +28,7 @@ struct BranchInfo {
 
 
 // Generates native code for a sequence of instructions.
-class CodeGenerator FINAL : public GapResolver::Assembler {
+class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info);
@@ -99,9 +99,9 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
 
   // Interface used by the gap resolver to emit moves and swaps.
   void AssembleMove(InstructionOperand* source,
-                    InstructionOperand* destination) FINAL;
+                    InstructionOperand* destination) final;
   void AssembleSwap(InstructionOperand* source,
-                    InstructionOperand* destination) FINAL;
+                    InstructionOperand* destination) final;
 
   // ===========================================================================
   // =================== Jump table construction methods. ======================

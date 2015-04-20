@@ -357,17 +357,17 @@ class CallICNexus : public FeedbackNexus {
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
 
-  InlineCacheState StateFromFeedback() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const override;
 
-  int ExtractMaps(MapHandleList* maps) const OVERRIDE {
+  int ExtractMaps(MapHandleList* maps) const override {
     // CallICs don't record map feedback.
     return 0;
   }
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const override {
     return MaybeHandle<Code>();
   }
   virtual bool FindHandlers(CodeHandleList* code_list,
-                            int length = -1) const OVERRIDE {
+                            int length = -1) const override {
     return length == 0;
   }
 };
@@ -392,7 +392,7 @@ class LoadICNexus : public FeedbackNexus {
 
   void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
 
-  InlineCacheState StateFromFeedback() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const override;
 };
 
 
@@ -418,8 +418,8 @@ class KeyedLoadICNexus : public FeedbackNexus {
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             CodeHandleList* handlers);
 
-  InlineCacheState StateFromFeedback() const OVERRIDE;
-  Name* FindFirstName() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const override;
+  Name* FindFirstName() const override;
 };
 }
 }  // namespace v8::internal

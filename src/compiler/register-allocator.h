@@ -32,7 +32,7 @@ enum RegisterKind {
 //
 //  [Lifetime::USED_AT_START, Lifetime::USED_AT_END]
 //
-class LifetimePosition FINAL {
+class LifetimePosition final {
  public:
   // Return the lifetime position that corresponds to the beginning of
   // the gap with the given index.
@@ -130,7 +130,7 @@ class LifetimePosition FINAL {
 
 
 // Representation of the non-empty interval [start,end[.
-class UseInterval FINAL : public ZoneObject {
+class UseInterval final : public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
       : start_(start), end_(end), next_(nullptr) {
@@ -173,7 +173,7 @@ enum class UsePositionType : uint8_t { kAny, kRequiresRegister, kRequiresSlot };
 
 
 // Representation of a use position.
-class UsePosition FINAL : public ZoneObject {
+class UsePosition final : public ZoneObject {
  public:
   UsePosition(LifetimePosition pos, InstructionOperand* operand,
               InstructionOperand* hint);
@@ -212,7 +212,7 @@ class SpillRange;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
-class LiveRange FINAL : public ZoneObject {
+class LiveRange final : public ZoneObject {
  public:
   static const int kInvalidAssignment = 0x7fffffff;
 
@@ -387,7 +387,7 @@ class LiveRange FINAL : public ZoneObject {
 };
 
 
-class SpillRange FINAL : public ZoneObject {
+class SpillRange final : public ZoneObject {
  public:
   SpillRange(LiveRange* range, Zone* zone);
 
@@ -412,7 +412,7 @@ class SpillRange FINAL : public ZoneObject {
 };
 
 
-class RegisterAllocator FINAL : public ZoneObject {
+class RegisterAllocator final : public ZoneObject {
  public:
   explicit RegisterAllocator(const RegisterConfiguration* config,
                              Zone* local_zone, Frame* frame,

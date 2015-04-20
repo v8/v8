@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 
 
-class SafepointGenerator FINAL : public CallWrapper {
+class SafepointGenerator final : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
@@ -5941,7 +5941,7 @@ void LCodeGen::DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
 
 
 void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
-  class DeferredLoadMutableDouble FINAL : public LDeferredCode {
+  class DeferredLoadMutableDouble final : public LDeferredCode {
    public:
     DeferredLoadMutableDouble(LCodeGen* codegen,
                               LLoadFieldByIndex* instr,
@@ -5954,10 +5954,10 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
           object_(object),
           index_(index) {
     }
-    void Generate() OVERRIDE {
+    void Generate() override {
       codegen()->DoDeferredLoadMutableDouble(instr_, result_, object_, index_);
     }
-    LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() override { return instr_; }
 
    private:
     LLoadFieldByIndex* instr_;

@@ -401,7 +401,7 @@ ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_IS)
 
 
 #define ALLOCATED_OPERAND_CLASS(SubKind, kOperandKind)                       \
-  class SubKind##Operand FINAL : public AllocatedOperand {                   \
+  class SubKind##Operand final : public AllocatedOperand {                   \
    public:                                                                   \
     explicit SubKind##Operand(int index)                                     \
         : AllocatedOperand(kOperandKind, index) {}                           \
@@ -429,7 +429,7 @@ ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_CLASS)
 #undef ALLOCATED_OPERAND_CLASS
 
 
-class MoveOperands FINAL : public ZoneObject {
+class MoveOperands final : public ZoneObject {
  public:
   MoveOperands(const InstructionOperand& source,
                const InstructionOperand& destination)
@@ -490,7 +490,7 @@ struct PrintableMoveOperands {
 std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
 
 
-class ParallelMove FINAL : public ZoneVector<MoveOperands*>, public ZoneObject {
+class ParallelMove final : public ZoneVector<MoveOperands*>, public ZoneObject {
  public:
   explicit ParallelMove(Zone* zone) : ZoneVector<MoveOperands*>(zone) {
     reserve(4);
@@ -525,7 +525,7 @@ struct PrintableParallelMove {
 std::ostream& operator<<(std::ostream& os, const PrintableParallelMove& pm);
 
 
-class ReferenceMap FINAL : public ZoneObject {
+class ReferenceMap final : public ZoneObject {
  public:
   explicit ReferenceMap(Zone* zone)
       : reference_operands_(8, zone), instruction_position_(-1) {}
@@ -708,7 +708,7 @@ struct PrintableInstruction {
 std::ostream& operator<<(std::ostream& os, const PrintableInstruction& instr);
 
 
-class RpoNumber FINAL {
+class RpoNumber final {
  public:
   static const int kInvalidRpoNumber = -1;
   int ToInt() const {
@@ -741,7 +741,7 @@ class RpoNumber FINAL {
 std::ostream& operator<<(std::ostream&, const RpoNumber&);
 
 
-class Constant FINAL {
+class Constant final {
  public:
   enum Type {
     kInt32,
@@ -851,7 +851,7 @@ class FrameStateDescriptor : public ZoneObject {
 std::ostream& operator<<(std::ostream& os, const Constant& constant);
 
 
-class PhiInstruction FINAL : public ZoneObject {
+class PhiInstruction final : public ZoneObject {
  public:
   typedef ZoneVector<InstructionOperand> Inputs;
 
@@ -875,7 +875,7 @@ class PhiInstruction FINAL : public ZoneObject {
 
 
 // Analogue of BasicBlock for Instructions instead of Nodes.
-class InstructionBlock FINAL : public ZoneObject {
+class InstructionBlock final : public ZoneObject {
  public:
   InstructionBlock(Zone* zone, RpoNumber rpo_number, RpoNumber loop_header,
                    RpoNumber loop_end, bool deferred);
@@ -956,7 +956,7 @@ struct PrintableInstructionSequence;
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
-class InstructionSequence FINAL : public ZoneObject {
+class InstructionSequence final : public ZoneObject {
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,
                                                  const Schedule* schedule);

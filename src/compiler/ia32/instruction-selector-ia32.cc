@@ -11,7 +11,7 @@ namespace internal {
 namespace compiler {
 
 // Adds IA32-specific methods for generating operands.
-class IA32OperandGenerator FINAL : public OperandGenerator {
+class IA32OperandGenerator final : public OperandGenerator {
  public:
   explicit IA32OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}

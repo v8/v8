@@ -143,37 +143,37 @@ bool HasImmediateInput(Instruction* instr, size_t index) {
 }
 
 
-class OutOfLineLoadZero FINAL : public OutOfLineCode {
+class OutOfLineLoadZero final : public OutOfLineCode {
  public:
   OutOfLineLoadZero(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ xorl(result_, result_); }
+  void Generate() final { __ xorl(result_, result_); }
 
  private:
   Register const result_;
 };
 
 
-class OutOfLineLoadNaN FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN final : public OutOfLineCode {
  public:
   OutOfLineLoadNaN(CodeGenerator* gen, XMMRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ pcmpeqd(result_, result_); }
+  void Generate() final { __ pcmpeqd(result_, result_); }
 
  private:
   XMMRegister const result_;
 };
 
 
-class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
+class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
                              XMMRegister input)
       : OutOfLineCode(gen), result_(result), input_(input) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ subp(rsp, Immediate(kDoubleSize));
     __ movsd(MemOperand(rsp, 0), input_);
     __ SlowTruncateToI(result_, rsp, 0);
@@ -315,7 +315,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
       auto length = i.InputInt32(3);                                         \
       DCHECK_LE(index2, length);                                             \
       __ cmpq(index1, Immediate(length - index2));                           \
-      class OutOfLineLoadFloat FINAL : public OutOfLineCode {                \
+      class OutOfLineLoadFloat final : public OutOfLineCode {                \
        public:                                                               \
         OutOfLineLoadFloat(CodeGenerator* gen, XMMRegister result,           \
                            Register buffer, Register index1, int32_t index2, \
@@ -327,7 +327,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
               index2_(index2),                                               \
               length_(length) {}                                             \
                                                                              \
-        void Generate() FINAL {                                              \
+        void Generate() final {                                              \
           __ leal(kScratchRegister, Operand(index1_, index2_));              \
           __ pcmpeqd(result_, result_);                                      \
           __ cmpl(kScratchRegister, Immediate(length_));                     \
@@ -368,7 +368,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
       auto length = i.InputInt32(3);                                           \
       DCHECK_LE(index2, length);                                               \
       __ cmpq(index1, Immediate(length - index2));                             \
-      class OutOfLineLoadInteger FINAL : public OutOfLineCode {                \
+      class OutOfLineLoadInteger final : public OutOfLineCode {                \
        public:                                                                 \
         OutOfLineLoadInteger(CodeGenerator* gen, Register result,              \
                              Register buffer, Register index1, int32_t index2, \
@@ -380,7 +380,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
               index2_(index2),                                                 \
               length_(length) {}                                               \
                                                                                \
-        void Generate() FINAL {                                                \
+        void Generate() final {                                                \
           Label oob;                                                           \
           __ leal(kScratchRegister, Operand(index1_, index2_));                \
           __ cmpl(kScratchRegister, Immediate(length_));                       \
@@ -426,7 +426,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
       auto length = i.InputInt32(3);                                         \
       DCHECK_LE(index2, length);                                             \
       __ cmpq(index1, Immediate(length - index2));                           \
-      class OutOfLineStoreFloat FINAL : public OutOfLineCode {               \
+      class OutOfLineStoreFloat final : public OutOfLineCode {               \
        public:                                                               \
         OutOfLineStoreFloat(CodeGenerator* gen, Register buffer,             \
                             Register index1, int32_t index2, int32_t length, \
@@ -438,7 +438,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
               length_(length),                                               \
               value_(value) {}                                               \
                                                                              \
-        void Generate() FINAL {                                              \
+        void Generate() final {                                              \
           __ leal(kScratchRegister, Operand(index1_, index2_));              \
           __ cmpl(kScratchRegister, Immediate(length_));                     \
           __ j(above_equal, exit());                                         \
@@ -479,7 +479,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
       auto length = i.InputInt32(3);                                           \
       DCHECK_LE(index2, length);                                               \
       __ cmpq(index1, Immediate(length - index2));                             \
-      class OutOfLineStoreInteger FINAL : public OutOfLineCode {               \
+      class OutOfLineStoreInteger final : public OutOfLineCode {               \
        public:                                                                 \
         OutOfLineStoreInteger(CodeGenerator* gen, Register buffer,             \
                               Register index1, int32_t index2, int32_t length, \
@@ -491,7 +491,7 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
               length_(length),                                                 \
               value_(value) {}                                                 \
                                                                                \
-        void Generate() FINAL {                                                \
+        void Generate() final {                                                \
           __ leal(kScratchRegister, Operand(index1_, index2_));                \
           __ cmpl(kScratchRegister, Immediate(length_));                       \
           __ j(above_equal, exit());                                           \

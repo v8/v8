@@ -608,7 +608,7 @@ class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, SnapshotByteSink* sink);
   ~Serializer();
-  void VisitPointers(Object** start, Object** end) OVERRIDE;
+  void VisitPointers(Object** start, Object** end) override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
 
@@ -778,7 +778,7 @@ class PartialSerializer : public Serializer {
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Object** o);
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) OVERRIDE;
+                               WhereToPoint where_to_point, int skip) override;
 
  private:
   int PartialSnapshotCacheIndex(HeapObject* o);
@@ -820,7 +820,7 @@ class StartupSerializer : public Serializer {
 
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
-  void VisitPointers(Object** start, Object** end) OVERRIDE;
+  void VisitPointers(Object** start, Object** end) override;
 
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.
@@ -828,7 +828,7 @@ class StartupSerializer : public Serializer {
   // 3) Weak references (e.g. the string table).
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) OVERRIDE;
+                               WhereToPoint where_to_point, int skip) override;
   void SerializeWeakReferences();
   void Serialize() {
     SerializeStrongReferences();
@@ -877,7 +877,7 @@ class CodeSerializer : public Serializer {
   ~CodeSerializer() { OutputStatistics("CodeSerializer"); }
 
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) OVERRIDE;
+                               WhereToPoint where_to_point, int skip) override;
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);

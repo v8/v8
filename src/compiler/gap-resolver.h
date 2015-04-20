@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class GapResolver FINAL {
+class GapResolver final {
  public:
   // Interface used by the gap resolver to emit moves and swaps.
   class Assembler {

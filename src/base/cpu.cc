@@ -178,7 +178,7 @@ int __detect_mips_arch_revision(void) {
 #endif
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
-class CPUInfo FINAL {
+class CPUInfo final {
  public:
   CPUInfo() : datalen_(0) {
     // Get the size of the cpuinfo file by reading it until the end. This is

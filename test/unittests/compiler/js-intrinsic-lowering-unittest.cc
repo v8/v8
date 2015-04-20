@@ -26,7 +26,7 @@ namespace compiler {
 class JSIntrinsicLoweringTest : public GraphTest {
  public:
   JSIntrinsicLoweringTest() : GraphTest(3), javascript_(zone()) {}
-  ~JSIntrinsicLoweringTest() OVERRIDE {}
+  ~JSIntrinsicLoweringTest() override {}
 
  protected:
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =

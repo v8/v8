@@ -52,7 +52,7 @@ struct Counter {
 class LoopPeelingTest : public GraphTest {
  public:
   LoopPeelingTest() : GraphTest(1), machine_(zone()) {}
-  ~LoopPeelingTest() OVERRIDE {}
+  ~LoopPeelingTest() override {}
 
  protected:
   MachineOperatorBuilder machine_;

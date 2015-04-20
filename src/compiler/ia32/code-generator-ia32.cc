@@ -173,37 +173,37 @@ bool HasImmediateInput(Instruction* instr, size_t index) {
 }
 
 
-class OutOfLineLoadInteger FINAL : public OutOfLineCode {
+class OutOfLineLoadInteger final : public OutOfLineCode {
  public:
   OutOfLineLoadInteger(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ xor_(result_, result_); }
+  void Generate() final { __ xor_(result_, result_); }
 
  private:
   Register const result_;
 };
 
 
-class OutOfLineLoadFloat FINAL : public OutOfLineCode {
+class OutOfLineLoadFloat final : public OutOfLineCode {
  public:
   OutOfLineLoadFloat(CodeGenerator* gen, XMMRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ pcmpeqd(result_, result_); }
+  void Generate() final { __ pcmpeqd(result_, result_); }
 
  private:
   XMMRegister const result_;
 };
 
 
-class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
+class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
                              XMMRegister input)
       : OutOfLineCode(gen), result_(result), input_(input) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ sub(esp, Immediate(kDoubleSize));
     __ movsd(MemOperand(esp, 0), input_);
     __ SlowTruncateToI(result_, esp, 0);

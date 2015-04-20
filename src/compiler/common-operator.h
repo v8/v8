@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream&, BranchHint);
 BranchHint BranchHintOf(const Operator* const);
 
 
-class SelectParameters FINAL {
+class SelectParameters final {
  public:
   explicit SelectParameters(MachineType type,
                             BranchHint hint = BranchHint::kNone)
@@ -122,7 +122,7 @@ enum FrameStateType {
 };
 
 
-class FrameStateCallInfo FINAL {
+class FrameStateCallInfo final {
  public:
   FrameStateCallInfo(
       FrameStateType type, BailoutId bailout_id,
@@ -158,7 +158,7 @@ size_t ProjectionIndexOf(const Operator* const);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
-class CommonOperatorBuilder FINAL : public ZoneObject {
+class CommonOperatorBuilder final : public ZoneObject {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
 

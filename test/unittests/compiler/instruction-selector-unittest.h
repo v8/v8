@@ -22,7 +22,7 @@ class InstructionSelectorTest : public TestWithContext,
                                 public TestWithIsolateAndZone {
  public:
   InstructionSelectorTest();
-  ~InstructionSelectorTest() OVERRIDE;
+  ~InstructionSelectorTest() override;
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 
@@ -34,7 +34,7 @@ class InstructionSelectorTest : public TestWithContext,
     kAllExceptNopInstructions
   };
 
-  class StreamBuilder FINAL : public RawMachineAssembler {
+  class StreamBuilder final : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(test->isolate(),
@@ -117,7 +117,7 @@ class InstructionSelectorTest : public TestWithContext,
     InstructionSelectorTest* test_;
   };
 
-  class Stream FINAL {
+  class Stream final {
    public:
     size_t size() const { return instructions_.size(); }
     const Instruction* operator[](size_t index) const {

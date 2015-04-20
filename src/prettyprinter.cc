@@ -1381,7 +1381,7 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
 
 
 void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  IndentedScope indent(this, "TRY FINALLY");
+  IndentedScope indent(this, "TRY finalLY");
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("FINALLY", node->finally_block());
 }

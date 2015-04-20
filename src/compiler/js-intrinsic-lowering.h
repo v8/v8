@@ -20,12 +20,12 @@ class MachineOperatorBuilder;
 
 
 // Lowers certain JS-level runtime calls.
-class JSIntrinsicLowering FINAL : public Reducer {
+class JSIntrinsicLowering final : public Reducer {
  public:
   explicit JSIntrinsicLowering(JSGraph* jsgraph);
-  ~JSIntrinsicLowering() FINAL {}
+  ~JSIntrinsicLowering() final {}
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   Reduction ReduceConstructDouble(Node* node);
