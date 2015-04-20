@@ -895,6 +895,8 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
   // Replace outdated global objects in deserialized contexts.
   for (int i = 0; i < outdated_contexts->length(); ++i) {
     Context* context = Context::cast(outdated_contexts->get(i));
+    // Assert that there is only one native context.
+    DCHECK(!context->IsNativeContext() || context == *native_context());
     DCHECK_EQ(context->global_object(), *global_object_from_snapshot);
     context->set_global_object(*global_object);
   }
