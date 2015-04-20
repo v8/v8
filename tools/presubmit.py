@@ -344,6 +344,7 @@ class SourceProcessor(SourceFileProcessor):
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
+                       'sqlite.js',
                        'gnuplot-4.6.3-emscripten.js',
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
