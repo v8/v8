@@ -285,6 +285,8 @@
   'mjsunit/debug-clearbreakpointgroup': [SKIP],
   # Issue 3969.
   'mjsunit/debug-references': [SKIP],
+  # Issue 478788.
+  'mjsunit/es7/object-observe': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
