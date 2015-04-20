@@ -224,7 +224,10 @@
 
   # Too slow for slow variants.
   'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
-  'asm/massive/*': [PASS, SLOW, FAST_VARIANTS, ['mode == debug', SKIP]],
+  # FIXME(machenbach): Needs to be skipped when dchecks_always_on or
+  # debug is set.
+  # 'asm/massive/*': [PASS, SLOW, FAST_VARIANTS, ['mode == debug', SKIP]],
+  'asm/massive/*': [SKIP],
 
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
