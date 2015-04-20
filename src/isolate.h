@@ -725,9 +725,10 @@ class Isolate {
       StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSObject> error_object,
                                          Handle<Object> caller);
-  void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
-  void CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
-                                     Handle<Object> caller);
+  MaybeHandle<JSObject> CaptureAndSetDetailedStackTrace(
+      Handle<JSObject> error_object);
+  MaybeHandle<JSObject> CaptureAndSetSimpleStackTrace(
+      Handle<JSObject> error_object, Handle<Object> caller);
   Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
   Handle<JSArray> GetDetailedFromSimpleStackTrace(
       Handle<JSObject> error_object);

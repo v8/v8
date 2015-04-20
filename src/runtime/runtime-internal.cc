@@ -163,9 +163,11 @@ RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
 
   if (!isolate->bootstrapper()->IsActive()) {
     // Optionally capture a more detailed stack trace for the message.
-    isolate->CaptureAndSetDetailedStackTrace(error_object);
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, isolate->CaptureAndSetDetailedStackTrace(error_object));
     // Capture a simple stack trace for the stack property.
-    isolate->CaptureAndSetSimpleStackTrace(error_object, caller);
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, isolate->CaptureAndSetSimpleStackTrace(error_object, caller));
   }
   return isolate->heap()->undefined_value();
 }
