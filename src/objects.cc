@@ -15,6 +15,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/compilation-dependencies.h"
 #include "src/compiler.h"
 #include "src/cpu-profiler.h"
 #include "src/date.h"
@@ -12155,18 +12156,6 @@ MaybeHandle<Object> JSArray::SetElementsLength(
 
 
 // static
-void Map::AddDependentCompilationInfo(Handle<Map> map,
-                                      DependentCode::DependencyGroup group,
-                                      CompilationInfo* info) {
-  Handle<DependentCode> codes = DependentCode::InsertCompilationInfo(
-      handle(map->dependent_code(), info->isolate()), group,
-      info->object_wrapper());
-  if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
-  info->dependencies(group)->Add(map, info->zone());
-}
-
-
-// static
 void Map::AddDependentCode(Handle<Map> map,
                            DependentCode::DependencyGroup group,
                            Handle<Code> code) {
@@ -12191,20 +12180,7 @@ void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
 }
 
 
-DependentCode* DependentCode::ForObject(Handle<HeapObject> object,
-                                        DependencyGroup group) {
-  AllowDeferredHandleDereference dependencies_are_safe;
-  if (group == DependentCode::kPropertyCellChangedGroup) {
-    return Handle<PropertyCell>::cast(object)->dependent_code();
-  } else if (group == DependentCode::kAllocationSiteTenuringChangedGroup ||
-      group == DependentCode::kAllocationSiteTransitionChangedGroup) {
-    return Handle<AllocationSite>::cast(object)->dependent_code();
-  }
-  return Handle<Map>::cast(object)->dependent_code();
-}
-
-
-Handle<DependentCode> DependentCode::InsertCompilationInfo(
+Handle<DependentCode> DependentCode::InsertCompilationDependencies(
     Handle<DependentCode> entries, DependencyGroup group,
     Handle<Foreign> info) {
   return Insert(entries, group, info);
@@ -12310,8 +12286,8 @@ void DependentCode::UpdateToFinishedCode(DependencyGroup group, Foreign* info,
 }
 
 
-void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
-                                          Foreign* info) {
+void DependentCode::RemoveCompilationDependencies(
+    DependentCode::DependencyGroup group, Foreign* info) {
   DisallowHeapAllocation no_allocation;
   GroupStartIndexes starts(this);
   int start = starts.at(group);
@@ -12385,9 +12361,10 @@ bool DependentCode::MarkCodeForDeoptimization(
       }
     } else {
       DCHECK(obj->IsForeign());
-      CompilationInfo* info = reinterpret_cast<CompilationInfo*>(
-          Foreign::cast(obj)->foreign_address());
-      info->AbortDueToDependencyChange();
+      CompilationDependencies* info =
+          reinterpret_cast<CompilationDependencies*>(
+              Foreign::cast(obj)->foreign_address());
+      info->Abort();
     }
   }
   // Compact the array by moving all subsequent groups to fill in the new holes.
@@ -13464,41 +13441,6 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
           isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
     }
   }
-}
-
-
-// static
-void AllocationSite::RegisterForDeoptOnTenureChange(Handle<AllocationSite> site,
-                                                    CompilationInfo* info) {
-  AddDependentCompilationInfo(
-      site, DependentCode::kAllocationSiteTenuringChangedGroup, info);
-}
-
-
-// static
-void AllocationSite::RegisterForDeoptOnTransitionChange(
-    Handle<AllocationSite> site, CompilationInfo* info) {
-  // Do nothing if the object doesn't have any useful element transitions left.
-  ElementsKind kind =
-      site->SitePointsToLiteral()
-          ? JSObject::cast(site->transition_info())->GetElementsKind()
-          : site->GetElementsKind();
-  if (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE) {
-    AddDependentCompilationInfo(
-        site, DependentCode::kAllocationSiteTransitionChangedGroup, info);
-  }
-}
-
-
-// static
-void AllocationSite::AddDependentCompilationInfo(
-    Handle<AllocationSite> site, DependentCode::DependencyGroup group,
-    CompilationInfo* info) {
-  Handle<DependentCode> dep(site->dependent_code());
-  Handle<DependentCode> codes =
-      DependentCode::InsertCompilationInfo(dep, group, info->object_wrapper());
-  if (*codes != site->dependent_code()) site->set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(*site), info->zone());
 }
 
 
@@ -17153,18 +17095,6 @@ Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
         isolate, DependentCode::kPropertyCellChangedGroup);
   }
   return value;
-}
-
-
-// static
-void PropertyCell::AddDependentCompilationInfo(Handle<PropertyCell> cell,
-                                               CompilationInfo* info) {
-  Handle<DependentCode> codes = DependentCode::InsertCompilationInfo(
-      handle(cell->dependent_code(), info->isolate()),
-      DependentCode::kPropertyCellChangedGroup, info->object_wrapper());
-  if (*codes != cell->dependent_code()) cell->set_dependent_code(*codes);
-  info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
-      cell, info->zone());
 }
 
 } }  // namespace v8::internal

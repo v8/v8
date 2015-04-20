@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/ast.h"
 #include "src/bailout-reason.h"
+#include "src/compilation-dependencies.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -299,18 +300,6 @@ class CompilationInfo {
     deferred_handles_ = deferred_handles;
   }
 
-  ZoneList<Handle<HeapObject> >* dependencies(
-      DependentCode::DependencyGroup group) {
-    if (dependencies_[group] == NULL) {
-      dependencies_[group] = new(zone_) ZoneList<Handle<HeapObject> >(2, zone_);
-    }
-    return dependencies_[group];
-  }
-
-  void CommitDependencies(Handle<Code> code);
-
-  void RollbackDependencies();
-
   void ReopenHandlesInNewHandleScope() {
     unoptimized_code_ = Handle<Code>(*unoptimized_code_);
   }
@@ -363,21 +352,7 @@ class CompilationInfo {
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                            SourcePosition position, int pareint_id);
 
-  Handle<Foreign> object_wrapper() {
-    if (object_wrapper_.is_null()) {
-      object_wrapper_ =
-          isolate()->factory()->NewForeign(reinterpret_cast<Address>(this));
-    }
-    return object_wrapper_;
-  }
-
-  void AbortDueToDependencyChange() {
-    aborted_due_to_dependency_change_ = true;
-  }
-
-  bool HasAbortedDueToDependencyChange() const {
-    return aborted_due_to_dependency_change_;
-  }
+  CompilationDependencies* dependencies() { return &dependencies_; }
 
   bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
     return osr_ast_id_ == osr_ast_id && function.is_identical_to(closure());
@@ -460,7 +435,8 @@ class CompilationInfo {
 
   DeferredHandles* deferred_handles_;
 
-  ZoneList<Handle<HeapObject> >* dependencies_[DependentCode::kGroupCount];
+  // Dependencies for this compilation, e.g. stable maps.
+  CompilationDependencies dependencies_;
 
   BailoutReason bailout_reason_;
 
@@ -477,13 +453,7 @@ class CompilationInfo {
   // Number of parameters used for compilation of stubs that require arguments.
   int parameter_count_;
 
-  Handle<Foreign> object_wrapper_;
-
   int optimization_id_;
-
-  // This flag is used by the main thread to track whether this compilation
-  // should be abandoned due to dependency change.
-  bool aborted_due_to_dependency_change_;
 
   int osr_expr_stack_height_;
 
