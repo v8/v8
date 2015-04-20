@@ -377,7 +377,6 @@ namespace internal {
   F(NumberEquals, 2, 1)                \
   F(NumberCompare, 3, 1)               \
   F(SmiLexicographicCompare, 2, 1)     \
-  F(GetRootNaN, 0, 1)                  \
   F(MaxSmi, 0, 1)                      \
   F(NumberToString, 1, 1)              \
   F(IsSmi, 1, 1)                       \

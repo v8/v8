@@ -551,14 +551,6 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetRootNaN) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  return isolate->heap()->nan_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);

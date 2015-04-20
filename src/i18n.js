@@ -14,7 +14,9 @@
 
 %CheckIsBootstrapping();
 
+var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
+var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 
@@ -374,13 +376,13 @@ function getGetOption(options, caller) {
       var value = options[property];
       switch (type) {
         case 'boolean':
-          value = $Boolean(value);
+          value = GlobalBoolean(value);
           break;
         case 'string':
           value = GlobalString(value);
           break;
         case 'number':
-          value = $Number(value);
+          value = GlobalNumber(value);
           break;
         default:
           throw new $Error('Internal error. Wrong value type.');
@@ -1056,7 +1058,7 @@ function isWellFormedCurrencyCode(currency) {
 function getNumberOption(options, property, min, max, fallback) {
   var value = options[property];
   if (value !== undefined) {
-    value = $Number(value);
+    value = GlobalNumber(value);
     if ($isNaN(value) || value < min || value > max) {
       throw new $RangeError(property + ' value is out of range.');
     }
@@ -1272,7 +1274,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = $Number(value) + 0;
+  var number = GlobalNumber(value) + 0;
 
   return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
                                number);
@@ -1668,7 +1670,7 @@ function formatDate(formatter, dateValue) {
   if (dateValue === undefined) {
     dateMs = GlobalDate.now();
   } else {
-    dateMs = $Number(dateValue);
+    dateMs = GlobalNumber(dateValue);
   }
 
   if (!$isFinite(dateMs)) {
@@ -1980,12 +1982,12 @@ OverrideFunction(GlobalString.prototype, 'normalize', function(that) {
  * Formats a Number object (this) using locale and options values.
  * If locale or options are omitted, defaults are used.
  */
-OverrideFunction($Number.prototype, 'toLocaleString', function() {
+OverrideFunction(GlobalNumber.prototype, 'toLocaleString', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (!(this instanceof $Number) && typeof(this) !== 'number') {
+    if (!(this instanceof GlobalNumber) && typeof(this) !== 'number') {
       throw new $TypeError('Method invoked on an object that is not Number.');
     }
 

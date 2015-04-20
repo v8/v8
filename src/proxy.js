@@ -16,6 +16,7 @@ var $proxyEnumerate;
 
 %CheckIsBootstrapping();
 
+var GlobalFunction = global.Function;
 var GlobalObject = global.Object;
 
 // -------------------------------------------------------------------
@@ -48,7 +49,7 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
                         ["createFunction", "construct"])
   }
   return %CreateJSFunctionProxy(
-    handler, callTrap, constructTrap, $Function.prototype)
+    handler, callTrap, constructTrap, GlobalFunction.prototype)
 }
 
 // -------------------------------------------------------------------
@@ -57,7 +58,7 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
 function DerivedConstructTrap(callTrap) {
   return function() {
     var proto = this.prototype
-    if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
+    if (!IS_SPEC_OBJECT(proto)) proto = GlobalObject.prototype
     var obj = { __proto__: proto };
     var result = %Apply(callTrap, obj, arguments, 0, %_ArgumentsLength());
     return IS_SPEC_OBJECT(result) ? result : obj
