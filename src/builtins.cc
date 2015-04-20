@@ -234,6 +234,12 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     return MaybeHandle<FixedArrayBase>();
   }
 
+  // Adding elements to the array prototype would break code that makes sure
+  // it has no elements. Handle that elsewhere.
+  if (array->GetIsolate()->is_initial_array_prototype(*array)) {
+    return MaybeHandle<FixedArrayBase>();
+  }
+
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
   int args_length = args->length();

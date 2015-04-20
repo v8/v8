@@ -8451,6 +8451,13 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
       BuildCheckPrototypeMaps(prototype, Handle<JSObject>());
 
+      // Protect against adding elements to the Array prototype, which needs to
+      // route through appropriate bottlenecks.
+      if (isolate()->IsFastArrayConstructorPrototypeChainIntact() &&
+          !prototype->IsJSArray()) {
+        return false;
+      }
+
       const int argc = args_count_no_receiver;
       if (argc != 1) return false;
 
