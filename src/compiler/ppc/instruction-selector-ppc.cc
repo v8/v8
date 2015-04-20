@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/adapters.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -1453,9 +1454,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   // Push any stack arguments.
   // TODO(mbrandy): reverse order and use push only for first
-  for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
-       i++) {
-    Emit(kPPC_Push, g.NoOutput(), g.UseRegister(*i));
+  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+    Emit(kPPC_Push, g.NoOutput(), g.UseRegister(node));
   }
 
   // Pass label of exception handler block.

@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/base/adapters.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -465,9 +466,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
 
   // Visit code in reverse control flow order, because architecture-specific
   // matching may cover more than one node at a time.
-  for (BasicBlock::reverse_iterator i = block->rbegin(); i != block->rend();
-       ++i) {
-    Node* node = *i;
+  for (auto node : base::Reversed(*block)) {
     // Skip nodes that are unused or already defined.
     if (!IsUsed(node) || IsDefined(node)) continue;
     // Generate code for this node "top down", but schedule the code "bottom

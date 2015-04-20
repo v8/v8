@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/adapters.h"
 #include "src/bit-vector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
@@ -1622,8 +1623,8 @@ void Scheduler::SealFinalSchedule() {
   for (NodeVector& nodes : scheduled_nodes_) {
     BasicBlock::Id id = BasicBlock::Id::FromInt(block_num++);
     BasicBlock* block = schedule_->GetBlockById(id);
-    for (auto i = nodes.rbegin(); i != nodes.rend(); ++i) {
-      schedule_->AddNode(block, *i);
+    for (Node* node : base::Reversed(nodes)) {
+      schedule_->AddNode(block, node);
     }
   }
 }

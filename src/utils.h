@@ -1101,21 +1101,6 @@ class BailoutId {
 };
 
 
-template <class C>
-class ContainerPointerWrapper {
- public:
-  typedef typename C::iterator iterator;
-  typedef typename C::reverse_iterator reverse_iterator;
-  explicit ContainerPointerWrapper(C* container) : container_(container) {}
-  iterator begin() { return container_->begin(); }
-  iterator end() { return container_->end(); }
-  reverse_iterator rbegin() { return container_->rbegin(); }
-  reverse_iterator rend() { return container_->rend(); }
- private:
-  C* container_;
-};
-
-
 // ----------------------------------------------------------------------------
 // I/O support.
 

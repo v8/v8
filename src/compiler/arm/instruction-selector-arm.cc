@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/adapters.h"
 #include "src/base/bits.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -1099,9 +1100,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   // TODO(dcarney): might be possible to use claim/poke instead
   // Push any stack arguments.
-  for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
-       ++i) {
-    Emit(kArmPush, g.NoOutput(), g.UseRegister(*i));
+  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+    Emit(kArmPush, g.NoOutput(), g.UseRegister(node));
   }
 
   // Pass label of exception handler block.

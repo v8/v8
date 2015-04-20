@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/adapters.h"
 #include "src/base/bits.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -519,9 +520,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
          g.TempImmediate(push_count << kPointerSizeLog2));
   }
   int slot = buffer.pushed_nodes.size() - 1;
-  for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
-       ++i) {
-    Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(*i),
+  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+    Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(node),
          g.TempImmediate(slot << kPointerSizeLog2));
     slot--;
   }

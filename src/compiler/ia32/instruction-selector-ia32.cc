@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/adapters.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -831,13 +832,12 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   InitializeCallBuffer(node, &buffer, true, true);
 
   // Push any stack arguments.
-  for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
-       ++i) {
+  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
     // TODO(titzer): handle pushing double parameters.
     InstructionOperand value =
-        g.CanBeImmediate(*i) ? g.UseImmediate(*i) : IsSupported(ATOM)
-                                                        ? g.UseRegister(*i)
-                                                        : g.Use(*i);
+        g.CanBeImmediate(node)
+            ? g.UseImmediate(node)
+            : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
     Emit(kIA32Push, g.NoOutput(), value);
   }
 

@@ -228,6 +228,10 @@ V8_INLINE Dest bit_cast(Source const& source) {
 }
 
 
+// Put this in the private: declarations for a class to be unassignable.
+#define DISALLOW_ASSIGN(TypeName) void operator=(const TypeName&)
+
+
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)  \

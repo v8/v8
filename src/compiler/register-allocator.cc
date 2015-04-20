@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/adapters.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/register-allocator.h"
 #include "src/string-stream.h"
@@ -1314,9 +1315,8 @@ void LiveRangeBuilder::MeetRegisterConstraints() {
 
 void LiveRangeBuilder::ResolvePhis() {
   // Process the blocks in reverse order.
-  for (auto i = code()->instruction_blocks().rbegin();
-       i != code()->instruction_blocks().rend(); ++i) {
-    ResolvePhis(*i);
+  for (InstructionBlock* block : base::Reversed(code()->instruction_blocks())) {
+    ResolvePhis(block);
   }
 }
 

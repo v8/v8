@@ -1330,6 +1330,7 @@
         '../..',
       ],
       'sources': [
+        '../../src/base/adapters.h',
         '../../src/base/atomicops.h',
         '../../src/base/atomicops_internals_arm64_gcc.h',
         '../../src/base/atomicops_internals_arm_gcc.h',
