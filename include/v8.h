@@ -4687,9 +4687,10 @@ class V8_EXPORT ResourceConstraints {
                          uint64_t virtual_memory_limit);
 
   // Deprecated, will be removed soon.
-  void ConfigureDefaults(uint64_t physical_memory,
-                         uint64_t virtual_memory_limit,
-                         uint32_t number_of_processors);
+  V8_DEPRECATED("Use two-args version instead",
+                void ConfigureDefaults(uint64_t physical_memory,
+                                       uint64_t virtual_memory_limit,
+                                       uint32_t number_of_processors));
 
   int max_semi_space_size() const { return max_semi_space_size_; }
   void set_max_semi_space_size(int value) { max_semi_space_size_ = value; }
@@ -4700,13 +4701,12 @@ class V8_EXPORT ResourceConstraints {
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
-  V8_DEPRECATE_SOON("Unused, will be removed",
-                    int max_available_threads() const) {
+  V8_DEPRECATED("Unused, will be removed", int max_available_threads() const) {
     return max_available_threads_;
   }
   // Set the number of threads available to V8, assuming at least 1.
-  V8_DEPRECATE_SOON("Unused, will be removed",
-                    void set_max_available_threads(int value)) {
+  V8_DEPRECATED("Unused, will be removed",
+                void set_max_available_threads(int value)) {
     max_available_threads_ = value;
   }
   size_t code_range_size() const { return code_range_size_; }
