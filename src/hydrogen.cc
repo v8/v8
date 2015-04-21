@@ -6595,7 +6595,6 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   GlobalPropertyAccess type = LookupGlobalProperty(var, &it, STORE);
   if (type == kUseCell) {
     Handle<PropertyCell> cell = it.GetPropertyCell();
-    top_info()->dependencies()->AssumePropertyCell(cell);
     auto cell_type = it.property_details().cell_type();
     if (cell_type == PropertyCellType::kConstant ||
         cell_type == PropertyCellType::kUndefined) {
@@ -6645,6 +6644,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
         }
       }
     }
+    top_info()->dependencies()->AssumePropertyCell(cell);
     HInstruction* instr = Add<HStoreNamedField>(cell_constant, access, value);
     instr->ClearChangesFlag(kInobjectFields);
     instr->SetChangesFlag(kGlobalVars);
