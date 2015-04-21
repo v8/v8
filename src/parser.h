@@ -557,6 +557,8 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+    typedef const v8::internal::AstRawString* FormalParameter;
+    typedef Scope FormalParameterScope;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -705,6 +707,7 @@ class ParserTraits {
   static ZoneList<Expression*>* NullExpressionList() {
     return NULL;
   }
+  static const AstRawString* EmptyFormalParameter() { return NULL; }
 
   // Non-NULL empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString();
@@ -745,9 +748,21 @@ class ParserTraits {
 
   // Utility functions
   int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
-                                           Scanner::Location* undefined_loc,
-                                           Scanner::Location* dupe_loc,
+                                           FormalParameterErrorLocations* locs,
                                            bool* ok);
+
+  bool DeclareFormalParameter(Scope* scope, const AstRawString* name,
+                              bool is_rest) {
+    bool is_duplicate = false;
+    Variable* var = scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
+    if (is_sloppy(scope->language_mode())) {
+      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+      // conservative approximation necessary to account for parameters
+      // that are assigned via the arguments array.
+      var->set_maybe_assigned();
+    }
+    return is_duplicate;
+  }
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);

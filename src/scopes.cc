@@ -452,7 +452,7 @@ Variable* Scope::Lookup(const AstRawString* name) {
 
 
 Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
-                                  bool is_rest) {
+                                  bool is_rest, bool* is_duplicate) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
   Variable* var = variables_.Declare(this, name, mode, Variable::NORMAL,
@@ -462,6 +462,8 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
     rest_parameter_ = var;
     rest_index_ = num_parameters();
   }
+  // TODO(wingo): Avoid O(n^2) check.
+  *is_duplicate = IsDeclaredParameter(name);
   params_.Add(var, zone());
   return var;
 }
