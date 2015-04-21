@@ -6633,9 +6633,7 @@ class PrototypeInfo : public Struct {
   DECLARE_PRINTER(PrototypeInfo)
   DECLARE_VERIFIER(PrototypeInfo)
 
-  static const int kPrototypeObjectOffset = HeapObject::kHeaderSize;
-  static const int kPrototypeUsersOffset =
-      kPrototypeObjectOffset + kPointerSize;
+  static const int kPrototypeUsersOffset = HeapObject::kHeaderSize;
   static const int kValidityCellOffset = kPrototypeUsersOffset + kPointerSize;
   static const int kSize = kValidityCellOffset + kPointerSize;
 
