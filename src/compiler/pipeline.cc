@@ -747,7 +747,7 @@ struct AllocateGeneralRegistersPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LinearScanAllocator allocator(data->register_allocation_data(),
-                                  GENERAL_REGISTERS);
+                                  GENERAL_REGISTERS, temp_zone);
     allocator.AllocateRegisters();
   }
 };
@@ -758,7 +758,7 @@ struct AllocateDoubleRegistersPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LinearScanAllocator allocator(data->register_allocation_data(),
-                                  DOUBLE_REGISTERS);
+                                  DOUBLE_REGISTERS, temp_zone);
     allocator.AllocateRegisters();
   }
 };
@@ -809,7 +809,7 @@ struct ResolveControlFlowPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LiveRangeConnector connector(data->register_allocation_data());
-    connector.ResolveControlFlow();
+    connector.ResolveControlFlow(temp_zone);
   }
 };
 
