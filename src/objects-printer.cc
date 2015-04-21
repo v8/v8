@@ -1065,7 +1065,7 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
     PrintBitMask(os, static_cast<uint32_t>(Smi::cast(this)->value()));
   } else {
     os << "slow";
-    int len = length();
+    int len = Smi::cast(length())->value();
     for (int i = 0; i < len; i++) {
       if (i > 0) os << " |";
       PrintBitMask(os, get_scalar(i));

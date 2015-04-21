@@ -22,7 +22,7 @@ namespace internal {
 // of the descriptor then the field is also considered tagged.
 // Once a layout descriptor is created it is allowed only to append properties
 // to it.
-class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
+class LayoutDescriptor : public JSTypedArray {
  public:
   V8_INLINE bool IsTagged(int field_index);
 
@@ -89,11 +89,16 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
   // Capacity of layout descriptors in bits.
   V8_INLINE int capacity();
 
+  V8_INLINE uint32_t get_scalar(int index);
+  V8_INLINE void set(int index, uint32_t value);
+
   static Handle<LayoutDescriptor> NewForTesting(Isolate* isolate, int length);
   LayoutDescriptor* SetTaggedForTesting(int field_index, bool tagged);
 
  private:
   static const int kNumberOfBits = 32;
+
+  V8_INLINE FixedTypedArray<Uint32ArrayTraits>* GcSafeElements();
 
   V8_INLINE static Handle<LayoutDescriptor> New(Isolate* isolate, int length);
   V8_INLINE static LayoutDescriptor* FromSmi(Smi* smi);

@@ -106,8 +106,11 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
   DCHECK(new_layout_descriptor->IsSlowLayout());
 
   if (layout_descriptor->IsSlowLayout()) {
-    memcpy(new_layout_descriptor->DataPtr(), layout_descriptor->DataPtr(),
-           layout_descriptor->DataSize());
+    DisallowHeapAllocation no_gc;
+    Handle<FixedTypedArrayBase> elements(layout_descriptor->GcSafeElements());
+    Handle<FixedTypedArrayBase> new_elements(
+        new_layout_descriptor->GcSafeElements());
+    memcpy(new_elements->DataPtr(), elements->DataPtr(), elements->DataSize());
     return new_layout_descriptor;
   } else {
     // Fast layout.
@@ -150,7 +153,7 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
     // This is a contiguous sequence till the end of current word, proceed
     // counting in the subsequent words.
     if (IsSlowLayout()) {
-      int len = length();
+      int len = Smi::cast(length())->value();
       ++layout_word_index;
       for (; layout_word_index < len; layout_word_index++) {
         value = get_scalar(layout_word_index);
@@ -241,13 +244,20 @@ LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
 
   // Trim, clean and reinitialize this slow-mode layout descriptor.
   int array_length = GetSlowModeBackingStoreLength(layout_descriptor_length);
-  int current_length = length();
+  int current_length = Smi::cast(length())->value();
   if (current_length != array_length) {
     DCHECK_LT(array_length, current_length);
     int delta = current_length - array_length;
-    heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(this, delta);
+    heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(elements(), delta);
+    set_byte_length(Smi::FromInt(array_length * 4));
+    set_length(Smi::FromInt(array_length));
   }
-  memset(DataPtr(), 0, DataSize());
+  {
+    DisallowHeapAllocation no_gc;
+    Handle<FixedTypedArrayBase> fixed_array(
+        FixedTypedArrayBase::cast(elements()));
+    memset(fixed_array->DataPtr(), 0, fixed_array->DataSize());
+  }
   LayoutDescriptor* layout_descriptor =
       Initialize(this, map, descriptors, num_descriptors);
   DCHECK_EQ(this, layout_descriptor);
