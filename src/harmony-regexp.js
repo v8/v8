@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
+
 'use strict';
 
-var $RegExp = global.RegExp;
+%CheckIsBootstrapping();
+
+var GlobalRegExp = global.RegExp;
 
 // -------------------------------------------------------------------
 
@@ -24,12 +28,8 @@ function RegExpGetFlags() {
   return result;
 }
 
-function ExtendRegExpPrototype() {
-  %CheckIsBootstrapping();
+%DefineAccessorPropertyUnchecked(GlobalRegExp.prototype, 'flags',
+                                 RegExpGetFlags, null, DONT_ENUM);
+%SetNativeFlag(RegExpGetFlags);
 
-  %DefineAccessorPropertyUnchecked($RegExp.prototype, 'flags', RegExpGetFlags,
-                                   null, DONT_ENUM);
-  %SetNativeFlag(RegExpGetFlags);
-}
-
-ExtendRegExpPrototype();
+})();

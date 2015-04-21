@@ -258,10 +258,10 @@ class AstValue : public ZoneObject {
   F(next, "next")                                                          \
   F(proto, "__proto__")                                                    \
   F(prototype, "prototype")                                                \
-  F(reflect_apply, "ReflectApply")                                         \
-  F(reflect_construct, "ReflectConstruct")                                 \
-  F(spread_arguments, "SpreadArguments")                                   \
-  F(spread_iterable, "SpreadIterable")                                     \
+  F(reflect_apply, "$reflectApply")                                        \
+  F(reflect_construct, "$reflectConstruct")                                \
+  F(spread_arguments, "$spreadArguments")                                  \
+  F(spread_iterable, "$spreadIterable")                                    \
   F(this, "this")                                                          \
   F(throw_iterator_result_not_an_object, "ThrowIteratorResultNotAnObject") \
   F(to_string, "ToString")                                                 \

@@ -1727,14 +1727,12 @@ void Genesis::InitializeGlobal_harmony_reflect() {
   Handle<JSObject> builtins(native_context()->builtins());
   // Install references to functions of the Reflect object
   if (FLAG_harmony_reflect || FLAG_harmony_spreadcalls) {
-    Handle<JSFunction> apply =
-        InstallFunction(builtins, "ReflectApply", JS_OBJECT_TYPE,
-                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-                        Builtins::kReflectApply);
-    Handle<JSFunction> construct =
-        InstallFunction(builtins, "ReflectConstruct", JS_OBJECT_TYPE,
-                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-                        Builtins::kReflectConstruct);
+    Handle<JSFunction> apply = InstallFunction(
+        builtins, "$reflectApply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        MaybeHandle<JSObject>(), Builtins::kReflectApply);
+    Handle<JSFunction> construct = InstallFunction(
+        builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
     if (FLAG_vector_ics) {
       // Apply embeds an IC, so we need a type vector of size 1 in the shared
       // function info.

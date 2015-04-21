@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
+
 "use strict";
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
+%CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
 
@@ -72,10 +72,7 @@ endmacro
 TYPED_ARRAYS(TYPED_ARRAY_HARMONY_ADDITIONS)
 
 
-function HarmonyTypedArrayExtendPrototypes() {
 macro EXTEND_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
-  %CheckIsBootstrapping();
-
   // Set up non-enumerable functions on the object.
   InstallFunctions(global.NAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
     "of", NAMEOf
@@ -87,7 +84,6 @@ macro EXTEND_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   ]);
 endmacro
 
-  TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
-}
+TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 
-HarmonyTypedArrayExtendPrototypes();
+})();

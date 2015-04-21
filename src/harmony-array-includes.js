@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
+
 'use strict';
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
+%CheckIsBootstrapping();
+
+var GlobalArray = global.Array;
 
 // -------------------------------------------------------------------
 
@@ -47,15 +49,11 @@ function ArrayIncludes(searchElement, fromIndex) {
 
 // -------------------------------------------------------------------
 
-function HarmonyArrayIncludesExtendArrayPrototype() {
-  %CheckIsBootstrapping();
+%FunctionSetLength(ArrayIncludes, 1);
 
-  %FunctionSetLength(ArrayIncludes, 1);
+// Set up the non-enumerable functions on the Array prototype object.
+InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+  "includes", ArrayIncludes
+]);
 
-  // Set up the non-enumerable functions on the Array prototype object.
-  InstallFunctions($Array.prototype, DONT_ENUM, [
-    "includes", ArrayIncludes
-  ]);
-}
-
-HarmonyArrayIncludesExtendArrayPrototype();
+})();

@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
+
 'use strict';
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
+%CheckIsBootstrapping();
+
+var GlobalArray = global.Array;
+var GlobalSymbol = global.Symbol;
 
 // -------------------------------------------------------------------
 
@@ -208,34 +211,24 @@ function ArrayOf() {
 
 // -------------------------------------------------------------------
 
-function HarmonyArrayExtendSymbolPrototype() {
-  %CheckIsBootstrapping();
+InstallConstants(GlobalSymbol, [
+  // TODO(dslomov, caitp): Move to symbol.js when shipping
+  "isConcatSpreadable", symbolIsConcatSpreadable
+]);
 
-  InstallConstants(global.Symbol, [
-    // TODO(dslomov, caitp): Move to symbol.js when shipping
-    "isConcatSpreadable", symbolIsConcatSpreadable
-  ]);
-}
+%FunctionSetLength(ArrayFrom, 1);
 
-HarmonyArrayExtendSymbolPrototype();
+// Set up non-enumerable functions on the Array object.
+InstallFunctions(GlobalArray, DONT_ENUM, [
+  "from", ArrayFrom,
+  "of", ArrayOf
+]);
 
-function HarmonyArrayExtendArrayPrototype() {
-  %CheckIsBootstrapping();
+// Set up the non-enumerable functions on the Array prototype object.
+InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+  "find", ArrayFind,
+  "findIndex", ArrayFindIndex,
+  "fill", ArrayFill
+]);
 
-  %FunctionSetLength(ArrayFrom, 1);
-
-  // Set up non-enumerable functions on the Array object.
-  InstallFunctions($Array, DONT_ENUM, [
-    "from", ArrayFrom,
-    "of", ArrayOf
-  ]);
-
-  // Set up the non-enumerable functions on the Array prototype object.
-  InstallFunctions($Array.prototype, DONT_ENUM, [
-    "find", ArrayFind,
-    "findIndex", ArrayFindIndex,
-    "fill", ArrayFill
-  ]);
-}
-
-HarmonyArrayExtendArrayPrototype();
+})();
