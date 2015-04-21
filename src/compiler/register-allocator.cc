@@ -1462,9 +1462,125 @@ void LiveRangeBuilder::Verify() const {
 }
 
 
+RegisterAllocator::RegisterAllocator(RegisterAllocationData* data)
+    : data_(data) {}
+
+
+LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
+                                           LifetimePosition pos) {
+  DCHECK(!range->IsFixed());
+  TRACE("Splitting live range %d at %d\n", range->id(), pos.Value());
+
+  if (pos.Value() <= range->Start().Value()) return range;
+
+  // We can't properly connect liveranges if splitting occurred at the end
+  // a block.
+  DCHECK(pos.IsStart() || pos.IsGapPosition() ||
+         (GetInstructionBlock(code(), pos)->last_instruction_index() !=
+          pos.ToInstructionIndex()));
+
+  int vreg = code()->NextVirtualRegister();
+  auto result = LiveRangeFor(vreg);
+  range->SplitAt(pos, result, allocation_zone());
+  return result;
+}
+
+
+LiveRange* RegisterAllocator::SplitBetween(LiveRange* range,
+                                           LifetimePosition start,
+                                           LifetimePosition end) {
+  DCHECK(!range->IsFixed());
+  TRACE("Splitting live range %d in position between [%d, %d]\n", range->id(),
+        start.Value(), end.Value());
+
+  auto split_pos = FindOptimalSplitPos(start, end);
+  DCHECK(split_pos.Value() >= start.Value());
+  return SplitRangeAt(range, split_pos);
+}
+
+
+LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
+                                                        LifetimePosition end) {
+  int start_instr = start.ToInstructionIndex();
+  int end_instr = end.ToInstructionIndex();
+  DCHECK(start_instr <= end_instr);
+
+  // We have no choice
+  if (start_instr == end_instr) return end;
+
+  auto start_block = GetInstructionBlock(code(), start);
+  auto end_block = GetInstructionBlock(code(), end);
+
+  if (end_block == start_block) {
+    // The interval is split in the same basic block. Split at the latest
+    // possible position.
+    return end;
+  }
+
+  auto block = end_block;
+  // Find header of outermost loop.
+  // TODO(titzer): fix redundancy below.
+  while (GetContainingLoop(code(), block) != nullptr &&
+         GetContainingLoop(code(), block)->rpo_number().ToInt() >
+             start_block->rpo_number().ToInt()) {
+    block = GetContainingLoop(code(), block);
+  }
+
+  // We did not find any suitable outer loop. Split at the latest possible
+  // position unless end_block is a loop header itself.
+  if (block == end_block && !end_block->IsLoopHeader()) return end;
+
+  return LifetimePosition::GapFromInstructionIndex(
+      block->first_instruction_index());
+}
+
+
+LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
+    LiveRange* range, LifetimePosition pos) {
+  auto block = GetInstructionBlock(code(), pos.Start());
+  auto loop_header =
+      block->IsLoopHeader() ? block : GetContainingLoop(code(), block);
+
+  if (loop_header == nullptr) return pos;
+
+  auto prev_use = range->PreviousUsePositionRegisterIsBeneficial(pos);
+
+  while (loop_header != nullptr) {
+    // We are going to spill live range inside the loop.
+    // If possible try to move spilling position backwards to loop header.
+    // This will reduce number of memory moves on the back edge.
+    auto loop_start = LifetimePosition::GapFromInstructionIndex(
+        loop_header->first_instruction_index());
+
+    if (range->Covers(loop_start)) {
+      if (prev_use == nullptr || prev_use->pos().Value() < loop_start.Value()) {
+        // No register beneficial use inside the loop before the pos.
+        pos = loop_start;
+      }
+    }
+
+    // Try hoisting out to an outer loop.
+    loop_header = GetContainingLoop(code(), loop_header);
+  }
+
+  return pos;
+}
+
+
+void RegisterAllocator::Spill(LiveRange* range) {
+  DCHECK(!range->IsSpilled());
+  TRACE("Spilling live range %d\n", range->id());
+  auto first = range->TopLevel();
+  if (first->HasNoSpillType()) {
+    data()->AssignSpillRangeToLiveRange(first);
+  }
+  range->MakeSpilled();
+}
+
+
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
                                          RegisterKind kind, Zone* local_zone)
-    : data_(data),
+    : RegisterAllocator(data),
       mode_(kind),
       num_registers_(GetRegisterCount(data->config(), kind)),
       unhandled_live_ranges_(local_zone),
@@ -1825,38 +1941,6 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
 }
 
 
-LifetimePosition LinearScanAllocator::FindOptimalSpillingPos(
-    LiveRange* range, LifetimePosition pos) {
-  auto block = GetInstructionBlock(code(), pos.Start());
-  auto loop_header =
-      block->IsLoopHeader() ? block : GetContainingLoop(code(), block);
-
-  if (loop_header == nullptr) return pos;
-
-  auto prev_use = range->PreviousUsePositionRegisterIsBeneficial(pos);
-
-  while (loop_header != nullptr) {
-    // We are going to spill live range inside the loop.
-    // If possible try to move spilling position backwards to loop header.
-    // This will reduce number of memory moves on the back edge.
-    auto loop_start = LifetimePosition::GapFromInstructionIndex(
-        loop_header->first_instruction_index());
-
-    if (range->Covers(loop_start)) {
-      if (prev_use == nullptr || prev_use->pos().Value() < loop_start.Value()) {
-        // No register beneficial use inside the loop before the pos.
-        pos = loop_start;
-      }
-    }
-
-    // Try hoisting out to an outer loop.
-    loop_header = GetContainingLoop(code(), loop_header);
-  }
-
-  return pos;
-}
-
-
 void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current) {
   DCHECK(current->HasRegisterAssigned());
   int reg = current->assigned_register();
@@ -1991,75 +2075,6 @@ bool LinearScanAllocator::TryReuseSpillForPhi(LiveRange* range) {
 }
 
 
-LiveRange* LinearScanAllocator::SplitRangeAt(LiveRange* range,
-                                             LifetimePosition pos) {
-  DCHECK(!range->IsFixed());
-  TRACE("Splitting live range %d at %d\n", range->id(), pos.Value());
-
-  if (pos.Value() <= range->Start().Value()) return range;
-
-  // We can't properly connect liveranges if splitting occurred at the end
-  // a block.
-  DCHECK(pos.IsStart() || pos.IsGapPosition() ||
-         (GetInstructionBlock(code(), pos)->last_instruction_index() !=
-          pos.ToInstructionIndex()));
-
-  int vreg = code()->NextVirtualRegister();
-  auto result = LiveRangeFor(vreg);
-  range->SplitAt(pos, result, allocation_zone());
-  return result;
-}
-
-
-LiveRange* LinearScanAllocator::SplitBetween(LiveRange* range,
-                                             LifetimePosition start,
-                                             LifetimePosition end) {
-  DCHECK(!range->IsFixed());
-  TRACE("Splitting live range %d in position between [%d, %d]\n", range->id(),
-        start.Value(), end.Value());
-
-  auto split_pos = FindOptimalSplitPos(start, end);
-  DCHECK(split_pos.Value() >= start.Value());
-  return SplitRangeAt(range, split_pos);
-}
-
-
-LifetimePosition LinearScanAllocator::FindOptimalSplitPos(
-    LifetimePosition start, LifetimePosition end) {
-  int start_instr = start.ToInstructionIndex();
-  int end_instr = end.ToInstructionIndex();
-  DCHECK(start_instr <= end_instr);
-
-  // We have no choice
-  if (start_instr == end_instr) return end;
-
-  auto start_block = GetInstructionBlock(code(), start);
-  auto end_block = GetInstructionBlock(code(), end);
-
-  if (end_block == start_block) {
-    // The interval is split in the same basic block. Split at the latest
-    // possible position.
-    return end;
-  }
-
-  auto block = end_block;
-  // Find header of outermost loop.
-  // TODO(titzer): fix redundancy below.
-  while (GetContainingLoop(code(), block) != nullptr &&
-         GetContainingLoop(code(), block)->rpo_number().ToInt() >
-             start_block->rpo_number().ToInt()) {
-    block = GetContainingLoop(code(), block);
-  }
-
-  // We did not find any suitable outer loop. Split at the latest possible
-  // position unless end_block is a loop header itself.
-  if (block == end_block && !end_block->IsLoopHeader()) return end;
-
-  return LifetimePosition::GapFromInstructionIndex(
-      block->first_instruction_index());
-}
-
-
 void LinearScanAllocator::SpillAfter(LiveRange* range, LifetimePosition pos) {
   auto second_part = SplitRangeAt(range, pos);
   Spill(second_part);
@@ -2099,17 +2114,6 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
     // Nothing to spill. Just put it to unhandled as whole.
     AddToUnhandledSorted(second_part);
   }
-}
-
-
-void LinearScanAllocator::Spill(LiveRange* range) {
-  DCHECK(!range->IsSpilled());
-  TRACE("Spilling live range %d\n", range->id());
-  auto first = range->TopLevel();
-  if (first->HasNoSpillType()) {
-    data()->AssignSpillRangeToLiveRange(first);
-  }
-  range->MakeSpilled();
 }
 
 

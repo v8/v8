@@ -583,49 +583,16 @@ class LiveRangeBuilder final : public ZoneObject {
 };
 
 
-class LinearScanAllocator final : public ZoneObject {
+class RegisterAllocator : public ZoneObject {
  public:
-  LinearScanAllocator(RegisterAllocationData* data, RegisterKind kind,
-                      Zone* local_zone);
+  explicit RegisterAllocator(RegisterAllocationData* data);
 
-  // Phase 4: compute register assignments.
-  void AllocateRegisters();
-
- private:
+ protected:
   RegisterAllocationData* data() const { return data_; }
   InstructionSequence* code() const { return data()->code(); }
   Zone* allocation_zone() const { return data()->allocation_zone(); }
-  int num_registers() const { return num_registers_; }
-  const char* RegisterName(int allocation_index) const;
-
-  ZoneVector<LiveRange*>& unhandled_live_ranges() {
-    return unhandled_live_ranges_;
-  }
-  ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
-  ZoneVector<LiveRange*>& inactive_live_ranges() {
-    return inactive_live_ranges_;
-  }
 
   LiveRange* LiveRangeFor(int index) { return data()->LiveRangeFor(index); }
-
-  // Helper methods for updating the life range lists.
-  void AddToActive(LiveRange* range);
-  void AddToInactive(LiveRange* range);
-  void AddToUnhandledSorted(LiveRange* range);
-  void AddToUnhandledUnsorted(LiveRange* range);
-  void SortUnhandled();
-  bool UnhandledIsSorted();
-  void ActiveToHandled(LiveRange* range);
-  void ActiveToInactive(LiveRange* range);
-  void InactiveToHandled(LiveRange* range);
-  void InactiveToActive(LiveRange* range);
-
-  // Helper methods for allocating registers.
-  bool TryReuseSpillForPhi(LiveRange* range);
-  bool TryAllocateFreeReg(LiveRange* range);
-  void AllocateBlockedReg(LiveRange* range);
-
-  // Live range splitting helpers.
 
   // Split the given range at the given position.
   // If range starts at or after the given position then the
@@ -647,6 +614,55 @@ class LinearScanAllocator final : public ZoneObject {
 
   void Spill(LiveRange* range);
 
+  // If we are trying to spill a range inside the loop try to
+  // hoist spill position out to the point just before the loop.
+  LifetimePosition FindOptimalSpillingPos(LiveRange* range,
+                                          LifetimePosition pos);
+
+ private:
+  RegisterAllocationData* const data_;
+
+  DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
+};
+
+
+class LinearScanAllocator final : public RegisterAllocator {
+ public:
+  LinearScanAllocator(RegisterAllocationData* data, RegisterKind kind,
+                      Zone* local_zone);
+
+  // Phase 4: compute register assignments.
+  void AllocateRegisters();
+
+ private:
+  int num_registers() const { return num_registers_; }
+  const char* RegisterName(int allocation_index) const;
+
+  ZoneVector<LiveRange*>& unhandled_live_ranges() {
+    return unhandled_live_ranges_;
+  }
+  ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
+  ZoneVector<LiveRange*>& inactive_live_ranges() {
+    return inactive_live_ranges_;
+  }
+
+  // Helper methods for updating the life range lists.
+  void AddToActive(LiveRange* range);
+  void AddToInactive(LiveRange* range);
+  void AddToUnhandledSorted(LiveRange* range);
+  void AddToUnhandledUnsorted(LiveRange* range);
+  void SortUnhandled();
+  bool UnhandledIsSorted();
+  void ActiveToHandled(LiveRange* range);
+  void ActiveToInactive(LiveRange* range);
+  void InactiveToHandled(LiveRange* range);
+  void InactiveToActive(LiveRange* range);
+
+  // Helper methods for allocating registers.
+  bool TryReuseSpillForPhi(LiveRange* range);
+  bool TryAllocateFreeReg(LiveRange* range);
+  void AllocateBlockedReg(LiveRange* range);
+
   // Spill the given life range after position pos.
   void SpillAfter(LiveRange* range, LifetimePosition pos);
 
@@ -661,12 +677,6 @@ class LinearScanAllocator final : public ZoneObject {
 
   void SplitAndSpillIntersecting(LiveRange* range);
 
-  // If we are trying to spill a range inside the loop try to
-  // hoist spill position out to the point just before the loop.
-  LifetimePosition FindOptimalSpillingPos(LiveRange* range,
-                                          LifetimePosition pos);
-
-  RegisterAllocationData* const data_;
   const RegisterKind mode_;
   const int num_registers_;
 
