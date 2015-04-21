@@ -716,7 +716,7 @@ struct MeetRegisterConstraintsPhase {
   static const char* phase_name() { return "meet register constraints"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeBuilder builder(data->register_allocation_data());
+    ConstraintBuilder builder(data->register_allocation_data());
     builder.MeetRegisterConstraints();
   }
 };
@@ -726,7 +726,7 @@ struct ResolvePhisPhase {
   static const char* phase_name() { return "resolve phis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeBuilder builder(data->register_allocation_data());
+    ConstraintBuilder builder(data->register_allocation_data());
     builder.ResolvePhis();
   }
 };

@@ -444,10 +444,8 @@ class RegisterAllocationData final : public ZoneObject {
   const ZoneVector<LiveRange*>& fixed_double_live_ranges() const {
     return fixed_double_live_ranges_;
   }
-  const ZoneVector<BitVector*>& live_in_sets() const { return live_in_sets_; }
   ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
-  const ZoneVector<SpillRange*>& spill_ranges() const { return spill_ranges_; }
   InstructionSequence* code() const { return code_; }
   // This zone is for datastructures only needed during register allocation
   // phases.
@@ -463,9 +461,6 @@ class RegisterAllocationData final : public ZoneObject {
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
   LiveRange* LiveRangeFor(int index);
-  Instruction* InstructionAt(int index) const {
-    return code()->InstructionAt(index);
-  }
 
   void AssignPhiInput(LiveRange* range, const InstructionOperand& assignment);
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
@@ -502,9 +497,9 @@ class RegisterAllocationData final : public ZoneObject {
 };
 
 
-class LiveRangeBuilder final : public ZoneObject {
+class ConstraintBuilder final : public ZoneObject {
  public:
-  explicit LiveRangeBuilder(RegisterAllocationData* data);
+  explicit ConstraintBuilder(RegisterAllocationData* data);
 
   // Phase 1 : insert moves to account for fixed register operands.
   void MeetRegisterConstraints();
@@ -512,6 +507,36 @@ class LiveRangeBuilder final : public ZoneObject {
   // Phase 2: deconstruct SSA by inserting moves in successors and the headers
   // of blocks containing phis.
   void ResolvePhis();
+
+ private:
+  RegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+  Zone* allocation_zone() const { return data()->allocation_zone(); }
+
+  Instruction* InstructionAt(int index) { return code()->InstructionAt(index); }
+  bool IsReference(int virtual_register) const {
+    return data()->IsReference(virtual_register);
+  }
+  LiveRange* LiveRangeFor(int index) { return data()->LiveRangeFor(index); }
+
+  InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
+                                    bool is_tagged);
+  void MeetRegisterConstraints(const InstructionBlock* block);
+  void MeetConstraintsBefore(int index);
+  void MeetConstraintsAfter(int index);
+  void MeetRegisterConstraintsForLastInstructionInBlock(
+      const InstructionBlock* block);
+  void ResolvePhis(const InstructionBlock* block);
+
+  RegisterAllocationData* const data_;
+
+  DISALLOW_COPY_AND_ASSIGN(ConstraintBuilder);
+};
+
+
+class LiveRangeBuilder final : public ZoneObject {
+ public:
+  explicit LiveRangeBuilder(RegisterAllocationData* data);
 
   // Phase 3: compute liveness of all virtual register.
   void BuildLiveRanges();
@@ -525,20 +550,8 @@ class LiveRangeBuilder final : public ZoneObject {
   ZoneVector<BitVector*>& live_in_sets() const {
     return data()->live_in_sets();
   }
-  ZoneVector<LiveRange*>& live_ranges() { return data()->live_ranges(); }
-  ZoneVector<LiveRange*>& fixed_live_ranges() {
-    return data()->fixed_live_ranges();
-  }
-  ZoneVector<LiveRange*>& fixed_double_live_ranges() {
-    return data()->fixed_double_live_ranges();
-  }
-  ZoneVector<SpillRange*>& spill_ranges() { return data()->spill_ranges(); }
-  RegisterAllocationData::PhiMap& phi_map() { return data()->phi_map(); }
 
-  Instruction* InstructionAt(int index) { return code()->InstructionAt(index); }
-  bool IsReference(int virtual_register) const {
-    return data()->IsReference(virtual_register);
-  }
+  LiveRange* LiveRangeFor(int index) { return data()->LiveRangeFor(index); }
 
   void Verify() const;
 
@@ -548,26 +561,16 @@ class LiveRangeBuilder final : public ZoneObject {
   bool IsOutputRegisterOf(Instruction* instr, int index);
   bool IsOutputDoubleRegisterOf(Instruction* instr, int index);
   void ProcessInstructions(const InstructionBlock* block, BitVector* live);
-  void MeetRegisterConstraints(const InstructionBlock* block);
-  void MeetConstraintsBefore(int index);
-  void MeetConstraintsAfter(int index);
-  void MeetRegisterConstraintsForLastInstructionInBlock(
-      const InstructionBlock* block);
-  void ResolvePhis(const InstructionBlock* block);
 
-  LiveRange* LiveRangeFor(int index) { return data()->LiveRangeFor(index); }
   static int FixedLiveRangeID(int index) { return -index - 1; }
   int FixedDoubleLiveRangeID(int index);
   LiveRange* FixedLiveRangeFor(int index);
   LiveRange* FixedDoubleLiveRangeFor(int index);
-  Instruction* GetLastInstruction(const InstructionBlock* block);
 
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
   // Helper methods for building intervals.
-  InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
-                                    bool is_tagged);
   LiveRange* LiveRangeFor(InstructionOperand* operand);
   void Define(LifetimePosition position, InstructionOperand* operand,
               InstructionOperand* hint);
@@ -592,12 +595,9 @@ class LinearScanAllocator final : public ZoneObject {
   RegisterAllocationData* data() const { return data_; }
   InstructionSequence* code() const { return data()->code(); }
   Zone* allocation_zone() const { return data()->allocation_zone(); }
-  Zone* code_zone() const { return code()->zone(); }
-  const RegisterConfiguration* config() const { return data()->config(); }
   int num_registers() const { return num_registers_; }
   const char* RegisterName(int allocation_index) const;
 
-  ZoneVector<LiveRange*>& live_ranges() { return data()->live_ranges(); }
   ZoneVector<LiveRange*>& unhandled_live_ranges() {
     return unhandled_live_ranges_;
   }
@@ -605,13 +605,7 @@ class LinearScanAllocator final : public ZoneObject {
   ZoneVector<LiveRange*>& inactive_live_ranges() {
     return inactive_live_ranges_;
   }
-  ZoneVector<SpillRange*>& spill_ranges() { return data()->spill_ranges(); }
-  RegisterAllocationData::PhiMap& phi_map() { return data()->phi_map(); }
 
-  Instruction* InstructionAt(int index) { return code()->InstructionAt(index); }
-  bool IsReference(int virtual_register) const {
-    return data()->IsReference(virtual_register);
-  }
   LiveRange* LiveRangeFor(int index) { return data()->LiveRangeFor(index); }
 
   // Helper methods for updating the life range lists.
@@ -715,13 +709,9 @@ class ReferenceMapPopulator final : public ZoneObject {
   void PopulateReferenceMaps();
 
  private:
-  bool SafePointsAreInOrder() const;
-
-  bool IsReference(int virtual_register) const {
-    return data()->IsReference(virtual_register);
-  }
-
   RegisterAllocationData* data() const { return data_; }
+
+  bool SafePointsAreInOrder() const;
 
   RegisterAllocationData* const data_;
 
@@ -740,14 +730,15 @@ class LiveRangeConnector final : public ZoneObject {
   void ResolveControlFlow(Zone* local_zone);
 
  private:
+  RegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+  Zone* code_zone() const { return code()->zone(); }
+
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
   void ResolveControlFlow(const InstructionBlock* block,
                           const InstructionOperand& cur_op,
                           const InstructionBlock* pred,
                           const InstructionOperand& pred_op);
-  InstructionSequence* code() const { return data()->code(); }
-  Zone* code_zone() const { return code()->zone(); }
-  RegisterAllocationData* data() const { return data_; }
 
   RegisterAllocationData* const data_;
 
