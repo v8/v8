@@ -3245,8 +3245,7 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-int HashTable<Derived, Shape, Key>::ComputeCapacity(int at_least_space_for) {
+int HashTableBase::ComputeCapacity(int at_least_space_for) {
   const int kMinCapacity = 32;
   int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
   if (capacity < kMinCapacity) {
@@ -3256,7 +3255,12 @@ int HashTable<Derived, Shape, Key>::ComputeCapacity(int at_least_space_for) {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
+int HashTableBase::ComputeCapacityForSerialization(int at_least_space_for) {
+  return base::bits::RoundUpToPowerOfTwo32(at_least_space_for);
+}
+
+
+template <typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
 }

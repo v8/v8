@@ -14555,7 +14555,9 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
   DCHECK(!capacity_option || base::bits::IsPowerOfTwo32(at_least_space_for));
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
-                     : ComputeCapacity(at_least_space_for);
+                     : isolate->serializer_enabled()
+                           ? ComputeCapacityForSerialization(at_least_space_for)
+                           : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
   }
