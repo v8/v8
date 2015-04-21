@@ -3315,9 +3315,8 @@ MaybeHandle<Object> Object::RedefineNonconfigurableProperty(
     Isolate* isolate, Handle<Object> name, Handle<Object> value,
     LanguageMode language_mode) {
   if (is_sloppy(language_mode)) return value;
-  Handle<Object> args[] = {name};
-  THROW_NEW_ERROR(isolate, NewTypeError("redefine_disallowed",
-                                        HandleVector(args, arraysize(args))),
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kRedefineDisallowed, name),
                   Object);
 }
 
@@ -3904,9 +3903,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   if (configurable->IsFalse()) {
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("getPropertyDescriptor"));
-    Handle<Object> args[] = { handler, trap, name };
-    THROW_NEW_ERROR(isolate, NewTypeError("proxy_prop_not_configurable",
-                                          HandleVector(args, arraysize(args))),
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyPropNotConfigurable,
+                                 handler, name, trap),
                     Object);
   }
   DCHECK(configurable->IsTrue());
@@ -4046,9 +4045,8 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
     Handle<Object> handler(proxy->handler(), isolate);
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("getPropertyDescriptor"));
-    Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
+        MessageTemplate::kProxyPropNotConfigurable, handler, name, trap);
     isolate->Throw(*error);
     return Just(NONE);
   }
@@ -4108,10 +4106,9 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
-      Handle<Object> args[] = { handler, trap_name };
       THROW_NEW_ERROR(isolate,
-                      NewTypeError("handler_trap_missing",
-                                   HandleVector(args, arraysize(args))),
+                      NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
+                                   handler, trap_name),
                       Object);
     }
     trap = Handle<Object>(derived);

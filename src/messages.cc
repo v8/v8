@@ -189,8 +189,8 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
   Handle<String> args[] = {arg0, arg1, arg2};
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
-      builder.AppendString(args[i++]);
       DCHECK(i < arraysize(args));
+      builder.AppendString(args[i++]);
     } else {
       builder.AppendCharacter(*c);
     }

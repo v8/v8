@@ -29,7 +29,7 @@ function StringConstructor(x) {
 // ECMA-262 section 15.5.4.2
 function StringToString() {
   if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
-    throw new $TypeError('String.prototype.toString is not generic');
+    throw MakeTypeError(kNotGeneric, 'String.prototype.toString');
   }
   return %_ValueOf(this);
 }
@@ -38,7 +38,7 @@ function StringToString() {
 // ECMA-262 section 15.5.4.3
 function StringValueOf() {
   if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
-    throw new $TypeError('String.prototype.valueOf is not generic');
+    throw MakeTypeError(kNotGeneric, 'String.prototype.valueOf');
   }
   return %_ValueOf(this);
 }

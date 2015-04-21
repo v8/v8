@@ -300,8 +300,7 @@ function ObjectDefineGetter(name, fun) {
     receiver = %GlobalProxy(global);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
-    throw new $TypeError(
-        'Object.prototype.__defineGetter__: Expecting function');
+    throw MakeTypeError(kObjectGetterExpectingFunction);
   }
   var desc = new PropertyDescriptor();
   desc.setGet(fun);
@@ -326,8 +325,7 @@ function ObjectDefineSetter(name, fun) {
     receiver = %GlobalProxy(global);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
-    throw new $TypeError(
-        'Object.prototype.__defineSetter__: Expecting function');
+    throw MakeTypeError(kObjectSetterExpectingFunction);
   }
   var desc = new PropertyDescriptor();
   desc.setSet(fun);
@@ -430,9 +428,8 @@ function FromGenericPropertyDescriptor(desc) {
 
 // ES5 8.10.5.
 function ToPropertyDescriptor(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("property_desc_object", [obj]);
-  }
+  if (!IS_SPEC_OBJECT(obj)) throw MakeTypeError(kPropertyDescObject, obj);
+
   var desc = new PropertyDescriptor();
 
   if ("enumerable" in obj) {
@@ -454,7 +451,7 @@ function ToPropertyDescriptor(obj) {
   if ("get" in obj) {
     var get = obj.get;
     if (!IS_UNDEFINED(get) && !IS_SPEC_FUNCTION(get)) {
-      throw MakeTypeError("getter_must_be_callable", [get]);
+      throw MakeTypeError(kObjectGetterCallable, get);
     }
     desc.setGet(get);
   }
@@ -462,13 +459,13 @@ function ToPropertyDescriptor(obj) {
   if ("set" in obj) {
     var set = obj.set;
     if (!IS_UNDEFINED(set) && !IS_SPEC_FUNCTION(set)) {
-      throw MakeTypeError("setter_must_be_callable", [set]);
+      throw MakeTypeError(kObjectSetterCallable, set);
     }
     desc.setSet(set);
   }
 
   if (IsInconsistentDescriptor(desc)) {
-    throw MakeTypeError("value_and_accessor", [obj]);
+    throw MakeTypeError(kValueAndAccessor, obj);
   }
   return desc;
 }
@@ -618,11 +615,11 @@ function GetTrap(handler, name, defaultTrap) {
   var trap = handler[name];
   if (IS_UNDEFINED(trap)) {
     if (IS_UNDEFINED(defaultTrap)) {
-      throw MakeTypeError("handler_trap_missing", [handler, name]);
+      throw MakeTypeError(kProxyHandlerTrapMissing, handler, name);
     }
     trap = defaultTrap;
   } else if (!IS_SPEC_FUNCTION(trap)) {
-    throw MakeTypeError("handler_trap_must_be_callable", [handler, name]);
+    throw MakeTypeError(kProxyHandlerTrapMustBeCallable, handler, name);
   }
   return trap;
 }
@@ -656,8 +653,8 @@ function GetOwnPropertyJS(obj, v) {
     if (IS_UNDEFINED(descriptor)) return descriptor;
     var desc = ToCompletePropertyDescriptor(descriptor);
     if (!desc.isConfigurable()) {
-      throw MakeTypeError("proxy_prop_not_configurable",
-                          [handler, "getOwnPropertyDescriptor", p, descriptor]);
+      throw MakeTypeError(kProxyPropNotConfigurable,
+                          handler, p, "getOwnPropertyDescriptor");
     }
     return desc;
   }
@@ -679,7 +676,7 @@ function Delete(obj, p, should_throw) {
     %DeleteProperty(obj, p, 0);
     return true;
   } else if (should_throw) {
-    throw MakeTypeError("define_disallowed", [p]);
+    throw MakeTypeError(kDefineDisallowed, p);
   } else {
     return;
   }
@@ -704,8 +701,8 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
   var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
   if (!ToBoolean(result)) {
     if (should_throw) {
-      throw MakeTypeError("handler_returned_false",
-                          [handler, "defineProperty"]);
+      throw MakeTypeError(kProxyHandlerReturned,
+                          handler, "false", "defineProperty");
     } else {
       return false;
     }
@@ -724,7 +721,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
   // Step 3
   if (IS_UNDEFINED(current) && !extensible) {
     if (should_throw) {
-      throw MakeTypeError("define_disallowed", [p]);
+      throw MakeTypeError(kDefineDisallowed, p);
     } else {
       return false;
     }
@@ -754,7 +751,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
           (desc.hasEnumerable() &&
            desc.isEnumerable() != current.isEnumerable())) {
         if (should_throw) {
-          throw MakeTypeError("redefine_disallowed", [p]);
+          throw MakeTypeError(kRedefineDisallowed, p);
         } else {
           return false;
         }
@@ -764,7 +761,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         // Step 9a
         if (IsDataDescriptor(current) != IsDataDescriptor(desc)) {
           if (should_throw) {
-            throw MakeTypeError("redefine_disallowed", [p]);
+            throw MakeTypeError(kRedefineDisallowed, p);
           } else {
             return false;
           }
@@ -773,7 +770,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
           if (!current.isWritable() && desc.isWritable()) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", [p]);
+              throw MakeTypeError(kRedefineDisallowed, p);
             } else {
               return false;
             }
@@ -781,7 +778,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
           if (!current.isWritable() && desc.hasValue() &&
               !SameValue(desc.getValue(), current.getValue())) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", [p]);
+              throw MakeTypeError(kRedefineDisallowed, p);
             } else {
               return false;
             }
@@ -791,14 +788,14 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
           if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", [p]);
+              throw MakeTypeError(kRedefineDisallowed, p);
             } else {
               return false;
             }
           }
           if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", [p]);
+              throw MakeTypeError(kRedefineDisallowed, p);
             } else {
               return false;
             }
@@ -894,12 +891,12 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     }
     var new_length = ToUint32(desc.getValue());
     if (new_length != ToNumber(desc.getValue())) {
-      throw new $RangeError('defineProperty() array length out of range');
+      throw MakeRangeError(kArrayLengthOutOfRange);
     }
     var length_desc = GetOwnPropertyJS(obj, "length");
     if (new_length != length && !length_desc.isWritable()) {
       if (should_throw) {
-        throw MakeTypeError("redefine_disallowed", [p]);
+        throw MakeTypeError(kRedefineDisallowed, p);
       } else {
         return false;
       }
@@ -938,7 +935,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     }
     if (threw) {
       if (should_throw) {
-        throw MakeTypeError("redefine_disallowed", [p]);
+        throw MakeTypeError(kRedefineDisallowed, p);
       } else {
         return false;
       }
@@ -963,7 +960,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
         if (emit_splice)
           $observeEndPerformSplice(obj);
         if (should_throw) {
-          throw MakeTypeError("define_disallowed", [p]);
+          throw MakeTypeError(kDefineDisallowed, p);
         } else {
           return false;
         }
@@ -1010,7 +1007,7 @@ function ObjectSetPrototypeOf(obj, proto) {
   CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
 
   if (proto !== null && !IS_SPEC_OBJECT(proto)) {
-    throw MakeTypeError("proto_object_or_null", [proto]);
+    throw MakeTypeError(kProtoObjectOrNull, proto);
   }
 
   if (IS_SPEC_OBJECT(obj)) {
@@ -1031,7 +1028,7 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
 // For Harmony proxies
 function ToNameArray(obj, trap, includeSymbols) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("proxy_non_object_prop_names", [obj, trap]);
+    throw MakeTypeError(kProxyNonObjectPropNames, trap, obj);
   }
   var n = ToUint32(obj.length);
   var array = new $Array(n);
@@ -1042,7 +1039,7 @@ function ToNameArray(obj, trap, includeSymbols) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(s) && !includeSymbols) continue;
     if (%HasOwnProperty(names, s)) {
-      throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
+      throw MakeTypeError(kProxyRepeatedPropName, trap, s);
     }
     array[index] = s;
     ++realLength;
@@ -1137,7 +1134,7 @@ function ObjectGetOwnPropertyNames(obj) {
 // ES5 section 15.2.3.5.
 function ObjectCreate(proto, properties) {
   if (!IS_SPEC_OBJECT(proto) && proto !== null) {
-    throw MakeTypeError("proto_object_or_null", [proto]);
+    throw MakeTypeError(kProtoObjectOrNull, proto);
   }
   var obj = {};
   %InternalSetPrototype(obj, proto);
@@ -1149,7 +1146,7 @@ function ObjectCreate(proto, properties) {
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.defineProperty"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.defineProperty");
   }
   var name = ToName(p);
   if (%_IsJSProxy(obj)) {
@@ -1212,7 +1209,7 @@ function GetOwnEnumerablePropertyNames(object) {
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.defineProperties"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.defineProperties");
   }
   var props = TO_OBJECT_INLINE(properties);
   var names = GetOwnEnumerablePropertyNames(props);
@@ -1232,7 +1229,7 @@ function ProxyFix(obj) {
   var handler = %GetHandler(obj);
   var props = CallTrap0(handler, "fix", UNDEFINED);
   if (IS_UNDEFINED(props)) {
-    throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
+    throw MakeTypeError(kProxyHandlerReturned, handler, "undefined", "fix");
   }
 
   if (%IsJSFunctionProxy(obj)) {
@@ -1259,7 +1256,7 @@ function ProxyFix(obj) {
 // ES5 section 15.2.3.8.
 function ObjectSealJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.seal"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.seal");
   }
   var isProxy = %_IsJSProxy(obj);
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
@@ -1288,7 +1285,7 @@ function ObjectSealJS(obj) {
 // ES5 section 15.2.3.9.
 function ObjectFreezeJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.freeze");
   }
   var isProxy = %_IsJSProxy(obj);
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
@@ -1318,7 +1315,7 @@ function ObjectFreezeJS(obj) {
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.preventExtension"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.preventExtension");
   }
   if (%_IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1331,7 +1328,7 @@ function ObjectPreventExtension(obj) {
 // ES5 section 15.2.3.11
 function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.isSealed"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.isSealed");
   }
   if (%_IsJSProxy(obj)) {
     return false;
@@ -1354,7 +1351,7 @@ function ObjectIsSealed(obj) {
 // ES5 section 15.2.3.12
 function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.isFrozen"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.isFrozen");
   }
   if (%_IsJSProxy(obj)) {
     return false;
@@ -1376,7 +1373,7 @@ function ObjectIsFrozen(obj) {
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.isExtensible"]);
+    throw MakeTypeError(kCalledOnNonObject, "Object.isExtensible");
   }
   if (%_IsJSProxy(obj)) {
     return true;
@@ -1489,7 +1486,7 @@ function BooleanToString() {
   var b = this;
   if (!IS_BOOLEAN(b)) {
     if (!IS_BOOLEAN_WRAPPER(b)) {
-      throw new $TypeError('Boolean.prototype.toString is not generic');
+      throw MakeTypeError(kNotGeneric, 'Boolean.prototype.toString');
     }
     b = %_ValueOf(b);
   }
@@ -1501,7 +1498,7 @@ function BooleanValueOf() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   if (!IS_BOOLEAN(this) && !IS_BOOLEAN_WRAPPER(this)) {
-    throw new $TypeError('Boolean.prototype.valueOf is not generic');
+    throw MakeTypeError(kNotGeneric, 'Boolean.prototype.valueOf');
   }
   return %_ValueOf(this);
 }
@@ -1545,7 +1542,7 @@ function NumberToStringJS(radix) {
   var number = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
-      throw new $TypeError('Number.prototype.toString is not generic');
+      throw MakeTypeError(kNotGeneric, 'Number.prototype.toString');
     }
     // Get the value of this number in case it's an object.
     number = %_ValueOf(this);
@@ -1576,7 +1573,7 @@ function NumberValueOf() {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   if (!IS_NUMBER(this) && !IS_NUMBER_WRAPPER(this)) {
-    throw new $TypeError('Number.prototype.valueOf is not generic');
+    throw MakeTypeError(kNotGeneric, 'Number.prototype.valueOf');
   }
   return %_ValueOf(this);
 }
@@ -1596,7 +1593,7 @@ function NumberToFixedJS(fractionDigits) {
   var f = TO_INTEGER(fractionDigits);
 
   if (f < 0 || f > 20) {
-    throw new $RangeError("toFixed() digits argument must be between 0 and 20");
+    throw MakeRangeError(kNumberFormatRange, "toFixed() digits");
   }
 
   if (NUMBER_IS_NAN(x)) return "NaN";
@@ -1627,7 +1624,7 @@ function NumberToExponentialJS(fractionDigits) {
   if (IS_UNDEFINED(f)) {
     f = -1;  // Signal for runtime function that f is not defined.
   } else if (f < 0 || f > 20) {
-    throw new $RangeError("toExponential() argument must be between 0 and 20");
+    throw MakeRangeError(kNumberFormatRange, "toExponential()");
   }
   return %NumberToExponential(x, f);
 }
@@ -1652,7 +1649,7 @@ function NumberToPrecisionJS(precision) {
   if (x == -INFINITY) return "-Infinity";
 
   if (p < 1 || p > 21) {
-    throw new $RangeError("toPrecision() argument must be between 1 and 21");
+    throw MakeRangeError(kToPrecisionFormatRange);
   }
   return %NumberToPrecision(x, p);
 }
@@ -1752,7 +1749,7 @@ function FunctionSourceString(func) {
   }
 
   if (!IS_FUNCTION(func)) {
-    throw new $TypeError('Function.prototype.toString is not generic');
+    throw MakeTypeError(kNotGeneric, 'Function.prototype.toString');
   }
 
   var classSource = %ClassGetSourceCode(func);
@@ -1794,9 +1791,8 @@ function FunctionToString() {
 
 // ES5 15.3.4.5
 function FunctionBind(this_arg) { // Length is 1.
-  if (!IS_SPEC_FUNCTION(this)) {
-    throw new $TypeError('Bind must be called on a function');
-  }
+  if (!IS_SPEC_FUNCTION(this)) throw MakeTypeError(kFunctionBind);
+
   var boundFunction = function () {
     // Poison .arguments and .caller, but is otherwise not detectable.
     "use strict";
@@ -1863,7 +1859,7 @@ function NewFunctionString(arguments, function_token) {
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
     if (%_CallFunction(p, ')', $stringIndexOf) != -1) {
-      throw MakeSyntaxError('paren_in_arg_string', []);
+      throw MakeSyntaxError(kParenthesisInArgString);
     }
     // If the formal parameters include an unbalanced block comment, the
     // function must be rejected. Since JavaScript does not allow nested
@@ -1913,11 +1909,11 @@ function GetIterator(obj, method) {
     method = obj[symbolIterator];
   }
   if (!IS_SPEC_FUNCTION(method)) {
-    throw MakeTypeError('not_iterable', [obj]);
+    throw MakeTypeError(kNotIterable, obj);
   }
   var iterator = %_CallFunction(obj, method);
   if (!IS_SPEC_OBJECT(iterator)) {
-    throw MakeTypeError('not_an_iterator', [iterator]);
+    throw MakeTypeError(kNotAnIterator, iterator);
   }
   return iterator;
 }

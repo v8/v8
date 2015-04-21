@@ -22,7 +22,7 @@ function SpreadArguments() {
 
 function SpreadIterable(collection) {
   if (IS_NULL_OR_UNDEFINED(collection)) {
-    throw MakeTypeError("not_iterable", [collection]);
+    throw MakeTypeError(kNotIterable, collection);
   }
 
   var args = new InternalArray();

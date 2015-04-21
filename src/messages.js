@@ -42,23 +42,12 @@ var kMessages = {
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
   flags_getter_non_object:       ["RegExp.prototype.flags getter called on non-object ", "%0"],
   reduce_no_initial:             ["Reduce of empty array with no initial value"],
-  getter_must_be_callable:       ["Getter must be a function: ", "%0"],
-  setter_must_be_callable:       ["Setter must be a function: ", "%0"],
   value_and_accessor:            ["Invalid property.  A property cannot both have accessors and be writable or have a value, ", "%0"],
   proto_object_or_null:          ["Object prototype may only be an Object or null: ", "%0"],
-  property_desc_object:          ["Property description must be an object: ", "%0"],
-  redefine_disallowed:           ["Cannot redefine property: ", "%0"],
-  define_disallowed:             ["Cannot define property:", "%0", ", object is not extensible."],
   non_extensible_proto:          ["%0", " is not extensible"],
   handler_non_object:            ["Proxy.", "%0", " called with non-object as handler"],
   proto_non_object:              ["Proxy.", "%0", " called with non-object as prototype"],
   trap_function_expected:        ["Proxy.", "%0", " called with non-function for '", "%1", "' trap"],
-  handler_trap_missing:          ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
-  handler_trap_must_be_callable: ["Proxy handler ", "%0", " has non-callable '", "%1", "' trap"],
-  handler_returned_false:        ["Proxy handler ", "%0", " returned false from '", "%1", "' trap"],
-  handler_returned_undefined:    ["Proxy handler ", "%0", " returned undefined from '", "%1", "' trap"],
-  proxy_prop_not_configurable:   ["Proxy handler ", "%0", " returned non-configurable descriptor for property '", "%2", "' from '", "%1", "' trap"],
-  proxy_non_object_prop_names:   ["Trap '", "%1", "' returned non-object ", "%0"],
   proxy_repeated_prop_name:      ["Trap '", "%1", "' returned repeated property name '", "%2", "'"],
   invalid_weakmap_key:           ["Invalid value used as weak map key"],
   invalid_weakset_value:         ["Invalid value used in weak set"],
@@ -83,8 +72,6 @@ var kMessages = {
   array_functions_on_frozen:     ["Cannot modify frozen array elements"],
   array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
   first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
-  not_iterable:                  ["%0", " is not iterable"],
-  not_an_iterator:               ["%0", " is not an iterator"],
   iterator_result_not_an_object: ["Iterator result ", "%0", " is not an object"],
   iterator_value_not_an_object:  ["Iterator value ", "%0", " is not an entry object"],
   // RangeError
@@ -112,7 +99,6 @@ var kMessages = {
   invalid_lhs_in_postfix_op:     ["Invalid left-hand side expression in postfix operation"],
   invalid_lhs_in_prefix_op:      ["Invalid left-hand side expression in prefix operation"],
   // SyntaxError
-  paren_in_arg_string:           ["Function arg string contains parenthesis"],
   not_isvar:                     ["builtin %IS_VAR: not a variable"],
   single_function_literal:       ["Single function literal required"],
   invalid_regexp_flags:          ["Invalid flags supplied to RegExp constructor '", "%0", "'"],
@@ -121,10 +107,7 @@ var kMessages = {
   illegal_continue:              ["Illegal continue statement"],
   illegal_return:                ["Illegal return statement"],
   error_loading_debugger:        ["Error loading debugger"],
-  no_input_to_regexp:            ["No input to ", "%0"],
-  invalid_json:                  ["String '", "%0", "' is not valid JSON"],
   circular_structure:            ["Converting circular structure to JSON"],
-  called_on_non_object:          ["%0", " called on non-object"],
   called_on_null_or_undefined:   ["%0", " called on null or undefined"],
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
@@ -1252,7 +1235,7 @@ function ErrorToStringDetectCycle(error) {
 
 function ErrorToString() {
   if (!IS_SPEC_OBJECT(this)) {
-    throw MakeTypeError("called_on_non_object", ["Error.prototype.toString"]);
+    throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
   }
 
   try {

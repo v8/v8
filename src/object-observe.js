@@ -554,7 +554,7 @@ function NotifyChange(type, object, name, oldValue) {
 
 function ObjectNotifierNotify(changeRecord) {
   if (!IS_SPEC_OBJECT(this))
-    throw MakeTypeError("called_on_non_object", ["notify"]);
+    throw MakeTypeError(kCalledOnNonObject, "notify");
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
   if (IS_UNDEFINED(objectInfo))
@@ -568,7 +568,7 @@ function ObjectNotifierNotify(changeRecord) {
 
 function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_OBJECT(this))
-    throw MakeTypeError("called_on_non_object", ["performChange"]);
+    throw MakeTypeError(kCalledOnNonObject, "performChange");
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
   if (IS_UNDEFINED(objectInfo))

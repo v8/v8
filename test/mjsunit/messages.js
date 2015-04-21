@@ -12,7 +12,7 @@ function test(f, expected, type) {
     assertEquals(expected, e.message);
     return;
   }
-  assertUnreachable();
+  assertUnreachable("Exception expected");
 }
 
 // === Error ===
@@ -32,10 +32,28 @@ test(function() {
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 
+// kCalledNonCallable
+test(function() {
+  [].forEach(1);
+}, "1 is not a function", TypeError);
+
+// kCalledOnNonObject
+test(function() {
+  Object.freeze(1)
+}, "Object.freeze called on non-object", TypeError);
+
 // kCannotConvertToPrimitive
 test(function() {
   [].join(Object(Symbol(1)));
 }, "Cannot convert object to primitive value", TypeError);
+
+// kDefineDisallowed
+test(function() {
+  "use strict";
+  var o = {};
+  Object.preventExtensions(o);
+  Object.defineProperty(o, "x", { value: 1 });
+}, "Cannot define property:x, object is not extensible.", TypeError);
 
 // kGeneratorRunning
 test(function() {
@@ -45,10 +63,10 @@ test(function() {
   iter.next();
 }, "Generator is already running", TypeError);
 
-// kCalledNonCallable
+// kFunctionBind
 test(function() {
-  [].forEach(1);
-}, "1 is not a function", TypeError);
+  Function.prototype.bind.call(1);
+}, "Bind must be called on a function", TypeError);
 
 // kIncompatibleMethodReceiver
 test(function() {
@@ -79,11 +97,79 @@ test(function() {
   new Symbol();
 }, "Symbol is not a constructor", TypeError);
 
+// kNotGeneric
+test(function() {
+  String.prototype.toString.call(1);
+}, "String.prototype.toString is not generic", TypeError);
+
+test(function() {
+  String.prototype.valueOf.call(1);
+}, "String.prototype.valueOf is not generic", TypeError);
+
+test(function() {
+  Boolean.prototype.toString.call(1);
+}, "Boolean.prototype.toString is not generic", TypeError);
+
+test(function() {
+  Boolean.prototype.valueOf.call(1);
+}, "Boolean.prototype.valueOf is not generic", TypeError);
+
+test(function() {
+  Number.prototype.toString.call({});
+}, "Number.prototype.toString is not generic", TypeError);
+
+test(function() {
+  Number.prototype.valueOf.call({});
+}, "Number.prototype.valueOf is not generic", TypeError);
+
+test(function() {
+  Function.prototype.toString.call(1);
+}, "Function.prototype.toString is not generic", TypeError);
+
+
+// kObjectGetterExpectingFunction
+test(function() {
+  ({}).__defineGetter__("x", 0);
+}, "Object.prototype.__defineGetter__: Expecting function", TypeError);
+
+// kObjectGetterCallable
+test(function() {
+  Object.defineProperty({}, "x", { get: 1 });
+}, "Getter must be a function: 1", TypeError);
+
+// kObjectSetterExpectingFunction
+test(function() {
+  ({}).__defineSetter__("x", 0);
+}, "Object.prototype.__defineSetter__: Expecting function", TypeError);
+
+// kObjectSetterCallable
+test(function() {
+  Object.defineProperty({}, "x", { set: 1 });
+}, "Setter must be a function: 1", TypeError);
+
+// kPropertyDescObject
+test(function() {
+  Object.defineProperty({}, "x", 1);
+}, "Property description must be an object: 1", TypeError);
+
 // kPropertyNotFunction
 test(function() {
   Set.prototype.add = 0;
   new Set(1);
 }, "Property 'add' of object #<Set> is not a function", TypeError);
+
+// kProtoObjectOrNull
+test(function() {
+  Object.setPrototypeOf({}, 1);
+}, "Object prototype may only be an Object or null: 1", TypeError);
+
+// kRedefineDisallowed
+test(function() {
+  "use strict";
+  var o = {};
+  Object.defineProperty(o, "x", { value: 1, configurable: false });
+  Object.defineProperty(o, "x", { value: 2 });
+}, "Cannot redefine property: x", TypeError);
 
 // kSymbolToPrimitive
 test(function() {
@@ -105,6 +191,12 @@ test(function() {
   Array.prototype.toString.call(null);
 }, "Cannot convert undefined or null to object", TypeError);
 
+// kValueAndAccessor
+test(function() {
+  Object.defineProperty({}, "x", { get: function(){}, value: 1});
+}, "Invalid property.  A property cannot both have accessors and be " +
+   "writable or have a value, #<Object>", TypeError);
+
 // kWithExpression
 test(function() {
   with (null) {}
@@ -124,10 +216,37 @@ test(function() {
 }, "Reflect.construct: Arguments list has wrong type", TypeError);
 
 
+//=== SyntaxError ===
+
+test(function() {
+  new Function(")", "");
+}, "Function arg string contains parenthesis", SyntaxError);
+
+
 // === RangeError ===
+
+// kArrayLengthOutOfRange
+test(function() {
+  "use strict";
+  Object.defineProperty([], "length", { value: 1E100 });
+}, "defineProperty() array length out of range", RangeError);
+
+//kNumberFormatRange
+test(function() {
+Number(1).toFixed(100);
+}, "toFixed() digits argument must be between 0 and 20", RangeError);
+
+test(function() {
+Number(1).toExponential(100);
+}, "toExponential() argument must be between 0 and 20", RangeError);
 
 // kStackOverflow
 test(function() {
   function f() { f(Array(1000)); }
   f();
 }, "Maximum call stack size exceeded", RangeError);
+
+// kToPrecisionFormatRange
+test(function() {
+  Number(1).toPrecision(100);
+}, "toPrecision() argument must be between 1 and 21", RangeError);

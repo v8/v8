@@ -162,8 +162,8 @@ function DerivedEnumerateTrap() {
     var desc = this.getPropertyDescriptor(TO_STRING_INLINE(name))
     if (!IS_UNDEFINED(desc)) {
       if (!desc.configurable) {
-        throw MakeTypeError("proxy_prop_not_configurable",
-            [this, "getPropertyDescriptor", name])
+        throw MakeTypeError(kProxyPropNotConfigurable,
+                            this, name, "getPropertyDescriptor")
       }
       if (desc.enumerable) enumerableNames[count++] = names[i]
     }
