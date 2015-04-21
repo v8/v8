@@ -218,7 +218,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     DCHECK(current_.incremental_marking_bytes == 0);
     DCHECK(current_.incremental_marking_duration == 0);
     DCHECK(current_.pure_incremental_marking_duration == 0);
-    DCHECK(longest_incremental_marking_step_ == 0.0);
+    longest_incremental_marking_step_ = 0.0;
     mark_compactor_events_.push_front(current_);
   }
 
