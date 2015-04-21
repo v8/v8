@@ -23,6 +23,8 @@ namespace compiler {
 
 enum LoadOrStore { LOAD, STORE };
 
+#define EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT false
+
 JSTypeFeedbackTable::JSTypeFeedbackTable(Zone* zone)
     : map_(TypeFeedbackIdMap::key_compare(),
            TypeFeedbackIdMap::allocator_type(zone)) {}
@@ -148,6 +150,8 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
   // TODO(turbofan): type feedback currently requires deoptimization.
   if (!FLAG_turbo_deoptimization) return NoChange();
+  // TODO(titzer): deopt locations are wrong for property accesses
+  if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
 
   // TODO(turbofan): handle vector-based type feedback.
   TypeFeedbackId id = js_type_feedback_->find(node);
@@ -200,6 +204,8 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
   // TODO(turbofan): type feedback currently requires deoptimization.
   if (!FLAG_turbo_deoptimization) return NoChange();
+  // TODO(titzer): deopt locations are wrong for property accesses
+  if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
 
   TypeFeedbackId id = js_type_feedback_->find(node);
   if (id.IsNone() || oracle()->StoreIsUninitialized(id)) return NoChange();
