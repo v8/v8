@@ -1559,13 +1559,13 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 
-  INSTALL_NATIVE(Symbol, "promiseStatus", promise_status);
-  INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
-  INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
-  INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
-  INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
-  INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
-  INSTALL_NATIVE(JSFunction, "PromiseThen", promise_then);
+  INSTALL_NATIVE(Symbol, "$promiseStatus", promise_status);
+  INSTALL_NATIVE(JSFunction, "$promiseCreate", promise_create);
+  INSTALL_NATIVE(JSFunction, "$promiseResolve", promise_resolve);
+  INSTALL_NATIVE(JSFunction, "$promiseReject", promise_reject);
+  INSTALL_NATIVE(JSFunction, "$promiseChain", promise_chain);
+  INSTALL_NATIVE(JSFunction, "$promiseCatch", promise_catch);
+  INSTALL_NATIVE(JSFunction, "$promiseThen", promise_then);
 
   INSTALL_NATIVE(JSFunction, "$observeNotifyChange", observers_notify_change);
   INSTALL_NATIVE(JSFunction, "$observeEnqueueSpliceRecord",

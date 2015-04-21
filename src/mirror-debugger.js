@@ -25,7 +25,7 @@ function ToggleMirrorCache(value) {
 function ObjectIsPromise(value) {
   try {
     return IS_SPEC_OBJECT(value) &&
-           !IS_UNDEFINED(%DebugGetProperty(value, builtins.promiseStatus));
+           !IS_UNDEFINED(%DebugGetProperty(value, builtins.$promiseStatus));
   } catch (e) {
     return false;
   }
@@ -1335,7 +1335,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %DebugGetProperty(value, builtins.promiseStatus);
+  var status = %DebugGetProperty(value, builtins.$promiseStatus);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1343,7 +1343,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %DebugGetProperty(value, builtins.promiseValue);
+  return %DebugGetProperty(value, builtins.$promiseValue);
 }
 
 
