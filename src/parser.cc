@@ -787,16 +787,7 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    Scope* scope,
                                                    AstNodeFactory* factory) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
-
-  // Arrow function parameters are parsed as an expression. When
-  // parsing lazily, it is enough to create a VariableProxy in order
-  // for Traits::DeclareArrowParametersFromExpression() to be able to
-  // pick the names of the parameters.
-  return parser_->parsing_lazy_arrow_parameters_
-             ? factory->NewVariableProxy(name, Variable::NORMAL, start_position,
-                                         end_position)
-             : scope->NewUnresolved(factory, name, start_position,
-                                    end_position);
+  return scope->NewUnresolved(factory, name, start_position, end_position);
 }
 
 
@@ -861,7 +852,6 @@ Parser::Parser(ParseInfo* info)
       target_stack_(NULL),
       compile_options_(info->compile_options()),
       cached_parse_data_(NULL),
-      parsing_lazy_arrow_parameters_(false),
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL),
       parsing_on_main_thread_(true) {
@@ -1142,27 +1132,37 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     bool ok = true;
 
     if (shared_info->is_arrow()) {
-      // The first expression being parsed is the parameter list of the arrow
-      // function. Setting this avoids prevents ExpressionFromIdentifier()
-      // from creating unresolved variables in already-resolved scopes.
-      parsing_lazy_arrow_parameters_ = true;
-      Expression* expression = ParseExpression(false, &ok);
+      Scope* scope = NewScope(scope_, ARROW_SCOPE);
+      scope->set_start_position(shared_info->start_position());
+      FormalParameterErrorLocations error_locs;
+      bool has_rest = false;
+      if (Check(Token::LPAREN)) {
+        // '(' StrictFormalParameters ')'
+        ParseFormalParameterList(scope, &error_locs, &has_rest, &ok);
+        if (ok) ok = Check(Token::RPAREN);
+      } else {
+        // BindingIdentifier
+        ParseFormalParameter(scope, &error_locs, has_rest, &ok);
+      }
+
       if (ok) {
-        // Scanning must end at the same position that was recorded
-        // previously. If not, parsing has been interrupted due to a
-        // stack overflow, at which point the partially parsed arrow
-        // function concise body happens to be a valid expression. This
-        // is a problem only for arrow functions with single statement
-        // bodies, since there is no end token such as "}" for normal
-        // functions.
-        if (scanner()->location().end_pos == shared_info->end_position()) {
-          // The pre-parser saw an arrow function here, so the full parser
-          // must produce a FunctionLiteral.
-          DCHECK(expression->IsFunctionLiteral());
-          result = expression->AsFunctionLiteral();
-        } else {
-          result = NULL;
-          ok = false;
+        Expression* expression =
+            ParseArrowFunctionLiteral(scope, error_locs, has_rest, &ok);
+        if (ok) {
+          // Scanning must end at the same position that was recorded
+          // previously. If not, parsing has been interrupted due to a stack
+          // overflow, at which point the partially parsed arrow function
+          // concise body happens to be a valid expression. This is a problem
+          // only for arrow functions with single expression bodies, since there
+          // is no end token such as "}" for normal functions.
+          if (scanner()->location().end_pos == shared_info->end_position()) {
+            // The pre-parser saw an arrow function here, so the full parser
+            // must produce a FunctionLiteral.
+            DCHECK(expression->IsFunctionLiteral());
+            result = expression->AsFunctionLiteral();
+          } else {
+            ok = false;
+          }
         }
       }
     } else if (shared_info->is_default_constructor()) {
@@ -3732,79 +3732,103 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 }
 
 
-bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
-                                   Scope* scope, int* num_params,
-                                   FormalParameterErrorLocations* locs) {
-  // Case for empty parameter lists:
-  //   () => ...
-  if (expression == NULL) return true;
-
-  // Too many parentheses around expression:
-  //   (( ... )) => ...
-  if (expression->is_multi_parenthesized()) return false;
-
-  // Case for a single parameter:
-  //   (foo) => ...
-  //   foo => ...
-  if (expression->IsVariableProxy()) {
-    if (expression->AsVariableProxy()->is_this()) return false;
-
-    const AstRawString* raw_name = expression->AsVariableProxy()->raw_name();
-    if (traits->IsEvalOrArguments(raw_name) ||
-        traits->IsFutureStrictReserved(raw_name))
-      return false;
-    if (traits->IsUndefined(raw_name) && !locs->undefined.IsValid()) {
-      locs->undefined = Scanner::Location(
-          expression->position(), expression->position() + raw_name->length());
-    }
-
-    // When the variable was seen, it was recorded as unresolved in the outer
-    // scope. But it's really not unresolved.
-    scope->outer_scope()->RemoveUnresolved(expression->AsVariableProxy());
-
-    bool is_rest = false;
-    bool is_duplicate = false;
-    scope->DeclareParameter(raw_name, VAR, is_rest, &is_duplicate);
-    if (is_duplicate) {
-      locs->duplicate = Scanner::Location(
-          expression->position(), expression->position() + raw_name->length());
-      return false;
-    }
-
-    ++(*num_params);
-    return true;
+void ParserTraits::DeclareArrowFunctionParameters(
+    Scope* scope, Expression* expr, const Scanner::Location& params_loc,
+    FormalParameterErrorLocations* error_locs, bool* ok) {
+  if (scope->num_parameters() >= Code::kMaxArguments) {
+    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
+    *ok = false;
+    return;
   }
 
-  // Case for more than one parameter:
-  //   (foo, bar [, ...]) => ...
-  if (expression->IsBinaryOperation()) {
-    BinaryOperation* binop = expression->AsBinaryOperation();
-    if (binop->op() != Token::COMMA || binop->left()->is_parenthesized() ||
-        binop->right()->is_parenthesized())
-      return false;
-
-    return CheckAndDeclareArrowParameter(traits, binop->left(), scope,
-                                         num_params, locs) &&
-           CheckAndDeclareArrowParameter(traits, binop->right(), scope,
-                                         num_params, locs);
+  // ArrowFunctionFormals ::
+  //    Binary(Token::COMMA, ArrowFunctionFormals, VariableProxy)
+  //    VariableProxy
+  //
+  // As we need to visit the parameters in left-to-right order, we recurse on
+  // the left-hand side of comma expressions.
+  //
+  // Sadly, for the various malformed_arrow_function_parameter_list errors, we
+  // can't be more specific on the error message or on the location because we
+  // need to match the pre-parser's behavior.
+  if (expr->IsBinaryOperation()) {
+    BinaryOperation* binop = expr->AsBinaryOperation();
+    if (binop->op() != Token::COMMA) {
+      ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
+      *ok = false;
+      return;
+    }
+    Expression* left = binop->left();
+    Expression* right = binop->right();
+    if (left->is_parenthesized() || right->is_parenthesized()) {
+      ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
+      *ok = false;
+      return;
+    }
+    DeclareArrowFunctionParameters(scope, left, params_loc, error_locs, ok);
+    if (!*ok) return;
+    // LHS of comma expression should be unparenthesized.
+    expr = right;
   }
 
-  // Any other kind of expression is not a valid parameter list.
-  return false;
+  // TODO(wingo): Support rest parameters.
+  if (!expr->IsVariableProxy()) {
+    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
+    *ok = false;
+    return;
+  }
+
+  const AstRawString* raw_name = expr->AsVariableProxy()->raw_name();
+  Scanner::Location param_location(expr->position(),
+                                   expr->position() + raw_name->length());
+
+  if (expr->AsVariableProxy()->is_this()) {
+    ReportMessageAt(param_location, "this_formal_parameter");
+    *ok = false;
+    return;
+  }
+
+  if (!error_locs->eval_or_arguments.IsValid() && IsEvalOrArguments(raw_name))
+    error_locs->eval_or_arguments = param_location;
+  if (!error_locs->reserved.IsValid() && IsFutureStrictReserved(raw_name))
+    error_locs->reserved = param_location;
+  if (!error_locs->undefined.IsValid() && IsUndefined(raw_name))
+    error_locs->undefined = param_location;
+
+  // When the formal parameter was originally seen, it was parsed as a
+  // VariableProxy and recorded as unresolved in the scope.  Here we undo that
+  // parse-time side-effect.
+  parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
+
+  bool is_rest = false;
+  bool is_duplicate = DeclareFormalParameter(scope, raw_name, is_rest);
+
+  if (is_duplicate) {
+    // Arrow function parameter lists are parsed as StrictFormalParameters,
+    // which means that they cannot have duplicates.  Note that this is a subset
+    // of the restrictions placed on parameters to functions whose body is
+    // strict.
+    ReportMessageAt(param_location,
+                    "duplicate_arrow_function_formal_parameter");
+    *ok = false;
+    return;
+  }
 }
 
 
-int ParserTraits::DeclareArrowParametersFromExpression(
-    Expression* expression, Scope* scope, FormalParameterErrorLocations* locs,
-    bool* ok) {
-  int num_params = 0;
-  // Always reset the flag: It only needs to be set for the first expression
-  // parsed as arrow function parameter list, because only top-level functions
-  // are parsed lazily.
-  parser_->parsing_lazy_arrow_parameters_ = false;
-  *ok =
-      CheckAndDeclareArrowParameter(this, expression, scope, &num_params, locs);
-  return num_params;
+void ParserTraits::ParseArrowFunctionFormalParameters(
+    Scope* scope, Expression* params, const Scanner::Location& params_loc,
+    FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok) {
+  // Too many parentheses around expression:
+  //   (( ... )) => ...
+  if (params->is_multi_parenthesized()) {
+    // TODO(wingo): Make a better message.
+    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
+    *ok = false;
+    return;
+  }
+
+  DeclareArrowFunctionParameters(scope, params, params_loc, error_locs, ok);
 }
 
 

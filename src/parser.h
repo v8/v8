@@ -696,7 +696,6 @@ class ParserTraits {
   static Expression* EmptyExpression() {
     return NULL;
   }
-  static Expression* EmptyArrowParamList() { return NULL; }
   static Literal* EmptyLiteral() {
     return NULL;
   }
@@ -746,11 +745,6 @@ class ParserTraits {
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
-  // Utility functions
-  int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
-                                           FormalParameterErrorLocations* locs,
-                                           bool* ok);
-
   bool DeclareFormalParameter(Scope* scope, const AstRawString* name,
                               bool is_rest) {
     bool is_duplicate = false;
@@ -763,6 +757,14 @@ class ParserTraits {
     }
     return is_duplicate;
   }
+
+  void DeclareArrowFunctionParameters(Scope* scope, Expression* expr,
+                                      const Scanner::Location& params_loc,
+                                      FormalParameterErrorLocations* error_locs,
+                                      bool* ok);
+  void ParseArrowFunctionFormalParameters(
+      Scope* scope, Expression* params, const Scanner::Location& params_loc,
+      FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok);
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
@@ -1059,8 +1061,6 @@ class Parser : public ParserBase<ParserTraits> {
   Target* target_stack_;  // for break, continue statements
   ScriptCompiler::CompileOptions compile_options_;
   ParseData* cached_parse_data_;
-
-  bool parsing_lazy_arrow_parameters_;  // for lazily parsed arrow functions.
 
   PendingCompilationErrorHandler pending_error_handler_;
 

@@ -166,7 +166,9 @@ var kMessages = {
   for_of_loop_initializer:       ["for-of loop variable declaration may not have an initializer."],
   for_inof_loop_multi_bindings:  ["Invalid left-hand side in ", "%0", " loop: Must have a single binding."],
   bad_getter_arity:              ["Getter must not have any formal parameters."],
-  bad_setter_arity:              ["Setter must have exactly one formal parameter."]
+  bad_setter_arity:              ["Setter must have exactly one formal parameter."],
+  this_formal_parameter:         ["'this' is not a valid formal parameter name"],
+  duplicate_arrow_function_formal_parameter: ["Arrow function may not have duplicate parameter names"]
 };
 
 
