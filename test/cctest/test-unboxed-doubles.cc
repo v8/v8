@@ -581,7 +581,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
     LayoutDescriptor* layout_desc = *layout_descriptor;
     CHECK_EQ(layout_desc, LayoutDescriptor::cast(layout_desc));
     CHECK_EQ(layout_desc, LayoutDescriptor::cast_gc_safe(layout_desc));
-    CHECK(layout_descriptor->IsFixedTypedArrayBase());
+    CHECK(layout_descriptor->IsJSTypedArray());
     // Now make it look like a forwarding pointer to layout_descriptor_copy.
     MapWord map_word = layout_desc->map_word();
     CHECK(!map_word.IsForwardingAddress());
@@ -935,7 +935,7 @@ TEST(DescriptorArrayTrimming) {
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
   CHECK(map->layout_descriptor()->IsSlowLayout());
   CHECK(map->owns_descriptors());
-  CHECK_EQ(2, map->layout_descriptor()->length());
+  CHECK_EQ(2, Smi::cast(map->layout_descriptor()->length())->value());
 
   {
     // Add transitions to double fields.
@@ -954,7 +954,7 @@ TEST(DescriptorArrayTrimming) {
     CHECK_EQ(map->layout_descriptor(), tmp_map->layout_descriptor());
   }
   CHECK(map->layout_descriptor()->IsSlowLayout());
-  CHECK_EQ(4, map->layout_descriptor()->length());
+  CHECK_EQ(4, Smi::cast(map->layout_descriptor()->length())->value());
 
   // The unused tail of the layout descriptor is now "durty" because of sharing.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map));
@@ -974,7 +974,7 @@ TEST(DescriptorArrayTrimming) {
   CHECK_EQ(map->NumberOfOwnDescriptors(),
            map->instance_descriptors()->number_of_descriptors());
   CHECK(map->layout_descriptor()->IsSlowLayout());
-  CHECK_EQ(2, map->layout_descriptor()->length());
+  CHECK_EQ(2, Smi::cast(map->layout_descriptor()->length())->value());
 
   {
     // Add transitions to tagged fields.

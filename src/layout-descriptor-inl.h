@@ -22,7 +22,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   }
   length = GetSlowModeBackingStoreLength(length);
   return Handle<LayoutDescriptor>::cast(
-      isolate->factory()->NewFixedTypedArray(length, kExternalUint32Array));
+      isolate->factory()->NewJSTypedArray(UINT32_ELEMENTS, length));
 }
 
 
@@ -48,7 +48,7 @@ bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
   }
 
   *layout_word_index = field_index / kNumberOfBits;
-  CHECK((!IsSmi() && (*layout_word_index < length())) ||
+  CHECK((!IsSmi() && (*layout_word_index < Smi::cast(length())->value())) ||
         (IsSmi() && (*layout_word_index < 1)));
 
   *layout_bit_index = field_index % kNumberOfBits;
@@ -123,7 +123,21 @@ bool LayoutDescriptor::IsSlowLayout() { return !IsSmi(); }
 
 
 int LayoutDescriptor::capacity() {
-  return IsSlowLayout() ? (length() * kNumberOfBits) : kSmiValueSize;
+  return IsSlowLayout() ? (Smi::cast(length())->value() * kNumberOfBits)
+                        : kSmiValueSize;
+}
+
+
+uint32_t LayoutDescriptor::get_scalar(int index) {
+  DCHECK(IsSlowLayout());
+  return FixedTypedArray<Uint32ArrayTraits>::cast(elements())
+      ->get_scalar(index);
+}
+
+
+void LayoutDescriptor::set(int index, uint32_t value) {
+  DCHECK(IsSlowLayout());
+  FixedTypedArray<Uint32ArrayTraits>::cast(elements())->set(index, value);
 }
 
 

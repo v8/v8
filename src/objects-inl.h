@@ -716,9 +716,7 @@ bool Object::IsDescriptorArray() const {
 bool Object::IsArrayList() const { return IsFixedArray(); }
 
 
-bool Object::IsLayoutDescriptor() const {
-  return IsSmi() || IsFixedTypedArrayBase();
-}
+bool Object::IsLayoutDescriptor() const { return IsSmi() || IsJSTypedArray(); }
 
 
 bool Object::IsTransitionArray() const {
