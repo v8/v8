@@ -1324,10 +1324,10 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
         Add<HLoadNamedField>(proxy, nullptr, HObjectAccess::ForMap());
     HValue* global =
         Add<HLoadNamedField>(proxy_map, nullptr, HObjectAccess::ForPrototype());
-    HValue* map_cell = Add<HConstant>(isolate()->factory()->NewWeakCell(
-        StoreGlobalStub::global_map_placeholder(isolate())));
-    HValue* expected_map = Add<HLoadNamedField>(
-        map_cell, nullptr, HObjectAccess::ForWeakCellValue());
+    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
+    HValue* cell = Add<HConstant>(Map::WeakCellForMap(placeholder_map));
+    HValue* expected_map =
+        Add<HLoadNamedField>(cell, nullptr, HObjectAccess::ForWeakCellValue());
     HValue* map =
         Add<HLoadNamedField>(global, nullptr, HObjectAccess::ForMap());
     IfBuilder map_check(this);
@@ -1342,15 +1342,9 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
                                       HObjectAccess::ForWeakCellValue());
   Add<HCheckHeapObject>(cell);
   HObjectAccess access = HObjectAccess::ForPropertyCellValue();
-  // Load the payload of the global parameter cell. A hole indicates that the
-  // cell has been invalidated and that the store must be handled by the
-  // runtime.
   HValue* cell_contents = Add<HLoadNamedField>(cell, nullptr, access);
 
-  auto cell_type = stub->cell_type();
-  if (cell_type == PropertyCellType::kConstant ||
-      cell_type == PropertyCellType::kUndefined) {
-    // This is always valid for all states a cell can be in.
+  if (stub->is_constant()) {
     IfBuilder builder(this);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
@@ -1358,40 +1352,15 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
         Deoptimizer::kUnexpectedCellContentsInConstantGlobalStore);
     builder.End();
   } else {
+    // Load the payload of the global parameter cell. A hole indicates that the
+    // property has been deleted and that the store must be handled by the
+    // runtime.
     IfBuilder builder(this);
     HValue* hole_value = graph()->GetConstantHole();
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
     builder.Deopt(Deoptimizer::kUnexpectedCellContentsInGlobalStore);
     builder.Else();
-    // When dealing with constant types, the type may be allowed to change, as
-    // long as optimized code remains valid.
-    if (cell_type == PropertyCellType::kConstantType) {
-      switch (stub->constant_type()) {
-        case PropertyCellConstantType::kSmi:
-          access = access.WithRepresentation(Representation::Smi());
-          break;
-        case PropertyCellConstantType::kStableMap: {
-          // It is sufficient here to check that the value and cell contents
-          // have identical maps, no matter if they are stable or not or if they
-          // are the maps that were originally in the cell or not. If optimized
-          // code will deopt when a cell has a unstable map and if it has a
-          // dependency on a stable map, it will deopt if the map destabilizes.
-          Add<HCheckHeapObject>(value);
-          Add<HCheckHeapObject>(cell_contents);
-          HValue* expected_map = Add<HLoadNamedField>(cell_contents, nullptr,
-                                                      HObjectAccess::ForMap());
-          HValue* map =
-              Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
-          IfBuilder map_check(this);
-          map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
-          map_check.ThenDeopt(Deoptimizer::kUnknownMap);
-          map_check.End();
-          access = access.WithRepresentation(Representation::HeapObject());
-          break;
-        }
-      }
-    }
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
   }

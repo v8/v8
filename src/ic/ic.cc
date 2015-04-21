@@ -1714,11 +1714,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 static Handle<Code> PropertyCellStoreHandler(
     Isolate* isolate, Handle<JSObject> receiver, Handle<GlobalObject> holder,
     Handle<Name> name, Handle<PropertyCell> cell, PropertyCellType type) {
-  auto constant_type = Nothing<PropertyCellConstantType>();
-  if (type == PropertyCellType::kConstantType) {
-    constant_type = Just(cell->GetConstantType());
-  }
-  StoreGlobalStub stub(isolate, type, constant_type,
+  StoreGlobalStub stub(isolate, type == PropertyCellType::kConstant,
                        receiver->IsJSGlobalProxy());
   auto code = stub.GetCodeCopyFromTemplate(holder, cell);
   // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
@@ -1819,12 +1815,11 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
           auto cell = lookup->GetPropertyCell();
-          auto updated_type = PropertyCell::UpdatedType(
+          auto union_type = PropertyCell::UpdatedType(
               cell, value, lookup->property_details());
-          auto code = PropertyCellStoreHandler(
-              isolate(), receiver, Handle<GlobalObject>::cast(holder),
-              lookup->name(), cell, updated_type);
-          return code;
+          return PropertyCellStoreHandler(isolate(), receiver,
+                                          Handle<GlobalObject>::cast(holder),
+                                          lookup->name(), cell, union_type);
         }
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();

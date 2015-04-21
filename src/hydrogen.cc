@@ -5396,10 +5396,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
 
       if (type == kUseCell) {
         Handle<PropertyCell> cell = it.GetPropertyCell();
-        auto cell_type = it.property_details().cell_type();
-        if (cell_type == PropertyCellType::kConstant ||
-            cell_type == PropertyCellType::kUndefined) {
-          top_info()->dependencies()->AssumePropertyCell(cell);
+        top_info()->dependencies()->AssumePropertyCell(cell);
+        if (it.property_details().cell_type() == PropertyCellType::kConstant) {
           Handle<Object> constant_object(cell->value(), isolate());
           if (constant_object->IsConsString()) {
             constant_object =
@@ -5408,40 +5406,9 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
           HConstant* constant = New<HConstant>(constant_object);
           return ast_context()->ReturnInstruction(constant, expr->id());
         } else {
-          auto access = HObjectAccess::ForPropertyCellValue();
-          UniqueSet<Map>* field_maps = nullptr;
-          if (cell_type == PropertyCellType::kConstantType) {
-            switch (cell->GetConstantType()) {
-              case PropertyCellConstantType::kSmi:
-                access = access.WithRepresentation(Representation::Smi());
-                break;
-              case PropertyCellConstantType::kStableMap: {
-                // Check that the map really is stable. The heap object could
-                // have mutated without the cell updating state.
-                Handle<Map> map(HeapObject::cast(cell->value())->map());
-                if (map->is_stable()) {
-                  access =
-                      access.WithRepresentation(Representation::HeapObject());
-                  field_maps = new (zone())
-                      UniqueSet<Map>(Unique<Map>::CreateImmovable(map), zone());
-                } else {
-                  auto dictionary = handle(global->property_dictionary());
-                  cell = PropertyCell::InvalidateEntry(dictionary,
-                                                       it.dictionary_entry());
-                }
-                break;
-              }
-            }
-          }
-          top_info()->dependencies()->AssumePropertyCell(cell);
           HConstant* cell_constant = Add<HConstant>(cell);
-          HLoadNamedField* instr;
-          if (field_maps == nullptr) {
-            instr = New<HLoadNamedField>(cell_constant, nullptr, access);
-          } else {
-            instr = New<HLoadNamedField>(cell_constant, nullptr, access,
-                                         field_maps, HType::HeapObject());
-          }
+          HLoadNamedField* instr = New<HLoadNamedField>(
+              cell_constant, nullptr, HObjectAccess::ForPropertyCellValue());
           instr->ClearDependsOnFlag(kInobjectFields);
           instr->SetDependsOnFlag(kGlobalVars);
           return ast_context()->ReturnInstruction(instr, expr->id());
@@ -6596,9 +6563,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   if (type == kUseCell) {
     Handle<PropertyCell> cell = it.GetPropertyCell();
     top_info()->dependencies()->AssumePropertyCell(cell);
-    auto cell_type = it.property_details().cell_type();
-    if (cell_type == PropertyCellType::kConstant ||
-        cell_type == PropertyCellType::kUndefined) {
+    if (it.property_details().cell_type() == PropertyCellType::kConstant) {
       Handle<Object> constant(cell->value(), isolate());
       if (value->IsConstant()) {
         HConstant* c_value = HConstant::cast(value);
@@ -6622,30 +6587,8 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
       }
     }
     HConstant* cell_constant = Add<HConstant>(cell);
-    auto access = HObjectAccess::ForPropertyCellValue();
-    if (cell_type == PropertyCellType::kConstantType) {
-      switch (cell->GetConstantType()) {
-        case PropertyCellConstantType::kSmi:
-          access = access.WithRepresentation(Representation::Smi());
-          break;
-        case PropertyCellConstantType::kStableMap: {
-          // Check that the map really is stable. The heap object could have
-          // mutated without the cell updating state.
-          Handle<Map> map(HeapObject::cast(cell->value())->map());
-          if (map->is_stable()) {
-            Add<HCheckHeapObject>(value);
-            value = Add<HCheckMaps>(value, map);
-            access = access.WithRepresentation(Representation::HeapObject());
-          } else {
-            auto dictionary = handle(global->property_dictionary());
-            cell = PropertyCell::InvalidateEntry(dictionary,
-                                                 it.dictionary_entry());
-          }
-          break;
-        }
-      }
-    }
-    HInstruction* instr = Add<HStoreNamedField>(cell_constant, access, value);
+    HInstruction* instr = Add<HStoreNamedField>(
+        cell_constant, HObjectAccess::ForPropertyCellValue(), value);
     instr->ClearChangesFlag(kInobjectFields);
     instr->SetChangesFlag(kGlobalVars);
     if (instr->HasObservableSideEffects()) {
