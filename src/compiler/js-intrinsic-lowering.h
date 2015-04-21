@@ -29,6 +29,8 @@ class JSIntrinsicLowering final : public Reducer {
 
  private:
   Reduction ReduceConstructDouble(Node* node);
+  Reduction ReduceCreateArrayLiteral(Node* node);
+  Reduction ReduceCreateObjectLiteral(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceDoubleHi(Node* node);
   Reduction ReduceDoubleLo(Node* node);

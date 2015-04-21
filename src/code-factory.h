@@ -65,6 +65,9 @@ class CodeFactory final {
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
 
+  static Callable FastCloneShallowArray(Isolate* isolate);
+  static Callable FastCloneShallowObject(Isolate* isolate, int length);
+
   static Callable AllocateHeapNumber(Isolate* isolate);
 
   static Callable CallFunction(Isolate* isolate, int argc,

@@ -1507,6 +1507,9 @@ class ObjectLiteral final : public MaterializedLiteral {
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
     flags |= has_function() ? kHasFunction : kNoFlags;
+    if (depth() == 1 && !has_elements() && !may_store_doubles()) {
+      flags |= kShallowProperties;
+    }
     if (disable_mementos) {
       flags |= kDisableMementos;
     }
@@ -1517,7 +1520,8 @@ class ObjectLiteral final : public MaterializedLiteral {
     kNoFlags = 0,
     kFastElements = 1,
     kHasFunction = 1 << 1,
-    kDisableMementos = 1 << 2
+    kShallowProperties = 1 << 2,
+    kDisableMementos = 1 << 3
   };
 
   struct Accessors: public ZoneObject {

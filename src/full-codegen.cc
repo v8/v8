@@ -420,13 +420,13 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 
 bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
     ObjectLiteral* expr) const {
+  int literal_flags = expr->ComputeFlags();
   // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
   // support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
-  return expr->may_store_doubles() || expr->depth() > 1 ||
-         masm()->serializer_enabled() ||
-         expr->ComputeFlags() != ObjectLiteral::kFastElements ||
-         expr->has_elements() ||
+  return masm()->serializer_enabled() ||
+         literal_flags != ObjectLiteral::kShallowProperties ||
+         literal_flags != ObjectLiteral::kFastElements ||
          expr->properties_count() >
              FastCloneShallowObjectStub::kMaximumClonedProperties;
 }

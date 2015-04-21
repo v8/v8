@@ -127,6 +127,8 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
       return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
+    case Runtime::kInlineCreateArrayLiteral:
+    case Runtime::kInlineCreateObjectLiteral:
     case Runtime::kInlineDateField:
     case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineGetPrototype:
