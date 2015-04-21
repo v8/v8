@@ -5866,33 +5866,109 @@ TEST(StrongForIn) {
 }
 
 
-TEST(StrongSuperCalls) {
+TEST(StrongConstructorThis) {
   const char* sloppy_context_data[][2] = {{"", ""}, {NULL}};
   const char* strict_context_data[][2] = {{"'use strict';", ""}, {NULL}};
   const char* strong_context_data[][2] = {{"'use strong';", ""}, {NULL}};
 
-  const char* data[] = {
-      "class C extends Object { constructor() {} }",
-      "class C extends Object { constructor() { (super()); } }",
-      "class C extends Object { constructor() { (() => super())(); } }",
-      "class C extends Object { constructor() { { super(); } } }",
-      "class C extends Object { constructor() { if (1) super(); } }",
-      "class C extends Object { constructor() { super(), super(); } }",
-      "class C extends Object { constructor() { super(); super(); } }",
-      "class C extends Object { constructor() { super(); (super()); } }",
-      "class C extends Object { constructor() { super(); { super() } } }",
+  const char* error_data[] = {
+      "class C { constructor() { this; } }",
+      "class C { constructor() { this.a; } }",
+      "class C { constructor() { this['a']; } }",
+      "class C { constructor() { (this); } }",
+      "class C { constructor() { this(); } }",
+      // TODO(rossberg): arrow functions not handled yet.
+      // "class C { constructor() { () => this; } }",
+      "class C { constructor() { this.a = 0, 0; } }",
+      "class C { constructor() { (this.a = 0); } }",
+      // "class C { constructor() { (() => this.a = 0)(); } }",
+      "class C { constructor() { { this.a = 0; } } }",
+      "class C { constructor() { if (1) this.a = 0; } }",
+      "class C { constructor() { label: this.a = 0; } }",
+      "class C { constructor() { this.a = this.b; } }",
+      "class C { constructor() { this.a = {b: 1}; this.a.b } }",
+      "class C { constructor() { this.a = {b: 1}; this.a.b = 0 } }",
+      "class C { constructor() { this.a = function(){}; this.a() } }",
+      NULL};
+
+  const char* success_data[] = {
+      "class C { constructor() { this.a = 0; } }",
+      "class C { constructor() { label: 0; this.a = 0; this.b = 6; } }",
       NULL};
 
   static const ParserFlag always_flags[] = {
       kAllowStrongMode, kAllowHarmonyClasses, kAllowHarmonyObjectLiterals,
       kAllowHarmonyArrowFunctions
   };
-  RunParserSyncTest(sloppy_context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strict_context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strong_context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(sloppy_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(sloppy_context_data, success_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(StrongConstructorSuper) {
+  const char* sloppy_context_data[][2] = {{"", ""}, {NULL}};
+  const char* strict_context_data[][2] = {{"'use strict';", ""}, {NULL}};
+  const char* strong_context_data[][2] = {{"'use strong';", ""}, {NULL}};
+
+  const char* error_data[] = {
+      "class C extends Object { constructor() {} }",
+      "class C extends Object { constructor() { super.a; } }",
+      "class C extends Object { constructor() { super['a']; } }",
+      "class C extends Object { constructor() { super.a = 0; } }",
+      "class C extends Object { constructor() { (super.a); } }",
+      // TODO(rossberg): arrow functions do not handle super yet.
+      // "class C extends Object { constructor() { () => super.a; } }",
+      "class C extends Object { constructor() { super(), 0; } }",
+      "class C extends Object { constructor() { (super()); } }",
+      // "class C extends Object { constructor() { (() => super())(); } }",
+      "class C extends Object { constructor() { { super(); } } }",
+      "class C extends Object { constructor() { if (1) super(); } }",
+      "class C extends Object { constructor() { label: super(); } }",
+      "class C extends Object { constructor() { super(), super(); } }",
+      "class C extends Object { constructor() { super(); super(); } }",
+      "class C extends Object { constructor() { super(); (super()); } }",
+      "class C extends Object { constructor() { super(); { super() } } }",
+      "class C extends Object { constructor() { this.a = 0, super(); } }",
+      "class C extends Object { constructor() { this.a = 0; super(); } }",
+      "class C extends Object { constructor() { super(this.a = 0); } }",
+      "class C extends Object { constructor() { super().a; } }",
+      NULL};
+
+  const char* success_data[] = {
+      "class C extends Object { constructor() { super(); } }",
+      "class C extends Object { constructor() { label: 66; super(); } }",
+      "class C extends Object { constructor() { super(3); this.x = 0; } }",
+      "class C extends Object { constructor() { 3; super(3); this.x = 0; } }",
+      NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowStrongMode, kAllowHarmonyClasses, kAllowHarmonyObjectLiterals,
+      kAllowHarmonyArrowFunctions
+  };
+  RunParserSyncTest(sloppy_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(sloppy_context_data, success_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -5901,24 +5977,45 @@ TEST(StrongConstructorReturns) {
   const char* strict_context_data[][2] = {{"'use strict';", ""}, {NULL}};
   const char* strong_context_data[][2] = {{"'use strong';", ""}, {NULL}};
 
-  const char* data[] = {
+  const char* error_data[] = {
       "class C extends Object { constructor() { super(); return {}; } }",
       "class C extends Object { constructor() { super(); { return {}; } } }",
       "class C extends Object { constructor() { super(); if (1) return {}; } }",
       "class C extends Object { constructor() { return; super(); } }",
       "class C extends Object { constructor() { { return; } super(); } }",
       "class C extends Object { constructor() { if (0) return; super(); } }",
+      "class C { constructor() { return; this.a = 0; } }",
+      "class C { constructor() { { return; } this.a = 0; } }",
+      "class C { constructor() { if (0) return; this.a = 0; } }",
+      "class C { constructor() { this.a = 0; if (0) return; this.b = 0; } }",
+      NULL};
+
+  const char* success_data[] = {
+      "class C extends Object { constructor() { super(); return; } }",
+      "class C extends Object { constructor() { super(); { return } } }",
+      "class C extends Object { constructor() { super(); if (1) return; } }",
+      "class C { constructor() { this.a = 0; return; } }",
+      "class C { constructor() { this.a = 0; { return; }  } }",
+      "class C { constructor() { this.a = 0; if (0) return; 65; } }",
+      "class C extends Array { constructor() { super(); this.a = 9; return } }",
       NULL};
 
   static const ParserFlag always_flags[] = {
       kAllowStrongMode, kAllowHarmonyClasses, kAllowHarmonyObjectLiterals
   };
-  RunParserSyncTest(sloppy_context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strict_context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strong_context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(sloppy_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(sloppy_context_data, success_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strong_context_data, success_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 
