@@ -24,7 +24,6 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap-profiler.h"
-#include "src/isolate-inl.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
 #include "src/snapshot/natives.h"

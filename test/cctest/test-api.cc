@@ -41,6 +41,7 @@
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
+#include "src/debug.h"
 #include "src/execution.h"
 #include "src/objects.h"
 #include "src/parser.h"

@@ -13,7 +13,6 @@
 #include "src/debug.h"
 #include "src/full-codegen.h"
 #include "src/ic/ic.h"
-#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
 

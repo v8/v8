@@ -25,7 +25,6 @@
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/ic/stub-cache.h"
-#include "src/isolate-inl.h"
 #include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
@@ -2407,6 +2406,19 @@ CallInterfaceDescriptorData* Isolate::call_descriptor_data(int index) {
 }
 
 
+base::RandomNumberGenerator* Isolate::random_number_generator() {
+  if (random_number_generator_ == NULL) {
+    if (FLAG_random_seed != 0) {
+      random_number_generator_ =
+          new base::RandomNumberGenerator(FLAG_random_seed);
+    } else {
+      random_number_generator_ = new base::RandomNumberGenerator();
+    }
+  }
+  return random_number_generator_;
+}
+
+
 Object* Isolate::FindCodeObject(Address a) {
   return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
 }
@@ -2658,6 +2670,17 @@ bool StackLimitCheck::JsHasOverflowed() const {
   if (jssp < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
   return GetCurrentStackPosition() < stack_guard->real_climit();
+}
+
+
+SaveContext::SaveContext(Isolate* isolate)
+    : isolate_(isolate), prev_(isolate->save_context()) {
+  if (isolate->context() != NULL) {
+    context_ = Handle<Context>(isolate->context());
+  }
+  isolate->set_save_context(this);
+
+  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
 }
 
 

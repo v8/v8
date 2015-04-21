@@ -5,8 +5,9 @@
 #include "test/unittests/test-utils.h"
 
 #include "src/base/platform/time.h"
+#include "src/debug.h"
 #include "src/flags.h"
-#include "src/isolate-inl.h"
+#include "src/isolate.h"
 
 namespace v8 {
 

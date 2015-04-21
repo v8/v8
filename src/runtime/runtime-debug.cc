@@ -9,7 +9,6 @@
 #include "src/compiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
-#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"

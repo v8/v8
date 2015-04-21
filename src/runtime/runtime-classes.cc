@@ -7,7 +7,8 @@
 
 #include "src/v8.h"
 
-#include "src/isolate-inl.h"
+#include "src/arguments.h"
+#include "src/debug.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 

@@ -8,7 +8,6 @@
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/conversions.h"
-#include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

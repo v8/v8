@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "src/hydrogen-types.h"
-#include "src/isolate-inl.h"
 #include "src/types.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/types-fuzz.h"

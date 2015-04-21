@@ -17,7 +17,6 @@
 #include "src/full-codegen.h"
 #include "src/gdb-jit.h"
 #include "src/hydrogen.h"
-#include "src/isolate-inl.h"
 #include "src/lithium.h"
 #include "src/liveedit.h"
 #include "src/messages.h"

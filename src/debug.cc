@@ -16,7 +16,6 @@
 #include "src/execution.h"
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/isolate-inl.h"
 #include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"

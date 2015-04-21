@@ -95,8 +95,6 @@ class Representation {
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
-  static Representation FromType(Type* type);
-
   bool Equals(const Representation& other) const {
     return kind_ == other.kind_;
   }

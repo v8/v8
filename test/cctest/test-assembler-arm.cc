@@ -32,6 +32,7 @@
 
 #include "src/arm/assembler-arm-inl.h"
 #include "src/arm/simulator-arm.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/ostreams.h"

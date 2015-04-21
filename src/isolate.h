@@ -1060,7 +1060,7 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  inline base::RandomNumberGenerator* random_number_generator();
+  base::RandomNumberGenerator* random_number_generator();
 
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
@@ -1392,7 +1392,7 @@ class PromiseOnStack {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  inline explicit SaveContext(Isolate* isolate);
+  explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
     isolate_->set_context(context_.is_null() ? NULL : *context_);

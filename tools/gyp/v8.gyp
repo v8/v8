@@ -904,7 +904,6 @@
         '../../src/unicode-decoder.cc',
         '../../src/unicode-decoder.h',
         '../../src/unique.h',
-        '../../src/utils-inl.h',
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8.cc',

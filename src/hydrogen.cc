@@ -10080,11 +10080,21 @@ void HOptimizedGraphBuilder::VisitNot(UnaryOperation* expr) {
 }
 
 
+static Representation RepresentationFor(Type* type) {
+  DisallowHeapAllocation no_allocation;
+  if (type->Is(Type::None())) return Representation::None();
+  if (type->Is(Type::SignedSmall())) return Representation::Smi();
+  if (type->Is(Type::Signed32())) return Representation::Integer32();
+  if (type->Is(Type::Number())) return Representation::Double();
+  return Representation::Tagged();
+}
+
+
 HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     bool returns_original_input,
     CountOperation* expr) {
   // The input to the count operation is on top of the expression stack.
-  Representation rep = Representation::FromType(expr->type());
+  Representation rep = RepresentationFor(expr->type());
   if (rep.IsNone() || rep.IsTagged()) {
     rep = Representation::Smi();
   }
@@ -10428,9 +10438,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Type* result_type,
     Maybe<int> fixed_right_arg,
     HAllocationMode allocation_mode) {
-
-  Representation left_rep = Representation::FromType(left_type);
-  Representation right_rep = Representation::FromType(right_type);
+  Representation left_rep = RepresentationFor(left_type);
+  Representation right_rep = RepresentationFor(right_type);
 
   bool maybe_string_add = op == Token::ADD &&
                           (left_type->Maybe(Type::String()) ||
@@ -10443,7 +10452,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         Deoptimizer::kInsufficientTypeFeedbackForLHSOfBinaryOperation,
         Deoptimizer::SOFT);
     left_type = Type::Any(zone());
-    left_rep = Representation::FromType(left_type);
+    left_rep = RepresentationFor(left_type);
     maybe_string_add = op == Token::ADD;
   }
 
@@ -10452,7 +10461,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         Deoptimizer::kInsufficientTypeFeedbackForRHSOfBinaryOperation,
         Deoptimizer::SOFT);
     right_type = Type::Any(zone());
-    right_rep = Representation::FromType(right_type);
+    right_rep = RepresentationFor(right_type);
     maybe_string_add = op == Token::ADD;
   }
 
@@ -10547,7 +10556,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     right = EnforceNumberType(right, right_type);
   }
 
-  Representation result_rep = Representation::FromType(result_type);
+  Representation result_rep = RepresentationFor(result_type);
 
   bool is_non_primitive = (left_rep.IsTagged() && !left_rep.IsSmi()) ||
                           (right_rep.IsTagged() && !right_rep.IsSmi());
@@ -10929,9 +10938,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     combined_type = left_type = right_type = Type::Any(zone());
   }
 
-  Representation left_rep = Representation::FromType(left_type);
-  Representation right_rep = Representation::FromType(right_type);
-  Representation combined_rep = Representation::FromType(combined_type);
+  Representation left_rep = RepresentationFor(left_type);
+  Representation right_rep = RepresentationFor(right_type);
+  Representation combined_rep = RepresentationFor(combined_type);
 
   if (combined_type->Is(Type::Receiver())) {
     if (Token::IsEqualityOp(op)) {

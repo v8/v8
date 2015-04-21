@@ -29,7 +29,6 @@
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/isolate-inl.h"
 
 using namespace v8::internal;
 

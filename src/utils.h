@@ -640,7 +640,14 @@ class Collector {
   }
 
   // Resets the collector to be empty.
-  virtual void Reset();
+  virtual void Reset() {
+    for (int i = chunks_.length() - 1; i >= 0; i--) {
+      chunks_.at(i).Dispose();
+    }
+    chunks_.Rewind(0);
+    index_ = 0;
+    size_ = 0;
+  }
 
   // Total number of elements added to collector so far.
   inline int size() { return size_; }

@@ -30,8 +30,6 @@
 
 #include "src/v8.h"
 
-#include "src/isolate-inl.h"
-
 #ifndef TEST
 #define TEST(Name)                                                             \
   static void Test##Name();                                                    \
