@@ -6968,15 +6968,29 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
         Deoptimizer::SOFT);
   }
   if (access_type == LOAD) {
-    HLoadNamedGeneric* result =
-        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
     if (FLAG_vector_ics) {
       Handle<TypeFeedbackVector> vector =
           handle(current_feedback_vector(), isolate());
       FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
+
+      if (!expr->AsProperty()->key()->IsPropertyName()) {
+        // It's possible that a keyed load of a constant string was converted
+        // to a named load. Here, at the last minute, we need to make sure to
+        // use a generic Keyed Load if we are using the type vector, because
+        // it has to share information with full code.
+        HConstant* key = Add<HConstant>(name);
+        HLoadKeyedGeneric* result =
+            New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
+        result->SetVectorAndSlot(vector, slot);
+        return result;
+      }
+
+      HLoadNamedGeneric* result =
+          New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
       result->SetVectorAndSlot(vector, slot);
+      return result;
     }
-    return result;
+    return New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
   } else {
     return New<HStoreNamedGeneric>(object, name, value,
                                    function_language_mode(), PREMONOMORPHIC);
@@ -7279,9 +7293,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     HValue* obj, HValue* key, HValue* val, Expression* expr, BailoutId ast_id,
     BailoutId return_id, PropertyAccessType access_type,
     bool* has_side_effects) {
-  // TODO(mvstanton): This optimization causes trouble for vector-based
-  // KeyedLoadICs, turn it off for now.
-  if (!FLAG_vector_ics && key->ActualValue()->IsConstant()) {
+  if (key->ActualValue()->IsConstant()) {
     Handle<Object> constant =
         HConstant::cast(key->ActualValue())->handle(isolate());
     uint32_t array_index;
