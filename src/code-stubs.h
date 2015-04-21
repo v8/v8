@@ -1110,9 +1110,14 @@ class StoreTransitionStub : public HandlerStub {
 
 class StoreGlobalStub : public HandlerStub {
  public:
-  StoreGlobalStub(Isolate* isolate, bool is_constant, bool check_global)
+  StoreGlobalStub(Isolate* isolate, PropertyCellType type,
+                  Maybe<PropertyCellConstantType> constant_type,
+                  bool check_global)
       : HandlerStub(isolate) {
-    set_sub_minor_key(IsConstantBits::encode(is_constant) |
+    PropertyCellConstantType encoded_constant_type =
+        constant_type.FromMaybe(PropertyCellConstantType::kSmi);
+    set_sub_minor_key(CellTypeBits::encode(type) |
+                      ConstantTypeBits::encode(encoded_constant_type) |
                       CheckGlobalBits::encode(check_global));
   }
 
@@ -1120,32 +1125,34 @@ class StoreGlobalStub : public HandlerStub {
     return isolate->factory()->uninitialized_value();
   }
 
+  static Handle<HeapObject> global_map_placeholder(Isolate* isolate) {
+    return isolate->factory()->termination_exception();
+  }
+
   Handle<Code> GetCodeCopyFromTemplate(Handle<GlobalObject> global,
                                        Handle<PropertyCell> cell) {
+    Code::FindAndReplacePattern pattern;
     if (check_global()) {
-      Code::FindAndReplacePattern pattern;
-      pattern.Add(isolate()->factory()->meta_map(),
+      pattern.Add(handle(global_map_placeholder(isolate())->map()),
                   Map::WeakCellForMap(Handle<Map>(global->map())));
-      pattern.Add(Handle<Map>(property_cell_placeholder(isolate())->map()),
-                  isolate()->factory()->NewWeakCell(cell));
-      return CodeStub::GetCodeCopy(pattern);
-    } else {
-      Code::FindAndReplacePattern pattern;
-      pattern.Add(Handle<Map>(property_cell_placeholder(isolate())->map()),
-                  isolate()->factory()->NewWeakCell(cell));
-      return CodeStub::GetCodeCopy(pattern);
     }
+    pattern.Add(handle(property_cell_placeholder(isolate())->map()),
+                isolate()->factory()->NewWeakCell(cell));
+    return CodeStub::GetCodeCopy(pattern);
   }
 
   Code::Kind kind() const override { return Code::STORE_IC; }
 
-  bool is_constant() const { return IsConstantBits::decode(sub_minor_key()); }
+  PropertyCellType cell_type() const {
+    return CellTypeBits::decode(sub_minor_key());
+  }
+
+  PropertyCellConstantType constant_type() const {
+    DCHECK(PropertyCellType::kConstantType == cell_type());
+    return ConstantTypeBits::decode(sub_minor_key());
+  }
 
   bool check_global() const { return CheckGlobalBits::decode(sub_minor_key()); }
-
-  void set_is_constant(bool value) {
-    set_sub_minor_key(IsConstantBits::update(sub_minor_key(), value));
-  }
 
   Representation representation() {
     return Representation::FromKind(
@@ -1157,9 +1164,10 @@ class StoreGlobalStub : public HandlerStub {
   }
 
  private:
-  class IsConstantBits: public BitField<bool, 0, 1> {};
-  class RepresentationBits: public BitField<Representation::Kind, 1, 8> {};
-  class CheckGlobalBits: public BitField<bool, 9, 1> {};
+  class CellTypeBits : public BitField<PropertyCellType, 0, 2> {};
+  class ConstantTypeBits : public BitField<PropertyCellConstantType, 2, 2> {};
+  class RepresentationBits : public BitField<Representation::Kind, 4, 8> {};
+  class CheckGlobalBits : public BitField<bool, 12, 1> {};
 
   DEFINE_HANDLER_CODE_STUB(StoreGlobal, HandlerStub);
 };

@@ -145,6 +145,12 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> WriteDataValue(Handle<Object> value);
   void InternalizeName();
 
+  int dictionary_entry() const {
+    DCHECK(has_property_);
+    DCHECK(holder_map_->is_dictionary_map());
+    return number_;
+  }
+
  private:
   enum class InterceptorState {
     kUninitialized,
@@ -174,11 +180,6 @@ class LookupIterator final BASE_EMBEDDED {
   int descriptor_number() const {
     DCHECK(has_property_);
     DCHECK(!holder_map_->is_dictionary_map());
-    return number_;
-  }
-  int dictionary_entry() const {
-    DCHECK(has_property_);
-    DCHECK(holder_map_->is_dictionary_map());
     return number_;
   }
 

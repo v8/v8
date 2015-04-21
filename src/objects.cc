@@ -1786,7 +1786,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
   Handle<NameDictionary> dict(object->property_dictionary());
-  PropertyDetails details(attributes, DATA, 0, PropertyCellType::kInvalid);
+  PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
   if (object->IsGlobalObject()) {
     int entry = dict->FindEntry(name);
     // If there's a cell there, just invalidate and set the property.
@@ -4592,7 +4592,7 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
       case DATA_CONSTANT: {
         Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d(details.attributes(), DATA, i + 1,
-                          PropertyCellType::kInvalid);
+                          PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
@@ -4611,7 +4611,7 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
           }
         }
         PropertyDetails d(details.attributes(), DATA, i + 1,
-                          PropertyCellType::kInvalid);
+                          PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
@@ -4619,14 +4619,14 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
         FieldIndex index = FieldIndex::ForDescriptor(*map, i);
         Handle<Object> value(object->RawFastPropertyAt(index), isolate);
         PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
-                          PropertyCellType::kInvalid);
+                          PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case ACCESSOR_CONSTANT: {
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
-                          PropertyCellType::kInvalid);
+                          PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
@@ -5351,7 +5351,7 @@ void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
     cell->set_value(isolate->heap()->the_hole_value());
     // TODO(dcarney): InvalidateForDelete
     dictionary->DetailsAtPut(entry, dictionary->DetailsAt(entry).set_cell_type(
-                                        PropertyCellType::kDeleted));
+                                        PropertyCellType::kInvalidated));
     return;
   }
 
@@ -6425,7 +6425,7 @@ static bool UpdateGetterSetterInDictionary(
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(
             entry, PropertyDetails(attributes, ACCESSOR_CONSTANT, index,
-                                   PropertyCellType::kInvalid));
+                                   PropertyCellType::kNoCell));
       }
       AccessorPair::cast(result)->SetComponents(getter, setter);
       return true;
@@ -6528,7 +6528,7 @@ void JSObject::SetElementCallback(Handle<JSObject> object,
                                   PropertyAttributes attributes) {
   Heap* heap = object->GetHeap();
   PropertyDetails details = PropertyDetails(attributes, ACCESSOR_CONSTANT, 0,
-                                            PropertyCellType::kInvalid);
+                                            PropertyCellType::kNoCell);
 
   // Normalize elements to make this operation simple.
   bool had_dictionary_elements = object->HasDictionaryElements();
@@ -12891,7 +12891,7 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
       dictionary->UpdateMaxNumberKey(index);
       if (set_mode == DEFINE_PROPERTY) {
         details = PropertyDetails(attributes, DATA, details.dictionary_index(),
-                                  PropertyCellType::kInvalid);
+                                  PropertyCellType::kNoCell);
         dictionary->DetailsAtPut(entry, details);
       }
 
@@ -12934,7 +12934,7 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
       }
     }
 
-    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kInvalid);
+    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
     Handle<SeededNumberDictionary> new_dictionary =
         SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
                                                details);
@@ -15366,7 +15366,7 @@ Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
     DCHECK(dictionary->DetailsAt(entry).cell_type() ==
                PropertyCellType::kUninitialized ||
            dictionary->DetailsAt(entry).cell_type() ==
-               PropertyCellType::kDeleted);
+               PropertyCellType::kInvalidated);
     DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
     cell = handle(PropertyCell::cast(dictionary->ValueAt(entry)));
     DCHECK(cell->value()->IsTheHole());
@@ -17001,7 +17001,7 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   bool is_the_hole = cell->value()->IsTheHole();
   // Cell is officially mutable henceforth.
   auto details = dictionary->DetailsAt(entry);
-  details = details.set_cell_type(is_the_hole ? PropertyCellType::kDeleted
+  details = details.set_cell_type(is_the_hole ? PropertyCellType::kInvalidated
                                               : PropertyCellType::kMutable);
   dictionary->DetailsAtPut(entry, details);
   // Old cell is ready for invalidation.
@@ -17016,24 +17016,54 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
 }
 
 
+PropertyCellConstantType PropertyCell::GetConstantType() {
+  if (value()->IsSmi()) return PropertyCellConstantType::kSmi;
+  return PropertyCellConstantType::kStableMap;
+}
+
+
+static bool RemainsConstantType(Handle<PropertyCell> cell,
+                                Handle<Object> value) {
+  // TODO(dcarney): double->smi and smi->double transition from kConstant
+  if (cell->value()->IsSmi() && value->IsSmi()) {
+    return true;
+  } else if (cell->value()->IsHeapObject() && value->IsHeapObject()) {
+    return HeapObject::cast(cell->value())->map() ==
+               HeapObject::cast(*value)->map() &&
+           HeapObject::cast(*value)->map()->is_stable();
+  }
+  return false;
+}
+
+
 PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
                                            Handle<Object> value,
                                            PropertyDetails details) {
   PropertyCellType type = details.cell_type();
   DCHECK(!value->IsTheHole());
-  DCHECK_IMPLIES(cell->value()->IsTheHole(),
-                 type == PropertyCellType::kUninitialized ||
-                     type == PropertyCellType::kDeleted);
+  if (cell->value()->IsTheHole()) {
+    switch (type) {
+      // Only allow a cell to transition once into constant state.
+      case PropertyCellType::kUninitialized:
+        if (value->IsUndefined()) return PropertyCellType::kUndefined;
+        return PropertyCellType::kConstant;
+      case PropertyCellType::kInvalidated:
+        return PropertyCellType::kMutable;
+      default:
+        UNREACHABLE();
+        return PropertyCellType::kMutable;
+    }
+  }
   switch (type) {
-    // Only allow a cell to transition once into constant state.
-    case PropertyCellType::kUninitialized:
-      if (value->IsUndefined()) return PropertyCellType::kUndefined;
-      return PropertyCellType::kConstant;
     case PropertyCellType::kUndefined:
       return PropertyCellType::kConstant;
     case PropertyCellType::kConstant:
-      // No transition.
       if (*value == cell->value()) return PropertyCellType::kConstant;
+    // Fall through.
+    case PropertyCellType::kConstantType:
+      if (RemainsConstantType(cell, value)) {
+        return PropertyCellType::kConstantType;
+      }
     // Fall through.
     case PropertyCellType::kMutable:
       return PropertyCellType::kMutable;
@@ -17087,8 +17117,7 @@ Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
   cell->set_value(*value);
 
   // Deopt when transitioning from a constant type.
-  if (!invalidate && old_type == PropertyCellType::kConstant &&
-      new_type != PropertyCellType::kConstant) {
+  if (!invalidate && (old_type != new_type)) {
     auto isolate = dictionary->GetIsolate();
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
