@@ -579,5 +579,12 @@ RUNTIME_FUNCTION(Runtime_IsNonNegativeSmi) {
   return isolate->heap()->ToBoolean(obj->IsSmi() &&
                                     Smi::cast(obj)->value() >= 0);
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetRootNaN) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  return isolate->heap()->nan_value();
+}
 }
 }  // namespace v8::internal

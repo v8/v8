@@ -169,7 +169,7 @@ macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);
 
 # Constants.  The compiler constant folds them.
-const NAN = (0/0);
+const NAN = $NaN;
 const INFINITY = (1/0);
 const UNDEFINED = (void 0);
 

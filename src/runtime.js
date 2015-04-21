@@ -22,6 +22,7 @@ var $String = global.String;
 var $Number = global.Number;
 var $Function = global.Function;
 var $Boolean = global.Boolean;
+var $NaN = %GetRootNaN();
 
 // ECMA-262 Section 11.9.3.
 function EQUALS(y) {

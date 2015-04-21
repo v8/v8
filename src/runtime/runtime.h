@@ -380,7 +380,8 @@ namespace internal {
   F(MaxSmi, 0, 1)                      \
   F(NumberToString, 1, 1)              \
   F(IsSmi, 1, 1)                       \
-  F(IsNonNegativeSmi, 1, 1)
+  F(IsNonNegativeSmi, 1, 1)            \
+  F(GetRootNaN, 0, 1)
 
 
 #define FOR_EACH_INTRINSIC_OBJECT(F)                 \
