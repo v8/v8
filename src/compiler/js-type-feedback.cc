@@ -14,6 +14,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
@@ -41,7 +42,8 @@ Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
         Unique<Name> name = match.Value();
         const VectorSlotPair& feedback =
             LoadPropertyParametersOf(node->op()).feedback();
-        node->set_op(jsgraph()->javascript()->LoadNamed(name, feedback));
+        node->set_op(jsgraph()->javascript()->LoadNamed(name, feedback,
+                                                        NOT_CONTEXTUAL, KEYED));
         node->RemoveInput(1);
         return ReduceJSLoadNamed(node);
       }
@@ -57,7 +59,13 @@ Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
         // StoreProperty(o, "constant", v) => StoreNamed["constant"](o, v).
         Unique<Name> name = match.Value();
         LanguageMode language_mode = OpParameter<LanguageMode>(node);
-        node->set_op(jsgraph()->javascript()->StoreNamed(language_mode, name));
+        if (FLAG_turbo_deoptimization) {
+          // StoreProperty has 2 frame state inputs, but StoreNamed only 1.
+          DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
+          node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
+        }
+        node->set_op(
+            jsgraph()->javascript()->StoreNamed(language_mode, name, KEYED));
         node->RemoveInput(1);
         return ReduceJSStoreNamed(node);
       }

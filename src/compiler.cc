@@ -392,6 +392,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       info()->MarkAsContextSpecializing();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
+      info()->EnsureFeedbackVector();
     }
 
     Timer t(this, &time_taken_to_create_graph_);
