@@ -106,7 +106,6 @@ class Private;
 class Uint32;
 class Utils;
 class Value;
-template <class T> class Handle;
 template <class T> class Local;
 template <class T>
 class MaybeLocal;
@@ -203,28 +202,16 @@ class UniqueId {
  *
  * It is safe to extract the object stored in the handle by
  * dereferencing the handle (for instance, to extract the Object* from
- * a Handle<Object>); the value will still be governed by a handle
+ * a Local<Object>); the value will still be governed by a handle
  * behind the scenes and the same rules apply to these values as to
  * their handles.
  */
-template <class T> class Handle {
+template <class T>
+class Local {
  public:
-  /**
-   * Creates an empty handle.
-   */
-  V8_INLINE Handle() : val_(0) {}
-
-  /**
-   * Creates a handle for the contents of the specified handle.  This
-   * constructor allows you to pass handles as arguments by value and
-   * to assign between handles.  However, if you try to assign between
-   * incompatible handles, for instance from a Handle<String> to a
-   * Handle<Number> it will cause a compile-time error.  Assigning
-   * between compatible handles, for instance assigning a
-   * Handle<String> to a variable declared as Handle<Value>, is legal
-   * because String is a subclass of Value.
-   */
-  template <class S> V8_INLINE Handle(Handle<S> that)
+  V8_INLINE Local() : val_(0) {}
+  template <class S>
+  V8_INLINE Local(Local<S> that)
       : val_(reinterpret_cast<T*>(*that)) {
     /**
      * This check fails when trying to convert between incompatible
@@ -254,7 +241,8 @@ template <class T> class Handle {
    * to which they refer are identical.
    * The handles' references are not checked.
    */
-  template <class S> V8_INLINE bool operator==(const Handle<S>& that) const {
+  template <class S>
+  V8_INLINE bool operator==(const Local<S>& that) const {
     internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
     internal::Object** b = reinterpret_cast<internal::Object**>(that.val_);
     if (a == 0) return b == 0;
@@ -277,7 +265,8 @@ template <class T> class Handle {
    * the objects to which they refer are different.
    * The handles' references are not checked.
    */
-  template <class S> V8_INLINE bool operator!=(const Handle<S>& that) const {
+  template <class S>
+  V8_INLINE bool operator!=(const Local<S>& that) const {
     return !operator==(that);
   }
 
@@ -285,79 +274,6 @@ template <class T> class Handle {
       const Persistent<S>& that) const {
     return !operator==(that);
   }
-
-  template <class S> V8_INLINE static Handle<T> Cast(Handle<S> that) {
-#ifdef V8_ENABLE_CHECKS
-    // If we're going to perform the type check then we have to check
-    // that the handle isn't empty before doing the checked cast.
-    if (that.IsEmpty()) return Handle<T>();
-#endif
-    return Handle<T>(T::Cast(*that));
-  }
-
-  template <class S> V8_INLINE Handle<S> As() {
-    return Handle<S>::Cast(*this);
-  }
-
-  V8_INLINE static Handle<T> New(Isolate* isolate, Handle<T> that) {
-    return New(isolate, that.val_);
-  }
-  V8_INLINE static Handle<T> New(Isolate* isolate,
-                                 const PersistentBase<T>& that) {
-    return New(isolate, that.val_);
-  }
-
- private:
-  friend class Utils;
-  template<class F, class M> friend class Persistent;
-  template<class F> friend class PersistentBase;
-  template<class F> friend class Handle;
-  template<class F> friend class Local;
-  template <class F>
-  friend class MaybeLocal;
-  template<class F> friend class FunctionCallbackInfo;
-  template<class F> friend class PropertyCallbackInfo;
-  template<class F> friend class internal::CustomArguments;
-  friend Handle<Primitive> Undefined(Isolate* isolate);
-  friend Handle<Primitive> Null(Isolate* isolate);
-  friend Handle<Boolean> True(Isolate* isolate);
-  friend Handle<Boolean> False(Isolate* isolate);
-  friend class Context;
-  friend class HandleScope;
-  friend class Object;
-  friend class Private;
-
-  /**
-   * Creates a new handle for the specified value.
-   */
-  V8_INLINE explicit Handle(T* val) : val_(val) {}
-
-  V8_INLINE static Handle<T> New(Isolate* isolate, T* that);
-
-  T* val_;
-};
-
-
-/**
- * A light-weight stack-allocated object handle.  All operations
- * that return objects from within v8 return them in local handles.  They
- * are created within HandleScopes, and all local handles allocated within a
- * handle scope are destroyed when the handle scope is destroyed.  Hence it
- * is not necessary to explicitly deallocate local handles.
- */
-template <class T> class Local : public Handle<T> {
- public:
-  V8_INLINE Local();
-  template <class S> V8_INLINE Local(Local<S> that)
-      : Handle<T>(reinterpret_cast<T*>(*that)) {
-    /**
-     * This check fails when trying to convert between incompatible
-     * handles. For example, converting from a Handle<String> to a
-     * Handle<Number>.
-     */
-    TYPE_CHECK(T, S);
-  }
-
 
   template <class S> V8_INLINE static Local<T> Cast(Local<S> that) {
 #ifdef V8_ENABLE_CHECKS
@@ -367,10 +283,7 @@ template <class T> class Local : public Handle<T> {
 #endif
     return Local<T>(T::Cast(*that));
   }
-  template <class S> V8_INLINE Local(Handle<S> that)
-      : Handle<T>(reinterpret_cast<T*>(*that)) {
-    TYPE_CHECK(T, S);
-  }
+
 
   template <class S> V8_INLINE Local<S> As() {
     return Local<S>::Cast(*this);
@@ -381,7 +294,7 @@ template <class T> class Local : public Handle<T> {
    * The referee is kept alive by the local handle even when
    * the original handle is destroyed/disposed.
    */
-  V8_INLINE static Local<T> New(Isolate* isolate, Handle<T> that);
+  V8_INLINE static Local<T> New(Isolate* isolate, Local<T> that);
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that);
 
@@ -390,7 +303,6 @@ template <class T> class Local : public Handle<T> {
   template<class F> friend class Eternal;
   template<class F> friend class PersistentBase;
   template<class F, class M> friend class Persistent;
-  template<class F> friend class Handle;
   template<class F> friend class Local;
   template <class F>
   friend class MaybeLocal;
@@ -399,16 +311,29 @@ template <class T> class Local : public Handle<T> {
   friend class String;
   friend class Object;
   friend class Context;
+  friend class Private;
   template<class F> friend class internal::CustomArguments;
+  friend Local<Primitive> Undefined(Isolate* isolate);
+  friend Local<Primitive> Null(Isolate* isolate);
+  friend Local<Boolean> True(Isolate* isolate);
+  friend Local<Boolean> False(Isolate* isolate);
   friend class HandleScope;
   friend class EscapableHandleScope;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
   template<class F1, class F2> friend class PersistentValueVector;
 
-  template <class S> V8_INLINE Local(S* that) : Handle<T>(that) { }
+  template <class S>
+  V8_INLINE Local(S* that)
+      : val_(that) {}
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
+  T* val_;
 };
+
+
+// Handle is an alias for Local for historical reasons.
+template <class T>
+using Handle = Local<T>;
 
 
 /**
@@ -694,7 +619,6 @@ template <class T> class PersistentBase {
  private:
   friend class Isolate;
   friend class Utils;
-  template<class F> friend class Handle;
   template<class F> friend class Local;
   template<class F1, class F2> friend class Persistent;
   template <class F>
@@ -837,7 +761,6 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
  private:
   friend class Isolate;
   friend class Utils;
-  template<class F> friend class Handle;
   template<class F> friend class Local;
   template<class F1, class F2> friend class Persistent;
   template<class F> friend class ReturnValue;
@@ -6087,8 +6010,6 @@ class V8_EXPORT V8 {
   static void FromJustIsNothing();
   static void ToLocalEmpty();
   static void InternalFieldOutOfBounds(int index);
-
-  template <class T> friend class Handle;
   template <class T> friend class Local;
   template <class T>
   friend class MaybeLocal;
@@ -6890,26 +6811,13 @@ class Internals {
 
 
 template <class T>
-Local<T>::Local() : Handle<T>() { }
-
-
-template <class T>
-Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
+Local<T> Local<T>::New(Isolate* isolate, Local<T> that) {
   return New(isolate, that.val_);
 }
 
 template <class T>
 Local<T> Local<T>::New(Isolate* isolate, const PersistentBase<T>& that) {
   return New(isolate, that.val_);
-}
-
-template <class T>
-Handle<T> Handle<T>::New(Isolate* isolate, T* that) {
-  if (that == NULL) return Handle<T>();
-  T* that_ptr = that;
-  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
-  return Handle<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
-      reinterpret_cast<internal::Isolate*>(isolate), *p)));
 }
 
 
