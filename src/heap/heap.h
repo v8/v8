@@ -185,7 +185,8 @@ namespace internal {
   V(FixedArray, keyed_load_dummy_vector, KeyedLoadDummyVector)                 \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
   V(ArrayList, retained_maps, RetainedMaps)                                    \
-  V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)
+  V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
+  V(PropertyCell, array_protector, ArrayProtector)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \

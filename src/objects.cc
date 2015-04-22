@@ -4899,6 +4899,11 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
   DCHECK(object->HasFastSmiOrObjectElements() ||
          object->HasFastDoubleElements() ||
          object->HasFastArgumentsElements());
+
+  // Ensure that notifications fire if the array or object prototypes are
+  // normalizing.
+  isolate->UpdateArrayProtectorOnNormalizeElements(object);
+
   // Compute the effective length and allocate a new backing store.
   int length = object->IsJSArray()
       ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
@@ -5753,6 +5758,7 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
   Handle<SeededNumberDictionary> new_element_dictionary;
   if (!object->elements()->IsDictionary()) {
     new_element_dictionary = GetNormalizedElementDictionary(object);
+    isolate->UpdateArrayProtectorOnNormalizeElements(object);
   }
 
   Handle<Symbol> transition_marker;
@@ -12426,8 +12432,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "transition";
     case kPrototypeCheckGroup:
       return "prototype-check";
-    case kElementsCantBeAddedGroup:
-      return "elements-cant-be-added";
     case kPropertyCellChangedGroup:
       return "property-cell-changed";
     case kFieldTypeGroup:
@@ -12525,6 +12529,8 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
 
   // Nothing to do if prototype is already set.
   if (map->prototype() == *value) return value;
+
+  isolate->UpdateArrayProtectorOnSetPrototype(real_receiver);
 
   PrototypeOptimizationMode mode =
       from_javascript ? REGULAR_PROTOTYPE : FAST_PROTOTYPE;
@@ -12746,11 +12752,7 @@ MaybeHandle<Object> JSObject::SetFastElement(Handle<JSObject> object,
   // Array optimizations rely on the prototype lookups of Array objects always
   // returning undefined. If there is a store to the initial prototype object,
   // make sure all of these optimizations are invalidated.
-  if (isolate->is_initial_object_prototype(*object) ||
-      isolate->is_initial_array_prototype(*object)) {
-    object->map()->dependent_code()->DeoptimizeDependentCodeGroup(isolate,
-        DependentCode::kElementsCantBeAddedGroup);
-  }
+  isolate->UpdateArrayProtectorOnSetElement(object);
 
   Handle<FixedArray> backing_store(FixedArray::cast(object->elements()));
   if (backing_store->map() ==
@@ -17098,4 +17100,15 @@ Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
   return value;
 }
 
+
+// static
+void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
+                                            Handle<Object> new_value) {
+  if (cell->value() != *new_value) {
+    cell->set_value(*new_value);
+    Isolate* isolate = cell->GetIsolate();
+    cell->dependent_code()->DeoptimizeDependentCodeGroup(
+        isolate, DependentCode::kPropertyCellChangedGroup);
+  }
+}
 } }  // namespace v8::internal

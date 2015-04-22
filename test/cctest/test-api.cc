@@ -16652,6 +16652,52 @@ UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
 }
 
 
+static void BreakArrayGuarantees(const char* script) {
+  v8::Isolate* isolate1 = v8::Isolate::New();
+  isolate1->Enter();
+  v8::Persistent<v8::Context> context1;
+  {
+    v8::HandleScope scope(isolate1);
+    context1.Reset(isolate1, Context::New(isolate1));
+  }
+
+  {
+    v8::HandleScope scope(isolate1);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate1, context1);
+    v8::Context::Scope context_scope(context);
+    v8::internal::Isolate* i_isolate =
+        reinterpret_cast<v8::internal::Isolate*>(isolate1);
+    CHECK_EQ(true, i_isolate->IsFastArrayConstructorPrototypeChainIntact());
+    // Run something in new isolate.
+    CompileRun(script);
+    CHECK_EQ(false, i_isolate->IsFastArrayConstructorPrototypeChainIntact());
+  }
+  isolate1->Exit();
+  isolate1->Dispose();
+}
+
+
+TEST(VerifyArrayPrototypeGuarantees) {
+  // Break fast array hole handling by element changes.
+  BreakArrayGuarantees("[].__proto__[1] = 3;");
+  BreakArrayGuarantees("Object.prototype[3] = 'three';");
+  BreakArrayGuarantees("Array.prototype.push(1);");
+  BreakArrayGuarantees("Array.prototype.unshift(1);");
+  // Break fast array hole handling by prototype structure changes.
+  BreakArrayGuarantees("[].__proto__.__proto__ = { funny: true };");
+  // By sending elements to dictionary mode.
+  BreakArrayGuarantees("Object.freeze(Array.prototype);");
+  BreakArrayGuarantees("Object.freeze(Object.prototype);");
+  BreakArrayGuarantees(
+      "Object.defineProperty(Array.prototype, 0, {"
+      "  get: function() { return 3; }});");
+  BreakArrayGuarantees(
+      "Object.defineProperty(Object.prototype, 0, {"
+      "  get: function() { return 3; }});");
+}
+
+
 TEST(RunTwoIsolatesOnSingleThread) {
   // Run isolate 1.
   v8::Isolate* isolate1 = v8::Isolate::New();

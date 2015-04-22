@@ -5751,9 +5751,6 @@ class DependentCode: public FixedArray {
     // described by this map changes shape (and transitions to a new map),
     // possibly invalidating the assumptions embedded in the code.
     kPrototypeCheckGroup,
-    // Group of code that depends on elements not being added to objects with
-    // this map.
-    kElementsCantBeAddedGroup,
     // Group of code that depends on global property values in property cells
     // not being changed.
     kPropertyCellChangedGroup,
@@ -9835,6 +9832,9 @@ class PropertyCell : public HeapObject {
 
   static Handle<PropertyCell> InvalidateEntry(Handle<NameDictionary> dictionary,
                                               int entry);
+
+  static void SetValueWithInvalidation(Handle<PropertyCell> cell,
+                                       Handle<Object> new_value);
 
   DECLARE_CAST(PropertyCell)
 
