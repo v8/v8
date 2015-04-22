@@ -4652,9 +4652,9 @@ class ExternalUint8ClampedArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined and clamps the converted value between 0 and 255.
-  static Handle<Object> SetValue(Handle<ExternalUint8ClampedArray> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalUint8ClampedArray> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalUint8ClampedArray)
 
@@ -4676,9 +4676,9 @@ class ExternalInt8Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalInt8Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalInt8Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalInt8Array)
 
@@ -4700,9 +4700,9 @@ class ExternalUint8Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalUint8Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalUint8Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalUint8Array)
 
@@ -4724,9 +4724,9 @@ class ExternalInt16Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalInt16Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalInt16Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalInt16Array)
 
@@ -4749,9 +4749,9 @@ class ExternalUint16Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalUint16Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalUint16Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalUint16Array)
 
@@ -4773,9 +4773,9 @@ class ExternalInt32Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalInt32Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalInt32Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalInt32Array)
 
@@ -4798,9 +4798,9 @@ class ExternalUint32Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalUint32Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalUint32Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalUint32Array)
 
@@ -4823,9 +4823,9 @@ class ExternalFloat32Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalFloat32Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalFloat32Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalFloat32Array)
 
@@ -4848,9 +4848,9 @@ class ExternalFloat64Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<ExternalFloat64Array> array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalFloat64Array> array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalFloat64Array)
 
@@ -4913,9 +4913,9 @@ class FixedTypedArray: public FixedTypedArrayBase {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<FixedTypedArray<Traits> > array,
-                                 uint32_t index,
-                                 Handle<Object> value);
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<FixedTypedArray<Traits> > array,
+                                 uint32_t index, Handle<Object> value);
 
   DECLARE_PRINTER(FixedTypedArray)
   DECLARE_VERIFIER(FixedTypedArray)
@@ -10236,15 +10236,14 @@ class JSArrayBuffer: public JSObject {
   inline bool is_neuterable();
   inline void set_is_neuterable(bool value);
 
+  inline bool was_neutered();
+  inline void set_was_neutered(bool value);
+
   // [weak_next]: linked list of array buffers.
   DECL_ACCESSORS(weak_next, Object)
 
-  // [weak_first_array]: weak linked list of views.
-  DECL_ACCESSORS(weak_first_view, Object)
-
   DECLARE_CAST(JSArrayBuffer)
 
-  // Neutering. Only neuters the buffer, not associated typed arrays.
   void Neuter();
 
   // Dispatched behavior.
@@ -10255,18 +10254,18 @@ class JSArrayBuffer: public JSObject {
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
   static const int kFlagOffset = kByteLengthOffset + kPointerSize;
   static const int kWeakNextOffset = kFlagOffset + kPointerSize;
-  static const int kWeakFirstViewOffset = kWeakNextOffset + kPointerSize;
-  static const int kSize = kWeakFirstViewOffset + kPointerSize;
+  static const int kSize = kWeakNextOffset + kPointerSize;
 
   static const int kSizeWithInternalFields =
       kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
 
- private:
   // Bit position in a flag
   static const int kIsExternalBit = 0;
   static const int kShouldBeFreed = 1;
   static const int kIsNeuterableBit = 2;
+  static const int kWasNeuteredBit = 3;
 
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
 
@@ -10282,23 +10281,23 @@ class JSArrayBufferView: public JSObject {
   // [byte_length]: length of typed array in bytes.
   DECL_ACCESSORS(byte_length, Object)
 
-  // [weak_next]: linked list of typed arrays over the same array buffer.
-  DECL_ACCESSORS(weak_next, Object)
-
   DECLARE_CAST(JSArrayBufferView)
 
   DECLARE_VERIFIER(JSArrayBufferView)
 
+  inline bool WasNeutered() const;
+
   static const int kBufferOffset = JSObject::kHeaderSize;
   static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
   static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
-  static const int kWeakNextOffset = kByteLengthOffset + kPointerSize;
-  static const int kViewSize = kWeakNextOffset + kPointerSize;
-
- protected:
-  void NeuterView();
+  static const int kViewSize = kByteLengthOffset + kPointerSize;
 
  private:
+#ifdef VERIFY_HEAP
+  DECL_ACCESSORS(raw_byte_offset, Object)
+  DECL_ACCESSORS(raw_byte_length, Object)
+#endif
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBufferView);
 };
 
@@ -10307,9 +10306,6 @@ class JSTypedArray: public JSArrayBufferView {
  public:
   // [length]: length of typed array in elements.
   DECL_ACCESSORS(length, Object)
-
-  // Neutering. Only neuters this typed array.
-  void Neuter();
 
   DECLARE_CAST(JSTypedArray)
 
@@ -10331,6 +10327,9 @@ class JSTypedArray: public JSArrayBufferView {
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);
+#ifdef VERIFY_HEAP
+  DECL_ACCESSORS(raw_length, Object)
+#endif
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
 };
@@ -10338,9 +10337,6 @@ class JSTypedArray: public JSArrayBufferView {
 
 class JSDataView: public JSArrayBufferView {
  public:
-  // Only neuters this DataView
-  void Neuter();
-
   DECLARE_CAST(JSDataView)
 
   // Dispatched behavior.

@@ -2427,6 +2427,22 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       IsFixedTypedArrayElementsKind(elements_kind)) {
     HValue* backing_store;
     if (IsExternalArrayElementsKind(elements_kind)) {
+      NoObservableSideEffectsScope no_effects(this);
+      HInstruction* buffer = Add<HLoadNamedField>(
+          checked_object, nullptr, HObjectAccess::ForJSArrayBufferViewBuffer());
+      HInstruction* flags = Add<HLoadNamedField>(
+          buffer, nullptr, HObjectAccess::ForJSArrayBufferFlag());
+      HValue* was_neutered_mask =
+          Add<HConstant>(1 << JSArrayBuffer::kWasNeuteredBit);
+      HValue* was_neutered_test =
+          AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
+
+      IfBuilder if_was_neutered(this);
+      if_was_neutered.If<HCompareNumericAndBranch>(
+          was_neutered_test, graph()->GetConstant0(), Token::NE);
+      if_was_neutered.ThenDeopt(Deoptimizer::kOutOfBounds);
+      if_was_neutered.End();
+
       backing_store = Add<HLoadNamedField>(
           elements, nullptr, HObjectAccess::ForExternalArrayExternalPointer());
     } else {
@@ -9613,20 +9629,11 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
     Add<HStoreNamedField>(
         obj,
         HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
-    HObjectAccess weak_first_view_access =
-        HObjectAccess::ForJSArrayBufferWeakFirstView();
-    Add<HStoreNamedField>(
-        obj, HObjectAccess::ForJSArrayBufferViewWeakNext(),
-        Add<HLoadNamedField>(buffer, nullptr, weak_first_view_access));
-    Add<HStoreNamedField>(buffer, weak_first_view_access, obj);
   } else {
     Add<HStoreNamedField>(
         obj,
         HObjectAccess::ForJSArrayBufferViewBuffer(),
         Add<HConstant>(static_cast<int32_t>(0)));
-    Add<HStoreNamedField>(obj,
-        HObjectAccess::ForJSArrayBufferViewWeakNext(),
-        graph()->GetConstantUndefined());
   }
 }
 
@@ -9920,36 +9927,62 @@ void HOptimizedGraphBuilder::GenerateArrayBufferGetByteLength(
 }
 
 
-void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteLength(
-    CallRuntime* expr) {
+void HOptimizedGraphBuilder::GenerateArrayBufferViewIndirectAccessor(
+    CallRuntime* expr, HObjectAccess access) {
+  NoObservableSideEffectsScope scope(this);
   DCHECK(expr->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* buffer = Pop();
-  HInstruction* result = New<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSArrayBufferViewByteLength());
-  return ast_context()->ReturnInstruction(result, expr->id());
+  HValue* view = Pop();
+  HInstruction* buffer = Add<HLoadNamedField>(
+      view, nullptr, HObjectAccess::ForJSArrayBufferViewBuffer());
+  HInstruction* field = Add<HLoadNamedField>(view, nullptr, access);
+
+  IfBuilder if_has_buffer(this);
+  if_has_buffer.IfNot<HIsSmiAndBranch>(buffer);
+  if_has_buffer.Then();
+  {
+    HInstruction* flags = Add<HLoadNamedField>(
+        buffer, nullptr, HObjectAccess::ForJSArrayBufferFlag());
+    HValue* was_neutered_mask =
+        Add<HConstant>(1 << JSArrayBuffer::kWasNeuteredBit);
+    HValue* was_neutered_test =
+        AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
+
+    IfBuilder if_was_neutered(this);
+    if_was_neutered.If<HCompareNumericAndBranch>(
+        was_neutered_test, graph()->GetConstant0(), Token::NE);
+    if_was_neutered.Then();
+    Push(graph()->GetConstant0());
+    if_was_neutered.Else();
+    Push(field);
+    if_was_neutered.End();
+  }
+  if_has_buffer.Else();
+  Push(field);
+  if_has_buffer.End();
+
+  return ast_context()->ReturnValue(Pop());
+}
+
+
+void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteLength(
+    CallRuntime* expr) {
+  return GenerateArrayBufferViewIndirectAccessor(
+      expr, HObjectAccess::ForJSArrayBufferViewByteLength());
 }
 
 
 void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteOffset(
     CallRuntime* expr) {
-  DCHECK(expr->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* buffer = Pop();
-  HInstruction* result = New<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSArrayBufferViewByteOffset());
-  return ast_context()->ReturnInstruction(result, expr->id());
+  return GenerateArrayBufferViewIndirectAccessor(
+      expr, HObjectAccess::ForJSArrayBufferViewByteOffset());
 }
 
 
 void HOptimizedGraphBuilder::GenerateTypedArrayGetLength(
     CallRuntime* expr) {
-  DCHECK(expr->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* buffer = Pop();
-  HInstruction* result = New<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSTypedArrayLength());
-  return ast_context()->ReturnInstruction(result, expr->id());
+  return GenerateArrayBufferViewIndirectAccessor(
+      expr, HObjectAccess::ForJSTypedArrayLength());
 }
 
 
