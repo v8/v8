@@ -2244,9 +2244,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   FOR_EACH_HYDROGEN_INTRINSIC(GENERATOR_DECLARATION)
 #undef GENERATOR_DECLARATION
 
-  void GenerateArrayBufferViewIndirectAccessor(CallRuntime* call,
-                                               HObjectAccess access);
-
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
   void VisitTypeof(UnaryOperation* expr);

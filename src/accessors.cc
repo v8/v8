@@ -78,10 +78,32 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
       return
         CheckForName(name, isolate->factory()->length_string(),
                      JSArray::kLengthOffset, object_offset);
+    case JS_TYPED_ARRAY_TYPE:
+      // %TypedArray%.prototype is non-configurable, and so are the following
+      // named properties on %TypedArray%.prototype, so we can directly inline
+      // the field-load for typed array maps that still use their
+      // %TypedArray%.prototype.
+      if (JSFunction::cast(map->GetConstructor())->prototype() !=
+          map->prototype()) {
+        return false;
+      }
+      return
+        CheckForName(name, isolate->factory()->length_string(),
+                     JSTypedArray::kLengthOffset, object_offset) ||
+        CheckForName(name, isolate->factory()->byte_length_string(),
+                     JSTypedArray::kByteLengthOffset, object_offset) ||
+        CheckForName(name, isolate->factory()->byte_offset_string(),
+                     JSTypedArray::kByteOffsetOffset, object_offset);
     case JS_ARRAY_BUFFER_TYPE:
       return
         CheckForName(name, isolate->factory()->byte_length_string(),
                      JSArrayBuffer::kByteLengthOffset, object_offset);
+    case JS_DATA_VIEW_TYPE:
+      return
+        CheckForName(name, isolate->factory()->byte_length_string(),
+                     JSDataView::kByteLengthOffset, object_offset) ||
+        CheckForName(name, isolate->factory()->byte_offset_string(),
+                     JSDataView::kByteOffsetOffset, object_offset);
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
         return CheckForName(name, isolate->factory()->length_string(),

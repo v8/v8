@@ -1175,6 +1175,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     JSArrayBufferView* view = JSArrayBufferView::cast(obj);
     SetInternalReference(view, entry, "buffer", view->buffer(),
                          JSArrayBufferView::kBufferOffset);
+    SetWeakReference(view, entry, "weak_next", view->weak_next(),
+                     JSArrayBufferView::kWeakNextOffset);
   }
   TagObject(js_obj->properties(), "(object properties)");
   SetInternalReference(obj, entry,
@@ -1568,6 +1570,9 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
     int entry, JSArrayBuffer* buffer) {
   SetWeakReference(buffer, entry, "weak_next", buffer->weak_next(),
                    JSArrayBuffer::kWeakNextOffset);
+  SetWeakReference(buffer, entry,
+                   "weak_first_view", buffer->weak_first_view(),
+                   JSArrayBuffer::kWeakFirstViewOffset);
   // Setup a reference to a native memory backing_store object.
   if (!buffer->backing_store())
     return;
