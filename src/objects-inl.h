@@ -3246,7 +3246,7 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 
 
 int HashTableBase::ComputeCapacity(int at_least_space_for) {
-  const int kMinCapacity = 32;
+  const int kMinCapacity = 4;
   int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
   if (capacity < kMinCapacity) {
     capacity = kMinCapacity;  // Guarantee min capacity.
