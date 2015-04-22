@@ -196,6 +196,7 @@ class ShellOptions {
         last_run(true),
         send_idle_notification(false),
         invoke_weak_callbacks(false),
+        omit_quit(false),
         stress_opt(false),
         stress_deopt(false),
         interactive_shell(false),
@@ -222,6 +223,7 @@ class ShellOptions {
   bool last_run;
   bool send_idle_notification;
   bool invoke_weak_callbacks;
+  bool omit_quit;
   bool stress_opt;
   bool stress_deopt;
   bool interactive_shell;

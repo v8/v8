@@ -924,8 +924,13 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                        FunctionTemplate::New(isolate, ReadLine));
   global_template->Set(String::NewFromUtf8(isolate, "load"),
                        FunctionTemplate::New(isolate, Load));
-  global_template->Set(String::NewFromUtf8(isolate, "quit"),
-                       FunctionTemplate::New(isolate, Quit));
+  // Some Emscripten-generated code tries to call 'quit', which in turn would
+  // call C's exit(). This would lead to memory leaks, because there is no way
+  // we can terminate cleanly then, so we need a way to hide 'quit'.
+  if (!options.omit_quit) {
+    global_template->Set(String::NewFromUtf8(isolate, "quit"),
+                         FunctionTemplate::New(isolate, Quit));
+  }
   global_template->Set(String::NewFromUtf8(isolate, "version"),
                        FunctionTemplate::New(isolate, Version));
 
@@ -1373,6 +1378,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.invoke_weak_callbacks = true;
       // TODO(jochen) See issue 3351
       options.send_idle_notification = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--omit-quit") == 0) {
+      options.omit_quit = true;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
