@@ -246,25 +246,24 @@ class LiveRange final : public ZoneObject {
 
   // Returns use position in this live range that follows both start
   // and last processed use position.
-  // Modifies internal state of live range!
-  UsePosition* NextUsePosition(LifetimePosition start);
+  UsePosition* NextUsePosition(LifetimePosition start) const;
 
   // Returns use position for which register is required in this live
   // range and which follows both start and last processed use position
-  // Modifies internal state of live range!
-  UsePosition* NextRegisterPosition(LifetimePosition start);
+  UsePosition* NextRegisterPosition(LifetimePosition start) const;
 
   // Returns use position for which register is beneficial in this live
   // range and which follows both start and last processed use position
-  // Modifies internal state of live range!
-  UsePosition* NextUsePositionRegisterIsBeneficial(LifetimePosition start);
+  UsePosition* NextUsePositionRegisterIsBeneficial(
+      LifetimePosition start) const;
 
   // Returns use position for which register is beneficial in this live
   // range and which precedes start.
-  UsePosition* PreviousUsePositionRegisterIsBeneficial(LifetimePosition start);
+  UsePosition* PreviousUsePositionRegisterIsBeneficial(
+      LifetimePosition start) const;
 
   // Can this live range be spilled at this position.
-  bool CanBeSpilled(LifetimePosition pos);
+  bool CanBeSpilled(LifetimePosition pos) const;
 
   // Split this live range at the given position which must follow the start of
   // the range.
@@ -330,8 +329,8 @@ class LiveRange final : public ZoneObject {
 
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
   bool CanCover(LifetimePosition position) const;
-  bool Covers(LifetimePosition position);
-  LifetimePosition FirstIntersection(LiveRange* other);
+  bool Covers(LifetimePosition position) const;
+  LifetimePosition FirstIntersection(LiveRange* other) const;
 
   // Add a new interval or a new use position to this live range.
   void EnsureInterval(LifetimePosition start, LifetimePosition end, Zone* zone);
@@ -373,9 +372,10 @@ class LiveRange final : public ZoneObject {
   LiveRange* next_;
   // This is used as a cache, it doesn't affect correctness.
   mutable UseInterval* current_interval_;
-  UsePosition* last_processed_use_;
+  // This is used as a cache, it doesn't affect correctness.
+  mutable UsePosition* last_processed_use_;
   // This is used as a cache, it's invalid outside of BuildLiveRanges.
-  InstructionOperand* current_hint_operand_;
+  mutable InstructionOperand* current_hint_operand_;
   int spill_start_index_;
   SpillType spill_type_;
   union {

@@ -251,9 +251,11 @@ void LiveRange::CommitSpillOperand(AllocatedOperand* operand) {
 }
 
 
-UsePosition* LiveRange::NextUsePosition(LifetimePosition start) {
+UsePosition* LiveRange::NextUsePosition(LifetimePosition start) const {
   UsePosition* use_pos = last_processed_use_;
-  if (use_pos == nullptr) use_pos = first_pos();
+  if (use_pos == nullptr || use_pos->pos().Value() > start.Value()) {
+    use_pos = first_pos();
+  }
   while (use_pos != nullptr && use_pos->pos().Value() < start.Value()) {
     use_pos = use_pos->next();
   }
@@ -263,7 +265,7 @@ UsePosition* LiveRange::NextUsePosition(LifetimePosition start) {
 
 
 UsePosition* LiveRange::NextUsePositionRegisterIsBeneficial(
-    LifetimePosition start) {
+    LifetimePosition start) const {
   UsePosition* pos = NextUsePosition(start);
   while (pos != nullptr && !pos->RegisterIsBeneficial()) {
     pos = pos->next();
@@ -273,7 +275,7 @@ UsePosition* LiveRange::NextUsePositionRegisterIsBeneficial(
 
 
 UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
-    LifetimePosition start) {
+    LifetimePosition start) const {
   auto pos = first_pos();
   UsePosition* prev = nullptr;
   while (pos != nullptr && pos->pos().Value() < start.Value()) {
@@ -284,7 +286,7 @@ UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
 }
 
 
-UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) {
+UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) const {
   UsePosition* pos = NextUsePosition(start);
   while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister) {
     pos = pos->next();
@@ -293,7 +295,7 @@ UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) {
 }
 
 
-bool LiveRange::CanBeSpilled(LifetimePosition pos) {
+bool LiveRange::CanBeSpilled(LifetimePosition pos) const {
   // We cannot spill a live range that has a use requiring a register
   // at the current or the immediate next position.
   auto use_pos = NextRegisterPosition(pos);
@@ -571,7 +573,7 @@ bool LiveRange::CanCover(LifetimePosition position) const {
 }
 
 
-bool LiveRange::Covers(LifetimePosition position) {
+bool LiveRange::Covers(LifetimePosition position) const {
   if (!CanCover(position)) return false;
   auto start_search = FirstSearchIntervalForPosition(position);
   for (auto interval = start_search; interval != nullptr;
@@ -586,7 +588,7 @@ bool LiveRange::Covers(LifetimePosition position) {
 }
 
 
-LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
+LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
   auto b = other->first_interval();
   if (b == nullptr) return LifetimePosition::Invalid();
   auto advance_last_processed_up_to = b->start();
