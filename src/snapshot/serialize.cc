@@ -1779,6 +1779,13 @@ void Serializer::ObjectSerializer::Serialize() {
   // We cannot serialize typed array objects correctly.
   DCHECK(!object_->IsJSTypedArray());
 
+  if (object_->IsPrototypeInfo()) {
+    Object* prototype_users = PrototypeInfo::cast(object_)->prototype_users();
+    if (prototype_users->IsWeakFixedArray()) {
+      WeakFixedArray::cast(prototype_users)->Compact();
+    }
+  }
+
   if (object_->IsScript()) {
     // Clear cached line ends.
     Object* undefined = serializer_->isolate()->heap()->undefined_value();

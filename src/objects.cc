@@ -8295,6 +8295,20 @@ Handle<WeakFixedArray> WeakFixedArray::Add(
 }
 
 
+void WeakFixedArray::Compact() {
+  FixedArray* array = FixedArray::cast(this);
+  int new_length = kFirstIndex;
+  for (int i = kFirstIndex; i < array->length(); i++) {
+    Object* element = array->get(i);
+    if (element->IsSmi()) continue;
+    if (WeakCell::cast(element)->cleared()) continue;
+    array->set(new_length++, element);
+  }
+  array->Shrink(new_length);
+  set_last_used_index(0);
+}
+
+
 void WeakFixedArray::Remove(Handle<HeapObject> value) {
   // Optimize for the most recently added element to be removed again.
   int first_index = last_used_index();

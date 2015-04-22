@@ -2625,6 +2625,8 @@ class WeakFixedArray : public FixedArray {
 
   void Remove(Handle<HeapObject> value);
 
+  void Compact();
+
   inline Object* Get(int index) const;
   inline int Length() const;
 
