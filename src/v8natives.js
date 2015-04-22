@@ -1255,9 +1255,7 @@ function ProxyFix(obj) {
 
 // ES5 section 15.2.3.8.
 function ObjectSealJS(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.seal");
-  }
+  if (!IS_SPEC_OBJECT(obj)) return obj;
   var isProxy = %_IsJSProxy(obj);
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
     if (isProxy) {
@@ -1284,9 +1282,7 @@ function ObjectSealJS(obj) {
 
 // ES5 section 15.2.3.9.
 function ObjectFreezeJS(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.freeze");
-  }
+  if (!IS_SPEC_OBJECT(obj)) return obj;
   var isProxy = %_IsJSProxy(obj);
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
     if (isProxy) {
@@ -1314,9 +1310,7 @@ function ObjectFreezeJS(obj) {
 
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.preventExtension");
-  }
+  if (!IS_SPEC_OBJECT(obj)) return obj;
   if (%_IsJSProxy(obj)) {
     ProxyFix(obj);
   }
@@ -1327,9 +1321,7 @@ function ObjectPreventExtension(obj) {
 
 // ES5 section 15.2.3.11
 function ObjectIsSealed(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.isSealed");
-  }
+  if (!IS_SPEC_OBJECT(obj)) return true;
   if (%_IsJSProxy(obj)) {
     return false;
   }
@@ -1350,9 +1342,7 @@ function ObjectIsSealed(obj) {
 
 // ES5 section 15.2.3.12
 function ObjectIsFrozen(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.isFrozen");
-  }
+  if (!IS_SPEC_OBJECT(obj)) return true;
   if (%_IsJSProxy(obj)) {
     return false;
   }
@@ -1372,9 +1362,7 @@ function ObjectIsFrozen(obj) {
 
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.isExtensible");
-  }
+  if (!IS_SPEC_OBJECT(obj)) return false;
   if (%_IsJSProxy(obj)) {
     return true;
   }
