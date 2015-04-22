@@ -28,32 +28,16 @@ function constructor(body) {
       "(class extends Object { constructor() { " + body + " } })";
 }
 
-(function NoSuperExceptCall() {
-  assertSyntaxError(constructor("super.a;"));
-  assertSyntaxError(constructor("super['a'];"));
-  assertSyntaxError(constructor("super.f();"));
-  assertSyntaxError(constructor("super.a;"));
-  assertSyntaxError(constructor("{ super.a }"));
-  assertSyntaxError(constructor("if (0) super.a;"));
-  // TODO(rossberg): arrow functions do not handle 'super' yet.
-  // assertSyntaxError(constructor("() => super.a;"));
-  // assertSyntaxError(constructor("() => () => super.a;"));
-  // assertSyntaxError(constructor("() => { () => if (0) { super.a; } }"));
-})();
-
 (function NoMissingSuper() {
   assertReferenceError(constructor(""));
   assertReferenceError(constructor("1"));
 })();
 
 (function NoNestedSuper() {
-  assertSyntaxError(constructor("super(), 0;"));
   assertSyntaxError(constructor("(super());"));
-  assertSyntaxError(constructor("super().a;"));
   assertSyntaxError(constructor("(() => super())();"));
   assertSyntaxError(constructor("{ super(); }"));
   assertSyntaxError(constructor("if (1) super();"));
-  assertSyntaxError(constructor("label: super();"));
 })();
 
 (function NoDuplicateSuper() {
@@ -64,19 +48,9 @@ function constructor(body) {
   assertSyntaxError(constructor("super(); (() => super())();"));
 })();
 
-(function NoSuperAfterThis() {
-  assertSyntaxError(constructor("this.a = 0, super();"));
-  assertSyntaxError(constructor("this.a = 0; super();"));
-  assertSyntaxError(constructor("this.a = 0; super(); this.b = 0;"));
-  assertSyntaxError(constructor("this.a = 0; (super());"));
-  assertSyntaxError(constructor("super(this.a = 0);"));
-})();
-
 (function NoReturnValue() {
   assertSyntaxError(constructor("return {};"));
   assertSyntaxError(constructor("return undefined;"));
-  assertSyntaxError(constructor("return this;"));
-  assertSyntaxError(constructor("return this.a = 0;"));
   assertSyntaxError(constructor("{ return {}; }"));
   assertSyntaxError(constructor("if (1) return {};"));
 })();
@@ -85,35 +59,4 @@ function constructor(body) {
   assertSyntaxError(constructor("return; super();"));
   assertSyntaxError(constructor("if (0) return; super();"));
   assertSyntaxError(constructor("{ return; } super();"));
-})();
-
-(function NoReturnBeforeThis() {
-  assertSyntaxError(constructor("return; this.a = 0;"));
-  assertSyntaxError(constructor("if (0) return; this.a = 0;"));
-  assertSyntaxError(constructor("{ return; } this.a = 0;"));
-})();
-
-(function NoThisExceptInitialization() {
-  assertSyntaxError(constructor("this;"));
-  assertSyntaxError(constructor("this.a;"));
-  assertSyntaxError(constructor("this['a'];"));
-  assertSyntaxError(constructor("this();"));
-  assertSyntaxError(constructor("this.a();"));
-  assertSyntaxError(constructor("this.a.b = 0;"));
-  assertSyntaxError(constructor("{ this }"));
-  assertSyntaxError(constructor("if (0) this;"));
-  // TODO(rossberg): this does not handle arrow functions yet.
-  // assertSyntaxError(constructor("() => this;"));
-  // assertSyntaxError(constructor("() => () => this;"));
-  // assertSyntaxError(constructor("() => { () => if (0) { this; } }"));
-})();
-
-(function NoNestedThis() {
-  assertSyntaxError(constructor("(this.a = 0);"));
-  assertSyntaxError(constructor("{ this.a = 0; }"));
-  assertSyntaxError(constructor("if (0) this.a = 0;"));
-  // TODO(rossberg): this does not handle arrow functions yet.
-  // assertSyntaxError(constructor("() => this.a = 0;"));
-  // assertSyntaxError(constructor("() => { this.a = 0; }"));
-  assertSyntaxError(constructor("label: this.a = 0;"));
 })();

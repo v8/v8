@@ -233,17 +233,15 @@ class ParserBase : public Traits {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    Scanner::Location this_location() const { return this_location_; }
-    Scanner::Location super_location() const { return super_location_; }
     Scanner::Location return_location() const { return return_location_; }
-    void set_this_location(Scanner::Location location) {
-      this_location_ = location;
-    }
-    void set_super_location(Scanner::Location location) {
-      super_location_ = location;
+    Scanner::Location super_call_location() const {
+      return super_call_location_;
     }
     void set_return_location(Scanner::Location location) {
       return_location_ = location;
+    }
+    void set_super_call_location(Scanner::Location location) {
+      super_call_location_ = location;
     }
 
     bool is_generator() const { return IsGeneratorFunction(kind_); }
@@ -276,14 +274,11 @@ class ParserBase : public Traits {
     // Properties count estimation.
     int expected_property_count_;
 
-    // Location of most recent use of 'this' (invalid if none).
-    Scanner::Location this_location_;
-
     // Location of most recent 'return' statement (invalid if none).
     Scanner::Location return_location_;
 
     // Location of call to the "super" constructor (invalid if none).
-    Scanner::Location super_location_;
+    Scanner::Location super_call_location_;
 
     FunctionKind kind_;
     // For generators, this variable may hold the generator object. It variable
@@ -632,8 +627,6 @@ class ParserBase : public Traits {
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   void AddTemplateExpression(ExpressionT);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
-  ExpressionT ParseStrongInitializationExpression(bool* ok);
-  ExpressionT ParseStrongSuperCallExpression(bool* ok);
 
   void ParseFormalParameter(FormalParameterScopeT* scope,
                             FormalParameterErrorLocations* locs, bool is_rest,
@@ -1555,7 +1548,8 @@ class PreParserTraits {
     return PreParserExpressionList();
   }
 
-  V8_INLINE void SkipLazyFunctionBody(int* materialized_literal_count,
+  V8_INLINE void SkipLazyFunctionBody(PreParserIdentifier function_name,
+                                      int* materialized_literal_count,
                                       int* expected_property_count, bool* ok) {
     UNREACHABLE();
   }
@@ -1738,7 +1732,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
 
-  V8_INLINE void SkipLazyFunctionBody(int* materialized_literal_count,
+  V8_INLINE void SkipLazyFunctionBody(PreParserIdentifier function_name,
+                                      int* materialized_literal_count,
                                       int* expected_property_count, bool* ok);
   V8_INLINE PreParserStatementList
   ParseEagerFunctionBody(PreParserIdentifier function_name, int pos,
@@ -1834,9 +1829,8 @@ ParserBase<Traits>::FunctionState::FunctionState(
     : next_materialized_literal_index_(0),
       next_handler_index_(0),
       expected_property_count_(0),
-      this_location_(Scanner::Location::invalid()),
       return_location_(Scanner::Location::invalid()),
-      super_location_(Scanner::Location::invalid()),
+      super_call_location_(Scanner::Location::invalid()),
       kind_(kind),
       generator_object_variable_(NULL),
       function_state_stack_(function_state_stack),
@@ -2051,15 +2045,6 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
   switch (token) {
     case Token::THIS: {
       Consume(Token::THIS);
-      if (is_strong(language_mode())) {
-        // Constructors' usages of 'this' in strong mode are parsed separately.
-        // TODO(rossberg): this does not work with arrow functions yet.
-        if (i::IsConstructor(function_state_->kind())) {
-          ReportMessage("strong_constructor_this");
-          *ok = false;
-          break;
-        }
-      }
       scope_->RecordThisUsage();
       result = this->ThisExpression(scope_, factory(), beg_pos);
       break;
@@ -2132,7 +2117,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
     case Token::CLASS: {
       Consume(Token::CLASS);
       if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
-        ReportMessage("sloppy_lexical");
+        ReportMessage("sloppy_lexical", NULL);
         *ok = false;
         break;
       }
@@ -3020,141 +3005,9 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseStrongInitializationExpression(bool* ok) {
-  // InitializationExpression ::  (strong mode)
-  //  'this' '.' IdentifierName '=' AssignmentExpression
-  //  'this' '[' Expression ']' '=' AssignmentExpression
-
-  if (fni_ != NULL) fni_->Enter();
-
-  Consume(Token::THIS);
-  int pos = position();
-  function_state_->set_this_location(scanner()->location());
-  scope_->RecordThisUsage();
-  ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
-
-  ExpressionT left = this->EmptyExpression();
-  switch (peek()) {
-    case Token::LBRACK: {
-      Consume(Token::LBRACK);
-      int pos = position();
-      ExpressionT index = this->ParseExpression(true, CHECK_OK);
-      left = factory()->NewProperty(this_expr, index, pos);
-      if (fni_ != NULL) {
-        this->PushPropertyName(fni_, index);
-      }
-      Expect(Token::RBRACK, CHECK_OK);
-      break;
-    }
-    case Token::PERIOD: {
-      Consume(Token::PERIOD);
-      int pos = position();
-      IdentifierT name = ParseIdentifierName(CHECK_OK);
-      left = factory()->NewProperty(
-          this_expr, factory()->NewStringLiteral(name, pos), pos);
-      if (fni_ != NULL) {
-        this->PushLiteralName(fni_, name);
-      }
-      break;
-    }
-    default:
-      ReportMessage("strong_constructor_this");
-      *ok = false;
-      return this->EmptyExpression();
-  }
-
-  if (peek() != Token::ASSIGN) {
-    ReportMessageAt(function_state_->this_location(),
-                    "strong_constructor_this");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-  Consume(Token::ASSIGN);
-  left = this->MarkExpressionAsAssigned(left);
-
-  ExpressionT right = this->ParseAssignmentExpression(true, CHECK_OK);
-  this->CheckAssigningFunctionLiteralToProperty(left, right);
-  function_state_->AddProperty();
-  if (fni_ != NULL) {
-    // Check if the right hand side is a call to avoid inferring a
-    // name if we're dealing with "this.a = function(){...}();"-like
-    // expression.
-    if (!right->IsCall() && !right->IsCallNew()) {
-      fni_->Infer();
-    } else {
-      fni_->RemoveLastFunction();
-    }
-    fni_->Leave();
-  }
-
-  if (function_state_->return_location().IsValid()) {
-    ReportMessageAt(function_state_->return_location(),
-                    "strong_constructor_return_misplaced");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  return factory()->NewAssignment(Token::ASSIGN, left, right, pos);
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseStrongSuperCallExpression(bool* ok) {
-  // SuperCallExpression ::  (strong mode)
-  //  'super' '(' ExpressionList ')'
-
-  Consume(Token::SUPER);
-  int pos = position();
-  Scanner::Location super_loc = scanner()->location();
-  ExpressionT expr = this->SuperReference(scope_, factory());
-
-  if (peek() != Token::LPAREN) {
-    ReportMessage("strong_constructor_super");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  Scanner::Location spread_pos;
-  typename Traits::Type::ExpressionList args =
-      ParseArguments(&spread_pos, CHECK_OK);
-
-  // TODO(rossberg): This doesn't work with arrow functions yet.
-  if (!IsSubclassConstructor(function_state_->kind())) {
-    ReportMessage("unexpected_super");
-    *ok = false;
-    return this->EmptyExpression();
-  } else if (function_state_->super_location().IsValid()) {
-    ReportMessageAt(scanner()->location(), "strong_super_call_duplicate");
-    *ok = false;
-    return this->EmptyExpression();
-  } else if (function_state_->this_location().IsValid()) {
-    ReportMessageAt(scanner()->location(), "strong_super_call_misplaced");
-    *ok = false;
-    return this->EmptyExpression();
-  } else if (function_state_->return_location().IsValid()) {
-    ReportMessageAt(function_state_->return_location(),
-                    "strong_constructor_return_misplaced");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  function_state_->set_super_location(super_loc);
-  if (spread_pos.IsValid()) {
-    args = Traits::PrepareSpreadArguments(args);
-    return Traits::SpreadCall(expr, args, pos);
-  } else {
-    return factory()->NewCall(expr, args, pos);
-  }
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
   Expect(Token::SUPER, CHECK_OK);
 
-  // TODO(wingo): Does this actually work with lazily compiled arrows?
   FunctionState* function_state = function_state_;
   while (IsArrowFunction(function_state->kind())) {
     function_state = function_state->outer();
@@ -3172,12 +3025,18 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
     // super() is only allowed in derived constructor
     if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
       if (is_strong(language_mode())) {
-        // Super calls in strong mode are parsed separately.
-        ReportMessageAt(scanner()->location(), "strong_constructor_super");
-        *ok = false;
-        return this->EmptyExpression();
+        if (function_state->super_call_location().IsValid()) {
+          ReportMessageAt(scanner()->location(), "strong_super_call_duplicate");
+          *ok = false;
+          return this->EmptyExpression();
+        } else if (function_state->return_location().IsValid()) {
+          ReportMessageAt(function_state->return_location(),
+                          "strong_constructor_return_misplaced");
+          *ok = false;
+          return this->EmptyExpression();
+        }
       }
-      function_state->set_super_location(scanner()->location());
+      function_state->set_super_call_location(scanner()->location());
       return this->SuperReference(scope_, factory());
     }
   }
@@ -3374,7 +3233,8 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
           (mode() == PARSE_LAZILY && scope_->AllowsLazyCompilation());
       if (is_lazily_parsed) {
         body = this->NewStatementList(0, zone());
-        this->SkipLazyFunctionBody(&materialized_literal_count,
+        this->SkipLazyFunctionBody(this->EmptyIdentifier(),
+                                   &materialized_literal_count,
                                    &expected_property_count, CHECK_OK);
       } else {
         body = this->ParseEagerFunctionBody(
@@ -3396,7 +3256,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
     }
-    super_loc = function_state.super_location();
+    super_loc = function_state.super_call_location();
 
     scope->set_end_position(scanner()->location().end_pos);
 
@@ -3425,7 +3285,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       scope->start_position());
 
   function_literal->set_function_token_position(scope->start_position());
-  if (super_loc.IsValid()) function_state_->set_super_location(super_loc);
+  if (super_loc.IsValid()) function_state_->set_super_call_location(super_loc);
 
   if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
 

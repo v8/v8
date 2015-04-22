@@ -1210,28 +1210,25 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
       directive_prologue = false;
     }
 
+    Token::Value token = peek();
     Scanner::Location token_loc = scanner()->peek_location();
-    Scanner::Location old_this_loc = function_state_->this_location();
-    Scanner::Location old_super_loc = function_state_->super_location();
+    Scanner::Location old_super_loc = function_state_->super_call_location();
     Statement* stat = ParseStatementListItem(CHECK_OK);
+    Scanner::Location super_loc = function_state_->super_call_location();
 
     if (is_strong(language_mode()) &&
-        scope_->is_function_scope() &&
-        i::IsConstructor(function_state_->kind())) {
-      Scanner::Location this_loc = function_state_->this_location();
-      Scanner::Location super_loc = function_state_->super_location();
-      if (this_loc.beg_pos != old_this_loc.beg_pos &&
-          this_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(this_loc, "strong_constructor_this");
-        *ok = false;
-        return nullptr;
-      }
-      if (super_loc.beg_pos != old_super_loc.beg_pos &&
-          super_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(super_loc, "strong_constructor_super");
-        *ok = false;
-        return nullptr;
-      }
+        i::IsConstructor(function_state_->kind()) &&
+        !old_super_loc.IsValid() && super_loc.IsValid() &&
+        token != Token::SUPER) {
+      // TODO(rossberg): This is more permissive than spec'ed, it allows e.g.
+      //   super(), 1;
+      //   super() + "";
+      //   super() = 0;
+      // That should still be safe, though, thanks to left-to-right evaluation.
+      // The proper check would be difficult to implement in the preparser.
+      ReportMessageAt(super_loc, "strong_super_call_nested");
+      *ok = false;
+      return NULL;
     }
 
     if (stat == NULL || stat->IsEmpty()) {
@@ -2596,8 +2593,6 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
   // ExpressionStatement[Yield] :
   //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
 
-  int pos = peek_position();
-
   switch (peek()) {
     case Token::FUNCTION:
     case Token::LBRACE:
@@ -2607,37 +2602,6 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       *ok = false;
       return nullptr;
 
-    case Token::THIS:
-    case Token::SUPER:
-      if (is_strong(language_mode()) &&
-          i::IsConstructor(function_state_->kind())) {
-        bool is_this = peek() == Token::THIS;
-        Expression* expr;
-        if (is_this) {
-          expr = ParseStrongInitializationExpression(CHECK_OK);
-        } else {
-          expr = ParseStrongSuperCallExpression(CHECK_OK);
-        }
-        switch (peek()) {
-          case Token::SEMICOLON:
-            Consume(Token::SEMICOLON);
-            break;
-          case Token::RBRACE:
-          case Token::EOS:
-            break;
-          default:
-            if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-              ReportMessageAt(function_state_->this_location(),
-                              is_this ? "strong_constructor_this"
-                                      : "strong_constructor_super");
-              *ok = false;
-              return nullptr;
-            }
-        }
-        return factory()->NewExpressionStatement(expr, pos);
-      }
-      break;
-
     // TODO(arv): Handle `let [`
     // https://code.google.com/p/v8/issues/detail?id=3847
 
@@ -2645,6 +2609,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       break;
   }
 
+  int pos = peek_position();
   bool starts_with_idenfifier = peek_any_identifier();
   Expression* expr = ParseExpression(true, CHECK_OK);
   if (peek() == Token::COLON && starts_with_idenfifier && expr != NULL &&
@@ -4038,7 +4003,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     if (is_lazily_parsed) {
-      SkipLazyFunctionBody(&materialized_literal_count,
+      SkipLazyFunctionBody(function_name, &materialized_literal_count,
                            &expected_property_count, CHECK_OK);
     } else {
       body = ParseEagerFunctionBody(function_name, pos, fvar, fvar_init_op,
@@ -4046,15 +4011,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
-
-      if (is_strong(language_mode()) && IsSubclassConstructor(kind)) {
-        if (!function_state.super_location().IsValid()) {
-          ReportMessageAt(function_name_location,
-                          "strong_super_call_missing", kReferenceError);
-          *ok = false;
-          return nullptr;
-        }
-      }
     }
 
     // Validate name and parameter names. We can do this only after parsing the
@@ -4069,7 +4025,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
+    }
+    if (is_strict(language_mode())) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
+    }
+    if (is_strong(language_mode()) && IsSubclassConstructor(kind)) {
+      if (!function_state.super_call_location().IsValid()) {
+        ReportMessageAt(function_name_location, "strong_super_call_missing",
+                        kReferenceError);
+        *ok = false;
+        return nullptr;
+      }
     }
   }
 
@@ -4094,7 +4060,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 }
 
 
-void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
+void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
+                                  int* materialized_literal_count,
                                   int* expected_property_count,
                                   bool* ok) {
   if (produce_cached_parse_data()) CHECK(log_);
