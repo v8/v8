@@ -301,6 +301,8 @@
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
+  'asm/poppler/*': [SKIP],
+  'asm/sqlite3/*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
