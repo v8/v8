@@ -382,7 +382,6 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 
 // Flags for TurboFan.
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
-DEFINE_BOOL(turbo_greedy_regalloc, false, "use the greedy register allocator")
 DEFINE_IMPLICATION(turbo, turbo_deoptimization)
 DEFINE_IMPLICATION(turbo, turbo_type_feedback)
 DEFINE_STRING(turbo_filter, "~~", "optimization filter for TurboFan compiler")
