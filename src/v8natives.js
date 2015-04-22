@@ -17,9 +17,7 @@ var $isFinite = GlobalIsFinite;
 
 // Helper function used to install functions on objects.
 function InstallFunctions(object, attributes, functions) {
-  if (functions.length >= 8) {
-    %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
-  }
+  %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
   for (var i = 0; i < functions.length; i += 2) {
     var key = functions[i];
     var f = functions[i + 1];
@@ -69,9 +67,7 @@ function InstallGetterSetter(object, name, getter, setter) {
 
 // Helper function for installing constant properties on objects.
 function InstallConstants(object, constants) {
-  if (constants.length >= 4) {
-    %OptimizeObjectForAddingMultipleProperties(object, constants.length >> 1);
-  }
+  %OptimizeObjectForAddingMultipleProperties(object, constants.length >> 1);
   var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
   for (var i = 0; i < constants.length; i += 2) {
     var name = constants[i];
