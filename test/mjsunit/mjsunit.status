@@ -395,6 +395,9 @@
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
+
+  # FIXME(svenpanne,titzer): Skipped until leak-free.
+  'asm/sqlite3/*': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
