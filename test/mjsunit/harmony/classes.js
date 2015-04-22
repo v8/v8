@@ -71,6 +71,11 @@
     class C extends Math.abs {}
   }, TypeError);
   delete Math.abs.prototype;
+
+  assertThrows(function() {
+    function* g() {}
+    class C extends g {}
+  }, TypeError);
 })();
 
 

@@ -157,6 +157,7 @@ var kMessages = {
   duplicate_export:              ["Duplicate export of '", "%0", "'"],
   unexpected_super:              ["'super' keyword unexpected here"],
   extends_value_not_a_function:  ["Class extends value ", "%0", " is not a function or null"],
+  extends_value_generator:       ["Class extends value ", "%0", " may not be a generator function"],
   prototype_parent_not_an_object: ["Class extends value does not have valid prototype property ", "%0"],
   duplicate_constructor:         ["A class may only have one constructor"],
   super_constructor_call:        ["A 'super' constructor call may only appear as the first statement of a function, and its arguments may not access 'this'. Other forms are not yet supported."],
