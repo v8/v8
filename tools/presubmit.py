@@ -325,8 +325,7 @@ class SourceProcessor(SourceFileProcessor):
 
   def IgnoreDir(self, name):
     return (super(SourceProcessor, self).IgnoreDir(name) or
-            name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources',
-                     'emscripten'))
+            name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
 
   IGNORE_COPYRIGHTS = ['box2d.js',
                        'cpplint.py',
