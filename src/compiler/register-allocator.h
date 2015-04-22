@@ -585,11 +585,14 @@ class LiveRangeBuilder final : public ZoneObject {
 
 class RegisterAllocator : public ZoneObject {
  public:
-  explicit RegisterAllocator(RegisterAllocationData* data);
+  explicit RegisterAllocator(RegisterAllocationData* data, RegisterKind kind);
 
  protected:
   RegisterAllocationData* data() const { return data_; }
   InstructionSequence* code() const { return data()->code(); }
+  RegisterKind mode() const { return mode_; }
+  int num_registers() const { return num_registers_; }
+
   Zone* allocation_zone() const { return data()->allocation_zone(); }
 
   LiveRange* LiveRangeFor(int index) { return data()->LiveRangeFor(index); }
@@ -621,6 +624,8 @@ class RegisterAllocator : public ZoneObject {
 
  private:
   RegisterAllocationData* const data_;
+  const RegisterKind mode_;
+  const int num_registers_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
 };
@@ -635,7 +640,6 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
-  int num_registers() const { return num_registers_; }
   const char* RegisterName(int allocation_index) const;
 
   ZoneVector<LiveRange*>& unhandled_live_ranges() {
@@ -677,9 +681,6 @@ class LinearScanAllocator final : public RegisterAllocator {
 
   void SplitAndSpillIntersecting(LiveRange* range);
 
-  const RegisterKind mode_;
-  const int num_registers_;
-
   ZoneVector<LiveRange*> unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;
   ZoneVector<LiveRange*> inactive_live_ranges_;
@@ -689,6 +690,46 @@ class LinearScanAllocator final : public RegisterAllocator {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(LinearScanAllocator);
+};
+
+class CoallescedLiveRanges;
+
+
+// A variant of the LLVM Greedy Register Allocator. See
+// http://blog.llvm.org/2011/09/greedy-register-allocation-in-llvm-30.html
+class GreedyAllocator final : public RegisterAllocator {
+ public:
+  explicit GreedyAllocator(RegisterAllocationData* data, RegisterKind kind,
+                           Zone* local_zone);
+
+  void AllocateRegisters();
+
+ private:
+  const RegisterConfiguration* config() const { return data()->config(); }
+
+  typedef ZonePriorityQueue<std::pair<unsigned, LiveRange*>> PQueue;
+
+  unsigned GetLiveRangeSize(LiveRange* range);
+  void Enqueue(LiveRange* range);
+
+  void Evict(LiveRange* range);
+  float CalculateSpillWeight(LiveRange* range);
+  float CalculateMaxSpillWeight(const ZoneSet<LiveRange*>& ranges);
+
+
+  bool TryAllocate(LiveRange* current, ZoneSet<LiveRange*>* conflicting);
+  bool TryAllocatePhysicalRegister(unsigned reg_id, LiveRange* range,
+                                   ZoneSet<LiveRange*>* conflicting);
+  bool HandleSpillOperands(LiveRange* range);
+  bool AllocateBlockedRange(LiveRange*, const ZoneSet<LiveRange*>&);
+
+  LiveRange* SpillBetweenUntil(LiveRange* range, LifetimePosition start,
+                               LifetimePosition until, LifetimePosition end);
+  void AssignRangeToRegister(int reg_id, LiveRange* range);
+
+  ZoneVector<CoallescedLiveRanges*> allocations_;
+  PQueue queue_;
+  DISALLOW_COPY_AND_ASSIGN(GreedyAllocator);
 };
 
 
