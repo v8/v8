@@ -13,6 +13,59 @@ var GlobalSymbol = global.Symbol;
 
 // -------------------------------------------------------------------
 
+// ES6 draft 03-17-15, section 22.1.3.3
+function ArrayCopyWithin(target, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
+
+  var array = TO_OBJECT_INLINE(this);
+  var length = ToLength(array.length);
+
+  target = TO_INTEGER(target);
+  var to;
+  if (target < 0) {
+    to = $max(length + target, 0);
+  } else {
+    to = $min(target, length);
+  }
+
+  start = TO_INTEGER(start);
+  var from;
+  if (start < 0) {
+    from = $max(length + start, 0);
+  } else {
+    from = $min(start, length);
+  }
+
+  end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
+  var final;
+  if (end < 0) {
+    final = $max(length + end, 0);
+  } else {
+    final = $min(end, length);
+  }
+
+  var count = $min(final - from, length - to);
+  var direction = 1;
+  if (from < to && to < (from + count)) {
+    direction = -1;
+    from = from + count - 1;
+    to = to + count - 1;
+  }
+
+  while (count > 0) {
+    if (from in array) {
+      array[to] = array[from];
+    } else {
+      delete array[to];
+    }
+    from = from + direction;
+    to = to + direction;
+    count--;
+  }
+
+  return array;
+}
+
 // ES6 draft 07-15-13, section 15.4.3.23
 function ArrayFind(predicate /* thisArg */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
@@ -216,6 +269,7 @@ InstallConstants(GlobalSymbol, [
   "isConcatSpreadable", symbolIsConcatSpreadable
 ]);
 
+%FunctionSetLength(ArrayCopyWithin, 2);
 %FunctionSetLength(ArrayFrom, 1);
 
 // Set up non-enumerable functions on the Array object.
@@ -226,6 +280,7 @@ InstallFunctions(GlobalArray, DONT_ENUM, [
 
 // Set up the non-enumerable functions on the Array prototype object.
 InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+  "copyWithin", ArrayCopyWithin,
   "find", ArrayFind,
   "findIndex", ArrayFindIndex,
   "fill", ArrayFill
