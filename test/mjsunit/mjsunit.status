@@ -224,6 +224,7 @@
 
   # Too slow for slow variants.
   'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
+  'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
   # BUG(v8:3838).

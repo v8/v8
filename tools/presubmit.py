@@ -341,6 +341,7 @@ class SourceProcessor(SourceFileProcessor):
                        'libraries-empty.cc',
                        'lua_binarytrees.js',
                        'memops.js',
+                       'poppler.js',
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
