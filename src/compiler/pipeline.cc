@@ -742,23 +742,25 @@ struct BuildLiveRangesPhase {
 };
 
 
+template <typename RegAllocator>
 struct AllocateGeneralRegistersPhase {
   static const char* phase_name() { return "allocate general registers"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LinearScanAllocator allocator(data->register_allocation_data(),
-                                  GENERAL_REGISTERS, temp_zone);
+    RegAllocator allocator(data->register_allocation_data(), GENERAL_REGISTERS,
+                           temp_zone);
     allocator.AllocateRegisters();
   }
 };
 
 
+template <typename RegAllocator>
 struct AllocateDoubleRegistersPhase {
   static const char* phase_name() { return "allocate double registers"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LinearScanAllocator allocator(data->register_allocation_data(),
-                                  DOUBLE_REGISTERS, temp_zone);
+    RegAllocator allocator(data->register_allocation_data(), DOUBLE_REGISTERS,
+                           temp_zone);
     allocator.AllocateRegisters();
   }
 };
@@ -1269,8 +1271,13 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
   }
-  Run<AllocateGeneralRegistersPhase>();
-  Run<AllocateDoubleRegistersPhase>();
+  if (FLAG_turbo_greedy_regalloc) {
+    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
+    Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
+  } else {
+    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+    Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+  }
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();
