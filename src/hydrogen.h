@@ -416,10 +416,8 @@ class HGraph final : public ZoneObject {
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
     if (depends_on_empty_array_proto_elements_) return;
-    info()->dependencies()->AssumeElementsCantBeAdded(
-        handle(isolate()->initial_object_prototype()->map()));
-    info()->dependencies()->AssumeElementsCantBeAdded(
-        handle(isolate()->initial_array_prototype()->map()));
+    info()->dependencies()->AssumePropertyCell(
+        isolate()->factory()->array_protector());
     depends_on_empty_array_proto_elements_ = true;
   }
 

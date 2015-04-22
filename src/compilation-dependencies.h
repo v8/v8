@@ -25,9 +25,6 @@ class CompilationDependencies {
   void AssumeInitialMapCantChange(Handle<Map> map) {
     Insert(DependentCode::kInitialMapChangedGroup, map);
   }
-  void AssumeElementsCantBeAdded(Handle<Map> map) {
-    Insert(DependentCode::kElementsCantBeAddedGroup, map);
-  }
   void AssumeFieldType(Handle<Map> map) {
     Insert(DependentCode::kFieldTypeGroup, map);
   }
