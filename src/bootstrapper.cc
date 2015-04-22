@@ -1672,6 +1672,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_reflect)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spreadcalls)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_destructuring)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1700,6 +1701,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_computed_property_names)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spreadcalls)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2304,27 +2306,28 @@ bool Genesis::InstallNatives() {
 
 bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_arrays_natives[] = {
-      "native harmony-array.js", "native harmony-typedarray.js", NULL};
+      "native harmony-array.js", "native harmony-typedarray.js", nullptr};
   static const char* harmony_array_includes_natives[] = {
-      "native harmony-array-includes.js", NULL};
-  static const char* harmony_proxies_natives[] = {"native proxy.js", NULL};
-  static const char* harmony_classes_natives[] = {NULL};
-  static const char* harmony_modules_natives[] = {NULL};
-  static const char* harmony_object_literals_natives[] = {NULL};
-  static const char* harmony_regexps_natives[] = {
-      "native harmony-regexp.js", NULL};
-  static const char* harmony_arrow_functions_natives[] = {NULL};
+      "native harmony-array-includes.js", nullptr};
+  static const char* harmony_proxies_natives[] = {"native proxy.js", nullptr};
+  static const char* harmony_classes_natives[] = {nullptr};
+  static const char* harmony_modules_natives[] = {nullptr};
+  static const char* harmony_object_literals_natives[] = {nullptr};
+  static const char* harmony_regexps_natives[] = {"native harmony-regexp.js",
+                                                  nullptr};
+  static const char* harmony_arrow_functions_natives[] = {nullptr};
   static const char* harmony_tostring_natives[] = {"native harmony-tostring.js",
-                                                   NULL};
-  static const char* harmony_sloppy_natives[] = {NULL};
-  static const char* harmony_unicode_natives[] = {NULL};
-  static const char* harmony_unicode_regexps_natives[] = {NULL};
-  static const char* harmony_computed_property_names_natives[] = {NULL};
-  static const char* harmony_rest_parameters_natives[] = {NULL};
+                                                   nullptr};
+  static const char* harmony_sloppy_natives[] = {nullptr};
+  static const char* harmony_unicode_natives[] = {nullptr};
+  static const char* harmony_unicode_regexps_natives[] = {nullptr};
+  static const char* harmony_computed_property_names_natives[] = {nullptr};
+  static const char* harmony_rest_parameters_natives[] = {nullptr};
   static const char* harmony_reflect_natives[] = {"native harmony-reflect.js",
-                                                  NULL};
+                                                  nullptr};
   static const char* harmony_spreadcalls_natives[] = {
-      "native harmony-spread.js", NULL};
+      "native harmony-spread.js", nullptr};
+  static const char* harmony_destructuring_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

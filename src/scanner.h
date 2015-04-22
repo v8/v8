@@ -355,6 +355,14 @@ class Scanner {
 
     int beg_pos;
     int end_pos;
+
+    bool inline operator==(const Location& other) const {
+      return beg_pos == other.beg_pos && end_pos == other.end_pos;
+    }
+
+    bool inline operator!=(const Location& other) const {
+      return !(*this == other);
+    }
   };
 
   // -1 is outside of the range of any real source code.

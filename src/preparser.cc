@@ -520,7 +520,10 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
         // require initializers for multiple consts.
         (is_strict_const && peek() == Token::COMMA)) {
       Expect(Token::ASSIGN, CHECK_OK);
-      ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
+      ExpressionClassifier classifier;
+      ParseAssignmentExpression(var_context != kForStatement, &classifier,
+                                CHECK_OK);
+      // TODO(dslomov): report error if not valid expression.
 
       variable_loc.end_pos = scanner()->location().end_pos;
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
@@ -559,11 +562,13 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
           i::IsConstructor(function_state_->kind())) {
         bool is_this = peek() == Token::THIS;
         Expression expr = Expression::Default();
+        ExpressionClassifier classifier;
         if (is_this) {
-          expr = ParseStrongInitializationExpression(CHECK_OK);
+          expr = ParseStrongInitializationExpression(&classifier, CHECK_OK);
         } else {
-          expr = ParseStrongSuperCallExpression(CHECK_OK);
+          expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
         }
+        // TODO(dslomov): report error if not a valid expression.
         switch (peek()) {
           case Token::SEMICOLON:
             Consume(Token::SEMICOLON);
@@ -592,7 +597,10 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   }
 
   bool starts_with_identifier = peek_any_identifier();
-  Expression expr = ParseExpression(true, CHECK_OK);
+  ExpressionClassifier classifier;
+  Expression expr = ParseExpression(true, &classifier, CHECK_OK);
+  // TODO(dslomov): report error if not a valid expression.
+
   // Even if the expression starts with an identifier, it is not necessarily an
   // identifier. For example, "foo + bar" starts with an identifier but is not
   // an identifier.
@@ -1081,7 +1089,9 @@ PreParserExpression PreParser::ParseClassLiteral(
 
   bool has_extends = Check(Token::EXTENDS);
   if (has_extends) {
-    ParseLeftHandSideExpression(CHECK_OK);
+    ExpressionClassifier classifier;
+    ParseLeftHandSideExpression(&classifier, CHECK_OK);
+    // TODO(dslomov): report error if not a valid expression.
   }
 
   ClassLiteralChecker checker(this);
@@ -1094,8 +1104,11 @@ PreParserExpression PreParser::ParseClassLiteral(
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
+    ExpressionClassifier classifier;
     ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
-                            &is_computed_name, &has_seen_constructor, CHECK_OK);
+                            &is_computed_name, &has_seen_constructor,
+                            &classifier, CHECK_OK);
+    // TODO(dslomov): report error if not a valid expression.
   }
 
   Expect(Token::RBRACE, CHECK_OK);
@@ -1115,7 +1128,9 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   // Allow "eval" or "arguments" for backward compatibility.
   ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   Scanner::Location spread_pos;
-  ParseArguments(&spread_pos, ok);
+  ExpressionClassifier classifier;
+  ParseArguments(&spread_pos, &classifier, ok);
+  // TODO(dslomov): report error if not a valid expression.
 
   DCHECK(!spread_pos.IsValid());
 

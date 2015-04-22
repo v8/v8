@@ -1146,8 +1146,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       }
 
       if (ok) {
-        Expression* expression =
-            ParseArrowFunctionLiteral(scope, error_locs, has_rest, &ok);
+        ExpressionClassifier classifier;
+        Expression* expression = ParseArrowFunctionLiteral(
+            scope, error_locs, has_rest, &classifier, &ok);
+        // TODO(dslomov): report error if not a valid expression.
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -1614,7 +1616,10 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
     default: {
       int pos = peek_position();
-      Expression* expr = ParseAssignmentExpression(true, CHECK_OK);
+      ExpressionClassifier classifier;
+      Expression* expr = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+      // TODO(dslomov): report error if not a valid expression.
+
       ExpectSemicolon(CHECK_OK);
       result = factory()->NewExpressionStatement(expr, pos);
       break;
@@ -2428,7 +2433,10 @@ Block* Parser::ParseVariableDeclarations(
         (mode == CONST && !is_for_iteration_variable)) {
       Expect(Token::ASSIGN, CHECK_OK);
       pos = position();
-      value = ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
+      ExpressionClassifier classifier;
+      value = ParseAssignmentExpression(var_context != kForStatement,
+                                        &classifier, CHECK_OK);
+      // TODO(dslomov): check that expression is valid.
       variable_loc.end_pos = scanner()->location().end_pos;
 
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
@@ -2613,11 +2621,13 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
           i::IsConstructor(function_state_->kind())) {
         bool is_this = peek() == Token::THIS;
         Expression* expr;
+        ExpressionClassifier classifier;
         if (is_this) {
-          expr = ParseStrongInitializationExpression(CHECK_OK);
+          expr = ParseStrongInitializationExpression(&classifier, CHECK_OK);
         } else {
-          expr = ParseStrongSuperCallExpression(CHECK_OK);
+          expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
         }
+        // TODO(dslomov): report error if not a valid expression.
         switch (peek()) {
           case Token::SEMICOLON:
             Consume(Token::SEMICOLON);
@@ -4338,7 +4348,9 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   Expression* extends = NULL;
   if (Check(Token::EXTENDS)) {
     block_scope->set_start_position(scanner()->location().end_pos);
-    extends = ParseLeftHandSideExpression(CHECK_OK);
+    ExpressionClassifier classifier;
+    extends = ParseLeftHandSideExpression(&classifier, CHECK_OK);
+    // TODO(dslomov): report error if not a valid expression.
   } else {
     block_scope->set_start_position(scanner()->location().end_pos);
   }
@@ -4359,9 +4371,11 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
+    ExpressionClassifier classifier;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
-        &has_seen_constructor, CHECK_OK);
+        &has_seen_constructor, &classifier, CHECK_OK);
+    // TODO(dslomov): report error if not a valid expression.
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
@@ -4410,7 +4424,10 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   const AstRawString* name = ParseIdentifier(kAllowRestrictedIdentifiers,
                                              CHECK_OK);
   Scanner::Location spread_pos;
-  ZoneList<Expression*>* args = ParseArguments(&spread_pos, CHECK_OK);
+  ExpressionClassifier classifier;
+  ZoneList<Expression*>* args =
+      ParseArguments(&spread_pos, &classifier, CHECK_OK);
+  // TODO(dslomov): report error if not a valid expression.
 
   DCHECK(!spread_pos.IsValid());
 
