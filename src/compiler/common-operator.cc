@@ -109,6 +109,38 @@ size_t ProjectionIndexOf(const Operator* const op) {
 }
 
 
+int ParameterIndexOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kParameter, op->opcode());
+  return OpParameter<ParameterInfo>(op).index();
+}
+
+
+const ParameterInfo& ParameterInfoOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kParameter, op->opcode());
+  return OpParameter<ParameterInfo>(op);
+}
+
+
+bool operator==(ParameterInfo const& lhs, ParameterInfo const& rhs) {
+  return lhs.index() == rhs.index();
+}
+
+
+bool operator!=(ParameterInfo const& lhs, ParameterInfo const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(ParameterInfo const& p) { return p.index(); }
+
+
+std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
+  if (i.debug_name()) os << i.debug_name() << '#';
+  os << i.index();
+  return os;
+}
+
+
 #define CACHED_OP_LIST(V)                                  \
   V(Always, Operator::kPure, 0, 0, 0, 1, 0, 0)             \
   V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
@@ -276,13 +308,13 @@ struct CommonOperatorGlobalCache final {
 #undef CACHED_PHI
 
   template <int kIndex>
-  struct ParameterOperator final : public Operator1<int> {
+  struct ParameterOperator final : public Operator1<ParameterInfo> {
     ParameterOperator()
-        : Operator1<int>(                             // --
+        : Operator1<ParameterInfo>(                   // --
               IrOpcode::kParameter, Operator::kPure,  // opcode
               "Parameter",                            // name
               1, 0, 0, 1, 0, 0,                       // counts,
-              kIndex) {}                              // parameter
+              ParameterInfo(kIndex, nullptr)) {}      // parameter and name
   };
 #define CACHED_PARAMETER(index) \
   ParameterOperator<index> kParameter##index##Operator;
@@ -416,22 +448,25 @@ const Operator* CommonOperatorBuilder::Merge(int control_input_count) {
 }
 
 
-const Operator* CommonOperatorBuilder::Parameter(int index) {
-  switch (index) {
+const Operator* CommonOperatorBuilder::Parameter(int index,
+                                                 const char* debug_name) {
+  if (!debug_name) {
+    switch (index) {
 #define CACHED_PARAMETER(index) \
   case index:                   \
     return &cache_.kParameter##index##Operator;
-    CACHED_PARAMETER_LIST(CACHED_PARAMETER)
+      CACHED_PARAMETER_LIST(CACHED_PARAMETER)
 #undef CACHED_PARAMETER
-    default:
-      break;
+      default:
+        break;
+    }
   }
   // Uncached.
-  return new (zone()) Operator1<int>(         // --
-      IrOpcode::kParameter, Operator::kPure,  // opcode
-      "Parameter",                            // name
-      1, 0, 0, 1, 0, 0,                       // counts
-      index);                                 // parameter
+  return new (zone()) Operator1<ParameterInfo>(  // --
+      IrOpcode::kParameter, Operator::kPure,     // opcode
+      "Parameter",                               // name
+      1, 0, 0, 1, 0, 0,                          // counts
+      ParameterInfo(index, debug_name));         // parameter info
 }
 
 

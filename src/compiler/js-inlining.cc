@@ -235,7 +235,7 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     Node* use = edge.from();
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
-        int index = 1 + OpParameter<int>(use->op());
+        int index = 1 + ParameterIndexOf(use->op());
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.

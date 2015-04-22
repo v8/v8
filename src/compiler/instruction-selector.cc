@@ -609,7 +609,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFinish:
       return MarkAsReference(node), VisitFinish(node);
     case IrOpcode::kParameter: {
-      MachineType type = linkage()->GetParameterType(OpParameter<int>(node));
+      MachineType type =
+          linkage()->GetParameterType(ParameterIndexOf(node->op()));
       MarkAsRepresentation(type, node);
       return VisitParameter(node);
     }
@@ -968,7 +969,7 @@ void InstructionSelector::VisitFinish(Node* node) {
 
 void InstructionSelector::VisitParameter(Node* node) {
   OperandGenerator g(this);
-  int index = OpParameter<int>(node);
+  int index = ParameterIndexOf(node->op());
   Emit(kArchNop,
        g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
                           linkage()->GetParameterType(index)));

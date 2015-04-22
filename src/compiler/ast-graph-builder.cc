@@ -410,8 +410,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
 
 Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
-    const Operator* op =
-        common()->Parameter(Linkage::kJSFunctionCallClosureParamIndex);
+    const Operator* op = common()->Parameter(
+        Linkage::kJSFunctionCallClosureParamIndex, "%closure");
     Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }
@@ -428,7 +428,8 @@ void AstGraphBuilder::CreateFunctionContext(bool constant_context) {
 
 Node* AstGraphBuilder::NewOuterContextParam() {
   // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op = common()->Parameter(info()->num_parameters() + 1);
+  const Operator* op =
+      common()->Parameter(info()->num_parameters() + 1, "%context");
   return NewNode(op, graph()->start());
 }
 
@@ -436,7 +437,8 @@ Node* AstGraphBuilder::NewOuterContextParam() {
 Node* AstGraphBuilder::NewCurrentContextOsrValue() {
   // TODO(titzer): use a real OSR value here; a parameter works by accident.
   // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op = common()->Parameter(info()->num_parameters() + 1);
+  const Operator* op =
+      common()->Parameter(info()->num_parameters() + 1, "%osr-context");
   return NewNode(op, graph()->start());
 }
 
@@ -575,6 +577,20 @@ static LhsKind DetermineLhsKind(Expression* expr) {
 }
 
 
+static const char* GetDebugParameterName(Zone* zone, Scope* scope, int index) {
+#if DEBUG
+  const AstRawString* name = scope->parameter(index)->raw_name();
+  if (name && name->length() > 0) {
+    char* data = zone->NewArray<char>(name->length() + 1);
+    data[name->length()] = 0;
+    memcpy(data, name->raw_data(), name->length());
+    return data;
+  }
+#endif
+  return nullptr;
+}
+
+
 AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
                                           Scope* scope,
                                           Node* control_dependency)
@@ -592,15 +608,16 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   DCHECK_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
-  Node* receiver = builder->graph()->NewNode(common()->Parameter(0),
+  Node* receiver = builder->graph()->NewNode(common()->Parameter(0, "%this"),
                                              builder->graph()->start());
   values()->push_back(receiver);
 
   // Bind all parameter variables. The parameter indices are shifted by 1
   // (receiver is parameter index -1 but environment index 0).
   for (int i = 0; i < scope->num_parameters(); ++i) {
-    Node* parameter = builder->graph()->NewNode(common()->Parameter(i + 1),
-                                                builder->graph()->start());
+    const char* debug_name = GetDebugParameterName(graph()->zone(), scope, i);
+    Node* parameter = builder->graph()->NewNode(
+        common()->Parameter(i + 1, debug_name), builder->graph()->start());
     values()->push_back(parameter);
   }
 

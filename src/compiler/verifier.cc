@@ -55,16 +55,6 @@ class Verifier::Visitor {
   Node* ValueInput(Node* node, int i = 0) {
     return NodeProperties::GetValueInput(node, i);
   }
-  FieldAccess Field(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kLoadField ||
-           node->opcode() == IrOpcode::kStoreField);
-    return OpParameter<FieldAccess>(node);
-  }
-  ElementAccess Element(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kLoadElement ||
-           node->opcode() == IrOpcode::kStoreElement);
-    return OpParameter<ElementAccess>(node);
-  }
   void CheckNotTyped(Node* node) {
     if (NodeProperties::IsTyped(node)) {
       std::ostringstream str;
@@ -714,7 +704,7 @@ void Verifier::Visitor::Check(Node* node) {
       // Object -> fieldtype
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckUpperIs(node, Field(node).type));
+      // CheckUpperIs(node, FieldAccessOf(node->op()).type));
       break;
     case IrOpcode::kLoadBuffer:
       break;
@@ -722,13 +712,13 @@ void Verifier::Visitor::Check(Node* node) {
       // Object -> elementtype
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckUpperIs(node, Element(node).type));
+      // CheckUpperIs(node, ElementAccessOf(node->op()).type));
       break;
     case IrOpcode::kStoreField:
       // (Object, fieldtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckValueInputIs(node, 1, Field(node).type));
+      // CheckValueInputIs(node, 1, FieldAccessOf(node->op()).type));
       CheckNotTyped(node);
       break;
     case IrOpcode::kStoreBuffer:
@@ -737,7 +727,7 @@ void Verifier::Visitor::Check(Node* node) {
       // (Object, elementtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckValueInputIs(node, 1, Element(node).type));
+      // CheckValueInputIs(node, 1, ElementAccessOf(node->op()).type));
       CheckNotTyped(node);
       break;
 
