@@ -3361,12 +3361,9 @@ class PhantomStdMapTraits : public v8::StdMapTraits<K, V> {
   }
 };
 
-}  // namespace
 
-
-TEST(GlobalValueMap) {
-  typedef v8::GlobalValueMap<int, v8::Object,
-                             PhantomStdMapTraits<int, v8::Object>> Map;
+template <typename Map>
+void TestGlobalValueMap() {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::Global<ObjectTemplate> templ;
@@ -3391,7 +3388,7 @@ TEST(GlobalValueMap) {
     obj = map.Get(7);
     CHECK(expected->Equals(obj));
     {
-      Map::PersistentValueReference ref = map.GetReference(7);
+      typename Map::PersistentValueReference ref = map.GetReference(7);
       CHECK(expected->Equals(ref.NewLocal(isolate)));
     }
     v8::Global<v8::Object> removed = map.Remove(7);
@@ -3404,7 +3401,7 @@ TEST(GlobalValueMap) {
     map.Set(8, expected);
     CHECK_EQ(1, static_cast<int>(map.Size()));
     {
-      Map::PersistentValueReference ref;
+      typename Map::PersistentValueReference ref;
       Local<v8::Object> expected2 = NewObjectForIntKey(isolate, templ, 8);
       removed = map.Set(8, v8::Global<v8::Object>(isolate, expected2), &ref);
       CHECK_EQ(1, static_cast<int>(map.Size()));
@@ -3413,8 +3410,12 @@ TEST(GlobalValueMap) {
     }
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
-  CcTest::i_isolate()->heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask);
+  if (map.IsWeak()) {
+    CcTest::i_isolate()->heap()->CollectAllGarbage(
+        i::Heap::kAbortIncrementalMarkingMask);
+  } else {
+    map.Clear();
+  }
   CHECK_EQ(0, static_cast<int>(map.Size()));
   CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
   {
@@ -3425,6 +3426,19 @@ TEST(GlobalValueMap) {
   }
   CHECK_EQ(0, static_cast<int>(map.Size()));
   CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
+}
+
+}  // namespace
+
+
+TEST(GlobalValueMap) {
+  // Default case, w/o weak callbacks:
+  TestGlobalValueMap<v8::StdGlobalValueMap<int, v8::Object>>();
+
+  // Custom traits with weak callbacks:
+  typedef v8::GlobalValueMap<int, v8::Object,
+                             PhantomStdMapTraits<int, v8::Object>> WeakMap;
+  TestGlobalValueMap<WeakMap>();
 }
 
 

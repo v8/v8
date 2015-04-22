@@ -117,25 +117,25 @@ class DefaultGlobalMapTraits : public StdMapTraits<K, V> {
  public:
   // Weak callback & friends:
   static const PersistentContainerCallbackType kCallbackType = kNotWeak;
-  typedef PersistentValueMap<K, V, DefaultGlobalMapTraits<K, V> > MapType;
-  typedef void WeakCallbackInfoType;
+  typedef GlobalValueMap<K, V, DefaultGlobalMapTraits<K, V> > MapType;
+  typedef void WeakCallbackDataType;
 
-  static WeakCallbackInfoType* WeakCallbackParameter(MapType* map, const K& key,
+  static WeakCallbackDataType* WeakCallbackParameter(MapType* map, const K& key,
                                                      Local<V> value) {
     return nullptr;
   }
   static MapType* MapFromWeakCallbackInfo(
-      const WeakCallbackInfo<WeakCallbackInfoType>& data) {
+      const WeakCallbackInfo<WeakCallbackDataType>& data) {
     return nullptr;
   }
   static K KeyFromWeakCallbackInfo(
-      const WeakCallbackInfo<WeakCallbackInfoType>& data) {
+      const WeakCallbackInfo<WeakCallbackDataType>& data) {
     return K();
   }
-  static void DisposeCallbackData(WeakCallbackInfoType* data) {}
+  static void DisposeCallbackData(WeakCallbackDataType* data) {}
   static void Dispose(Isolate* isolate, Global<V> value, K key) {}
   // This is a second pass callback, so SetSecondPassCallback cannot be called.
-  static void DisposeWeak(const WeakCallbackInfo<WeakCallbackInfoType>& data) {}
+  static void DisposeWeak(const WeakCallbackInfo<WeakCallbackDataType>& data) {}
 
  private:
   template <typename T>
@@ -501,6 +501,22 @@ class StdPersistentValueMap : public PersistentValueMap<K, V, Traits> {
  public:
   explicit StdPersistentValueMap(Isolate* isolate)
       : PersistentValueMap<K, V, Traits>(isolate) {}
+};
+
+
+/**
+ * A map that uses Global as value and std::map as the backing
+ * implementation. Globals are held non-weak.
+ *
+ * C++11 embedders don't need this class, as they can use
+ * Global directly in std containers.
+ */
+template <typename K, typename V,
+          typename Traits = DefaultGlobalMapTraits<K, V> >
+class StdGlobalValueMap : public GlobalValueMap<K, V, Traits> {
+ public:
+  explicit StdGlobalValueMap(Isolate* isolate)
+      : GlobalValueMap<K, V, Traits>(isolate) {}
 };
 
 
