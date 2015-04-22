@@ -16,6 +16,7 @@
 #include "src/compiler.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -220,8 +221,9 @@ class FullCodeGenerator: public AstVisitor {
     virtual ~NestedBlock() {}
 
     virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      if (statement()->AsBlock()->scope() != NULL) {
-        ++(*context_length);
+      auto block_scope = statement()->AsBlock()->scope();
+      if (block_scope != nullptr) {
+        if (block_scope->ContextLocalCount() > 0) ++(*context_length);
       }
       return previous_;
     }
@@ -968,9 +970,9 @@ class FullCodeGenerator: public AstVisitor {
     MacroAssembler* masm() const { return codegen_->masm(); }
 
     FullCodeGenerator* codegen_;
-    Scope* scope_;
     Scope* saved_scope_;
     BailoutId exit_id_;
+    bool needs_block_context_;
   };
 
   MacroAssembler* masm_;

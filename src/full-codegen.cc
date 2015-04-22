@@ -1814,22 +1814,27 @@ bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
 FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     FullCodeGenerator* codegen, Scope* scope, BailoutId entry_id,
     BailoutId declarations_id, BailoutId exit_id)
-    : codegen_(codegen), scope_(scope), exit_id_(exit_id) {
+    : codegen_(codegen), exit_id_(exit_id) {
   saved_scope_ = codegen_->scope();
 
   if (scope == NULL) {
     codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
+    needs_block_context_ = false;
   } else {
+    needs_block_context_ = scope->ContextLocalCount() > 0;
     codegen_->scope_ = scope;
     {
-      Comment cmnt(masm(), "[ Extend block context");
-      __ Push(scope->GetScopeInfo(codegen->isolate()));
-      codegen_->PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kPushBlockContext, 2);
+      if (needs_block_context_) {
+        Comment cmnt(masm(), "[ Extend block context");
+        __ Push(scope->GetScopeInfo(codegen->isolate()));
+        codegen_->PushFunctionArgumentForContextAllocation();
+        __ CallRuntime(Runtime::kPushBlockContext, 2);
 
-      // Replace the context stored in the frame.
-      codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
-                                  codegen_->context_register());
+        // Replace the context stored in the frame.
+        codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                    codegen_->context_register());
+      }
+      CHECK_EQ(0, scope->num_stack_slots());
       codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
     }
     {
@@ -1842,7 +1847,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
 
 
 FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
-  if (scope_ != NULL) {
+  if (needs_block_context_) {
     codegen_->LoadContextField(codegen_->context_register(),
                                Context::PREVIOUS_INDEX);
     // Update local stack frame context field.

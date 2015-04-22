@@ -519,6 +519,7 @@ void ParserTraits::CheckPossibleEvalCall(Expression* expression,
   if (callee != NULL &&
       callee->raw_name() == parser_->ast_value_factory()->eval_string()) {
     scope->DeclarationScope()->RecordEvalCall();
+    scope->RecordEvalCall();
   }
 }
 
@@ -3339,8 +3340,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       clear_first =
           factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
     }
-    Statement* clear_first_or_next =
-        factory()->NewIfStatement(compare, clear_first, next, next->position());
+    Statement* clear_first_or_next = factory()->NewIfStatement(
+        compare, clear_first, next, RelocInfo::kNoPosition);
     inner_block->AddStatement(clear_first_or_next, zone());
   }
 
@@ -4048,6 +4049,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     if (is_lazily_parsed) {
+      for (Scope* s = scope_->outer_scope();
+           s != nullptr && (s != s->DeclarationScope()); s = s->outer_scope()) {
+        s->ForceContextAllocation();
+      }
       SkipLazyFunctionBody(&materialized_literal_count,
                            &expected_property_count, CHECK_OK);
     } else {

@@ -1022,10 +1022,15 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
     VisitStatements(stmt->statements());
   } else {
     // Visit declarations and statements in a block scope.
-    Node* context = BuildLocalBlockContext(stmt->scope());
-    ContextScope scope(this, stmt->scope(), context);
-    VisitDeclarations(stmt->scope()->declarations());
-    VisitStatements(stmt->statements());
+    if (stmt->scope()->ContextLocalCount() > 0) {
+      Node* context = BuildLocalBlockContext(stmt->scope());
+      ContextScope scope(this, stmt->scope(), context);
+      VisitDeclarations(stmt->scope()->declarations());
+      VisitStatements(stmt->statements());
+    } else {
+      VisitDeclarations(stmt->scope()->declarations());
+      VisitStatements(stmt->statements());
+    }
   }
   if (stmt->labels() != NULL) block.EndBlock();
 }
@@ -1480,10 +1485,15 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
     VisitClassLiteralContents(expr);
   } else {
     // Visit declarations and class literal in a block scope.
-    Node* context = BuildLocalBlockContext(expr->scope());
-    ContextScope scope(this, expr->scope(), context);
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
+    if (expr->scope()->ContextLocalCount() > 0) {
+      Node* context = BuildLocalBlockContext(expr->scope());
+      ContextScope scope(this, expr->scope(), context);
+      VisitDeclarations(expr->scope()->declarations());
+      VisitClassLiteralContents(expr);
+    } else {
+      VisitDeclarations(expr->scope()->declarations());
+      VisitClassLiteralContents(expr);
+    }
   }
 }
 

@@ -4512,26 +4512,29 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
 
   { BreakAndContinueScope push(&break_info, this);
     if (scope != NULL) {
-      // Load the function object.
-      Scope* declaration_scope = scope->DeclarationScope();
-      HInstruction* function;
-      HValue* outer_context = environment()->context();
-      if (declaration_scope->is_script_scope() ||
-          declaration_scope->is_eval_scope()) {
-        function = new(zone()) HLoadContextSlot(
-            outer_context, Context::CLOSURE_INDEX, HLoadContextSlot::kNoCheck);
-      } else {
-        function = New<HThisFunction>();
-      }
-      AddInstruction(function);
-      // Allocate a block context and store it to the stack frame.
-      HInstruction* inner_context = Add<HAllocateBlockContext>(
-          outer_context, function, scope->GetScopeInfo(isolate()));
-      HInstruction* instr = Add<HStoreFrameContext>(inner_context);
-      set_scope(scope);
-      environment()->BindContext(inner_context);
-      if (instr->HasObservableSideEffects()) {
-        AddSimulate(stmt->EntryId(), REMOVABLE_SIMULATE);
+      if (scope->ContextLocalCount() > 0) {
+        // Load the function object.
+        Scope* declaration_scope = scope->DeclarationScope();
+        HInstruction* function;
+        HValue* outer_context = environment()->context();
+        if (declaration_scope->is_script_scope() ||
+            declaration_scope->is_eval_scope()) {
+          function = new (zone())
+              HLoadContextSlot(outer_context, Context::CLOSURE_INDEX,
+                               HLoadContextSlot::kNoCheck);
+        } else {
+          function = New<HThisFunction>();
+        }
+        AddInstruction(function);
+        // Allocate a block context and store it to the stack frame.
+        HInstruction* inner_context = Add<HAllocateBlockContext>(
+            outer_context, function, scope->GetScopeInfo(isolate()));
+        HInstruction* instr = Add<HStoreFrameContext>(inner_context);
+        set_scope(scope);
+        environment()->BindContext(inner_context);
+        if (instr->HasObservableSideEffects()) {
+          AddSimulate(stmt->EntryId(), REMOVABLE_SIMULATE);
+        }
       }
       VisitDeclarations(scope->declarations());
       AddSimulate(stmt->DeclsId(), REMOVABLE_SIMULATE);
@@ -4539,7 +4542,8 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
     CHECK_BAILOUT(VisitStatements(stmt->statements()));
   }
   set_scope(outer_scope);
-  if (scope != NULL && current_block() != NULL) {
+  if (scope != NULL && current_block() != NULL &&
+      scope->ContextLocalCount() > 0) {
     HValue* inner_context = environment()->context();
     HValue* outer_context = Add<HLoadNamedField>(
         inner_context, nullptr,

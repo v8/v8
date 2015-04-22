@@ -371,6 +371,7 @@ Scope* Scope::FinalizeBlockScope() {
   if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
   if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
   if (uses_this()) outer_scope_->RecordThisUsage();
+  if (scope_calls_eval_) outer_scope_->RecordEvalCall();
 
   return NULL;
 }
@@ -381,13 +382,13 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
   if (result != NULL || scope_info_.is_null()) {
     return result;
   }
+  Handle<String> name_handle = name->string();
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
-  Handle<String> name_handle = name->string();
   // If we have a serialized scope info, we might find the variable there.
   // There should be no local slot with the given name.
-  DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0);
+  DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0 || is_block_scope());
 
   // Check context slot lookup.
   VariableMode mode;
@@ -706,6 +707,7 @@ bool Scope::HasLazyCompilableOuterContext() const {
   bool found_non_trivial_declarations = false;
   for (const Scope* scope = outer; scope != NULL; scope = scope->outer_scope_) {
     if (scope->is_with_scope() && !found_non_trivial_declarations) return false;
+    if (scope->is_block_scope() && !scope->decls_.is_empty()) return false;
     if (scope->is_declaration_scope() && scope->num_heap_slots() > 0) {
       found_non_trivial_declarations = true;
     }
@@ -1288,7 +1290,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (has_forced_context_allocation()) return true;
   if (var->mode() == TEMPORARY) return false;
   if (var->mode() == INTERNAL) return true;
-  if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;
+  if (is_catch_scope() || is_module_scope()) return true;
   if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
   return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
@@ -1309,7 +1311,11 @@ bool Scope::HasArgumentsParameter(Isolate* isolate) {
 
 
 void Scope::AllocateStackSlot(Variable* var) {
-  var->AllocateTo(Variable::LOCAL, num_stack_slots_++);
+  if (is_block_scope()) {
+    DeclarationScope()->AllocateStackSlot(var);
+  } else {
+    var->AllocateTo(Variable::LOCAL, num_stack_slots_++);
+  }
 }
 
 
@@ -1434,6 +1440,9 @@ void Scope::AllocateNonParameterLocals(Isolate* isolate) {
 
 
 void Scope::AllocateVariablesRecursively(Isolate* isolate) {
+  if (!already_resolved()) {
+    num_stack_slots_ = 0;
+  }
   // Allocate variables for inner scopes.
   for (int i = 0; i < inner_scopes_.length(); i++) {
     inner_scopes_[i]->AllocateVariablesRecursively(isolate);
@@ -1443,7 +1452,6 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
   // variables in inner scopes which might not had been resolved yet.
   if (already_resolved()) return;
   // The number of slots required for variables.
-  num_stack_slots_ = 0;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
 
   // Allocate variables for this scope.

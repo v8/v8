@@ -4288,6 +4288,9 @@ class ScopeInfo : public FixedArray {
   // Return the name of the given stack local.
   String* StackLocalName(int var);
 
+  // Return the name of the given stack local.
+  int StackLocalIndex(int var);
+
   // Return the name of the given context local.
   String* ContextLocalName(int var);
 
@@ -4396,33 +4399,38 @@ class ScopeInfo : public FixedArray {
   //    slot is used per parameter, so in total this part occupies
   //    ParameterCount() slots in the array. For other scopes than function
   //    scopes ParameterCount() is 0.
-  // 2. StackLocalEntries:
+  // 2. StackLocalFirstSlot:
+  //    Index of a first stack slot for stack local. Stack locals belonging to
+  //    this scope are located on a stack at slots starting from this index.
+  // 3. StackLocalEntries:
   //    Contains the names of local variables that are allocated on the stack,
-  //    in increasing order of the stack slot index. One slot is used per stack
-  //    local, so in total this part occupies StackLocalCount() slots in the
-  //    array.
-  // 3. ContextLocalNameEntries:
+  //    in increasing order of the stack slot index. First local variable has
+  //    a stack slot index defined in StackLocalFirstSlot (point 2 above).
+  //    One slot is used per stack local, so in total this part occupies
+  //    StackLocalCount() slots in the array.
+  // 4. ContextLocalNameEntries:
   //    Contains the names of local variables and parameters that are allocated
   //    in the context. They are stored in increasing order of the context slot
   //    index starting with Context::MIN_CONTEXT_SLOTS. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount() slots
   //    in the array.
-  // 4. ContextLocalInfoEntries:
+  // 5. ContextLocalInfoEntries:
   //    Contains the variable modes and initialization flags corresponding to
   //    the context locals in ContextLocalNameEntries. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount()
   //    slots in the array.
-  // 5. StrongModeFreeVariableNameEntries:
+  // 6. StrongModeFreeVariableNameEntries:
   //    Stores the names of strong mode free variables.
-  // 6. StrongModeFreeVariablePositionEntries:
+  // 7. StrongModeFreeVariablePositionEntries:
   //    Stores the locations (start and end position) of strong mode free
   //    variables.
-  // 7. FunctionNameEntryIndex:
+  // 8. FunctionNameEntryIndex:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
   int ParameterEntriesIndex();
+  int StackLocalFirstSlotIndex();
   int StackLocalEntriesIndex();
   int ContextLocalNameEntriesIndex();
   int ContextLocalInfoEntriesIndex();

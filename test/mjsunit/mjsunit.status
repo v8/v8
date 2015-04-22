@@ -114,6 +114,14 @@
   'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
   'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
 
+  # Issue 4035: unexpected frame->context() in debugger
+  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-325676': [PASS, NO_VARIANTS],
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
+  'debug-evaluate-with': [PASS, NO_VARIANTS],
+
   # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
   # issues on ARM and ARM64.
   'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
