@@ -1016,21 +1016,6 @@ class Isolate {
 
   bool IsFastArrayConstructorPrototypeChainIntact();
 
-  // On intent to set an element in object, make sure that appropriate
-  // notifications occur if the set is on the elements of the array or
-  // object prototype. Also ensure that changes to prototype chain between
-  // Array and Object fire notifications.
-  void UpdateArrayProtectorOnSetElement(Handle<JSObject> object);
-  void UpdateArrayProtectorOnSetPrototype(Handle<JSObject> object) {
-    UpdateArrayProtectorOnSetElement(object);
-  }
-  void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
-    UpdateArrayProtectorOnSetElement(object);
-  }
-
-  // Returns true if array is the initial array prototype in any native context.
-  bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
-
   CallInterfaceDescriptorData* call_descriptor_data(int index);
 
   void IterateDeferredHandles(ObjectVisitor* visitor);

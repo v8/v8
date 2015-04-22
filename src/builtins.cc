@@ -199,21 +199,7 @@ static bool ArrayPrototypeHasNoElements(Heap* heap, PrototypeIterator* iter) {
 static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = heap->isolate();
-  if (!isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-    return false;
-  }
-
-  // If the array prototype chain is intact (and free of elements), and if the
-  // receiver's prototype is the array prototype, then we are done.
-  Object* prototype = receiver->map()->prototype();
-  if (prototype->IsJSArray() &&
-      isolate->is_initial_array_prototype(JSArray::cast(prototype))) {
-    return true;
-  }
-
-  // Slow case.
-  PrototypeIterator iter(isolate, receiver);
+  PrototypeIterator iter(heap->isolate(), receiver);
   return ArrayPrototypeHasNoElements(heap, &iter);
 }
 
@@ -250,7 +236,7 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
-  if (isolate->IsAnyInitialArrayPrototype(array)) {
+  if (array->GetIsolate()->is_initial_array_prototype(*array)) {
     return MaybeHandle<FixedArrayBase>();
   }
 

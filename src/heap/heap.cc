@@ -3077,10 +3077,6 @@ void Heap::CreateInitialObjects() {
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
 
-  Handle<PropertyCell> cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(1));
-  set_array_protector(*cell);
-
   set_allocation_sites_scratchpad(
       *factory->NewFixedArray(kAllocationSiteScratchpadSize, TENURED));
   InitializeAllocationSitesScratchpad();
