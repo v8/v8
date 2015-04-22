@@ -37,6 +37,11 @@ test(function() {
   [].forEach(1);
 }, "1 is not a function", TypeError);
 
+// kCalledOnNonObject
+test(function() {
+  Object.freeze(1)
+}, "Object.freeze called on non-object", TypeError);
+
 // kCannotConvertToPrimitive
 test(function() {
   [].join(Object(Symbol(1)));

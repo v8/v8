@@ -226,36 +226,6 @@
   '15.3.4.5-21-4': [FAIL],
   '15.3.4.5-21-5': [FAIL],
 
-  # Object.freeze(O), Object.seal(O), and Object.preventExtensions(O),
-  # Object.isFrozen(O), Object.isSealed(O), and Object.isExtensible(O) no longer
-  # throw when passed a non-object value in ES6.
-  '15.2.3.8-1': [FAIL],
-  '15.2.3.8-1-1': [FAIL],
-  '15.2.3.8-1-2': [FAIL],
-  '15.2.3.8-1-3': [FAIL],
-  '15.2.3.8-1-4': [FAIL],
-  '15.2.3.9-1': [FAIL],
-  '15.2.3.9-1-1': [FAIL],
-  '15.2.3.9-1-2': [FAIL],
-  '15.2.3.9-1-3': [FAIL],
-  '15.2.3.9-1-4': [FAIL],
-  '15.2.3.10-1': [FAIL],
-  '15.2.3.10-1-1': [FAIL],
-  '15.2.3.10-1-2': [FAIL],
-  '15.2.3.10-1-3': [FAIL],
-  '15.2.3.10-1-4': [FAIL],
-  '15.2.3.11-1': [FAIL],
-  '15.2.3.12-1': [FAIL],
-  '15.2.3.12-1-1': [FAIL],
-  '15.2.3.12-1-2': [FAIL],
-  '15.2.3.12-1-3': [FAIL],
-  '15.2.3.12-1-4': [FAIL],
-  '15.2.3.13-1': [FAIL],
-  '15.2.3.13-1-1': [FAIL],
-  '15.2.3.13-1-2': [FAIL],
-  '15.2.3.13-1-3': [FAIL],
-  '15.2.3.13-1-4': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
