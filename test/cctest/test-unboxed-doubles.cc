@@ -909,7 +909,7 @@ TEST(Regress436816) {
   CHECK(object->map()->HasFastPointerLayout());
 
   // Trigger GCs and heap verification.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 }
 
 
@@ -966,7 +966,7 @@ TEST(DescriptorArrayTrimming) {
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   // The unused tail of the layout descriptor is now "clean" again.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
@@ -1390,7 +1390,7 @@ TEST(StoreBufferScanOnScavenge) {
   chunk->set_scan_on_scavenge(true);
 
   // Trigger GCs and force evacuation. Should not crash there.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
 }

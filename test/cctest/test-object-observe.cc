@@ -429,7 +429,7 @@ TEST(ObservationWeakMap) {
   CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierObjectInfoMap));
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  i_isolate->heap()->CollectAllGarbage();
   CHECK_EQ(0, NumberOfElements(callbackInfoMap));
   CHECK_EQ(0, NumberOfElements(objectInfoMap));
   CHECK_EQ(0, NumberOfElements(notifierObjectInfoMap));
@@ -682,7 +682,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG

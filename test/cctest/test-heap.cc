@@ -452,7 +452,7 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
   // Incremental marking potentially marked handles before they turned weak.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   CHECK((*h1)->IsString());
 
@@ -947,7 +947,7 @@ TEST(Regression39128) {
   TestHeap* heap = CcTest::test_heap();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1048,14 +1048,14 @@ UNINITIALIZED_TEST(TestCodeFlushing) {
     CHECK(function->shared()->is_compiled());
 
     // The code will survive at least two GCs.
-    i_isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-    i_isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    i_isolate->heap()->CollectAllGarbage();
+    i_isolate->heap()->CollectAllGarbage();
     CHECK(function->shared()->is_compiled());
 
     // Simulate several GCs that use full marking.
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
-      i_isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+      i_isolate->heap()->CollectAllGarbage();
     }
 
     // foo should no longer be in the compilation cache
@@ -1101,12 +1101,12 @@ TEST(TestCodeFlushingPreAged) {
   CHECK(function->shared()->is_compiled());
 
   // The code has been run so will survive at least one GC.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage();
   CHECK(function->shared()->is_compiled());
 
   // The code was only run once, so it should be pre-aged and collected on the
   // next GC.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage();
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
 
   // Execute the function again twice, and ensure it is reset to the young age.
@@ -1116,14 +1116,14 @@ TEST(TestCodeFlushingPreAged) {
   }
 
   // The code will survive at least two GC now that it is young again.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
   CHECK(function->shared()->is_compiled());
 
   // Simulate several GCs that use full marking.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    CcTest::heap()->CollectAllGarbage();
   }
 
   // foo should no longer be in the compilation cache
@@ -1166,15 +1166,15 @@ TEST(TestCodeFlushingIncremental) {
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
   CHECK(function->shared()->is_compiled());
 
   // Simulate several GCs that use incremental marking.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
     SimulateIncrementalMarking(CcTest::heap());
-    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage();
   }
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
   CHECK(!function->is_compiled() || function->IsOptimized());
@@ -1189,7 +1189,7 @@ TEST(TestCodeFlushingIncremental) {
   for (int i = 0; i < kAgingThreshold; i++) {
     SimulateIncrementalMarking(CcTest::heap());
     if (!function->next_function_link()->IsUndefined()) break;
-    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage();
   }
 
   // Force optimization while incremental marking is active and while
@@ -1199,7 +1199,7 @@ TEST(TestCodeFlushingIncremental) {
   }
 
   // Simulate one final GC to make sure the candidate queue is sane.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   CHECK(function->shared()->is_compiled() || !function->IsOptimized());
   CHECK(function->is_compiled() || !function->IsOptimized());
 }
@@ -1228,7 +1228,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   Handle<String> bar_name = factory->InternalizeUtf8String("bar");
 
   // Perfrom one initial GC to enable code flushing.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage();
 
   // This compile will add the code to the compilation cache.
   { v8::HandleScope scope(CcTest::isolate());
@@ -1268,7 +1268,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   CcTest::heap()->CollectGarbage(NEW_SPACE, "test scavenge while marking");
 
   // Simulate one final GC to make sure the candidate queue is sane.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
   CHECK(!function->is_compiled() || function->IsOptimized());
 }
@@ -1305,8 +1305,8 @@ TEST(TestCodeFlushingIncrementalAbort) {
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
   CHECK(function->shared()->is_compiled());
 
   // Bump the code age so that flushing is triggered.
@@ -1333,7 +1333,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   }
 
   // Simulate one final GC to make sure the candidate queue is sane.
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK(function->shared()->is_compiled() || !function->IsOptimized());
   CHECK(function->is_compiled() || !function->IsOptimized());
 }
@@ -1388,7 +1388,7 @@ TEST(CompilationCacheCachingBehavior) {
                                          true, native_context, language_mode);
   CHECK(!info.is_null());
 
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
 
   // On second compilation, the hash is replaced by a real cache entry mapping
   // the source to the shared function info containing the code.
@@ -1400,7 +1400,7 @@ TEST(CompilationCacheCachingBehavior) {
     info.ToHandleChecked()->code()->MakeOlder(NO_MARKING_PARITY);
   }
 
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   // Ensure code aging cleared the entry from the cache.
   info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
                                          true, native_context, language_mode);
@@ -1500,7 +1500,7 @@ TEST(TestInternalWeakLists) {
     // Collect garbage that might have been created by one of the
     // installed extensions.
     isolate->compilation_cache()->Clear();
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
 
     CHECK_EQ(i + 1, CountNativeContexts());
 
@@ -1532,7 +1532,7 @@ TEST(TestInternalWeakLists) {
 
     // Mark compact handles the weak references.
     isolate->compilation_cache()->Clear();
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
     CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
@@ -1541,14 +1541,14 @@ TEST(TestInternalWeakLists) {
       CcTest::heap()->CollectGarbage(NEW_SPACE);
       CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     }
-    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage();
     CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       CcTest::heap()->CollectGarbage(NEW_SPACE);
       CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     }
-    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage();
     CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
@@ -1556,7 +1556,7 @@ TEST(TestInternalWeakLists) {
 
   // Force compilation cache cleanup.
   CcTest::heap()->NotifyContextDisposed(true);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1572,7 +1572,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    CcTest::heap()->CollectAllGarbage();
     CHECK_EQ(kNumTestContexts - i - 1, CountNativeContexts());
   }
 
@@ -1588,7 +1588,7 @@ static int CountNativeContextsWithGC(Isolate* isolate, int n) {
   Handle<Object> object(heap->native_contexts_list(), isolate);
   while (!object->IsUndefined()) {
     count++;
-    if (count == n) heap->CollectAllGarbage(Heap::kNoGCFlags);
+    if (count == n) heap->CollectAllGarbage();
     object =
         Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK),
                        isolate);
@@ -1610,7 +1610,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
   while (object->IsJSFunction() &&
          !Handle<JSFunction>::cast(object)->IsBuiltin()) {
     count++;
-    if (count == n) isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    if (count == n) isolate->heap()->CollectAllGarbage();
     object = Handle<Object>(
         Object::cast(JSFunction::cast(*object)->next_function_link()),
         isolate);
@@ -1693,11 +1693,11 @@ TEST(TestSizeOfRegExpCode) {
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
@@ -1705,11 +1705,11 @@ TEST(TestSizeOfRegExpCode) {
   int initial_size = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
   CompileRun("'foo'.match(reg_exp_source);");
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   int size_with_regexp = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
   CompileRun("'foo'.match(half_size_reg_exp);");
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   int size_with_optimized_regexp =
       static_cast<int>(CcTest::heap()->SizeOfObjects());
 
@@ -1729,11 +1729,11 @@ TEST(TestSizeOfObjects) {
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
@@ -1755,7 +1755,7 @@ TEST(TestSizeOfObjects) {
 
   // The heap size should go back to initial size after a full GC, even
   // though sweeping didn't finish yet.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   // Normally sweeping would not be complete here, but no guarantees.
 
@@ -2177,7 +2177,7 @@ TEST(PrototypeTransitionClearing) {
   // Verify that only dead prototype transitions are cleared.
   CHECK_EQ(initialTransitions + 10,
            NumberOfProtoTransitions(baseObject->map()));
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage();
   const int transitions = 10 - 3;
   CHECK_EQ(initialTransitions + transitions,
            NumberOfProtoTransitions(baseObject->map()));
@@ -2259,8 +2259,8 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
     // guard interrupt.  But here we didn't ask for that, and there is no
     // JS code running to trigger the interrupt, so we explicitly finalize
     // here.
-    CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags,
-                            "Test finalizing incremental mark-sweep");
+    CcTest::heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                                      "Test finalizing incremental mark-sweep");
   }
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
@@ -2933,7 +2933,7 @@ TEST(Regress1465) {
   CHECK_EQ(transitions_count, transitions_before);
 
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3116,7 +3116,7 @@ TEST(Regress2143a) {
   CcTest::heap()->AgeInlineCaches();
 
   // Explicitly request GC to perform final marking step and sweeping.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
@@ -3160,7 +3160,7 @@ TEST(Regress2143b) {
   CcTest::heap()->AgeInlineCaches();
 
   // Explicitly request GC to perform final marking step and sweeping.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
@@ -3198,15 +3198,17 @@ TEST(ReleaseOverReservedPages) {
 
   // Triggering one GC will cause a lot of garbage to be discovered but
   // even spread across all allocated pages.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
                           "triggered for preparation");
   CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages());
 
   // Triggering subsequent GCs should cause at least half of the pages
   // to be released to the OS after at most two cycles.
-  heap->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 1");
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                          "triggered by test 1");
   CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages());
-  heap->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 2");
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                          "triggered by test 2");
   CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages() * 2);
 
   // Triggering a last-resort GC should cause all pages to be released to the
@@ -3248,7 +3250,7 @@ TEST(Regress2237) {
   }
 
   CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
 }
 
@@ -3346,7 +3348,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsWeakCell());
 
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot1)))
              ->cleared());
@@ -3407,7 +3409,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
 
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
 }
@@ -3442,7 +3444,7 @@ TEST(IncrementalMarkingClearsMonomorphicConstructor) {
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
            vector->Get(FeedbackVectorSlot(0)));
@@ -3472,7 +3474,7 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
   }
 
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   if (FLAG_vector_ics) {
@@ -3514,7 +3516,7 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   if (FLAG_vector_ics) {
@@ -3562,7 +3564,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
 
   // Fire context dispose notification.
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   if (FLAG_vector_ics) {
@@ -3611,7 +3613,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   if (FLAG_vector_ics) {
@@ -3740,7 +3742,7 @@ TEST(Regress159140) {
   HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   // Prepare several closures that are all eligible for code flushing
   // because all reachable ones are not optimized. Make sure that the
@@ -3786,7 +3788,7 @@ TEST(Regress159140) {
   // finish the GC to complete code flushing.
   SimulateIncrementalMarking(heap);
   CompileRun("%OptimizeFunctionOnNextCall(g); g(3);");
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
 
   // Unoptimized code is missing and the deoptimizer will go ballistic.
   CompileRun("g('bozo');");
@@ -3802,7 +3804,7 @@ TEST(Regress165495) {
   HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   // Prepare an optimized closure that the optimized code map will get
   // populated. Then age the unoptimized code to trigger code flushing
@@ -3832,7 +3834,7 @@ TEST(Regress165495) {
   // Simulate incremental marking so that unoptimized code is flushed
   // even though it still is cached in the optimized code map.
   SimulateIncrementalMarking(heap);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
 
   // Make a new closure that will get code installed from the code map.
   // Unoptimized code is missing and the deoptimizer will go ballistic.
@@ -3851,7 +3853,7 @@ TEST(Regress169209) {
   HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   // Prepare a shared function info eligible for code flushing for which
   // the unoptimized code will be replaced during optimization.
@@ -3910,7 +3912,7 @@ TEST(Regress169209) {
              "g(false);");
 
   // Finish garbage collection cycle.
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK(shared1->code()->gc_metadata() == NULL);
 }
 
@@ -3999,7 +4001,7 @@ TEST(Regress168801) {
   HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   // Ensure the code ends up on an evacuation candidate.
   SimulateFullSpace(heap->code_space());
@@ -4039,8 +4041,8 @@ TEST(Regress168801) {
   }
 
   // This cycle will bust the heap and subsequent cycles will go ballistic.
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
 }
 
 
@@ -4056,7 +4058,7 @@ TEST(Regress173458) {
   HandleScope scope(isolate);
 
   // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   // Ensure the code ends up on an evacuation candidate.
   SimulateFullSpace(heap->code_space());
@@ -4093,8 +4095,8 @@ TEST(Regress173458) {
   CHECK(isolate->debug()->Load());
 
   // This cycle will bust the heap and subsequent cycles will go ballistic.
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
 }
 
 
@@ -4229,7 +4231,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // Now make sure that a gc should get rid of the function, even though we
   // still have the allocation site alive.
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    heap->CollectAllGarbage();
   }
 
   // The site still exists because of our global handle, but the code is no
@@ -4277,7 +4279,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    heap->CollectAllGarbage();
   }
 
   DCHECK(code->marked_for_deoptimization());
@@ -4318,7 +4320,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    heap->CollectAllGarbage();
   }
 
   DCHECK(code->marked_for_deoptimization());
@@ -4357,7 +4359,7 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
                i, i, i, i, i, i, i, i);
       CompileRun(source.start());
     }
-    heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
   }
   int elements = 0;
   if (heap->weak_object_to_code_table()->IsHashTable()) {
@@ -4507,7 +4509,7 @@ TEST(WeakFunctionInConstructor) {
   weak_ic_cleared = false;
   garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
   Heap* heap = CcTest::i_isolate()->heap();
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
   CHECK(weak_ic_cleared);
 
   // We've determined the constructor in createObj has had it's weak cell
@@ -4519,7 +4521,7 @@ TEST(WeakFunctionInConstructor) {
     Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
     CHECK(slot_value->IsWeakCell());
     if (WeakCell::cast(slot_value)->cleared()) break;
-    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    heap->CollectAllGarbage();
   }
 
   Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
@@ -4546,7 +4548,7 @@ void CheckWeakness(const char* source) {
   weak_ic_cleared = false;
   garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
   Heap* heap = CcTest::i_isolate()->heap();
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
   CHECK(weak_ic_cleared);
 }
 
@@ -4760,7 +4762,7 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
   CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -4796,7 +4798,7 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
   CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -4864,7 +4866,7 @@ TEST(WeakCellsWithIncrementalMarking) {
     CHECK(weak_cell->value()->IsFixedArray());
     weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
   }
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
   CHECK_EQ(*survivor, weak_cells[0]->value());
   for (int i = 1; i < N; i++) {
     CHECK(weak_cells[i]->cleared());
@@ -4911,7 +4913,7 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   heap->DisableInlineAllocation();
   heap->set_allocation_timeout(1);
   g->Call(global, 1, args1);
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 }
 
 
@@ -5222,14 +5224,14 @@ TEST(Regress3877) {
       "a.x = new cls();"
       "cls.prototype = null;");
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
   }
   // The map of a.x keeps prototype alive
   CHECK(!weak_prototype->cleared());
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
   }
   CHECK(weak_prototype->cleared());
 }

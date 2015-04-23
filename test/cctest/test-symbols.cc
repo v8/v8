@@ -64,7 +64,7 @@ TEST(Create) {
   }
 
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {

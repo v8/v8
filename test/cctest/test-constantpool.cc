@@ -329,7 +329,7 @@ TEST(ConstantPoolCompacting) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
 
   CHECK_NE(old_ptr, *object);
   CHECK_EQ(*object, array->get_heap_ptr_entry(0));

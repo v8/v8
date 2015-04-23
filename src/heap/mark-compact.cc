@@ -42,6 +42,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #endif
       reduce_memory_footprint_(false),
       abort_incremental_marking_(false),
+      finalize_incremental_marking_(false),
       marking_parity_(ODD_MARKING_PARITY),
       compacting_(false),
       was_marked_incrementally_(false),
