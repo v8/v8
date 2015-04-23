@@ -829,14 +829,17 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::REGISTER:
       case Translation::INT32_REGISTER:
       case Translation::UINT32_REGISTER:
+      case Translation::BOOL_REGISTER:
       case Translation::DOUBLE_REGISTER:
       case Translation::STACK_SLOT:
       case Translation::INT32_STACK_SLOT:
       case Translation::UINT32_STACK_SLOT:
+      case Translation::BOOL_STACK_SLOT:
       case Translation::DOUBLE_STACK_SLOT:
       case Translation::LITERAL:
       case Translation::ARGUMENTS_OBJECT:
-      default:
+      case Translation::DUPLICATED_OBJECT:
+      case Translation::CAPTURED_OBJECT:
         FATAL("Unsupported translation");
         break;
     }
@@ -2101,10 +2104,12 @@ void Deoptimizer::DoTranslateObjectAndSkip(TranslationIterator* iterator) {
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
+    case Translation::BOOL_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::STACK_SLOT:
     case Translation::INT32_STACK_SLOT:
     case Translation::UINT32_STACK_SLOT:
+    case Translation::BOOL_STACK_SLOT:
     case Translation::DOUBLE_STACK_SLOT:
     case Translation::LITERAL: {
       // The value is not part of any materialized object, so we can ignore it.
@@ -2237,6 +2242,28 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::BOOL_REGISTER: {
+      int input_reg = iterator->Next();
+      uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot), field_index);
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; bool %s (%s)\n", value,
+               converter.NameOfCPURegister(input_reg), TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1, value);
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
+      }
+      return;
+    }
+
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
@@ -2319,6 +2346,30 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       } else {
         double double_value = static_cast<double>(static_cast<uint32_t>(value));
         AddObjectDoubleValue(double_value);
+      }
+      return;
+    }
+
+    case Translation::BOOL_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      uintptr_t value =
+          static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot), field_index);
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; [sp + %d] (bool %s)\n",
+               value, input_offset, TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1, value);
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
       return;
     }
@@ -2505,6 +2556,31 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::BOOL_REGISTER: {
+      int input_reg = iterator->Next();
+      uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
+      bool is_smi = value <= static_cast<uintptr_t>(Smi::kMaxValue);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIuPTR
+               " ; bool %s (%s)\n",
+               output_[frame_index]->GetTop() + output_offset, output_offset,
+               value, converter.NameOfCPURegister(input_reg),
+               TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1, value);
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
+      }
+      return;
+    }
+
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
@@ -2601,6 +2677,32 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<uint32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
+      return;
+    }
+
+    case Translation::BOOL_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      uintptr_t value =
+          static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
+      bool is_smi = value <= static_cast<uintptr_t>(Smi::kMaxValue);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(), "    0x%08" V8PRIxPTR ": ",
+               output_[frame_index]->GetTop() + output_offset);
+        PrintF(trace_scope_->file(),
+               "[top + %d] <- %" V8PRIuPTR " ; [sp + %d] (uint32 %s)\n",
+               output_offset, value, input_offset, TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1, value);
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
       return;
     }
@@ -3020,6 +3122,12 @@ void Translation::StoreUint32Register(Register reg) {
 }
 
 
+void Translation::StoreBoolRegister(Register reg) {
+  buffer_->Add(BOOL_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
+}
+
+
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
   buffer_->Add(DOUBLE_REGISTER, zone());
   buffer_->Add(DoubleRegister::ToAllocationIndex(reg), zone());
@@ -3040,6 +3148,12 @@ void Translation::StoreInt32StackSlot(int index) {
 
 void Translation::StoreUint32StackSlot(int index) {
   buffer_->Add(UINT32_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
+
+
+void Translation::StoreBoolStackSlot(int index) {
+  buffer_->Add(BOOL_STACK_SLOT, zone());
   buffer_->Add(index, zone());
 }
 
@@ -3076,10 +3190,12 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case REGISTER:
     case INT32_REGISTER:
     case UINT32_REGISTER:
+    case BOOL_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
     case UINT32_STACK_SLOT:
+    case BOOL_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
     case COMPILED_STUB_FRAME:
@@ -3143,6 +3259,7 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
+    case Translation::BOOL_REGISTER:
     case Translation::DOUBLE_REGISTER:
       // We are at safepoint which corresponds to call.  All registers are
       // saved by caller so there would be no live registers at this
@@ -3165,6 +3282,12 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
       int slot_index = iterator->Next();
       Address slot_addr = SlotAddress(frame, slot_index);
       return SlotRef(slot_addr, SlotRef::UINT32);
+    }
+
+    case Translation::BOOL_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::BOOLBIT);
     }
 
     case Translation::DOUBLE_STACK_SLOT: {
@@ -3324,6 +3447,20 @@ Handle<Object> SlotRef::GetValue(Isolate* isolate) {
       }
     }
 
+    case BOOLBIT: {
+#if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
+      uint32_t value = Memory::uint32_at(addr_ + kIntSize);
+#else
+      uint32_t value = Memory::uint32_at(addr_);
+#endif
+      if (value == 0) {
+        return isolate->factory()->false_value();
+      } else {
+        DCHECK_EQ(1, value);
+        return isolate->factory()->true_value();
+      }
+    }
+
     case DOUBLE: {
       double value = read_double_value(addr_);
       return isolate->factory()->NewNumber(value);
@@ -3396,6 +3533,7 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
     case SlotRef::TAGGED:
     case SlotRef::INT32:
     case SlotRef::UINT32:
+    case SlotRef::BOOLBIT:
     case SlotRef::DOUBLE:
     case SlotRef::LITERAL:
       return slot.GetValue(isolate);

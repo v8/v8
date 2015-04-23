@@ -11616,6 +11616,13 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::BOOL_REGISTER: {
+          int reg_code = iterator.Next();
+          os << "{input=" << converter.NameOfCPURegister(reg_code)
+             << " (bool)}";
+          break;
+        }
+
         case Translation::DOUBLE_REGISTER: {
           int reg_code = iterator.Next();
           os << "{input=" << DoubleRegister::AllocationIndexToString(reg_code)
@@ -11638,6 +11645,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
         case Translation::UINT32_STACK_SLOT: {
           int input_slot_index = iterator.Next();
           os << "{input=" << input_slot_index << " (unsigned)}";
+          break;
+        }
+
+        case Translation::BOOL_STACK_SLOT: {
+          int input_slot_index = iterator.Next();
+          os << "{input=" << input_slot_index << " (bool)}";
           break;
         }
 

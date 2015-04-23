@@ -755,25 +755,27 @@ class TranslationIterator BASE_EMBEDDED {
 };
 
 
-#define TRANSLATION_OPCODE_LIST(V)                                             \
-  V(BEGIN)                                                                     \
-  V(JS_FRAME)                                                                  \
-  V(CONSTRUCT_STUB_FRAME)                                                      \
-  V(GETTER_STUB_FRAME)                                                         \
-  V(SETTER_STUB_FRAME)                                                         \
-  V(ARGUMENTS_ADAPTOR_FRAME)                                                   \
-  V(COMPILED_STUB_FRAME)                                                       \
-  V(DUPLICATED_OBJECT)                                                         \
-  V(ARGUMENTS_OBJECT)                                                          \
-  V(CAPTURED_OBJECT)                                                           \
-  V(REGISTER)                                                                  \
-  V(INT32_REGISTER)                                                            \
-  V(UINT32_REGISTER)                                                           \
-  V(DOUBLE_REGISTER)                                                           \
-  V(STACK_SLOT)                                                                \
-  V(INT32_STACK_SLOT)                                                          \
-  V(UINT32_STACK_SLOT)                                                         \
-  V(DOUBLE_STACK_SLOT)                                                         \
+#define TRANSLATION_OPCODE_LIST(V) \
+  V(BEGIN)                         \
+  V(JS_FRAME)                      \
+  V(CONSTRUCT_STUB_FRAME)          \
+  V(GETTER_STUB_FRAME)             \
+  V(SETTER_STUB_FRAME)             \
+  V(ARGUMENTS_ADAPTOR_FRAME)       \
+  V(COMPILED_STUB_FRAME)           \
+  V(DUPLICATED_OBJECT)             \
+  V(ARGUMENTS_OBJECT)              \
+  V(CAPTURED_OBJECT)               \
+  V(REGISTER)                      \
+  V(INT32_REGISTER)                \
+  V(UINT32_REGISTER)               \
+  V(BOOL_REGISTER)                 \
+  V(DOUBLE_REGISTER)               \
+  V(STACK_SLOT)                    \
+  V(INT32_STACK_SLOT)              \
+  V(UINT32_STACK_SLOT)             \
+  V(BOOL_STACK_SLOT)               \
+  V(DOUBLE_STACK_SLOT)             \
   V(LITERAL)
 
 
@@ -811,10 +813,12 @@ class Translation BASE_EMBEDDED {
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
   void StoreUint32Register(Register reg);
+  void StoreBoolRegister(Register reg);
   void StoreDoubleRegister(DoubleRegister reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreUint32StackSlot(int index);
+  void StoreBoolStackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreArgumentsObject(bool args_known, int args_index, int args_length);
@@ -844,6 +848,7 @@ class SlotRef BASE_EMBEDDED {
     TAGGED,
     INT32,
     UINT32,
+    BOOLBIT,
     DOUBLE,
     LITERAL,
     DEFERRED_OBJECT,   // Object captured by the escape analysis.
