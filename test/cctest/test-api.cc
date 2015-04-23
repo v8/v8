@@ -16682,6 +16682,8 @@ TEST(VerifyArrayPrototypeGuarantees) {
   BreakArrayGuarantees("Object.prototype[3] = 'three';");
   BreakArrayGuarantees("Array.prototype.push(1);");
   BreakArrayGuarantees("Array.prototype.unshift(1);");
+  // Break fast array hole handling by changing length.
+  BreakArrayGuarantees("Array.prototype.length = 30;");
   // Break fast array hole handling by prototype structure changes.
   BreakArrayGuarantees("[].__proto__.__proto__ = { funny: true };");
   // By sending elements to dictionary mode.

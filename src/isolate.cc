@@ -2374,16 +2374,18 @@ bool Isolate::use_crankshaft() const {
 
 
 bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
-  Handle<PropertyCell> no_elements_cell =
-      handle(heap()->array_protector(), this);
+  PropertyCell* no_elements_cell = heap()->array_protector();
   bool cell_reports_intact = no_elements_cell->value()->IsSmi() &&
                              Smi::cast(no_elements_cell->value())->value() == 1;
 
 #ifdef DEBUG
   Map* root_array_map =
       get_initial_js_array_map(GetInitialFastElementsKind());
-  JSObject* initial_array_proto = JSObject::cast(*initial_array_prototype());
-  JSObject* initial_object_proto = JSObject::cast(*initial_object_prototype());
+  Context* native_context = context()->native_context();
+  JSObject* initial_array_proto = JSObject::cast(
+      native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+  JSObject* initial_object_proto = JSObject::cast(
+      native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX));
 
   if (root_array_map == NULL || initial_array_proto == initial_object_proto) {
     // We are in the bootstrapping process, and the entire check sequence
@@ -2426,7 +2428,6 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 
 
 void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
-  Handle<PropertyCell> array_protector = factory()->array_protector();
   if (IsFastArrayConstructorPrototypeChainIntact() &&
       object->map()->is_prototype_map()) {
     Object* context = heap()->native_contexts_list();
@@ -2436,7 +2437,7 @@ void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
               *object ||
           current_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
               *object) {
-        PropertyCell::SetValueWithInvalidation(array_protector,
+        PropertyCell::SetValueWithInvalidation(factory()->array_protector(),
                                                handle(Smi::FromInt(0), this));
         break;
       }

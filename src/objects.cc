@@ -11911,8 +11911,11 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
   DCHECK(!object->HasExternalArrayElements());
 
   // Allocate a new fast elements backing store.
+  Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> new_elements =
-      object->GetIsolate()->factory()->NewUninitializedFixedArray(capacity);
+      isolate->factory()->NewUninitializedFixedArray(capacity);
+
+  isolate->UpdateArrayProtectorOnSetLength(object);
 
   ElementsKind elements_kind = object->GetElementsKind();
   ElementsKind new_elements_kind;
