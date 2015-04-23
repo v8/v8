@@ -82,7 +82,7 @@ static Handle<String> NameToFunctionName(Handle<Name> name) {
     stringName = Handle<String>::cast(name);
   }
 
-  return String::Flatten(stringName);
+  return stringName;
 }
 
 
