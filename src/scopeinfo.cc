@@ -208,8 +208,8 @@ int ScopeInfo::ContextLength() {
         FunctionVariableField::decode(Flags()) == CONTEXT;
     bool has_context = context_locals > 0 || function_name_context_slot ||
                        scope_type() == WITH_SCOPE ||
-                       (scope_type() == ARROW_SCOPE && CallsEval()) ||
-                       (scope_type() == FUNCTION_SCOPE && CallsEval()) ||
+                       (scope_type() == ARROW_SCOPE && CallsSloppyEval()) ||
+                       (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
                        scope_type() == MODULE_SCOPE;
     if (has_context) {
       return Context::MIN_CONTEXT_SLOTS + context_locals +

@@ -1464,7 +1464,7 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
   // even if no local variables were statically allocated in the scope.
   // Likewise for modules.
   bool must_have_context = is_with_scope() || is_module_scope() ||
-      (is_function_scope() && calls_eval());
+                           (is_function_scope() && calls_sloppy_eval());
 
   // If we didn't allocate any locals in the local context, then we only
   // need the minimal number of slots if we must have a context.
