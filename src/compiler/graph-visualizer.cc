@@ -756,11 +756,10 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
       hint_index = UnallocatedOperand::cast(op)->virtual_register();
     }
     os_ << " " << parent_index << " " << hint_index;
-    UseInterval* cur_interval = range->first_interval();
-    while (cur_interval != NULL && range->Covers(cur_interval->start())) {
-      os_ << " [" << cur_interval->start().Value() << ", "
-          << cur_interval->end().Value() << "[";
-      cur_interval = cur_interval->next();
+    for (auto interval = range->first_interval(); interval != nullptr;
+         interval = interval->next()) {
+      os_ << " [" << interval->start().Value() << ", "
+          << interval->end().Value() << "[";
     }
 
     UsePosition* current_pos = range->first_pos();

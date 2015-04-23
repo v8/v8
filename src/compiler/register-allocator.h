@@ -146,7 +146,7 @@ class UseInterval final : public ZoneObject {
 
   // Split this interval at the given position without effecting the
   // live range that owns it. The interval must contain the position.
-  void SplitAt(LifetimePosition pos, Zone* zone);
+  UseInterval* SplitAt(LifetimePosition pos, Zone* zone);
 
   // If this interval intersects with other return smallest position
   // that belongs to both of them.
@@ -341,8 +341,6 @@ class LiveRange final : public ZoneObject {
   // Shorten the most recently added interval by setting a new start.
   void ShortenTo(LifetimePosition start);
 
-  // True if target overlaps an existing interval.
-  bool HasOverlap(UseInterval* target) const;
   void Verify() const;
 
   void ConvertUsesToOperand(const InstructionOperand& op,

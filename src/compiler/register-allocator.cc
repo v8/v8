@@ -112,12 +112,13 @@ void UsePosition::set_type(UsePositionType type, bool register_beneficial) {
 }
 
 
-void UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
+UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
   DCHECK(Contains(pos) && pos.Value() != start().Value());
   auto after = new (zone) UseInterval(pos, end_);
   after->next_ = next_;
-  next_ = after;
+  next_ = nullptr;
   end_ = pos;
+  return after;
 }
 
 
@@ -154,26 +155,18 @@ LiveRange::LiveRange(int id)
 
 
 void LiveRange::Verify() const {
-  UsePosition* cur = first_pos_;
-  while (cur != nullptr) {
-    CHECK(Start().Value() <= cur->pos().Value() &&
-          cur->pos().Value() <= End().Value());
-    cur = cur->next();
-  }
-}
-
-
-bool LiveRange::HasOverlap(UseInterval* target) const {
-  UseInterval* current_interval = first_interval_;
-  while (current_interval != nullptr) {
-    // Intervals overlap if the start of one is contained in the other.
-    if (current_interval->Contains(target->start()) ||
-        target->Contains(current_interval->start())) {
-      return true;
+  // Walk the positions, verifying that each is in an interval.
+  auto interval = first_interval_;
+  for (auto pos = first_pos_; pos != nullptr; pos = pos->next()) {
+    CHECK(Start().Value() <= pos->pos().Value());
+    CHECK(pos->pos().Value() <= End().Value());
+    CHECK(interval != nullptr);
+    while (!interval->Contains(pos->pos()) &&
+           interval->end().Value() != pos->pos().Value()) {
+      interval = interval->next();
+      CHECK(interval != nullptr);
     }
-    current_interval = current_interval->next();
   }
-  return false;
 }
 
 
@@ -366,9 +359,10 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
     current = first_interval_;
   }
 
+  UseInterval* after = nullptr;
   while (current != nullptr) {
     if (current->Contains(position)) {
-      current->SplitAt(position, zone);
+      after = current->SplitAt(position, zone);
       break;
     }
     auto next = current->next();
@@ -381,7 +375,7 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
 
   // Partition original use intervals to the two live ranges.
   auto before = current;
-  auto after = before->next();
+  if (after == nullptr) after = before->next();
   result->last_interval_ =
       (last_interval_ == before)
           ? after            // Only interval in the range after split.
@@ -632,26 +626,29 @@ static bool AreUseIntervalsIntersecting(UseInterval* interval1,
 }
 
 
-SpillRange::SpillRange(LiveRange* range, Zone* zone) : live_ranges_(zone) {
-  auto src = range->first_interval();
+SpillRange::SpillRange(LiveRange* parent, Zone* zone) : live_ranges_(zone) {
+  DCHECK(!parent->IsChild());
   UseInterval* result = nullptr;
   UseInterval* node = nullptr;
-  // Copy the nodes
-  while (src != nullptr) {
-    auto new_node = new (zone) UseInterval(src->start(), src->end());
-    if (result == nullptr) {
-      result = new_node;
-    } else {
-      node->set_next(new_node);
+  // Copy the intervals for all ranges.
+  for (auto range = parent; range != nullptr; range = range->next()) {
+    auto src = range->first_interval();
+    while (src != nullptr) {
+      auto new_node = new (zone) UseInterval(src->start(), src->end());
+      if (result == nullptr) {
+        result = new_node;
+      } else {
+        node->set_next(new_node);
+      }
+      node = new_node;
+      src = src->next();
     }
-    node = new_node;
-    src = src->next();
   }
   use_interval_ = result;
-  live_ranges().push_back(range);
+  live_ranges().push_back(parent);
   end_position_ = node->end();
-  DCHECK(!range->HasSpillRange());
-  range->SetSpillRange(this);
+  DCHECK(!parent->HasSpillRange());
+  parent->SetSpillRange(this);
 }
 
 
