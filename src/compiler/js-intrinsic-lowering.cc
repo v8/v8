@@ -1,4 +1,3 @@
-
 // Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -13,6 +12,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -114,8 +114,9 @@ Reduction JSIntrinsicLowering::ReduceCreateArrayLiteral(Node* node) {
     Callable callable = CodeFactory::FastCloneShallowArray(isolate);
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         isolate, graph()->zone(), callable.descriptor(), 0,
-        FLAG_turbo_deoptimization ? CallDescriptor::kNeedsFrameState
-                                  : CallDescriptor::kNoFlags);
+        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
+            ? CallDescriptor::kNeedsFrameState
+            : CallDescriptor::kNoFlags);
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     node->RemoveInput(3);  // Remove flags input from node.
@@ -143,8 +144,9 @@ Reduction JSIntrinsicLowering::ReduceCreateObjectLiteral(Node* node) {
     Callable callable = CodeFactory::FastCloneShallowObject(isolate, length);
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         isolate, graph()->zone(), callable.descriptor(), 0,
-        FLAG_turbo_deoptimization ? CallDescriptor::kNeedsFrameState
-                                  : CallDescriptor::kNoFlags);
+        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
+            ? CallDescriptor::kNeedsFrameState
+            : CallDescriptor::kNoFlags);
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     node->InsertInput(graph()->zone(), 0, stub_code);
@@ -157,6 +159,7 @@ Reduction JSIntrinsicLowering::ReduceCreateObjectLiteral(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
+  // TODO(jarin): This should not depend on the global flag.
   if (!FLAG_turbo_deoptimization) return NoChange();
 
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);

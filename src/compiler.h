@@ -126,7 +126,8 @@ class CompilationInfo {
     kDisableFutureOptimization = 1 << 12,
     kSplittingEnabled = 1 << 13,
     kBuiltinInliningEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15
+    kTypeFeedbackEnabled = 1 << 15,
+    kDeoptimizationEnabled = 1 << 16
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -215,6 +216,12 @@ class CompilationInfo {
 
   bool is_type_feedback_enabled() const {
     return GetFlag(kTypeFeedbackEnabled);
+  }
+
+  void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
+
+  bool is_deoptimization_enabled() const {
+    return GetFlag(kDeoptimizationEnabled);
   }
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }

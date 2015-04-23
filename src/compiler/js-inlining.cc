@@ -360,20 +360,18 @@ Reduction JSInliner::Reduce(Node* node) {
 
   Inlinee inlinee(visitor.GetCopy(graph.start()), visitor.GetCopy(graph.end()));
 
-  if (FLAG_turbo_deoptimization) {
-    Node* outer_frame_state = call.frame_state();
-    // Insert argument adaptor frame if required.
-    if (call.formal_arguments() != inlinee.formal_parameters()) {
-      outer_frame_state =
-          CreateArgumentsAdaptorFrameState(&call, function, info.zone());
-    }
+  Node* outer_frame_state = call.frame_state();
+  // Insert argument adaptor frame if required.
+  if (call.formal_arguments() != inlinee.formal_parameters()) {
+    outer_frame_state =
+        CreateArgumentsAdaptorFrameState(&call, function, info.zone());
+  }
 
-    for (Node* node : visitor.copies()) {
-      if (node && node->opcode() == IrOpcode::kFrameState) {
-        DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-        AddClosureToFrameState(node, function);
-        NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
-      }
+  for (Node* node : visitor.copies()) {
+    if (node && node->opcode() == IrOpcode::kFrameState) {
+      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+      AddClosureToFrameState(node, function);
+      NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
     }
   }
 

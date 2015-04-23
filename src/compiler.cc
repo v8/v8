@@ -115,6 +115,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_builtin_inlining) MarkAsBuiltinInliningEnabled();
+  if (FLAG_turbo_deoptimization) MarkAsDeoptimizationEnabled();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (FLAG_turbo_types) MarkAsTypingEnabled();

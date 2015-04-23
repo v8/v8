@@ -211,10 +211,14 @@ class JSBinopReduction final {
   }
 
   Node* CreateFrameStateForLeftInput(Node* frame_state) {
-    if (!FLAG_turbo_deoptimization) return nullptr;
-
     FrameStateCallInfo state_info =
         OpParameter<FrameStateCallInfo>(frame_state);
+
+    if (state_info.bailout_id() == BailoutId::None()) {
+      // Dummy frame state => just leave it as is.
+      return frame_state;
+    }
+
     // If the frame state is already the right one, just return it.
     if (state_info.state_combine().kind() == OutputFrameStateCombine::kPokeAt &&
         state_info.state_combine().GetOffsetToPokeAt() == 1) {
@@ -234,8 +238,6 @@ class JSBinopReduction final {
   }
 
   Node* CreateFrameStateForRightInput(Node* frame_state, Node* converted_left) {
-    if (!FLAG_turbo_deoptimization) return nullptr;
-
     FrameStateCallInfo state_info =
         OpParameter<FrameStateCallInfo>(frame_state);
 
@@ -279,13 +281,6 @@ class JSBinopReduction final {
   Node* ConvertToNumber(Node* node, Node* frame_state) {
     if (NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive())) {
       return ConvertPrimitiveToNumber(node);
-    } else if (!FLAG_turbo_deoptimization) {
-      // We cannot use ConvertToPrimitiveNumber here because we need context
-      // for converting general values.
-      Node* const n = graph()->NewNode(javascript()->ToNumber(), node,
-                                       context(), effect(), control());
-      update_effect(n);
-      return n;
     } else {
       Node* const n =
           graph()->NewNode(javascript()->ToNumber(), node, context(),
@@ -325,9 +320,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   }
   if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
-    Node* frame_state = FLAG_turbo_deoptimization
-                            ? NodeProperties::GetFrameStateInput(node, 1)
-                            : nullptr;
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
     r.ConvertInputsToNumber(frame_state);
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
@@ -351,9 +344,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
                                              const Operator* numberOp) {
   JSBinopReduction r(this, node);
-  Node* frame_state = FLAG_turbo_deoptimization
-                          ? NodeProperties::GetFrameStateInput(node, 1)
-                          : nullptr;
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(numberOp, Type::Number());
 }
@@ -361,9 +352,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   JSBinopReduction r(this, node);
-  Node* frame_state = FLAG_turbo_deoptimization
-                          ? NodeProperties::GetFrameStateInput(node, 1)
-                          : nullptr;
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   r.ConvertInputsToUI32(kSigned, kSigned);
   return r.ChangeToPureOperator(intOp, Type::Integral32());
@@ -700,11 +689,9 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
       NodeProperties::ReplaceControlInput(node, graph()->start());
       NodeProperties::ReplaceEffectInput(node, graph()->start());
-      if (FLAG_turbo_deoptimization) {
-        DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-        NodeProperties::ReplaceFrameStateInput(node, 0,
-                                               jsgraph()->EmptyFrameState());
-      }
+      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+      NodeProperties::ReplaceFrameStateInput(node, 0,
+                                             jsgraph()->EmptyFrameState());
       return Changed(node);
     }
   }
@@ -841,19 +828,11 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         if (number_reduction.Changed()) {
           value = number_reduction.replacement();
         } else {
-          DCHECK(FLAG_turbo_deoptimization ==
-                 (OperatorProperties::GetFrameStateInputCount(
-                      javascript()->ToNumber()) == 1));
-          if (FLAG_turbo_deoptimization) {
-            Node* frame_state_for_to_number =
-                NodeProperties::GetFrameStateInput(node, 1);
-            value = effect =
-                graph()->NewNode(javascript()->ToNumber(), value, context,
-                                 frame_state_for_to_number, effect, control);
-          } else {
-            value = effect = graph()->NewNode(javascript()->ToNumber(), value,
-                                              context, effect, control);
-          }
+          Node* frame_state_for_to_number =
+              NodeProperties::GetFrameStateInput(node, 1);
+          value = effect =
+              graph()->NewNode(javascript()->ToNumber(), value, context,
+                               frame_state_for_to_number, effect, control);
         }
       }
       // For integer-typed arrays, convert to the integer type.
@@ -1036,15 +1015,9 @@ Node* JSTypedLowering::ConvertPrimitiveToNumber(Node* input) {
   Reduction const reduction = ReduceJSToNumberInput(input);
   if (reduction.Changed()) return reduction.replacement();
   // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
-  Node* const conversion =
-      FLAG_turbo_deoptimization
-          ? graph()->NewNode(javascript()->ToNumber(), input,
-                             jsgraph()->NoContextConstant(),
-                             jsgraph()->EmptyFrameState(), graph()->start(),
-                             graph()->start())
-          : graph()->NewNode(javascript()->ToNumber(), input,
-                             jsgraph()->NoContextConstant(), graph()->start(),
-                             graph()->start());
+  Node* const conversion = graph()->NewNode(
+      javascript()->ToNumber(), input, jsgraph()->NoContextConstant(),
+      jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());
   InsertConversion(conversion);
   return conversion;
 }

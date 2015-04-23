@@ -21,9 +21,6 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 
 // static
 int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
-  if (!FLAG_turbo_deoptimization) {
-    return 0;
-  }
   switch (op->opcode()) {
     case IrOpcode::kFrameState:
       return 1;

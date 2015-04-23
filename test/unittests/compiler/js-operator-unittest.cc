@@ -107,17 +107,14 @@ TEST_P(JSSharedOperatorTest, NumberOfInputsAndOutputs) {
   const Operator* op = (javascript.*sop.constructor)();
 
   const int context_input_count = 1;
-  // TODO(jarin): Get rid of this hack.
-  const int frame_state_input_count =
-      FLAG_turbo_deoptimization ? sop.frame_state_input_count : 0;
   EXPECT_EQ(sop.value_input_count, op->ValueInputCount());
   EXPECT_EQ(context_input_count, OperatorProperties::GetContextInputCount(op));
-  EXPECT_EQ(frame_state_input_count,
+  EXPECT_EQ(sop.frame_state_input_count,
             OperatorProperties::GetFrameStateInputCount(op));
   EXPECT_EQ(sop.effect_input_count, op->EffectInputCount());
   EXPECT_EQ(sop.control_input_count, op->ControlInputCount());
   EXPECT_EQ(sop.value_input_count + context_input_count +
-                frame_state_input_count + sop.effect_input_count +
+                sop.frame_state_input_count + sop.effect_input_count +
                 sop.control_input_count,
             OperatorProperties::GetTotalInputCount(op));
 
@@ -169,16 +166,12 @@ TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
   const LanguageMode mode = GetParam();
   const Operator* op = javascript.StoreProperty(mode);
 
-  // TODO(jarin): Get rid of this hack.
-  const int frame_state_input_count = FLAG_turbo_deoptimization ? 2 : 0;
   EXPECT_EQ(3, op->ValueInputCount());
   EXPECT_EQ(1, OperatorProperties::GetContextInputCount(op));
-  EXPECT_EQ(frame_state_input_count,
-            OperatorProperties::GetFrameStateInputCount(op));
+  EXPECT_EQ(2, OperatorProperties::GetFrameStateInputCount(op));
   EXPECT_EQ(1, op->EffectInputCount());
   EXPECT_EQ(1, op->ControlInputCount());
-  EXPECT_EQ(6 + frame_state_input_count,
-            OperatorProperties::GetTotalInputCount(op));
+  EXPECT_EQ(8, OperatorProperties::GetTotalInputCount(op));
 
   EXPECT_EQ(0, op->ValueOutputCount());
   EXPECT_EQ(1, op->EffectOutputCount());

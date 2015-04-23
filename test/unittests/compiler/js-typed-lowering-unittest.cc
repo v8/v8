@@ -417,11 +417,8 @@ TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
-      FLAG_turbo_deoptimization
-          ? Reduce(graph()->NewNode(javascript()->ToNumber(), input, context,
-                                    EmptyFrameState(), effect, control))
-          : Reduce(graph()->NewNode(javascript()->ToNumber(), input, context,
-                                    effect, control));
+      Reduce(graph()->NewNode(javascript()->ToNumber(), input, context,
+                              EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(BitEq(0.0)),
                                           graph()->start(), control));
@@ -639,14 +636,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Node* node = graph()->NewNode(javascript()->LoadProperty(feedback), base,
-                                  key, context);
-    if (FLAG_turbo_deoptimization) {
-      node->AppendInput(zone(), UndefinedConstant());
-    }
-    node->AppendInput(zone(), effect);
-    node->AppendInput(zone(), control);
-    Reduction r = Reduce(node);
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
+                                context, EmptyFrameState(), effect, control));
 
     Matcher<Node*> offset_matcher =
         element_size == 1
@@ -685,14 +677,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Node* node = graph()->NewNode(javascript()->LoadProperty(feedback), base,
-                                  key, context);
-    if (FLAG_turbo_deoptimization) {
-      node->AppendInput(zone(), UndefinedConstant());
-    }
-    node->AppendInput(zone(), effect);
-    node->AppendInput(zone(), control);
-    Reduction r = Reduce(node);
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
+                                context, EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
@@ -875,16 +862,11 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
 
   for (size_t i = 0; i < arraysize(names); i++) {
     Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
-    Node* node = graph()->NewNode(javascript()->LoadNamed(name, feedback),
-                                  global, context);
-    if (FLAG_turbo_deoptimization) {
-      node->AppendInput(zone(), EmptyFrameState());
-    }
-    node->AppendInput(zone(), effect);
-    node->AppendInput(zone(), control);
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->LoadNamed(name, feedback), global,
+                                context, EmptyFrameState(), effect, control));
 
-    Reduction r = Reduce(node);
-
+    ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), matches[i]);
   }
 }

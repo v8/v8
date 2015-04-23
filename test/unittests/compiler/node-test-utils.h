@@ -98,8 +98,25 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& value2_matcher,
                       const Matcher<Node*>& value3_matcher,
+                      const Matcher<Node*>& value4_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& value1_matcher,
+                      const Matcher<Node*>& value2_matcher,
+                      const Matcher<Node*>& value3_matcher,
+                      const Matcher<Node*>& value4_matcher,
+                      const Matcher<Node*>& value5_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsCall(
+    const Matcher<CallDescriptor*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& value3_matcher,
+    const Matcher<Node*>& value4_matcher, const Matcher<Node*>& value5_matcher,
+    const Matcher<Node*>& value6_matcher, const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,

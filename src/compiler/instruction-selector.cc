@@ -1057,8 +1057,6 @@ void InstructionSelector::VisitReturn(Node* value) {
 
 
 void InstructionSelector::VisitDeoptimize(Node* value) {
-  DCHECK(FLAG_turbo_deoptimization);
-
   OperandGenerator g(this);
 
   FrameStateDescriptor* desc = GetFrameStateDescriptor(value);

@@ -738,7 +738,9 @@ void AstGraphBuilder::Environment::UpdateStateValuesWithCache(
 
 Node* AstGraphBuilder::Environment::Checkpoint(
     BailoutId ast_id, OutputFrameStateCombine combine) {
-  if (!FLAG_turbo_deoptimization) return nullptr;
+  if (!builder()->info()->is_deoptimization_enabled()) {
+    return builder()->jsgraph()->EmptyFrameState();
+  }
 
   UpdateStateValues(&parameters_node_, 0, parameters_count());
   UpdateStateValuesWithCache(&locals_node_, parameters_count(), locals_count());

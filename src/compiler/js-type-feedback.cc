@@ -61,11 +61,9 @@ Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
         // StoreProperty(o, "constant", v) => StoreNamed["constant"](o, v).
         Unique<Name> name = match.Value();
         LanguageMode language_mode = OpParameter<LanguageMode>(node);
-        if (FLAG_turbo_deoptimization) {
-          // StoreProperty has 2 frame state inputs, but StoreNamed only 1.
-          DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
-          node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
-        }
+        // StoreProperty has 2 frame state inputs, but StoreNamed only 1.
+        DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
+        node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
         node->set_op(
             jsgraph()->javascript()->StoreNamed(language_mode, name, KEYED));
         node->RemoveInput(1);
@@ -148,8 +146,6 @@ static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
-  // TODO(turbofan): type feedback currently requires deoptimization.
-  if (!FLAG_turbo_deoptimization) return NoChange();
   // TODO(titzer): deopt locations are wrong for property accesses
   if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
 
@@ -202,8 +198,6 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadProperty(Node* node) {
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
-  // TODO(turbofan): type feedback currently requires deoptimization.
-  if (!FLAG_turbo_deoptimization) return NoChange();
   // TODO(titzer): deopt locations are wrong for property accesses
   if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
 

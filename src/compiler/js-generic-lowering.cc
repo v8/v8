@@ -138,11 +138,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
     inputs.push_back(graph()->start());
     inputs.push_back(graph()->start());
   } else {
-    DCHECK((OperatorProperties::GetFrameStateInputCount(node->op()) == 1) ==
-           FLAG_turbo_deoptimization);
-    if (FLAG_turbo_deoptimization) {
-      inputs.push_back(NodeProperties::GetFrameStateInput(node, 0));
-    }
+    inputs.push_back(NodeProperties::GetFrameStateInput(node, 0));
     inputs.push_back(NodeProperties::GetEffectInput(node));
     inputs.push_back(NodeProperties::GetControlInput(node));
   }

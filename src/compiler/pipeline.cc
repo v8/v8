@@ -1042,7 +1042,9 @@ Handle<Code> Pipeline::GenerateCode() {
       RunPrintAndVerify("OSR deconstruction");
     }
 
-    if (info()->is_type_feedback_enabled()) {
+    // TODO(turbofan): Type feedback currently requires deoptimization.
+    if (info()->is_deoptimization_enabled() &&
+        info()->is_type_feedback_enabled()) {
       Run<JSTypeFeedbackPhase>();
       RunPrintAndVerify("JSType feedback");
     }
