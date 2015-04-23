@@ -558,11 +558,8 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       return VisitSwitch(input, sw);
     }
     case BasicBlock::kReturn: {
-      // If the result itself is a return, return its input.
-      Node* value = (input != nullptr && input->opcode() == IrOpcode::kReturn)
-                        ? input->InputAt(0)
-                        : input;
-      return VisitReturn(value);
+      DCHECK_EQ(IrOpcode::kReturn, input->opcode());
+      return VisitReturn(input->InputAt(0));
     }
     case BasicBlock::kDeoptimize: {
       // If the result itself is a return, return its input.
@@ -1045,14 +1042,11 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
 
 
 void InstructionSelector::VisitReturn(Node* value) {
+  DCHECK_NOT_NULL(value);
   OperandGenerator g(this);
-  if (value != NULL) {
-    Emit(kArchRet, g.NoOutput(),
-         g.UseLocation(value, linkage()->GetReturnLocation(),
-                       linkage()->GetReturnType()));
-  } else {
-    Emit(kArchRet, g.NoOutput());
-  }
+  Emit(kArchRet, g.NoOutput(),
+       g.UseLocation(value, linkage()->GetReturnLocation(),
+                     linkage()->GetReturnType()));
 }
 
 
