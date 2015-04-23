@@ -443,6 +443,7 @@ assertTrue(setSizeDescriptor.get instanceof Function);
 assertEquals(undefined, setSizeDescriptor.get.prototype);
 assertFalse(setSizeDescriptor.enumerable);
 assertTrue(setSizeDescriptor.configurable);
+assertEquals('get size', setSizeDescriptor.get.name);
 
 var s = new Set();
 assertFalse(s.hasOwnProperty('size'));
@@ -463,6 +464,7 @@ assertTrue(mapSizeDescriptor.get instanceof Function);
 assertEquals(undefined, mapSizeDescriptor.get.prototype);
 assertFalse(mapSizeDescriptor.enumerable);
 assertTrue(mapSizeDescriptor.configurable);
+assertEquals('get size', mapSizeDescriptor.get.name);
 
 var m = new Map();
 assertFalse(m.hasOwnProperty('size'));

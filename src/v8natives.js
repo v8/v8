@@ -46,7 +46,8 @@ function InstallGetter(object, name, getter, attributes) {
   if (typeof attributes == "undefined") {
     attributes = DONT_ENUM;
   }
-  %FunctionSetName(getter, name);
+  %FunctionSetName(getter, "get " +
+      (IS_SYMBOL(name) ? "[" + %SymbolDescription(name) + "]" : name));
   %FunctionRemovePrototype(getter);
   %DefineAccessorPropertyUnchecked(object, name, getter, null, attributes);
   %SetNativeFlag(getter);
@@ -55,8 +56,10 @@ function InstallGetter(object, name, getter, attributes) {
 
 // Helper function to install a getter/setter accessor property.
 function InstallGetterSetter(object, name, getter, setter) {
-  %FunctionSetName(getter, name);
-  %FunctionSetName(setter, name);
+  var functionName =
+      IS_SYMBOL(name) ? "[" + %SymbolDescription(name) + "]" : name;
+  %FunctionSetName(getter, "get " + functionName);
+  %FunctionSetName(setter, "set " + functionName);
   %FunctionRemovePrototype(getter);
   %FunctionRemovePrototype(setter);
   %DefineAccessorPropertyUnchecked(object, name, getter, setter, DONT_ENUM);
