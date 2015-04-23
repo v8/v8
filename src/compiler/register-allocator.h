@@ -46,7 +46,7 @@ class LifetimePosition final {
   }
 
   // Returns a numeric representation of this lifetime position.
-  int Value() const { return value_; }
+  int value() const { return value_; }
 
   // Returns the index of the instruction to which this lifetime position
   // corresponds.
@@ -78,26 +78,26 @@ class LifetimePosition final {
   // Returns the lifetime position for the current END.
   LifetimePosition End() const {
     DCHECK(IsValid());
-    return LifetimePosition(Start().Value() + kHalfStep / 2);
+    return LifetimePosition(Start().value_ + kHalfStep / 2);
   }
 
   // Returns the lifetime position for the beginning of the next START.
   LifetimePosition NextStart() const {
     DCHECK(IsValid());
-    return LifetimePosition(Start().Value() + kHalfStep);
+    return LifetimePosition(Start().value_ + kHalfStep);
   }
 
   // Returns the lifetime position for the beginning of the next gap START.
   LifetimePosition NextFullStart() const {
     DCHECK(IsValid());
-    return LifetimePosition(FullStart().Value() + kStep);
+    return LifetimePosition(FullStart().value_ + kStep);
   }
 
   // Returns the lifetime position for the beginning of the previous START.
   LifetimePosition PrevStart() const {
     DCHECK(IsValid());
     DCHECK(value_ >= kHalfStep);
-    return LifetimePosition(Start().Value() - kHalfStep);
+    return LifetimePosition(Start().value_ - kHalfStep);
   }
 
   // Constructs the lifetime position which does not correspond to any
@@ -107,6 +107,30 @@ class LifetimePosition final {
   // Returns true if this lifetime positions corrensponds to some
   // instruction.
   bool IsValid() const { return value_ != -1; }
+
+  bool operator<(const LifetimePosition& that) const {
+    return this->value_ < that.value_;
+  }
+
+  bool operator<=(const LifetimePosition& that) const {
+    return this->value_ <= that.value_;
+  }
+
+  bool operator==(const LifetimePosition& that) const {
+    return this->value_ == that.value_;
+  }
+
+  bool operator!=(const LifetimePosition& that) const {
+    return this->value_ != that.value_;
+  }
+
+  bool operator>(const LifetimePosition& that) const {
+    return this->value_ > that.value_;
+  }
+
+  bool operator>=(const LifetimePosition& that) const {
+    return this->value_ >= that.value_;
+  }
 
   static inline LifetimePosition Invalid() { return LifetimePosition(); }
 
@@ -134,7 +158,7 @@ class UseInterval final : public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
       : start_(start), end_(end), next_(nullptr) {
-    DCHECK(start.Value() < end.Value());
+    DCHECK(start < end);
   }
 
   LifetimePosition start() const { return start_; }
@@ -151,13 +175,13 @@ class UseInterval final : public ZoneObject {
   // If this interval intersects with other return smallest position
   // that belongs to both of them.
   LifetimePosition Intersect(const UseInterval* other) const {
-    if (other->start().Value() < start_.Value()) return other->Intersect(this);
-    if (other->start().Value() < end_.Value()) return other->start();
+    if (other->start() < start_) return other->Intersect(this);
+    if (other->start() < end_) return other->start();
     return LifetimePosition::Invalid();
   }
 
   bool Contains(LifetimePosition point) const {
-    return start_.Value() <= point.Value() && point.Value() < end_.Value();
+    return start_ <= point && point < end_;
   }
 
  private:

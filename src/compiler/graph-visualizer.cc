@@ -604,10 +604,10 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       int last_index = instruction_block->last_instruction_index();
       PrintIntProperty(
           "first_lir_id",
-          LifetimePosition::GapFromInstructionIndex(first_index).Value());
+          LifetimePosition::GapFromInstructionIndex(first_index).value());
       PrintIntProperty("last_lir_id",
                        LifetimePosition::InstructionFromInstructionIndex(
-                           last_index).Value());
+                           last_index).value());
     }
 
     {
@@ -758,14 +758,14 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
     os_ << " " << parent_index << " " << hint_index;
     for (auto interval = range->first_interval(); interval != nullptr;
          interval = interval->next()) {
-      os_ << " [" << interval->start().Value() << ", "
-          << interval->end().Value() << "[";
+      os_ << " [" << interval->start().value() << ", "
+          << interval->end().value() << "[";
     }
 
     UsePosition* current_pos = range->first_pos();
     while (current_pos != NULL) {
       if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
-        os_ << " " << current_pos->pos().Value() << " M";
+        os_ << " " << current_pos->pos().value() << " M";
       }
       current_pos = current_pos->next();
     }

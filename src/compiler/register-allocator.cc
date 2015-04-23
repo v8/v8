@@ -19,16 +19,6 @@ namespace compiler {
 
 namespace {
 
-inline LifetimePosition Min(LifetimePosition a, LifetimePosition b) {
-  return a.Value() < b.Value() ? a : b;
-}
-
-
-inline LifetimePosition Max(LifetimePosition a, LifetimePosition b) {
-  return a.Value() > b.Value() ? a : b;
-}
-
-
 void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
   auto it = std::find(v->begin(), v->end(), range);
   DCHECK(it != v->end());
@@ -113,7 +103,7 @@ void UsePosition::set_type(UsePositionType type, bool register_beneficial) {
 
 
 UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
-  DCHECK(Contains(pos) && pos.Value() != start().Value());
+  DCHECK(Contains(pos) && pos != start());
   auto after = new (zone) UseInterval(pos, end_);
   after->next_ = next_;
   next_ = nullptr;
@@ -158,11 +148,10 @@ void LiveRange::Verify() const {
   // Walk the positions, verifying that each is in an interval.
   auto interval = first_interval_;
   for (auto pos = first_pos_; pos != nullptr; pos = pos->next()) {
-    CHECK(Start().Value() <= pos->pos().Value());
-    CHECK(pos->pos().Value() <= End().Value());
+    CHECK(Start() <= pos->pos());
+    CHECK(pos->pos() <= End());
     CHECK(interval != nullptr);
-    while (!interval->Contains(pos->pos()) &&
-           interval->end().Value() != pos->pos().Value()) {
+    while (!interval->Contains(pos->pos()) && interval->end() != pos->pos()) {
       interval = interval->next();
       CHECK(interval != nullptr);
     }
@@ -247,10 +236,10 @@ void LiveRange::CommitSpillOperand(AllocatedOperand* operand) {
 
 UsePosition* LiveRange::NextUsePosition(LifetimePosition start) const {
   UsePosition* use_pos = last_processed_use_;
-  if (use_pos == nullptr || use_pos->pos().Value() > start.Value()) {
+  if (use_pos == nullptr || use_pos->pos() > start) {
     use_pos = first_pos();
   }
-  while (use_pos != nullptr && use_pos->pos().Value() < start.Value()) {
+  while (use_pos != nullptr && use_pos->pos() < start) {
     use_pos = use_pos->next();
   }
   last_processed_use_ = use_pos;
@@ -272,7 +261,7 @@ UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
     LifetimePosition start) const {
   auto pos = first_pos();
   UsePosition* prev = nullptr;
-  while (pos != nullptr && pos->pos().Value() < start.Value()) {
+  while (pos != nullptr && pos->pos() < start) {
     if (pos->RegisterIsBeneficial()) prev = pos;
     pos = pos->next();
   }
@@ -294,7 +283,7 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) const {
   // at the current or the immediate next position.
   auto use_pos = NextRegisterPosition(pos);
   if (use_pos == nullptr) return true;
-  return use_pos->pos().Value() > pos.NextStart().End().Value();
+  return use_pos->pos() > pos.NextStart().End();
 }
 
 
@@ -321,7 +310,7 @@ InstructionOperand LiveRange::GetAssignedOperand() const {
 UseInterval* LiveRange::FirstSearchIntervalForPosition(
     LifetimePosition position) const {
   if (current_interval_ == nullptr) return first_interval_;
-  if (current_interval_->start().Value() > position.Value()) {
+  if (current_interval_->start() > position) {
     current_interval_ = nullptr;
     return first_interval_;
   }
@@ -332,10 +321,10 @@ UseInterval* LiveRange::FirstSearchIntervalForPosition(
 void LiveRange::AdvanceLastProcessedMarker(
     UseInterval* to_start_of, LifetimePosition but_not_past) const {
   if (to_start_of == nullptr) return;
-  if (to_start_of->start().Value() > but_not_past.Value()) return;
+  if (to_start_of->start() > but_not_past) return;
   auto start = current_interval_ == nullptr ? LifetimePosition::Invalid()
                                             : current_interval_->start();
-  if (to_start_of->start().Value() > start.Value()) {
+  if (to_start_of->start() > start) {
     current_interval_ = to_start_of;
   }
 }
@@ -343,7 +332,7 @@ void LiveRange::AdvanceLastProcessedMarker(
 
 void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
                         Zone* zone) {
-  DCHECK(Start().Value() < position.Value());
+  DCHECK(Start() < position);
   DCHECK(result->IsEmpty());
   // Find the last interval that ends before the position. If the
   // position is contained in one of the intervals in the chain, we
@@ -354,7 +343,7 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
   // we need to split use positons in a special way.
   bool split_at_start = false;
 
-  if (current->start().Value() == position.Value()) {
+  if (current->start() == position) {
     // When splitting at start we need to locate the previous use interval.
     current = first_interval_;
   }
@@ -366,8 +355,8 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
       break;
     }
     auto next = current->next();
-    if (next->start().Value() >= position.Value()) {
-      split_at_start = (next->start().Value() == position.Value());
+    if (next->start() >= position) {
+      split_at_start = (next->start() == position);
       break;
     }
     current = next;
@@ -391,14 +380,12 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
     // The split position coincides with the beginning of a use interval (the
     // end of a lifetime hole). Use at this position should be attributed to
     // the split child because split child owns use interval covering it.
-    while (use_after != nullptr &&
-           use_after->pos().Value() < position.Value()) {
+    while (use_after != nullptr && use_after->pos() < position) {
       use_before = use_after;
       use_after = use_after->next();
     }
   } else {
-    while (use_after != nullptr &&
-           use_after->pos().Value() <= position.Value()) {
+    while (use_after != nullptr && use_after->pos() <= position) {
       use_before = use_after;
       use_after = use_after->next();
     }
@@ -439,34 +426,33 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
 bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
   LifetimePosition start = Start();
   LifetimePosition other_start = other->Start();
-  if (start.Value() == other_start.Value()) {
+  if (start == other_start) {
     UsePosition* pos = first_pos();
     if (pos == nullptr) return false;
     UsePosition* other_pos = other->first_pos();
     if (other_pos == nullptr) return true;
-    return pos->pos().Value() < other_pos->pos().Value();
+    return pos->pos() < other_pos->pos();
   }
-  return start.Value() < other_start.Value();
+  return start < other_start;
 }
 
 
 void LiveRange::ShortenTo(LifetimePosition start) {
-  TRACE("Shorten live range %d to [%d\n", id_, start.Value());
+  TRACE("Shorten live range %d to [%d\n", id_, start.value());
   DCHECK(first_interval_ != nullptr);
-  DCHECK(first_interval_->start().Value() <= start.Value());
-  DCHECK(start.Value() < first_interval_->end().Value());
+  DCHECK(first_interval_->start() <= start);
+  DCHECK(start < first_interval_->end());
   first_interval_->set_start(start);
 }
 
 
 void LiveRange::EnsureInterval(LifetimePosition start, LifetimePosition end,
                                Zone* zone) {
-  TRACE("Ensure live range %d in interval [%d %d[\n", id_, start.Value(),
-        end.Value());
+  TRACE("Ensure live range %d in interval [%d %d[\n", id_, start.value(),
+        end.value());
   auto new_end = end;
-  while (first_interval_ != nullptr &&
-         first_interval_->start().Value() <= end.Value()) {
-    if (first_interval_->end().Value() > end.Value()) {
+  while (first_interval_ != nullptr && first_interval_->start() <= end) {
+    if (first_interval_->end() > end) {
       new_end = first_interval_->end();
     }
     first_interval_ = first_interval_->next();
@@ -483,16 +469,16 @@ void LiveRange::EnsureInterval(LifetimePosition start, LifetimePosition end,
 
 void LiveRange::AddUseInterval(LifetimePosition start, LifetimePosition end,
                                Zone* zone) {
-  TRACE("Add to live range %d interval [%d %d[\n", id_, start.Value(),
-        end.Value());
+  TRACE("Add to live range %d interval [%d %d[\n", id_, start.value(),
+        end.value());
   if (first_interval_ == nullptr) {
     auto interval = new (zone) UseInterval(start, end);
     first_interval_ = interval;
     last_interval_ = interval;
   } else {
-    if (end.Value() == first_interval_->start().Value()) {
+    if (end == first_interval_->start()) {
       first_interval_->set_start(start);
-    } else if (end.Value() < first_interval_->start().Value()) {
+    } else if (end < first_interval_->start()) {
       auto interval = new (zone) UseInterval(start, end);
       interval->set_next(first_interval_);
       first_interval_ = interval;
@@ -500,7 +486,7 @@ void LiveRange::AddUseInterval(LifetimePosition start, LifetimePosition end,
       // Order of instruction's processing (see ProcessInstructions) guarantees
       // that each new use interval either precedes or intersects with
       // last added interval.
-      DCHECK(start.Value() < first_interval_->end().Value());
+      DCHECK(start < first_interval_->end());
       first_interval_->set_start(Min(start, first_interval_->start()));
       first_interval_->set_end(Max(end, first_interval_->end()));
     }
@@ -511,12 +497,12 @@ void LiveRange::AddUseInterval(LifetimePosition start, LifetimePosition end,
 void LiveRange::AddUsePosition(LifetimePosition pos,
                                InstructionOperand* operand,
                                InstructionOperand* hint, Zone* zone) {
-  TRACE("Add to live range %d use position %d\n", id_, pos.Value());
+  TRACE("Add to live range %d use position %d\n", id_, pos.value());
   auto use_pos = new (zone) UsePosition(pos, operand, hint);
   UsePosition* prev_hint = nullptr;
   UsePosition* prev = nullptr;
   auto current = first_pos_;
-  while (current != nullptr && current->pos().Value() < pos.Value()) {
+  while (current != nullptr && current->pos() < pos) {
     prev_hint = current->HasHint() ? current : prev_hint;
     prev = current;
     current = current->next();
@@ -539,8 +525,7 @@ void LiveRange::AddUsePosition(LifetimePosition pos,
 void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
                                      InstructionOperand* spill_op) {
   for (auto pos = first_pos(); pos != nullptr; pos = pos->next()) {
-    DCHECK(Start().Value() <= pos->pos().Value() &&
-           pos->pos().Value() <= End().Value());
+    DCHECK(Start() <= pos->pos() && pos->pos() <= End());
     if (!pos->HasOperand()) {
       continue;
     }
@@ -563,8 +548,7 @@ void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
 
 bool LiveRange::CanCover(LifetimePosition position) const {
   if (IsEmpty()) return false;
-  return Start().Value() <= position.Value() &&
-         position.Value() < End().Value();
+  return Start() <= position && position < End();
 }
 
 
@@ -574,10 +558,10 @@ bool LiveRange::Covers(LifetimePosition position) const {
   for (auto interval = start_search; interval != nullptr;
        interval = interval->next()) {
     DCHECK(interval->next() == nullptr ||
-           interval->next()->start().Value() >= interval->start().Value());
+           interval->next()->start() >= interval->start());
     AdvanceLastProcessedMarker(interval, position);
     if (interval->Contains(position)) return true;
-    if (interval->start().Value() > position.Value()) return false;
+    if (interval->start() > position) return false;
   }
   return false;
 }
@@ -589,15 +573,15 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
   auto advance_last_processed_up_to = b->start();
   auto a = FirstSearchIntervalForPosition(b->start());
   while (a != nullptr && b != nullptr) {
-    if (a->start().Value() > other->End().Value()) break;
-    if (b->start().Value() > End().Value()) break;
+    if (a->start() > other->End()) break;
+    if (b->start() > End()) break;
     auto cur_intersection = a->Intersect(b);
     if (cur_intersection.IsValid()) {
       return cur_intersection;
     }
-    if (a->start().Value() < b->start().Value()) {
+    if (a->start() < b->start()) {
       a = a->next();
-      if (a == nullptr || a->start().Value() > other->End().Value()) break;
+      if (a == nullptr || a->start() > other->End()) break;
       AdvanceLastProcessedMarker(a, advance_last_processed_up_to);
     } else {
       b = b->next();
@@ -610,13 +594,13 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
 static bool AreUseIntervalsIntersecting(UseInterval* interval1,
                                         UseInterval* interval2) {
   while (interval1 != nullptr && interval2 != nullptr) {
-    if (interval1->start().Value() < interval2->start().Value()) {
-      if (interval1->end().Value() > interval2->start().Value()) {
+    if (interval1->start() < interval2->start()) {
+      if (interval1->end() > interval2->start()) {
         return true;
       }
       interval1 = interval1->next();
     } else {
-      if (interval2->end().Value() > interval1->start().Value()) {
+      if (interval2->end() > interval1->start()) {
         return true;
       }
       interval2 = interval2->next();
@@ -654,8 +638,8 @@ SpillRange::SpillRange(LiveRange* parent, Zone* zone) : live_ranges_(zone) {
 
 bool SpillRange::IsIntersectingWith(SpillRange* other) const {
   if (this->use_interval_ == nullptr || other->use_interval_ == nullptr ||
-      this->End().Value() <= other->use_interval_->start().Value() ||
-      other->End().Value() <= this->use_interval_->start().Value()) {
+      this->End() <= other->use_interval_->start() ||
+      other->End() <= this->use_interval_->start()) {
     return false;
   }
   return AreUseIntervalsIntersecting(use_interval_, other->use_interval_);
@@ -666,8 +650,7 @@ bool SpillRange::TryMerge(SpillRange* other) {
   if (Kind() != other->Kind() || IsIntersectingWith(other)) return false;
 
   auto max = LifetimePosition::MaxPosition();
-  if (End().Value() < other->End().Value() &&
-      other->End().Value() != max.Value()) {
+  if (End() < other->End() && other->End() != max) {
     end_position_ = other->End();
   }
   other->end_position_ = max;
@@ -701,13 +684,11 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
   auto current = use_interval_;
   while (other != nullptr) {
     // Make sure the 'current' list starts first
-    if (current == nullptr ||
-        current->start().Value() > other->start().Value()) {
+    if (current == nullptr || current->start() > other->start()) {
       std::swap(current, other);
     }
     // Check disjointness
-    DCHECK(other == nullptr ||
-           current->end().Value() <= other->start().Value());
+    DCHECK(other == nullptr || current->end() <= other->start());
     // Append the 'current' node to the result accumulator and move forward
     if (tail == nullptr) {
       use_interval_ = current;
@@ -801,7 +782,7 @@ bool RegisterAllocationData::ExistsUseWithoutDefinition() {
     PrintF("Register allocator error: live v%d reached first block.\n",
            operand_index);
     LiveRange* range = LiveRangeFor(operand_index);
-    PrintF("  (first use is at %d)\n", range->first_pos()->pos().Value());
+    PrintF("  (first use is at %d)\n", range->first_pos()->pos().value());
     if (debug_name() == nullptr) {
       PrintF("\n");
     } else {
@@ -1171,7 +1152,7 @@ void LiveRangeBuilder::Define(LifetimePosition position,
   auto range = LiveRangeFor(operand);
   if (range == nullptr) return;
 
-  if (range->IsEmpty() || range->Start().Value() > position.Value()) {
+  if (range->IsEmpty() || range->Start() > position) {
     // Can happen if there is a definition without use.
     range->AddUseInterval(position, position.NextStart(), allocation_zone());
     range->AddUsePosition(position.NextStart(), nullptr, nullptr,
@@ -1472,9 +1453,9 @@ RegisterAllocator::RegisterAllocator(RegisterAllocationData* data,
 LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
                                            LifetimePosition pos) {
   DCHECK(!range->IsFixed());
-  TRACE("Splitting live range %d at %d\n", range->id(), pos.Value());
+  TRACE("Splitting live range %d at %d\n", range->id(), pos.value());
 
-  if (pos.Value() <= range->Start().Value()) return range;
+  if (pos <= range->Start()) return range;
 
   // We can't properly connect liveranges if splitting occurred at the end
   // a block.
@@ -1494,10 +1475,10 @@ LiveRange* RegisterAllocator::SplitBetween(LiveRange* range,
                                            LifetimePosition end) {
   DCHECK(!range->IsFixed());
   TRACE("Splitting live range %d in position between [%d, %d]\n", range->id(),
-        start.Value(), end.Value());
+        start.value(), end.value());
 
   auto split_pos = FindOptimalSplitPos(start, end);
-  DCHECK(split_pos.Value() >= start.Value());
+  DCHECK(split_pos >= start);
   return SplitRangeAt(range, split_pos);
 }
 
@@ -1556,7 +1537,7 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
         loop_header->first_instruction_index());
 
     if (range->Covers(loop_start)) {
-      if (prev_use == nullptr || prev_use->pos().Value() < loop_start.Value()) {
+      if (prev_use == nullptr || prev_use->pos() < loop_start) {
         // No register beneficial use inside the loop before the pos.
         pos = loop_start;
       }
@@ -1629,7 +1610,7 @@ void LinearScanAllocator::AllocateRegisters() {
 #ifdef DEBUG
     allocation_finger_ = position;
 #endif
-    TRACE("Processing interval %d start=%d\n", current->id(), position.Value());
+    TRACE("Processing interval %d start=%d\n", current->id(), position.value());
 
     if (!current->HasNoSpillType()) {
       TRACE("Live range %d already has a spill operand\n", current->id());
@@ -1643,7 +1624,7 @@ void LinearScanAllocator::AllocateRegisters() {
       if (pos == nullptr) {
         Spill(current);
         continue;
-      } else if (pos->pos().Value() > current->Start().NextStart().Value()) {
+      } else if (pos->pos() > current->Start().NextStart()) {
         // Do not spill live range eagerly if use position that can benefit from
         // the register is too close to the start of live range.
         SpillBetween(current, current->Start(), pos->pos());
@@ -1656,7 +1637,7 @@ void LinearScanAllocator::AllocateRegisters() {
 
     for (size_t i = 0; i < active_live_ranges().size(); ++i) {
       auto cur_active = active_live_ranges()[i];
-      if (cur_active->End().Value() <= position.Value()) {
+      if (cur_active->End() <= position) {
         ActiveToHandled(cur_active);
         --i;  // The live range was removed from the list of active live ranges.
       } else if (!cur_active->Covers(position)) {
@@ -1667,7 +1648,7 @@ void LinearScanAllocator::AllocateRegisters() {
 
     for (size_t i = 0; i < inactive_live_ranges().size(); ++i) {
       auto cur_inactive = inactive_live_ranges()[i];
-      if (cur_inactive->End().Value() <= position.Value()) {
+      if (cur_inactive->End() <= position) {
         InactiveToHandled(cur_inactive);
         --i;  // Live range was removed from the list of inactive live ranges.
       } else if (cur_inactive->Covers(position)) {
@@ -1711,7 +1692,7 @@ void LinearScanAllocator::AddToInactive(LiveRange* range) {
 void LinearScanAllocator::AddToUnhandledSorted(LiveRange* range) {
   if (range == nullptr || range->IsEmpty()) return;
   DCHECK(!range->HasRegisterAssigned() && !range->IsSpilled());
-  DCHECK(allocation_finger_.Value() <= range->Start().Value());
+  DCHECK(allocation_finger_ <= range->Start());
   for (int i = static_cast<int>(unhandled_live_ranges().size() - 1); i >= 0;
        --i) {
     auto cur_range = unhandled_live_ranges().at(i);
@@ -1759,7 +1740,7 @@ bool LinearScanAllocator::UnhandledIsSorted() {
   for (size_t i = 1; i < len; i++) {
     auto a = unhandled_live_ranges().at(i - 1);
     auto b = unhandled_live_ranges().at(i);
-    if (a->Start().Value() < b->Start().Value()) return false;
+    if (a->Start() < b->Start()) return false;
   }
   return true;
 }
@@ -1804,7 +1785,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   }
 
   for (auto cur_inactive : inactive_live_ranges()) {
-    DCHECK(cur_inactive->End().Value() > current->Start().Value());
+    DCHECK(cur_inactive->End() > current->Start());
     auto next_intersection = cur_inactive->FirstIntersection(current);
     if (!next_intersection.IsValid()) continue;
     int cur_reg = cur_inactive->assigned_register();
@@ -1815,11 +1796,11 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   if (hint != nullptr && (hint->IsRegister() || hint->IsDoubleRegister())) {
     int register_index = AllocatedOperand::cast(hint)->index();
     TRACE("Found reg hint %s (free until [%d) for live range %d (end %d[).\n",
-          RegisterName(register_index), free_until_pos[register_index].Value(),
-          current->id(), current->End().Value());
+          RegisterName(register_index), free_until_pos[register_index].value(),
+          current->id(), current->End().value());
 
     // The desired register is free until the end of the current live range.
-    if (free_until_pos[register_index].Value() >= current->End().Value()) {
+    if (free_until_pos[register_index] >= current->End()) {
       TRACE("Assigning preferred reg %s to live range %d\n",
             RegisterName(register_index), current->id());
       data()->SetLiveRangeAssignedRegister(current, register_index);
@@ -1830,19 +1811,19 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   // Find the register which stays free for the longest time.
   int reg = 0;
   for (int i = 1; i < num_registers(); ++i) {
-    if (free_until_pos[i].Value() > free_until_pos[reg].Value()) {
+    if (free_until_pos[i] > free_until_pos[reg]) {
       reg = i;
     }
   }
 
   auto pos = free_until_pos[reg];
 
-  if (pos.Value() <= current->Start().Value()) {
+  if (pos <= current->Start()) {
     // All registers are blocked.
     return false;
   }
 
-  if (pos.Value() < current->End().Value()) {
+  if (pos < current->End()) {
     // Register reg is available at the range start but becomes blocked before
     // the range end. Split current at position where it becomes blocked.
     auto tail = SplitRangeAt(current, pos);
@@ -1851,7 +1832,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
 
   // Register reg is available at the range start and is free until
   // the range end.
-  DCHECK(pos.Value() >= current->End().Value());
+  DCHECK(pos >= current->End());
   TRACE("Assigning free reg %s to live range %d\n", RegisterName(reg),
         current->id());
   data()->SetLiveRangeAssignedRegister(current, reg);
@@ -1893,7 +1874,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
   }
 
   for (auto range : inactive_live_ranges()) {
-    DCHECK(range->End().Value() > current->Start().Value());
+    DCHECK(range->End() > current->Start());
     auto next_intersection = range->FirstIntersection(current);
     if (!next_intersection.IsValid()) continue;
     int cur_reg = range->assigned_register();
@@ -1907,21 +1888,21 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
 
   int reg = 0;
   for (int i = 1; i < num_registers(); ++i) {
-    if (use_pos[i].Value() > use_pos[reg].Value()) {
+    if (use_pos[i] > use_pos[reg]) {
       reg = i;
     }
   }
 
   auto pos = use_pos[reg];
 
-  if (pos.Value() < register_use->pos().Value()) {
+  if (pos < register_use->pos()) {
     // All registers are blocked before the first use that requires a register.
     // Spill starting part of live range up to that use.
     SpillBetween(current, current->Start(), register_use->pos());
     return;
   }
 
-  if (block_pos[reg].Value() < current->End().Value()) {
+  if (block_pos[reg] < current->End()) {
     // Register becomes blocked before the current range end. Split before that
     // position.
     LiveRange* tail =
@@ -1930,7 +1911,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
   }
 
   // Register reg is not blocked for the whole range.
-  DCHECK(block_pos[reg].Value() >= current->End().Value());
+  DCHECK(block_pos[reg] >= current->End());
   TRACE("Assigning blocked reg %s to live range %d\n", RegisterName(reg),
         current->id());
   data()->SetLiveRangeAssignedRegister(current, reg);
@@ -1971,7 +1952,7 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current) {
 
   for (size_t i = 0; i < inactive_live_ranges().size(); ++i) {
     auto range = inactive_live_ranges()[i];
-    DCHECK(range->End().Value() > current->Start().Value());
+    DCHECK(range->End() > current->Start());
     if (range->assigned_register() == reg && !range->IsFixed()) {
       LifetimePosition next_intersection = range->FirstIntersection(current);
       if (next_intersection.IsValid()) {
@@ -2061,7 +2042,7 @@ bool LinearScanAllocator::TryReuseSpillForPhi(LiveRange* range) {
     CHECK(merged);
     Spill(range);
     return true;
-  } else if (pos->pos().Value() > range->Start().NextStart().Value()) {
+  } else if (pos->pos() > range->Start().NextStart()) {
     auto spill_range =
         range->TopLevel()->HasSpillRange()
             ? range->TopLevel()->GetSpillRange()
@@ -2092,10 +2073,10 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
                                             LifetimePosition start,
                                             LifetimePosition until,
                                             LifetimePosition end) {
-  CHECK(start.Value() < end.Value());
+  CHECK(start < end);
   auto second_part = SplitRangeAt(range, start);
 
-  if (second_part->Start().Value() < end.Value()) {
+  if (second_part->Start() < end) {
     // The split result intersects with [start, end[.
     // Split it at position between ]start+1, end[, spill the middle part
     // and put the rest to unhandled.
@@ -2169,7 +2150,7 @@ class CoallescedLiveRanges : public ZoneObject {
 
   Config::Key GetKey(UseInterval* interval) {
     if (interval == nullptr) return std::make_pair(0, 0);
-    return std::make_pair(interval->start().Value(), interval->end().Value());
+    return std::make_pair(interval->start().value(), interval->end().value());
   }
 
   // TODO(mtrofin): Change to void returning if we do not care if the interval
@@ -2203,7 +2184,7 @@ unsigned GreedyAllocator::GetLiveRangeSize(LiveRange* range) {
 
   unsigned size = 0;
   while (interval != nullptr) {
-    size += (interval->end().Value() - interval->start().Value());
+    size += (interval->end().value() - interval->start().value());
     interval = interval->next();
   }
 
@@ -2307,10 +2288,10 @@ LiveRange* GreedyAllocator::SpillBetweenUntil(LiveRange* range,
                                               LifetimePosition start,
                                               LifetimePosition until,
                                               LifetimePosition end) {
-  CHECK(start.Value() < end.Value());
+  CHECK(start < end);
   auto second_part = SplitRangeAt(range, start);
 
-  if (second_part->Start().Value() < end.Value()) {
+  if (second_part->Start() < end) {
     // The split result intersects with [start, end[.
     // Split it at position between ]start+1, end[, spill the middle part
     // and put the rest to unhandled.
@@ -2344,7 +2325,7 @@ void GreedyAllocator::Enqueue(LiveRange* range) {
 // LinearScanAllocator::AllocateRegisters
 bool GreedyAllocator::HandleSpillOperands(LiveRange* range) {
   auto position = range->Start();
-  TRACE("Processing interval %d start=%d\n", range->id(), position.Value());
+  TRACE("Processing interval %d start=%d\n", range->id(), position.value());
 
   if (!range->HasNoSpillType()) {
     TRACE("Live range %d already has a spill operand\n", range->id());
@@ -2358,7 +2339,7 @@ bool GreedyAllocator::HandleSpillOperands(LiveRange* range) {
     if (pos == nullptr) {
       Spill(range);
       return true;
-    } else if (pos->pos().Value() > range->Start().NextStart().Value()) {
+    } else if (pos->pos() > range->Start().NextStart()) {
       // Do not spill live range eagerly if use position that can benefit from
       // the register is too close to the start of live range.
       auto* reminder = SpillBetweenUntil(range, position, position, pos->pos());
@@ -2585,7 +2566,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
         TRACE(
             "Pointer in register for range %d (start at %d) "
             "at safe point %d\n",
-            cur->id(), cur->Start().Value(), safe_point);
+            cur->id(), cur->Start().value(), safe_point);
         auto operand = cur->GetAssignedOperand();
         DCHECK(!operand.IsStackSlot());
         map->RecordReference(operand);
@@ -2605,8 +2586,7 @@ class LiveRangeBound {
   }
 
   bool CanCover(LifetimePosition position) {
-    return start_.Value() <= position.Value() &&
-           position.Value() < end_.Value();
+    return start_ <= position && position < end_;
   }
 
   const LiveRange* const range_;
@@ -2648,8 +2628,8 @@ class LiveRangeBoundArray {
       size_t current_index = left_index + (right_index - left_index) / 2;
       DCHECK(right_index > current_index);
       auto bound = &start_[current_index];
-      if (bound->start_.Value() <= position.Value()) {
-        if (position.Value() < bound->end_.Value()) return bound;
+      if (bound->start_ <= position) {
+        if (position < bound->end_) return bound;
         DCHECK(left_index < current_index);
         left_index = current_index;
       } else {
@@ -2802,7 +2782,7 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
       // Add gap move if the two live ranges touch and there is no block
       // boundary.
       if (second_range->IsSpilled()) continue;
-      if (first_range->End().Value() != pos.Value()) continue;
+      if (first_range->End() != pos) continue;
       if (IsBlockBoundary(code(), pos) &&
           !CanEagerlyResolveControlFlow(GetInstructionBlock(code(), pos))) {
         continue;
