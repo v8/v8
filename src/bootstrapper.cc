@@ -501,13 +501,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
         .Assert();
   }
 
-  // Allocate the empty function as the prototype for function ECMAScript
-  // 262 15.3.4.
-  Handle<String> empty_string =
-      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("Empty"));
+  // Allocate the empty function as the prototype for function - ES6 19.2.3
   Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
-  Handle<JSFunction> empty_function = factory->NewFunctionWithoutPrototype(
-      empty_string, code);
+  Handle<JSFunction> empty_function =
+      factory->NewFunctionWithoutPrototype(factory->empty_string(), code);
 
   // Allocate the function map first and then patch the prototype later
   Handle<Map> empty_function_map =
