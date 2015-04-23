@@ -32,7 +32,8 @@ VariableMap::~VariableMap() {}
 Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
                                VariableMode mode, Variable::Kind kind,
                                InitializationFlag initialization_flag,
-                               MaybeAssignedFlag maybe_assigned_flag) {
+                               MaybeAssignedFlag maybe_assigned_flag,
+                               int declaration_group_start) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
@@ -42,8 +43,14 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     DCHECK(p->key == name);
-    p->value = new (zone()) Variable(scope, name, mode, kind,
-                                     initialization_flag, maybe_assigned_flag);
+    if (kind == Variable::CLASS) {
+      p->value = new (zone())
+          ClassVariable(scope, name, mode, kind, initialization_flag,
+                        maybe_assigned_flag, declaration_group_start);
+    } else {
+      p->value = new (zone()) Variable(
+          scope, name, mode, kind, initialization_flag, maybe_assigned_flag);
+    }
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -76,7 +83,8 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
           scope_type == MODULE_SCOPE ? ModuleDescriptor::New(zone) : NULL),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
-      zone_(zone) {
+      zone_(zone),
+      class_declaration_group_start_(-1) {
   SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null(),
               function_kind);
   // The outermost scope must be a script scope.
@@ -97,7 +105,8 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       module_descriptor_(NULL),
       already_resolved_(true),
       ast_value_factory_(value_factory),
-      zone_(zone) {
+      zone_(zone),
+      class_declaration_group_start_(-1) {
   SetDefaults(scope_type, NULL, scope_info);
   if (!scope_info.is_null()) {
     num_heap_slots_ = scope_info_->ContextLength();
@@ -122,7 +131,8 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       module_descriptor_(NULL),
       already_resolved_(true),
       ast_value_factory_(value_factory),
-      zone_(zone) {
+      zone_(zone),
+      class_declaration_group_start_(-1) {
   SetDefaults(CATCH_SCOPE, NULL, Handle<ScopeInfo>::null());
   AddInnerScope(inner_scope);
   ++num_var_or_const_;
@@ -411,6 +421,7 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
     maybe_assigned_flag = kMaybeAssigned;
   }
 
+  // TODO(marja, rossberg): Declare variables of the right Kind.
   Variable* var = variables_.Declare(this, name, mode, Variable::NORMAL,
                                      init_flag, maybe_assigned_flag);
   var->AllocateTo(location, index);
@@ -472,7 +483,8 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               InitializationFlag init_flag, Variable::Kind kind,
-                              MaybeAssignedFlag maybe_assigned_flag) {
+                              MaybeAssignedFlag maybe_assigned_flag,
+                              int declaration_group_start) {
   DCHECK(!already_resolved());
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
@@ -480,7 +492,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   DCHECK(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, kind, init_flag,
-                            maybe_assigned_flag);
+                            maybe_assigned_flag, declaration_group_start);
 }
 
 
@@ -1134,6 +1146,11 @@ bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
   // we can only do this in the case where we have seen the declaration. And we
   // always allow referencing functions (for now).
 
+  // This might happen during lazy compilation; we don't keep track of
+  // initializer positions for variables stored in ScopeInfo, so we cannot check
+  // bindings against them. TODO(marja, rossberg): remove this hack.
+  if (var->initializer_position() == RelocInfo::kNoPosition) return true;
+
   // Allow referencing the class name from methods of that class, even though
   // the initializer position for class names is only after the body.
   Scope* scope = this;
@@ -1143,27 +1160,57 @@ bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
   }
 
   // Allow references from methods to classes declared later, if we detect no
-  // problematic dependency cycles.
+  // problematic dependency cycles. Note that we can be inside multiple methods
+  // at the same time, and it's enough if we find one where the reference is
+  // allowed.
+  if (var->is_class() &&
+      var->AsClassVariable()->declaration_group_start() >= 0) {
+    for (scope = this; scope && scope != var->scope();
+         scope = scope->outer_scope()) {
+      ClassVariable* class_var = scope->ClassVariableForMethod();
+      if (class_var) {
+        // A method is referring to some other class, possibly declared
+        // later. Referring to a class declared earlier is always OK and covered
+        // by the code outside this if. Here we only need to allow special cases
+        // for referring to a class which is declared later.
 
-  if (ClassVariableForMethod() && var->is_class()) {
-    // A method is referring to some other class, possibly declared
-    // later. Referring to a class declared earlier is always OK and covered by
-    // the code outside this if. Here we only need to allow special cases for
-    // referring to a class which is declared later.
+        // Referring to a class C declared later is OK under the following
+        // circumstances:
 
-    // Referring to a class C declared later is OK under the following
-    // circumstances:
+        // 1. The class declarations are in a consecutive group with no other
+        // declarations or statements in between, and
 
-    // 1. The class declarations are in a consecutive group with no other
-    // declarations or statements in between, and
+        // 2. There is no dependency cycle where the first edge is an
+        // initialization time dependency (computed property name or extends
+        // clause) from C to something that depends on this class directly or
+        // transitively.
 
-    // 2. There is no dependency cycle where the first edge is an initialization
-    // time dependency (computed property name or extends clause) from C to
-    // something that depends on this class directly or transitively.
+        // This is needed because a class ("class Name { }") creates two
+        // bindings (one in the outer scope, and one in the class scope). The
+        // method is a function scope inside the inner scope (class scope). The
+        // consecutive class declarations are in the outer scope.
+        class_var = class_var->corresponding_outer_class_variable();
+        if (class_var &&
+            class_var->declaration_group_start() ==
+                var->AsClassVariable()->declaration_group_start()) {
+          return true;
+        }
 
-    // TODO(marja,rossberg): implement these checks. Here we undershoot the
-    // target and allow referring to any class.
-    return true;
+        // TODO(marja,rossberg): implement the dependency cycle detection. Here
+        // we undershoot the target and allow referring to any class in the same
+        // consectuive declaration group.
+
+        // The cycle detection can work roughly like this: 1) detect init-time
+        // references here (they are free variables which are inside the class
+        // scope but not inside a method scope - no parser changes needed to
+        // detect them) 2) if we encounter an init-time reference here, allow
+        // it, but record it for a later dependency cycle check 3) also record
+        // non-init-time references here 4) after scope analysis is done,
+        // analyse the dependency cycles: an illegal cycle is one starting with
+        // an init-time reference and leading back to the starting point with
+        // either non-init-time and init-time references.
+      }
+    }
   }
 
   // If both the use and the declaration are inside an eval scope (possibly
@@ -1187,7 +1234,11 @@ bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
 }
 
 
-Variable* Scope::ClassVariableForMethod() const {
+ClassVariable* Scope::ClassVariableForMethod() const {
+  // TODO(marja, rossberg): This fails to find a class variable in the following
+  // cases:
+  // let A = class { ... }
+  // It needs to be investigated whether this causes any practical problems.
   if (!is_function_scope()) return nullptr;
   if (IsInObjectLiteral(function_kind_)) return nullptr;
   if (!IsConciseMethod(function_kind_) && !IsConstructor(function_kind_) &&
@@ -1200,7 +1251,9 @@ Variable* Scope::ClassVariableForMethod() const {
   DCHECK(outer_scope_->variables_.occupancy() <= 1);
   if (outer_scope_->variables_.occupancy() == 0) return nullptr;
   VariableMap::Entry* p = outer_scope_->variables_.Start();
-  return reinterpret_cast<Variable*>(p->value);
+  Variable* var = reinterpret_cast<Variable*>(p->value);
+  if (!var->is_class()) return nullptr;
+  return var->AsClassVariable();
 }
 
 

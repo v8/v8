@@ -570,13 +570,22 @@ class VariableDeclaration final : public Declaration {
 
   bool is_class_declaration() const { return is_class_declaration_; }
 
+  // VariableDeclarations can be grouped into consecutive declaration
+  // groups. Each VariableDeclaration is associated with the start position of
+  // the group it belongs to. The positions are used for strong mode scope
+  // checks for classes and functions.
+  int declaration_group_start() const { return declaration_group_start_; }
+
  protected:
   VariableDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
-                      Scope* scope, int pos, bool is_class_declaration = false)
+                      Scope* scope, int pos, bool is_class_declaration = false,
+                      int declaration_group_start = -1)
       : Declaration(zone, proxy, mode, scope, pos),
-        is_class_declaration_(is_class_declaration) {}
+        is_class_declaration_(is_class_declaration),
+        declaration_group_start_(declaration_group_start) {}
 
   bool is_class_declaration_;
+  int declaration_group_start_;
 };
 
 
@@ -3220,9 +3229,10 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   VariableDeclaration* NewVariableDeclaration(
       VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
-      bool is_class_declaration = false) {
-    return new (zone_) VariableDeclaration(zone_, proxy, mode, scope, pos,
-                                           is_class_declaration);
+      bool is_class_declaration = false, int declaration_group_start = -1) {
+    return new (zone_)
+        VariableDeclaration(zone_, proxy, mode, scope, pos,
+                            is_class_declaration, declaration_group_start);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,

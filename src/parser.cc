@@ -1298,10 +1298,20 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
   //    Statement
   //    Declaration
 
+  if (peek() != Token::CLASS) {
+    // No more classes follow; reset the start position for the consecutive
+    // class declaration group.
+    scope_->set_class_declaration_group_start(-1);
+  }
+
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
     case Token::CLASS:
+      if (scope_->class_declaration_group_start() < 0) {
+        scope_->set_class_declaration_group_start(
+            scanner()->peek_location().beg_pos);
+      }
       return ParseClassDeclaration(NULL, ok);
     case Token::CONST:
     case Token::VAR:
@@ -1931,14 +1941,18 @@ Variable* Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     if (var == NULL) {
       // Declare the name.
       Variable::Kind kind = Variable::NORMAL;
+      int declaration_group_start = -1;
       if (declaration->IsFunctionDeclaration()) {
         kind = Variable::FUNCTION;
       } else if (declaration->IsVariableDeclaration() &&
                  declaration->AsVariableDeclaration()->is_class_declaration()) {
         kind = Variable::CLASS;
+        declaration_group_start =
+            declaration->AsVariableDeclaration()->declaration_group_start();
       }
       var = declaration_scope->DeclareLocal(
-          name, mode, declaration->initialization(), kind, kNotAssigned);
+          name, mode, declaration->initialization(), kind, kNotAssigned,
+          declaration_group_start);
     } else if (IsLexicalVariableMode(mode) ||
                IsLexicalVariableMode(var->mode()) ||
                ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
@@ -2158,9 +2172,22 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   VariableProxy* proxy = NewUnresolved(name, mode);
   const bool is_class_declaration = true;
   Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, mode, scope_, pos, is_class_declaration);
-  Declare(declaration, true, CHECK_OK);
+      proxy, mode, scope_, pos, is_class_declaration,
+      scope_->class_declaration_group_start());
+  Variable* outer_class_variable = Declare(declaration, true, CHECK_OK);
   proxy->var()->set_initializer_position(position());
+  if (value->class_variable_proxy() && value->class_variable_proxy()->var() &&
+      outer_class_variable->is_class()) {
+    // In some cases, the outer variable is not detected as a class variable;
+    // this happens e.g., for lazy methods. They are excluded from strong mode
+    // checks for now. TODO(marja, rossberg): re-create variables with the
+    // correct Kind and remove this hack.
+    value->class_variable_proxy()
+        ->var()
+        ->AsClassVariable()
+        ->set_corresponding_outer_class_variable(
+            outer_class_variable->AsClassVariable());
+  }
 
   Token::Value init_op =
       is_strong(language_mode()) ? Token::INIT_CONST : Token::INIT_LET;
@@ -4323,8 +4350,10 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   VariableProxy* proxy = NULL;
   if (name != NULL) {
     proxy = NewUnresolved(name, CONST);
-    Declaration* declaration =
-        factory()->NewVariableDeclaration(proxy, CONST, block_scope, pos);
+    const bool is_class_declaration = true;
+    Declaration* declaration = factory()->NewVariableDeclaration(
+        proxy, CONST, block_scope, pos, is_class_declaration,
+        scope_->class_declaration_group_start());
     Declare(declaration, true, CHECK_OK);
   }
 

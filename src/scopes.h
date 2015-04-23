@@ -23,7 +23,8 @@ class VariableMap: public ZoneHashMap {
 
   Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
                     Variable::Kind kind, InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+                    int declaration_group_start = -1);
 
   Variable* Lookup(const AstRawString* name);
 
@@ -131,7 +132,8 @@ class Scope: public ZoneObject {
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
                          InitializationFlag init_flag, Variable::Kind kind,
-                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+                         int declaration_group_start = -1);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -411,6 +413,15 @@ class Scope: public ZoneObject {
   // The ModuleDescriptor for this scope; only for module scopes.
   ModuleDescriptor* module() const { return module_descriptor_; }
 
+
+  void set_class_declaration_group_start(int position) {
+    class_declaration_group_start_ = position;
+  }
+
+  int class_declaration_group_start() const {
+    return class_declaration_group_start_;
+  }
+
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
@@ -677,7 +688,7 @@ class Scope: public ZoneObject {
 
   // If this scope is a method scope of a class, return the corresponding
   // class variable, otherwise nullptr.
-  Variable* ClassVariableForMethod() const;
+  ClassVariable* ClassVariableForMethod() const;
 
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
@@ -732,6 +743,10 @@ class Scope: public ZoneObject {
   Zone* zone_;
 
   PendingCompilationErrorHandler pending_error_handler_;
+
+  // For tracking which classes are declared consecutively. Needed for strong
+  // mode.
+  int class_declaration_group_start_;
 };
 
 } }  // namespace v8::internal
