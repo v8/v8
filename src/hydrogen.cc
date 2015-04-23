@@ -2427,6 +2427,22 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       IsFixedTypedArrayElementsKind(elements_kind)) {
     HValue* backing_store;
     if (IsExternalArrayElementsKind(elements_kind)) {
+      NoObservableSideEffectsScope no_effects(this);
+      HInstruction* buffer = Add<HLoadNamedField>(
+          checked_object, nullptr, HObjectAccess::ForJSArrayBufferViewBuffer());
+      HInstruction* flags = Add<HLoadNamedField>(
+          buffer, nullptr, HObjectAccess::ForJSArrayBufferFlag());
+      HValue* was_neutered_mask =
+          Add<HConstant>(1 << JSArrayBuffer::kWasNeuteredBit);
+      HValue* was_neutered_test =
+          AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
+
+      IfBuilder if_was_neutered(this);
+      if_was_neutered.If<HCompareNumericAndBranch>(
+          was_neutered_test, graph()->GetConstant0(), Token::NE);
+      if_was_neutered.ThenDeopt(Deoptimizer::kOutOfBounds);
+      if_was_neutered.End();
+
       backing_store = Add<HLoadNamedField>(
           elements, nullptr, HObjectAccess::ForExternalArrayExternalPointer());
     } else {
@@ -3152,6 +3168,44 @@ HInstruction* HGraphBuilder::BuildGetArrayFunction() {
   HInstruction* index =
       Add<HConstant>(static_cast<int32_t>(Context::ARRAY_FUNCTION_INDEX));
   return Add<HLoadKeyed>(native_context, index, nullptr, FAST_ELEMENTS);
+}
+
+
+HValue* HGraphBuilder::BuildArrayBufferViewFieldAccessor(HValue* object,
+                                                         HValue* checked_object,
+                                                         FieldIndex index) {
+  NoObservableSideEffectsScope scope(this);
+  HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
+      index.offset(), Representation::Tagged());
+  HInstruction* buffer = Add<HLoadNamedField>(
+      object, checked_object, HObjectAccess::ForJSArrayBufferViewBuffer());
+  HInstruction* field = Add<HLoadNamedField>(object, checked_object, access);
+
+  IfBuilder if_has_buffer(this);
+  HValue* has_buffer = if_has_buffer.IfNot<HIsSmiAndBranch>(buffer);
+  if_has_buffer.Then();
+  {
+    HInstruction* flags = Add<HLoadNamedField>(
+        buffer, has_buffer, HObjectAccess::ForJSArrayBufferFlag());
+    HValue* was_neutered_mask =
+        Add<HConstant>(1 << JSArrayBuffer::kWasNeuteredBit);
+    HValue* was_neutered_test =
+        AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
+
+    IfBuilder if_was_neutered(this);
+    if_was_neutered.If<HCompareNumericAndBranch>(
+        was_neutered_test, graph()->GetConstant0(), Token::NE);
+    if_was_neutered.Then();
+    Push(graph()->GetConstant0());
+    if_was_neutered.Else();
+    Push(field);
+    if_was_neutered.End();
+  }
+  if_has_buffer.Else();
+  Push(field);
+  if_has_buffer.End();
+
+  return Pop();
 }
 
 
@@ -5654,7 +5708,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
             Handle<Map> map = property->GetReceiverType();
             Handle<String> name = key->AsPropertyName();
-            HInstruction* store;
+            HValue* store;
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
               CHECK_ALIVE(store = BuildNamedGeneric(
@@ -5672,7 +5726,9 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                     STORE, NULL, literal, name, value));
               }
             }
-            AddInstruction(store);
+            if (store->IsInstruction()) {
+              AddInstruction(HInstruction::cast(store));
+            }
             DCHECK(store->HasObservableSideEffects());
             Add<HSimulate>(key->id(), REMOVABLE_SIMULATE);
           } else {
@@ -6133,6 +6189,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsIntegerIndexedExotic() {
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!CanInlinePropertyAccess(map_)) return false;
   if (IsJSObjectFieldAccessor()) return IsLoad();
+  if (IsJSArrayBufferViewFieldAccessor()) return IsLoad();
   if (map_->function_with_prototype() && !map_->has_non_instance_prototype() &&
       name_.is_identical_to(isolate()->factory()->prototype_string())) {
     return IsLoad();
@@ -6181,6 +6238,18 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
     return true;
   }
 
+  if (GetJSArrayBufferViewFieldAccess(&access)) {
+    for (int i = 1; i < maps->length(); ++i) {
+      PropertyAccessInfo test_info(builder_, access_type_, maps->at(i), name_);
+      HObjectAccess test_access = HObjectAccess::ForMap();  // bogus default
+      if (!test_info.GetJSArrayBufferViewFieldAccess(&test_access)) {
+        return false;
+      }
+      if (!access.Equals(test_access)) return false;
+    }
+    return true;
+  }
+
   // Currently only handle numbers as a polymorphic case.
   // TODO(verwaest): Support monomorphic handling of numbers with a HCheckNumber
   // instruction.
@@ -6220,19 +6289,20 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::NeedsWrappingFor(
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
-    PropertyAccessInfo* info,
-    HValue* object,
-    HValue* checked_object,
-    HValue* value,
-    BailoutId ast_id,
-    BailoutId return_id,
+HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
+    PropertyAccessInfo* info, HValue* object, HValue* checked_object,
+    HValue* value, BailoutId ast_id, BailoutId return_id,
     bool can_inline_accessor) {
-
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (info->GetJSObjectFieldAccess(&access)) {
     DCHECK(info->IsLoad());
     return New<HLoadNamedField>(object, checked_object, access);
+  }
+
+  if (info->GetJSArrayBufferViewFieldAccess(&access)) {
+    DCHECK(info->IsLoad());
+    return BuildArrayBufferViewFieldAccessor(
+        object, checked_object, FieldIndex::ForInObjectOffset(access.offset()));
   }
 
   if (info->name().is_identical_to(isolate()->factory()->prototype_string()) &&
@@ -6384,9 +6454,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
 
     set_current_block(if_true);
 
-    HInstruction* access = BuildMonomorphicAccess(
-        &info, object, dependency, value, ast_id,
-        return_id, FLAG_polymorphic_inlining);
+    HValue* access =
+        BuildMonomorphicAccess(&info, object, dependency, value, ast_id,
+                               return_id, FLAG_polymorphic_inlining);
 
     HValue* result = NULL;
     switch (access_type) {
@@ -6401,7 +6471,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     if (access == NULL) {
       if (HasStackOverflow()) return;
     } else {
-      if (!access->IsLinked()) AddInstruction(access);
+      if (access->IsInstruction()) {
+        HInstruction* instr = HInstruction::cast(access);
+        if (!instr->IsLinked()) AddInstruction(instr);
+      }
       if (!ast_context()->IsEffect()) Push(result);
     }
 
@@ -6495,13 +6568,13 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
   Handle<String> name = Handle<String>::cast(key->value());
   DCHECK(!name.is_null());
 
-  HInstruction* instr = BuildNamedAccess(STORE, ast_id, return_id, expr,
-                                         object, name, value, is_uninitialized);
-  if (instr == NULL) return;
+  HValue* access = BuildNamedAccess(STORE, ast_id, return_id, expr, object,
+                                    name, value, is_uninitialized);
+  if (access == NULL) return;
 
   if (!ast_context()->IsEffect()) Push(value);
-  AddInstruction(instr);
-  if (instr->HasObservableSideEffects()) {
+  if (access->IsInstruction()) AddInstruction(HInstruction::cast(access));
+  if (access->HasObservableSideEffects()) {
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
   }
   if (!ast_context()->IsEffect()) Drop(1);
@@ -7250,16 +7323,18 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
         constant = isolate()->factory()->InternalizeString(
             Handle<String>::cast(constant));
       }
-      HInstruction* instr =
+      HValue* access =
           BuildNamedAccess(access_type, ast_id, return_id, expr, obj,
                            Handle<String>::cast(constant), val, false);
-      if (instr == NULL || instr->IsLinked()) {
+      if (access == NULL || access->IsPhi() ||
+          HInstruction::cast(access)->IsLinked()) {
         *has_side_effects = false;
       } else {
+        HInstruction* instr = HInstruction::cast(access);
         AddInstruction(instr);
         *has_side_effects = instr->HasObservableSideEffects();
       }
-      return instr;
+      return access;
     }
   }
 
@@ -7418,14 +7493,9 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 }
 
 
-HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
-    PropertyAccessType access,
-    BailoutId ast_id,
-    BailoutId return_id,
-    Expression* expr,
-    HValue* object,
-    Handle<String> name,
-    HValue* value,
+HValue* HOptimizedGraphBuilder::BuildNamedAccess(
+    PropertyAccessType access, BailoutId ast_id, BailoutId return_id,
+    Expression* expr, HValue* object, Handle<String> name, HValue* value,
     bool is_uninitialized) {
   SmallMapList* maps;
   ComputeReceiverTypes(expr, object, &maps, zone());
@@ -7481,9 +7551,11 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     HValue* object = Pop();
 
-    instr = BuildNamedAccess(LOAD, ast_id, expr->LoadId(), expr,
-                             object, name, NULL, expr->IsUninitialized());
-    if (instr == NULL) return;
+    HValue* value = BuildNamedAccess(LOAD, ast_id, expr->LoadId(), expr, object,
+                                     name, NULL, expr->IsUninitialized());
+    if (value == NULL) return;
+    if (value->IsPhi()) return ast_context()->ReturnValue(value);
+    instr = HInstruction::cast(value);
     if (instr->IsLinked()) return ast_context()->ReturnValue(instr);
 
   } else {
@@ -9617,20 +9689,11 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
     Add<HStoreNamedField>(
         obj,
         HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
-    HObjectAccess weak_first_view_access =
-        HObjectAccess::ForJSArrayBufferWeakFirstView();
-    Add<HStoreNamedField>(
-        obj, HObjectAccess::ForJSArrayBufferViewWeakNext(),
-        Add<HLoadNamedField>(buffer, nullptr, weak_first_view_access));
-    Add<HStoreNamedField>(buffer, weak_first_view_access, obj);
   } else {
     Add<HStoreNamedField>(
         obj,
         HObjectAccess::ForJSArrayBufferViewBuffer(),
         Add<HConstant>(static_cast<int32_t>(0)));
-    Add<HStoreNamedField>(obj,
-        HObjectAccess::ForJSArrayBufferViewWeakNext(),
-        graph()->GetConstantUndefined());
   }
 }
 
@@ -9926,34 +9989,40 @@ void HOptimizedGraphBuilder::GenerateArrayBufferGetByteLength(
 
 void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteLength(
     CallRuntime* expr) {
+  NoObservableSideEffectsScope scope(this);
   DCHECK(expr->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* buffer = Pop();
-  HInstruction* result = New<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSArrayBufferViewByteLength());
-  return ast_context()->ReturnInstruction(result, expr->id());
+  HValue* view = Pop();
+
+  return ast_context()->ReturnValue(BuildArrayBufferViewFieldAccessor(
+      view, nullptr,
+      FieldIndex::ForInObjectOffset(JSArrayBufferView::kByteLengthOffset)));
 }
 
 
 void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteOffset(
     CallRuntime* expr) {
+  NoObservableSideEffectsScope scope(this);
   DCHECK(expr->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* buffer = Pop();
-  HInstruction* result = New<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSArrayBufferViewByteOffset());
-  return ast_context()->ReturnInstruction(result, expr->id());
+  HValue* view = Pop();
+
+  return ast_context()->ReturnValue(BuildArrayBufferViewFieldAccessor(
+      view, nullptr,
+      FieldIndex::ForInObjectOffset(JSArrayBufferView::kByteOffsetOffset)));
 }
 
 
 void HOptimizedGraphBuilder::GenerateTypedArrayGetLength(
     CallRuntime* expr) {
+  NoObservableSideEffectsScope scope(this);
   DCHECK(expr->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* buffer = Pop();
-  HInstruction* result = New<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSTypedArrayLength());
-  return ast_context()->ReturnInstruction(result, expr->id());
+  HValue* view = Pop();
+
+  return ast_context()->ReturnValue(BuildArrayBufferViewFieldAccessor(
+      view, nullptr,
+      FieldIndex::ForInObjectOffset(JSTypedArray::kLengthOffset)));
 }
 
 

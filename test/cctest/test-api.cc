@@ -13831,9 +13831,10 @@ static void FixedTypedArrayTestHelper(i::ExternalArrayType array_type,
   i::Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   const int kElementCount = 260;
-  i::Handle<FixedTypedArrayClass> fixed_array =
-    i::Handle<FixedTypedArrayClass>::cast(
-        factory->NewFixedTypedArray(kElementCount, array_type));
+  i::Handle<i::JSTypedArray> jsobj =
+      factory->NewJSTypedArray(elements_kind, kElementCount);
+  i::Handle<FixedTypedArrayClass> fixed_array(
+      FixedTypedArrayClass::cast(jsobj->elements()));
   CHECK_EQ(FixedTypedArrayClass::kInstanceType,
            fixed_array->map()->instance_type());
   CHECK_EQ(kElementCount, fixed_array->length());
@@ -13847,12 +13848,7 @@ static void FixedTypedArrayTestHelper(i::ExternalArrayType array_type,
     CHECK_EQ(static_cast<int64_t>(static_cast<ElementType>(i)),
              static_cast<int64_t>(fixed_array->get_scalar(i)));
   }
-  v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
-  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
-  i::Handle<i::Map> fixed_array_map =
-      i::JSObject::GetElementsTransitionMap(jsobj, elements_kind);
-  jsobj->set_map(*fixed_array_map);
-  jsobj->set_elements(*fixed_array);
+  v8::Handle<v8::Object> obj = v8::Utils::ToLocal(jsobj);
 
   ObjectWithExternalArrayTestHelper<FixedTypedArrayClass, ElementType>(
       context.local(), obj, kElementCount, array_type,

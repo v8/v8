@@ -63,7 +63,6 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
         ->set_weak_next(*array_buffer);
     isolate->heap()->set_last_array_buffer_in_list(*array_buffer);
   }
-  array_buffer->set_weak_first_view(isolate->heap()->undefined_value());
 }
 
 
@@ -97,39 +96,6 @@ bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
 
 
 void Runtime::NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer) {
-  Isolate* isolate = array_buffer->GetIsolate();
-  // Firstly, iterate over the views which are referenced directly by the array
-  // buffer.
-  for (Handle<Object> view_obj(array_buffer->weak_first_view(), isolate);
-       !view_obj->IsUndefined();) {
-    Handle<JSArrayBufferView> view(JSArrayBufferView::cast(*view_obj));
-    if (view->IsJSTypedArray()) {
-      JSTypedArray::cast(*view)->Neuter();
-    } else if (view->IsJSDataView()) {
-      JSDataView::cast(*view)->Neuter();
-    } else {
-      UNREACHABLE();
-    }
-    view_obj = handle(view->weak_next(), isolate);
-  }
-
-  // Secondly, iterate over the global list of new space views to find views
-  // that belong to the neutered array buffer.
-  Heap* heap = isolate->heap();
-  for (Handle<Object> view_obj(heap->new_array_buffer_views_list(), isolate);
-       !view_obj->IsUndefined();) {
-    Handle<JSArrayBufferView> view(JSArrayBufferView::cast(*view_obj));
-    if (view->buffer() == *array_buffer) {
-      if (view->IsJSTypedArray()) {
-        JSTypedArray::cast(*view)->Neuter();
-      } else if (view->IsJSDataView()) {
-        JSDataView::cast(*view)->Neuter();
-      } else {
-        UNREACHABLE();
-      }
-    }
-    view_obj = handle(view->weak_next(), isolate);
-  }
   array_buffer->Neuter();
 }
 
@@ -295,18 +261,9 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   holder->set_byte_offset(*byte_offset_object);
   holder->set_byte_length(*byte_length_object);
 
-  Heap* heap = isolate->heap();
   if (!maybe_buffer->IsNull()) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
     holder->set_buffer(*buffer);
-
-    if (heap->InNewSpace(*holder)) {
-      holder->set_weak_next(heap->new_array_buffer_views_list());
-      heap->set_new_array_buffer_views_list(*holder);
-    } else {
-      holder->set_weak_next(buffer->weak_first_view());
-      buffer->set_weak_first_view(*holder);
-    }
 
     Handle<ExternalArray> elements = isolate->factory()->NewExternalArray(
         static_cast<int>(length), array_type,
@@ -317,7 +274,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     DCHECK(IsExternalArrayElementsKind(holder->map()->elements_kind()));
   } else {
     holder->set_buffer(Smi::FromInt(0));
-    holder->set_weak_next(isolate->heap()->undefined_value());
     Handle<FixedTypedArrayBase> elements =
         isolate->factory()->NewFixedTypedArray(static_cast<int>(length),
                                                array_type);
@@ -404,15 +360,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
       isolate->factory()->NewNumberFromSize(byte_length));
   holder->set_byte_length(*byte_length_obj);
   holder->set_length(*length_obj);
-
-  Heap* heap = isolate->heap();
-  if (heap->InNewSpace(*holder)) {
-    holder->set_weak_next(heap->new_array_buffer_views_list());
-    heap->set_new_array_buffer_views_list(*holder);
-  } else {
-    holder->set_weak_next(buffer->weak_first_view());
-    buffer->set_weak_first_view(*holder);
-  }
 
   Handle<ExternalArray> elements = isolate->factory()->NewExternalArray(
       static_cast<int>(length), array_type,
@@ -585,15 +532,6 @@ RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
   holder->set_buffer(*buffer);
   holder->set_byte_offset(*byte_offset);
   holder->set_byte_length(*byte_length);
-
-  Heap* heap = isolate->heap();
-  if (heap->InNewSpace(*holder)) {
-    holder->set_weak_next(heap->new_array_buffer_views_list());
-    heap->set_new_array_buffer_views_list(*holder);
-  } else {
-    holder->set_weak_next(buffer->weak_first_view());
-    buffer->set_weak_first_view(*holder);
-  }
 
   return isolate->heap()->undefined_value();
 }

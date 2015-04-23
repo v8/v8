@@ -80,6 +80,14 @@ class Accessors : public AllStatic {
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
                                       int* object_offset);
 
+  // Returns true for properties that are accessors to ArrayBufferView and
+  // derived classes fields. If true, *object_offset contains offset of
+  // object field. The caller still has to check whether the underlying
+  // buffer was neutered.
+  static bool IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
+                                               Handle<Name> name,
+                                               int* object_offset);
+
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate,
       Handle<Name> name,
