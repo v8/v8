@@ -903,10 +903,10 @@ class PreParserExpression {
                                              Token::Value op,
                                              PreParserExpression right) {
     ValidArrowParam valid_arrow_param_list =
-        (op == Token::COMMA && !left.is_parenthesized() &&
-         !right.is_parenthesized()) ?
-             std::min(left.ValidateArrowParams(), right.ValidateArrowParams())
-             : kInvalidArrowParam;
+        (op == Token::COMMA && !left.is_single_parenthesized() &&
+         !right.is_single_parenthesized())
+            ? std::min(left.ValidateArrowParams(), right.ValidateArrowParams())
+            : kInvalidArrowParam;
     return PreParserExpression(
         TypeField::encode(kBinaryOperationExpression) |
         IsValidArrowParamListField::encode(valid_arrow_param_list));
@@ -1045,14 +1045,14 @@ class PreParserExpression {
     return TypeField::decode(code_) == kBinaryOperationExpression;
   }
 
-  bool is_parenthesized() const {
+  bool is_single_parenthesized() const {
     return ParenthesizationField::decode(code_) != kNotParenthesized;
   }
 
   void increase_parenthesization_level() {
     code_ = ParenthesizationField::update(
-        code_, is_parenthesized() ? kMultiParenthesizedExpression
-                                  : kParanthesizedExpression);
+        code_, is_single_parenthesized() ? kMultiParenthesizedExpression
+                                         : kParanthesizedExpression);
   }
 
   // Dummy implementation for making expression->somefunc() work in both Parser
@@ -1061,7 +1061,7 @@ class PreParserExpression {
 
   // More dummy implementations of things PreParser doesn't need to track:
   void set_index(int index) {}  // For YieldExpressions
-  void set_parenthesized() {}
+  void set_should_eager_compile() {}
 
   int position() const { return RelocInfo::kNoPosition; }
   void set_function_token_position(int position) {}
@@ -1349,7 +1349,7 @@ class PreParserFactory {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
-      FunctionLiteral::IsParenthesizedFlag is_parenthesized, FunctionKind kind,
+      FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
       int position) {
     return PreParserExpression::Default();
   }
@@ -2963,7 +2963,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
           // be called immediately. If we happen to have parsed a preceding
           // function literal eagerly, we can also compile it eagerly.
           if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
-            result->AsFunctionLiteral()->set_parenthesized();
+            result->AsFunctionLiteral()->set_should_eager_compile();
           }
         }
         Scanner::Location spread_pos;
@@ -3325,7 +3325,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
           if (expression->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
             // If the tag function looks like an IIFE, set_parenthesized() to
             // force eager compilation.
-            expression->AsFunctionLiteral()->set_parenthesized();
+            expression->AsFunctionLiteral()->set_should_eager_compile();
           }
         }
         expression =
@@ -3520,7 +3520,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       materialized_literal_count, expected_property_count, handler_count,
       num_parameters, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      FunctionLiteral::kNotParenthesized, FunctionKind::kArrowFunction,
+      FunctionLiteral::kShouldLazyCompile, FunctionKind::kArrowFunction,
       scope->start_position());
 
   function_literal->set_function_token_position(scope->start_position());

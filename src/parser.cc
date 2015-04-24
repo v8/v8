@@ -378,7 +378,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       materialized_literal_count, expected_property_count, handler_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      FunctionLiteral::kNotParenthesized, kind, pos);
+      FunctionLiteral::kShouldLazyCompile, kind, pos);
 
   return function_literal;
 }
@@ -1039,7 +1039,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
           function_state.handler_count(), 0,
           FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
-          FunctionLiteral::kNotParenthesized, FunctionKind::kNormalFunction, 0);
+          FunctionLiteral::kShouldLazyCompile, FunctionKind::kNormalFunction,
+          0);
     }
   }
 
@@ -3833,7 +3834,7 @@ void ParserTraits::DeclareArrowFunctionParameters(
     }
     Expression* left = binop->left();
     Expression* right = binop->right();
-    if (left->is_parenthesized() || right->is_parenthesized()) {
+    if (left->is_single_parenthesized() || right->is_single_parenthesized()) {
       ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
       *ok = false;
       return;
@@ -3975,9 +3976,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int expected_property_count = -1;
   int handler_count = 0;
   FormalParameterErrorLocations error_locs;
-  FunctionLiteral::IsParenthesizedFlag parenthesized = parenthesized_function_
-      ? FunctionLiteral::kIsParenthesized
-      : FunctionLiteral::kNotParenthesized;
+  FunctionLiteral::EagerCompileHint eager_compile_hint =
+      parenthesized_function_ ? FunctionLiteral::kShouldEagerCompile
+                              : FunctionLiteral::kShouldLazyCompile;
   // Parse function body.
   {
     AstNodeFactory function_factory(ast_value_factory());
@@ -4123,7 +4124,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_name, ast_value_factory(), scope, body,
       materialized_literal_count, expected_property_count, handler_count,
       num_parameters, duplicate_parameters, function_type,
-      FunctionLiteral::kIsFunction, parenthesized, kind, pos);
+      FunctionLiteral::kIsFunction, eager_compile_hint, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
 
   if (scope->has_rest_parameter()) {

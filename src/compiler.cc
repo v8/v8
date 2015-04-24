@@ -1348,7 +1348,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
 
   // Generate code
   Handle<ScopeInfo> scope_info;
-  if (FLAG_lazy && allow_lazy && !literal->is_parenthesized()) {
+  if (FLAG_lazy && allow_lazy && !literal->should_eager_compile()) {
     Handle<Code> code = isolate->builtins()->CompileLazy();
     info.SetCode(code);
     // There's no need in theory for a lazy-compiled function to have a type
