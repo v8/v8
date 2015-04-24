@@ -620,10 +620,7 @@ function ArrayShift() {
     return;
   }
 
-  if (ObjectIsSealed(array)) {
-    throw MakeTypeError("array_functions_change_sealed",
-                        ["Array.prototype.shift"]);
-  }
+  if (ObjectIsSealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
 
   if (%IsObserved(array))
     return ObservedArrayShift.call(array, len);
@@ -821,11 +818,9 @@ function ArraySplice(start, delete_count) {
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
   if (del_count != num_elements_to_add && ObjectIsSealed(array)) {
-    throw MakeTypeError("array_functions_change_sealed",
-                        ["Array.prototype.splice"]);
+    throw MakeTypeError(kArrayFunctionsOnSealed);
   } else if (del_count > 0 && ObjectIsFrozen(array)) {
-    throw MakeTypeError("array_functions_on_frozen",
-                        ["Array.prototype.splice"]);
+    throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
   var changed_elements = del_count;
@@ -1446,7 +1441,7 @@ function ArrayReduce(callback, current) {
         break find_initial;
       }
     }
-    throw MakeTypeError('reduce_no_initial', []);
+    throw MakeTypeError(kReduceNoInitial);
   }
 
   var receiver = %GetDefaultReceiver(callback);
@@ -1484,7 +1479,7 @@ function ArrayReduceRight(callback, current) {
         break find_initial;
       }
     }
-    throw MakeTypeError('reduce_no_initial', []);
+    throw MakeTypeError(kReduceNoInitial);
   }
 
   var receiver = %GetDefaultReceiver(callback);

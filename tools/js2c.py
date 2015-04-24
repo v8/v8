@@ -69,7 +69,8 @@ def ReadFile(filename):
 
 EVAL_PATTERN = re.compile(r'\beval\s*\(')
 WITH_PATTERN = re.compile(r'\bwith\s*\(')
-INVALID_ERROR_MESSAGE_PATTERN = re.compile(r'Make\w*Error\((k\w+),')
+INVALID_ERROR_MESSAGE_PATTERN = re.compile(r'Make\w*Error\(([kA-Z]\w+)')
+NEW_ERROR_PATTERN = re.compile(r'new \$\w*Error\((?!\))');
 
 def Validate(lines):
   # Because of simplified context setup, eval and with is not
@@ -81,6 +82,8 @@ def Validate(lines):
   invalid_error = INVALID_ERROR_MESSAGE_PATTERN.search(lines)
   if invalid_error:
     raise Error("Unknown error message template '%s'" % invalid_error.group(1))
+  if NEW_ERROR_PATTERN.search(lines):
+    raise Error("Error constructed without message template.")
   # Pass lines through unchanged.
   return lines
 

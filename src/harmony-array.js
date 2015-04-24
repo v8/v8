@@ -174,8 +174,7 @@ function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
   }
 
   if ((end - i) > 0 && ObjectIsFrozen(array)) {
-    throw MakeTypeError("array_functions_on_frozen",
-                        ["Array.prototype.fill"]);
+    throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
   for (; i < end; i++)

@@ -133,7 +133,7 @@ macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
 # Macro for ES6 CheckObjectCoercible
 # Will throw a TypeError of the form "[functionName] called on null or undefined".
-macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError('called_on_null_or_undefined', [functionName]);
+macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
 
 # Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
 const kBoundFunctionIndex = 0;
@@ -191,7 +191,7 @@ const MAX_TIME_BEFORE_UTC = 8640002592000000;
 
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
-macro CHECK_DATE(arg) = if (%_ClassOf(arg) !== 'Date') ThrowDateTypeError();
+macro CHECK_DATE(arg) = if (%_ClassOf(arg) !== 'Date') throw MakeTypeError(kDateType);
 macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
 macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
 

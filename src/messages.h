@@ -91,13 +91,22 @@ class MessageHandler {
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(CyclicProto, "Cyclic __proto__ value")                                     \
+  T(DefaultOptionsMissing, "Internal % error. Default options are missing.")   \
+  T(Unsupported, "Not supported")                                              \
+  T(WrongServiceType, "Internal error, wrong service type: %")                 \
+  T(WrongValueType, "Internal error. Wrong value type.")                       \
   /* TypeError */                                                              \
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
     "function")                                                                \
+  T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
+  T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
+  T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
+  T(CurrencyCode, "Currency code is required with currency style.")            \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
+  T(DateType, "this is not a Date object.")                                    \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(GeneratorRunning, "Generator is already running")                          \
   T(FunctionBind, "Bind must be called on a function")                         \
@@ -107,6 +116,12 @@ class MessageHandler {
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
   T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")   \
+  T(LanguageID, "Language ID should be string or object.")                     \
+  T(MethodCalledOnWrongObject,                                                 \
+    "Method % called on a non-object or on a wrong type of object.")           \
+  T(MethodInvokedOnNullOrUndefined,                                            \
+    "Method invoked on undefined or null value.")                              \
+  T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
   T(NotAnIterator, "% is not an iterator")                                     \
   T(NotConstructor, "% is not a constructor")                                  \
   T(NotGeneric, "% is not generic")                                            \
@@ -117,6 +132,8 @@ class MessageHandler {
   T(ObjectSetterExpectingFunction,                                             \
     "Object.prototype.__defineSetter__: Expecting function")                   \
   T(ObjectSetterCallable, "Setter must be a function: %")                      \
+  T(OrdinaryFunctionCalledAsConstructor,                                       \
+    "Function object that's not a constructor was created with new")           \
   T(PropertyDescObject, "Property description must be an object: %")           \
   T(PropertyNotFunction, "Property '%' of object % is not a function")         \
   T(ProtoObjectOrNull, "Object prototype may only be an Object or null: %")    \
@@ -130,6 +147,11 @@ class MessageHandler {
     "Proxy handler % returned non-configurable descriptor for property '%' "   \
     "from '%' trap")                                                           \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \
+  T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
+  T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
+  T(ResolvedOptionsCalledOnNonObject,                                          \
+    "resolvedOptions method called on a non-object or on a object that is "    \
+    "not Intl.%.")                                                             \
   T(SymbolToPrimitive,                                                         \
     "Cannot convert a Symbol wrapper object to a primitive value")             \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
@@ -142,13 +164,25 @@ class MessageHandler {
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* RangeError */                                                             \
   T(ArrayLengthOutOfRange, "defineProperty() array length out of range")       \
+  T(DateRange, "Provided date is not in valid range.")                         \
+  T(ExpectedLocation, "Expected Area/Location for time zone, got %")           \
+  T(InvalidCurrencyCode, "Invalid currency code: %")                           \
+  T(InvalidLanguageTag, "Invalid language tag: %")                             \
+  T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
+  T(NormalizationForm, "The normalization form should be one of %.")           \
   T(NumberFormatRange, "% argument must be between 0 and 20")                  \
+  T(PropertyValueOutOfRange, "% value is out of range.")                       \
   T(StackOverflow, "Maximum call stack size exceeded")                         \
   T(ToPrecisionFormatRange, "toPrecision() argument must be between 1 and 21") \
+  T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
+  T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
+  T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
   /* EvalError */                                                              \
-  T(CodeGenFromStrings, "%")
+  T(CodeGenFromStrings, "%")                                                   \
+  /* URIError */                                                               \
+  T(URIMalformed, "URI malformed")
 
 class MessageTemplate {
  public:

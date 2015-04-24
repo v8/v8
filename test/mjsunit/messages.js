@@ -32,15 +32,44 @@ test(function() {
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 
+// kArrayFunctionsOnFrozen
+test(function() {
+  var a = [1, 2];
+  Object.freeze(a);
+  a.splice(1, 1, [1]);
+}, "Cannot modify frozen array elements", TypeError);
+
+// kArrayFunctionsOnSealed
+test(function() {
+  var a = [1];
+  Object.seal(a);
+  a.shift();
+}, "Cannot add/remove sealed array elements", TypeError);
+
 // kCalledNonCallable
 test(function() {
   [].forEach(1);
 }, "1 is not a function", TypeError);
 
+// kCalledOnNonObject
+test(function() {
+  Object.defineProperty(1, "x", {});
+}, "Object.defineProperty called on non-object", TypeError);
+
+// kCalledOnNullOrUndefined
+test(function() {
+  Array.prototype.shift.call(null);
+}, "Array.prototype.shift called on null or undefined", TypeError);
+
 // kCannotConvertToPrimitive
 test(function() {
   [].join(Object(Symbol(1)));
 }, "Cannot convert object to primitive value", TypeError);
+
+// kDateType
+test(function() {
+  Date.prototype.setYear.call({}, 1);
+}, "this is not a Date object.", TypeError);
 
 // kDefineDisallowed
 test(function() {
@@ -121,7 +150,6 @@ test(function() {
   Function.prototype.toString.call(1);
 }, "Function.prototype.toString is not generic", TypeError);
 
-
 // kObjectGetterExpectingFunction
 test(function() {
   ({}).__defineGetter__("x", 0);
@@ -165,6 +193,11 @@ test(function() {
   Object.defineProperty(o, "x", { value: 1, configurable: false });
   Object.defineProperty(o, "x", { value: 2 });
 }, "Cannot redefine property: x", TypeError);
+
+// kReduceNoInitial
+test(function() {
+  [].reduce(function() {});
+}, "Reduce of empty array with no initial value", TypeError);
 
 // kSymbolToPrimitive
 test(function() {
@@ -226,7 +259,12 @@ test(function() {
   Object.defineProperty([], "length", { value: 1E100 });
 }, "defineProperty() array length out of range", RangeError);
 
-//kNumberFormatRange
+// kNormalizationForm
+test(function() {
+  "".normalize("ABC");
+}, "The normalization form should be one of NFC, NFD, NFKC, NFKD.", RangeError);
+
+// kNumberFormatRange
 test(function() {
 Number(1).toFixed(100);
 }, "toFixed() digits argument must be between 0 and 20", RangeError);
@@ -245,3 +283,16 @@ test(function() {
 test(function() {
   Number(1).toPrecision(100);
 }, "toPrecision() argument must be between 1 and 21", RangeError);
+
+// kToPrecisionFormatRange
+test(function() {
+  Number(1).toString(100);
+}, "toString() radix argument must be between 2 and 36", RangeError);
+
+
+// === URIError ===
+
+// kURIMalformed
+test(function() {
+  decodeURI("%%");
+}, "URI malformed", URIError);

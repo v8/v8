@@ -179,8 +179,7 @@ function StringNormalizeJS(form) {
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
   var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
   if (normalizationForm === -1) {
-    throw new $RangeError('The normalization form should be one of '
-        + NORMALIZATION_FORMS.join(', ') + '.');
+    throw MakeRangeError(kNormalizationForm, NORMALIZATION_FORMS.join(', '));
   }
 
   return %_ValueOf(this);

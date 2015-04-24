@@ -20,11 +20,6 @@ var GlobalDate = global.Date;
 
 // This file contains date support implemented in JavaScript.
 
-// Helper function to throw error.
-function ThrowDateTypeError() {
-  throw new $TypeError('this is not a Date object.');
-}
-
 var timezone_cache_time = NAN;
 var timezone_cache_timezone;
 

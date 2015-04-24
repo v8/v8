@@ -1538,9 +1538,7 @@ function NumberToStringJS(radix) {
 
   // Convert the radix to an integer and check the range.
   radix = TO_INTEGER(radix);
-  if (radix < 2 || radix > 36) {
-    throw new $RangeError('toString() radix argument must be between 2 and 36');
-  }
+  if (radix < 2 || radix > 36) throw MakeRangeError(kToRadixFormatRange);
   // Convert the number to a string in the given radix.
   return %NumberToRadixString(number, radix);
 }

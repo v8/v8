@@ -97,9 +97,7 @@ function URIEncodePair(cc1 , cc2, result, index) {
 function URIHexCharsToCharCode(highChar, lowChar) {
   var highCode = HexValueOf(highChar);
   var lowCode = HexValueOf(lowChar);
-  if (highCode == -1 || lowCode == -1) {
-    throw new $URIError("URI malformed");
-  }
+  if (highCode == -1 || lowCode == -1) throw MakeURIError();
   return (highCode << 4) | lowCode;
 }
 
@@ -111,64 +109,46 @@ function URIDecodeOctets(octets, result, index) {
   if (o0 < 0x80) {
     value = o0;
   } else if (o0 < 0xc2) {
-    throw new $URIError("URI malformed");
+    throw MakeURIError();
   } else {
     var o1 = octets[1];
     if (o0 < 0xe0) {
       var a = o0 & 0x1f;
-      if ((o1 < 0x80) || (o1 > 0xbf)) {
-        throw new $URIError("URI malformed");
-      }
+      if ((o1 < 0x80) || (o1 > 0xbf)) throw MakeURIError();
       var b = o1 & 0x3f;
       value = (a << 6) + b;
-      if (value < 0x80 || value > 0x7ff) {
-        throw new $URIError("URI malformed");
-      }
+      if (value < 0x80 || value > 0x7ff) throw MakeURIError();
     } else {
       var o2 = octets[2];
       if (o0 < 0xf0) {
         var a = o0 & 0x0f;
-        if ((o1 < 0x80) || (o1 > 0xbf)) {
-          throw new $URIError("URI malformed");
-        }
+        if ((o1 < 0x80) || (o1 > 0xbf)) throw MakeURIError();
         var b = o1 & 0x3f;
-        if ((o2 < 0x80) || (o2 > 0xbf)) {
-          throw new $URIError("URI malformed");
-        }
+        if ((o2 < 0x80) || (o2 > 0xbf)) throw MakeURIError();
         var c = o2 & 0x3f;
         value = (a << 12) + (b << 6) + c;
-        if ((value < 0x800) || (value > 0xffff)) {
-          throw new $URIError("URI malformed");
-        }
+        if ((value < 0x800) || (value > 0xffff)) throw MakeURIError();
       } else {
         var o3 = octets[3];
         if (o0 < 0xf8) {
           var a = (o0 & 0x07);
-          if ((o1 < 0x80) || (o1 > 0xbf)) {
-            throw new $URIError("URI malformed");
-          }
+          if ((o1 < 0x80) || (o1 > 0xbf)) throw MakeURIError();
           var b = (o1 & 0x3f);
           if ((o2 < 0x80) || (o2 > 0xbf)) {
-            throw new $URIError("URI malformed");
+            throw MakeURIError();
           }
           var c = (o2 & 0x3f);
-          if ((o3 < 0x80) || (o3 > 0xbf)) {
-            throw new $URIError("URI malformed");
-          }
+          if ((o3 < 0x80) || (o3 > 0xbf)) throw MakeURIError();
           var d = (o3 & 0x3f);
           value = (a << 18) + (b << 12) + (c << 6) + d;
-          if ((value < 0x10000) || (value > 0x10ffff)) {
-            throw new $URIError("URI malformed");
-          }
+          if ((value < 0x10000) || (value > 0x10ffff)) throw MakeURIError();
         } else {
-          throw new $URIError("URI malformed");
+          throw MakeURIError();
         }
       }
     }
   }
-  if (0xD800 <= value && value <= 0xDFFF) {
-    throw new $URIError("URI malformed");
-  }
+  if (0xD800 <= value && value <= 0xDFFF) throw MakeURIError();
   if (value < 0x10000) {
     %_TwoByteSeqStringSetChar(index++, value, result);
   } else {
@@ -188,14 +168,14 @@ function Encode(uri, unescape) {
     if (unescape(cc1)) {
       array[index++] = cc1;
     } else {
-      if (cc1 >= 0xDC00 && cc1 <= 0xDFFF) throw new $URIError("URI malformed");
+      if (cc1 >= 0xDC00 && cc1 <= 0xDFFF) throw MakeURIError();
       if (cc1 < 0xD800 || cc1 > 0xDBFF) {
         index = URIEncodeSingle(cc1, array, index);
       } else {
         k++;
-        if (k == uriLength) throw new $URIError("URI malformed");
+        if (k == uriLength) throw MakeURIError();
         var cc2 = uri.charCodeAt(k);
-        if (cc2 < 0xDC00 || cc2 > 0xDFFF) throw new $URIError("URI malformed");
+        if (cc2 < 0xDC00 || cc2 > 0xDFFF) throw MakeURIError();
         index = URIEncodePair(cc1, cc2, array, index);
       }
     }
@@ -219,7 +199,7 @@ function Decode(uri, reserved) {
   for ( ; k < uriLength; k++) {
     var code = uri.charCodeAt(k);
     if (code == 37) {  // '%'
-      if (k + 2 >= uriLength) throw new $URIError("URI malformed");
+      if (k + 2 >= uriLength) throw MakeURIError();
       var cc = URIHexCharsToCharCode(uri.charCodeAt(k+1), uri.charCodeAt(k+2));
       if (cc >> 7) break;  // Assumption wrong, two-byte string.
       if (reserved(cc)) {
@@ -246,17 +226,17 @@ function Decode(uri, reserved) {
   for ( ; k < uriLength; k++) {
     var code = uri.charCodeAt(k);
     if (code == 37) {  // '%'
-      if (k + 2 >= uriLength) throw new $URIError("URI malformed");
+      if (k + 2 >= uriLength) throw MakeURIError();
       var cc = URIHexCharsToCharCode(uri.charCodeAt(++k), uri.charCodeAt(++k));
       if (cc >> 7) {
         var n = 0;
         while (((cc << ++n) & 0x80) != 0) { }
-        if (n == 1 || n > 4) throw new $URIError("URI malformed");
+        if (n == 1 || n > 4) throw MakeURIError();
         var octets = new GlobalArray(n);
         octets[0] = cc;
-        if (k + 3 * (n - 1) >= uriLength) throw new $URIError("URI malformed");
+        if (k + 3 * (n - 1) >= uriLength) throw MakeURIError();
         for (var i = 1; i < n; i++) {
-          if (uri.charAt(++k) != '%') throw new $URIError("URI malformed");
+          if (uri.charAt(++k) != '%') throw MakeURIError();
           octets[i] = URIHexCharsToCharCode(uri.charCodeAt(++k),
                                             uri.charCodeAt(++k));
         }

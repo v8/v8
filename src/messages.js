@@ -41,7 +41,6 @@ var kMessages = {
   illegal_invocation:            ["Illegal invocation"],
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
   flags_getter_non_object:       ["RegExp.prototype.flags getter called on non-object ", "%0"],
-  reduce_no_initial:             ["Reduce of empty array with no initial value"],
   value_and_accessor:            ["Invalid property.  A property cannot both have accessors and be writable or have a value, ", "%0"],
   proto_object_or_null:          ["Object prototype may only be an Object or null: ", "%0"],
   non_extensible_proto:          ["%0", " is not extensible"],
@@ -69,8 +68,6 @@ var kMessages = {
   not_a_promise:                 ["%0", " is not a promise"],
   resolver_not_a_function:       ["Promise resolver ", "%0", " is not a function"],
   promise_cyclic:                ["Chaining cycle detected for promise ", "%0"],
-  array_functions_on_frozen:     ["Cannot modify frozen array elements"],
-  array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
   first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
   iterator_result_not_an_object: ["Iterator result ", "%0", " is not an object"],
   iterator_value_not_an_object:  ["Iterator value ", "%0", " is not an entry object"],
@@ -108,7 +105,6 @@ var kMessages = {
   illegal_return:                ["Illegal return statement"],
   error_loading_debugger:        ["Error loading debugger"],
   circular_structure:            ["Converting circular structure to JSON"],
-  called_on_null_or_undefined:   ["%0", " called on null or undefined"],
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
   illegal_access:                ["Illegal access"],
@@ -298,7 +294,7 @@ function MakeGenericError(constructor, type, arg0, arg1, arg2) {
                   DONT_ENUM | DONT_DELETE | READ_ONLY);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
-  throw new $Error("Not supported");
+  throw MakeError(kUnsupported);
 });
 
 
@@ -369,6 +365,11 @@ function MakeReferenceError(type, arg0, arg1, arg2) {
 
 function MakeEvalError(type, arg0, arg1, arg2) {
   return MakeGenericError($EvalError, type, arg0, arg1, arg2);
+}
+
+
+function MakeURIError() {
+  return MakeGenericError($URIError, kURIMalformed);
 }
 
 // The embedded versions are called from unoptimized code, with embedded
