@@ -184,15 +184,17 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
 
 
 Node* JSGraph::EmptyFrameState() {
-  if (cached_nodes_[kEmptyFrameState] == nullptr) {
-    Node* values = graph()->NewNode(common()->StateValues(0));
-    Node* state_node = graph()->NewNode(
+  Node* empty_frame_state = cached_nodes_[kEmptyFrameState];
+  if (!empty_frame_state || empty_frame_state->IsDead()) {
+    Node* state_values = graph()->NewNode(common()->StateValues(0));
+    empty_frame_state = graph()->NewNode(
         common()->FrameState(JS_FRAME, BailoutId::None(),
                              OutputFrameStateCombine::Ignore()),
-        values, values, values, NoContextConstant(), UndefinedConstant());
-    cached_nodes_[kEmptyFrameState] = state_node;
+        state_values, state_values, state_values, NoContextConstant(),
+        UndefinedConstant());
+    cached_nodes_[kEmptyFrameState] = empty_frame_state;
   }
-  return cached_nodes_[kEmptyFrameState];
+  return empty_frame_state;
 }
 
 
@@ -204,7 +206,9 @@ Node* JSGraph::DeadControl() {
 void JSGraph::GetCachedNodes(NodeVector* nodes) {
   cache_.GetCachedNodes(nodes);
   for (size_t i = 0; i < arraysize(cached_nodes_); i++) {
-    if (cached_nodes_[i]) nodes->push_back(cached_nodes_[i]);
+    if (Node* node = cached_nodes_[i]) {
+      if (!node->IsDead()) nodes->push_back(node);
+    }
   }
 }
 
