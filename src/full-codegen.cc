@@ -1591,6 +1591,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(Smi::FromInt(lit->end_position()));
 
     __ CallRuntime(Runtime::kDefineClass, 6);
+    PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
     EmitClassDefineProperties(lit);
 
     if (lit->scope() != NULL) {

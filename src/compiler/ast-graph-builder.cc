@@ -1518,6 +1518,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   Node* end = jsgraph()->Constant(expr->end_position());
   const Operator* opc = javascript()->CallRuntime(Runtime::kDefineClass, 6);
   Node* literal = NewNode(opc, name, extends, constructor, script, start, end);
+  PrepareFrameState(literal, expr->CreateLiteralId(),
+                    OutputFrameStateCombine::Push());
 
   // The prototype is ensured to exist by Runtime_DefineClass. No access check
   // is needed here since the constructor is created by the class literal.
@@ -1594,7 +1596,6 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     BuildVariableAssignment(var, literal, Token::INIT_CONST, BailoutId::None());
   }
 
-  PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(literal);
 }
 
