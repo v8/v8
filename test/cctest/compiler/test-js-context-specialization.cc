@@ -214,8 +214,8 @@ TEST(SpecializeToContext) {
     Node* other_use =
         t.NewNode(t.simplified()->ChangeTaggedToInt32(), other_load);
 
-    Node* add = t.NewNode(t.javascript()->Add(), value_use, other_use,
-                          param_context, other_load, start);
+    Node* add = t.NewNode(t.javascript()->Add(LanguageMode::SLOPPY), value_use,
+                          other_use, param_context, other_load, start);
 
     Node* ret = t.NewNode(t.common()->Return(), add, effect_use, start);
     Node* end = t.NewNode(t.common()->End(), ret);

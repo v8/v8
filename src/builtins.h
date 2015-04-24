@@ -171,9 +171,13 @@ enum BuiltinExtraArguments {
   V(COMPARE, 2)                            \
   V(ADD, 1)                                \
   V(SUB, 1)                                \
+  V(SUB_STRONG, 1)                         \
   V(MUL, 1)                                \
+  V(MUL_STRONG, 1)                         \
   V(DIV, 1)                                \
+  V(DIV_STRONG, 1)                         \
   V(MOD, 1)                                \
+  V(MOD_STRONG, 1)                         \
   V(BIT_OR, 1)                             \
   V(BIT_AND, 1)                            \
   V(BIT_XOR, 1)                            \

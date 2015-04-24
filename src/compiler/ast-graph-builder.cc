@@ -1269,7 +1269,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   Node* obj = environment()->Peek(4);
 
   // Check loop termination condition.
-  Node* exit_cond = NewNode(javascript()->LessThan(), index, cache_length);
+  Node* exit_cond = NewNode(javascript()->LessThan(LanguageMode::SLOPPY),
+                            index, cache_length);
   // TODO(jarin): provide real bailout id.
   PrepareFrameState(exit_cond, BailoutId::None());
   for_loop.BreakUnless(exit_cond);
@@ -1303,7 +1304,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
       is_property_missing.Then();
       // Inc counter and continue.
       Node* index_inc =
-          NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
+          NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
+                  jsgraph()->OneConstant());
       // TODO(jarin): provide real bailout id.
       PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
                                       OutputFrameStateCombine::Ignore(),
@@ -1327,7 +1329,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
 
   // Inc counter and continue.
   Node* index_inc =
-      NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
+      NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
+              jsgraph()->OneConstant());
   // TODO(jarin): provide real bailout id.
   PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
                                   OutputFrameStateCombine::Ignore(),
@@ -2440,16 +2443,16 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       op = javascript()->StrictNotEqual();
       break;
     case Token::LT:
-      op = javascript()->LessThan();
+      op = javascript()->LessThan(language_mode());
       break;
     case Token::GT:
-      op = javascript()->GreaterThan();
+      op = javascript()->GreaterThan(language_mode());
       break;
     case Token::LTE:
-      op = javascript()->LessThanOrEqual();
+      op = javascript()->LessThanOrEqual(language_mode());
       break;
     case Token::GTE:
-      op = javascript()->GreaterThanOrEqual();
+      op = javascript()->GreaterThanOrEqual(language_mode());
       break;
     case Token::INSTANCEOF:
       op = javascript()->InstanceOf();
@@ -3209,37 +3212,37 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
   const Operator* js_op;
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr();
+      js_op = javascript()->BitwiseOr(language_mode());
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd();
+      js_op = javascript()->BitwiseAnd(language_mode());
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor();
+      js_op = javascript()->BitwiseXor(language_mode());
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft();
+      js_op = javascript()->ShiftLeft(language_mode());
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight();
+      js_op = javascript()->ShiftRight(language_mode());
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical();
+      js_op = javascript()->ShiftRightLogical(language_mode());
       break;
     case Token::ADD:
-      js_op = javascript()->Add();
+      js_op = javascript()->Add(language_mode());
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract();
+      js_op = javascript()->Subtract(language_mode());
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply();
+      js_op = javascript()->Multiply(language_mode());
       break;
     case Token::DIV:
-      js_op = javascript()->Divide();
+      js_op = javascript()->Divide(language_mode());
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus();
+      js_op = javascript()->Modulus(language_mode());
       break;
     default:
       UNREACHABLE();

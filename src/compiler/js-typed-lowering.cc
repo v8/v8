@@ -344,6 +344,13 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
                                              const Operator* numberOp) {
   JSBinopReduction r(this, node);
+  if (is_strong(OpParameter<LanguageMode>(node))) {
+    if (r.left_type()->Is(Type::Number()) &&
+        (r.right_type()->Is(Type::Number()))) {
+      return r.ChangeToPureOperator(numberOp, Type::Number());
+    }
+    return NoChange();
+  }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(numberOp, Type::Number());

@@ -213,21 +213,6 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(NotEqual, Operator::kNoProperties, 2, 1)              \
   V(StrictEqual, Operator::kPure, 2, 1)                   \
   V(StrictNotEqual, Operator::kPure, 2, 1)                \
-  V(LessThan, Operator::kNoProperties, 2, 1)              \
-  V(GreaterThan, Operator::kNoProperties, 2, 1)           \
-  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)       \
-  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)    \
-  V(BitwiseOr, Operator::kNoProperties, 2, 1)             \
-  V(BitwiseXor, Operator::kNoProperties, 2, 1)            \
-  V(BitwiseAnd, Operator::kNoProperties, 2, 1)            \
-  V(ShiftLeft, Operator::kNoProperties, 2, 1)             \
-  V(ShiftRight, Operator::kNoProperties, 2, 1)            \
-  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)     \
-  V(Add, Operator::kNoProperties, 2, 1)                   \
-  V(Subtract, Operator::kNoProperties, 2, 1)              \
-  V(Multiply, Operator::kNoProperties, 2, 1)              \
-  V(Divide, Operator::kNoProperties, 2, 1)                \
-  V(Modulus, Operator::kNoProperties, 2, 1)               \
   V(UnaryNot, Operator::kPure, 1, 1)                      \
   V(ToBoolean, Operator::kPure, 1, 1)                     \
   V(ToNumber, Operator::kNoProperties, 1, 1)              \
@@ -247,6 +232,24 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(CreateScriptContext, Operator::kNoProperties, 2, 1)
 
 
+#define CACHED_OP_LIST_WITH_LANGUAGE_MODE(V)              \
+  V(LessThan, Operator::kNoProperties, 2, 1)              \
+  V(GreaterThan, Operator::kNoProperties, 2, 1)           \
+  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)       \
+  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)    \
+  V(BitwiseOr, Operator::kNoProperties, 2, 1)             \
+  V(BitwiseXor, Operator::kNoProperties, 2, 1)            \
+  V(BitwiseAnd, Operator::kNoProperties, 2, 1)            \
+  V(ShiftLeft, Operator::kNoProperties, 2, 1)             \
+  V(ShiftRight, Operator::kNoProperties, 2, 1)            \
+  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)     \
+  V(Add, Operator::kNoProperties, 2, 1)                   \
+  V(Subtract, Operator::kNoProperties, 2, 1)              \
+  V(Multiply, Operator::kNoProperties, 2, 1)              \
+  V(Divide, Operator::kNoProperties, 2, 1)                \
+  V(Modulus, Operator::kNoProperties, 2, 1)
+
+
 struct JSOperatorGlobalCache final {
 #define CACHED(Name, properties, value_input_count, value_output_count)  \
   struct Name##Operator final : public Operator {                        \
@@ -260,6 +263,24 @@ struct JSOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+
+#define CACHED_WITH_STRONG(Name, properties, value_input_count,                \
+                           value_output_count)                                 \
+  template <LanguageMode kLanguageMode>                                        \
+  struct Name##Operator final : public Operator1<LanguageMode> {               \
+    Name##Operator()                                                           \
+        : Operator1<LanguageMode>(IrOpcode::kJS##Name, properties, "JS" #Name, \
+                   value_input_count, Operator::ZeroIfPure(properties),        \
+                   Operator::ZeroIfEliminatable(properties),                   \
+                   value_output_count, Operator::ZeroIfPure(properties),       \
+                   Operator::ZeroIfNoThrow(properties), kLanguageMode) {}      \
+  };                                                                           \
+  Name##Operator<SLOPPY> k##Name##SloppyOperator;                              \
+  Name##Operator<STRONG> k##Name##StrongOperator;
+  CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_STRONG)
+#undef CACHED_WITH_STRONG
+
 
   template <LanguageMode kLanguageMode>
   struct StorePropertyOperator final : public Operator1<LanguageMode> {
@@ -287,6 +308,21 @@ JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
   }
 CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+
+#define CACHED_WITH_STRONG(Name, properties, value_input_count,         \
+                           value_output_count)                          \
+  const Operator* JSOperatorBuilder::Name(LanguageMode language_mode) { \
+    if (is_strong(language_mode)) {                                     \
+      return &cache_.k##Name##StrongOperator;                           \
+    } else {                                                            \
+      return &cache_.k##Name##SloppyOperator;                           \
+    }                                                                   \
+    UNREACHABLE();                                                      \
+    return nullptr;                                                     \
+  }
+CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_STRONG)
+#undef CACHED_WITH_STRONG
 
 
 const Operator* JSOperatorBuilder::CallFunction(size_t arity,

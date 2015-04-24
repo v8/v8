@@ -1436,7 +1436,8 @@ class HGraphBuilder {
                                Type* right_type,
                                Type* result_type,
                                Maybe<int> fixed_right_arg,
-                               HAllocationMode allocation_mode);
+                               HAllocationMode allocation_mode,
+                               LanguageMode language_mode = SLOPPY);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object,
                                            HValue *dependency = NULL);

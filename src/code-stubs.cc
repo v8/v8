@@ -268,7 +268,8 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate the uninitialized versions of the stub.
   for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
-    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op));
+    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op),
+                        LanguageMode::SLOPPY);
     stub.GetCode();
   }
 

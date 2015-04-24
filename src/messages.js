@@ -128,6 +128,7 @@ var kMessages = {
   strong_ellision:               ["In strong mode, arrays with holes are deprecated, use maps instead"],
   strong_arguments:              ["In strong mode, 'arguments' is deprecated, use '...args' instead"],
   strong_undefined:              ["In strong mode, binding or assigning to 'undefined' is deprecated"],
+  strong_implicit_cast:          ["In strong mode, implicit conversions are deprecated"],
   strong_direct_eval:            ["In strong mode, direct calls to eval are deprecated"],
   strong_switch_fallthrough :    ["In strong mode, switch fall-through is deprecated, terminate each case with 'break', 'continue', 'return' or 'throw'"],
   strong_equal:                  ["In strong mode, '==' and '!=' are deprecated, use '===' and '!==' instead"],

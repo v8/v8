@@ -655,8 +655,8 @@ TEST_F(SchedulerTest, BuildScheduleIfSplit) {
   Node* p3 = graph()->NewNode(common()->Parameter(2), graph()->start());
   Node* p4 = graph()->NewNode(common()->Parameter(3), graph()->start());
   Node* p5 = graph()->NewNode(common()->Parameter(4), graph()->start());
-  Node* cmp = graph()->NewNode(js()->LessThanOrEqual(), p1, p2, p3,
-                               graph()->start(), graph()->start());
+  Node* cmp = graph()->NewNode(js()->LessThanOrEqual(LanguageMode::SLOPPY), p1,
+                               p2, p3, graph()->start(), graph()->start());
   Node* branch = graph()->NewNode(common()->Branch(), cmp, graph()->start());
   Node* true_branch = graph()->NewNode(common()->IfTrue(), branch);
   Node* false_branch = graph()->NewNode(common()->IfFalse(), branch);
@@ -698,19 +698,19 @@ TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
   op = common()->Return();
   Node* n36 = graph()->NewNode(op, nil, nil, nil);
   USE(n36);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n27 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n27);
   op = common()->IfSuccess();
   Node* n28 = graph()->NewNode(op, nil);
   USE(n28);
-  op = js()->Subtract();
+  op = js()->Subtract(LanguageMode::SLOPPY);
   Node* n34 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n34);
   op = common()->IfSuccess();
   Node* n35 = graph()->NewNode(op, nil);
   USE(n35);
-  op = js()->Subtract();
+  op = js()->Subtract(LanguageMode::SLOPPY);
   Node* n25 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n25);
   op = common()->Parameter(4);
@@ -726,7 +726,7 @@ TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
   op = common()->IfSuccess();
   Node* n26 = graph()->NewNode(op, nil);
   USE(n26);
-  op = js()->Multiply();
+  op = js()->Multiply(LanguageMode::SLOPPY);
   Node* n32 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n32);
   op = common()->Parameter(1);
@@ -735,7 +735,7 @@ TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
   op = common()->IfSuccess();
   Node* n33 = graph()->NewNode(op, nil);
   USE(n33);
-  op = js()->Subtract();
+  op = js()->Subtract(LanguageMode::SLOPPY);
   Node* n23 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n23);
   op = common()->IfSuccess();
@@ -756,16 +756,16 @@ TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
   op = common()->Parameter(3);
   Node* n4 = graph()->NewNode(op, nil);
   USE(n4);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n15 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n15);
   op = common()->IfFalse();
   Node* n31 = graph()->NewNode(op, nil);
   USE(n31);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n19 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n19);
-  op = js()->Multiply();
+  op = js()->Multiply(LanguageMode::SLOPPY);
   Node* n21 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n21);
   op = common()->IfSuccess();
@@ -913,7 +913,7 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoop) {
   op = common()->Phi(kMachAnyTagged, 2);
   Node* n13 = graph()->NewNode(op, nil, nil, nil);
   USE(n13);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n16 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n16);
   op = common()->IfFalse();
@@ -922,7 +922,7 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoop) {
   op = common()->Parameter(1);
   Node* n2 = graph()->NewNode(op, nil);
   USE(n2);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n29 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n29);
   op = common()->Loop(2);
@@ -1082,7 +1082,7 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
   op = common()->Phi(kMachAnyTagged, 2);
   Node* n53 = graph()->NewNode(op, nil, nil, nil);
   USE(n53);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n55 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n55);
   op = common()->IfFalse();
@@ -1091,7 +1091,7 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
   op = common()->Phi(kMachAnyTagged, 2);
   Node* n14 = graph()->NewNode(op, nil, nil, nil);
   USE(n14);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n66 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n66);
   op = common()->Loop(2);
@@ -1116,7 +1116,7 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
   op = common()->Parameter(1);
   Node* n2 = graph()->NewNode(op, nil);
   USE(n2);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n31 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n31);
   op = common()->Loop(2);
@@ -1149,7 +1149,7 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
   op = common()->HeapConstant(unique_constant);
   Node* n5 = graph()->NewNode(op);
   USE(n5);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n18 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n18);
   op = js()->ToBoolean();
@@ -1200,7 +1200,7 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
   op = common()->IfSuccess();
   Node* n19 = graph()->NewNode(op, nil);
   USE(n19);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n36 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n36);
   op = common()->IfTrue();
@@ -1224,7 +1224,7 @@ TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
   op = common()->Phi(kMachAnyTagged, 2);
   Node* n15 = graph()->NewNode(op, nil, nil, nil);
   USE(n15);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n48 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n48);
   op = common()->IfSuccess();
@@ -1421,7 +1421,7 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
   op = common()->Return();
   Node* n84 = graph()->NewNode(op, nil, nil, nil);
   USE(n84);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n82 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n82);
   op = common()->IfSuccess();
@@ -1440,7 +1440,7 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
                             OutputFrameStateCombine::Ignore());
   Node* n12 = graph()->NewNode(op, nil, nil, nil, nil, nil);
   USE(n12);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n19 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n19);
   op = common()->IfFalse();
@@ -1479,10 +1479,10 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
   op = common()->Branch();
   Node* n22 = graph()->NewNode(op, nil, nil);
   USE(n22);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n32 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n32);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n64 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n64);
   op = common()->Loop(2);
@@ -1494,7 +1494,7 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
   op = common()->Merge(2);
   Node* n72 = graph()->NewNode(op, nil, nil);
   USE(n72);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n78 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n78);
   op = js()->StackCheck();
@@ -1572,7 +1572,7 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
   op = common()->IfTrue();
   Node* n23 = graph()->NewNode(op, nil);
   USE(n23);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n50 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n50);
   op = common()->IfSuccess();
@@ -1587,7 +1587,7 @@ TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
   op = common()->IfSuccess();
   Node* n68 = graph()->NewNode(op, nil);
   USE(n68);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n38 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n38);
   op = common()->IfFalse();
@@ -1856,7 +1856,7 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoopWithCodeMotion) {
   op = common()->Phi(kMachAnyTagged, 2);
   Node* n14 = graph()->NewNode(op, nil, nil, nil);
   USE(n14);
-  op = js()->LessThan();
+  op = js()->LessThan(LanguageMode::SLOPPY);
   Node* n17 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil);
   USE(n17);
   op = common()->IfFalse();
@@ -1865,7 +1865,7 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoopWithCodeMotion) {
   op = common()->Parameter(1);
   Node* n2 = graph()->NewNode(op, nil);
   USE(n2);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n29 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n29);
   op = common()->Loop(2);
@@ -1890,7 +1890,7 @@ TEST_F(SchedulerTest, BuildScheduleSimpleLoopWithCodeMotion) {
   op = common()->Start(3);
   Node* n0 = graph()->NewNode(op);
   USE(n0);
-  op = js()->Add();
+  op = js()->Add(LanguageMode::SLOPPY);
   Node* n27 = graph()->NewNode(op, nil, nil, nil, nil, nil, nil, nil);
   USE(n27);
   op = common()->IfSuccess();

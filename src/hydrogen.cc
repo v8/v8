@@ -10428,7 +10428,7 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
 
   HValue* result = HGraphBuilder::BuildBinaryOperation(
       expr->op(), left, right, left_type, right_type, result_type,
-      fixed_right_arg, allocation_mode);
+      fixed_right_arg, allocation_mode, function_language_mode());
   // Add a simulate after instructions with observable side effects, and
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
@@ -10453,7 +10453,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Type* right_type,
     Type* result_type,
     Maybe<int> fixed_right_arg,
-    HAllocationMode allocation_mode) {
+    HAllocationMode allocation_mode,
+    LanguageMode language_mode) {
   Representation left_rep = RepresentationFor(left_type);
   Representation right_rep = RepresentationFor(right_type);
 
@@ -10466,7 +10467,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   if (!left_type->IsInhabited()) {
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForLHSOfBinaryOperation,
-        Deoptimizer::SOFT);
+        is_strong(language_mode) ? Deoptimizer::EAGER : Deoptimizer::SOFT);
     left_type = Type::Any(zone());
     left_rep = RepresentationFor(left_type);
     maybe_string_add = op == Token::ADD;
@@ -10475,7 +10476,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   if (!right_type->IsInhabited()) {
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForRHSOfBinaryOperation,
-        Deoptimizer::SOFT);
+        is_strong(language_mode) ? Deoptimizer::EAGER : Deoptimizer::SOFT);
     right_type = Type::Any(zone());
     right_rep = RepresentationFor(right_type);
     maybe_string_add = op == Token::ADD;
@@ -10582,7 +10583,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // inline several instructions (including the two pushes) for every tagged
   // operation in optimized code, which is more expensive, than a stub call.
   if (graph()->info()->IsStub() && is_non_primitive) {
-    HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
+    HValue* function = AddLoadJSBuiltin(
+        BinaryOpIC::TokenToJSBuiltin(op, language_mode));
     Add<HPushArguments>(left, right);
     instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {

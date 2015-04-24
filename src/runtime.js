@@ -199,11 +199,29 @@ function SUB(y) {
 }
 
 
+// ECMA-262, section 11.6.2, page 50.
+function SUB_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberSub(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.5.1, page 48.
 function MUL(y) {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
   if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberMul(x, y);
+}
+
+
+// ECMA-262, section 11.5.1, page 48.
+function MUL_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberMul(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
 }
 
 
@@ -215,6 +233,15 @@ function DIV(y) {
 }
 
 
+// ECMA-262, section 11.5.2, page 49.
+function DIV_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberDiv(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.5.3, page 49.
 function MOD(y) {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
@@ -222,6 +249,14 @@ function MOD(y) {
   return %NumberMod(x, y);
 }
 
+
+// ECMA-262, section 11.5.3, page 49.
+function MOD_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberMod(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
 
 
 /* -------------------------------------------

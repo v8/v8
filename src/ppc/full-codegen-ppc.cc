@@ -2435,7 +2435,8 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   patch_site.EmitJumpIfSmi(scratch1, &smi_case);
 
   __ bind(&stub_call);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
+  Handle<Code> code = CodeFactory::BinaryOpIC(
+      isolate(), op, language_mode()).code();
   CallIC(code, expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
   __ b(&done);
@@ -2611,7 +2612,8 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
 
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   __ pop(r4);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
+  Handle<Code> code = CodeFactory::BinaryOpIC(
+      isolate(), op, language_mode()).code();
   JumpPatchSite patch_site(masm_);  // unbound, signals no inlined smi code.
   CallIC(code, expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
@@ -5008,7 +5010,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Record position before stub call.
   SetSourcePosition(expr->position());
 
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), Token::ADD).code();
+  Handle<Code> code = CodeFactory::BinaryOpIC(
+      isolate(), Token::ADD, language_mode()).code();
   CallIC(code, expr->CountBinOpFeedbackId());
   patch_site.EmitPatchInfo();
   __ bind(&done);

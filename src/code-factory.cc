@@ -112,8 +112,9 @@ Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
 
 
 // static
-Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
-  BinaryOpICStub stub(isolate, op);
+Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
+                                 LanguageMode language_mode) {
+  BinaryOpICStub stub(isolate, op, language_mode);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
