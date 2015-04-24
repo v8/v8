@@ -1862,10 +1862,6 @@ class HGraphBuilder {
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetScriptContext(int context_index);
   HInstruction* BuildGetArrayFunction();
-  HValue* BuildArrayBufferViewFieldAccessor(HValue* object,
-                                            HValue* checked_object,
-                                            FieldIndex index);
-
 
  protected:
   void SetSourcePosition(int position) {
@@ -2558,20 +2554,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       return false;
     }
 
-    bool IsJSArrayBufferViewFieldAccessor() {
-      int offset;  // unused
-      return Accessors::IsJSArrayBufferViewFieldAccessor(map_, name_, &offset);
-    }
-
-    bool GetJSArrayBufferViewFieldAccess(HObjectAccess* access) {
-      int offset;
-      if (Accessors::IsJSArrayBufferViewFieldAccessor(map_, name_, &offset)) {
-        *access = HObjectAccess::ForMapAndOffset(map_, offset);
-        return true;
-      }
-      return false;
-    }
-
     bool has_holder() { return !holder_.is_null(); }
     bool IsLoad() const { return access_type_ == LOAD; }
 
@@ -2696,15 +2678,22 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     PropertyDetails details_;
   };
 
-  HValue* BuildMonomorphicAccess(PropertyAccessInfo* info, HValue* object,
-                                 HValue* checked_object, HValue* value,
-                                 BailoutId ast_id, BailoutId return_id,
-                                 bool can_inline_accessor = true);
+  HInstruction* BuildMonomorphicAccess(PropertyAccessInfo* info,
+                                       HValue* object,
+                                       HValue* checked_object,
+                                       HValue* value,
+                                       BailoutId ast_id,
+                                       BailoutId return_id,
+                                       bool can_inline_accessor = true);
 
-  HValue* BuildNamedAccess(PropertyAccessType access, BailoutId ast_id,
-                           BailoutId reutrn_id, Expression* expr,
-                           HValue* object, Handle<String> name, HValue* value,
-                           bool is_uninitialized = false);
+  HInstruction* BuildNamedAccess(PropertyAccessType access,
+                                 BailoutId ast_id,
+                                 BailoutId reutrn_id,
+                                 Expression* expr,
+                                 HValue* object,
+                                 Handle<String> name,
+                                 HValue* value,
+                                 bool is_uninitialized = false);
 
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,

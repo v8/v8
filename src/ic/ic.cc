@@ -1227,12 +1227,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
         return SimpleFieldLoad(index);
       }
-      if (Accessors::IsJSArrayBufferViewFieldAccessor(map, lookup->name(),
-                                                      &object_offset)) {
-        FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
-        ArrayBufferViewLoadFieldStub stub(isolate(), index);
-        return stub.GetCode();
-      }
 
       Handle<Object> accessors = lookup->GetAccessors();
       if (accessors->IsExecutableAccessorInfo()) {

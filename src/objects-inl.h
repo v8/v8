@@ -4377,25 +4377,23 @@ Handle<Object> FixedTypedArray<Traits>::get(
 
 template <class Traits>
 Handle<Object> FixedTypedArray<Traits>::SetValue(
-    Handle<JSObject> holder, Handle<FixedTypedArray<Traits> > array,
-    uint32_t index, Handle<Object> value) {
+    Handle<FixedTypedArray<Traits> > array,
+    uint32_t index,
+    Handle<Object> value) {
   ElementType cast_value = Traits::defaultValue();
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(array->length())) {
-      if (value->IsSmi()) {
-        int int_value = Handle<Smi>::cast(value)->value();
-        cast_value = from_int(int_value);
-      } else if (value->IsHeapNumber()) {
-        double double_value = Handle<HeapNumber>::cast(value)->value();
-        cast_value = from_double(double_value);
-      } else {
-        // Clamp undefined to the default value. All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      array->set(index, cast_value);
+  if (index < static_cast<uint32_t>(array->length())) {
+    if (value->IsSmi()) {
+      int int_value = Handle<Smi>::cast(value)->value();
+      cast_value = from_int(int_value);
+    } else if (value->IsHeapNumber()) {
+      double double_value = Handle<HeapNumber>::cast(value)->value();
+      cast_value = from_double(double_value);
+    } else {
+      // Clamp undefined to the default value. All other types have been
+      // converted to a number type further up in the call chain.
+      DCHECK(value->IsUndefined());
     }
+    array->set(index, cast_value);
   }
   return Traits::ToHandle(array->GetIsolate(), cast_value);
 }
@@ -6457,71 +6455,15 @@ void JSArrayBuffer::set_is_neuterable(bool value) {
 }
 
 
-bool JSArrayBuffer::was_neutered() {
-  return BooleanBit::get(flag(), kWasNeuteredBit);
-}
-
-
-void JSArrayBuffer::set_was_neutered(bool value) {
-  set_flag(BooleanBit::set(flag(), kWasNeuteredBit, value));
-}
-
-
 ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
-
-
-Object* JSArrayBufferView::byte_offset() const {
-  if (WasNeutered()) return Smi::FromInt(0);
-  return Object::cast(READ_FIELD(this, kByteOffsetOffset));
-}
-
-
-void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kByteOffsetOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteOffsetOffset, value, mode);
-}
-
-
-Object* JSArrayBufferView::byte_length() const {
-  if (WasNeutered()) return Smi::FromInt(0);
-  return Object::cast(READ_FIELD(this, kByteLengthOffset));
-}
-
-
-void JSArrayBufferView::set_byte_length(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kByteLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteLengthOffset, value, mode);
-}
+ACCESSORS(JSArrayBuffer, weak_first_view, Object, kWeakFirstViewOffset)
 
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
-#ifdef VERIFY_HEAP
-ACCESSORS(JSArrayBufferView, raw_byte_offset, Object, kByteOffsetOffset)
-ACCESSORS(JSArrayBufferView, raw_byte_length, Object, kByteLengthOffset)
-#endif
-
-
-bool JSArrayBufferView::WasNeutered() const {
-  return !buffer()->IsSmi() && JSArrayBuffer::cast(buffer())->was_neutered();
-}
-
-
-Object* JSTypedArray::length() const {
-  if (WasNeutered()) return Smi::FromInt(0);
-  return Object::cast(READ_FIELD(this, kLengthOffset));
-}
-
-
-void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
-}
-
-
-#ifdef VERIFY_HEAP
-ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
-#endif
-
+ACCESSORS(JSArrayBufferView, byte_offset, Object, kByteOffsetOffset)
+ACCESSORS(JSArrayBufferView, byte_length, Object, kByteLengthOffset)
+ACCESSORS(JSArrayBufferView, weak_next, Object, kWeakNextOffset)
+ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 

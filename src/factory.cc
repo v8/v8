@@ -1825,38 +1825,9 @@ size_t GetExternalArrayElementSize(ExternalArrayType type) {
   case kExternal##Type##Array:                          \
     return size;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return 0;
   }
-#undef TYPED_ARRAY_CASE
-}
-
-
-size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
-  switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
-    return size;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return 0;
-  }
-#undef TYPED_ARRAY_CASE
-}
-
-
-ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
-  switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
-    return kExternal##Type##Array;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return kExternalInt8Array;
-  }
+  UNREACHABLE();
+  return 0;
 #undef TYPED_ARRAY_CASE
 }
 
@@ -1878,23 +1849,6 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
 }
 
 
-JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
-  Context* native_context = isolate->context()->native_context();
-  switch (elements_kind) {
-#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                \
-    return native_context->type##_array_fun();
-
-    TYPED_ARRAYS(TYPED_ARRAY_FUN)
-#undef TYPED_ARRAY_FUN
-
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
-}
-
-
 void SetupArrayBufferView(i::Isolate* isolate,
                           i::Handle<i::JSArrayBufferView> obj,
                           i::Handle<i::JSArrayBuffer> buffer,
@@ -1903,6 +1857,15 @@ void SetupArrayBufferView(i::Isolate* isolate,
          static_cast<size_t>(buffer->byte_length()->Number()));
 
   obj->set_buffer(*buffer);
+
+  Heap* heap = isolate->heap();
+  if (heap->InNewSpace(*obj)) {
+    obj->set_weak_next(heap->new_array_buffer_views_list());
+    heap->set_new_array_buffer_views_list(*obj);
+  } else {
+    obj->set_weak_next(buffer->weak_first_view());
+    buffer->set_weak_first_view(*obj);
+  }
 
   i::Handle<i::Object> byte_offset_object =
       isolate->factory()->NewNumberFromSize(byte_offset);
@@ -1923,16 +1886,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
-      JSTypedArray);
-}
-
-
-Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind) {
-  Handle<JSFunction> typed_array_fun_handle(
-      GetTypedArrayFun(elements_kind, isolate()));
-
-  CALL_HEAP_FUNCTION(
-      isolate(), isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
       JSTypedArray);
 }
 
@@ -1961,34 +1914,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
       static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
   JSObject::SetMapAndElements(obj, map, elements);
-  return obj;
-}
-
-
-Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
-                                              size_t number_of_elements) {
-  Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind);
-
-  size_t element_size = GetFixedTypedArraysElementSize(elements_kind);
-  ExternalArrayType array_type = GetArrayTypeFromElementsKind(elements_kind);
-
-  CHECK(number_of_elements <=
-        (std::numeric_limits<size_t>::max() / element_size));
-  CHECK(number_of_elements <= static_cast<size_t>(Smi::kMaxValue));
-  size_t byte_length = number_of_elements * element_size;
-
-  obj->set_byte_offset(Smi::FromInt(0));
-  i::Handle<i::Object> byte_length_object =
-      isolate()->factory()->NewNumberFromSize(byte_length);
-  obj->set_byte_length(*byte_length_object);
-  Handle<Object> length_object = NewNumberFromSize(number_of_elements);
-  obj->set_length(*length_object);
-
-  obj->set_buffer(Smi::FromInt(0));
-  Handle<FixedTypedArrayBase> elements =
-      isolate()->factory()->NewFixedTypedArray(
-          static_cast<int>(number_of_elements), array_type);
-  obj->set_elements(*elements);
   return obj;
 }
 

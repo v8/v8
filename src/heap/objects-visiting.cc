@@ -243,6 +243,56 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer,
 }
 
 
+Object* VisitNewArrayBufferViewsWeakList(Heap* heap, Object* list,
+                                         WeakObjectRetainer* retainer) {
+  Object* undefined = heap->undefined_value();
+  Object* previous = undefined;
+  Object* head = undefined;
+  Object* next;
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  bool record_slots = MustRecordSlots(heap);
+
+  for (Object* o = list; o != undefined;) {
+    JSArrayBufferView* view = JSArrayBufferView::cast(o);
+    next = view->weak_next();
+    if (!heap->InNewSpace(view)) {
+      if (previous != undefined) {
+        // We are in the middle of the list, skip the old space element.
+        JSArrayBufferView* previous_view = JSArrayBufferView::cast(previous);
+        previous_view->set_weak_next(next);
+        if (record_slots) {
+          Object** next_slot = HeapObject::RawField(
+              previous_view, JSArrayBufferView::kWeakNextOffset);
+          collector->RecordSlot(next_slot, next_slot, next);
+        }
+      }
+      JSArrayBuffer* buffer = JSArrayBuffer::cast(view->buffer());
+      view->set_weak_next(buffer->weak_first_view());
+      if (record_slots) {
+        Object** next_slot =
+            HeapObject::RawField(view, JSArrayBufferView::kWeakNextOffset);
+        collector->RecordSlot(next_slot, next_slot, buffer->weak_first_view());
+      }
+      buffer->set_weak_first_view(view);
+      if (record_slots) {
+        Object** slot =
+            HeapObject::RawField(buffer, JSArrayBuffer::kWeakFirstViewOffset);
+        heap->mark_compact_collector()->RecordSlot(slot, slot, view);
+      }
+    } else {
+      // We found a valid new space view, remember it.
+      previous = view;
+      if (head == undefined) {
+        // We are at the list head.
+        head = view;
+      }
+    }
+    o = next;
+  }
+  return head;
+}
+
+
 template <class T>
 static void ClearWeakList(Heap* heap, Object* list) {
   Object* undefined = heap->undefined_value();
@@ -345,6 +395,22 @@ struct WeakListVisitor<Context> {
 
 
 template <>
+struct WeakListVisitor<JSArrayBufferView> {
+  static void SetWeakNext(JSArrayBufferView* obj, Object* next) {
+    obj->set_weak_next(next);
+  }
+
+  static Object* WeakNext(JSArrayBufferView* obj) { return obj->weak_next(); }
+
+  static int WeakNextOffset() { return JSArrayBufferView::kWeakNextOffset; }
+
+  static void VisitLiveObject(Heap*, JSArrayBufferView*, WeakObjectRetainer*) {}
+
+  static void VisitPhantomObject(Heap*, JSArrayBufferView*) {}
+};
+
+
+template <>
 struct WeakListVisitor<JSArrayBuffer> {
   static void SetWeakNext(JSArrayBuffer* obj, Object* next) {
     obj->set_weak_next(next);
@@ -356,6 +422,14 @@ struct WeakListVisitor<JSArrayBuffer> {
 
   static void VisitLiveObject(Heap* heap, JSArrayBuffer* array_buffer,
                               WeakObjectRetainer* retainer) {
+    Object* typed_array_obj = VisitWeakList<JSArrayBufferView>(
+        heap, array_buffer->weak_first_view(), retainer, false, NULL);
+    array_buffer->set_weak_first_view(typed_array_obj);
+    if (typed_array_obj != heap->undefined_value() && MustRecordSlots(heap)) {
+      Object** slot = HeapObject::RawField(array_buffer,
+                                           JSArrayBuffer::kWeakFirstViewOffset);
+      heap->mark_compact_collector()->RecordSlot(slot, slot, typed_array_obj);
+    }
   }
 
   static void VisitPhantomObject(Heap* heap, JSArrayBuffer* phantom) {
@@ -390,6 +464,11 @@ template Object* VisitWeakList<JSArrayBuffer>(Heap* heap, Object* list,
                                               WeakObjectRetainer* retainer,
                                               bool stop_after_young,
                                               Object** list_tail);
+
+template Object* VisitWeakList<JSArrayBufferView>(Heap* heap, Object* list,
+                                                  WeakObjectRetainer* retainer,
+                                                  bool stop_after_young,
+                                                  Object** list_tail);
 
 template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
                                                WeakObjectRetainer* retainer,

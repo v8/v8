@@ -88,7 +88,6 @@ namespace internal {
   V(VectorRawKeyedLoad)                     \
   V(VectorRawLoad)                          \
   /* IC Handler stubs */                    \
-  V(ArrayBufferViewLoadField)               \
   V(LoadConstant)                           \
   V(LoadField)                              \
   V(KeyedLoadSloppyArguments)               \
@@ -971,32 +970,6 @@ class LoadFieldStub: public HandlerStub {
   class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
 
   DEFINE_HANDLER_CODE_STUB(LoadField, HandlerStub);
-};
-
-
-class ArrayBufferViewLoadFieldStub : public HandlerStub {
- public:
-  ArrayBufferViewLoadFieldStub(Isolate* isolate, FieldIndex index)
-      : HandlerStub(isolate) {
-    int property_index_key = index.GetFieldAccessStubKey();
-    set_sub_minor_key(
-        ArrayBufferViewLoadFieldByIndexBits::encode(property_index_key));
-  }
-
-  FieldIndex index() const {
-    int property_index_key =
-        ArrayBufferViewLoadFieldByIndexBits::decode(sub_minor_key());
-    return FieldIndex::FromFieldAccessStubKey(property_index_key);
-  }
-
- protected:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
-
- private:
-  class ArrayBufferViewLoadFieldByIndexBits : public BitField<int, 0, 13> {};
-
-  DEFINE_HANDLER_CODE_STUB(ArrayBufferViewLoadField, HandlerStub);
 };
 
 
