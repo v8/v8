@@ -15,13 +15,26 @@ var $isFinite = GlobalIsFinite;
 
 // ----------------------------------------------------------------------------
 
+// ES6 - 9.2.11 SetFunctionName
+function SetFunctionName(f, name, prefix) {
+  if (IS_SYMBOL(name)) {
+    name = "[" + %SymbolDescription(name) + "]";
+  }
+  if (IS_UNDEFINED(prefix)) {
+    %FunctionSetName(f, name);
+  } else {
+    %FunctionSetName(f, prefix + " " + name);
+  }
+}
+
+
 // Helper function used to install functions on objects.
 function InstallFunctions(object, attributes, functions) {
   %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
   for (var i = 0; i < functions.length; i += 2) {
     var key = functions[i];
     var f = functions[i + 1];
-    %FunctionSetName(f, key);
+    SetFunctionName(f, key);
     %FunctionRemovePrototype(f);
     %AddNamedProperty(object, key, f, attributes);
     %SetNativeFlag(f);
@@ -35,7 +48,7 @@ function OverrideFunction(object, name, f) {
                                        writeable: true,
                                        configurable: true,
                                        enumerable: false });
-  %FunctionSetName(f, name);
+  SetFunctionName(f, name);
   %FunctionRemovePrototype(f);
   %SetNativeFlag(f);
 }
@@ -46,7 +59,7 @@ function InstallGetter(object, name, getter, attributes) {
   if (typeof attributes == "undefined") {
     attributes = DONT_ENUM;
   }
-  %FunctionSetName(getter, name);
+  SetFunctionName(getter, name, "get");
   %FunctionRemovePrototype(getter);
   %DefineAccessorPropertyUnchecked(object, name, getter, null, attributes);
   %SetNativeFlag(getter);
@@ -55,8 +68,8 @@ function InstallGetter(object, name, getter, attributes) {
 
 // Helper function to install a getter/setter accessor property.
 function InstallGetterSetter(object, name, getter, setter) {
-  %FunctionSetName(getter, name);
-  %FunctionSetName(setter, name);
+  SetFunctionName(getter, name, "get");
+  SetFunctionName(setter, name, "set");
   %FunctionRemovePrototype(getter);
   %FunctionRemovePrototype(setter);
   %DefineAccessorPropertyUnchecked(object, name, getter, setter, DONT_ENUM);

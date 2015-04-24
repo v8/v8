@@ -95,7 +95,7 @@ InstallFunctions(GeneratorObjectPrototype,
                  ["next", GeneratorObjectNext,
                   "throw", GeneratorObjectThrow]);
 
-%FunctionSetName(GeneratorObjectIterator, '[Symbol.iterator]');
+SetFunctionName(GeneratorObjectIterator, symbolIterator);
 %AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
     GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
 %AddNamedProperty(GeneratorObjectPrototype, "constructor",

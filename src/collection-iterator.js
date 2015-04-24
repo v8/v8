@@ -80,7 +80,7 @@ InstallFunctions(SetIterator.prototype, DONT_ENUM, [
   'next', SetIteratorNextJS
 ]);
 
-%FunctionSetName(SetIteratorSymbolIterator, '[Symbol.iterator]');
+SetFunctionName(SetIteratorSymbolIterator, symbolIterator);
 %AddNamedProperty(SetIterator.prototype, symbolIterator,
     SetIteratorSymbolIterator, DONT_ENUM);
 %AddNamedProperty(SetIterator.prototype, symbolToStringTag,
@@ -170,7 +170,7 @@ InstallFunctions(MapIterator.prototype, DONT_ENUM, [
   'next', MapIteratorNextJS
 ]);
 
-%FunctionSetName(MapIteratorSymbolIterator, '[Symbol.iterator]');
+SetFunctionName(MapIteratorSymbolIterator, symbolIterator);
 %AddNamedProperty(MapIterator.prototype, symbolIterator,
     MapIteratorSymbolIterator, DONT_ENUM);
 %AddNamedProperty(MapIterator.prototype, symbolToStringTag,

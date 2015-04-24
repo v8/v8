@@ -68,32 +68,15 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
 }
 
 
-static Handle<String> NameToFunctionName(Handle<Name> name) {
-  Handle<String> stringName(name->GetHeap()->empty_string());
-
-  // TODO(caitp): Follow proper rules in section 9.2.11 (SetFunctionName)
-  if (name->IsSymbol()) {
-    Handle<Object> description(Handle<Symbol>::cast(name)->name(),
-                               name->GetIsolate());
-    if (description->IsString()) {
-      stringName = Handle<String>::cast(description);
-    }
-  } else {
-    stringName = Handle<String>::cast(name);
-  }
-
-  return stringName;
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionSetName) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, f, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
 
-  f->shared()->set_name(*NameToFunctionName(name));
+  name = String::Flatten(name);
+  f->shared()->set_name(*name);
   return isolate->heap()->undefined_value();
 }
 

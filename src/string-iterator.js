@@ -91,13 +91,13 @@ function StringPrototypeIterator() {
 InstallFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
-%FunctionSetName(StringIteratorIterator, '[Symbol.iterator]');
+SetFunctionName(StringIteratorIterator, symbolIterator);
 %AddNamedProperty(StringIterator.prototype, symbolIterator,
                   StringIteratorIterator, DONT_ENUM);
 %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
-%FunctionSetName(StringPrototypeIterator, '[Symbol.iterator]');
+SetFunctionName(StringPrototypeIterator, symbolIterator);
 %AddNamedProperty(GlobalString.prototype, symbolIterator,
                   StringPrototypeIterator, DONT_ENUM);
 

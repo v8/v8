@@ -128,7 +128,7 @@ function ArrayKeys() {
 InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
-%FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
+SetFunctionName(ArrayIteratorIterator, symbolIterator);
 %AddNamedProperty(ArrayIterator.prototype, symbolIterator,
                   ArrayIteratorIterator, DONT_ENUM);
 %AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
