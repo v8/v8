@@ -240,16 +240,11 @@ RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
 
   // TODO(verwaest): This case should probably not be covered by this function,
   // but by DeclareGlobals instead.
-  if (attributes != ABSENT && holder->IsJSGlobalObject()) {
+  if ((attributes != ABSENT && holder->IsJSGlobalObject()) ||
+      (context_arg->has_extension() &&
+       context_arg->extension()->IsJSGlobalObject())) {
     return DeclareGlobals(isolate, Handle<JSGlobalObject>::cast(holder), name,
                           value, attr, is_var, is_const, is_function);
-  }
-  if (context_arg->has_extension() &&
-      context_arg->extension()->IsJSGlobalObject()) {
-    Handle<JSGlobalObject> global(
-        JSGlobalObject::cast(context_arg->extension()), isolate);
-    return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
-                          is_function);
   }
 
   if (attributes != ABSENT) {

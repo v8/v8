@@ -910,7 +910,8 @@ class Parser : public ParserBase<ParserTraits> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  void* ParseStatementList(ZoneList<Statement*>* body, int end_token, bool* ok);
+  void* ParseStatementList(ZoneList<Statement*>* body, int end_token,
+                           bool is_eval, Scope** ad_hoc_eval_scope, bool* ok);
   Statement* ParseStatementListItem(bool* ok);
   void* ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
