@@ -1168,48 +1168,40 @@ bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
     for (scope = this; scope && scope != var->scope();
          scope = scope->outer_scope()) {
       ClassVariable* class_var = scope->ClassVariableForMethod();
-      if (class_var) {
-        // A method is referring to some other class, possibly declared
-        // later. Referring to a class declared earlier is always OK and covered
-        // by the code outside this if. Here we only need to allow special cases
-        // for referring to a class which is declared later.
+      // A method is referring to some other class, possibly declared
+      // later. Referring to a class declared earlier is always OK and covered
+      // by the code outside this if. Here we only need to allow special cases
+      // for referring to a class which is declared later.
 
-        // Referring to a class C declared later is OK under the following
-        // circumstances:
+      // Referring to a class C declared later is OK under the following
+      // circumstances:
 
-        // 1. The class declarations are in a consecutive group with no other
-        // declarations or statements in between, and
+      // 1. The class declarations are in a consecutive group with no other
+      // declarations or statements in between, and
 
-        // 2. There is no dependency cycle where the first edge is an
-        // initialization time dependency (computed property name or extends
-        // clause) from C to something that depends on this class directly or
-        // transitively.
-
-        // This is needed because a class ("class Name { }") creates two
-        // bindings (one in the outer scope, and one in the class scope). The
-        // method is a function scope inside the inner scope (class scope). The
-        // consecutive class declarations are in the outer scope.
-        class_var = class_var->corresponding_outer_class_variable();
-        if (class_var &&
-            class_var->declaration_group_start() ==
-                var->AsClassVariable()->declaration_group_start()) {
-          return true;
-        }
-
-        // TODO(marja,rossberg): implement the dependency cycle detection. Here
-        // we undershoot the target and allow referring to any class in the same
-        // consectuive declaration group.
-
-        // The cycle detection can work roughly like this: 1) detect init-time
-        // references here (they are free variables which are inside the class
-        // scope but not inside a method scope - no parser changes needed to
-        // detect them) 2) if we encounter an init-time reference here, allow
-        // it, but record it for a later dependency cycle check 3) also record
-        // non-init-time references here 4) after scope analysis is done,
-        // analyse the dependency cycles: an illegal cycle is one starting with
-        // an init-time reference and leading back to the starting point with
-        // either non-init-time and init-time references.
+      // 2. There is no dependency cycle where the first edge is an
+      // initialization time dependency (computed property name or extends
+      // clause) from C to something that depends on this class directly or
+      // transitively.
+      if (class_var &&
+          class_var->declaration_group_start() ==
+              var->AsClassVariable()->declaration_group_start()) {
+        return true;
       }
+
+      // TODO(marja,rossberg): implement the dependency cycle detection. Here we
+      // undershoot the target and allow referring to any class in the same
+      // consectuive declaration group.
+
+      // The cycle detection can work roughly like this: 1) detect init-time
+      // references here (they are free variables which are inside the class
+      // scope but not inside a method scope - no parser changes needed to
+      // detect them) 2) if we encounter an init-time reference here, allow it,
+      // but record it for a later dependency cycle check 3) also record
+      // non-init-time references here 4) after scope analysis is done, analyse
+      // the dependency cycles: an illegal cycle is one starting with an
+      // init-time reference and leading back to the starting point with either
+      // non-init-time and init-time references.
     }
   }
 

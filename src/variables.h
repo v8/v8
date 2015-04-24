@@ -192,16 +192,11 @@ class ClassVariable : public Variable {
                 int declaration_group_start = -1)
       : Variable(scope, name, mode, Variable::CLASS, initialization_flag,
                  maybe_assigned_flag),
-        declaration_group_start_(declaration_group_start),
-        corresponding_outer_class_variable_(nullptr) {}
+        declaration_group_start_(declaration_group_start) {}
 
   int declaration_group_start() const { return declaration_group_start_; }
-
-  ClassVariable* corresponding_outer_class_variable() const {
-    return corresponding_outer_class_variable_;
-  }
-  void set_corresponding_outer_class_variable(ClassVariable* var) {
-    corresponding_outer_class_variable_ = var;
+  void set_declaration_group_start(int declaration_group_start) {
+    declaration_group_start_ = declaration_group_start;
   }
 
  private:
@@ -209,7 +204,6 @@ class ClassVariable : public Variable {
   // needed for strong mode scoping checks. TODO(marja, rossberg): Implement
   // checks for functions too.
   int declaration_group_start_;
-  ClassVariable* corresponding_outer_class_variable_;
 };
 } }  // namespace v8::internal
 

@@ -2199,6 +2199,10 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
       scope_->class_declaration_group_start());
   Variable* outer_class_variable = Declare(declaration, true, CHECK_OK);
   proxy->var()->set_initializer_position(position());
+  // This is needed because a class ("class Name { }") creates two bindings (one
+  // in the outer scope, and one in the class scope). The method is a function
+  // scope inside the inner scope (class scope). The consecutive class
+  // declarations are in the outer scope.
   if (value->class_variable_proxy() && value->class_variable_proxy()->var() &&
       outer_class_variable->is_class()) {
     // In some cases, the outer variable is not detected as a class variable;
@@ -2208,8 +2212,8 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
     value->class_variable_proxy()
         ->var()
         ->AsClassVariable()
-        ->set_corresponding_outer_class_variable(
-            outer_class_variable->AsClassVariable());
+        ->set_declaration_group_start(
+            outer_class_variable->AsClassVariable()->declaration_group_start());
   }
 
   Token::Value init_op =
