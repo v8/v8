@@ -1841,11 +1841,9 @@ class JSObject: public JSReceiver {
   static void OptimizeAsPrototype(Handle<JSObject> object,
                                   PrototypeOptimizationMode mode);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
-  static void LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static bool RegisterPrototypeUserIfNotRegistered(Handle<JSObject> prototype,
-                                                   Handle<HeapObject> user,
-                                                   Isolate* isolate);
-  static bool UnregisterPrototypeUser(Handle<JSObject> prototype,
+  static void RegisterPrototypeUser(Handle<JSObject> prototype,
+                                    Handle<HeapObject> user);
+  static void UnregisterPrototypeUser(Handle<JSObject> prototype,
                                       Handle<HeapObject> user);
   static void InvalidatePrototypeChains(Map* map);
 
@@ -2623,11 +2621,9 @@ class WeakFixedArray : public FixedArray {
   // If |maybe_array| is not a WeakFixedArray, a fresh one will be allocated.
   static Handle<WeakFixedArray> Add(
       Handle<Object> maybe_array, Handle<HeapObject> value,
-      SearchForDuplicates search_for_duplicates = kAlwaysAdd,
-      bool* was_present = NULL);
+      SearchForDuplicates search_for_duplicates = kAlwaysAdd);
 
-  // Returns true if an entry was found and removed.
-  bool Remove(Handle<HeapObject> value);
+  void Remove(Handle<HeapObject> value);
 
   void Compact();
 
@@ -5848,9 +5844,6 @@ class DependentCode: public FixedArray {
 };
 
 
-class PrototypeInfo;
-
-
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
 //  - Size information about the object
@@ -6058,10 +6051,6 @@ class Map: public HeapObject {
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_ACCESSORS(prototype_info, Object)
-  // PrototypeInfo is created lazily using this helper (which installs it on
-  // the given prototype's map).
-  static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
-      Handle<JSObject> prototype, Isolate* isolate);
 
   // [prototype chain validity cell]: Associated with a prototype object,
   // stored in that object's map's PrototypeInfo, indicates that prototype
@@ -6134,6 +6123,9 @@ class Map: public HeapObject {
   static void SetPrototype(
       Handle<Map> map, Handle<Object> prototype,
       PrototypeOptimizationMode proto_mode = FAST_PROTOTYPE);
+  static bool ShouldRegisterAsPrototypeUser(Handle<Map> map,
+                                            Handle<JSObject> prototype);
+  bool CanUseOptimizationsBasedOnPrototypeRegistry();
 
   // [constructor]: points back to the function responsible for this map.
   // The field overlaps with the back pointer. All maps in a transition tree

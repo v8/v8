@@ -1936,7 +1936,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     // Slow-to-slow migration is trivial.
     object->set_map(*new_map);
   }
-  if (old_map->is_prototype_map() && FLAG_track_prototype_users) {
+  if (old_map->is_prototype_map()) {
     DCHECK(new_map->is_prototype_map());
     DCHECK(object->map() == *new_map);
     new_map->set_prototype_info(old_map->prototype_info());
@@ -1946,20 +1946,6 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
              reinterpret_cast<void*>(new_map->prototype_info()),
              reinterpret_cast<void*>(*old_map),
              reinterpret_cast<void*>(*new_map));
-    }
-    // If the map was registered with its prototype before, ensure that it
-    // registers with its new prototype now. This preserves the invariant that
-    // when a map on a prototype chain is registered with its prototype, then
-    // all prototypes further up the chain are also registered with their
-    // respective prototypes.
-    Object* maybe_old_prototype = old_map->prototype();
-    if (maybe_old_prototype->IsJSObject()) {
-      Handle<JSObject> old_prototype(JSObject::cast(maybe_old_prototype));
-      bool was_registered =
-          JSObject::UnregisterPrototypeUser(old_prototype, old_map);
-      if (was_registered) {
-        JSObject::LazyRegisterPrototypeUser(new_map, new_map->GetIsolate());
-      }
     }
   }
 }
@@ -7100,6 +7086,12 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
 #endif
   } else {
     TransitionArray::Insert(parent, name, child, flag);
+    if (child->prototype()->IsJSObject()) {
+      Handle<JSObject> proto(JSObject::cast(child->prototype()));
+      if (!ShouldRegisterAsPrototypeUser(child, proto)) {
+        JSObject::UnregisterPrototypeUser(proto, child);
+      }
+    }
 #if TRACE_MAPS
     Map::TraceTransition("Transition", *parent, *child, *name);
 #endif
@@ -8264,18 +8256,15 @@ void WeakFixedArray::Set(Handle<WeakFixedArray> array, int index,
 // static
 Handle<WeakFixedArray> WeakFixedArray::Add(
     Handle<Object> maybe_array, Handle<HeapObject> value,
-    SearchForDuplicates search_for_duplicates, bool* was_present) {
+    SearchForDuplicates search_for_duplicates) {
   Handle<WeakFixedArray> array =
       (maybe_array.is_null() || !maybe_array->IsWeakFixedArray())
           ? Allocate(value->GetIsolate(), 1, Handle<WeakFixedArray>::null())
           : Handle<WeakFixedArray>::cast(maybe_array);
-  if (was_present != NULL) *was_present = false;
+
   if (search_for_duplicates == kAddIfNotFound) {
     for (int i = 0; i < array->Length(); ++i) {
-      if (array->Get(i) == *value) {
-        if (was_present != NULL) *was_present = true;
-        return array;
-      }
+      if (array->Get(i) == *value) return array;
     }
 #if 0  // Enable this if you want to check your search_for_duplicates flags.
   } else {
@@ -8288,23 +8277,20 @@ Handle<WeakFixedArray> WeakFixedArray::Add(
   // Try to store the new entry if there's room. Optimize for consecutive
   // accesses.
   int first_index = array->last_used_index();
-  if (array->Length() > 0) {
-    for (int i = first_index;;) {
-      if (array->IsEmptySlot((i))) {
-        WeakFixedArray::Set(array, i, value);
-        return array;
-      }
-      if (FLAG_trace_weak_arrays) {
-        PrintF("[WeakFixedArray: searching for free slot]\n");
-      }
-      i = (i + 1) % array->Length();
-      if (i == first_index) break;
+  for (int i = first_index;;) {
+    if (array->IsEmptySlot((i))) {
+      WeakFixedArray::Set(array, i, value);
+      return array;
     }
+    if (FLAG_trace_weak_arrays) {
+      PrintF("[WeakFixedArray: searching for free slot]\n");
+    }
+    i = (i + 1) % array->Length();
+    if (i == first_index) break;
   }
 
   // No usable slot found, grow the array.
-  int new_length =
-      array->Length() == 0 ? 1 : array->Length() + (array->Length() >> 1) + 4;
+  int new_length = array->Length() + (array->Length() >> 1) + 4;
   Handle<WeakFixedArray> new_array =
       Allocate(array->GetIsolate(), new_length, array);
   if (FLAG_trace_weak_arrays) {
@@ -8329,8 +8315,7 @@ void WeakFixedArray::Compact() {
 }
 
 
-bool WeakFixedArray::Remove(Handle<HeapObject> value) {
-  if (Length() == 0) return false;
+void WeakFixedArray::Remove(Handle<HeapObject> value) {
   // Optimize for the most recently added element to be removed again.
   int first_index = last_used_index();
   for (int i = first_index;;) {
@@ -8338,12 +8323,11 @@ bool WeakFixedArray::Remove(Handle<HeapObject> value) {
       clear(i);
       // Users of WeakFixedArray should make sure that there are no duplicates,
       // they can use Add(..., kAddIfNotFound) if necessary.
-      return true;
+      return;
     }
     i = (i + 1) % Length();
-    if (i == first_index) return false;
+    if (i == first_index) break;
   }
-  UNREACHABLE();
 }
 
 
@@ -10076,55 +10060,36 @@ void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
 
 
 // static
-void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
+void JSObject::RegisterPrototypeUser(Handle<JSObject> prototype,
+                                     Handle<HeapObject> user) {
   DCHECK(FLAG_track_prototype_users);
-  // Contract: In line with InvalidatePrototypeChains()'s requirements,
-  // leaf maps don't need to register as users, only prototypes do.
-  DCHECK(user->is_prototype_map());
-
-  Handle<Map> current_user = user;
-  for (PrototypeIterator iter(user); !iter.IsAtEnd(); iter.Advance()) {
-    Handle<Object> maybe_proto = PrototypeIterator::GetCurrent(iter);
-    if (maybe_proto->IsJSGlobalProxy()) continue;
-    // Proxies on the prototype chain are not supported.
-    if (maybe_proto->IsJSProxy()) return;
-    Handle<JSObject> proto = Handle<JSObject>::cast(maybe_proto);
-    bool just_registered =
-        RegisterPrototypeUserIfNotRegistered(proto, current_user, isolate);
-    // Walk up the prototype chain as far as links haven't been registered yet.
-    if (!just_registered) break;
-    current_user = handle(proto->map(), isolate);
+  Isolate* isolate = prototype->GetIsolate();
+  if (prototype->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate, prototype);
+    prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
-}
-
-
-// Returns true if the user was not yet registered.
-// static
-bool JSObject::RegisterPrototypeUserIfNotRegistered(Handle<JSObject> prototype,
-                                                    Handle<HeapObject> user,
-                                                    Isolate* isolate) {
-  Handle<PrototypeInfo> proto_info =
-      Map::GetOrCreatePrototypeInfo(prototype, isolate);
+  Handle<PrototypeInfo> proto_info;
+  Object* maybe_proto_info = prototype->map()->prototype_info();
+  if (maybe_proto_info->IsPrototypeInfo()) {
+    proto_info = handle(PrototypeInfo::cast(maybe_proto_info), isolate);
+  } else {
+    proto_info = isolate->factory()->NewPrototypeInfo();
+    prototype->map()->set_prototype_info(*proto_info);
+  }
   Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
-  bool was_present = false;
-  Handle<WeakFixedArray> new_array = WeakFixedArray::Add(
-      maybe_registry, user, WeakFixedArray::kAddIfNotFound, &was_present);
+  Handle<WeakFixedArray> new_array = WeakFixedArray::Add(maybe_registry, user);
   if (!maybe_registry.is_identical_to(new_array)) {
     proto_info->set_prototype_users(*new_array);
   }
-  if (FLAG_trace_prototype_users && !was_present) {
-    PrintF("Registering %p as a user of prototype %p (map=%p).\n",
-           reinterpret_cast<void*>(*user), reinterpret_cast<void*>(*prototype),
-           reinterpret_cast<void*>(prototype->map()));
+  if (FLAG_trace_prototype_users) {
+    PrintF("Registering %p as a user of prototype %p.\n",
+           reinterpret_cast<void*>(*user), reinterpret_cast<void*>(*prototype));
   }
-  return !was_present;
 }
 
 
-// Can be called regardless of whether |user| was actually registered with
-// |prototype|. Returns true when there was a registration.
 // static
-bool JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
+void JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
                                        Handle<HeapObject> user) {
   Isolate* isolate = prototype->GetIsolate();
   if (prototype->IsJSGlobalProxy()) {
@@ -10133,26 +10098,21 @@ bool JSObject::UnregisterPrototypeUser(Handle<JSObject> prototype,
   }
   DCHECK(prototype->map()->is_prototype_map());
   Object* maybe_proto_info = prototype->map()->prototype_info();
-  if (!maybe_proto_info->IsPrototypeInfo()) return false;
+  if (!maybe_proto_info->IsPrototypeInfo()) return;
   Handle<PrototypeInfo> proto_info(PrototypeInfo::cast(maybe_proto_info),
                                    isolate);
   Object* maybe_registry = proto_info->prototype_users();
-  if (!maybe_registry->IsWeakFixedArray()) return false;
-  bool result = WeakFixedArray::cast(maybe_registry)->Remove(user);
-  if (FLAG_trace_prototype_users && result) {
+  if (!maybe_registry->IsWeakFixedArray()) return;
+  WeakFixedArray::cast(maybe_registry)->Remove(user);
+  if (FLAG_trace_prototype_users) {
     PrintF("Unregistering %p as a user of prototype %p.\n",
            reinterpret_cast<void*>(*user), reinterpret_cast<void*>(*prototype));
   }
-  return result;
 }
 
 
 static void InvalidatePrototypeChainsInternal(Map* map) {
   if (!map->is_prototype_map()) return;
-  if (FLAG_trace_prototype_users) {
-    PrintF("Invalidating prototype map %p 's cell\n",
-           reinterpret_cast<void*>(map));
-  }
   Object* maybe_proto_info = map->prototype_info();
   if (!maybe_proto_info->IsPrototypeInfo()) return;
   PrototypeInfo* proto_info = PrototypeInfo::cast(maybe_proto_info);
@@ -10192,19 +10152,6 @@ void JSObject::InvalidatePrototypeChains(Map* map) {
 
 
 // static
-Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
-                                                    Isolate* isolate) {
-  Object* maybe_proto_info = prototype->map()->prototype_info();
-  if (maybe_proto_info->IsPrototypeInfo()) {
-    return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
-  }
-  Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
-  prototype->map()->set_prototype_info(*proto_info);
-  return proto_info;
-}
-
-
-// static
 Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
                                                         Isolate* isolate) {
   Handle<Object> maybe_prototype(map->prototype(), isolate);
@@ -10214,18 +10161,14 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     PrototypeIterator iter(isolate, prototype);
     prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
-  // Ensure the prototype is registered with its own prototypes so its cell
-  // will be invalidated when necessary.
-  JSObject::LazyRegisterPrototypeUser(handle(prototype->map(), isolate),
-                                      isolate);
-  Handle<PrototypeInfo> proto_info =
-      GetOrCreatePrototypeInfo(prototype, isolate);
+  Handle<PrototypeInfo> proto_info(
+      PrototypeInfo::cast(prototype->map()->prototype_info()), isolate);
   Object* maybe_cell = proto_info->validity_cell();
   // Return existing cell if it's still valid.
   if (maybe_cell->IsCell()) {
     Handle<Cell> cell(Cell::cast(maybe_cell), isolate);
     if (cell->value() == Smi::FromInt(Map::kPrototypeChainValid)) {
-      return cell;
+      return handle(Cell::cast(maybe_cell), isolate);
     }
   }
   // Otherwise create a new cell.
@@ -10236,16 +10179,34 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
 }
 
 
-// static
 void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        PrototypeOptimizationMode proto_mode) {
+  if (map->prototype()->IsJSObject() && FLAG_track_prototype_users) {
+    Handle<JSObject> old_prototype(JSObject::cast(map->prototype()));
+    JSObject::UnregisterPrototypeUser(old_prototype, map);
+  }
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, proto_mode);
+    if (ShouldRegisterAsPrototypeUser(map, prototype_jsobj)) {
+      JSObject::RegisterPrototypeUser(prototype_jsobj, map);
+    }
   }
   WriteBarrierMode wb_mode =
       prototype->IsNull() ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   map->set_prototype(*prototype, wb_mode);
+}
+
+
+// static
+bool Map::ShouldRegisterAsPrototypeUser(Handle<Map> map,
+                                        Handle<JSObject> prototype) {
+  if (!FLAG_track_prototype_users) return false;
+  if (map->is_prototype_map()) return true;
+  Object* back = map->GetBackPointer();
+  if (!back->IsMap()) return true;
+  if (Map::cast(back)->prototype() != *prototype) return true;
+  return false;
 }
 
 
