@@ -45,7 +45,7 @@ Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
     DCHECK(p->key == name);
     if (kind == Variable::CLASS) {
       p->value = new (zone())
-          ClassVariable(scope, name, mode, kind, initialization_flag,
+          ClassVariable(scope, name, mode, initialization_flag,
                         maybe_assigned_flag, declaration_group_start);
     } else {
       p->value = new (zone()) Variable(

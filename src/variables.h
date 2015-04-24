@@ -187,10 +187,10 @@ class Variable: public ZoneObject {
 class ClassVariable : public Variable {
  public:
   ClassVariable(Scope* scope, const AstRawString* name, VariableMode mode,
-                Kind kind, InitializationFlag initialization_flag,
+                InitializationFlag initialization_flag,
                 MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                 int declaration_group_start = -1)
-      : Variable(scope, name, mode, kind, initialization_flag,
+      : Variable(scope, name, mode, Variable::CLASS, initialization_flag,
                  maybe_assigned_flag),
         declaration_group_start_(declaration_group_start),
         corresponding_outer_class_variable_(nullptr) {}
