@@ -4470,13 +4470,11 @@ TEST(NextCodeLinkIsWeak2) {
 
 static bool weak_ic_cleared = false;
 
-static void ClearWeakIC(const v8::WeakCallbackData<v8::Object, void>& data) {
+static void ClearWeakIC(
+    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
   printf("clear weak is called\n");
   weak_ic_cleared = true;
-  v8::Persistent<v8::Value>* p =
-      reinterpret_cast<v8::Persistent<v8::Value>*>(data.GetParameter());
-  CHECK(p->IsNearDeath());
-  p->Reset();
+  data.GetParameter()->Reset();
 }
 
 
@@ -4507,7 +4505,7 @@ TEST(WeakFunctionInConstructor) {
     garbage.Reset(isolate, CompileRun(source)->ToObject(isolate));
   }
   weak_ic_cleared = false;
-  garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
+  garbage.SetWeak(&garbage, &ClearWeakIC, v8::WeakCallbackType::kParameter);
   Heap* heap = CcTest::i_isolate()->heap();
   heap->CollectAllGarbage();
   CHECK(weak_ic_cleared);
@@ -4546,7 +4544,7 @@ void CheckWeakness(const char* source) {
     garbage.Reset(isolate, CompileRun(source)->ToObject(isolate));
   }
   weak_ic_cleared = false;
-  garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
+  garbage.SetWeak(&garbage, &ClearWeakIC, v8::WeakCallbackType::kParameter);
   Heap* heap = CcTest::i_isolate()->heap();
   heap->CollectAllGarbage();
   CHECK(weak_ic_cleared);

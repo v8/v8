@@ -1130,13 +1130,14 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
 
 struct DataAndPersistent {
   uint8_t* data;
-  Persistent<ArrayBuffer> handle;
+  int byte_length;
+  Global<ArrayBuffer> handle;
 };
 
 
 static void ReadBufferWeakCallback(
-    const v8::WeakCallbackData<ArrayBuffer, DataAndPersistent>& data) {
-  size_t byte_length = data.GetValue()->ByteLength();
+    const v8::WeakCallbackInfo<DataAndPersistent>& data) {
+  int byte_length = data.GetParameter()->byte_length;
   data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(byte_length));
 
@@ -1164,10 +1165,12 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
+  data->byte_length = length;
   Handle<v8::ArrayBuffer> buffer =
       ArrayBuffer::New(isolate, data->data, length);
   data->handle.Reset(isolate, buffer);
-  data->handle.SetWeak(data, ReadBufferWeakCallback);
+  data->handle.SetWeak(data, ReadBufferWeakCallback,
+                       v8::WeakCallbackType::kParameter);
   data->handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
