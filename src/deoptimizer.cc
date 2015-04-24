@@ -2257,7 +2257,7 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
         AddObjectTaggedValue(
             reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
       } else {
-        DCHECK_EQ(1, value);
+        DCHECK_EQ(1U, value);
         AddObjectTaggedValue(
             reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
@@ -2367,7 +2367,7 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
         AddObjectTaggedValue(
             reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
       } else {
-        DCHECK_EQ(1, value);
+        DCHECK_EQ(1U, value);
         AddObjectTaggedValue(
             reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
@@ -2573,7 +2573,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
             output_offset,
             reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
       } else {
-        DCHECK_EQ(1, value);
+        DCHECK_EQ(1U, value);
         output_[frame_index]->SetFrameSlot(
             output_offset,
             reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
@@ -2699,7 +2699,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
             output_offset,
             reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
       } else {
-        DCHECK_EQ(1, value);
+        DCHECK_EQ(1U, value);
         output_[frame_index]->SetFrameSlot(
             output_offset,
             reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
@@ -3456,7 +3456,7 @@ Handle<Object> SlotRef::GetValue(Isolate* isolate) {
       if (value == 0) {
         return isolate->factory()->false_value();
       } else {
-        DCHECK_EQ(1, value);
+        DCHECK_EQ(1U, value);
         return isolate->factory()->true_value();
       }
     }

@@ -2218,7 +2218,7 @@ float GreedyAllocator::CalculateSpillWeight(LiveRange* range) {
 
   // GetLiveRangeSize is DCHECK-ed to not be 0
   unsigned range_size = GetLiveRangeSize(range);
-  DCHECK_NE(0, range_size);
+  DCHECK_NE(0U, range_size);
 
   return static_cast<float>(use_count) / static_cast<float>(range_size);
 }
