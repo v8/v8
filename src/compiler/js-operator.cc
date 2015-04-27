@@ -263,22 +263,23 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
   V(CreateScriptContext, Operator::kNoProperties, 2, 1)
 
 
-#define CACHED_OP_LIST_WITH_LANGUAGE_MODE(V)              \
-  V(LessThan, Operator::kNoProperties, 2, 1)              \
-  V(GreaterThan, Operator::kNoProperties, 2, 1)           \
-  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)       \
-  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)    \
-  V(BitwiseOr, Operator::kNoProperties, 2, 1)             \
-  V(BitwiseXor, Operator::kNoProperties, 2, 1)            \
-  V(BitwiseAnd, Operator::kNoProperties, 2, 1)            \
-  V(ShiftLeft, Operator::kNoProperties, 2, 1)             \
-  V(ShiftRight, Operator::kNoProperties, 2, 1)            \
-  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)     \
-  V(Add, Operator::kNoProperties, 2, 1)                   \
-  V(Subtract, Operator::kNoProperties, 2, 1)              \
-  V(Multiply, Operator::kNoProperties, 2, 1)              \
-  V(Divide, Operator::kNoProperties, 2, 1)                \
-  V(Modulus, Operator::kNoProperties, 2, 1)
+#define CACHED_OP_LIST_WITH_LANGUAGE_MODE(V)           \
+  V(LessThan, Operator::kNoProperties, 2, 1)           \
+  V(GreaterThan, Operator::kNoProperties, 2, 1)        \
+  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)    \
+  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1) \
+  V(BitwiseOr, Operator::kNoProperties, 2, 1)          \
+  V(BitwiseXor, Operator::kNoProperties, 2, 1)         \
+  V(BitwiseAnd, Operator::kNoProperties, 2, 1)         \
+  V(ShiftLeft, Operator::kNoProperties, 2, 1)          \
+  V(ShiftRight, Operator::kNoProperties, 2, 1)         \
+  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)  \
+  V(Add, Operator::kNoProperties, 2, 1)                \
+  V(Subtract, Operator::kNoProperties, 2, 1)           \
+  V(Multiply, Operator::kNoProperties, 2, 1)           \
+  V(Divide, Operator::kNoProperties, 2, 1)             \
+  V(Modulus, Operator::kNoProperties, 2, 1)            \
+  V(StoreProperty, Operator::kNoProperties, 3, 0)
 
 
 struct JSOperatorGlobalCache final {
@@ -313,17 +314,6 @@ struct JSOperatorGlobalCache final {
   Name##Operator<STRONG> k##Name##StrongOperator;
   CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 #undef CACHED_WITH_LANGUAGE_MODE
-
-
-  template <LanguageMode kLanguageMode>
-  struct StorePropertyOperator final : public Operator1<LanguageMode> {
-    StorePropertyOperator()
-        : Operator1<LanguageMode>(IrOpcode::kJSStoreProperty,
-                                  Operator::kNoProperties, "JSStoreProperty", 3,
-                                  1, 1, 0, 1, 2, kLanguageMode) {}
-  };
-  StorePropertyOperator<SLOPPY> kStorePropertySloppyOperator;
-  StorePropertyOperator<STRICT> kStorePropertyStrictOperator;
 };
 
 
@@ -417,17 +407,6 @@ const Operator* JSOperatorBuilder::LoadProperty(
       "JSLoadProperty",                                    // name
       2, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
-}
-
-
-const Operator* JSOperatorBuilder::StoreProperty(LanguageMode language_mode) {
-  if (is_strict(language_mode)) {
-    return &cache_.kStorePropertyStrictOperator;
-  } else {
-    return &cache_.kStorePropertySloppyOperator;
-  }
-  UNREACHABLE();
-  return nullptr;
 }
 
 

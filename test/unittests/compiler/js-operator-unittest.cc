@@ -14,6 +14,9 @@ namespace compiler {
 
 namespace {
 
+const LanguageMode kLanguageModes[] = {SLOPPY, STRICT, STRONG};
+
+
 #if GTEST_HAS_COMBINE
 
 template <typename T>
@@ -159,9 +162,6 @@ INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorTest,
 
 namespace {
 
-const LanguageMode kLanguageModes[] = {SLOPPY, STRICT, STRONG};
-
-
 struct SharedOperatorWithLanguageMode {
   const Operator* (JSOperatorBuilder::*constructor)(LanguageMode);
   IrOpcode::Value opcode;
@@ -201,6 +201,7 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
     SHARED(Multiply, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Divide, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Modulus, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(StoreProperty, Operator::kNoProperties, 3, 2, 1, 1, 0, 1, 2),
 #undef SHARED
 };
 
@@ -280,69 +281,6 @@ INSTANTIATE_TEST_CASE_P(
                        ::testing::ValuesIn(kSharedOperatorsWithLanguageMode)));
 
 #endif  // GTEST_HAS_COMBINE
-
-
-// -----------------------------------------------------------------------------
-// JSStoreProperty.
-
-
-class JSStorePropertyOperatorTest
-    : public TestWithZone,
-      public ::testing::WithParamInterface<LanguageMode> {};
-
-
-TEST_P(JSStorePropertyOperatorTest, InstancesAreGloballyShared) {
-  const LanguageMode mode = GetParam();
-  JSOperatorBuilder javascript1(zone());
-  JSOperatorBuilder javascript2(zone());
-  EXPECT_EQ(javascript1.StoreProperty(mode), javascript2.StoreProperty(mode));
-}
-
-
-TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
-  JSOperatorBuilder javascript(zone());
-  const LanguageMode mode = GetParam();
-  const Operator* op = javascript.StoreProperty(mode);
-
-  EXPECT_EQ(3, op->ValueInputCount());
-  EXPECT_EQ(1, OperatorProperties::GetContextInputCount(op));
-  EXPECT_EQ(2, OperatorProperties::GetFrameStateInputCount(op));
-  EXPECT_EQ(1, op->EffectInputCount());
-  EXPECT_EQ(1, op->ControlInputCount());
-  EXPECT_EQ(8, OperatorProperties::GetTotalInputCount(op));
-
-  EXPECT_EQ(0, op->ValueOutputCount());
-  EXPECT_EQ(1, op->EffectOutputCount());
-  EXPECT_EQ(2, op->ControlOutputCount());
-}
-
-
-TEST_P(JSStorePropertyOperatorTest, OpcodeIsCorrect) {
-  JSOperatorBuilder javascript(zone());
-  const LanguageMode mode = GetParam();
-  const Operator* op = javascript.StoreProperty(mode);
-  EXPECT_EQ(IrOpcode::kJSStoreProperty, op->opcode());
-}
-
-
-TEST_P(JSStorePropertyOperatorTest, OpParameter) {
-  JSOperatorBuilder javascript(zone());
-  const LanguageMode mode = GetParam();
-  const Operator* op = javascript.StoreProperty(mode);
-  EXPECT_EQ(mode, OpParameter<LanguageMode>(op));
-}
-
-
-TEST_P(JSStorePropertyOperatorTest, Properties) {
-  JSOperatorBuilder javascript(zone());
-  const LanguageMode mode = GetParam();
-  const Operator* op = javascript.StoreProperty(mode);
-  EXPECT_EQ(Operator::kNoProperties, op->properties());
-}
-
-
-INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSStorePropertyOperatorTest,
-                        ::testing::Values(SLOPPY, STRICT));
 
 }  // namespace compiler
 }  // namespace internal
