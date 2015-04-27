@@ -513,7 +513,19 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   do {
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+    {
+      ExpressionClassifier pattern_classifier;
+      Token::Value next = peek();
+      PreParserExpression pattern =
+          ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+      ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+
+      if (!pattern.IsIdentifier()) {
+        ReportUnexpectedToken(next);
+        *ok = false;
+        return Statement::Default();
+      }
+    }
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
     if (peek() == Token::ASSIGN || require_initializer ||
@@ -523,7 +535,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       ExpressionClassifier classifier;
       ParseAssignmentExpression(var_context != kForStatement, &classifier,
                                 CHECK_OK);
-      // TODO(dslomov): report error if not valid expression.
+      ValidateExpression(&classifier, CHECK_OK);
 
       variable_loc.end_pos = scanner()->location().end_pos;
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
@@ -568,7 +580,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
         } else {
           expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
         }
-        // TODO(dslomov): report error if not a valid expression.
+        ValidateExpression(&classifier, CHECK_OK);
         switch (peek()) {
           case Token::SEMICOLON:
             Consume(Token::SEMICOLON);
@@ -599,7 +611,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   bool starts_with_identifier = peek_any_identifier();
   ExpressionClassifier classifier;
   Expression expr = ParseExpression(true, &classifier, CHECK_OK);
-  // TODO(dslomov): report error if not a valid expression.
+  ValidateExpression(&classifier, CHECK_OK);
 
   // Even if the expression starts with an identifier, it is not necessarily an
   // identifier. For example, "foo + bar" starts with an identifier but is not
@@ -1091,7 +1103,7 @@ PreParserExpression PreParser::ParseClassLiteral(
   if (has_extends) {
     ExpressionClassifier classifier;
     ParseLeftHandSideExpression(&classifier, CHECK_OK);
-    // TODO(dslomov): report error if not a valid expression.
+    ValidateExpression(&classifier, CHECK_OK);
   }
 
   ClassLiteralChecker checker(this);
@@ -1108,7 +1120,7 @@ PreParserExpression PreParser::ParseClassLiteral(
     ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
                             &is_computed_name, &has_seen_constructor,
                             &classifier, CHECK_OK);
-    // TODO(dslomov): report error if not a valid expression.
+    ValidateExpression(&classifier, CHECK_OK);
   }
 
   Expect(Token::RBRACE, CHECK_OK);
@@ -1130,7 +1142,7 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   Scanner::Location spread_pos;
   ExpressionClassifier classifier;
   ParseArguments(&spread_pos, &classifier, ok);
-  // TODO(dslomov): report error if not a valid expression.
+  ValidateExpression(&classifier, CHECK_OK);
 
   DCHECK(!spread_pos.IsValid());
 

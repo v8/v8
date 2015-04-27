@@ -1146,7 +1146,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         ExpressionClassifier classifier;
         Expression* expression = ParseArrowFunctionLiteral(
             scope, error_locs, has_rest, &classifier, &ok);
-        // TODO(dslomov): report error if not a valid expression.
+        ValidateExpression(&classifier, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -1616,7 +1616,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       int pos = peek_position();
       ExpressionClassifier classifier;
       Expression* expr = ParseAssignmentExpression(true, &classifier, CHECK_OK);
-      // TODO(dslomov): report error if not a valid expression.
+      ValidateExpression(&classifier, CHECK_OK);
 
       ExpectSemicolon(CHECK_OK);
       result = factory()->NewExpressionStatement(expr, pos);
@@ -2376,7 +2376,24 @@ Block* Parser::ParseVariableDeclarations(
 
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    name = ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+
+    {
+      ExpressionClassifier pattern_classifier;
+      Token::Value next = peek();
+      Expression* pattern =
+          ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+      ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+      if (pattern->IsVariableProxy() &&
+          pattern->AsVariableProxy()->IsValidReferenceExpression()) {
+        scope_->RemoveUnresolved(pattern->AsVariableProxy());
+        name = pattern->AsVariableProxy()->raw_name();
+      } else {
+        ReportUnexpectedToken(next);
+        *ok = false;
+        return nullptr;
+      }
+    }
+
     if (!first_name) first_name = name;
     Scanner::Location variable_loc = scanner()->location();
     if (fni_ != NULL) fni_->PushVariableName(name);
@@ -2455,7 +2472,7 @@ Block* Parser::ParseVariableDeclarations(
       ExpressionClassifier classifier;
       value = ParseAssignmentExpression(var_context != kForStatement,
                                         &classifier, CHECK_OK);
-      // TODO(dslomov): check that expression is valid.
+      ValidateExpression(&classifier, CHECK_OK);
       variable_loc.end_pos = scanner()->location().end_pos;
 
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
@@ -2646,7 +2663,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
         } else {
           expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
         }
-        // TODO(dslomov): report error if not a valid expression.
+        ValidateExpression(&classifier, CHECK_OK);
         switch (peek()) {
           case Token::SEMICOLON:
             Consume(Token::SEMICOLON);
@@ -4375,7 +4392,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     block_scope->set_start_position(scanner()->location().end_pos);
     ExpressionClassifier classifier;
     extends = ParseLeftHandSideExpression(&classifier, CHECK_OK);
-    // TODO(dslomov): report error if not a valid expression.
+    ValidateExpression(&classifier, CHECK_OK);
   } else {
     block_scope->set_start_position(scanner()->location().end_pos);
   }
@@ -4400,7 +4417,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
         &has_seen_constructor, &classifier, CHECK_OK);
-    // TODO(dslomov): report error if not a valid expression.
+    ValidateExpression(&classifier, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
@@ -4452,7 +4469,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   ExpressionClassifier classifier;
   ZoneList<Expression*>* args =
       ParseArguments(&spread_pos, &classifier, CHECK_OK);
-  // TODO(dslomov): report error if not a valid expression.
+  ValidateExpression(&classifier, CHECK_OK);
 
   DCHECK(!spread_pos.IsValid());
 

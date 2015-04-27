@@ -581,6 +581,105 @@ class ParserBase : public Traits {
   void ReportUnexpectedToken(Token::Value token);
   void ReportUnexpectedTokenAt(Scanner::Location location, Token::Value token);
 
+  class ExpressionClassifier {
+   public:
+    struct Error {
+      Error()
+          : location(Scanner::Location::invalid()),
+            message(nullptr),
+            arg(nullptr) {}
+
+      Scanner::Location location;
+      const char* message;
+      const char* arg;
+
+      bool HasError() const { return location.IsValid(); }
+    };
+
+    ExpressionClassifier() {}
+
+    bool is_valid_expression() const { return !expression_error_.HasError(); }
+
+    bool is_valid_binding_pattern() const {
+      return !binding_pattern_error_.HasError();
+    }
+
+    bool is_valid_assignment_pattern() const {
+      return !assignment_pattern_error_.HasError();
+    }
+
+    const Error& expression_error() const { return expression_error_; }
+
+    const Error& binding_pattern_error() const {
+      return binding_pattern_error_;
+    }
+
+    const Error& assignment_pattern_error() const {
+      return assignment_pattern_error_;
+    }
+
+    void RecordExpressionError(const Scanner::Location& loc,
+                               const char* message, const char* arg = nullptr) {
+      if (!is_valid_expression()) return;
+      expression_error_.location = loc;
+      expression_error_.message = message;
+      expression_error_.arg = arg;
+    }
+
+    void RecordBindingPatternError(const Scanner::Location& loc,
+                                   const char* message,
+                                   const char* arg = nullptr) {
+      if (!is_valid_binding_pattern()) return;
+      binding_pattern_error_.location = loc;
+      binding_pattern_error_.message = message;
+      binding_pattern_error_.arg = arg;
+    }
+
+    void RecordAssignmentPatternError(const Scanner::Location& loc,
+                                      const char* message,
+                                      const char* arg = nullptr) {
+      if (!is_valid_assignment_pattern()) return;
+      assignment_pattern_error_.location = loc;
+      assignment_pattern_error_.message = message;
+      assignment_pattern_error_.arg = arg;
+    }
+
+   private:
+    Error expression_error_;
+    Error binding_pattern_error_;
+    Error assignment_pattern_error_;
+  };
+
+  void ReportClassifierError(
+      const typename ExpressionClassifier::Error& error) {
+    Traits::ReportMessageAt(error.location, error.message, error.arg,
+                            kSyntaxError);
+  }
+
+  void ValidateExpression(const ExpressionClassifier* classifier, bool* ok) {
+    if (!classifier->is_valid_expression()) {
+      ReportClassifierError(classifier->expression_error());
+      *ok = false;
+    }
+  }
+
+  void ValidateBindingPattern(const ExpressionClassifier* classifier,
+                              bool* ok) {
+    if (!classifier->is_valid_binding_pattern()) {
+      ReportClassifierError(classifier->binding_pattern_error());
+      *ok = false;
+    }
+  }
+
+  void ValidateAssignmentPattern(const ExpressionClassifier* classifier,
+                                 bool* ok) {
+    if (!classifier->is_valid_assignment_pattern()) {
+      ReportClassifierError(classifier->assignment_pattern_error());
+      *ok = false;
+    }
+  }
+
+
   // Recursive descent functions:
 
   // Parses an identifier that is valid for the current scope, in particular it
@@ -589,57 +688,17 @@ class ParserBase : public Traits {
   // "arguments" as identifier even in strict mode (this is needed in cases like
   // "var foo = eval;").
   IdentifierT ParseIdentifier(AllowRestrictedIdentifiers, bool* ok);
+  IdentifierT ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
+                                         bool* ok);
   // Parses an identifier or a strict mode future reserved word, and indicate
   // whether it is strict mode future reserved.
-  IdentifierT ParseIdentifierOrStrictReservedWord(
-      bool* is_strict_reserved,
-      bool* ok);
+  IdentifierT ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
+                                                  bool* ok);
   IdentifierT ParseIdentifierName(bool* ok);
   // Parses an identifier and determines whether or not it is 'get' or 'set'.
-  IdentifierT ParseIdentifierNameOrGetOrSet(bool* is_get,
-                                            bool* is_set,
+  IdentifierT ParseIdentifierNameOrGetOrSet(bool* is_get, bool* is_set,
                                             bool* ok);
 
-
-  class ExpressionClassifier {
-   public:
-    ExpressionClassifier()
-        : expression_error_(Scanner::Location::invalid()),
-          binding_pattern_error_(Scanner::Location::invalid()),
-          assignment_pattern_error_(Scanner::Location::invalid()) {}
-
-    bool is_valid_expression() const {
-      return expression_error_ == Scanner::Location::invalid();
-    }
-
-    bool is_valid_binding_pattern() const {
-      return binding_pattern_error_ == Scanner::Location::invalid();
-    }
-
-    bool is_valid_assignmnent_pattern() const {
-      return assignment_pattern_error_ == Scanner::Location::invalid();
-    }
-
-    void RecordExpressionError(const Scanner::Location& loc) {
-      if (!is_valid_expression()) return;
-      expression_error_ = loc;
-    }
-
-    void RecordBindingPatternError(const Scanner::Location& loc) {
-      if (!is_valid_binding_pattern()) return;
-      binding_pattern_error_ = loc;
-    }
-
-    void RecordAssignmentPatternError(const Scanner::Location& loc) {
-      if (!is_valid_assignmnent_pattern()) return;
-      assignment_pattern_error_ = loc;
-    }
-
-   private:
-    Scanner::Location expression_error_;
-    Scanner::Location binding_pattern_error_;
-    Scanner::Location assignment_pattern_error_;
-  };
 
   ExpressionT ParseRegExpLiteral(bool seen_equal,
                                  ExpressionClassifier* classifier, bool* ok);
@@ -1960,23 +2019,45 @@ void ParserBase<Traits>::ReportUnexpectedTokenAt(
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     AllowRestrictedIdentifiers allow_restricted_identifiers, bool* ok) {
+  ExpressionClassifier classifier;
+  auto result = ParseAndClassifyIdentifier(&classifier, ok);
+  if (!*ok) return Traits::EmptyIdentifier();
+
+  if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
+    ValidateAssignmentPattern(&classifier, ok);
+    if (!*ok) return Traits::EmptyIdentifier();
+    ValidateBindingPattern(&classifier, ok);
+    if (!*ok) return Traits::EmptyIdentifier();
+  } else {
+    ValidateExpression(&classifier, ok);
+    if (!*ok) return Traits::EmptyIdentifier();
+  }
+
+  return result;
+}
+
+
+template <class Traits>
+typename ParserBase<Traits>::IdentifierT
+ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
+                                               bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
     IdentifierT name = this->GetSymbol(scanner());
-    if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
-      if (is_strict(language_mode()) && this->IsEvalOrArguments(name)) {
-        ReportMessage("strict_eval_arguments");
-        *ok = false;
-      }
-      if (is_strong(language_mode()) && this->IsUndefined(name)) {
-        ReportMessage("strong_undefined");
-        *ok = false;
-      }
-    } else {
-      if (is_strong(language_mode()) && this->IsArguments(name)) {
-        ReportMessage("strong_arguments");
-        *ok = false;
-      }
+    if (is_strict(language_mode()) && this->IsEvalOrArguments(name)) {
+      classifier->RecordBindingPatternError(scanner()->location(),
+                                            "strict_eval_arguments");
+    }
+    if (is_strong(language_mode()) && this->IsUndefined(name)) {
+      // TODO(dslomov): allow 'undefined' in nested patterns.
+      classifier->RecordBindingPatternError(scanner()->location(),
+                                            "strong_undefined");
+      classifier->RecordAssignmentPatternError(scanner()->location(),
+                                               "strong_undefined");
+    }
+    if (is_strong(language_mode()) && this->IsArguments(name)) {
+      classifier->RecordExpressionError(scanner()->location(),
+                                        "strong_arguments");
     }
     if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
     return name;
@@ -1991,6 +2072,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     return Traits::EmptyIdentifier();
   }
 }
+
 
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT ParserBase<
@@ -2141,7 +2223,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
-      IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
+      IdentifierT name = ParseAndClassifyIdentifier(classifier, CHECK_OK);
       result = this->ExpressionFromIdentifier(name, beg_pos, end_pos, scope_,
                                               factory());
       break;
@@ -2171,6 +2253,10 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 
     case Token::LPAREN:
       Consume(Token::LPAREN);
+      classifier->RecordBindingPatternError(scanner()->location(),
+                                            "unexpected_token", "(");
+      classifier->RecordAssignmentPatternError(scanner()->location(),
+                                               "unexpected_token", "(");
       if (allow_harmony_arrow_functions() && Check(Token::RPAREN)) {
         // As a primary expression, the only thing that can follow "()" is "=>".
         Scope* scope = this->NewScope(scope_, ARROW_SCOPE);
@@ -2241,7 +2327,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     bool accept_IN, bool* ok) {
   ExpressionClassifier classifier;
   ExpressionT result = ParseExpression(accept_IN, &classifier, CHECK_OK);
-  // TODO(dslomov): report error if not a valid expression.
+  ValidateExpression(&classifier, CHECK_OK);
   return result;
 }
 
