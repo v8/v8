@@ -1476,10 +1476,9 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   }
 
   // Create node to instantiate a new closure.
-  Node* info = jsgraph()->Constant(shared_info);
-  Node* pretenure = jsgraph()->BooleanConstant(expr->pretenure());
-  const Operator* op = javascript()->CallRuntime(Runtime::kNewClosure, 3);
-  Node* value = NewNode(op, context, info, pretenure);
+  PretenureFlag pretenure = expr->pretenure() ? TENURED : NOT_TENURED;
+  const Operator* op = javascript()->CreateClosure(shared_info, pretenure);
+  Node* value = NewNode(op, context);
   ast_context()->ProduceValue(value);
 }
 

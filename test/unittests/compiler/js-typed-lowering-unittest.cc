@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -14,6 +15,7 @@
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
 
+using testing::_;
 using testing::BitEq;
 using testing::IsNaN;
 
@@ -878,6 +880,30 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), matches[i]);
   }
+}
+
+
+// -----------------------------------------------------------------------------
+// JSCreateClosure
+
+
+TEST_F(JSTypedLoweringTest, JSCreateClosure) {
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
+                              context, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsCall(_,
+             IsHeapConstant(Unique<HeapObject>::CreateImmovable(
+                 CodeFactory::FastNewClosure(isolate(), shared->language_mode(),
+                                             shared->kind()).code())),
+             IsHeapConstant(Unique<HeapObject>::CreateImmovable(shared)),
+             effect, control));
 }
 
 }  // namespace compiler

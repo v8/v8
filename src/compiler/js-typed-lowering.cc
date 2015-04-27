@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
@@ -923,6 +925,32 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
+  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  Handle<SharedFunctionInfo> shared = p.shared_info();
+
+  // Use the FastNewClosureStub that allocates in new space only for nested
+  // functions that don't need literals cloning.
+  if (p.pretenure() == NOT_TENURED && shared->num_literals() == 0) {
+    Isolate* isolate = jsgraph()->isolate();
+    Callable callable = CodeFactory::FastNewClosure(
+        isolate, shared->language_mode(), shared->kind());
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate, graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNoFlags);
+    const Operator* new_op = common()->Call(desc);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    node->ReplaceInput(0, jsgraph()->HeapConstant(shared));
+    node->InsertInput(graph()->zone(), 0, stub_code);
+    node->set_op(new_op);
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
@@ -1009,6 +1037,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSCreateClosure:
+      return ReduceJSCreateClosure(node);
     default:
       break;
   }

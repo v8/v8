@@ -69,6 +69,9 @@ class CodeFactory final {
   static Callable FastCloneShallowArray(Isolate* isolate);
   static Callable FastCloneShallowObject(Isolate* isolate, int length);
 
+  static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
+                                 FunctionKind kind);
+
   static Callable AllocateHeapNumber(Isolate* isolate);
 
   static Callable CallFunction(Isolate* isolate, int argc,

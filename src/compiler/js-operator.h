@@ -206,6 +206,32 @@ std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
 
 
+// Defines shared information for the closure that should be created. This is
+// used as a parameter by JSCreateClosure operators.
+class CreateClosureParameters final {
+ public:
+  CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
+                          PretenureFlag pretenure)
+      : shared_info_(shared_info), pretenure_(pretenure) {}
+
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  PretenureFlag pretenure() const { return pretenure_; }
+
+ private:
+  const Handle<SharedFunctionInfo> shared_info_;
+  const PretenureFlag pretenure_;
+};
+
+bool operator==(CreateClosureParameters const&, CreateClosureParameters const&);
+bool operator!=(CreateClosureParameters const&, CreateClosureParameters const&);
+
+size_t hash_value(CreateClosureParameters const&);
+
+std::ostream& operator<<(std::ostream&, CreateClosureParameters const&);
+
+const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
+
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
@@ -242,6 +268,8 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Yield();
 
   const Operator* Create();
+  const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
+                                PretenureFlag pretenure);
 
   const Operator* CallFunction(size_t arity, CallFunctionFlags flags);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);

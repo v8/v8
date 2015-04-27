@@ -159,6 +159,15 @@ Callable CodeFactory::FastCloneShallowObject(Isolate* isolate, int length) {
 
 
 // static
+Callable CodeFactory::FastNewClosure(Isolate* isolate,
+                                     LanguageMode language_mode,
+                                     FunctionKind kind) {
+  FastNewClosureStub stub(isolate, language_mode, kind);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
   AllocateHeapNumberStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

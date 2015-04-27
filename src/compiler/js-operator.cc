@@ -208,6 +208,37 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
 }
 
 
+bool operator==(CreateClosureParameters const& lhs,
+                CreateClosureParameters const& rhs) {
+  return lhs.pretenure() == rhs.pretenure() &&
+         lhs.shared_info().is_identical_to(rhs.shared_info());
+}
+
+
+bool operator!=(CreateClosureParameters const& lhs,
+                CreateClosureParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(CreateClosureParameters const& p) {
+  // TODO(mstarzinger): Include hash of the SharedFunctionInfo here.
+  base::hash<PretenureFlag> h;
+  return h(p.pretenure());
+}
+
+
+std::ostream& operator<<(std::ostream& os, CreateClosureParameters const& p) {
+  return os << p.pretenure() << ", " << Brief(*p.shared_info());
+}
+
+
+const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateClosure, op->opcode());
+  return OpParameter<CreateClosureParameters>(op);
+}
+
+
 #define CACHED_OP_LIST(V)                                 \
   V(Equal, Operator::kNoProperties, 2, 1)                 \
   V(NotEqual, Operator::kNoProperties, 2, 1)              \
@@ -434,6 +465,17 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       "JSStoreContext",                          // name
       2, 1, 1, 0, 1, 0,                          // counts
       access);                                   // parameter
+}
+
+
+const Operator* JSOperatorBuilder::CreateClosure(
+    Handle<SharedFunctionInfo> shared_info, PretenureFlag pretenure) {
+  CreateClosureParameters parameters(shared_info, pretenure);
+  return new (zone()) Operator1<CreateClosureParameters>(  // --
+      IrOpcode::kJSCreateClosure, Operator::kNoThrow,      // opcode
+      "JSCreateClosure",                                   // name
+      1, 1, 1, 1, 1, 0,                                    // counts
+      parameters);                                         // parameter
 }
 
 
