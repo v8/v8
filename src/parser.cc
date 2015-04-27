@@ -961,6 +961,9 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK(scope_ == NULL);
   DCHECK(target_stack_ == NULL);
 
+  Mode parsing_mode = FLAG_lazy && allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY;
+  if (allow_natives() || extension_ != NULL) parsing_mode = PARSE_EAGERLY;
+
   FunctionLiteral* result = NULL;
   {
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
@@ -978,22 +981,17 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     original_scope_ = scope;
     if (info->is_eval()) {
       if (!scope->is_script_scope() || is_strict(info->language_mode())) {
-        scope = NewScope(scope, EVAL_SCOPE);
+        parsing_mode = PARSE_EAGERLY;
       }
+      scope = NewScope(scope, EVAL_SCOPE);
     } else if (info->is_module()) {
       scope = NewScope(scope, MODULE_SCOPE);
     }
 
     scope->set_start_position(0);
 
-    // Compute the parsing mode.
-    Mode mode = (FLAG_lazy && allow_lazy()) ? PARSE_LAZILY : PARSE_EAGERLY;
-    if (allow_natives() || extension_ != NULL || scope->is_eval_scope()) {
-      mode = PARSE_EAGERLY;
-    }
-    ParsingModeScope parsing_mode(this, mode);
-
-    // Enters 'scope'.
+    // Enter 'scope' with the given parsing mode.
+    ParsingModeScope parsing_mode_scope(this, parsing_mode);
     AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kNormalFunction, &function_factory);
@@ -1006,10 +1004,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       DCHECK(allow_harmony_modules());
       ParseModuleItemList(body, &ok);
     } else {
-      Scope* eval_scope = nullptr;
-      ParseStatementList(body, Token::EOS, info->is_eval(), &eval_scope, &ok);
-      if (eval_scope != nullptr)
-        eval_scope->set_end_position(scanner()->peek_location().beg_pos);
+      ParseStatementList(body, Token::EOS, &ok);
     }
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
@@ -1196,7 +1191,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
 
 void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
-                                 bool is_eval, Scope** eval_scope, bool* ok) {
+                                 bool* ok) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
 
@@ -1268,23 +1263,6 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           // Strong mode implies strict mode. If there are several "use strict"
           // / "use strong" directives, do the strict mode changes only once.
           if (is_sloppy(scope_->language_mode())) {
-            // TODO(mstarzinger): Global strict eval calls, need their own scope
-            // as specified in ES5 10.4.2(3). The correct fix would be to always
-            // add this scope in DoParseProgram(), but that requires adaptations
-            // all over the code base, so we go with a quick-fix for now.
-            // In the same manner, we have to patch the parsing mode.
-            if (is_eval && !scope_->is_eval_scope()) {
-              DCHECK(scope_->is_script_scope());
-              Scope* scope = NewScope(scope_, EVAL_SCOPE);
-              scope->set_start_position(scope_->start_position());
-              scope->set_end_position(scope_->end_position());
-              scope_ = scope;
-              if (eval_scope != NULL) {
-                // Caller will correct the positions of the ad hoc eval scope.
-                *eval_scope = scope;
-              }
-              mode_ = PARSE_EAGERLY;
-            }
             scope_->SetLanguageMode(static_cast<LanguageMode>(
                 scope_->language_mode() | STRICT_BIT));
           }
@@ -1293,6 +1271,14 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
             scope_->SetLanguageMode(static_cast<LanguageMode>(
                 scope_->language_mode() | STRONG_BIT));
           }
+          // Because declarations in strict eval code don't leak into the scope
+          // of the eval call, it is likely that functions declared in strict
+          // eval code will be used within the eval code, so lazy parsing is
+          // probably not a win.  Also, resolution of "var" bindings defined in
+          // strict eval code from within nested functions is currently broken
+          // with the pre-parser; lazy parsing of strict eval code causes
+          // regress/regress-crbug-135066.js to fail.
+          if (scope_->is_eval_scope()) mode_ = PARSE_EAGERLY;
         } else if (literal->raw_value()->AsString() ==
                        ast_value_factory()->use_asm_string() &&
                    token_loc.end_pos - token_loc.beg_pos ==
@@ -4276,7 +4262,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         yield, RelocInfo::kNoPosition), zone());
   }
 
-  ParseStatementList(body, Token::RBRACE, false, NULL, CHECK_OK);
+  ParseStatementList(body, Token::RBRACE, CHECK_OK);
 
   if (IsGeneratorFunction(kind)) {
     VariableProxy* get_proxy = factory()->NewVariableProxy(
