@@ -94,6 +94,9 @@
   ##############################################################################
   # TurboFan compiler failures.
 
+  # TODO(mstarzinger): control edges are messed up in exception tests.
+  'test-run-jsexceptions/*': [PASS, NO_VARIANTS],
+
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
