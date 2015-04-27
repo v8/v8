@@ -357,6 +357,8 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
     auto next = current->next();
     if (next->start() >= position) {
       split_at_start = (next->start() == position);
+      after = next;
+      current->set_next(nullptr);
       break;
     }
     current = next;
@@ -364,7 +366,6 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
 
   // Partition original use intervals to the two live ranges.
   auto before = current;
-  if (after == nullptr) after = before->next();
   result->last_interval_ =
       (last_interval_ == before)
           ? after            // Only interval in the range after split.
