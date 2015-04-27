@@ -542,13 +542,13 @@ template <class T> class PersistentBase {
    *  critical form of resource management!
    */
   template <typename P>
-  V8_INLINE V8_DEPRECATED(
+  V8_INLINE V8_DEPRECATE_SOON(
       "use WeakCallbackInfo version",
       void SetWeak(P* parameter,
                    typename WeakCallbackData<T, P>::Callback callback));
 
   template <typename S, typename P>
-  V8_INLINE V8_DEPRECATED(
+  V8_INLINE V8_DEPRECATE_SOON(
       "use WeakCallbackInfo version",
       void SetWeak(P* parameter,
                    typename WeakCallbackData<S, P>::Callback callback));
@@ -560,7 +560,7 @@ template <class T> class PersistentBase {
   // specify a parameter for the callback or the location of two internal
   // fields in the dying object.
   template <typename P>
-  V8_INLINE V8_DEPRECATED(
+  V8_INLINE V8_DEPRECATE_SOON(
       "use SetWeak",
       void SetPhantom(P* parameter,
                       typename WeakCallbackInfo<P>::Callback callback,
