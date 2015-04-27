@@ -1740,19 +1740,17 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           }
           break;
         }
+        __ Peek(x0, 0);
+        __ Push(x0);
+        VisitForStackValue(key);
+        VisitForStackValue(value);
         if (property->emit_store()) {
-          // Duplicate receiver on stack.
-          __ Peek(x0, 0);
-          __ Push(x0);
-          VisitForStackValue(key);
-          VisitForStackValue(value);
           EmitSetHomeObjectIfNeeded(value, 2);
           __ Mov(x0, Smi::FromInt(SLOPPY));  // Language mode
           __ Push(x0);
           __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
-          VisitForEffect(key);
-          VisitForEffect(value);
+          __ Drop(3);
         }
         break;
       case ObjectLiteral::Property::PROTOTYPE:
