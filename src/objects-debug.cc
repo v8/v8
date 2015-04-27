@@ -841,22 +841,22 @@ void JSArrayBufferView::JSArrayBufferViewVerify() {
   CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined()
         || buffer() == Smi::FromInt(0));
 
-  VerifyPointer(byte_offset());
-  CHECK(byte_offset()->IsSmi() || byte_offset()->IsHeapNumber()
-        || byte_offset()->IsUndefined());
+  VerifyPointer(raw_byte_offset());
+  CHECK(raw_byte_offset()->IsSmi() || raw_byte_offset()->IsHeapNumber() ||
+        raw_byte_offset()->IsUndefined());
 
-  VerifyPointer(byte_length());
-  CHECK(byte_length()->IsSmi() || byte_length()->IsHeapNumber()
-        || byte_length()->IsUndefined());
+  VerifyPointer(raw_byte_length());
+  CHECK(raw_byte_length()->IsSmi() || raw_byte_length()->IsHeapNumber() ||
+        raw_byte_length()->IsUndefined());
 }
 
 
 void JSTypedArray::JSTypedArrayVerify() {
   CHECK(IsJSTypedArray());
   JSArrayBufferViewVerify();
-  VerifyPointer(length());
-  CHECK(length()->IsSmi() || length()->IsHeapNumber()
-        || length()->IsUndefined());
+  VerifyPointer(raw_length());
+  CHECK(raw_length()->IsSmi() || raw_length()->IsHeapNumber() ||
+        raw_length()->IsUndefined());
 
   VerifyPointer(elements());
 }

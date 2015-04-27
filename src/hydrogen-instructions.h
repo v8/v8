@@ -6097,19 +6097,14 @@ class HObjectAccess final {
         JSArrayBuffer::kByteLengthOffset, Representation::Tagged());
   }
 
+  static HObjectAccess ForJSArrayBufferFlag() {
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBuffer::kFlagOffset, Representation::Smi());
+  }
+
   static HObjectAccess ForExternalArrayExternalPointer() {
     return HObjectAccess::ForObservableJSObjectOffset(
         ExternalArray::kExternalPointerOffset, Representation::External());
-  }
-
-  static HObjectAccess ForJSArrayBufferViewWeakNext() {
-    return HObjectAccess::ForObservableJSObjectOffset(
-        JSArrayBufferView::kWeakNextOffset);
-  }
-
-  static HObjectAccess ForJSArrayBufferWeakFirstView() {
-    return HObjectAccess::ForObservableJSObjectOffset(
-        JSArrayBuffer::kWeakFirstViewOffset);
   }
 
   static HObjectAccess ForJSArrayBufferViewBuffer() {
