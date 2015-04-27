@@ -1009,7 +1009,7 @@ function GetStackFrames(raw_stack) {
     var fun = raw_stack[i + 1];
     var code = raw_stack[i + 2];
     var pc = raw_stack[i + 3];
-    var pos = %_IsSmi(code) ? code : %FunctionGetPositionForOffset(code, pc);
+    var pos = %FunctionGetPositionForOffset(code, pc);
     sloppy_frames--;
     frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
   }

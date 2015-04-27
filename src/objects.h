@@ -2632,10 +2632,8 @@ class WeakFixedArray : public FixedArray {
   void Compact();
 
   inline Object* Get(int index) const;
-  inline void Clear(int index);
   inline int Length() const;
 
-  inline bool IsEmptySlot(int index) const;
   static Object* Empty() { return Smi::FromInt(0); }
 
   DECLARE_CAST(WeakFixedArray)
@@ -2650,6 +2648,7 @@ class WeakFixedArray : public FixedArray {
   static void Set(Handle<WeakFixedArray> array, int index,
                   Handle<HeapObject> value);
   inline void clear(int index);
+  inline bool IsEmptySlot(int index) const;
 
   inline int last_used_index() const;
   inline void set_last_used_index(int index);
