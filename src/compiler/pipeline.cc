@@ -255,8 +255,8 @@ class PipelineData {
         info()->isolate(), instruction_zone(), instruction_blocks);
   }
 
-  void InitializeLiveRangeBuilder(const RegisterConfiguration* config,
-                                  const char* debug_name) {
+  void InitializeRegisterAllocationData(const RegisterConfiguration* config,
+                                        const char* debug_name) {
     DCHECK(frame_ == nullptr);
     DCHECK(register_allocation_data_ == nullptr);
     frame_ = new (instruction_zone()) Frame();
@@ -744,7 +744,7 @@ struct BuildLiveRangesPhase {
   static const char* phase_name() { return "build live ranges"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeBuilder builder(data->register_allocation_data());
+    LiveRangeBuilder builder(data->register_allocation_data(), temp_zone);
     builder.BuildLiveRanges();
   }
 };
@@ -1263,7 +1263,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   debug_name = GetDebugName(data->info());
 #endif
 
-  data->InitializeLiveRangeBuilder(config, debug_name.get());
+  data->InitializeRegisterAllocationData(config, debug_name.get());
   if (info()->is_osr()) {
     OsrHelper osr_helper(info());
     osr_helper.SetupFrame(data->frame());

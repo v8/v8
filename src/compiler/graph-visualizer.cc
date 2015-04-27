@@ -750,12 +750,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
     } else {
       parent_index = range->id();
     }
-    InstructionOperand* op = range->FirstHint();
-    int hint_index = -1;
-    if (op != NULL && op->IsUnallocated()) {
-      hint_index = UnallocatedOperand::cast(op)->virtual_register();
-    }
-    os_ << " " << parent_index << " " << hint_index;
+    os_ << " " << parent_index;
     for (auto interval = range->first_interval(); interval != nullptr;
          interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "
