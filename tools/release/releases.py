@@ -461,6 +461,8 @@ class RetrieveInformationOnChromeReleases(Step):
     self["chrome_releases"] = chrome_releases
 
   def _GetGitHashForV8Version(self, v8_version):
+    if v8_version == "N/A":
+      return ""
     if v8_version.split(".")[3]== "0":
       return self.GitGetHashOfTag(v8_version[:-2])
 
