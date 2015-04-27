@@ -22,8 +22,7 @@ Debug.DebugEvent = { Break: 1,
                      AfterCompile: 5,
                      CompileError: 6,
                      PromiseEvent: 7,
-                     AsyncTaskEvent: 8,
-                     BreakForCommand: 9 };
+                     AsyncTaskEvent: 8 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
