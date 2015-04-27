@@ -10563,7 +10563,7 @@ class ExecutableAccessorInfo: public AccessorInfo {
   static const int kDataOffset = kSetterOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
 
-  inline void clear_setter();
+  static inline void ClearSetter(Handle<ExecutableAccessorInfo> info);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExecutableAccessorInfo);

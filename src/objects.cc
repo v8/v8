@@ -4247,7 +4247,9 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
           // By clearing the setter we don't have to introduce a lookup to
           // the setter, simply make it unavailable to reflect the
           // attributes.
-          if (attributes & READ_ONLY) new_data->clear_setter();
+          if (attributes & READ_ONLY) {
+            ExecutableAccessorInfo::ClearSetter(new_data);
+          }
           SetPropertyCallback(object, name, new_data, attributes);
           if (is_observed) {
             RETURN_ON_EXCEPTION(

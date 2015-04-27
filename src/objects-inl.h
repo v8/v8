@@ -7059,11 +7059,12 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
 }
 
 
-void ExecutableAccessorInfo::clear_setter() {
-  auto foreign = GetIsolate()->factory()->NewForeign(
+// static
+void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
+  auto foreign = info->GetIsolate()->factory()->NewForeign(
       reinterpret_cast<v8::internal::Address>(
           reinterpret_cast<intptr_t>(nullptr)));
-  set_setter(*foreign);
+  info->set_setter(*foreign);
 }
 
 
