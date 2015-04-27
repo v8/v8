@@ -131,7 +131,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
   Factory* factory = isolate->factory();
   Handle<String> fmt_str =
-      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("FormatMessage"));
+      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("$formatMessage"));
   Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
           isolate->js_builtins_object(), fmt_str).ToHandleChecked());
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);

@@ -69,8 +69,9 @@ def ReadFile(filename):
 
 EVAL_PATTERN = re.compile(r'\beval\s*\(')
 WITH_PATTERN = re.compile(r'\bwith\s*\(')
-INVALID_ERROR_MESSAGE_PATTERN = re.compile(r'Make\w*Error\(([kA-Z]\w+)')
-NEW_ERROR_PATTERN = re.compile(r'new \$\w*Error\((?!\))');
+INVALID_ERROR_MESSAGE_PATTERN = re.compile(
+    r'Make(?!Generic)\w*Error\(([kA-Z]\w+)')
+NEW_ERROR_PATTERN = re.compile(r'new \$\w*Error\((?!\))')
 
 def Validate(lines):
   # Because of simplified context setup, eval and with is not

@@ -2271,8 +2271,8 @@ Maybe<int> Message::GetLineNumber(Local<Context> context) const {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetLineNumber()", int);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "GetLineNumber", Utils::OpenHandle(this))
-           .ToHandle(&result);
+      !CallV8HeapFunction(isolate, "$messageGetLineNumber",
+                          Utils::OpenHandle(this)).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   return Just(static_cast<int>(result->Number()));
 }
@@ -2301,8 +2301,9 @@ Maybe<int> Message::GetStartColumn(Local<Context> context) const {
                                   int);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> start_col_obj;
-  has_pending_exception = !CallV8HeapFunction(isolate, "GetPositionInLine",
-                                              self).ToHandle(&start_col_obj);
+  has_pending_exception =
+      !CallV8HeapFunction(isolate, "$messageGetPositionInLine", self)
+           .ToHandle(&start_col_obj);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   return Just(static_cast<int>(start_col_obj->Number()));
 }
@@ -2319,8 +2320,9 @@ Maybe<int> Message::GetEndColumn(Local<Context> context) const {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetEndColumn()", int);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> start_col_obj;
-  has_pending_exception = !CallV8HeapFunction(isolate, "GetPositionInLine",
-                                              self).ToHandle(&start_col_obj);
+  has_pending_exception =
+      !CallV8HeapFunction(isolate, "$messageGetPositionInLine", self)
+           .ToHandle(&start_col_obj);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   int start = self->start_position();
   int end = self->end_position();
@@ -2349,8 +2351,8 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "v8::Message::GetSourceLine()", String);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "GetSourceLine", Utils::OpenHandle(this))
-           .ToHandle(&result);
+      !CallV8HeapFunction(isolate, "$messageGetSourceLine",
+                          Utils::OpenHandle(this)).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> str;
   if (result->IsString()) {

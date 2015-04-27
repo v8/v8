@@ -4,6 +4,48 @@
 
 // -------------------------------------------------------------------
 
+var $errorToString;
+var $formatMessage;
+var $getStackTraceLine;
+var $messageGetPositionInLine;
+var $messageGetLineNumber;
+var $messageGetSourceLine;
+var $stackOverflowBoilerplate;
+var $stackTraceSymbol;
+var $toDetailString;
+var $Error;
+var $EvalError;
+var $RangeError;
+var $ReferenceError;
+var $SyntaxError;
+var $TypeError;
+var $URIError;
+var MakeError;
+var MakeEvalError;
+var MakeRangeError;
+var MakeReferenceError;
+var MakeSyntaxError;
+var MakeTypeError;
+var MakeURIError;
+var MakeReferenceErrorEmbedded;
+var MakeSyntaxErrorEmbedded;
+var MakeTypeErrorEmbedded;
+
+(function() {
+
+%CheckIsBootstrapping();
+
+var GlobalObject = global.Object;
+var GlobalError;
+var GlobalTypeError;
+var GlobalRangeError;
+var GlobalURIError;
+var GlobalSyntaxError;
+var GlobalReferenceError;
+var GlobalEvalError;
+
+// -------------------------------------------------------------------
+
 var kMessages = {
   // Error
   constructor_is_generator:      ["Class constructor may not be a generator"],
@@ -234,7 +276,7 @@ function NoSideEffectToString(obj) {
 
 // To determine whether we can safely stringify an object using ErrorToString
 // without the risk of side-effects, we need to check whether the object is
-// either an instance of a native error type (via '%_ClassOf'), or has $Error
+// either an instance of a native error type (via '%_ClassOf'), or has Error
 // in its prototype chain and hasn't overwritten 'toString' with something
 // strange and unusual.
 function CanBeSafelyTreatedAsAnErrorObject(obj) {
@@ -250,7 +292,7 @@ function CanBeSafelyTreatedAsAnErrorObject(obj) {
   }
 
   var objToString = %GetDataProperty(obj, "toString");
-  return obj instanceof $Error && objToString === ErrorToString;
+  return obj instanceof GlobalError && objToString === ErrorToString;
 }
 
 
@@ -336,57 +378,6 @@ function GetSourceLine(message) {
   var location = script.locationFromPosition(start_position, true);
   if (location == null) return "";
   return location.sourceText();
-}
-
-
-function MakeError(type, arg0, arg1, arg2) {
-  return MakeGenericError($Error, type, arg0, arg1, arg2);
-}
-
-
-function MakeTypeError(type, arg0, arg1, arg2) {
-  return MakeGenericError($TypeError, type, arg0, arg1, arg2);
-}
-
-
-function MakeRangeError(type, arg0, arg1, arg2) {
-  return MakeGenericError($RangeError, type, arg0, arg1, arg2);
-}
-
-
-function MakeSyntaxError(type, arg0, arg1, arg2) {
-  return MakeGenericError($SyntaxError, type, arg0, arg1, arg2);
-}
-
-
-function MakeReferenceError(type, arg0, arg1, arg2) {
-  return MakeGenericError($ReferenceError, type, arg0, arg1, arg2);
-}
-
-
-function MakeEvalError(type, arg0, arg1, arg2) {
-  return MakeGenericError($EvalError, type, arg0, arg1, arg2);
-}
-
-
-function MakeURIError() {
-  return MakeGenericError($URIError, kURIMalformed);
-}
-
-// The embedded versions are called from unoptimized code, with embedded
-// arguments. Those arguments cannot be arrays, which are context-dependent.
-function MakeTypeErrorEmbedded(type, arg) {
-  return MakeGenericError($TypeError, type, [arg]);
-}
-
-
-function MakeSyntaxErrorEmbedded(type, arg) {
-  return MakeGenericError($SyntaxError, type, [arg]);
-}
-
-
-function MakeReferenceErrorEmbedded(type, arg) {
-  return MakeGenericError($ReferenceError, type, [arg]);
 }
 
 /**
@@ -1032,13 +1023,14 @@ var formatting_custom_stack_trace = false;
 
 function FormatStackTrace(obj, raw_stack) {
   var frames = GetStackFrames(raw_stack);
-  if (IS_FUNCTION($Error.prepareStackTrace) && !formatting_custom_stack_trace) {
+  if (IS_FUNCTION(GlobalError.prepareStackTrace) &&
+      !formatting_custom_stack_trace) {
     var array = [];
     %MoveArrayContents(frames, array);
     formatting_custom_stack_trace = true;
     var stack_trace = UNDEFINED;
     try {
-      stack_trace = $Error.prepareStackTrace(obj, array);
+      stack_trace = GlobalError.prepareStackTrace(obj, array);
     } catch (e) {
       throw e;  // The custom formatting function threw.  Rethrow.
     } finally {
@@ -1082,8 +1074,6 @@ function GetTypeName(receiver, requireConstructor) {
   return constructorName;
 }
 
-
-var stack_trace_symbol;  // Set during bootstrapping.
 var formatted_stack_trace_symbol = NEW_PRIVATE_OWN("formatted stack trace");
 
 
@@ -1097,7 +1087,7 @@ var StackTraceGetter = function() {
       GET_PRIVATE(holder, formatted_stack_trace_symbol);
     if (IS_UNDEFINED(formatted_stack_trace)) {
       // No formatted stack trace available.
-      var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
+      var stack_trace = GET_PRIVATE(holder, $stackTraceSymbol);
       if (IS_UNDEFINED(stack_trace)) {
         // Neither formatted nor structured stack trace available.
         // Look further up the prototype chain.
@@ -1105,7 +1095,7 @@ var StackTraceGetter = function() {
         continue;
       }
       formatted_stack_trace = FormatStackTrace(holder, stack_trace);
-      SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
+      SET_PRIVATE(holder, $stackTraceSymbol, UNDEFINED);
       SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
     }
     return formatted_stack_trace;
@@ -1117,8 +1107,8 @@ var StackTraceGetter = function() {
 // If the receiver equals the holder, set the formatted stack trace that the
 // getter returns.
 var StackTraceSetter = function(v) {
-  if (HAS_PRIVATE(this, stack_trace_symbol)) {
-    SET_PRIVATE(this, stack_trace_symbol, UNDEFINED);
+  if (HAS_PRIVATE(this, $stackTraceSymbol)) {
+    SET_PRIVATE(this, $stackTraceSymbol, UNDEFINED);
     SET_PRIVATE(this, formatted_stack_trace_symbol, v);
   }
 };
@@ -1135,72 +1125,67 @@ var captureStackTrace = function captureStackTrace(obj, cons_opt) {
 }
 
 
-function SetUpError() {
-  // Define special error type constructors.
-
-  var DefineError = function(f) {
-    // Store the error function in both the global object
-    // and the runtime object. The function is fetched
-    // from the runtime object when throwing errors from
-    // within the runtime system to avoid strange side
-    // effects when overwriting the error functions from
-    // user code.
-    var name = f.name;
-    %AddNamedProperty(global, name, f, DONT_ENUM);
-    %AddNamedProperty(builtins, '$' + name, f,
-                      DONT_ENUM | DONT_DELETE | READ_ONLY);
-    // Configure the error function.
-    if (name == 'Error') {
-      // The prototype of the Error object must itself be an error.
-      // However, it can't be an instance of the Error object because
-      // it hasn't been properly configured yet.  Instead we create a
-      // special not-a-true-error-but-close-enough object.
-      var ErrorPrototype = function() {};
-      %FunctionSetPrototype(ErrorPrototype, $Object.prototype);
-      %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
-      %FunctionSetPrototype(f, new ErrorPrototype());
-    } else {
-      %FunctionSetPrototype(f, new $Error());
-      %InternalSetPrototype(f, $Error);
-    }
-    %FunctionSetInstanceClassName(f, 'Error');
-    %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
-    %AddNamedProperty(f.prototype, 'name', name, DONT_ENUM);
-    %SetCode(f, function(m) {
-      if (%_IsConstructCall()) {
-        try { captureStackTrace(this, f); } catch (e) { }
-        // Define all the expected properties directly on the error
-        // object. This avoids going through getters and setters defined
-        // on prototype objects.
-        if (!IS_UNDEFINED(m)) {
-          %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
-        }
-      } else {
-        return new f(m);
+// Define special error type constructors.
+function DefineError(f) {
+  // Store the error function in both the global object
+  // and the runtime object. The function is fetched
+  // from the runtime object when throwing errors from
+  // within the runtime system to avoid strange side
+  // effects when overwriting the error functions from
+  // user code.
+  var name = f.name;
+  %AddNamedProperty(global, name, f, DONT_ENUM);
+  // Configure the error function.
+  if (name == 'Error') {
+    // The prototype of the Error object must itself be an error.
+    // However, it can't be an instance of the Error object because
+    // it hasn't been properly configured yet.  Instead we create a
+    // special not-a-true-error-but-close-enough object.
+    var ErrorPrototype = function() {};
+    %FunctionSetPrototype(ErrorPrototype, GlobalObject.prototype);
+    %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
+    %FunctionSetPrototype(f, new ErrorPrototype());
+  } else {
+    %FunctionSetPrototype(f, new GlobalError());
+    %InternalSetPrototype(f, GlobalError);
+  }
+  %FunctionSetInstanceClassName(f, 'Error');
+  %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
+  %AddNamedProperty(f.prototype, 'name', name, DONT_ENUM);
+  %SetCode(f, function(m) {
+    if (%_IsConstructCall()) {
+      try { captureStackTrace(this, f); } catch (e) { }
+      // Define all the expected properties directly on the error
+      // object. This avoids going through getters and setters defined
+      // on prototype objects.
+      if (!IS_UNDEFINED(m)) {
+        %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
       }
-    });
-    %SetNativeFlag(f);
-  };
+    } else {
+      return new f(m);
+    }
+  });
+  %SetNativeFlag(f);
+  return f;
+};
 
-  DefineError(function Error() { });
-  DefineError(function TypeError() { });
-  DefineError(function RangeError() { });
-  DefineError(function SyntaxError() { });
-  DefineError(function ReferenceError() { });
-  DefineError(function EvalError() { });
-  DefineError(function URIError() { });
-}
+GlobalError = DefineError(function Error() { });
+GlobalEvalError = DefineError(function EvalError() { });
+GlobalRangeError = DefineError(function RangeError() { });
+GlobalReferenceError = DefineError(function ReferenceError() { });
+GlobalSyntaxError = DefineError(function SyntaxError() { });
+GlobalTypeError = DefineError(function TypeError() { });
+GlobalURIError = DefineError(function URIError() { });
 
-SetUpError();
 
-$Error.captureStackTrace = captureStackTrace;
+GlobalError.captureStackTrace = captureStackTrace;
 
-%AddNamedProperty($Error.prototype, 'message', '', DONT_ENUM);
+%AddNamedProperty(GlobalError.prototype, 'message', '', DONT_ENUM);
 
 // Global list of error objects visited during ErrorToString. This is
 // used to detect cycles in error toString formatting.
 var visited_errors = new InternalArray();
-var cyclic_error_marker = new $Object();
+var cyclic_error_marker = new GlobalObject();
 
 function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
   var current = error;
@@ -1216,11 +1201,11 @@ function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
   var desc = %GetOwnProperty(current, name);
   if (desc && desc[IS_ACCESSOR_INDEX]) {
     var isName = name === "name";
-    if (current === $ReferenceError.prototype)
+    if (current === GlobalReferenceError.prototype)
       return isName ? "ReferenceError" : UNDEFINED;
-    if (current === $SyntaxError.prototype)
+    if (current === GlobalSyntaxError.prototype)
       return isName ? "SyntaxError" : UNDEFINED;
-    if (current === $TypeError.prototype)
+    if (current === GlobalTypeError.prototype)
       return isName ? "TypeError" : UNDEFINED;
   }
   // Otherwise, read normally.
@@ -1259,18 +1244,70 @@ function ErrorToString() {
   }
 }
 
+InstallFunctions(GlobalError.prototype, DONT_ENUM, ['toString', ErrorToString]);
 
-InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
+$errorToString = ErrorToString;
+$formatMessage = FormatMessage;
+$getStackTraceLine = GetStackTraceLine;
+$messageGetPositionInLine = GetPositionInLine;
+$messageGetLineNumber = GetLineNumber;
+$messageGetSourceLine = GetSourceLine;
+$toDetailString = ToDetailString;
 
-// Boilerplate for exceptions for stack overflows. Used from
-// Isolate::StackOverflow().
-function SetUpStackOverflowBoilerplate() {
-  var boilerplate = MakeRangeError(kStackOverflow);
+$Error = GlobalError;
+$EvalError = GlobalEvalError;
+$RangeError = GlobalRangeError;
+$ReferenceError = GlobalReferenceError;
+$SyntaxError = GlobalSyntaxError;
+$TypeError = GlobalTypeError;
+$URIError = GlobalURIError;
 
-  %DefineAccessorPropertyUnchecked(
-      boilerplate, 'stack', StackTraceGetter, StackTraceSetter, DONT_ENUM);
-
-  return boilerplate;
+MakeError = function(type, arg0, arg1, arg2) {
+  return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
 }
 
-var kStackOverflowBoilerplate = SetUpStackOverflowBoilerplate();
+MakeEvalError = function(type, arg0, arg1, arg2) {
+  return MakeGenericError(GlobalEvalError, type, arg0, arg1, arg2);
+}
+
+MakeRangeError = function(type, arg0, arg1, arg2) {
+  return MakeGenericError(GlobalRangeError, type, arg0, arg1, arg2);
+}
+
+MakeReferenceError = function(type, arg0, arg1, arg2) {
+  return MakeGenericError(GlobalReferenceError, type, arg0, arg1, arg2);
+}
+
+MakeSyntaxError = function(type, arg0, arg1, arg2) {
+  return MakeGenericError(GlobalSyntaxError, type, arg0, arg1, arg2);
+}
+
+MakeTypeError = function(type, arg0, arg1, arg2) {
+  return MakeGenericError(GlobalTypeError, type, arg0, arg1, arg2);
+}
+
+MakeURIError = function() {
+  return MakeGenericError(GlobalURIError, kURIMalformed);
+}
+
+// The embedded versions are called from unoptimized code, with embedded
+// arguments. Those arguments cannot be arrays, which are context-dependent.
+MakeSyntaxErrorEmbedded = function(type, arg) {
+  return MakeGenericError(GlobalSyntaxError, type, [arg]);
+}
+
+MakeReferenceErrorEmbedded = function(type, arg) {
+  return MakeGenericError(GlobalReferenceError, type, [arg]);
+}
+
+MakeTypeErrorEmbedded = function(type, arg) {
+  return MakeGenericError(GlobalTypeError, type, [arg]);
+}
+
+//Boilerplate for exceptions for stack overflows. Used from
+//Isolate::StackOverflow().
+$stackOverflowBoilerplate = MakeRangeError(kStackOverflow);
+%DefineAccessorPropertyUnchecked($stackOverflowBoilerplate, 'stack',
+                                 StackTraceGetter, StackTraceSetter, DONT_ENUM);
+
+})();

@@ -1544,7 +1544,7 @@ void Genesis::InstallNativeFunctions() {
 
   INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
-  INSTALL_NATIVE(JSFunction, "ToDetailString", to_detail_string_fun);
+  INSTALL_NATIVE(JSFunction, "$toDetailString", to_detail_string_fun);
   INSTALL_NATIVE(JSFunction, "ToObject", to_object_fun);
   INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
   INSTALL_NATIVE(JSFunction, "ToUint32", to_uint32_fun);
@@ -1552,7 +1552,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
 
   INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
-  INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
+  INSTALL_NATIVE(JSFunction, "$getStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 
@@ -2475,7 +2475,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
                             JSObject::SetOwnPropertyIgnoreAttributes(
                                 handle(native_context->builtins(), isolate),
                                 factory->InternalizeOneByteString(
-                                    STATIC_CHAR_VECTOR("stack_trace_symbol")),
+                                    STATIC_CHAR_VECTOR("$stackTraceSymbol")),
                                 factory->stack_trace_symbol(), NONE),
                             false);
 
