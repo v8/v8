@@ -8347,7 +8347,7 @@ bool WeakFixedArray::Remove(Handle<HeapObject> value) {
   int first_index = last_used_index();
   for (int i = first_index;;) {
     if (Get(i) == *value) {
-      clear(i);
+      Clear(i);
       // Users of WeakFixedArray should make sure that there are no duplicates,
       // they can use Add(..., kAddIfNotFound) if necessary.
       return true;

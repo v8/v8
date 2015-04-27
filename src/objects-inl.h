@@ -2356,7 +2356,7 @@ bool WeakFixedArray::IsEmptySlot(int index) const {
 }
 
 
-void WeakFixedArray::clear(int index) {
+void WeakFixedArray::Clear(int index) {
   FixedArray::cast(this)->set(index + kFirstIndex, Smi::FromInt(0));
 }
 

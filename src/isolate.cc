@@ -407,8 +407,13 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
     }
   }
   elements->set(0, Smi::FromInt(sloppy_frames));
+  elements->Shrink(cursor);
   Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
+  // Queue this structured stack trace for preprocessing on GC.
+  Handle<WeakFixedArray> new_weak_list =
+      WeakFixedArray::Add(factory()->weak_stack_trace_list(), elements);
+  factory()->set_weak_stack_trace_list(new_weak_list);
   return result;
 }
 
