@@ -5367,3 +5367,15 @@ TEST(Regress472513) {
   TestRightTrimFixedTypedArray(i::kExternalUint16Array, 8 - 1, 3);
   TestRightTrimFixedTypedArray(i::kExternalUint32Array, 4, 3);
 }
+
+
+TEST(WeakFixedArray) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<HeapNumber> number = CcTest::i_isolate()->factory()->NewHeapNumber(1);
+  Handle<WeakFixedArray> array = WeakFixedArray::Add(Handle<Object>(), number);
+  array->Remove(number);
+  array->Compact();
+  WeakFixedArray::Add(array, number);
+}
