@@ -951,6 +951,64 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateLiteralArray, node->opcode());
+  HeapObjectMatcher<FixedArray> mconst(NodeProperties::GetValueInput(node, 2));
+  int length = mconst.Value().handle()->length();
+  int flags = OpParameter<int>(node->op());
+
+  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
+  // initial length limit for arrays with "fast" elements kind.
+  if ((flags & ArrayLiteral::kShallowElements) != 0 &&
+      length < JSObject::kInitialMaxFastElementArray) {
+    Isolate* isolate = jsgraph()->isolate();
+    Callable callable = CodeFactory::FastCloneShallowArray(isolate);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate, graph()->zone(), callable.descriptor(), 0,
+        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
+            ? CallDescriptor::kNeedsFrameState
+            : CallDescriptor::kNoFlags);
+    const Operator* new_op = common()->Call(desc);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    node->InsertInput(graph()->zone(), 0, stub_code);
+    node->set_op(new_op);
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateLiteralObject, node->opcode());
+  HeapObjectMatcher<FixedArray> mconst(NodeProperties::GetValueInput(node, 2));
+  // Constants are pairs, see ObjectLiteral::properties_count().
+  int length = mconst.Value().handle()->length() / 2;
+  int flags = OpParameter<int>(node->op());
+
+  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
+  // elements up to the number of properties that the stubs can handle.
+  if ((flags & ObjectLiteral::kShallowProperties) != 0 &&
+      length <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    Isolate* isolate = jsgraph()->isolate();
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate, length);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate, graph()->zone(), callable.descriptor(), 0,
+        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
+            ? CallDescriptor::kNeedsFrameState
+            : CallDescriptor::kNoFlags);
+    const Operator* new_op = common()->Call(desc);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(flags));
+    node->InsertInput(graph()->zone(), 0, stub_code);
+    node->set_op(new_op);
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
@@ -1039,6 +1097,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSStoreContext(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
+    case IrOpcode::kJSCreateLiteralArray:
+      return ReduceJSCreateLiteralArray(node);
+    case IrOpcode::kJSCreateLiteralObject:
+      return ReduceJSCreateLiteralObject(node);
     default:
       break;
   }

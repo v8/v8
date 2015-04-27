@@ -465,6 +465,24 @@ const Operator* JSOperatorBuilder::CreateClosure(
 }
 
 
+const Operator* JSOperatorBuilder::CreateLiteralArray(int literal_flags) {
+  return new (zone()) Operator1<int>(                            // --
+      IrOpcode::kJSCreateLiteralArray, Operator::kNoProperties,  // opcode
+      "JSCreateLiteralArray",                                    // name
+      3, 1, 1, 1, 1, 2,                                          // counts
+      literal_flags);                                            // parameter
+}
+
+
+const Operator* JSOperatorBuilder::CreateLiteralObject(int literal_flags) {
+  return new (zone()) Operator1<int>(                             // --
+      IrOpcode::kJSCreateLiteralObject, Operator::kNoProperties,  // opcode
+      "JSCreateLiteralObject",                                    // name
+      3, 1, 1, 1, 1, 2,                                           // counts
+      literal_flags);                                             // parameter
+}
+
+
 const Operator* JSOperatorBuilder::CreateCatchContext(
     const Unique<String>& name) {
   return new (zone()) Operator1<Unique<String>>(                 // --

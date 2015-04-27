@@ -422,6 +422,20 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
+  int literal_flags = OpParameter<int>(node->op());
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(literal_flags));
+  ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+}
+
+
+void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
+  int literal_flags = OpParameter<int>(node->op());
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(literal_flags));
+  ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+}
+
+
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
   Unique<String> name = OpParameter<Unique<String>>(node);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(name));

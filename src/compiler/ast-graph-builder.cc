@@ -1660,10 +1660,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_properties());
-  Node* flags = jsgraph()->Constant(expr->ComputeFlags(true));
   const Operator* op =
-      javascript()->CallRuntime(Runtime::kInlineCreateObjectLiteral, 4);
-  Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
+      javascript()->CreateLiteralObject(expr->ComputeFlags(true));
+  Node* literal = NewNode(op, literals_array, literal_index, constants);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
@@ -1852,10 +1851,9 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_elements());
-  Node* flags = jsgraph()->Constant(expr->ComputeFlags(true));
   const Operator* op =
-      javascript()->CallRuntime(Runtime::kInlineCreateArrayLiteral, 4);
-  Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
+      javascript()->CreateLiteralArray(expr->ComputeFlags(true));
+  Node* literal = NewNode(op, literals_array, literal_index, constants);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 

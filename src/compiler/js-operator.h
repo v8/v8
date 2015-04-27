@@ -270,6 +270,8 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Create();
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);
+  const Operator* CreateLiteralArray(int literal_flags);
+  const Operator* CreateLiteralObject(int literal_flags);
 
   const Operator* CallFunction(size_t arity, CallFunctionFlags flags);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);

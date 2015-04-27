@@ -1316,6 +1316,16 @@ Bounds Typer::Visitor::TypeJSCreateClosure(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
+  return Bounds(Type::None(), Type::OtherObject());
+}
+
+
+Bounds Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
+  return Bounds(Type::None(), Type::OtherObject());
+}
+
+
 Type* Typer::Visitor::JSLoadPropertyTyper(Type* object, Type* name, Typer* t) {
   // TODO(rossberg): Use range types and sized array types to filter undefined.
   if (object->IsArray() && name->Is(Type::Integral32())) {

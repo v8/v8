@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/js-graph.h"
@@ -69,57 +68,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineOptimizedConstructDouble) {
                                    IsFloat64InsertLowWord32(
                                        IsNumberConstant(BitEq(0.0)), input1),
                                    input0));
-}
-
-
-// -----------------------------------------------------------------------------
-// %_CreateArrayLiteral
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineCreateArrayLiteral) {
-  Node* const input0 = Parameter(0);
-  Node* const input1 = Parameter(1);
-  Node* const input2 = HeapConstant(factory()->NewFixedArray(12));
-  Node* const input3 = NumberConstant(ArrayLiteral::kShallowElements);
-  Node* const context = Parameter(2);
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineCreateArrayLiteral, 4), input0,
-      input1, input2, input3, context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                    CodeFactory::FastCloneShallowArray(isolate()).code())),
-             input0, input1, input2, context, frame_state, effect, control));
-}
-
-
-// -----------------------------------------------------------------------------
-// %_CreateObjectLiteral
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineCreateObjectLiteral) {
-  Node* const input0 = Parameter(0);
-  Node* const input1 = Parameter(1);
-  Node* const input2 = HeapConstant(factory()->NewFixedArray(2 * 6));
-  Node* const input3 = NumberConstant(ObjectLiteral::kShallowProperties);
-  Node* const context = Parameter(2);
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineCreateObjectLiteral, 4), input0,
-      input1, input2, input3, context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                    CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
-             input0, input1, input2, input3, context, frame_state, effect,
-             control));
 }
 
 

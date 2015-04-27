@@ -55,6 +55,8 @@ class JSTypedLowering final : public Reducer {
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSCreateClosure(Node* node);
+  Reduction ReduceJSCreateLiteralArray(Node* node);
+  Reduction ReduceJSCreateLiteralObject(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,

@@ -496,6 +496,11 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Function.
       CheckUpperIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+      // Type is OtherObject.
+      CheckUpperIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSLoadNamed:
       // Type can be anything.

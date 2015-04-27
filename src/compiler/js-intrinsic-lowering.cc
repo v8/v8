@@ -6,10 +6,8 @@
 
 #include <stack>
 
-#include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
@@ -30,10 +28,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineConstructDouble:
       return ReduceConstructDouble(node);
-    case Runtime::kInlineCreateArrayLiteral:
-      return ReduceCreateArrayLiteral(node);
-    case Runtime::kInlineCreateObjectLiteral:
-      return ReduceCreateObjectLiteral(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineDoubleHi:
@@ -97,64 +91,6 @@ Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
                        high);
   NodeProperties::ReplaceWithValue(node, value);
   return Replace(value);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceCreateArrayLiteral(Node* node) {
-  HeapObjectMatcher<FixedArray> mconst(NodeProperties::GetValueInput(node, 2));
-  NumberMatcher mflags(NodeProperties::GetValueInput(node, 3));
-  int length = mconst.Value().handle()->length();
-  int flags = FastD2I(mflags.Value());
-
-  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
-  // initial length limit for arrays with "fast" elements kind.
-  if ((flags & ArrayLiteral::kShallowElements) != 0 &&
-      length < JSObject::kInitialMaxFastElementArray) {
-    Isolate* isolate = jsgraph()->isolate();
-    Callable callable = CodeFactory::FastCloneShallowArray(isolate);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
-            ? CallDescriptor::kNeedsFrameState
-            : CallDescriptor::kNoFlags);
-    const Operator* new_op = common()->Call(desc);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    node->RemoveInput(3);  // Remove flags input from node.
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    node->set_op(new_op);
-    return Changed(node);
-  }
-
-  return NoChange();
-}
-
-
-Reduction JSIntrinsicLowering::ReduceCreateObjectLiteral(Node* node) {
-  HeapObjectMatcher<FixedArray> mconst(NodeProperties::GetValueInput(node, 2));
-  NumberMatcher mflags(NodeProperties::GetValueInput(node, 3));
-  // Constants are pairs, see ObjectLiteral::properties_count().
-  int length = mconst.Value().handle()->length() / 2;
-  int flags = FastD2I(mflags.Value());
-
-  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
-  // elements up to the number of properties that the stubs can handle.
-  if ((flags & ObjectLiteral::kShallowProperties) != 0 &&
-      length <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
-    Isolate* isolate = jsgraph()->isolate();
-    Callable callable = CodeFactory::FastCloneShallowObject(isolate, length);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
-            ? CallDescriptor::kNeedsFrameState
-            : CallDescriptor::kNoFlags);
-    const Operator* new_op = common()->Call(desc);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    node->set_op(new_op);
-    return Changed(node);
-  }
-
-  return NoChange();
 }
 
 

@@ -906,6 +906,54 @@ TEST_F(JSTypedLoweringTest, JSCreateClosure) {
              effect, control));
 }
 
+
+// -----------------------------------------------------------------------------
+// JSCreateLiteralArray
+
+
+TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
+  Node* const input0 = Parameter(0);
+  Node* const input1 = Parameter(1);
+  Node* const input2 = HeapConstant(factory()->NewFixedArray(12));
+  Node* const context = UndefinedConstant();
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CreateLiteralArray(ArrayLiteral::kShallowElements), input0,
+      input1, input2, context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
+                    CodeFactory::FastCloneShallowArray(isolate()).code())),
+             input0, input1, input2, context, frame_state, effect, control));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSCreateLiteralObject
+
+
+TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
+  Node* const input0 = Parameter(0);
+  Node* const input1 = Parameter(1);
+  Node* const input2 = HeapConstant(factory()->NewFixedArray(2 * 6));
+  Node* const context = UndefinedConstant();
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CreateLiteralObject(ObjectLiteral::kShallowProperties),
+      input0, input1, input2, context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
+                    CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
+             input0, input1, input2, _, context, frame_state, effect, control));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

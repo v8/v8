@@ -107,6 +107,8 @@
 #define JS_OBJECT_OP_LIST(V) \
   V(JSCreate)                \
   V(JSCreateClosure)         \
+  V(JSCreateLiteralArray)    \
+  V(JSCreateLiteralObject)   \
   V(JSLoadProperty)          \
   V(JSLoadNamed)             \
   V(JSStoreProperty)         \
