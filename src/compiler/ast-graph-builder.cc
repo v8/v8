@@ -1293,8 +1293,9 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
         JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
     // result is either the string key or Smi(0) indicating the property
     // is gone.
-    Node* res = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                        function, obj, value);
+    Node* res = NewNode(
+        javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS, language_mode()),
+        function, obj, value);
     PrepareFrameState(res, stmt->FilterId(), OutputFrameStateCombine::Push());
     Node* property_missing =
         NewNode(javascript()->StrictEqual(), res, jsgraph()->ZeroConstant());
@@ -2196,7 +2197,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
-  const Operator* call = javascript()->CallFunction(args->length() + 2, flags);
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, flags, language_mode());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -2240,7 +2242,8 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VisitForValues(args);
 
   // Create node to perform the JS runtime call.
-  const Operator* call = javascript()->CallFunction(args->length() + 2, flags);
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, flags, language_mode());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);

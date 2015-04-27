@@ -14,25 +14,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-bool operator==(CallFunctionParameters const& lhs,
-                CallFunctionParameters const& rhs) {
-  return lhs.arity() == rhs.arity() && lhs.flags() == rhs.flags();
-}
-
-
-bool operator!=(CallFunctionParameters const& lhs,
-                CallFunctionParameters const& rhs) {
-  return !(lhs == rhs);
-}
-
-
-size_t hash_value(CallFunctionParameters const& p) {
-  return base::hash_combine(p.arity(), p.flags());
-}
-
-
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
-  return os << p.arity() << ", " << p.flags();
+  return os << p.arity() << ", " << p.flags() << ", " << p.language_mode();
 }
 
 
@@ -354,8 +337,9 @@ CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 
 
 const Operator* JSOperatorBuilder::CallFunction(size_t arity,
-                                                CallFunctionFlags flags) {
-  CallFunctionParameters parameters(arity, flags);
+                                                CallFunctionFlags flags,
+                                                LanguageMode language_mode) {
+  CallFunctionParameters parameters(arity, flags, language_mode);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode
       "JSCallFunction",                                    // name

@@ -21,19 +21,35 @@ struct JSOperatorGlobalCache;
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
  public:
-  CallFunctionParameters(size_t arity, CallFunctionFlags flags)
-      : arity_(arity), flags_(flags) {}
+  CallFunctionParameters(size_t arity, CallFunctionFlags flags,
+                         LanguageMode language_mode)
+      : bit_field_(ArityField::encode(arity) | FlagsField::encode(flags) |
+                   LanguageModeField::encode(language_mode)) {}
 
-  size_t arity() const { return arity_; }
-  CallFunctionFlags flags() const { return flags_; }
+  size_t arity() const { return ArityField::decode(bit_field_); }
+  CallFunctionFlags flags() const { return FlagsField::decode(bit_field_); }
+  LanguageMode language_mode() const {
+    return LanguageModeField::decode(bit_field_);
+  }
+
+  bool operator==(CallFunctionParameters const& that) const {
+    return this->bit_field_ == that.bit_field_;
+  }
+  bool operator!=(CallFunctionParameters const& that) const {
+    return !(*this == that);
+  }
 
  private:
-  const size_t arity_;
-  const CallFunctionFlags flags_;
-};
+  friend size_t hash_value(CallFunctionParameters const& p) {
+    return p.bit_field_;
+  }
 
-bool operator==(CallFunctionParameters const&, CallFunctionParameters const&);
-bool operator!=(CallFunctionParameters const&, CallFunctionParameters const&);
+  typedef BitField<unsigned, 0, 28> ArityField;
+  typedef BitField<CallFunctionFlags, 28, 2> FlagsField;
+  typedef BitField<LanguageMode, 30, 2> LanguageModeField;
+
+  const uint32_t bit_field_;
+};
 
 size_t hash_value(CallFunctionParameters const&);
 
@@ -273,7 +289,8 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* CreateLiteralArray(int literal_flags);
   const Operator* CreateLiteralObject(int literal_flags);
 
-  const Operator* CallFunction(size_t arity, CallFunctionFlags flags);
+  const Operator* CallFunction(size_t arity, CallFunctionFlags flags,
+                               LanguageMode language_mode);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
 
   const Operator* CallConstruct(int arguments);
