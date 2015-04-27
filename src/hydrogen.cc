@@ -2465,21 +2465,19 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       length_checker.End();
       return result;
     } else {
-      HValue* neuter_checked_object = checked_object;
       if (IsExternalArrayElementsKind(elements_kind)) {
         HInstruction* buffer =
             Add<HLoadNamedField>(checked_object, nullptr,
                                  HObjectAccess::ForJSArrayBufferViewBuffer());
         HInstruction* buffer_length = Add<HLoadNamedField>(
             buffer, nullptr, HObjectAccess::ForJSArrayBufferByteLength());
-        neuter_checked_object =
-            Add<HBoundsCheck>(graph()->GetConstant0(), buffer_length);
+        Add<HBoundsCheck>(graph()->GetConstant0(), buffer_length);
       }
       DCHECK(store_mode == STANDARD_STORE);
       checked_key = Add<HBoundsCheck>(key, length);
-      return AddElementAccess(backing_store, checked_key, val,
-                              neuter_checked_object, elements_kind,
-                              access_type);
+      return AddElementAccess(
+          backing_store, checked_key, val,
+          checked_object, elements_kind, access_type);
     }
   }
   DCHECK(fast_smi_only_elements ||
@@ -6342,16 +6340,8 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
   if (info->GetJSArrayBufferViewFieldAccess(&access)) {
     DCHECK(info->IsLoad());
-    HValue* neuter_checked_object = checked_object;
-    if (IsExternalArrayElementsKind(info->map()->elements_kind())) {
-      HInstruction* buffer = Add<HLoadNamedField>(
-          checked_object, nullptr, HObjectAccess::ForJSArrayBufferViewBuffer());
-      HInstruction* buffer_length = Add<HLoadNamedField>(
-          buffer, nullptr, HObjectAccess::ForJSArrayBufferByteLength());
-      neuter_checked_object =
-          Add<HBoundsCheck>(graph()->GetConstant0(), buffer_length);
-    }
-    return New<HLoadNamedField>(object, neuter_checked_object, access);
+    return BuildArrayBufferViewFieldAccessor(
+        object, checked_object, FieldIndex::ForInObjectOffset(access.offset()));
   }
 
   if (info->name().is_identical_to(isolate()->factory()->prototype_string()) &&
