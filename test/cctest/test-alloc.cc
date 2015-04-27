@@ -38,8 +38,15 @@ using namespace v8::internal;
 static AllocationResult AllocateAfterFailures() {
   static int attempts = 0;
 
-  if (++attempts < 3) return AllocationResult::Retry();
+  // The first 4 times we simulate a full heap, by returning retry.
+  if (++attempts < 4) return AllocationResult::Retry();
+
+  // Expose some private stuff on Heap.
   TestHeap* heap = CcTest::test_heap();
+
+  // Now that we have returned 'retry' 4 times, we are in a last-chance
+  // scenario, with always_allocate.  See CALL_AND_RETRY.  Test that all
+  // allocations succeed.
 
   // New space.
   SimulateFullSpace(heap->new_space());

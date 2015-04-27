@@ -538,10 +538,13 @@ Isolate* Heap::isolate() {
     AllocationResult __allocation__ = FUNCTION_CALL;                          \
     Object* __object__ = NULL;                                                \
     RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),            \
-                                      "allocation failure");                  \
-    __allocation__ = FUNCTION_CALL;                                           \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
+    /* Two GCs before panicking.  In newspace will almost always succeed. */  \
+    for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
+      (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),          \
+                                        "allocation failure");                \
+      __allocation__ = FUNCTION_CALL;                                         \
+      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                       \
+    }                                                                         \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
     (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
     {                                                                         \
