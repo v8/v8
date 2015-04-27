@@ -886,7 +886,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
 // -----------------------------------------------------------------------------
 // JSCreateClosure
 
-
+#if V8_TURBOFAN_TARGET
 TEST_F(JSTypedLoweringTest, JSCreateClosure) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
@@ -953,6 +953,7 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
                     CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
              input0, input1, input2, _, context, frame_state, effect, control));
 }
+#endif
 
 }  // namespace compiler
 }  // namespace internal
