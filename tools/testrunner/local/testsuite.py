@@ -272,5 +272,8 @@ class GoogleTestSuite(TestSuite):
             ["--gtest_print_time=0"] +
             context.mode_flags)
 
+  def VariantFlags(self, testcase, default_flags):
+    return [[]]
+
   def shell(self):
     return self.name
