@@ -357,7 +357,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortOptimization(kHydrogenFilter);
   }
 
-  // Crankshaft requires a version of fullcode with deoptimization support.
+  // Optimization requires a version of fullcode with deoptimization support.
   // Recompile the unoptimized version of the code if the current version
   // doesn't have deoptimization support already.
   // Otherwise, if we are gathering compilation time and space statistics
@@ -378,9 +378,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   DCHECK(info()->shared_info()->has_deoptimization_support());
 
-  // Check the whitelist for TurboFan.
-  if ((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
-      info()->closure()->PassesFilter(FLAG_turbo_filter)) {
+  // Check the enabling conditions for TurboFan.
+  if (((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
+       info()->closure()->PassesFilter(FLAG_turbo_filter)) &&
+      (FLAG_turbo_osr || !info()->is_osr())) {
     if (FLAG_trace_opt) {
       OFStream os(stdout);
       os << "[compiling method " << Brief(*info()->closure())

@@ -524,9 +524,7 @@ struct OsrDeconstructionPhase {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
     OsrHelper osr_helper(data->info());
-    bool success =
-        osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
-    if (!success) data->info()->RetryOptimization(kOsrCompileFailed);
+    osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
   }
 };
 
@@ -919,12 +917,6 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
 
 
 Handle<Code> Pipeline::GenerateCode() {
-  if (info()->is_osr() && !FLAG_turbo_osr) {
-    // TODO(turbofan): remove this flag and always handle OSR
-    info()->RetryOptimization(kOsrCompileFailed);
-    return Handle<Code>::null();
-  }
-
   // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
   // the correct solution is to restore the context register after invoking
   // builtins from full-codegen.
@@ -1046,7 +1038,6 @@ Handle<Code> Pipeline::GenerateCode() {
 
     if (info()->is_osr()) {
       Run<OsrDeconstructionPhase>();
-      if (info()->bailout_reason() != kNoReason) return Handle<Code>::null();
       RunPrintAndVerify("OSR deconstruction");
     }
 
