@@ -536,6 +536,13 @@ void ElementHandlerCompiler::CompileElementHandlers(
     } else {
       bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
       ElementsKind elements_kind = receiver_map->elements_kind();
+
+      // No need to check for an elements-free prototype chain here, the
+      // generated stub code needs to check that dynamically anyway.
+      bool convert_hole_to_undefined =
+          is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
+          *receiver_map == isolate()->get_initial_js_array_map(elements_kind);
+
       if (receiver_map->has_indexed_interceptor()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
       } else if (IsSloppyArgumentsElements(elements_kind)) {
@@ -543,8 +550,8 @@ void ElementHandlerCompiler::CompileElementHandlers(
       } else if (IsFastElementsKind(elements_kind) ||
                  IsExternalArrayElementsKind(elements_kind) ||
                  IsFixedTypedArrayElementsKind(elements_kind)) {
-        cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind)
-                          .GetCode();
+        cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind,
+                                          convert_hole_to_undefined).GetCode();
       } else {
         DCHECK(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub = LoadDictionaryElementStub(isolate()).GetCode();

@@ -3263,6 +3263,22 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
       DeoptimizeIf(equal, instr, Deoptimizer::kHole);
     }
+  } else if (hinstr->hole_mode() == CONVERT_HOLE_TO_UNDEFINED) {
+    DCHECK(hinstr->elements_kind() == FAST_HOLEY_ELEMENTS);
+    Label done;
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &done);
+    if (info()->IsStub()) {
+      // A stub can safely convert the hole to undefined only if the array
+      // protector cell contains (Smi) Isolate::kArrayProtectorValid. Otherwise
+      // it needs to bail out.
+      __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
+      __ Cmp(FieldOperand(result, Cell::kValueOffset),
+             Smi::FromInt(Isolate::kArrayProtectorValid));
+      DeoptimizeIf(not_equal, instr, Deoptimizer::kHole);
+    }
+    __ Move(result, isolate()->factory()->undefined_value());
+    __ bind(&done);
   }
 }
 

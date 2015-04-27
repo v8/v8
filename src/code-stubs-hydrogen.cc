@@ -578,11 +578,15 @@ Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
+  LoadKeyedHoleMode hole_mode = casted_stub()->convert_hole_to_undefined()
+                                    ? CONVERT_HOLE_TO_UNDEFINED
+                                    : NEVER_RETURN_HOLE;
+
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(LoadDescriptor::kReceiverIndex),
       GetParameter(LoadDescriptor::kNameIndex), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
-      NEVER_RETURN_HOLE, STANDARD_STORE);
+      hole_mode, STANDARD_STORE);
   return load;
 }
 

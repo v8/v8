@@ -2375,8 +2375,9 @@ bool Isolate::use_crankshaft() const {
 
 bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   PropertyCell* no_elements_cell = heap()->array_protector();
-  bool cell_reports_intact = no_elements_cell->value()->IsSmi() &&
-                             Smi::cast(no_elements_cell->value())->value() == 1;
+  bool cell_reports_intact =
+      no_elements_cell->value()->IsSmi() &&
+      Smi::cast(no_elements_cell->value())->value() == kArrayProtectorValid;
 
 #ifdef DEBUG
   Map* root_array_map =
@@ -2437,8 +2438,9 @@ void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
               *object ||
           current_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
               *object) {
-        PropertyCell::SetValueWithInvalidation(factory()->array_protector(),
-                                               handle(Smi::FromInt(0), this));
+        PropertyCell::SetValueWithInvalidation(
+            factory()->array_protector(),
+            handle(Smi::FromInt(kArrayProtectorInvalid), this));
         break;
       }
       context = current_context->get(Context::NEXT_CONTEXT_LINK);

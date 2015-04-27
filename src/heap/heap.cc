@@ -3106,7 +3106,7 @@ void Heap::CreateInitialObjects() {
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
 
   Handle<PropertyCell> cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(1));
+  cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
   set_array_protector(*cell);
 
   set_allocation_sites_scratchpad(

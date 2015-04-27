@@ -3528,6 +3528,10 @@ bool HLoadKeyed::RequiresHoleCheck() const {
     return false;
   }
 
+  if (hole_mode() == CONVERT_HOLE_TO_UNDEFINED) {
+    return false;
+  }
+
   return !UsesMustHandleHole();
 }
 

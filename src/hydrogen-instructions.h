@@ -6461,7 +6461,8 @@ static const int kDefaultKeyedHeaderOffsetSentinel = -1;
 
 enum LoadKeyedHoleMode {
   NEVER_RETURN_HOLE,
-  ALLOW_RETURN_HOLE
+  ALLOW_RETURN_HOLE,
+  CONVERT_HOLE_TO_UNDEFINED
 };
 
 
@@ -6548,9 +6549,7 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
   }
 
  private:
-  HLoadKeyed(HValue* obj,
-             HValue* key,
-             HValue* dependency,
+  HLoadKeyed(HValue* obj, HValue* key, HValue* dependency,
              ElementsKind elements_kind,
              LoadKeyedHoleMode mode = NEVER_RETURN_HOLE,
              int offset = kDefaultKeyedHeaderOffsetSentinel)
@@ -6620,8 +6619,8 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
   // Establish some checks around our packed fields
   enum LoadKeyedBits {
     kBitsForElementsKind = 5,
-    kBitsForHoleMode = 1,
-    kBitsForBaseOffset = 25,
+    kBitsForHoleMode = 2,
+    kBitsForBaseOffset = 24,
     kBitsForIsDehoisted = 1,
 
     kStartElementsKind = 0,
