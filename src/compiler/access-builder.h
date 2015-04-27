@@ -49,6 +49,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to the backing store of a StatsCounter.
   static FieldAccess ForStatsCounter();
 
+  // Provides access to PropertyCell::value() field.
+  static FieldAccess ForPropertyCellValue();
+
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 

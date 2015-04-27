@@ -8,6 +8,7 @@
 
 #include "src/accessors.h"
 #include "src/ast.h"
+#include "src/compiler.h"
 #include "src/type-info.h"
 
 #include "src/compiler/access-builder.h"
@@ -78,6 +79,18 @@ Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
 }
 
 
+static void AddFieldAccessTypes(FieldAccess* access,
+                                PropertyDetails property_details) {
+  if (property_details.representation().IsSmi()) {
+    access->type = Type::SignedSmall();
+    access->machine_type = static_cast<MachineType>(kTypeInt32 | kRepTagged);
+  } else if (property_details.representation().IsDouble()) {
+    access->type = Type::Number();
+    access->machine_type = kMachFloat64;
+  }
+}
+
+
 static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
                                    Handle<Name> name, FieldAccess* access) {
   access->base_is_tagged = kTaggedBase;
@@ -109,25 +122,17 @@ static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
     return false;
   }
 
+  // Transfer known types from property details.
+  AddFieldAccessTypes(access, property_details);
+
   if (mode == STORE) {
-    if (property_details.IsReadOnly()) return false;
-    if (is_smi) {
-      // TODO(turbofan): SMI stores.
+    if (property_details.IsReadOnly()) {
+      // TODO(turbofan): deopt, ignore or throw on readonly stores.
       return false;
     }
-    if (is_double) {
-      // TODO(turbofan): double stores.
+    if (is_smi || is_double) {
+      // TODO(turbofan): check type and deopt for SMI/double stores.
       return false;
-    }
-  } else {
-    // Check property details for loads.
-    if (is_smi) {
-      access->type = Type::SignedSmall();
-      access->machine_type = static_cast<MachineType>(kTypeInt32 | kRepTagged);
-    }
-    if (is_double) {
-      access->type = Type::Number();
-      access->machine_type = kMachFloat64;
     }
   }
 
@@ -144,8 +149,20 @@ static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
 }
 
 
+static bool IsGlobalObject(Node* node) {
+  return NodeProperties::IsTyped(node) &&
+         NodeProperties::GetBounds(node).upper->Is(Type::GlobalObject());
+}
+
+
 Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
+  Node* receiver = node->InputAt(0);
+  if (IsGlobalObject(receiver)) {
+    return ReduceJSLoadNamedForGlobalVariable(node);
+  }
+
+  if (!FLAG_turbo_deoptimization) return NoChange();
   // TODO(titzer): deopt locations are wrong for property accesses
   if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
 
@@ -158,7 +175,6 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
   SmallMapList maps;
   Handle<Name> name = p.name().handle();
-  Node* receiver = node->InputAt(0);
   Node* effect = NodeProperties::GetEffectInput(node);
   GatherReceiverTypes(receiver, effect, id, name, &maps);
 
@@ -188,6 +204,74 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   NodeProperties::MergeControlToEnd(graph(), common(), deopt);
   NodeProperties::ReplaceWithValue(node, load, load, check_success);
   return Replace(load);
+}
+
+
+Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamedForGlobalVariable(
+    Node* node) {
+  Handle<String> name =
+      Handle<String>::cast(LoadNamedParametersOf(node->op()).name().handle());
+  // Try to optimize loads from the global object.
+  Handle<Object> constant_value =
+      jsgraph()->isolate()->factory()->GlobalConstantFor(name);
+  if (!constant_value.is_null()) {
+    // Always optimize global constants.
+    Node* constant = jsgraph()->Constant(constant_value);
+    NodeProperties::ReplaceWithValue(node, constant);
+    return Replace(constant);
+  }
+
+  if (global_object_.is_null()) {
+    // Nothing else can be done if we don't have a global object.
+    return NoChange();
+  }
+
+  if (FLAG_turbo_deoptimization) {
+    // Handle lookups in the script context.
+    {
+      Handle<ScriptContextTable> script_contexts(
+          global_object_->native_context()->script_context_table());
+      ScriptContextTable::LookupResult lookup;
+      if (ScriptContextTable::Lookup(script_contexts, name, &lookup)) {
+        // TODO(turbofan): introduce a LoadContext here.
+        return NoChange();
+      }
+    }
+
+    // Constant promotion or cell access requires lazy deoptimization support.
+    LookupIterator it(global_object_, name, LookupIterator::OWN);
+
+    if (it.state() == LookupIterator::DATA) {
+      Handle<PropertyCell> cell = it.GetPropertyCell();
+      dependencies_->AssumePropertyCell(cell);
+
+      if (it.property_details().cell_type() == PropertyCellType::kConstant) {
+        // Constant promote the global's current value.
+        Handle<Object> constant_value(cell->value(), jsgraph()->isolate());
+        if (constant_value->IsConsString()) {
+          constant_value =
+              String::Flatten(Handle<String>::cast(constant_value));
+        }
+        Node* constant = jsgraph()->Constant(constant_value);
+        NodeProperties::ReplaceWithValue(node, constant);
+        return Replace(constant);
+      } else {
+        // Load directly from the property cell.
+        FieldAccess access = AccessBuilder::ForPropertyCellValue();
+        Node* control = NodeProperties::GetControlInput(node);
+        Node* load_field = graph()->NewNode(
+            simplified()->LoadField(access), jsgraph()->Constant(cell),
+            NodeProperties::GetEffectInput(node), control);
+        NodeProperties::ReplaceWithValue(node, load_field, load_field, control);
+        return Replace(load_field);
+      }
+    }
+  } else {
+    // TODO(turbofan): non-configurable properties on the global object
+    // should be loadable through a cell without deoptimization support.
+  }
+
+  return NoChange();
 }
 
 
