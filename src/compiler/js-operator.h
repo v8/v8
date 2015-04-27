@@ -23,7 +23,8 @@ class CallFunctionParameters final {
  public:
   CallFunctionParameters(size_t arity, CallFunctionFlags flags,
                          LanguageMode language_mode)
-      : bit_field_(ArityField::encode(arity) | FlagsField::encode(flags) |
+      : bit_field_(ArityField::encode(static_cast<unsigned>(arity)) |
+                   FlagsField::encode(flags) |
                    LanguageModeField::encode(language_mode)) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
