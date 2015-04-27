@@ -35,10 +35,6 @@
     'component%': 'static_library',
     'clang_dir%': 'third_party/llvm-build/Release+Asserts',
     'clang_xcode%': 0,
-    # Track where uninitialized memory originates from. From fastest to
-    # slowest: 0 - no tracking, 1 - track only the initial allocation site, 2
-    # - track the chain of stores leading from allocation site to use site.
-    'msan_track_origins%': 1,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
@@ -316,36 +312,6 @@
         ],
         'defines': [
           'THREAD_SANITIZER',
-        ],
-      },
-    }],
-    ['msan==1 and OS!="mac"', {
-      'target_defaults': {
-        'cflags_cc+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=memory',
-          '-fsanitize-memory-track-origins=<(msan_track_origins)',
-          '-fPIC',
-        ],
-        'cflags+': [
-          '-fPIC',
-        ],
-        'cflags!': [
-          '-fno-exceptions',
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=memory',
-        ],
-        'defines': [
-          'MEMORY_SANITIZER',
-        ],
-        'dependencies': [
-          # Use libc++ (third_party/libc++ and third_party/libc++abi) instead of
-          # stdlibc++ as standard library. This is intended to use for instrumented
-          # builds.
-          '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
         ],
       },
     }],
