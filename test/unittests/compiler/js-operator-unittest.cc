@@ -12,18 +12,36 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+#if GTEST_HAS_COMBINE
+
+template <typename T>
+class JSOperatorTestWithLanguageModeAndParam
+    : public TestWithZone,
+      public ::testing::WithParamInterface<::testing::tuple<LanguageMode, T>> {
+ protected:
+  LanguageMode language_mode() const {
+    return ::testing::get<0>(B::GetParam());
+  }
+  const T& GetParam() const { return ::testing::get<1>(B::GetParam()); }
+
+ private:
+  typedef ::testing::WithParamInterface<::testing::tuple<LanguageMode, T>> B;
+};
+
+#endif  // GTEST_HAS_COMBINE
+
+}  // namespace
+
+
+// -----------------------------------------------------------------------------
+// Shared operators without language mode.
 
 namespace {
 
-typedef const Operator* (JSOperatorBuilder::*no_params_t) () ;
-
-typedef const Operator* (JSOperatorBuilder::*with_language_mode_t)
-          (LanguageMode language_mode) ;
-
-
-template <typename T>
 struct SharedOperator {
-  T constructor;
+  const Operator* (JSOperatorBuilder::*constructor)();
   IrOpcode::Value opcode;
   Operator::Properties properties;
   int value_input_count;
@@ -36,7 +54,7 @@ struct SharedOperator {
 };
 
 
-const SharedOperator<no_params_t> kSharedOperators[] = {
+const SharedOperator kSharedOperators[] = {
 #define SHARED(Name, properties, value_input_count, frame_state_input_count, \
                effect_input_count, control_input_count, value_output_count,  \
                effect_output_count, control_output_count)                    \
@@ -70,8 +88,95 @@ const SharedOperator<no_params_t> kSharedOperators[] = {
 };
 
 
-const SharedOperator<with_language_mode_t>
-  kSharedOperatorsWithlanguageMode[] = {
+std::ostream& operator<<(std::ostream& os, const SharedOperator& sop) {
+  return os << IrOpcode::Mnemonic(sop.opcode);
+}
+
+}  // namespace
+
+
+class JSSharedOperatorTest
+    : public TestWithZone,
+      public ::testing::WithParamInterface<SharedOperator> {};
+
+
+TEST_P(JSSharedOperatorTest, InstancesAreGloballyShared) {
+  const SharedOperator& sop = GetParam();
+  JSOperatorBuilder javascript1(zone());
+  JSOperatorBuilder javascript2(zone());
+  EXPECT_EQ((javascript1.*sop.constructor)(), (javascript2.*sop.constructor)());
+}
+
+
+TEST_P(JSSharedOperatorTest, NumberOfInputsAndOutputs) {
+  JSOperatorBuilder javascript(zone());
+  const SharedOperator& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)();
+
+  const int context_input_count = 1;
+  EXPECT_EQ(sop.value_input_count, op->ValueInputCount());
+  EXPECT_EQ(context_input_count, OperatorProperties::GetContextInputCount(op));
+  EXPECT_EQ(sop.frame_state_input_count,
+            OperatorProperties::GetFrameStateInputCount(op));
+  EXPECT_EQ(sop.effect_input_count, op->EffectInputCount());
+  EXPECT_EQ(sop.control_input_count, op->ControlInputCount());
+  EXPECT_EQ(sop.value_input_count + context_input_count +
+                sop.frame_state_input_count + sop.effect_input_count +
+                sop.control_input_count,
+            OperatorProperties::GetTotalInputCount(op));
+
+  EXPECT_EQ(sop.value_output_count, op->ValueOutputCount());
+  EXPECT_EQ(sop.effect_output_count, op->EffectOutputCount());
+  EXPECT_EQ(sop.control_output_count, op->ControlOutputCount());
+}
+
+
+TEST_P(JSSharedOperatorTest, OpcodeIsCorrect) {
+  JSOperatorBuilder javascript(zone());
+  const SharedOperator& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)();
+  EXPECT_EQ(sop.opcode, op->opcode());
+}
+
+
+TEST_P(JSSharedOperatorTest, Properties) {
+  JSOperatorBuilder javascript(zone());
+  const SharedOperator& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)();
+  EXPECT_EQ(sop.properties, op->properties());
+}
+
+
+INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorTest,
+                        ::testing::ValuesIn(kSharedOperators));
+
+
+// -----------------------------------------------------------------------------
+// Shared operators with language mode.
+
+
+#if GTEST_HAS_COMBINE
+
+namespace {
+
+const LanguageMode kLanguageModes[] = {SLOPPY, STRICT, STRONG};
+
+
+struct SharedOperatorWithLanguageMode {
+  const Operator* (JSOperatorBuilder::*constructor)(LanguageMode);
+  IrOpcode::Value opcode;
+  Operator::Properties properties;
+  int value_input_count;
+  int frame_state_input_count;
+  int effect_input_count;
+  int control_input_count;
+  int value_output_count;
+  int effect_output_count;
+  int control_output_count;
+};
+
+
+const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
 #define SHARED(Name, properties, value_input_count, frame_state_input_count, \
                effect_input_count, control_input_count, value_output_count,  \
                effect_output_count, control_output_count)                    \
@@ -100,9 +205,33 @@ const SharedOperator<with_language_mode_t>
 };
 
 
-template <typename T>
-void testNumberOfInputsAndOutputs(const SharedOperator<T>& sop,
-                                  const Operator* op) {
+std::ostream& operator<<(std::ostream& os,
+                         const SharedOperatorWithLanguageMode& sop) {
+  return os << IrOpcode::Mnemonic(sop.opcode);
+}
+
+}  // namespace
+
+
+class JSSharedOperatorWithLanguageModeTest
+    : public JSOperatorTestWithLanguageModeAndParam<
+          SharedOperatorWithLanguageMode> {};
+
+
+TEST_P(JSSharedOperatorWithLanguageModeTest, InstancesAreGloballyShared) {
+  const SharedOperatorWithLanguageMode& sop = GetParam();
+  JSOperatorBuilder javascript1(zone());
+  JSOperatorBuilder javascript2(zone());
+  EXPECT_EQ((javascript1.*sop.constructor)(language_mode()),
+            (javascript2.*sop.constructor)(language_mode()));
+}
+
+
+TEST_P(JSSharedOperatorWithLanguageModeTest, NumberOfInputsAndOutputs) {
+  JSOperatorBuilder javascript(zone());
+  const SharedOperatorWithLanguageMode& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)(language_mode());
+
   const int context_input_count = 1;
   EXPECT_EQ(sop.value_input_count, op->ValueInputCount());
   EXPECT_EQ(context_input_count, OperatorProperties::GetContextInputCount(op));
@@ -121,123 +250,37 @@ void testNumberOfInputsAndOutputs(const SharedOperator<T>& sop,
 }
 
 
-std::ostream& operator<<(std::ostream& os,
-                         const SharedOperator<no_params_t>& sop) {
-  return os << IrOpcode::Mnemonic(sop.opcode);
-}
-
-
-std::ostream& operator<<(std::ostream& os,
-                         const SharedOperator<with_language_mode_t>& sop) {
-  return os << IrOpcode::Mnemonic(sop.opcode);
-}
-
-}  // namespace
-
-
-// -----------------------------------------------------------------------------
-// Shared operators.
-
-
-class JSSharedOperatorTest
-    : public TestWithZone,
-      public ::testing::WithParamInterface<SharedOperator<no_params_t>> {};
-
-
-TEST_P(JSSharedOperatorTest, InstancesAreGloballyShared) {
-  const SharedOperator<no_params_t>& sop = GetParam();
-  JSOperatorBuilder javascript1(zone());
-  JSOperatorBuilder javascript2(zone());
-  EXPECT_EQ((javascript1.*sop.constructor)(), (javascript2.*sop.constructor)());
-}
-
-
-TEST_P(JSSharedOperatorTest, NumberOfInputsAndOutputs) {
+TEST_P(JSSharedOperatorWithLanguageModeTest, OpcodeIsCorrect) {
   JSOperatorBuilder javascript(zone());
-  const SharedOperator<no_params_t>& sop = GetParam();
-  const Operator* op = (javascript.*sop.constructor)();
-  testNumberOfInputsAndOutputs(sop, op);
-}
-
-
-TEST_P(JSSharedOperatorTest, OpcodeIsCorrect) {
-  JSOperatorBuilder javascript(zone());
-  const SharedOperator<no_params_t>& sop = GetParam();
-  const Operator* op = (javascript.*sop.constructor)();
+  const SharedOperatorWithLanguageMode& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)(language_mode());
   EXPECT_EQ(sop.opcode, op->opcode());
 }
 
 
-TEST_P(JSSharedOperatorTest, Properties) {
+TEST_P(JSSharedOperatorWithLanguageModeTest, Parameter) {
   JSOperatorBuilder javascript(zone());
-  const SharedOperator<no_params_t>& sop = GetParam();
-  const Operator* op = (javascript.*sop.constructor)();
+  const SharedOperatorWithLanguageMode& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)(language_mode());
+  EXPECT_EQ(language_mode(), OpParameter<LanguageMode>(op));
+}
+
+
+TEST_P(JSSharedOperatorWithLanguageModeTest, Properties) {
+  JSOperatorBuilder javascript(zone());
+  const SharedOperatorWithLanguageMode& sop = GetParam();
+  const Operator* op = (javascript.*sop.constructor)(language_mode());
   EXPECT_EQ(sop.properties, op->properties());
 }
 
 
-INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorTest,
-                        ::testing::ValuesIn(kSharedOperators));
+INSTANTIATE_TEST_CASE_P(
+    JSOperatorTest, JSSharedOperatorWithLanguageModeTest,
+    ::testing::Combine(::testing::ValuesIn(kLanguageModes),
+                       ::testing::ValuesIn(kSharedOperatorsWithLanguageMode)));
 
-// -----------------------------------------------------------------------------
-// Shared operators which behave differently in strong mode
+#endif  // GTEST_HAS_COMBINE
 
-
-class JSSharedOperatorWithStrongTest
-    : public TestWithZone,
-      public ::testing::WithParamInterface<
-                          SharedOperator<with_language_mode_t>>{};
-
-
-TEST_P(JSSharedOperatorWithStrongTest, InstancesAreGloballyShared) {
-  const SharedOperator<with_language_mode_t>& sop = GetParam();
-  JSOperatorBuilder javascript1(zone());
-  JSOperatorBuilder javascript2(zone());
-  EXPECT_EQ((javascript1.*sop.constructor)(LanguageMode::SLOPPY),
-            (javascript2.*sop.constructor)(LanguageMode::SLOPPY));
-  EXPECT_EQ((javascript1.*sop.constructor)(LanguageMode::STRONG),
-            (javascript2.*sop.constructor)(LanguageMode::STRONG));
-}
-
-
-TEST_P(JSSharedOperatorWithStrongTest, NumberOfInputsAndOutputs) {
-  JSOperatorBuilder javascript(zone());
-  const SharedOperator<with_language_mode_t>& sop = GetParam();
-  const Operator* op_sloppy = (javascript.*sop.constructor)
-      (LanguageMode::SLOPPY);
-  testNumberOfInputsAndOutputs(sop, op_sloppy);
-  const Operator* op_strong = (javascript.*sop.constructor)
-      (LanguageMode::STRONG);
-  testNumberOfInputsAndOutputs(sop, op_strong);
-}
-
-
-TEST_P(JSSharedOperatorWithStrongTest, OpcodeIsCorrect) {
-  JSOperatorBuilder javascript(zone());
-  const SharedOperator<with_language_mode_t>& sop = GetParam();
-  const Operator* op_sloppy = (javascript.*sop.constructor)
-      (LanguageMode::SLOPPY);
-  EXPECT_EQ(sop.opcode, op_sloppy->opcode());
-  const Operator* op_strong = (javascript.*sop.constructor)
-      (LanguageMode::STRONG);
-  EXPECT_EQ(sop.opcode, op_strong->opcode());
-}
-
-
-TEST_P(JSSharedOperatorWithStrongTest, Properties) {
-  JSOperatorBuilder javascript(zone());
-  const SharedOperator<with_language_mode_t>& sop = GetParam();
-  const Operator* op_sloppy = (javascript.*sop.constructor)
-      (LanguageMode::SLOPPY);
-  EXPECT_EQ(sop.properties, op_sloppy->properties());
-  const Operator* op_strong = (javascript.*sop.constructor)
-      (LanguageMode::STRONG);
-  EXPECT_EQ(sop.properties, op_strong->properties());
-}
-
-
-INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorWithStrongTest,
-                        ::testing::ValuesIn(kSharedOperatorsWithlanguageMode));
 
 // -----------------------------------------------------------------------------
 // JSStoreProperty.

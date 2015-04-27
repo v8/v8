@@ -296,21 +296,23 @@ struct JSOperatorGlobalCache final {
 #undef CACHED
 
 
-#define CACHED_WITH_STRONG(Name, properties, value_input_count,                \
-                           value_output_count)                                 \
-  template <LanguageMode kLanguageMode>                                        \
-  struct Name##Operator final : public Operator1<LanguageMode> {               \
-    Name##Operator()                                                           \
-        : Operator1<LanguageMode>(IrOpcode::kJS##Name, properties, "JS" #Name, \
-                   value_input_count, Operator::ZeroIfPure(properties),        \
-                   Operator::ZeroIfEliminatable(properties),                   \
-                   value_output_count, Operator::ZeroIfPure(properties),       \
-                   Operator::ZeroIfNoThrow(properties), kLanguageMode) {}      \
-  };                                                                           \
-  Name##Operator<SLOPPY> k##Name##SloppyOperator;                              \
+#define CACHED_WITH_LANGUAGE_MODE(Name, properties, value_input_count,        \
+                                  value_output_count)                         \
+  template <LanguageMode kLanguageMode>                                       \
+  struct Name##Operator final : public Operator1<LanguageMode> {              \
+    Name##Operator()                                                          \
+        : Operator1<LanguageMode>(                                            \
+              IrOpcode::kJS##Name, properties, "JS" #Name, value_input_count, \
+              Operator::ZeroIfPure(properties),                               \
+              Operator::ZeroIfEliminatable(properties), value_output_count,   \
+              Operator::ZeroIfPure(properties),                               \
+              Operator::ZeroIfNoThrow(properties), kLanguageMode) {}          \
+  };                                                                          \
+  Name##Operator<SLOPPY> k##Name##SloppyOperator;                             \
+  Name##Operator<STRICT> k##Name##StrictOperator;                             \
   Name##Operator<STRONG> k##Name##StrongOperator;
-  CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_STRONG)
-#undef CACHED_WITH_STRONG
+  CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
+#undef CACHED_WITH_LANGUAGE_MODE
 
 
   template <LanguageMode kLanguageMode>
@@ -341,19 +343,24 @@ CACHED_OP_LIST(CACHED)
 #undef CACHED
 
 
-#define CACHED_WITH_STRONG(Name, properties, value_input_count,         \
-                           value_output_count)                          \
+#define CACHED_WITH_LANGUAGE_MODE(Name, properties, value_input_count,  \
+                                  value_output_count)                   \
   const Operator* JSOperatorBuilder::Name(LanguageMode language_mode) { \
-    if (is_strong(language_mode)) {                                     \
-      return &cache_.k##Name##StrongOperator;                           \
-    } else {                                                            \
-      return &cache_.k##Name##SloppyOperator;                           \
+    switch (language_mode) {                                            \
+      case SLOPPY:                                                      \
+        return &cache_.k##Name##SloppyOperator;                         \
+      case STRICT:                                                      \
+        return &cache_.k##Name##StrictOperator;                         \
+      case STRONG:                                                      \
+        return &cache_.k##Name##StrongOperator;                         \
+      case STRONG_BIT:                                                  \
+        break; /* %*!%^$#@ */                                           \
     }                                                                   \
     UNREACHABLE();                                                      \
     return nullptr;                                                     \
   }
-CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_STRONG)
-#undef CACHED_WITH_STRONG
+CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
+#undef CACHED_WITH_LANGUAGE_MODE
 
 
 const Operator* JSOperatorBuilder::CallFunction(size_t arity,

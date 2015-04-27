@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <ostream>
+
 #include "src/base/build_config.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -236,6 +238,20 @@ enum LanguageMode {
   STRICT = STRICT_BIT,
   STRONG = STRICT_BIT | STRONG_BIT
 };
+
+
+inline std::ostream& operator<<(std::ostream& os, LanguageMode mode) {
+  switch (mode) {
+    case SLOPPY:
+      return os << "sloppy";
+    case STRICT:
+      return os << "strict";
+    case STRONG:
+      return os << "strong";
+    default:
+      return os << "unknown";
+  }
+}
 
 
 inline bool is_sloppy(LanguageMode language_mode) {

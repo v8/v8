@@ -115,7 +115,6 @@ class TestWithIsolateAndZone : public virtual TestWithIsolate {
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);
 };
 
-
 }  // namespace internal
 }  // namespace v8
 
