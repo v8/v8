@@ -9837,6 +9837,8 @@ class PropertyCell : public HeapObject {
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
+  PropertyCellConstantType GetConstantType();
+
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the details.
   static PropertyCellType UpdatedType(Handle<PropertyCell> cell,

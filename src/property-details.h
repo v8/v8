@@ -186,12 +186,24 @@ static const int kInvalidEnumCacheSentinel =
 
 
 enum class PropertyCellType {
-  kUninitialized,        // Cell is deleted or not yet defined.
-  kUndefined,            // The PREMONOMORPHIC of property cells.
-  kConstant,             // Cell has been assigned only once.
-  kMutable,              // Cell will no longer be tracked as constant.
-  kDeleted = kConstant,  // like kUninitialized, but for cells already deleted.
-  kInvalid = kMutable,   // For dictionaries not holding cells.
+  // Meaningful when a property cell does not contain the hole.
+  kUndefined,     // The PREMONOMORPHIC of property cells.
+  kConstant,      // Cell has been assigned only once.
+  kConstantType,  // Cell has been assigned only one type.
+  kMutable,       // Cell will no longer be tracked as constant.
+
+  // Meaningful when a property cell contains the hole.
+  kUninitialized = kUndefined,  // Cell has never been initialized.
+  kInvalidated = kConstant,     // Cell has been deleted or invalidated.
+
+  // For dictionaries not holding cells.
+  kNoCell = kMutable,
+};
+
+
+enum class PropertyCellConstantType {
+  kSmi,
+  kStableMap,
 };
 
 
@@ -229,7 +241,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   static PropertyDetails Empty() {
-    return PropertyDetails(NONE, DATA, 0, PropertyCellType::kInvalid);
+    return PropertyDetails(NONE, DATA, 0, PropertyCellType::kNoCell);
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }
