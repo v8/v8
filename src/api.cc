@@ -6894,7 +6894,7 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
 
   space_statistics->space_name_ = heap->GetSpaceName(static_cast<int>(index));
   space_statistics->space_size_ = space->CommittedMemory();
-  space_statistics->space_used_size_ = space->Size();
+  space_statistics->space_used_size_ = space->SizeOfObjects();
   space_statistics->space_available_size_ = space->Available();
   space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
   return true;
