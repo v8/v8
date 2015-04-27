@@ -542,16 +542,8 @@ struct JSTypeFeedbackPhase {
                               data->info()->unoptimized_code(),
                               data->info()->feedback_vector(), native_context);
     GraphReducer graph_reducer(data->graph(), temp_zone);
-    Handle<GlobalObject> global_object = Handle<GlobalObject>::null();
-    if (data->info()->has_global_object()) {
-      global_object =
-          Handle<GlobalObject>(data->info()->global_object(), data->isolate());
-    }
-    // TODO(titzer): introduce a specialization mode/flags enum to control
-    // specializing to the global object here.
-    JSTypeFeedbackSpecializer specializer(
-        data->jsgraph(), data->js_type_feedback(), &oracle, global_object,
-        data->info()->dependencies());
+    JSTypeFeedbackSpecializer specializer(data->jsgraph(),
+                                          data->js_type_feedback(), &oracle);
     AddReducer(data, &graph_reducer, &specializer);
     graph_reducer.ReduceGraph();
   }

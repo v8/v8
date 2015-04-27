@@ -17,7 +17,6 @@ namespace internal {
 
 class TypeFeedbackOracle;
 class SmallMapList;
-class CompilationDependencies;
 
 namespace compiler {
 
@@ -51,15 +50,11 @@ class JSTypeFeedbackSpecializer : public Reducer {
  public:
   JSTypeFeedbackSpecializer(JSGraph* jsgraph,
                             JSTypeFeedbackTable* js_type_feedback,
-                            TypeFeedbackOracle* oracle,
-                            Handle<GlobalObject> global_object,
-                            CompilationDependencies* dependencies)
+                            TypeFeedbackOracle* oracle)
       : jsgraph_(jsgraph),
         simplified_(jsgraph->graph()->zone()),
         js_type_feedback_(js_type_feedback),
-        oracle_(oracle),
-        global_object_(global_object),
-        dependencies_(dependencies) {
+        oracle_(oracle) {
     CHECK(js_type_feedback);
   }
 
@@ -67,7 +62,6 @@ class JSTypeFeedbackSpecializer : public Reducer {
 
   // Visible for unit testing.
   Reduction ReduceJSLoadNamed(Node* node);
-  Reduction ReduceJSLoadNamedForGlobalVariable(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
@@ -77,8 +71,6 @@ class JSTypeFeedbackSpecializer : public Reducer {
   SimplifiedOperatorBuilder simplified_;
   JSTypeFeedbackTable* js_type_feedback_;
   TypeFeedbackOracle* oracle_;
-  Handle<GlobalObject> global_object_;
-  CompilationDependencies* dependencies_;
 
   TypeFeedbackOracle* oracle() { return oracle_; }
   Graph* graph() { return jsgraph_->graph(); }

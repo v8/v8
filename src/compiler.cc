@@ -400,7 +400,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {
-      info()->dependencies()->Commit(info()->code());
       return SetLastStatus(SUCCEEDED);
     }
   }
