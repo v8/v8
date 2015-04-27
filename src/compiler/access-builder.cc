@@ -88,6 +88,13 @@ FieldAccess AccessBuilder::ForStatsCounter() {
 
 
 // static
+FieldAccess AccessBuilder::ForPropertyCellValue() {
+  return {kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(), Type::Any(),
+          kMachAnyTagged};
+}
+
+
+// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
 }
