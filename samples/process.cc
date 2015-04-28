@@ -29,6 +29,7 @@
 
 #include <include/libplatform/libplatform.h>
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <map>
