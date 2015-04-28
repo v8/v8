@@ -726,7 +726,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
         DCHECK(op.IsRegister());
         os_ << " \"" << Register::AllocationIndexToString(assigned_reg) << "\"";
       }
-    } else if (range->IsSpilled()) {
+    } else if (range->spilled()) {
       auto top = range->TopLevel();
       int index = -1;
       if (top->HasSpillRange()) {
@@ -737,9 +737,9 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
             << "\"";
       } else {
         index = AllocatedOperand::cast(top->GetSpillOperand())->index();
-        if (top->Kind() == DOUBLE_REGISTERS) {
+        if (top->kind() == DOUBLE_REGISTERS) {
           os_ << " \"double_stack:" << index << "\"";
-        } else if (top->Kind() == GENERAL_REGISTERS) {
+        } else if (top->kind() == GENERAL_REGISTERS) {
           os_ << " \"stack:" << index << "\"";
         }
       }

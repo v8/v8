@@ -60,8 +60,8 @@ class LifetimePosition final {
   // Returns true if this lifetime position corresponds to a gap START value
   bool IsFullStart() const { return (value_ & (kStep - 1)) == 0; }
 
-  bool IsGapPosition() { return (value_ & 0x2) == 0; }
-  bool IsInstructionPosition() { return !IsGapPosition(); }
+  bool IsGapPosition() const { return (value_ & 0x2) == 0; }
+  bool IsInstructionPosition() const { return !IsGapPosition(); }
 
   // Returns the lifetime position for the current START.
   LifetimePosition Start() const {
@@ -287,19 +287,38 @@ class LiveRange final : public ZoneObject {
   bool IsFixed() const { return id_ < 0; }
   bool IsEmpty() const { return first_interval() == nullptr; }
   InstructionOperand GetAssignedOperand() const;
-  int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
+
+  int assigned_register() const { return AssignedRegisterField::decode(bits_); }
+  bool HasRegisterAssigned() const {
+    return assigned_register() != kUnassignedRegister;
+  }
   void set_assigned_register(int reg);
   void UnsetAssignedRegister();
-  void MakeSpilled();
-  bool is_phi() const { return is_phi_; }
-  void set_is_phi(bool is_phi) { is_phi_ = is_phi; }
-  bool is_non_loop_phi() const { return is_non_loop_phi_; }
-  void set_is_non_loop_phi(bool is_non_loop_phi) {
-    is_non_loop_phi_ = is_non_loop_phi;
+
+  bool spilled() const { return SpilledField::decode(bits_); }
+  void Spill();
+
+  RegisterKind kind() const { return RegisterKindField::decode(bits_); }
+  void set_kind(RegisterKind kind) {
+    bits_ = RegisterKindField::update(bits_, kind);
   }
-  bool has_slot_use() const { return has_slot_use_; }
-  void set_has_slot_use(bool has_slot_use) { has_slot_use_ = has_slot_use; }
+
+  // Correct only for parent.
+  bool is_phi() const { return IsPhiField::decode(bits_); }
+  void set_is_phi(bool value) { bits_ = IsPhiField::update(bits_, value); }
+
+  // Correct only for parent.
+  bool is_non_loop_phi() const { return IsNonLoopPhiField::decode(bits_); }
+  void set_is_non_loop_phi(bool value) {
+    bits_ = IsNonLoopPhiField::update(bits_, value);
+  }
+
+  // Relevant only for parent.
+  bool has_slot_use() const { return HasSlotUseField::decode(bits_); }
+  void set_has_slot_use(bool value) {
+    bits_ = HasSlotUseField::update(bits_, value);
+  }
 
   // Returns use position in this live range that follows both start
   // and last processed use position.
@@ -328,12 +347,6 @@ class LiveRange final : public ZoneObject {
   // live range to the result live range.
   void SplitAt(LifetimePosition position, LiveRange* result, Zone* zone);
 
-  RegisterKind Kind() const { return kind_; }
-  bool HasRegisterAssigned() const {
-    return assigned_register_ != kUnassignedRegister;
-  }
-  bool IsSpilled() const { return spilled_; }
-
   // Returns nullptr when no register is hinted, otherwise sets register_index.
   UsePosition* FirstHintPosition(int* register_index) const;
   UsePosition* FirstHintPosition() const {
@@ -357,20 +370,22 @@ class LiveRange final : public ZoneObject {
   }
 
   enum class SpillType { kNoSpillType, kSpillOperand, kSpillRange };
-  SpillType spill_type() const { return spill_type_; }
+  SpillType spill_type() const { return SpillTypeField::decode(bits_); }
   InstructionOperand* GetSpillOperand() const {
-    DCHECK(spill_type_ == SpillType::kSpillOperand);
+    DCHECK(spill_type() == SpillType::kSpillOperand);
     return spill_operand_;
   }
   SpillRange* GetSpillRange() const {
-    DCHECK(spill_type_ == SpillType::kSpillRange);
+    DCHECK(spill_type() == SpillType::kSpillRange);
     return spill_range_;
   }
-  bool HasNoSpillType() const { return spill_type_ == SpillType::kNoSpillType; }
-  bool HasSpillOperand() const {
-    return spill_type_ == SpillType::kSpillOperand;
+  bool HasNoSpillType() const {
+    return spill_type() == SpillType::kNoSpillType;
   }
-  bool HasSpillRange() const { return spill_type_ == SpillType::kSpillRange; }
+  bool HasSpillOperand() const {
+    return spill_type() == SpillType::kSpillOperand;
+  }
+  bool HasSpillRange() const { return spill_type() == SpillType::kSpillRange; }
 
   void SpillAtDefinition(Zone* zone, int gap_index,
                          InstructionOperand* operand);
@@ -405,41 +420,47 @@ class LiveRange final : public ZoneObject {
   void SetUseHints(int register_index);
   void UnsetUseHints() { SetUseHints(kUnassignedRegister); }
 
-  void set_kind(RegisterKind kind) { kind_ = kind; }
-
  private:
   struct SpillAtDefinitionList;
+
+  void set_spill_type(SpillType value) {
+    bits_ = SpillTypeField::update(bits_, value);
+  }
+
+  void set_spilled(bool value) { bits_ = SpilledField::update(bits_, value); }
 
   UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
 
-  // TODO(dcarney): pack this structure better.
+  typedef BitField<bool, 0, 1> SpilledField;
+  typedef BitField<bool, 1, 1> HasSlotUseField;
+  typedef BitField<bool, 2, 1> IsPhiField;
+  typedef BitField<bool, 3, 1> IsNonLoopPhiField;
+  typedef BitField<RegisterKind, 4, 2> RegisterKindField;
+  typedef BitField<SpillType, 6, 2> SpillTypeField;
+  typedef BitField<int32_t, 8, 6> AssignedRegisterField;
+
   int id_;
-  bool spilled_ : 1;
-  bool has_slot_use_ : 1;  // Relevant only for parent.
-  bool is_phi_ : 1;           // Correct only for parent.
-  bool is_non_loop_phi_ : 1;  // Correct only for parent.
-  RegisterKind kind_;
-  int assigned_register_;
+  int spill_start_index_;
+  uint32_t bits_;
   UseInterval* last_interval_;
   UseInterval* first_interval_;
   UsePosition* first_pos_;
   LiveRange* parent_;
   LiveRange* next_;
+  union {
+    // Correct value determined by spill_type()
+    InstructionOperand* spill_operand_;
+    SpillRange* spill_range_;
+  };
+  SpillAtDefinitionList* spills_at_definition_;
   // This is used as a cache, it doesn't affect correctness.
   mutable UseInterval* current_interval_;
   // This is used as a cache, it doesn't affect correctness.
   mutable UsePosition* last_processed_use_;
   // This is used as a cache, it's invalid outside of BuildLiveRanges.
   mutable UsePosition* current_hint_position_;
-  int spill_start_index_;
-  SpillType spill_type_;
-  union {
-    InstructionOperand* spill_operand_;
-    SpillRange* spill_range_;
-  };
-  SpillAtDefinitionList* spills_at_definition_;
 
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
@@ -450,7 +471,7 @@ class SpillRange final : public ZoneObject {
   SpillRange(LiveRange* range, Zone* zone);
 
   UseInterval* interval() const { return use_interval_; }
-  RegisterKind Kind() const { return live_ranges_[0]->Kind(); }
+  RegisterKind kind() const { return live_ranges_[0]->kind(); }
   bool IsEmpty() const { return live_ranges_.empty(); }
   bool TryMerge(SpillRange* other);
   void SetOperand(AllocatedOperand* op);
