@@ -737,20 +737,31 @@ function CallSiteGetThis() {
       ? UNDEFINED : GET_PRIVATE(this, CallSiteReceiverKey);
 }
 
+function CallSiteGetFunction() {
+  return GET_PRIVATE(this, CallSiteStrictModeKey)
+      ? UNDEFINED : GET_PRIVATE(this, CallSiteFunctionKey);
+}
+
+function CallSiteGetPosition() {
+  return GET_PRIVATE(this, CallSitePositionKey);
+}
+
 function CallSiteGetTypeName() {
   return GetTypeName(GET_PRIVATE(this, CallSiteReceiverKey), false);
 }
 
 function CallSiteIsToplevel() {
-  if (GET_PRIVATE(this, CallSiteReceiverKey) == null) {
-    return true;
-  }
-  return IS_GLOBAL(GET_PRIVATE(this, CallSiteReceiverKey));
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteIsToplevelRT(receiver, fun, pos);
 }
 
 function CallSiteIsEval() {
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
-  return script && script.compilation_type == COMPILATION_TYPE_EVAL;
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteIsEvalRT(receiver, fun, pos);
 }
 
 function CallSiteGetEvalOrigin() {
@@ -759,28 +770,18 @@ function CallSiteGetEvalOrigin() {
 }
 
 function CallSiteGetScriptNameOrSourceURL() {
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
-  return script ? script.nameOrSourceURL() : null;
-}
-
-function CallSiteGetFunction() {
-  return GET_PRIVATE(this, CallSiteStrictModeKey)
-      ? UNDEFINED : GET_PRIVATE(this, CallSiteFunctionKey);
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteGetScriptNameOrSourceUrlRT(receiver, fun, pos);
 }
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
   var fun = GET_PRIVATE(this, CallSiteFunctionKey);
-  var name = %FunctionGetDebugName(fun);
-  if (name) {
-    return name;
-  }
-  // Maybe this is an evaluation?
-  var script = %FunctionGetScript(fun);
-  if (script && script.compilation_type == COMPILATION_TYPE_EVAL) {
-    return "eval";
-  }
-  return null;
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteGetFunctionNameRT(receiver, fun, pos);
 }
 
 function CallSiteGetMethodName() {
@@ -816,43 +817,31 @@ function CallSiteGetMethodName() {
 }
 
 function CallSiteGetFileName() {
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
-  return script ? script.name : null;
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteGetFileNameRT(receiver, fun, pos);
 }
 
 function CallSiteGetLineNumber() {
-  if (GET_PRIVATE(this, CallSitePositionKey) == -1) {
-    return null;
-  }
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
-  var location = null;
-  if (script) {
-    location = script.locationFromPosition(
-        GET_PRIVATE(this, CallSitePositionKey), true);
-  }
-  return location ? location.line + 1 : null;
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteGetLineNumberRT(receiver, fun, pos);
 }
 
 function CallSiteGetColumnNumber() {
-  if (GET_PRIVATE(this, CallSitePositionKey) == -1) {
-    return null;
-  }
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
-  var location = null;
-  if (script) {
-    location = script.locationFromPosition(
-      GET_PRIVATE(this, CallSitePositionKey), true);
-  }
-  return location ? location.column + 1: null;
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteGetColumnNumberRT(receiver, fun, pos);
 }
 
 function CallSiteIsNative() {
-  var script = %FunctionGetScript(GET_PRIVATE(this, CallSiteFunctionKey));
-  return script ? (script.type == TYPE_NATIVE) : false;
-}
-
-function CallSiteGetPosition() {
-  return GET_PRIVATE(this, CallSitePositionKey);
+  var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteIsNativeRT(receiver, fun, pos);
 }
 
 function CallSiteIsConstructor() {

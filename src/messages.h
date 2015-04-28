@@ -88,6 +88,29 @@ class MessageHandler {
 };
 
 
+class CallSite {
+ public:
+  CallSite(Handle<Object> receiver, Handle<JSFunction> fun, int pos)
+      : receiver_(receiver), fun_(fun), pos_(pos) {}
+
+  Handle<Object> GetFileName(Isolate* isolate);
+  Handle<Object> GetFunctionName(Isolate* isolate);
+  Handle<Object> GetScriptNameOrSourceUrl(Isolate* isolate);
+  // Return 1-based line number, including line offset.
+  int GetLineNumber(Isolate* isolate);
+  // Return 1-based column number, including column offset if first line.
+  int GetColumnNumber(Isolate* isolate);
+  bool IsNative(Isolate* isolate);
+  bool IsToplevel(Isolate* isolate);
+  bool IsEval(Isolate* isolate);
+
+ private:
+  Handle<Object> receiver_;
+  Handle<JSFunction> fun_;
+  int pos_;
+};
+
+
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(CyclicProto, "Cyclic __proto__ value")                                     \

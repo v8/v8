@@ -322,6 +322,47 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
 }
 
 
+#define CALLSITE_GET(NAME, RETURN)                   \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {     \
+    HandleScope scope(isolate);                      \
+    DCHECK(args.length() == 3);                      \
+    CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0); \
+    CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 1);  \
+    CONVERT_INT32_ARG_CHECKED(pos, 2);               \
+    Handle<String> result;                           \
+    CallSite call_site(receiver, fun, pos);          \
+    return RETURN(call_site.NAME(isolate), isolate); \
+  }
+
+static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
+                                               Isolate* isolate) {
+  return *obj;
+}
+
+
+static inline Object* ReturnPositiveSmiOrNull(int value, Isolate* isolate) {
+  if (value >= 0) return Smi::FromInt(value);
+  return isolate->heap()->null_value();
+}
+
+
+static inline Object* ReturnBoolean(bool value, Isolate* isolate) {
+  return isolate->heap()->ToBoolean(value);
+}
+
+
+CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
+CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
+CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
+CALLSITE_GET(GetLineNumber, ReturnPositiveSmiOrNull)
+CALLSITE_GET(GetColumnNumber, ReturnPositiveSmiOrNull)
+CALLSITE_GET(IsNative, ReturnBoolean)
+CALLSITE_GET(IsToplevel, ReturnBoolean)
+CALLSITE_GET(IsEval, ReturnBoolean)
+
+#undef CALLSITE_GET
+
+
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
   return NULL;

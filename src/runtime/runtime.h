@@ -170,7 +170,6 @@ namespace internal {
   F(DebugGetPrototype, 1, 1)                   \
   F(DebugSetScriptSource, 2, 1)                \
   F(FunctionGetInferredName, 1, 1)             \
-  F(FunctionGetDebugName, 1, 1)                \
   F(GetFunctionCodePositionFromSource, 2, 1)   \
   F(ExecuteInDebugContext, 1, 1)               \
   F(GetDebugContext, 0, 1)                     \
@@ -267,32 +266,40 @@ namespace internal {
 #endif
 
 
-#define FOR_EACH_INTRINSIC_INTERNAL(F)    \
-  F(CheckIsBootstrapping, 0, 1)           \
-  F(Throw, 1, 1)                          \
-  F(ReThrow, 1, 1)                        \
-  F(FindExceptionHandler, 0, 1)           \
-  F(PromoteScheduledException, 0, 1)      \
-  F(ThrowReferenceError, 1, 1)            \
-  F(ThrowIteratorResultNotAnObject, 1, 1) \
-  F(PromiseRejectEvent, 3, 1)             \
-  F(PromiseRevokeReject, 1, 1)            \
-  F(PromiseHasHandlerSymbol, 0, 1)        \
-  F(StackGuard, 0, 1)                     \
-  F(Interrupt, 0, 1)                      \
-  F(AllocateInNewSpace, 1, 1)             \
-  F(AllocateInTargetSpace, 2, 1)          \
-  F(CollectStackTrace, 2, 1)              \
-  F(RenderCallSite, 0, 1)                 \
-  F(GetFromCacheRT, 2, 1)                 \
-  F(MessageGetStartPosition, 1, 1)        \
-  F(MessageGetScript, 1, 1)               \
-  F(FormatMessageString, 4, 1)            \
-  F(IS_VAR, 1, 1)                         \
-  F(GetFromCache, 2, 1)                   \
-  F(IncrementStatsCounter, 1, 1)          \
-  F(Likely, 1, 1)                         \
-  F(Unlikely, 1, 1)                       \
+#define FOR_EACH_INTRINSIC_INTERNAL(F)        \
+  F(CheckIsBootstrapping, 0, 1)               \
+  F(Throw, 1, 1)                              \
+  F(ReThrow, 1, 1)                            \
+  F(FindExceptionHandler, 0, 1)               \
+  F(PromoteScheduledException, 0, 1)          \
+  F(ThrowReferenceError, 1, 1)                \
+  F(ThrowIteratorResultNotAnObject, 1, 1)     \
+  F(PromiseRejectEvent, 3, 1)                 \
+  F(PromiseRevokeReject, 1, 1)                \
+  F(PromiseHasHandlerSymbol, 0, 1)            \
+  F(StackGuard, 0, 1)                         \
+  F(Interrupt, 0, 1)                          \
+  F(AllocateInNewSpace, 1, 1)                 \
+  F(AllocateInTargetSpace, 2, 1)              \
+  F(CollectStackTrace, 2, 1)                  \
+  F(RenderCallSite, 0, 1)                     \
+  F(GetFromCacheRT, 2, 1)                     \
+  F(MessageGetStartPosition, 1, 1)            \
+  F(MessageGetScript, 1, 1)                   \
+  F(FormatMessageString, 4, 1)                \
+  F(CallSiteGetFileNameRT, 3, 1)              \
+  F(CallSiteGetFunctionNameRT, 3, 1)          \
+  F(CallSiteGetScriptNameOrSourceUrlRT, 3, 1) \
+  F(CallSiteGetLineNumberRT, 3, 1)            \
+  F(CallSiteGetColumnNumberRT, 3, 1)          \
+  F(CallSiteIsNativeRT, 3, 1)                 \
+  F(CallSiteIsToplevelRT, 3, 1)               \
+  F(CallSiteIsEvalRT, 3, 1)                   \
+  F(IS_VAR, 1, 1)                             \
+  F(GetFromCache, 2, 1)                       \
+  F(IncrementStatsCounter, 1, 1)              \
+  F(Likely, 1, 1)                             \
+  F(Unlikely, 1, 1)                           \
   F(HarmonyToString, 0, 1)
 
 
