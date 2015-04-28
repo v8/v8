@@ -354,6 +354,9 @@ def ProcessOptions(options):
     options.extra_flags.append("--invoke-weak-callbacks")
     options.extra_flags.append("--omit-quit")
 
+  if options.msan:
+    VARIANTS = ["default"]
+
   if options.tsan:
     VARIANTS = ["default"]
     suppressions_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
