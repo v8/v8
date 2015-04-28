@@ -109,6 +109,17 @@ class SnapshotWriter {
 };
 
 
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+
 char* GetExtraCode(char* filename) {
   if (filename == NULL || strlen(filename) == 0) return NULL;
   ::printf("Embedding extra script: %s\n", filename);
@@ -153,6 +164,8 @@ int main(int argc, char** argv) {
   V8::InitializeICU();
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
+  ArrayBufferAllocator array_buffer_allocator;
+  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   v8::V8::Initialize();
 
   {

@@ -14,10 +14,6 @@ namespace internal {
 
 void Runtime::FreeArrayBuffer(Isolate* isolate,
                               JSArrayBuffer* phantom_array_buffer) {
-  if (phantom_array_buffer->should_be_freed()) {
-    DCHECK(phantom_array_buffer->is_external());
-    free(phantom_array_buffer->backing_store());
-  }
   if (phantom_array_buffer->is_external()) return;
 
   size_t allocated_length =

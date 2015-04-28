@@ -6447,16 +6447,6 @@ void JSArrayBuffer::set_is_external(bool value) {
 }
 
 
-bool JSArrayBuffer::should_be_freed() {
-  return ShouldBeFreed::decode(bit_field());
-}
-
-
-void JSArrayBuffer::set_should_be_freed(bool value) {
-  set_bit_field(ShouldBeFreed::update(bit_field(), value));
-}
-
-
 bool JSArrayBuffer::is_neuterable() {
   return IsNeuterable::decode(bit_field());
 }

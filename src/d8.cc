@@ -166,11 +166,9 @@ Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
-
-
-#ifndef V8_SHARED
 const int MB = 1024 * 1024;
 
+#ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
@@ -1599,8 +1597,14 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  void* Allocate(size_t) override { return malloc(1); }
-  void* AllocateUninitialized(size_t length) override { return malloc(1); }
+  void* Allocate(size_t length) override {
+    size_t actual_length = length > 10 * MB ? 1 : length;
+    void* data = AllocateUninitialized(actual_length);
+    return data == NULL ? data : memset(data, 0, actual_length);
+  }
+  void* AllocateUninitialized(size_t length) override {
+    return length > 10 * MB ? malloc(1) : malloc(length);
+  }
   void Free(void* p, size_t) override { free(p); }
 };
 

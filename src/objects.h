@@ -10249,9 +10249,6 @@ class JSArrayBuffer: public JSObject {
   inline bool is_external();
   inline void set_is_external(bool value);
 
-  inline bool should_be_freed();
-  inline void set_should_be_freed(bool value);
-
   inline bool is_neuterable();
   inline void set_is_neuterable(bool value);
 
@@ -10279,9 +10276,8 @@ class JSArrayBuffer: public JSObject {
       kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
 
   class IsExternal : public BitField<bool, 1, 1> {};
-  class ShouldBeFreed : public BitField<bool, 2, 1> {};
-  class IsNeuterable : public BitField<bool, 3, 1> {};
-  class WasNeutered : public BitField<bool, 4, 1> {};
+  class IsNeuterable : public BitField<bool, 2, 1> {};
+  class WasNeutered : public BitField<bool, 3, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);

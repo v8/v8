@@ -13,6 +13,16 @@
 
 namespace {
 
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
 class DefaultPlatformEnvironment final : public ::testing::Environment {
  public:
   DefaultPlatformEnvironment() : platform_(NULL) {}
@@ -23,6 +33,7 @@ class DefaultPlatformEnvironment final : public ::testing::Environment {
     platform_ = v8::platform::CreateDefaultPlatform();
     ASSERT_TRUE(platform_ != NULL);
     v8::V8::InitializePlatform(platform_);
+    v8::V8::SetArrayBufferAllocator(&array_buffer_allocator_);
     ASSERT_TRUE(v8::V8::Initialize());
   }
 
@@ -36,6 +47,7 @@ class DefaultPlatformEnvironment final : public ::testing::Environment {
 
  private:
   v8::Platform* platform_;
+  ArrayBufferAllocator array_buffer_allocator_;
 };
 
 }  // namespace

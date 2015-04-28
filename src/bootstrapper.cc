@@ -1603,13 +1603,12 @@ Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
                            size_t num_elements, const char* name) {
   size_t byte_length = num_elements * sizeof(*data);
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-  bool should_be_freed = false;
-  if (data == NULL) {
-    data = reinterpret_cast<Data*>(malloc(byte_length));
-    should_be_freed = true;
+  bool is_external = data != nullptr;
+  if (!is_external) {
+    data = reinterpret_cast<Data*>(
+        V8::ArrayBufferAllocator()->Allocate(byte_length));
   }
-  Runtime::SetupArrayBuffer(isolate, buffer, true, data, byte_length);
-  buffer->set_should_be_freed(should_be_freed);
+  Runtime::SetupArrayBuffer(isolate, buffer, is_external, data, byte_length);
 
   Handle<JSTypedArray> typed_array =
       isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements);
