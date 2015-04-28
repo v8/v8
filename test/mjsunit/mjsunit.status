@@ -407,6 +407,12 @@
 }],  # 'asan == True'
 
 ##############################################################################
+['msan == True', {
+  # Skip tests not suitable for MSAN.
+  'big-array-literal': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
 ['arch == arm or arch == android_arm', {
 
   # Slow tests which times out in debug mode.
