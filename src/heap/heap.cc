@@ -706,6 +706,32 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
+void Heap::PreprocessStackTraces() {
+  if (!weak_stack_trace_list()->IsWeakFixedArray()) return;
+  WeakFixedArray* array = WeakFixedArray::cast(weak_stack_trace_list());
+  int length = array->Length();
+  for (int i = 0; i < length; i++) {
+    if (array->IsEmptySlot(i)) continue;
+    FixedArray* elements = FixedArray::cast(array->Get(i));
+    for (int j = 1; j < elements->length(); j += 4) {
+      Object* maybe_code = elements->get(j + 2);
+      // If GC happens while adding a stack trace to the weak fixed array,
+      // which has been copied into a larger backing store, we may run into
+      // a stack trace that has already been preprocessed. Guard against this.
+      if (!maybe_code->IsCode()) break;
+      Code* code = Code::cast(maybe_code);
+      int offset = Smi::cast(elements->get(j + 3))->value();
+      Address pc = code->address() + offset;
+      int pos = code->SourcePosition(pc);
+      elements->set(j + 2, Smi::FromInt(pos));
+    }
+  }
+  // We must not compact the weak fixed list here, as we may be in the middle
+  // of writing to it, when the GC triggered. Instead, we reset the root value.
+  set_weak_stack_trace_list(Smi::FromInt(0));
+}
+
+
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
@@ -1272,6 +1298,8 @@ void Heap::MarkCompactEpilogue() {
   isolate_->counters()->objs_since_last_full()->Set(0);
 
   incremental_marking()->Epilogue();
+
+  PreprocessStackTraces();
 }
 
 
@@ -3082,6 +3110,8 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
   set_array_protector(*cell);
 
+  set_weak_stack_trace_list(Smi::FromInt(0));
+
   set_allocation_sites_scratchpad(
       *factory->NewFixedArray(kAllocationSiteScratchpadSize, TENURED));
   InitializeAllocationSitesScratchpad();
@@ -3118,6 +3148,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kDetachedContextsRootIndex:
     case kWeakObjectToCodeTableRootIndex:
     case kRetainedMapsRootIndex:
+    case kWeakStackTraceListRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
       SMI_ROOT_LIST(SMI_ENTRY)

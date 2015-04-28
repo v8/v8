@@ -5379,3 +5379,36 @@ TEST(WeakFixedArray) {
   array->Compact();
   WeakFixedArray::Add(array, number);
 }
+
+
+TEST(PreprocessStackTrace) {
+  // Do not automatically trigger early GC.
+  FLAG_gc_interval = -1;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::TryCatch try_catch;
+  CompileRun("throw new Error();");
+  CHECK(try_catch.HasCaught());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
+  Handle<Name> key = isolate->factory()->stack_trace_symbol();
+  Handle<Object> stack_trace =
+      JSObject::GetProperty(exception, key).ToHandleChecked();
+  Handle<Object> code =
+      Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
+  CHECK(code->IsCode());
+
+  isolate->heap()->CollectAllAvailableGarbage("stack trace preprocessing");
+
+  Handle<Object> pos =
+      Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
+  CHECK(pos->IsSmi());
+
+  Handle<JSArray> stack_trace_array = Handle<JSArray>::cast(stack_trace);
+  int array_length = Smi::cast(stack_trace_array->length())->value();
+  for (int i = 0; i < array_length; i++) {
+    Handle<Object> element =
+        Object::GetElement(isolate, stack_trace, i).ToHandleChecked();
+    CHECK(!element->IsCode());
+  }
+}

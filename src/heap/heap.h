@@ -186,7 +186,8 @@ namespace internal {
   V(FixedArray, detached_contexts, DetachedContexts)                           \
   V(ArrayList, retained_maps, RetainedMaps)                                    \
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
-  V(PropertyCell, array_protector, ArrayProtector)
+  V(PropertyCell, array_protector, ArrayProtector)                             \
+  V(Object, weak_stack_trace_list, WeakStackTraceList)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -1741,6 +1742,8 @@ class Heap {
   // reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
+
+  void PreprocessStackTraces();
 
   // Pretenuring decisions are made based on feedback collected during new
   // space evacuation. Note that between feedback collection and calling this

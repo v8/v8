@@ -644,6 +644,10 @@ class Factory final {
     isolate()->heap()->set_string_table(*table);
   }
 
+  inline void set_weak_stack_trace_list(Handle<WeakFixedArray> list) {
+    isolate()->heap()->set_weak_stack_trace_list(*list);
+  }
+
   Handle<String> hidden_string() {
     return Handle<String>(&isolate()->heap()->hidden_string_);
   }
