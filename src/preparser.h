@@ -138,6 +138,9 @@ class ParserBase : public Traits {
     return allow_harmony_rest_params_;
   }
   bool allow_harmony_spreadcalls() const { return allow_harmony_spreadcalls_; }
+  bool allow_harmony_destructuring() const {
+    return allow_harmony_destructuring_;
+  }
 
   bool allow_strong_mode() const { return allow_strong_mode_; }
 
@@ -173,6 +176,10 @@ class ParserBase : public Traits {
     allow_harmony_spreadcalls_ = allow;
   }
   void set_allow_strong_mode(bool allow) { allow_strong_mode_ = allow; }
+  void set_allow_harmony_destructuring(bool allow) {
+    allow_harmony_destructuring_ = allow;
+  }
+
 
  protected:
   enum AllowRestrictedIdentifiers {
@@ -679,6 +686,10 @@ class ParserBase : public Traits {
     }
   }
 
+  void BindingPatternUnexpectedToken(ExpressionClassifier* classifier) {
+    classifier->RecordBindingPatternError(
+        scanner()->location(), "unexpected_token", Token::String(peek()));
+  }
 
   // Recursive descent functions:
 
@@ -857,6 +868,7 @@ class ParserBase : public Traits {
   bool allow_harmony_computed_property_names_;
   bool allow_harmony_rest_params_;
   bool allow_harmony_spreadcalls_;
+  bool allow_harmony_destructuring_;
   bool allow_strong_mode_;
 };
 
@@ -2192,6 +2204,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
   Token::Value token = peek();
   switch (token) {
     case Token::THIS: {
+      BindingPatternUnexpectedToken(classifier);
       Consume(Token::THIS);
       if (is_strong(language_mode())) {
         // Constructors' usages of 'this' in strong mode are parsed separately.
@@ -2210,8 +2223,15 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::NULL_LITERAL:
     case Token::TRUE_LITERAL:
     case Token::FALSE_LITERAL:
+      BindingPatternUnexpectedToken(classifier);
+      Next();
+      result =
+          this->ExpressionFromLiteral(token, beg_pos, scanner(), factory());
+      break;
     case Token::SMI:
     case Token::NUMBER:
+      classifier->RecordBindingPatternError(scanner()->location(),
+                                            "unexpected_token_number");
       Next();
       result =
           this->ExpressionFromLiteral(token, beg_pos, scanner(), factory());
@@ -2230,6 +2250,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     }
 
     case Token::STRING: {
+      classifier->RecordBindingPatternError(scanner()->location(),
+                                            "unexpected_token_string");
       Consume(Token::STRING);
       result = this->ExpressionFromString(beg_pos, scanner(), factory());
       break;
@@ -2252,11 +2274,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       break;
 
     case Token::LPAREN:
+      BindingPatternUnexpectedToken(classifier);
       Consume(Token::LPAREN);
-      classifier->RecordBindingPatternError(scanner()->location(),
-                                            "unexpected_token", "(");
-      classifier->RecordAssignmentPatternError(scanner()->location(),
-                                               "unexpected_token", "(");
       if (allow_harmony_arrow_functions() && Check(Token::RPAREN)) {
         // As a primary expression, the only thing that can follow "()" is "=>".
         Scope* scope = this->NewScope(scope_, ARROW_SCOPE);
@@ -2276,6 +2295,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       break;
 
     case Token::CLASS: {
+      BindingPatternUnexpectedToken(classifier);
       Consume(Token::CLASS);
       if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
         ReportMessage("sloppy_lexical");
@@ -2940,6 +2960,8 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
 
   Token::Value op = peek();
   if (Token::IsUnaryOp(op)) {
+    BindingPatternUnexpectedToken(classifier);
+
     op = Next();
     int pos = position();
     ExpressionT expression = ParseUnaryExpression(classifier, CHECK_OK);
@@ -2960,6 +2982,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
     // Allow Traits do rewrite the expression.
     return this->BuildUnaryExpression(expression, op, pos, factory());
   } else if (Token::IsCountOp(op)) {
+    BindingPatternUnexpectedToken(classifier);
     op = Next();
     Scanner::Location lhs_location = scanner()->peek_location();
     ExpressionT expression = this->ParseUnaryExpression(classifier, CHECK_OK);
@@ -2990,6 +3013,8 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
       this->ParseLeftHandSideExpression(classifier, CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
+    BindingPatternUnexpectedToken(classifier);
+
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_location, "invalid_lhs_in_postfix_op", CHECK_OK);
     expression = this->MarkExpressionAsAssigned(expression);
@@ -3018,6 +3043,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
+        BindingPatternUnexpectedToken(classifier);
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpression(true, classifier, CHECK_OK);
@@ -3027,6 +3053,8 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::LPAREN: {
+        BindingPatternUnexpectedToken(classifier);
+
         if (is_strong(language_mode()) && this->IsIdentifier(result) &&
             this->IsEval(this->AsIdentifier(result))) {
           ReportMessage("strong_direct_eval");
@@ -3076,6 +3104,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::PERIOD: {
+        BindingPatternUnexpectedToken(classifier);
         Consume(Token::PERIOD);
         int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
@@ -3114,6 +3143,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
   // new new foo().bar().baz means (new (new foo()).bar()).baz
 
   if (peek() == Token::NEW) {
+    BindingPatternUnexpectedToken(classifier);
     Consume(Token::NEW);
     int new_pos = position();
     ExpressionT result = this->EmptyExpression();
@@ -3164,6 +3194,8 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
   // Parse the initial primary or function expression.
   ExpressionT result = this->EmptyExpression();
   if (peek() == Token::FUNCTION) {
+    BindingPatternUnexpectedToken(classifier);
+
     Consume(Token::FUNCTION);
     int function_token_position = position();
     bool is_generator = Check(Token::MUL);
@@ -3284,6 +3316,7 @@ ParserBase<Traits>::ParseStrongSuperCallExpression(
     ExpressionClassifier* classifier, bool* ok) {
   // SuperCallExpression ::  (strong mode)
   //  'super' '(' ExpressionList ')'
+  BindingPatternUnexpectedToken(classifier);
 
   Consume(Token::SUPER);
   int pos = position();
@@ -3380,6 +3413,8 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
+        BindingPatternUnexpectedToken(classifier);
+
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = this->ParseExpression(true, classifier, CHECK_OK);
@@ -3391,6 +3426,8 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
         break;
       }
       case Token::PERIOD: {
+        BindingPatternUnexpectedToken(classifier);
+
         Consume(Token::PERIOD);
         int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
@@ -3403,6 +3440,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
       }
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
+        BindingPatternUnexpectedToken(classifier);
         int pos;
         if (scanner()->current_token() == Token::IDENTIFIER) {
           pos = position();
@@ -3549,6 +3587,9 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kArrowFunction, &function_factory);
 
+    if (peek() == Token::ARROW) {
+      BindingPatternUnexpectedToken(classifier);
+    }
     Expect(Token::ARROW, CHECK_OK);
 
     if (peek() == Token::LBRACE) {

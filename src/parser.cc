@@ -872,6 +872,7 @@ Parser::Parser(ParseInfo* info)
       FLAG_harmony_computed_property_names);
   set_allow_harmony_rest_params(FLAG_harmony_rest_parameters);
   set_allow_harmony_spreadcalls(FLAG_harmony_spreadcalls);
+  set_allow_harmony_destructuring(FLAG_harmony_destructuring);
   set_allow_strong_mode(FLAG_strong_mode);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -2387,6 +2388,9 @@ Block* Parser::ParseVariableDeclarations(
           pattern->AsVariableProxy()->IsValidReferenceExpression()) {
         scope_->RemoveUnresolved(pattern->AsVariableProxy());
         name = pattern->AsVariableProxy()->raw_name();
+      } else if (allow_harmony_destructuring()) {
+        // TODO(dslomov): really destructure.
+        name = ast_value_factory()->GetOneByteString(".temp.variable");
       } else {
         ReportUnexpectedToken(next);
         *ok = false;
@@ -4335,6 +4339,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
         allow_harmony_rest_params());
     reusable_preparser_->set_allow_harmony_spreadcalls(
         allow_harmony_spreadcalls());
+    reusable_preparser_->set_allow_harmony_destructuring(
+        allow_harmony_destructuring());
     reusable_preparser_->set_allow_strong_mode(allow_strong_mode());
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(

@@ -1381,8 +1381,9 @@ enum ParserFlag {
   kAllowHarmonySloppy,
   kAllowHarmonyUnicode,
   kAllowHarmonyComputedPropertyNames,
-  kAllowStrongMode,
-  kAllowHarmonySpreadCalls
+  kAllowHarmonySpreadCalls,
+  kAllowHarmonyDestructuring,
+  kAllowStrongMode
 };
 
 
@@ -1411,6 +1412,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_unicode(flags.Contains(kAllowHarmonyUnicode));
   parser->set_allow_harmony_computed_property_names(
       flags.Contains(kAllowHarmonyComputedPropertyNames));
+  parser->set_allow_harmony_destructuring(
+      flags.Contains(kAllowHarmonyDestructuring));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
 }
 
@@ -6342,5 +6345,131 @@ TEST(StrongModeFreeVariablesNotDeclared) {
                  "ReferenceError: In strong mode, using an undeclared global "
                  "variable 'not_there3' is not allowed",
                  *exception));
+  }
+}
+
+
+TEST(DestructuringPositiveTests) {
+  i::FLAG_harmony_destructuring = true;
+
+  const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
+                                   {"var ", " = {};"},
+                                   {"'use strict'; const ", " = {};"},
+                                   {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "a",
+    "{ x : y }",
+    "[a]",
+    "[a,b,c]",
+    "{ x : x, y : y }",
+    "[]",
+    "{}",
+    "[{x:x, y:y}, [a,b,c]]",
+    "[a,,b]",
+    "{42 : x}",
+    "{'hi' : x}",
+    NULL};
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(DestructuringNegativeTests) {
+  i::FLAG_harmony_destructuring = true;
+  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
+
+  {  // All modes.
+    const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
+                                     {"var ", " = {};"},
+                                     {"'use strict'; const ", " = {};"},
+                                     {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+        "a++",
+        "++a",
+        "delete a",
+        "void a",
+        "typeof a",
+        "--a",
+        "+a",
+        "-a",
+        "~a",
+        "!a",
+        "{ x : y++ }",
+        "[a++]",
+        "(x => y)",
+        "a[i]", "a()",
+        "a.b",
+        "new a",
+        "a + a",
+        "a - a",
+        "a * a",
+        "a / a",
+        "a == a",
+        "a != a",
+        "a > a",
+        "a < a",
+        "a <<< a",
+        "a >>> a",
+        "function a() {}",
+        "a`bcd`",
+        "x => x",
+        "this",
+        "null",
+        "true",
+        "false",
+        "1",
+        "'abc'",
+        "class {}",
+        "() => x",
+        "{+2 : x}",
+        "{-2 : x}",
+        "var",
+        "[var]",
+        "{x : {y : var}}",
+        NULL};
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                      arraysize(always_flags));
+  }
+
+  {  // Strict mode.
+    const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
+                                     {"'use strict'; const ", " = {};"},
+                                     {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "[eval]",
+      "{ a : arguments }",
+      "[public]",
+      "{ x : private }",
+      NULL};
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                      arraysize(always_flags));
+  }
+
+  {  // 'yield' in generators.
+    const char* context_data[][2] = {
+        {"function*() { var ", " = {};"},
+        {"function*() { 'use strict'; let ", " = {};"},
+        {"function*() { 'use strict'; const ", " = {};"},
+        {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "yield",
+      "[yield]",
+      "{ x : yield }",
+      NULL};
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                      arraysize(always_flags));
   }
 }

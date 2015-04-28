@@ -511,7 +511,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   int nvars = 0;  // the number of variables declared
   int bindings_start = peek_position();
   do {
-    // Parse variable name.
+    // Parse binding pattern.
     if (nvars > 0) Consume(Token::COMMA);
     {
       ExpressionClassifier pattern_classifier;
@@ -520,12 +520,13 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
           ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
 
-      if (!pattern.IsIdentifier()) {
+      if (!FLAG_harmony_destructuring && !pattern.IsIdentifier()) {
         ReportUnexpectedToken(next);
         *ok = false;
         return Statement::Default();
       }
     }
+
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
     if (peek() == Token::ASSIGN || require_initializer ||
