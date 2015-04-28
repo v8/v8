@@ -2229,6 +2229,23 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
 }
 
 
+void LCodeGen::DoCheckArrayBufferNotNeutered(
+    LCheckArrayBufferNotNeutered* instr) {
+  UseScratchRegisterScope temps(masm());
+  Register view = ToRegister(instr->view());
+  Register scratch = temps.AcquireX();
+
+  Label has_no_buffer;
+  __ Ldr(scratch, FieldMemOperand(view, JSArrayBufferView::kBufferOffset));
+  __ JumpIfSmi(scratch, &has_no_buffer);
+  __ Ldr(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+  __ Tst(scratch, Operand(1 << JSArrayBuffer::WasNeutered::kShift));
+  DeoptimizeIf(ne, instr, Deoptimizer::kOutOfBounds);
+
+  __ Bind(&has_no_buffer);
+}
+
+
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
   Register input = ToRegister(instr->value());
   Register scratch = ToRegister(instr->temp());

@@ -2425,6 +2425,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HValue* checked_key = NULL;
   if (IsExternalArrayElementsKind(elements_kind) ||
       IsFixedTypedArrayElementsKind(elements_kind)) {
+    checked_object = Add<HCheckArrayBufferNotNeutered>(checked_object);
+
     HValue* backing_store;
     if (IsExternalArrayElementsKind(elements_kind)) {
       backing_store = Add<HLoadNamedField>(
@@ -2434,23 +2436,6 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     }
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       NoObservableSideEffectsScope no_effects(this);
-      if (IsExternalArrayElementsKind(elements_kind)) {
-        HInstruction* buffer =
-            Add<HLoadNamedField>(checked_object, nullptr,
-                                 HObjectAccess::ForJSArrayBufferViewBuffer());
-        HInstruction* flags = Add<HLoadNamedField>(
-            buffer, nullptr, HObjectAccess::ForJSArrayBufferBitField());
-        HValue* was_neutered_mask =
-            Add<HConstant>(1 << JSArrayBuffer::WasNeutered::kShift);
-        HValue* was_neutered_test =
-            AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
-
-        IfBuilder if_was_neutered(this);
-        if_was_neutered.If<HCompareNumericAndBranch>(
-            was_neutered_test, graph()->GetConstant0(), Token::NE);
-        if_was_neutered.ThenDeopt(Deoptimizer::kOutOfBounds);
-        if_was_neutered.End();
-      }
       IfBuilder length_checker(this);
       length_checker.If<HCompareNumericAndBranch>(key, length, Token::LT);
       length_checker.Then();
@@ -2465,14 +2450,6 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       length_checker.End();
       return result;
     } else {
-      if (IsExternalArrayElementsKind(elements_kind)) {
-        HInstruction* buffer =
-            Add<HLoadNamedField>(checked_object, nullptr,
-                                 HObjectAccess::ForJSArrayBufferViewBuffer());
-        HInstruction* buffer_length = Add<HLoadNamedField>(
-            buffer, nullptr, HObjectAccess::ForJSArrayBufferByteLength());
-        Add<HBoundsCheck>(graph()->GetConstant0(), buffer_length);
-      }
       DCHECK(store_mode == STANDARD_STORE);
       checked_key = Add<HBoundsCheck>(key, length);
       return AddElementAccess(
@@ -6340,8 +6317,8 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
   if (info->GetJSArrayBufferViewFieldAccess(&access)) {
     DCHECK(info->IsLoad());
-    return BuildArrayBufferViewFieldAccessor(
-        object, checked_object, FieldIndex::ForInObjectOffset(access.offset()));
+    checked_object = Add<HCheckArrayBufferNotNeutered>(checked_object);
+    return New<HLoadNamedField>(object, checked_object, access);
   }
 
   if (info->name().is_identical_to(isolate()->factory()->prototype_string()) &&

@@ -37,6 +37,7 @@ class LCodeGen;
   V(CallNewArray)                            \
   V(CallRuntime)                             \
   V(CallStub)                                \
+  V(CheckArrayBufferNotNeutered)             \
   V(CheckInstanceType)                       \
   V(CheckNonSmi)                             \
   V(CheckMaps)                               \
@@ -2372,6 +2373,19 @@ class LCheckValue final : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckValue, "check-value")
   DECLARE_HYDROGEN_ACCESSOR(CheckValue)
+};
+
+
+class LCheckArrayBufferNotNeutered final
+    : public LTemplateInstruction<0, 1, 0> {
+ public:
+  explicit LCheckArrayBufferNotNeutered(LOperand* view) { inputs_[0] = view; }
+
+  LOperand* view() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckArrayBufferNotNeutered,
+                               "check-array-buffer-not-neutered")
+  DECLARE_HYDROGEN_ACCESSOR(CheckArrayBufferNotNeutered)
 };
 
 

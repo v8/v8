@@ -854,6 +854,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCallRuntime:
     case HValue::kCallWithDescriptor:
     case HValue::kChange:
+    case HValue::kCheckArrayBufferNotNeutered:
     case HValue::kCheckHeapObject:
     case HValue::kCheckInstanceType:
     case HValue::kCheckMapValue:
