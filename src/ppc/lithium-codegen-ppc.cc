@@ -5433,9 +5433,9 @@ void LCodeGen::DoCheckArrayBufferNotNeutered(
   Label has_no_buffer;
   __ LoadP(scratch, FieldMemOperand(view, JSArrayBufferView::kBufferOffset));
   __ JumpIfSmi(scratch, &has_no_buffer);
-  __ LoadP(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+  __ lwz(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
   __ andi(r0, scratch, Operand(1 << JSArrayBuffer::WasNeutered::kShift));
-  DeoptimizeIf(ne, instr, Deoptimizer::kOutOfBounds);
+  DeoptimizeIf(ne, instr, Deoptimizer::kOutOfBounds, cr0);
 
   __ bind(&has_no_buffer);
 }
