@@ -1918,7 +1918,8 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
   // all prototypes further up the chain are also registered with their
   // respective prototypes.
   Object* maybe_old_prototype = old_map->prototype();
-  if (maybe_old_prototype->IsJSObject()) {
+  if (FLAG_track_prototype_users && old_map->is_prototype_map() &&
+      maybe_old_prototype->IsJSObject()) {
     Handle<JSObject> old_prototype(JSObject::cast(maybe_old_prototype));
     bool was_registered =
         JSObject::UnregisterPrototypeUser(old_prototype, old_map);
