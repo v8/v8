@@ -203,6 +203,7 @@ var kMessages = {
   duplicate_proto:               ["Duplicate __proto__ fields are not allowed in object literals"],
   param_after_rest:              ["Rest parameter must be last formal parameter"],
   constructor_noncallable:       ["Class constructors cannot be invoked without 'new'"],
+  derived_constructor_return:    ["Derived constructors may only return object or undefined"],
   array_not_subclassable:        ["Subclassing Arrays is not currently supported."],
   for_in_loop_initializer:       ["for-in loop variable declaration may not have an initializer."],
   for_of_loop_initializer:       ["for-of loop variable declaration may not have an initializer."],

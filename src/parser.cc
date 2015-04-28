@@ -2873,7 +2873,53 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       *ok = false;
       return NULL;
     }
+
+    int pos = peek_position();
     return_value = ParseExpression(true, CHECK_OK);
+
+    if (IsSubclassConstructor(function_state_->kind())) {
+      // For subclass constructors we need to return this in case of undefined
+      // and throw an exception in case of a non object.
+      //
+      //   return expr;
+      //
+      // Is rewritten as:
+      //
+      //   return (temp = expr) === undefined ? this :
+      //       %_IsSpecObject(temp) ? temp : throw new TypeError(...);
+      Variable* temp = scope_->DeclarationScope()->NewTemporary(
+          ast_value_factory()->empty_string());
+      Assignment* assign = factory()->NewAssignment(
+          Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
+
+      Expression* throw_expression =
+          NewThrowTypeError("derived_constructor_return",
+                            ast_value_factory()->empty_string(), pos);
+
+      // %_IsSpecObject(temp)
+      ZoneList<Expression*>* is_spec_object_args =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      is_spec_object_args->Add(factory()->NewVariableProxy(temp), zone());
+      Expression* is_spec_object_call = factory()->NewCallRuntime(
+          ast_value_factory()->is_spec_object_string(),
+          Runtime::FunctionForId(Runtime::kInlineIsSpecObject),
+          is_spec_object_args, pos);
+
+      // %_IsSpecObject(temp) ? temp : throw_expression
+      Expression* is_object_conditional = factory()->NewConditional(
+          is_spec_object_call, factory()->NewVariableProxy(temp),
+          throw_expression, pos);
+
+      // temp === undefined
+      Expression* is_undefined = factory()->NewCompareOperation(
+          Token::EQ_STRICT, assign,
+          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition), pos);
+
+      // is_undefined ? this : is_object_conditional
+      return_value = factory()->NewConditional(
+          is_undefined, ThisExpression(scope_, factory(), pos),
+          is_object_conditional, pos);
+    }
   }
   ExpectSemicolon(CHECK_OK);
 
