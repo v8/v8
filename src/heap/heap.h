@@ -2069,11 +2069,11 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void IdleMarkCompact(const char* message);
+  void ReduceNewSpaceSize(bool is_long_idle_notification);
 
   bool TryFinalizeIdleIncrementalMarking(
-      double idle_time_in_ms, size_t size_of_objects,
-      size_t mark_compact_speed_in_bytes_per_ms);
+      bool is_long_idle_notification, double idle_time_in_ms,
+      size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms);
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
@@ -2117,6 +2117,7 @@ class Heap {
   IncrementalMarking incremental_marking_;
 
   GCIdleTimeHandler gc_idle_time_handler_;
+
   unsigned int gc_count_at_last_idle_gc_;
 
   // These two counters are monotomically increasing and never reset.
