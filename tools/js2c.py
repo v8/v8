@@ -32,7 +32,7 @@
 # library.
 
 import os, re, sys, string
-import optparse
+import argparse
 import jsmin
 import bz2
 import textwrap
@@ -531,8 +531,10 @@ def WriteStartupBlob(sources, startup_blob):
   output.close()
 
 
-def JS2C(source, target, native_type, raw_file, startup_blob):
-  sources = PrepareSources(source)
+def JS2C(source, extraSource, target, native_type, raw_file, startup_blob):
+  # For now we treat source and extraSource the same, but we keep them separate
+  # in the input so that we can start treating them differently in the future.
+  sources = PrepareSources(source + extraSource)
   sources_bytes = "".join(sources.modules)
   metadata = BuildMetadata(sources, sources_bytes, native_type)
 
@@ -552,18 +554,24 @@ def JS2C(source, target, native_type, raw_file, startup_blob):
 
 
 def main():
-  parser = optparse.OptionParser()
-  parser.add_option("--raw", action="store",
-                    help="file to write the processed sources array to.")
-  parser.add_option("--startup_blob", action="store",
-                    help="file to write the startup blob to.")
-  parser.set_usage("""js2c out.cc type sources.js ...
-      out.cc: C code to be generated.
-      type: type parameter for NativesCollection template.
-      sources.js: JS internal sources or macros.py.""")
-  (options, args) = parser.parse_args()
+  parser = argparse.ArgumentParser()
+  parser.add_argument("out.cc",
+                      help="C code to be generated")
+  parser.add_argument("type",
+                      help="type parameter for NativesCollection template")
+  parser.add_argument("sources.js",
+                      help="JS internal sources or macros.py.",
+                      nargs="+")
+  parser.add_argument("--raw",
+                      help="file to write the processed sources array to.")
+  parser.add_argument("--startup_blob",
+                      help="file to write the startup blob to.")
+  parser.add_argument("--extra",
+                      help="extra JS sources.",
+                      nargs="*")
 
-  JS2C(args[2:], args[0], args[1], options.raw, options.startup_blob)
+  args = vars(parser.parse_args())
+  JS2C(args["sources.js"], args["extra"] or [], args["out.cc"], args["type"], args["raw"], args["startup_blob"])
 
 
 if __name__ == "__main__":

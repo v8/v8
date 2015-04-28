@@ -31,6 +31,7 @@
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'embed_script%': "",
+    'v8_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
@@ -749,9 +750,9 @@
         '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
-	'../../src/layout-descriptor-inl.h',
-	'../../src/layout-descriptor.cc',
-	'../../src/layout-descriptor.h',
+        '../../src/layout-descriptor-inl.h',
+        '../../src/layout-descriptor.cc',
+        '../../src/layout-descriptor.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -1740,6 +1741,7 @@
             '../../tools/js2c.py',
             '<@(library_files)',
             '<@(i18n_library_files)',
+            '<@(v8_extra_library_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -1751,6 +1753,8 @@
             'CORE',
             '<@(library_files)',
             '<@(i18n_library_files)',
+            '--extra',
+            '<@(v8_extra_library_files)',
           ],
           'conditions': [
             [ 'v8_use_external_startup_data==1', {
