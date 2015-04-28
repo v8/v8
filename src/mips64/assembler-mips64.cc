@@ -2205,22 +2205,42 @@ void Assembler::pref(int32_t hint, const MemOperand& rs) {
 
 // Load, store, move.
 void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
+  if (is_int16(src.offset_)) {
+    GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
+  } else {  // Offset > 16 bits, use multiple instructions to load.
+    LoadRegPlusOffsetToAt(src);
+    GenInstrImmediate(LWC1, at, fd, 0);
+  }
 }
 
 
 void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(LDC1, src.rm(), fd, src.offset_);
+  if (is_int16(src.offset_)) {
+    GenInstrImmediate(LDC1, src.rm(), fd, src.offset_);
+  } else {  // Offset > 16 bits, use multiple instructions to load.
+    LoadRegPlusOffsetToAt(src);
+    GenInstrImmediate(LDC1, at, fd, 0);
+  }
 }
 
 
 void Assembler::swc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
+  if (is_int16(src.offset_)) {
+    GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
+  } else {  // Offset > 16 bits, use multiple instructions to load.
+    LoadRegPlusOffsetToAt(src);
+    GenInstrImmediate(SWC1, at, fd, 0);
+  }
 }
 
 
 void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(SDC1, src.rm(), fd, src.offset_);
+  if (is_int16(src.offset_)) {
+    GenInstrImmediate(SDC1, src.rm(), fd, src.offset_);
+  } else {  // Offset > 16 bits, use multiple instructions to load.
+    LoadRegPlusOffsetToAt(src);
+    GenInstrImmediate(SDC1, at, fd, 0);
+  }
 }
 
 

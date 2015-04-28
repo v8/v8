@@ -1982,7 +1982,12 @@ void Assembler::pref(int32_t hint, const MemOperand& rs) {
 
 // Load, store, move.
 void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
+  if (is_int16(src.offset_)) {
+    GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
+  } else {  // Offset > 16 bits, use multiple instructions to load.
+    LoadRegPlusOffsetToAt(src);
+    GenInstrImmediate(LWC1, at, fd, 0);
+  }
 }
 
 
@@ -1990,24 +1995,44 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // load to two 32-bit loads.
   if (IsFp64Mode()) {
-    GenInstrImmediate(LWC1, src.rm(), fd, src.offset_ +
-        Register::kMantissaOffset);
-    GenInstrImmediate(LW, src.rm(), at, src.offset_ +
-        Register::kExponentOffset);
-    mthc1(at, fd);
-  } else {
-    GenInstrImmediate(LWC1, src.rm(), fd, src.offset_ +
-        Register::kMantissaOffset);
-    FPURegister nextfpreg;
-    nextfpreg.setcode(fd.code() + 1);
-    GenInstrImmediate(LWC1, src.rm(), nextfpreg, src.offset_ +
-        Register::kExponentOffset);
+    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
+      GenInstrImmediate(LWC1, src.rm(), fd,
+                        src.offset_ + Register::kMantissaOffset);
+      GenInstrImmediate(LW, src.rm(), at,
+                        src.offset_ + Register::kExponentOffset);
+      mthc1(at, fd);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(src);
+      GenInstrImmediate(LWC1, at, fd, Register::kMantissaOffset);
+      GenInstrImmediate(LW, at, at, Register::kExponentOffset);
+      mthc1(at, fd);
+    }
+  } else {  // fp32 mode.
+    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
+      GenInstrImmediate(LWC1, src.rm(), fd,
+                        src.offset_ + Register::kMantissaOffset);
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      GenInstrImmediate(LWC1, src.rm(), nextfpreg,
+                        src.offset_ + Register::kExponentOffset);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(src);
+      GenInstrImmediate(LWC1, at, fd, Register::kMantissaOffset);
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      GenInstrImmediate(LWC1, at, nextfpreg, Register::kExponentOffset);
+    }
   }
 }
 
 
 void Assembler::swc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
+  if (is_int16(src.offset_)) {
+    GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
+  } else {  // Offset > 16 bits, use multiple instructions to load.
+    LoadRegPlusOffsetToAt(src);
+    GenInstrImmediate(SWC1, at, fd, 0);
+  }
 }
 
 
@@ -2015,18 +2040,33 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // store to two 32-bit stores.
   if (IsFp64Mode()) {
-    GenInstrImmediate(SWC1, src.rm(), fd, src.offset_ +
-        Register::kMantissaOffset);
-    mfhc1(at, fd);
-    GenInstrImmediate(SW, src.rm(), at, src.offset_ +
-        Register::kExponentOffset);
-  } else {
-    GenInstrImmediate(SWC1, src.rm(), fd, src.offset_ +
-        Register::kMantissaOffset);
-    FPURegister nextfpreg;
-    nextfpreg.setcode(fd.code() + 1);
-    GenInstrImmediate(SWC1, src.rm(), nextfpreg, src.offset_ +
-        Register::kExponentOffset);
+    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
+      GenInstrImmediate(SWC1, src.rm(), fd,
+                        src.offset_ + Register::kMantissaOffset);
+      mfhc1(at, fd);
+      GenInstrImmediate(SW, src.rm(), at,
+                        src.offset_ + Register::kExponentOffset);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(src);
+      GenInstrImmediate(SWC1, at, fd, Register::kMantissaOffset);
+      mfhc1(t8, fd);
+      GenInstrImmediate(SW, at, t8, Register::kExponentOffset);
+    }
+  } else {  // fp32 mode.
+    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
+      GenInstrImmediate(SWC1, src.rm(), fd,
+                        src.offset_ + Register::kMantissaOffset);
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      GenInstrImmediate(SWC1, src.rm(), nextfpreg,
+                        src.offset_ + Register::kExponentOffset);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(src);
+      GenInstrImmediate(SWC1, at, fd, Register::kMantissaOffset);
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      GenInstrImmediate(SWC1, at, nextfpreg, Register::kExponentOffset);
+    }
   }
 }
 
