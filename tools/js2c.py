@@ -158,7 +158,7 @@ class PythonMacro:
       args.append(mapping[arg])
     return str(self.fun(*args))
 
-CONST_PATTERN = re.compile(r'^const\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
+CONST_PATTERN = re.compile(r'^define\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
 MACRO_PATTERN = re.compile(r'^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 PYTHON_MACRO_PATTERN = re.compile(r'^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 
@@ -240,7 +240,7 @@ def ExpandInlineMacros(lines):
     lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
 
 
-INLINE_CONSTANT_PATTERN = re.compile(r'const\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]')
+INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]')
 
 def ExpandInlineConstants(lines):
   pos = 0
