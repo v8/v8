@@ -2826,12 +2826,12 @@ Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op,
       case Token::MUL: return Builtins::MUL_STRONG;
       case Token::DIV: return Builtins::DIV_STRONG;
       case Token::MOD: return Builtins::MOD_STRONG;
-      case Token::BIT_OR: return Builtins::BIT_OR;
-      case Token::BIT_AND: return Builtins::BIT_AND;
-      case Token::BIT_XOR: return Builtins::BIT_XOR;
-      case Token::SAR: return Builtins::SAR;
-      case Token::SHR: return Builtins::SHR;
-      case Token::SHL: return Builtins::SHL;
+      case Token::BIT_OR: return Builtins::BIT_OR_STRONG;
+      case Token::BIT_AND: return Builtins::BIT_AND_STRONG;
+      case Token::BIT_XOR: return Builtins::BIT_XOR_STRONG;
+      case Token::SAR: return Builtins::SAR_STRONG;
+      case Token::SHR: return Builtins::SHR_STRONG;
+      case Token::SHL: return Builtins::SHL_STRONG;
     }
   } else {
     switch (op) {

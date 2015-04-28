@@ -347,8 +347,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
                                              const Operator* numberOp) {
   JSBinopReduction r(this, node);
   if (is_strong(OpParameter<LanguageMode>(node))) {
-    if (r.left_type()->Is(Type::Number()) &&
-        (r.right_type()->Is(Type::Number()))) {
+    if (r.BothInputsAre(Type::Number())) {
       return r.ChangeToPureOperator(numberOp, Type::Number());
     }
     return NoChange();
@@ -361,6 +360,13 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   JSBinopReduction r(this, node);
+  if (is_strong(OpParameter<LanguageMode>(node))) {
+    if (r.BothInputsAre(Type::Number())) {
+      r.ConvertInputsToUI32(kSigned, kSigned);
+      return r.ChangeToPureOperator(intOp, Type::Integral32());
+    }
+    return NoChange();
+  }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   r.ConvertInputsToUI32(kSigned, kSigned);
@@ -372,7 +378,10 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
                                            Signedness left_signedness,
                                            const Operator* shift_op) {
   JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Primitive())) {
+  Type* reduce_type = is_strong(
+                        OpParameter<LanguageMode>(node)) ? Type::Number() :
+                                                           Type::Primitive();
+  if (r.BothInputsAre(reduce_type)) {
     r.ConvertInputsForShift(left_signedness);
     return r.ChangeToPureOperator(shift_op, Type::Integral32());
   }

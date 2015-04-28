@@ -272,6 +272,15 @@ function BIT_OR(y) {
 }
 
 
+//ECMA-262, section 11.10, page 57.
+function BIT_OR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberOr(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.10, page 57.
 function BIT_AND(y) {
   var x;
@@ -294,6 +303,15 @@ function BIT_AND(y) {
 }
 
 
+//ECMA-262, section 11.10, page 57.
+function BIT_AND_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberAnd(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.10, page 57.
 function BIT_XOR(y) {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
@@ -302,11 +320,29 @@ function BIT_XOR(y) {
 }
 
 
+//ECMA-262, section 11.10, page 57.
+function BIT_XOR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberXor(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.7.1, page 51.
 function SHL(y) {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
   if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberShl(x, y);
+}
+
+
+//ECMA-262, section 11.7.1, page 51.
+function SHL_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberShl(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
 }
 
 
@@ -332,6 +368,15 @@ function SAR(y) {
 }
 
 
+//ECMA-262, section 11.7.2, page 51.
+function SAR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberSar(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.7.3, page 52.
 function SHR(y) {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
@@ -339,6 +384,14 @@ function SHR(y) {
   return %NumberShr(x, y);
 }
 
+
+//ECMA-262, section 11.7.3, page 52.
+function SHR_STRONG(y) {
+  if (IS_NUMBER(this) && IS_NUMBER(y)) {
+    return %NumberShr(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
 
 
 /* -----------------------------
