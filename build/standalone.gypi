@@ -243,6 +243,7 @@
               '-Wall',
               '-Werror',
               '-Wextra',
+              '-Wshorten-64-to-32',
             ],
             'cflags+': [
               # Clang considers the `register` keyword as deprecated, but
@@ -389,6 +390,11 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
+          # TODO(arm64): It'd be nice to enable this for arm64 as well,
+          # but the Assembler requires some serious fixing first.
+          [ 'clang==1 and v8_target_arch=="x64"', {
+            'cflags': [ '-Wshorten-64-to-32' ],
+          }],
           [ 'host_arch=="ppc64" and OS!="aix"', {
             'cflags': [ '-mminimal-toc' ],
           }],

@@ -259,6 +259,65 @@ void OS::DebugBreak() {
 }
 
 
+class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
+ public:
+  PosixMemoryMappedFile(FILE* file, void* memory, size_t size)
+      : file_(file), memory_(memory), size_(size) {}
+  ~PosixMemoryMappedFile() final;
+  void* memory() const final { return memory_; }
+  size_t size() const final { return size_; }
+
+ private:
+  FILE* const file_;
+  void* const memory_;
+  size_t const size_;
+};
+
+
+// static
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
+  if (FILE* file = fopen(name, "r+")) {
+    if (fseek(file, 0, SEEK_END) == 0) {
+      long size = ftell(file);  // NOLINT(runtime/int)
+      if (size >= 0) {
+        void* const memory =
+            mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_WRITE,
+                 MAP_SHARED, fileno(file), 0);
+        if (memory != MAP_FAILED) {
+          return new PosixMemoryMappedFile(file, memory, size);
+        }
+      }
+    }
+    fclose(file);
+  }
+  return nullptr;
+}
+
+
+// static
+OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
+                                                   size_t size, void* initial) {
+  if (FILE* file = fopen(name, "w+")) {
+    size_t result = fwrite(initial, 1, size, file);
+    if (result == size && !ferror(file)) {
+      void* memory = mmap(OS::GetRandomMmapAddr(), result,
+                          PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      if (memory != MAP_FAILED) {
+        return new PosixMemoryMappedFile(file, memory, result);
+      }
+    }
+    fclose(file);
+  }
+  return nullptr;
+}
+
+
+PosixMemoryMappedFile::~PosixMemoryMappedFile() {
+  if (memory_) OS::Free(memory_, size_);
+  fclose(file_);
+}
+
+
 int OS::GetCurrentProcessId() {
   return static_cast<int>(getpid());
 }
@@ -285,7 +344,7 @@ int OS::GetCurrentThreadId() {
 // POSIX date/time support.
 //
 
-int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
+int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 #if V8_OS_NACL
   // Optionally used in Logger::ResourceEvent.
   return -1;
@@ -293,8 +352,8 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
   struct rusage usage;
 
   if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
-  *secs = usage.ru_utime.tv_sec;
-  *usecs = usage.ru_utime.tv_usec;
+  *secs = static_cast<uint32_t>(usage.ru_utime.tv_sec);
+  *usecs = static_cast<uint32_t>(usage.ru_utime.tv_usec);
   return 0;
 #endif
 }

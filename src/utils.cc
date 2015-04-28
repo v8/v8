@@ -203,7 +203,7 @@ char* ReadCharsFromFile(FILE* file,
   }
 
   // Get the size of the file and rewind it.
-  *size = ftell(file);
+  *size = static_cast<int>(ftell(file));
   rewind(file);
 
   char* result = NewArray<char>(*size + extra_space);

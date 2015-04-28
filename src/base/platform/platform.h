@@ -210,11 +210,13 @@ class OS {
 
   class MemoryMappedFile {
    public:
+    virtual ~MemoryMappedFile() {}
+    virtual void* memory() const = 0;
+    virtual size_t size() const = 0;
+
     static MemoryMappedFile* open(const char* name);
-    static MemoryMappedFile* create(const char* name, int size, void* initial);
-    virtual ~MemoryMappedFile() { }
-    virtual void* memory() = 0;
-    virtual int size() = 0;
+    static MemoryMappedFile* create(const char* name, size_t size,
+                                    void* initial);
   };
 
   // Safe formatting print. Ensures that str is always null-terminated.

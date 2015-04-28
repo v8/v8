@@ -423,7 +423,7 @@ static intptr_t MemoryInUse() {
 
   const int kBufSize = 10000;
   char buffer[kBufSize];
-  int length = read(fd, buffer, kBufSize);
+  ssize_t length = read(fd, buffer, kBufSize);
   intptr_t line_start = 0;
   CHECK_LT(length, kBufSize);  // Make the buffer bigger.
   CHECK_GT(length, 0);  // We have to find some data in the file.

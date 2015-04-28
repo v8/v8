@@ -133,7 +133,7 @@ TimeDelta TimeDelta::FromTimespec(struct timespec ts) {
 
 struct timespec TimeDelta::ToTimespec() const {
   struct timespec ts;
-  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<time_t>(delta_ / Time::kMicrosecondsPerSecond);
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
   return ts;
@@ -292,7 +292,7 @@ struct timespec Time::ToTimespec() const {
     ts.tv_nsec = static_cast<long>(kNanosecondsPerSecond - 1);  // NOLINT
     return ts;
   }
-  ts.tv_sec = us_ / kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<time_t>(us_ / kMicrosecondsPerSecond);
   ts.tv_nsec = (us_ % kMicrosecondsPerSecond) * kNanosecondsPerMicrosecond;
   return ts;
 }
@@ -324,7 +324,7 @@ struct timeval Time::ToTimeval() const {
     tv.tv_usec = static_cast<suseconds_t>(kMicrosecondsPerSecond - 1);
     return tv;
   }
-  tv.tv_sec = us_ / kMicrosecondsPerSecond;
+  tv.tv_sec = static_cast<time_t>(us_ / kMicrosecondsPerSecond);
   tv.tv_usec = us_ % kMicrosecondsPerSecond;
   return tv;
 }

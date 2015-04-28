@@ -1113,17 +1113,21 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
-  int size = ftell(file);
+  size_t size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
-    i += read;
+  for (size_t i = 0; i < size;) {
+    i += fread(&chars[i], 1, size - i, file);
+    if (ferror(file)) {
+      fclose(file);
+      delete[] chars;
+      return nullptr;
+    }
   }
   fclose(file);
-  *size_out = size;
+  *size_out = static_cast<int>(size);
   return chars;
 }
 

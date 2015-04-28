@@ -595,18 +595,21 @@ Handle<String> ReadFile(Isolate* isolate, const string& name) {
   if (file == NULL) return Handle<String>();
 
   fseek(file, 0, SEEK_END);
-  int size = ftell(file);
+  size_t size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
-    i += read;
+  for (size_t i = 0; i < size;) {
+    i += fread(&chars[i], 1, size - i, file);
+    if (ferror(file)) {
+      fclose(file);
+      return Handle<String>();
+    }
   }
   fclose(file);
-  Handle<String> result =
-      String::NewFromUtf8(isolate, chars, String::kNormalString, size);
+  Handle<String> result = String::NewFromUtf8(
+      isolate, chars, String::kNormalString, static_cast<int>(size));
   delete[] chars;
   return result;
 }

@@ -238,18 +238,21 @@ v8::Handle<v8::String> ReadFile(v8::Isolate* isolate, const char* name) {
   if (file == NULL) return v8::Handle<v8::String>();
 
   fseek(file, 0, SEEK_END);
-  int size = ftell(file);
+  size_t size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
-    i += read;
+  for (size_t i = 0; i < size;) {
+    i += fread(&chars[i], 1, size - i, file);
+    if (ferror(file)) {
+      fclose(file);
+      return v8::Handle<v8::String>();
+    }
   }
   fclose(file);
-  v8::Handle<v8::String> result =
-      v8::String::NewFromUtf8(isolate, chars, v8::String::kNormalString, size);
+  v8::Handle<v8::String> result = v8::String::NewFromUtf8(
+      isolate, chars, v8::String::kNormalString, static_cast<int>(size));
   delete[] chars;
   return result;
 }
