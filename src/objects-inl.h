@@ -6428,7 +6428,11 @@ ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   if (kInt32Size != kPointerSize) {
-    WRITE_UINT32_FIELD(this, kBitFieldOffset + kInt32Size, 0);
+#if V8_TARGET_LITTLE_ENDIAN
+    WRITE_UINT32_FIELD(this, kBitFieldSlot + kInt32Size, 0);
+#else
+    WRITE_UINT32_FIELD(this, kBitFieldSlot, 0);
+#endif
   }
   WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
 }

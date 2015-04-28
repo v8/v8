@@ -10268,8 +10268,13 @@ class JSArrayBuffer: public JSObject {
 
   static const int kBackingStoreOffset = JSObject::kHeaderSize;
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
-  static const int kBitFieldOffset = kByteLengthOffset + kPointerSize;
-  static const int kWeakNextOffset = kBitFieldOffset + kPointerSize;
+  static const int kBitFieldSlot = kByteLengthOffset + kPointerSize;
+#if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
+  static const int kBitFieldOffset = kBitFieldSlot;
+#else
+  static const int kBitFieldOffset = kBitFieldSlot + kIntSize;
+#endif
+  static const int kWeakNextOffset = kBitFieldSlot + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
   static const int kSizeWithInternalFields =
