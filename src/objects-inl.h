@@ -6424,46 +6424,54 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
-ACCESSORS_TO_SMI(JSArrayBuffer, flag, kFlagOffset)
 
 
-bool JSArrayBuffer::is_external() {
-  return BooleanBit::get(flag(), kIsExternalBit);
+void JSArrayBuffer::set_bit_field(uint32_t bits) {
+  if (kInt32Size != kPointerSize) {
+    WRITE_UINT32_FIELD(this, kBitFieldOffset + kInt32Size, 0);
+  }
+  WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
 }
 
 
+uint32_t JSArrayBuffer::bit_field() const {
+  return READ_UINT32_FIELD(this, kBitFieldOffset);
+}
+
+
+bool JSArrayBuffer::is_external() { return IsExternal::decode(bit_field()); }
+
+
 void JSArrayBuffer::set_is_external(bool value) {
-  set_flag(BooleanBit::set(flag(), kIsExternalBit, value));
+  set_bit_field(IsExternal::update(bit_field(), value));
 }
 
 
 bool JSArrayBuffer::should_be_freed() {
-  return BooleanBit::get(flag(), kShouldBeFreed);
+  return ShouldBeFreed::decode(bit_field());
 }
 
 
 void JSArrayBuffer::set_should_be_freed(bool value) {
-  set_flag(BooleanBit::set(flag(), kShouldBeFreed, value));
+  set_bit_field(ShouldBeFreed::update(bit_field(), value));
 }
 
 
 bool JSArrayBuffer::is_neuterable() {
-  return BooleanBit::get(flag(), kIsNeuterableBit);
+  return IsNeuterable::decode(bit_field());
 }
 
 
 void JSArrayBuffer::set_is_neuterable(bool value) {
-  set_flag(BooleanBit::set(flag(), kIsNeuterableBit, value));
+  set_bit_field(IsNeuterable::update(bit_field(), value));
 }
 
 
-bool JSArrayBuffer::was_neutered() {
-  return BooleanBit::get(flag(), kWasNeuteredBit);
-}
+bool JSArrayBuffer::was_neutered() { return WasNeutered::decode(bit_field()); }
 
 
 void JSArrayBuffer::set_was_neutered(bool value) {
-  set_flag(BooleanBit::set(flag(), kWasNeuteredBit, value));
+  set_bit_field(WasNeutered::update(bit_field(), value));
 }
 
 

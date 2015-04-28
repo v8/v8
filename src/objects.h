@@ -10242,8 +10242,8 @@ class JSArrayBuffer: public JSObject {
   // [byte_length]: length in bytes
   DECL_ACCESSORS(byte_length, Object)
 
-  // [flags]
-  DECL_ACCESSORS(flag, Smi)
+  inline uint32_t bit_field() const;
+  inline void set_bit_field(uint32_t bits);
 
   inline bool is_external();
   inline void set_is_external(bool value);
@@ -10270,18 +10270,17 @@ class JSArrayBuffer: public JSObject {
 
   static const int kBackingStoreOffset = JSObject::kHeaderSize;
   static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
-  static const int kFlagOffset = kByteLengthOffset + kPointerSize;
-  static const int kWeakNextOffset = kFlagOffset + kPointerSize;
+  static const int kBitFieldOffset = kByteLengthOffset + kPointerSize;
+  static const int kWeakNextOffset = kBitFieldOffset + kPointerSize;
   static const int kSize = kWeakNextOffset + kPointerSize;
 
   static const int kSizeWithInternalFields =
       kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
 
-  // Bit position in a flag
-  static const int kIsExternalBit = 0;
-  static const int kShouldBeFreed = 1;
-  static const int kIsNeuterableBit = 2;
-  static const int kWasNeuteredBit = 3;
+  class IsExternal : public BitField<bool, 1, 1> {};
+  class ShouldBeFreed : public BitField<bool, 2, 1> {};
+  class IsNeuterable : public BitField<bool, 3, 1> {};
+  class WasNeutered : public BitField<bool, 4, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);

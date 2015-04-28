@@ -2439,9 +2439,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
             Add<HLoadNamedField>(checked_object, nullptr,
                                  HObjectAccess::ForJSArrayBufferViewBuffer());
         HInstruction* flags = Add<HLoadNamedField>(
-            buffer, nullptr, HObjectAccess::ForJSArrayBufferFlag());
+            buffer, nullptr, HObjectAccess::ForJSArrayBufferBitField());
         HValue* was_neutered_mask =
-            Add<HConstant>(1 << JSArrayBuffer::kWasNeuteredBit);
+            Add<HConstant>(1 << JSArrayBuffer::WasNeutered::kShift);
         HValue* was_neutered_test =
             AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
 
@@ -3195,9 +3195,9 @@ HValue* HGraphBuilder::BuildArrayBufferViewFieldAccessor(HValue* object,
   if_has_buffer.Then();
   {
     HInstruction* flags = Add<HLoadNamedField>(
-        buffer, has_buffer, HObjectAccess::ForJSArrayBufferFlag());
+        buffer, has_buffer, HObjectAccess::ForJSArrayBufferBitField());
     HValue* was_neutered_mask =
-        Add<HConstant>(1 << JSArrayBuffer::kWasNeuteredBit);
+        Add<HConstant>(1 << JSArrayBuffer::WasNeutered::kShift);
     HValue* was_neutered_test =
         AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
 

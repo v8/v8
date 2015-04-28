@@ -6097,9 +6097,9 @@ class HObjectAccess final {
         JSArrayBuffer::kByteLengthOffset, Representation::Tagged());
   }
 
-  static HObjectAccess ForJSArrayBufferFlag() {
+  static HObjectAccess ForJSArrayBufferBitField() {
     return HObjectAccess::ForObservableJSObjectOffset(
-        JSArrayBuffer::kFlagOffset, Representation::Smi());
+        JSArrayBuffer::kBitFieldOffset, Representation::Integer32());
   }
 
   static HObjectAccess ForExternalArrayExternalPointer() {
