@@ -53,22 +53,48 @@ std::ostream& operator<<(std::ostream& os,
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
-    case InstructionOperand::ALLOCATED:
-      switch (AllocatedOperand::cast(op).allocated_kind()) {
+    case InstructionOperand::ALLOCATED: {
+      auto allocated = AllocatedOperand::cast(op);
+      switch (allocated.allocated_kind()) {
         case AllocatedOperand::STACK_SLOT:
-          return os << "[stack:" << StackSlotOperand::cast(op).index() << "]";
+          os << "[stack:" << StackSlotOperand::cast(op).index();
+          break;
         case AllocatedOperand::DOUBLE_STACK_SLOT:
-          return os << "[double_stack:"
-                    << DoubleStackSlotOperand::cast(op).index() << "]";
+          os << "[double_stack:" << DoubleStackSlotOperand::cast(op).index();
+          break;
         case AllocatedOperand::REGISTER:
-          return os << "["
-                    << conf->general_register_name(
-                           RegisterOperand::cast(op).index()) << "|R]";
+          os << "["
+             << conf->general_register_name(RegisterOperand::cast(op).index())
+             << "|R";
+          break;
         case AllocatedOperand::DOUBLE_REGISTER:
-          return os << "["
-                    << conf->double_register_name(
-                           DoubleRegisterOperand::cast(op).index()) << "|R]";
+          os << "["
+             << conf->double_register_name(
+                    DoubleRegisterOperand::cast(op).index()) << "|R";
+          break;
       }
+      switch (allocated.machine_type()) {
+        case kRepWord32:
+          os << "|w32";
+          break;
+        case kRepWord64:
+          os << "|w64";
+          break;
+        case kRepFloat32:
+          os << "|f32";
+          break;
+        case kRepFloat64:
+          os << "|f64";
+          break;
+        case kRepTagged:
+          os << "|t";
+          break;
+        default:
+          os << "|?";
+          break;
+      }
+      return os << "]";
+    }
     case InstructionOperand::INVALID:
       return os << "(x)";
   }
@@ -83,7 +109,7 @@ std::ostream& operator<<(std::ostream& os,
   PrintableInstructionOperand printable_op = {printable.register_configuration_,
                                               mo.destination()};
   os << printable_op;
-  if (mo.source() != mo.destination()) {
+  if (!mo.source().Equals(mo.destination())) {
     printable_op.op_ = mo.source();
     os << " = " << printable_op;
   }
@@ -104,11 +130,11 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
   MoveOperands* to_eliminate = nullptr;
   for (auto curr : *this) {
     if (curr->IsEliminated()) continue;
-    if (curr->destination() == move->source()) {
+    if (curr->destination().EqualsModuloType(move->source())) {
       DCHECK(!replacement);
       replacement = curr;
       if (to_eliminate != nullptr) break;
-    } else if (curr->destination() == move->destination()) {
+    } else if (curr->destination().EqualsModuloType(move->destination())) {
       DCHECK(!to_eliminate);
       to_eliminate = curr;
       if (replacement != nullptr) break;
@@ -479,8 +505,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       instructions_(zone()),
       next_virtual_register_(0),
       reference_maps_(zone()),
-      doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
-      references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
+      representations_(zone()),
       deoptimization_entries_(zone()) {
   block_starts_.reserve(instruction_blocks_->size());
 }
@@ -548,23 +573,48 @@ const InstructionBlock* InstructionSequence::GetInstructionBlock(
 }
 
 
-bool InstructionSequence::IsReference(int virtual_register) const {
-  return references_.find(virtual_register) != references_.end();
+static MachineType FilterRepresentation(MachineType rep) {
+  DCHECK_EQ(rep, RepresentationOf(rep));
+  switch (rep) {
+    case kRepBit:
+    case kRepWord8:
+    case kRepWord16:
+      return InstructionSequence::DefaultRepresentation();
+    case kRepWord32:
+    case kRepWord64:
+    case kRepFloat32:
+    case kRepFloat64:
+    case kRepTagged:
+      return rep;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return kMachNone;
 }
 
 
-bool InstructionSequence::IsDouble(int virtual_register) const {
-  return doubles_.find(virtual_register) != doubles_.end();
+MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
+  DCHECK_LE(0, virtual_register);
+  DCHECK_LT(virtual_register, VirtualRegisterCount());
+  if (virtual_register >= static_cast<int>(representations_.size())) {
+    return DefaultRepresentation();
+  }
+  return representations_[virtual_register];
 }
 
 
-void InstructionSequence::MarkAsReference(int virtual_register) {
-  references_.insert(virtual_register);
-}
-
-
-void InstructionSequence::MarkAsDouble(int virtual_register) {
-  doubles_.insert(virtual_register);
+void InstructionSequence::MarkAsRepresentation(MachineType machine_type,
+                                               int virtual_register) {
+  DCHECK_LE(0, virtual_register);
+  DCHECK_LT(virtual_register, VirtualRegisterCount());
+  if (virtual_register >= static_cast<int>(representations_.size())) {
+    representations_.resize(VirtualRegisterCount(), DefaultRepresentation());
+  }
+  machine_type = FilterRepresentation(machine_type);
+  DCHECK_IMPLIES(representations_[virtual_register] != machine_type,
+                 representations_[virtual_register] == DefaultRepresentation());
+  representations_[virtual_register] = machine_type;
 }
 
 

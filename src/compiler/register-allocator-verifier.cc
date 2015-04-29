@@ -163,7 +163,7 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
           CHECK(false);
           break;
         case UnallocatedOperand::NONE:
-          if (sequence()->IsDouble(vreg)) {
+          if (sequence()->IsFloat(vreg)) {
             constraint->type_ = kNoneDouble;
           } else {
             constraint->type_ = kNone;
@@ -178,14 +178,14 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
           constraint->value_ = unallocated->fixed_register_index();
           break;
         case UnallocatedOperand::MUST_HAVE_REGISTER:
-          if (sequence()->IsDouble(vreg)) {
+          if (sequence()->IsFloat(vreg)) {
             constraint->type_ = kDoubleRegister;
           } else {
             constraint->type_ = kRegister;
           }
           break;
         case UnallocatedOperand::MUST_HAVE_SLOT:
-          if (sequence()->IsDouble(vreg)) {
+          if (sequence()->IsFloat(vreg)) {
             constraint->type_ = kDoubleSlot;
           } else {
             constraint->type_ = kSlot;
@@ -286,7 +286,7 @@ class PhiMap : public ZoneMap<int, PhiData*>, public ZoneObject {
 struct OperandLess {
   bool operator()(const InstructionOperand* a,
                   const InstructionOperand* b) const {
-    return *a < *b;
+    return a->CompareModuloType(*b);
   }
 };
 
@@ -320,7 +320,7 @@ class OperandMap : public ZoneObject {
           this->erase(it++);
           if (it == this->end()) return;
         }
-        if (*it->first == *o.first) {
+        if (it->first->EqualsModuloType(*o.first)) {
           ++it;
           if (it == this->end()) return;
         } else {
@@ -372,13 +372,14 @@ class OperandMap : public ZoneObject {
   }
 
   void DropRegisters(const RegisterConfiguration* config) {
-    for (int i = 0; i < config->num_general_registers(); ++i) {
-      RegisterOperand op(i);
-      Drop(&op);
-    }
-    for (int i = 0; i < config->num_double_registers(); ++i) {
-      DoubleRegisterOperand op(i);
-      Drop(&op);
+    // TODO(dcarney): sort map by kind and drop range.
+    for (auto it = map().begin(); it != map().end();) {
+      auto op = it->first;
+      if (op->IsRegister() || op->IsDoubleRegister()) {
+        map().erase(it++);
+      } else {
+        ++it;
+      }
     }
   }
 

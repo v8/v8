@@ -13,7 +13,6 @@ namespace internal {
 namespace compiler {
 
 enum RegisterKind {
-  UNALLOCATED_REGISTERS,
   GENERAL_REGISTERS,
   DOUBLE_REGISTERS
 };
@@ -272,7 +271,7 @@ class SpillRange;
 // intervals over the instruction ordering.
 class LiveRange final : public ZoneObject {
  public:
-  explicit LiveRange(int id);
+  explicit LiveRange(int id, MachineType machine_type);
 
   UseInterval* first_interval() const { return first_interval_; }
   UsePosition* first_pos() const { return first_pos_; }
@@ -289,6 +288,8 @@ class LiveRange final : public ZoneObject {
   InstructionOperand GetAssignedOperand() const;
   int spill_start_index() const { return spill_start_index_; }
 
+  MachineType machine_type() const { return MachineTypeField::decode(bits_); }
+
   int assigned_register() const { return AssignedRegisterField::decode(bits_); }
   bool HasRegisterAssigned() const {
     return assigned_register() != kUnassignedRegister;
@@ -299,10 +300,7 @@ class LiveRange final : public ZoneObject {
   bool spilled() const { return SpilledField::decode(bits_); }
   void Spill();
 
-  RegisterKind kind() const { return RegisterKindField::decode(bits_); }
-  void set_kind(RegisterKind kind) {
-    bits_ = RegisterKindField::update(bits_, kind);
-  }
+  RegisterKind kind() const;
 
   // Correct only for parent.
   bool is_phi() const { return IsPhiField::decode(bits_); }
@@ -386,14 +384,14 @@ class LiveRange final : public ZoneObject {
     return spill_type() == SpillType::kSpillOperand;
   }
   bool HasSpillRange() const { return spill_type() == SpillType::kSpillRange; }
+  AllocatedOperand GetSpillRangeOperand() const;
 
   void SpillAtDefinition(Zone* zone, int gap_index,
                          InstructionOperand* operand);
   void SetSpillOperand(InstructionOperand* operand);
   void SetSpillRange(SpillRange* spill_range);
-  void CommitSpillOperand(AllocatedOperand* operand);
   void CommitSpillsAtDefinition(InstructionSequence* sequence,
-                                InstructionOperand* operand,
+                                const InstructionOperand& operand,
                                 bool might_be_duplicated);
 
   void SetSpillStartIndex(int start) {
@@ -416,7 +414,7 @@ class LiveRange final : public ZoneObject {
   void Verify() const;
 
   void ConvertUsesToOperand(const InstructionOperand& op,
-                            InstructionOperand* spill_op);
+                            const InstructionOperand& spill_op);
   void SetUseHints(int register_index);
   void UnsetUseHints() { SetUseHints(kUnassignedRegister); }
 
@@ -437,9 +435,9 @@ class LiveRange final : public ZoneObject {
   typedef BitField<bool, 1, 1> HasSlotUseField;
   typedef BitField<bool, 2, 1> IsPhiField;
   typedef BitField<bool, 3, 1> IsNonLoopPhiField;
-  typedef BitField<RegisterKind, 4, 2> RegisterKindField;
-  typedef BitField<SpillType, 6, 2> SpillTypeField;
-  typedef BitField<int32_t, 8, 6> AssignedRegisterField;
+  typedef BitField<SpillType, 4, 2> SpillTypeField;
+  typedef BitField<int32_t, 6, 6> AssignedRegisterField;
+  typedef BitField<MachineType, 12, 15> MachineTypeField;
 
   int id_;
   int spill_start_index_;
@@ -468,13 +466,23 @@ class LiveRange final : public ZoneObject {
 
 class SpillRange final : public ZoneObject {
  public:
+  static const int kUnassignedSlot = -1;
   SpillRange(LiveRange* range, Zone* zone);
 
   UseInterval* interval() const { return use_interval_; }
-  RegisterKind kind() const { return live_ranges_[0]->kind(); }
+  // Currently, only 4 or 8 byte slots are supported.
+  int ByteWidth() const;
   bool IsEmpty() const { return live_ranges_.empty(); }
   bool TryMerge(SpillRange* other);
-  void SetOperand(AllocatedOperand* op);
+
+  void set_assigned_slot(int index) {
+    DCHECK_EQ(kUnassignedSlot, assigned_slot_);
+    assigned_slot_ = index;
+  }
+  int assigned_slot() {
+    DCHECK_NE(kUnassignedSlot, assigned_slot_);
+    return assigned_slot_;
+  }
 
  private:
   LifetimePosition End() const { return end_position_; }
@@ -486,6 +494,7 @@ class SpillRange final : public ZoneObject {
   ZoneVector<LiveRange*> live_ranges_;
   UseInterval* use_interval_;
   LifetimePosition end_position_;
+  int assigned_slot_;
 
   DISALLOW_COPY_AND_ASSIGN(SpillRange);
 };
@@ -549,7 +558,12 @@ class RegisterAllocationData final : public ZoneObject {
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
 
+  MachineType MachineTypeFor(int virtual_register);
+
   LiveRange* LiveRangeFor(int index);
+  // Creates a new live range.
+  LiveRange* NewLiveRange(int index, MachineType machine_type);
+  LiveRange* NewChildRangeFor(LiveRange* range);
 
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
 
@@ -562,9 +576,6 @@ class RegisterAllocationData final : public ZoneObject {
   }
 
   bool ExistsUseWithoutDefinition();
-
-  // Creates a new live range.
-  LiveRange* NewLiveRange(int index);
 
   void MarkAllocated(RegisterKind kind, int index);
 
@@ -586,6 +597,7 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<SpillRange*> spill_ranges_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
+  int virtual_register_count_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocationData);
 };
@@ -663,9 +675,6 @@ class LiveRangeBuilder final : public ZoneObject {
 
   void MapPhiHint(InstructionOperand* operand, UsePosition* use_pos);
   void ResolvePhiHint(InstructionOperand* operand, UsePosition* use_pos);
-
-  // Returns the register kind required by the given virtual register.
-  RegisterKind RequiredRegisterKind(int virtual_register) const;
 
   UsePosition* NewUsePosition(LifetimePosition pos, InstructionOperand* operand,
                               void* hint, UsePositionHintType hint_type);

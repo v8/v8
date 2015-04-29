@@ -137,7 +137,7 @@ class OperandGenerator {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
         UnallocatedOperand::USED_AT_START, sequence()->NextVirtualRegister());
-    sequence()->MarkAsDouble(op.virtual_register());
+    sequence()->MarkAsRepresentation(kRepFloat64, op.virtual_register());
     return op;
   }
 

@@ -241,70 +241,17 @@ void InstructionSelector::MarkAsUsed(Node* node) {
 }
 
 
-bool InstructionSelector::IsDouble(const Node* node) const {
-  DCHECK_NOT_NULL(node);
-  int const virtual_register = virtual_registers_[node->id()];
-  if (virtual_register == InstructionOperand::kInvalidVirtualRegister) {
-    return false;
-  }
-  return sequence()->IsDouble(virtual_register);
-}
-
-
-void InstructionSelector::MarkAsDouble(Node* node) {
-  DCHECK_NOT_NULL(node);
-  DCHECK(!IsReference(node));
-  sequence()->MarkAsDouble(GetVirtualRegister(node));
-}
-
-
-bool InstructionSelector::IsReference(const Node* node) const {
-  DCHECK_NOT_NULL(node);
-  int const virtual_register = virtual_registers_[node->id()];
-  if (virtual_register == InstructionOperand::kInvalidVirtualRegister) {
-    return false;
-  }
-  return sequence()->IsReference(virtual_register);
-}
-
-
-void InstructionSelector::MarkAsReference(Node* node) {
-  DCHECK_NOT_NULL(node);
-  DCHECK(!IsDouble(node));
-  sequence()->MarkAsReference(GetVirtualRegister(node));
-}
-
-
 void InstructionSelector::MarkAsRepresentation(MachineType rep,
                                                const InstructionOperand& op) {
   UnallocatedOperand unalloc = UnallocatedOperand::cast(op);
-  switch (RepresentationOf(rep)) {
-    case kRepFloat32:
-    case kRepFloat64:
-      sequence()->MarkAsDouble(unalloc.virtual_register());
-      break;
-    case kRepTagged:
-      sequence()->MarkAsReference(unalloc.virtual_register());
-      break;
-    default:
-      break;
-  }
+  rep = RepresentationOf(rep);
+  sequence()->MarkAsRepresentation(rep, unalloc.virtual_register());
 }
 
 
 void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
-  DCHECK_NOT_NULL(node);
-  switch (RepresentationOf(rep)) {
-    case kRepFloat32:
-    case kRepFloat64:
-      MarkAsDouble(node);
-      break;
-    case kRepTagged:
-      MarkAsReference(node);
-      break;
-    default:
-      break;
-  }
+  rep = RepresentationOf(rep);
+  sequence()->MarkAsRepresentation(rep, GetVirtualRegister(node));
 }
 
 
@@ -625,9 +572,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kExternalConstant:
       return VisitConstant(node);
     case IrOpcode::kFloat32Constant:
-      return MarkAsDouble(node), VisitConstant(node);
+      return MarkAsFloat32(node), VisitConstant(node);
     case IrOpcode::kFloat64Constant:
-      return MarkAsDouble(node), VisitConstant(node);
+      return MarkAsFloat64(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
       return MarkAsReference(node), VisitConstant(node);
     case IrOpcode::kNumberConstant: {
@@ -648,125 +595,125 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStore:
       return VisitStore(node);
     case IrOpcode::kWord32And:
-      return VisitWord32And(node);
+      return MarkAsWord32(node), VisitWord32And(node);
     case IrOpcode::kWord32Or:
-      return VisitWord32Or(node);
+      return MarkAsWord32(node), VisitWord32Or(node);
     case IrOpcode::kWord32Xor:
-      return VisitWord32Xor(node);
+      return MarkAsWord32(node), VisitWord32Xor(node);
     case IrOpcode::kWord32Shl:
-      return VisitWord32Shl(node);
+      return MarkAsWord32(node), VisitWord32Shl(node);
     case IrOpcode::kWord32Shr:
-      return VisitWord32Shr(node);
+      return MarkAsWord32(node), VisitWord32Shr(node);
     case IrOpcode::kWord32Sar:
-      return VisitWord32Sar(node);
+      return MarkAsWord32(node), VisitWord32Sar(node);
     case IrOpcode::kWord32Ror:
-      return VisitWord32Ror(node);
+      return MarkAsWord32(node), VisitWord32Ror(node);
     case IrOpcode::kWord32Equal:
       return VisitWord32Equal(node);
     case IrOpcode::kWord32Clz:
-      return VisitWord32Clz(node);
+      return MarkAsWord32(node), VisitWord32Clz(node);
     case IrOpcode::kWord64And:
-      return VisitWord64And(node);
+      return MarkAsWord64(node), VisitWord64And(node);
     case IrOpcode::kWord64Or:
-      return VisitWord64Or(node);
+      return MarkAsWord64(node), VisitWord64Or(node);
     case IrOpcode::kWord64Xor:
-      return VisitWord64Xor(node);
+      return MarkAsWord64(node), VisitWord64Xor(node);
     case IrOpcode::kWord64Shl:
-      return VisitWord64Shl(node);
+      return MarkAsWord64(node), VisitWord64Shl(node);
     case IrOpcode::kWord64Shr:
-      return VisitWord64Shr(node);
+      return MarkAsWord64(node), VisitWord64Shr(node);
     case IrOpcode::kWord64Sar:
-      return VisitWord64Sar(node);
+      return MarkAsWord64(node), VisitWord64Sar(node);
     case IrOpcode::kWord64Ror:
-      return VisitWord64Ror(node);
+      return MarkAsWord64(node), VisitWord64Ror(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
-      return VisitInt32Add(node);
+      return MarkAsWord32(node), VisitInt32Add(node);
     case IrOpcode::kInt32AddWithOverflow:
-      return VisitInt32AddWithOverflow(node);
+      return MarkAsWord32(node), VisitInt32AddWithOverflow(node);
     case IrOpcode::kInt32Sub:
-      return VisitInt32Sub(node);
+      return MarkAsWord32(node), VisitInt32Sub(node);
     case IrOpcode::kInt32SubWithOverflow:
       return VisitInt32SubWithOverflow(node);
     case IrOpcode::kInt32Mul:
-      return VisitInt32Mul(node);
+      return MarkAsWord32(node), VisitInt32Mul(node);
     case IrOpcode::kInt32MulHigh:
       return VisitInt32MulHigh(node);
     case IrOpcode::kInt32Div:
-      return VisitInt32Div(node);
+      return MarkAsWord32(node), VisitInt32Div(node);
     case IrOpcode::kInt32Mod:
-      return VisitInt32Mod(node);
+      return MarkAsWord32(node), VisitInt32Mod(node);
     case IrOpcode::kInt32LessThan:
       return VisitInt32LessThan(node);
     case IrOpcode::kInt32LessThanOrEqual:
       return VisitInt32LessThanOrEqual(node);
     case IrOpcode::kUint32Div:
-      return VisitUint32Div(node);
+      return MarkAsWord32(node), VisitUint32Div(node);
     case IrOpcode::kUint32LessThan:
       return VisitUint32LessThan(node);
     case IrOpcode::kUint32LessThanOrEqual:
       return VisitUint32LessThanOrEqual(node);
     case IrOpcode::kUint32Mod:
-      return VisitUint32Mod(node);
+      return MarkAsWord32(node), VisitUint32Mod(node);
     case IrOpcode::kUint32MulHigh:
       return VisitUint32MulHigh(node);
     case IrOpcode::kInt64Add:
-      return VisitInt64Add(node);
+      return MarkAsWord64(node), VisitInt64Add(node);
     case IrOpcode::kInt64Sub:
-      return VisitInt64Sub(node);
+      return MarkAsWord64(node), VisitInt64Sub(node);
     case IrOpcode::kInt64Mul:
-      return VisitInt64Mul(node);
+      return MarkAsWord64(node), VisitInt64Mul(node);
     case IrOpcode::kInt64Div:
-      return VisitInt64Div(node);
+      return MarkAsWord64(node), VisitInt64Div(node);
     case IrOpcode::kInt64Mod:
-      return VisitInt64Mod(node);
+      return MarkAsWord64(node), VisitInt64Mod(node);
     case IrOpcode::kInt64LessThan:
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
     case IrOpcode::kUint64Div:
-      return VisitUint64Div(node);
+      return MarkAsWord64(node), VisitUint64Div(node);
     case IrOpcode::kUint64LessThan:
       return VisitUint64LessThan(node);
     case IrOpcode::kUint64Mod:
-      return VisitUint64Mod(node);
+      return MarkAsWord64(node), VisitUint64Mod(node);
     case IrOpcode::kChangeFloat32ToFloat64:
-      return MarkAsDouble(node), VisitChangeFloat32ToFloat64(node);
+      return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
-      return MarkAsDouble(node), VisitChangeInt32ToFloat64(node);
+      return MarkAsFloat64(node), VisitChangeInt32ToFloat64(node);
     case IrOpcode::kChangeUint32ToFloat64:
-      return MarkAsDouble(node), VisitChangeUint32ToFloat64(node);
+      return MarkAsFloat64(node), VisitChangeUint32ToFloat64(node);
     case IrOpcode::kChangeFloat64ToInt32:
-      return VisitChangeFloat64ToInt32(node);
+      return MarkAsWord32(node), VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
-      return VisitChangeFloat64ToUint32(node);
+      return MarkAsWord32(node), VisitChangeFloat64ToUint32(node);
     case IrOpcode::kChangeInt32ToInt64:
-      return VisitChangeInt32ToInt64(node);
+      return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
-      return VisitChangeUint32ToUint64(node);
+      return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
     case IrOpcode::kTruncateFloat64ToFloat32:
-      return MarkAsDouble(node), VisitTruncateFloat64ToFloat32(node);
+      return MarkAsFloat32(node), VisitTruncateFloat64ToFloat32(node);
     case IrOpcode::kTruncateFloat64ToInt32:
-      return VisitTruncateFloat64ToInt32(node);
+      return MarkAsWord32(node), VisitTruncateFloat64ToInt32(node);
     case IrOpcode::kTruncateInt64ToInt32:
-      return VisitTruncateInt64ToInt32(node);
+      return MarkAsWord32(node), VisitTruncateInt64ToInt32(node);
     case IrOpcode::kFloat32Add:
-      return MarkAsDouble(node), VisitFloat32Add(node);
+      return MarkAsFloat32(node), VisitFloat32Add(node);
     case IrOpcode::kFloat32Sub:
-      return MarkAsDouble(node), VisitFloat32Sub(node);
+      return MarkAsFloat32(node), VisitFloat32Sub(node);
     case IrOpcode::kFloat32Mul:
-      return MarkAsDouble(node), VisitFloat32Mul(node);
+      return MarkAsFloat32(node), VisitFloat32Mul(node);
     case IrOpcode::kFloat32Div:
-      return MarkAsDouble(node), VisitFloat32Div(node);
+      return MarkAsFloat32(node), VisitFloat32Div(node);
     case IrOpcode::kFloat32Min:
-      return MarkAsDouble(node), VisitFloat32Min(node);
+      return MarkAsFloat32(node), VisitFloat32Min(node);
     case IrOpcode::kFloat32Max:
-      return MarkAsDouble(node), VisitFloat32Max(node);
+      return MarkAsFloat32(node), VisitFloat32Max(node);
     case IrOpcode::kFloat32Abs:
-      return MarkAsDouble(node), VisitFloat32Abs(node);
+      return MarkAsFloat32(node), VisitFloat32Abs(node);
     case IrOpcode::kFloat32Sqrt:
-      return MarkAsDouble(node), VisitFloat32Sqrt(node);
+      return MarkAsFloat32(node), VisitFloat32Sqrt(node);
     case IrOpcode::kFloat32Equal:
       return VisitFloat32Equal(node);
     case IrOpcode::kFloat32LessThan:
@@ -774,23 +721,23 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFloat32LessThanOrEqual:
       return VisitFloat32LessThanOrEqual(node);
     case IrOpcode::kFloat64Add:
-      return MarkAsDouble(node), VisitFloat64Add(node);
+      return MarkAsFloat64(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
-      return MarkAsDouble(node), VisitFloat64Sub(node);
+      return MarkAsFloat64(node), VisitFloat64Sub(node);
     case IrOpcode::kFloat64Mul:
-      return MarkAsDouble(node), VisitFloat64Mul(node);
+      return MarkAsFloat64(node), VisitFloat64Mul(node);
     case IrOpcode::kFloat64Div:
-      return MarkAsDouble(node), VisitFloat64Div(node);
+      return MarkAsFloat64(node), VisitFloat64Div(node);
     case IrOpcode::kFloat64Mod:
-      return MarkAsDouble(node), VisitFloat64Mod(node);
+      return MarkAsFloat64(node), VisitFloat64Mod(node);
     case IrOpcode::kFloat64Min:
-      return MarkAsDouble(node), VisitFloat64Min(node);
+      return MarkAsFloat64(node), VisitFloat64Min(node);
     case IrOpcode::kFloat64Max:
-      return MarkAsDouble(node), VisitFloat64Max(node);
+      return MarkAsFloat64(node), VisitFloat64Max(node);
     case IrOpcode::kFloat64Abs:
-      return MarkAsDouble(node), VisitFloat64Abs(node);
+      return MarkAsFloat64(node), VisitFloat64Abs(node);
     case IrOpcode::kFloat64Sqrt:
-      return MarkAsDouble(node), VisitFloat64Sqrt(node);
+      return MarkAsFloat64(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:
       return VisitFloat64Equal(node);
     case IrOpcode::kFloat64LessThan:
@@ -798,19 +745,19 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFloat64LessThanOrEqual:
       return VisitFloat64LessThanOrEqual(node);
     case IrOpcode::kFloat64RoundDown:
-      return MarkAsDouble(node), VisitFloat64RoundDown(node);
+      return MarkAsFloat64(node), VisitFloat64RoundDown(node);
     case IrOpcode::kFloat64RoundTruncate:
-      return MarkAsDouble(node), VisitFloat64RoundTruncate(node);
+      return MarkAsFloat64(node), VisitFloat64RoundTruncate(node);
     case IrOpcode::kFloat64RoundTiesAway:
-      return MarkAsDouble(node), VisitFloat64RoundTiesAway(node);
+      return MarkAsFloat64(node), VisitFloat64RoundTiesAway(node);
     case IrOpcode::kFloat64ExtractLowWord32:
-      return VisitFloat64ExtractLowWord32(node);
+      return MarkAsWord32(node), VisitFloat64ExtractLowWord32(node);
     case IrOpcode::kFloat64ExtractHighWord32:
-      return VisitFloat64ExtractHighWord32(node);
+      return MarkAsWord32(node), VisitFloat64ExtractHighWord32(node);
     case IrOpcode::kFloat64InsertLowWord32:
-      return MarkAsDouble(node), VisitFloat64InsertLowWord32(node);
+      return MarkAsFloat64(node), VisitFloat64InsertLowWord32(node);
     case IrOpcode::kFloat64InsertHighWord32:
-      return MarkAsDouble(node), VisitFloat64InsertHighWord32(node);
+      return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
     case IrOpcode::kCheckedLoad: {
