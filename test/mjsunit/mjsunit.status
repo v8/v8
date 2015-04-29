@@ -410,7 +410,12 @@
 ['msan == True', {
   # Skip tests not suitable for MSAN.
   'big-array-literal': [SKIP],
-}],  # 'asan == True'
+  # ICU upstream issues.
+  'date': [SKIP],
+  'deep-recursion': [SKIP],
+  'regress/regress-builtinbust-7': [SKIP],
+  'string-localecompare': [SKIP],
+}],  # 'msan == True'
 
 ##############################################################################
 ['arch == arm or arch == android_arm', {
