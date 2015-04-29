@@ -20,23 +20,8 @@ class GraphTester : public HandleAndZoneScope, public Graph {
   GraphTester() : Graph(main_zone()) {}
 };
 
-
-class GraphWithStartNodeTester : public GraphTester {
- public:
-  explicit GraphWithStartNodeTester(int num_parameters = 0)
-      : builder_(main_zone()),
-        start_node_(NewNode(builder_.Start(num_parameters))) {
-    SetStart(start_node_);
-  }
-
-  Node* start_node() { return start_node_; }
-
- private:
-  CommonOperatorBuilder builder_;
-  Node* start_node_;
-};
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CCTEST_COMPILER_GRAPH_TESTER_H_
