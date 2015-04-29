@@ -817,9 +817,6 @@ class Runtime : public AllStatic {
 
   static void NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer);
 
-  static void FreeArrayBuffer(Isolate* isolate,
-                              JSArrayBuffer* phantom_array_buffer);
-
   static int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index);
 
   enum TypedArrayId {

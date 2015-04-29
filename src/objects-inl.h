@@ -6470,9 +6470,6 @@ void JSArrayBuffer::set_was_neutered(bool value) {
 }
 
 
-ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
-
-
 Object* JSArrayBufferView::byte_offset() const {
   if (WasNeutered()) return Smi::FromInt(0);
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));
