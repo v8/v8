@@ -33,7 +33,7 @@ class MoveOptimizerTest : public InstructionSequenceTest {
     auto to = ConvertMoveArg(to_op);
     for (auto move : *moves) {
       if (move->IsRedundant()) continue;
-      if (move->source().Equals(from) && move->destination().Equals(to)) {
+      if (move->source() == from && move->destination() == to) {
         return true;
       }
     }
@@ -67,10 +67,10 @@ class MoveOptimizerTest : public InstructionSequenceTest {
       case kConstant:
         return ConstantOperand(op.value_);
       case kFixedSlot:
-        return StackSlotOperand(kRepWord32, op.value_);
+        return StackSlotOperand(op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand(kRepWord32, op.value_);
+        return RegisterOperand(op.value_);
       default:
         break;
     }

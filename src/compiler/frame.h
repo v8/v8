@@ -20,11 +20,13 @@ class Frame : public ZoneObject {
   Frame()
       : register_save_area_size_(0),
         spill_slot_count_(0),
+        double_spill_slot_count_(0),
         osr_stack_slot_count_(0),
         allocated_registers_(NULL),
         allocated_double_registers_(NULL) {}
 
   inline int GetSpillSlotCount() { return spill_slot_count_; }
+  inline int GetDoubleSpillSlotCount() { return double_spill_slot_count_; }
 
   void SetAllocatedRegisters(BitVector* regs) {
     DCHECK(allocated_registers_ == NULL);
@@ -55,13 +57,15 @@ class Frame : public ZoneObject {
 
   int GetOsrStackSlotCount() { return osr_stack_slot_count_; }
 
-  int AllocateSpillSlot(int width) {
-    DCHECK(width == 4 || width == 8);
-    // Skip one slot if necessary.
-    if (width > kPointerSize) {
-      DCHECK(width == kPointerSize * 2);
-      spill_slot_count_++;
-      spill_slot_count_ |= 1;
+  int AllocateSpillSlot(bool is_double) {
+    // If 32-bit, skip one if the new slot is a double.
+    if (is_double) {
+      if (kDoubleSize > kPointerSize) {
+        DCHECK(kDoubleSize == kPointerSize * 2);
+        spill_slot_count_++;
+        spill_slot_count_ |= 1;
+      }
+      double_spill_slot_count_++;
     }
     return spill_slot_count_++;
   }
@@ -74,6 +78,7 @@ class Frame : public ZoneObject {
  private:
   int register_save_area_size_;
   int spill_slot_count_;
+  int double_spill_slot_count_;
   int osr_stack_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;

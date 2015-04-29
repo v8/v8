@@ -11,18 +11,8 @@ namespace compiler {
 namespace {
 
 typedef std::pair<InstructionOperand, InstructionOperand> MoveKey;
-
-struct MoveKeyCompare {
-  bool operator()(const MoveKey& a, const MoveKey& b) const {
-    if (a.first.EqualsModuloType(b.first)) {
-      return a.second.CompareModuloType(b.second);
-    }
-    return a.first.CompareModuloType(b.first);
-  }
-};
-
-typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
-typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
+typedef ZoneMap<MoveKey, unsigned> MoveMap;
+typedef ZoneSet<InstructionOperand> OperandSet;
 
 
 bool GapsCanMoveOver(Instruction* instr) { return instr->IsNop(); }
@@ -234,12 +224,10 @@ bool IsSlot(const InstructionOperand& op) {
 
 
 bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
-  if (!a->source().EqualsModuloType(b->source())) {
-    return a->source().CompareModuloType(b->source());
-  }
+  if (a->source() != b->source()) return a->source() < b->source();
   if (IsSlot(a->destination()) && !IsSlot(b->destination())) return false;
   if (!IsSlot(a->destination()) && IsSlot(b->destination())) return true;
-  return a->destination().CompareModuloType(b->destination());
+  return a->destination() < b->destination();
 }
 
 }  // namespace
@@ -264,8 +252,7 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
   MoveOperands* group_begin = nullptr;
   for (auto load : loads) {
     // New group.
-    if (group_begin == nullptr ||
-        !load->source().EqualsModuloType(group_begin->source())) {
+    if (group_begin == nullptr || load->source() != group_begin->source()) {
       group_begin = load;
       continue;
     }

@@ -89,8 +89,7 @@ class InterpreterState {
     if (key.is_constant) {
       return ConstantOperand(key.index);
     }
-    return AllocatedOperand(
-        key.kind, InstructionSequence::DefaultRepresentation(), key.index);
+    return AllocatedOperand(key.kind, key.index);
   }
 
   friend std::ostream& operator<<(std::ostream& os,
@@ -149,7 +148,7 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
   ParallelMove* Create(int size) {
     ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
-    std::set<InstructionOperand, CompareOperandModuloType> seen;
+    std::set<InstructionOperand> seen;
     for (int i = 0; i < size; ++i) {
       MoveOperands mo(CreateRandomOperand(true), CreateRandomOperand(false));
       if (!mo.IsRedundant() && seen.find(mo.destination()) == seen.end()) {
@@ -161,38 +160,18 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   }
 
  private:
-  MachineType RandomType() {
-    int index = rng_->NextInt(3);
-    switch (index) {
-      case 0:
-        return kRepWord32;
-      case 1:
-        return kRepWord64;
-      case 2:
-        return kRepTagged;
-    }
-    UNREACHABLE();
-    return kMachNone;
-  }
-
-  MachineType RandomDoubleType() {
-    int index = rng_->NextInt(2);
-    if (index == 0) return kRepFloat64;
-    return kRepFloat32;
-  }
-
   InstructionOperand CreateRandomOperand(bool is_source) {
     int index = rng_->NextInt(6);
     // destination can't be Constant.
     switch (rng_->NextInt(is_source ? 5 : 4)) {
       case 0:
-        return StackSlotOperand(RandomType(), index);
+        return StackSlotOperand(index);
       case 1:
-        return DoubleStackSlotOperand(RandomDoubleType(), index);
+        return DoubleStackSlotOperand(index);
       case 2:
-        return RegisterOperand(RandomType(), index);
+        return RegisterOperand(index);
       case 3:
-        return DoubleRegisterOperand(RandomDoubleType(), index);
+        return DoubleRegisterOperand(index);
       case 4:
         return ConstantOperand(index);
     }

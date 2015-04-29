@@ -263,8 +263,8 @@ TEST(InstructionAddGapMove) {
     CHECK(move);
     CHECK_EQ(1u, move->size());
     MoveOperands* cur = move->at(0);
-    CHECK(op1.Equals(cur->source()));
-    CHECK(op2.Equals(cur->destination()));
+    CHECK(op1 == cur->source());
+    CHECK(op2 == cur->destination());
   }
 }
 
@@ -308,15 +308,15 @@ TEST(InstructionOperands) {
         CHECK(k == m->TempCount());
 
         for (size_t z = 0; z < i; z++) {
-          CHECK(outputs[z].Equals(*m->OutputAt(z)));
+          CHECK(outputs[z] == *m->OutputAt(z));
         }
 
         for (size_t z = 0; z < j; z++) {
-          CHECK(inputs[z].Equals(*m->InputAt(z)));
+          CHECK(inputs[z] == *m->InputAt(z));
         }
 
         for (size_t z = 0; z < k; z++) {
-          CHECK(temps[z].Equals(*m->TempAt(z)));
+          CHECK(temps[z] == *m->TempAt(z));
         }
       }
     }

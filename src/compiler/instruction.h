@@ -50,6 +50,19 @@ class InstructionOperand {
   inline bool IsStackSlot() const;
   inline bool IsDoubleStackSlot() const;
 
+  // Useful for map/set keys.
+  bool operator<(const InstructionOperand& op) const {
+    return value_ < op.value_;
+  }
+
+  bool operator==(const InstructionOperand& op) const {
+    return value_ == op.value_;
+  }
+
+  bool operator!=(const InstructionOperand& op) const {
+    return value_ != op.value_;
+  }
+
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
     void* buffer = zone->New(sizeof(op));
@@ -61,42 +74,21 @@ class InstructionOperand {
     *dest = *src;
   }
 
-  bool Equals(const InstructionOperand& that) const {
-    return this->value_ == that.value_;
-  }
-
-  bool Compare(const InstructionOperand& that) const {
-    return this->value_ < that.value_;
-  }
-
-  bool EqualsModuloType(const InstructionOperand& that) const {
-    return this->GetValueModuloType() == that.GetValueModuloType();
-  }
-
-  bool CompareModuloType(const InstructionOperand& that) const {
-    return this->GetValueModuloType() < that.GetValueModuloType();
-  }
-
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
-
-  inline uint64_t GetValueModuloType() const;
 
   class KindField : public BitField64<Kind, 0, 3> {};
 
   uint64_t value_;
 };
 
-
 struct PrintableInstructionOperand {
   const RegisterConfiguration* register_configuration_;
   InstructionOperand op_;
 };
 
-
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& op);
-
 
 #define INSTRUCTION_OPERAND_CASTS(OperandType, OperandKind)      \
                                                                  \
@@ -354,8 +346,6 @@ class ImmediateOperand : public InstructionOperand {
 
 class AllocatedOperand : public InstructionOperand {
  public:
-  // TODO(dcarney): machine_type makes this now redundant. Just need to know is
-  // the operand is a slot or a register.
   enum AllocatedKind {
     STACK_SLOT,
     DOUBLE_STACK_SLOT,
@@ -363,12 +353,10 @@ class AllocatedOperand : public InstructionOperand {
     DOUBLE_REGISTER
   };
 
-  AllocatedOperand(AllocatedKind kind, MachineType machine_type, int index)
+  AllocatedOperand(AllocatedKind kind, int index)
       : InstructionOperand(ALLOCATED) {
     DCHECK_IMPLIES(kind == REGISTER || kind == DOUBLE_REGISTER, index >= 0);
-    DCHECK(IsSupportedMachineType(machine_type));
     value_ |= AllocatedKindField::encode(kind);
-    value_ |= MachineTypeField::encode(machine_type);
     value_ |= static_cast<int64_t>(index) << IndexField::kShift;
   }
 
@@ -380,33 +368,14 @@ class AllocatedOperand : public InstructionOperand {
     return AllocatedKindField::decode(value_);
   }
 
-  MachineType machine_type() const { return MachineTypeField::decode(value_); }
-
-  static AllocatedOperand* New(Zone* zone, AllocatedKind kind,
-                               MachineType machine_type, int index) {
-    return InstructionOperand::New(zone,
-                                   AllocatedOperand(kind, machine_type, index));
-  }
-
-  static bool IsSupportedMachineType(MachineType machine_type) {
-    if (RepresentationOf(machine_type) != machine_type) return false;
-    switch (machine_type) {
-      case kRepWord32:
-      case kRepWord64:
-      case kRepFloat32:
-      case kRepFloat64:
-      case kRepTagged:
-        return true;
-      default:
-        return false;
-    }
+  static AllocatedOperand* New(Zone* zone, AllocatedKind kind, int index) {
+    return InstructionOperand::New(zone, AllocatedOperand(kind, index));
   }
 
   INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
 
   STATIC_ASSERT(KindField::kSize == 3);
   class AllocatedKindField : public BitField64<AllocatedKind, 3, 2> {};
-  class MachineTypeField : public BitField64<MachineType, 5, 16> {};
   class IndexField : public BitField64<int32_t, 35, 29> {};
 };
 
@@ -431,17 +400,14 @@ ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_IS)
 #undef ALLOCATED_OPERAND_IS
 
 
-// TODO(dcarney): these subkinds are now pretty useless, nuke.
 #define ALLOCATED_OPERAND_CLASS(SubKind, kOperandKind)                       \
   class SubKind##Operand final : public AllocatedOperand {                   \
    public:                                                                   \
-    explicit SubKind##Operand(MachineType machine_type, int index)           \
-        : AllocatedOperand(kOperandKind, machine_type, index) {}             \
+    explicit SubKind##Operand(int index)                                     \
+        : AllocatedOperand(kOperandKind, index) {}                           \
                                                                              \
-    static SubKind##Operand* New(Zone* zone, MachineType machine_type,       \
-                                 int index) {                                \
-      return InstructionOperand::New(zone,                                   \
-                                     SubKind##Operand(machine_type, index)); \
+    static SubKind##Operand* New(Zone* zone, int index) {                    \
+      return InstructionOperand::New(zone, SubKind##Operand(index));         \
     }                                                                        \
                                                                              \
     static SubKind##Operand* cast(InstructionOperand* op) {                  \
@@ -461,24 +427,6 @@ ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_IS)
   };
 ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_CLASS)
 #undef ALLOCATED_OPERAND_CLASS
-
-
-uint64_t InstructionOperand::GetValueModuloType() const {
-  if (IsAllocated()) {
-    // TODO(dcarney): put machine type last and mask.
-    return AllocatedOperand::MachineTypeField::update(this->value_, kMachNone);
-  }
-  return this->value_;
-}
-
-
-// Required for maps that don't care about machine type.
-struct CompareOperandModuloType {
-  bool operator()(const InstructionOperand& a,
-                  const InstructionOperand& b) const {
-    return a.CompareModuloType(b);
-  }
-};
 
 
 class MoveOperands final : public ZoneObject {
@@ -508,14 +456,14 @@ class MoveOperands final : public ZoneObject {
 
   // True if this move a move into the given destination operand.
   bool Blocks(const InstructionOperand& operand) const {
-    return !IsEliminated() && source().EqualsModuloType(operand);
+    return !IsEliminated() && source() == operand;
   }
 
   // A move is redundant if it's been eliminated or if its source and
   // destination are the same.
   bool IsRedundant() const {
     DCHECK_IMPLIES(!destination_.IsInvalid(), !destination_.IsConstant());
-    return IsEliminated() || source_.EqualsModuloType(destination_);
+    return IsEliminated() || source_ == destination_;
   }
 
   // We clear both operands to indicate move that's been eliminated.
@@ -603,7 +551,7 @@ class ReferenceMap final : public ZoneObject {
 
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
 
-class Instruction final {
+class Instruction {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
   const InstructionOperand* OutputAt(size_t i) const {
@@ -728,9 +676,10 @@ class Instruction final {
   ParallelMove* const* parallel_moves() const { return &parallel_moves_[0]; }
   ParallelMove** parallel_moves() { return &parallel_moves_[0]; }
 
- private:
+ protected:
   explicit Instruction(InstructionCode opcode);
 
+ private:
   Instruction(InstructionCode opcode, size_t output_count,
               InstructionOperand* outputs, size_t input_count,
               InstructionOperand* inputs, size_t temp_count,
@@ -747,6 +696,7 @@ class Instruction final {
   ReferenceMap* reference_map_;
   InstructionOperand operands_[1];
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(Instruction);
 };
 
@@ -1054,24 +1004,11 @@ class InstructionSequence final : public ZoneObject {
 
   const InstructionBlock* GetInstructionBlock(int instruction_index) const;
 
-  static MachineType DefaultRepresentation() {
-    return kPointerSize == 8 ? kRepWord64 : kRepWord32;
-  }
-  MachineType GetRepresentation(int virtual_register) const;
-  void MarkAsRepresentation(MachineType machine_type, int virtual_register);
+  bool IsReference(int virtual_register) const;
+  bool IsDouble(int virtual_register) const;
 
-  bool IsReference(int virtual_register) const {
-    return GetRepresentation(virtual_register) == kRepTagged;
-  }
-  bool IsFloat(int virtual_register) const {
-    switch (GetRepresentation(virtual_register)) {
-      case kRepFloat32:
-      case kRepFloat64:
-        return true;
-      default:
-        return false;
-    }
-  }
+  void MarkAsReference(int virtual_register);
+  void MarkAsDouble(int virtual_register);
 
   Instruction* GetBlockStart(RpoNumber rpo) const;
 
@@ -1174,7 +1111,8 @@ class InstructionSequence final : public ZoneObject {
   InstructionDeque instructions_;
   int next_virtual_register_;
   ReferenceMapDeque reference_maps_;
-  ZoneVector<MachineType> representations_;
+  VirtualRegisterSet doubles_;
+  VirtualRegisterSet references_;
   DeoptimizationVector deoptimization_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(InstructionSequence);
