@@ -348,10 +348,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortOptimization(kTooManyParametersLocals);
   }
 
-  if (scope->HasIllegalRedeclaration()) {
-    return AbortOptimization(kFunctionWithIllegalRedeclaration);
-  }
-
   // Check the whitelist for Crankshaft.
   if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
     return AbortOptimization(kHydrogenFilter);
@@ -408,6 +404,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   // Do not use Crankshaft if the code is intended to be serialized.
   if (!isolate()->use_crankshaft()) return SetLastStatus(FAILED);
+
+  if (scope->HasIllegalRedeclaration()) {
+    // Crankshaft cannot handle illegal redeclarations.
+    return AbortOptimization(kFunctionWithIllegalRedeclaration);
+  }
 
   if (FLAG_trace_opt) {
     OFStream os(stdout);

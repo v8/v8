@@ -514,6 +514,13 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
     NewNode(javascript()->CallRuntime(Runtime::kTraceEnter, 0));
   }
 
+  // Visit illegal re-declaration and bail out if it exists.
+  if (scope->HasIllegalRedeclaration()) {
+    AstEffectContext for_effect(this);
+    scope->VisitIllegalRedeclaration(this);
+    return;
+  }
+
   // Visit implicit declaration of the function name.
   if (scope->is_function_scope() && scope->function() != NULL) {
     VisitVariableDeclaration(scope->function());
