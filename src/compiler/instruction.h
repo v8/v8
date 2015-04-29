@@ -928,6 +928,15 @@ class InstructionBlock final : public ZoneObject {
 
   void set_ao_number(RpoNumber ao_number) { ao_number_ = ao_number; }
 
+  bool needs_frame() const { return needs_frame_; }
+  void mark_needs_frame() { needs_frame_ = true; }
+
+  bool must_construct_frame() const { return must_construct_frame_; }
+  void mark_must_construct_frame() { must_construct_frame_ = true; }
+
+  bool must_deconstruct_frame() const { return must_deconstruct_frame_; }
+  void mark_must_deconstruct_frame() { must_deconstruct_frame_ = true; }
+
  private:
   Successors successors_;
   Predecessors predecessors_;
@@ -939,6 +948,9 @@ class InstructionBlock final : public ZoneObject {
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_;     // end index of arch-specific code.
   const bool deferred_;  // Block contains deferred code.
+  bool needs_frame_;
+  bool must_construct_frame_;
+  bool must_deconstruct_frame_;
 };
 
 typedef ZoneDeque<Constant> ConstantDeque;

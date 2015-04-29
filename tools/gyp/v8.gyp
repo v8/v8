@@ -458,6 +458,8 @@
         '../../src/compiler/control-reducer.h',
         '../../src/compiler/diamond.h',
         '../../src/compiler/frame.h',
+        '../../src/compiler/frame-elider.cc',
+        '../../src/compiler/frame-elider.h',
         '../../src/compiler/gap-resolver.cc',
         '../../src/compiler/gap-resolver.h',
         '../../src/compiler/graph-builder.h',

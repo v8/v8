@@ -387,7 +387,10 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       loop_end_(loop_end),
       code_start_(-1),
       code_end_(-1),
-      deferred_(deferred) {}
+      deferred_(deferred),
+      needs_frame_(false),
+      must_construct_frame_(false),
+      must_deconstruct_frame_(false) {}
 
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {

@@ -84,8 +84,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
       current_block_ = block->rpo_number();
       if (FLAG_code_comments) {
         // TODO(titzer): these code comments are a giant memory leak.
-        Vector<char> buffer = Vector<char>::New(32);
-        SNPrintF(buffer, "-- B%d start --", block->rpo_number().ToInt());
+        Vector<char> buffer = Vector<char>::New(200);
+        SNPrintF(buffer, "-- B%d start%s%s%s%s --", block->rpo_number().ToInt(),
+                 block->IsDeferred() ? " (deferred)" : "",
+                 block->needs_frame() ? "" : " (no frame)",
+                 block->must_construct_frame() ? " (construct frame)" : "",
+                 block->must_deconstruct_frame() ? " (deconstruct frame)" : "");
         masm()->RecordComment(buffer.start());
       }
       masm()->bind(GetLabel(current_block_));

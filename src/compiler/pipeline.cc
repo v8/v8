@@ -7,6 +7,7 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
+#include "src/base/adapters.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
@@ -16,6 +17,7 @@
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/control-reducer.h"
+#include "src/compiler/frame-elider.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction.h"
@@ -832,6 +834,15 @@ struct OptimizeMovesPhase {
 };
 
 
+struct FrameElisionPhase {
+  static const char* phase_name() { return "frame elision"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    FrameElider(data->sequence()).Run();
+  }
+};
+
+
 struct JumpThreadingPhase {
   static const char* phase_name() { return "jump threading"; }
 
@@ -1182,6 +1193,10 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return Handle<Code>();
+  }
+
+  if (FLAG_turbo_frame_elision) {
+    Run<FrameElisionPhase>();
   }
 
   BeginPhaseKind("code generation");
