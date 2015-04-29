@@ -431,6 +431,21 @@ void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
 }
 
 
+void IncrementalMarking::NotifyOfHighPromotionRate() {
+  if (IsMarking()) {
+    if (marking_speed_ < kFastMarking) {
+      if (FLAG_trace_gc) {
+        PrintIsolate(heap()->isolate(),
+                     "Increasing marking speed to %d "
+                     "due to high promotion rate\n",
+                     static_cast<int>(kFastMarking));
+      }
+      marking_speed_ = kFastMarking;
+    }
+  }
+}
+
+
 static void PatchIncrementalMarkingRecordWriteStubs(
     Heap* heap, RecordWriteStub::Mode mode) {
   UnseededNumberDictionary* stubs = heap->code_stubs();
@@ -827,9 +842,9 @@ void IncrementalMarking::SpeedUp() {
   bool speed_up = false;
 
   if ((steps_count_ % kMarkingSpeedAccellerationInterval) == 0) {
-    if (FLAG_trace_gc) {
-      PrintPID("Speed up marking after %d steps\n",
-               static_cast<int>(kMarkingSpeedAccellerationInterval));
+    if (FLAG_trace_incremental_marking) {
+      PrintIsolate(heap()->isolate(), "Speed up marking after %d steps\n",
+                   static_cast<int>(kMarkingSpeedAccellerationInterval));
     }
     speed_up = true;
   }
@@ -843,7 +858,9 @@ void IncrementalMarking::SpeedUp() {
 
   if (space_left_is_very_small ||
       only_1_nth_of_space_that_was_available_still_left) {
-    if (FLAG_trace_gc) PrintPID("Speed up marking because of low space left\n");
+    if (FLAG_trace_incremental_marking)
+      PrintIsolate(heap()->isolate(),
+                   "Speed up marking because of low space left\n");
     speed_up = true;
   }
 
@@ -853,8 +870,9 @@ void IncrementalMarking::SpeedUp() {
            old_generation_space_used_at_start_of_incremental_);
   if (size_of_old_space_multiplied_by_n_during_marking) {
     speed_up = true;
-    if (FLAG_trace_gc) {
-      PrintPID("Speed up marking because of heap size increase\n");
+    if (FLAG_trace_incremental_marking) {
+      PrintIsolate(heap()->isolate(),
+                   "Speed up marking because of heap size increase\n");
     }
   }
 
@@ -866,23 +884,26 @@ void IncrementalMarking::SpeedUp() {
 
   // We try to scan at at least twice the speed that we are allocating.
   if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
-    if (FLAG_trace_gc) {
-      PrintPID("Speed up marking because marker was not keeping up\n");
+    if (FLAG_trace_incremental_marking) {
+      PrintIsolate(heap()->isolate(),
+                   "Speed up marking because marker was not keeping up\n");
     }
     speed_up = true;
   }
 
   if (speed_up) {
     if (state_ != MARKING) {
-      if (FLAG_trace_gc) {
-        PrintPID("Postponing speeding up marking until marking starts\n");
+      if (FLAG_trace_incremental_marking) {
+        PrintIsolate(heap()->isolate(),
+                     "Postponing speeding up marking until marking starts\n");
       }
     } else {
       marking_speed_ += kMarkingSpeedAccelleration;
       marking_speed_ = static_cast<int>(
           Min(kMaxMarkingSpeed, static_cast<intptr_t>(marking_speed_ * 1.3)));
-      if (FLAG_trace_gc) {
-        PrintPID("Marking speed increased to %d\n", marking_speed_);
+      if (FLAG_trace_incremental_marking) {
+        PrintIsolate(heap()->isolate(), "Marking speed increased to %d\n",
+                     marking_speed_);
       }
     }
   }

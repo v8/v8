@@ -169,19 +169,7 @@ class IncrementalMarking {
 
   void ActivateGeneratedStub(Code* stub);
 
-  void NotifyOfHighPromotionRate() {
-    if (IsMarking()) {
-      if (marking_speed_ < kFastMarking) {
-        if (FLAG_trace_gc) {
-          PrintPID(
-              "Increasing marking speed to %d "
-              "due to high promotion rate\n",
-              static_cast<int>(kFastMarking));
-        }
-        marking_speed_ = kFastMarking;
-      }
-    }
-  }
+  void NotifyOfHighPromotionRate();
 
   void EnterNoMarkingScope() { no_marking_scope_depth_++; }
 

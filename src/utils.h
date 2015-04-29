@@ -1140,6 +1140,9 @@ void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
 // Prepends the current process ID to the output.
 void PRINTF_CHECKING PrintPID(const char* format, ...);
 
+// Prepends the current process ID and given isolate pointer to the output.
+void PrintIsolate(void* isolate, const char* format, ...);
+
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
 int FPRINTF_CHECKING SNPrintF(Vector<char> str, const char* format, ...);
