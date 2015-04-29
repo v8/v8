@@ -942,6 +942,8 @@ Handle<PropertyCell> Factory::NewPropertyCell() {
 
 
 Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
+  // It is safe to dereference the value because we are embedding it
+  // in cell and not inspecting its fields.
   AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateWeakCell(*value),
                      WeakCell);
