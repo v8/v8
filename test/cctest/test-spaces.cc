@@ -462,7 +462,9 @@ UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
   FLAG_target_semi_space_size = 2 * (Page::kPageSize / MB);
   if (FLAG_optimize_for_size) return;
 
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);

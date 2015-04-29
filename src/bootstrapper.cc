@@ -1606,7 +1606,7 @@ Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
   bool is_external = data != nullptr;
   if (!is_external) {
     data = reinterpret_cast<Data*>(
-        V8::ArrayBufferAllocator()->Allocate(byte_length));
+        isolate->array_buffer_allocator()->Allocate(byte_length));
   }
   Runtime::SetupArrayBuffer(isolate, buffer, is_external, data, byte_length);
 

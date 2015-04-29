@@ -22,9 +22,9 @@ void Runtime::FreeArrayBuffer(Isolate* isolate,
   reinterpret_cast<v8::Isolate*>(isolate)
       ->AdjustAmountOfExternalAllocatedMemory(
           -static_cast<int64_t>(allocated_length));
-  CHECK(V8::ArrayBufferAllocator() != NULL);
-  V8::ArrayBufferAllocator()->Free(phantom_array_buffer->backing_store(),
-                                   allocated_length);
+  CHECK(isolate->array_buffer_allocator() != NULL);
+  isolate->array_buffer_allocator()->Free(phantom_array_buffer->backing_store(),
+                                          allocated_length);
 }
 
 
@@ -67,15 +67,15 @@ bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
                                              size_t allocated_length,
                                              bool initialize) {
   void* data;
-  CHECK(V8::ArrayBufferAllocator() != NULL);
+  CHECK(isolate->array_buffer_allocator() != NULL);
   // Prevent creating array buffers when serializing.
   DCHECK(!isolate->serializer_enabled());
   if (allocated_length != 0) {
     if (initialize) {
-      data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
+      data = isolate->array_buffer_allocator()->Allocate(allocated_length);
     } else {
-      data =
-          V8::ArrayBufferAllocator()->AllocateUninitialized(allocated_length);
+      data = isolate->array_buffer_allocator()->AllocateUninitialized(
+          allocated_length);
     }
     if (data == NULL) return false;
   } else {
@@ -173,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
   array_buffer->set_is_external(true);
   Runtime::NeuterArrayBuffer(array_buffer);
-  V8::ArrayBufferAllocator()->Free(backing_store, byte_length);
+  isolate->array_buffer_allocator()->Free(backing_store, byte_length);
   return isolate->heap()->undefined_value();
 }
 

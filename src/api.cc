@@ -320,8 +320,25 @@ bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
 }
 
 
+namespace {
+
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+}  // namespace
+
+
 StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
   i::Isolate* internal_isolate = new i::Isolate(true);
+  ArrayBufferAllocator allocator;
+  internal_isolate->set_array_buffer_allocator(&allocator);
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
   StartupData result = {NULL, 0};
   {
@@ -6742,9 +6759,20 @@ Isolate* Isolate::GetCurrent() {
 }
 
 
+Isolate* Isolate::New() {
+  Isolate::CreateParams create_params;
+  return New(create_params);
+}
+
+
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+  if (params.array_buffer_allocator != NULL) {
+    isolate->set_array_buffer_allocator(params.array_buffer_allocator);
+  } else {
+    isolate->set_array_buffer_allocator(i::V8::ArrayBufferAllocator());
+  }
   if (params.snapshot_blob != NULL) {
     isolate->set_snapshot_blob(params.snapshot_blob);
   } else {

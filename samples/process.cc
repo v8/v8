@@ -662,8 +662,6 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
-  ArrayBufferAllocator array_buffer_allocator;
-  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   v8::V8::Initialize();
   map<string, string> options;
   string file;
@@ -672,7 +670,10 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-  Isolate* isolate = Isolate::New();
+  ArrayBufferAllocator array_buffer_allocator;
+  Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &array_buffer_allocator;
+  Isolate* isolate = Isolate::New(create_params);
   Isolate::Scope isolate_scope(isolate);
   HandleScope scope(isolate);
   Handle<String> source = ReadFile(isolate, file);

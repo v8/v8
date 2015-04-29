@@ -5236,7 +5236,9 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
-  isolate_ = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  isolate_ = v8::Isolate::New(create_params);
   threaded_debugging_barriers.barrier_3.Wait();
   {
     v8::Isolate::Scope isolate_scope(isolate_);
@@ -5367,7 +5369,9 @@ void BreakpointsV8Thread::Run() {
   const char* source_2 = "cat(17);\n"
     "cat(19);\n";
 
-  isolate_ = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  isolate_ = v8::Isolate::New(create_params);
   breakpoints_barriers->barrier_3.Wait();
   {
     v8::Isolate::Scope isolate_scope(isolate_);

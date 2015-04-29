@@ -82,8 +82,9 @@ int main(int argc, char* argv[]) {
   v8::V8::Initialize();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   ShellArrayBufferAllocator array_buffer_allocator;
-  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &array_buffer_allocator;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   run_shell = (argc == 1);
   int result;
   {

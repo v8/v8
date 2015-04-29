@@ -470,7 +470,9 @@ static intptr_t MemoryInUse() {
 
 
 intptr_t ShortLivingIsolate() {
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   { v8::Isolate::Scope isolate_scope(isolate);
     v8::Locker lock(isolate);
     v8::HandleScope handle_scope(isolate);

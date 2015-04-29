@@ -1211,6 +1211,7 @@ UNINITIALIZED_TEST(OneByteArrayJoin) {
   // Set heap limits.
   create_params.constraints.set_max_semi_space_size(1);
   create_params.constraints.set_max_old_space_size(6);
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
 

@@ -141,8 +141,6 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
-  ArrayBufferAllocator array_buffer_allocator;
-  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   v8::V8::Initialize();
   Encoding encoding = LATIN1;
   std::vector<std::string> fnames;
@@ -164,7 +162,10 @@ int main(int argc, char* argv[]) {
       fnames.push_back(std::string(argv[i]));
     }
   }
-  v8::Isolate* isolate = v8::Isolate::New();
+  ArrayBufferAllocator array_buffer_allocator;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &array_buffer_allocator;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);

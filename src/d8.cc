@@ -73,7 +73,37 @@
 namespace v8 {
 
 namespace {
+
+const int MB = 1024 * 1024;
+
+
+class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+
+class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  void* Allocate(size_t length) override {
+    size_t actual_length = length > 10 * MB ? 1 : length;
+    void* data = AllocateUninitialized(actual_length);
+    return data == NULL ? data : memset(data, 0, actual_length);
+  }
+  void* AllocateUninitialized(size_t length) override {
+    return length > 10 * MB ? malloc(1) : malloc(length);
+  }
+  void Free(void* p, size_t) override { free(p); }
+};
+
+
 v8::Platform* g_platform = NULL;
+
 }  // namespace
 
 
@@ -166,7 +196,6 @@ Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
-const int MB = 1024 * 1024;
 
 #ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
@@ -197,7 +226,10 @@ ScriptCompiler::CachedData* CompileForCachedData(
     name_buffer = new uint16_t[name_length];
     name_string->Write(name_buffer, 0, name_length);
   }
-  Isolate* temp_isolate = Isolate::New();
+  ShellArrayBufferAllocator allocator;
+  Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+  Isolate* temp_isolate = Isolate::New(create_params);
   ScriptCompiler::CachedData* result = NULL;
   {
     Isolate::Scope isolate_scope(temp_isolate);
@@ -1287,7 +1319,10 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
 
 
 void SourceGroup::ExecuteInThread() {
-  Isolate* isolate = Isolate::New();
+  ShellArrayBufferAllocator allocator;
+  Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+  Isolate* isolate = Isolate::New(create_params);
   do {
     next_semaphore_.Wait();
     {
@@ -1584,31 +1619,6 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 #endif  // !V8_SHARED
 
 
-class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t) { free(data); }
-};
-
-
-class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  void* Allocate(size_t length) override {
-    size_t actual_length = length > 10 * MB ? 1 : length;
-    void* data = AllocateUninitialized(actual_length);
-    return data == NULL ? data : memset(data, 0, actual_length);
-  }
-  void* AllocateUninitialized(size_t length) override {
-    return length > 10 * MB ? malloc(1) : malloc(length);
-  }
-  void Free(void* p, size_t) override { free(p); }
-};
-
-
 int Shell::Main(int argc, char* argv[]) {
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
@@ -1637,15 +1647,15 @@ int Shell::Main(int argc, char* argv[]) {
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  int result = 0;
+  Isolate::CreateParams create_params;
   ShellArrayBufferAllocator array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   if (options.mock_arraybuffer_allocator) {
-    v8::V8::SetArrayBufferAllocator(&mock_arraybuffer_allocator);
+    create_params.array_buffer_allocator = &mock_arraybuffer_allocator;
   } else {
-    v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+    create_params.array_buffer_allocator = &array_buffer_allocator;
   }
-  int result = 0;
-  Isolate::CreateParams create_params;
 #if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
   if (i::FLAG_gdbjit) {
     create_params.code_event_handler = i::GDBJITInterface::EventHandler;

@@ -68,7 +68,9 @@ class TestIsolate : public Isolate {
     isolate->Init(NULL);
     return v8_isolate;
   }
-  explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {}
+  explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
+    set_array_buffer_allocator(CcTest::array_buffer_allocator());
+  }
 };
 
 
@@ -669,6 +671,8 @@ TEST(PerIsolateSnapshotBlobs) {
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
   v8::Isolate* isolate1 = v8::Isolate::New(params1);
   {
     v8::Isolate::Scope i_scope(isolate1);
@@ -683,6 +687,7 @@ TEST(PerIsolateSnapshotBlobs) {
 
   v8::Isolate::CreateParams params2;
   params2.snapshot_blob = &data2;
+  params2.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(params2);
   {
     v8::Isolate::Scope i_scope(isolate2);
@@ -699,7 +704,9 @@ TEST(PerIsolateSnapshotBlobs) {
 
 TEST(PerIsolateSnapshotBlobsWithLocker) {
   DisableTurbofan();
-  v8::Isolate* isolate0 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate0 = v8::Isolate::New(create_params);
   {
     v8::Locker locker(isolate0);
     v8::Isolate::Scope i_scope(isolate0);
@@ -716,6 +723,7 @@ TEST(PerIsolateSnapshotBlobsWithLocker) {
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate1 = v8::Isolate::New(params1);
   {
     v8::Locker locker(isolate1);
@@ -1303,7 +1311,9 @@ static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
 
 v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
   v8::ScriptCompiler::CachedData* cache;
-  v8::Isolate* isolate1 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate1);
     v8::HandleScope scope(isolate1);
@@ -1337,7 +1347,9 @@ TEST(SerializeToplevelIsolates) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                    SerializerCodeEventListener);
   toplevel_test_code_event_found = false;
@@ -1371,7 +1383,9 @@ TEST(SerializeToplevelFlagChange) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
 
   FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
   FlagList::EnforceFlagImplications();
@@ -1401,7 +1415,9 @@ TEST(SerializeToplevelBitFlip) {
   // Random bit flip.
   const_cast<uint8_t*>(cache->data)[337] ^= 0x40;
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1428,7 +1444,9 @@ TEST(SerializeWithHarmonyScoping) {
 
   v8::ScriptCompiler::CachedData* cache;
 
-  v8::Isolate* isolate1 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate1);
     v8::HandleScope scope(isolate1);
@@ -1456,7 +1474,7 @@ TEST(SerializeWithHarmonyScoping) {
   }
   isolate1->Dispose();
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1519,6 +1537,7 @@ TEST(SerializeInternalReference) {
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
