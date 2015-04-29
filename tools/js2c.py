@@ -366,6 +366,8 @@ def BuildFilterChain(macro_filename, message_template_file):
 
   return reduce(chain, filter_chain)
 
+def BuildExtraFilterChain():
+  return lambda x: RemoveCommentsAndTrailingWhitespace(Validate(ReadFile(x)))
 
 class Sources:
   def __init__(self):
@@ -384,12 +386,16 @@ def IsMessageTemplateFile(filename):
   return filename.endswith("messages.h")
 
 
-def PrepareSources(source_files):
+def PrepareSources(source_files, extra_files, emit_js):
   """Read, prepare and assemble the list of source files.
 
   Args:
-    sources: List of Javascript-ish source files. A file named macros.py
+    source_files: List of JavaScript-ish source files. A file named macros.py
         will be treated as a list of macros.
+    extra_files: List of JavaScript-ish extra source files, passed in
+        externally from V8. Will not be minified or macro-ified.
+    emit_js: True if we should skip the byte conversion and just leave the
+        sources as JS strings.
 
   Returns:
     An instance of Sources.
@@ -409,25 +415,38 @@ def PrepareSources(source_files):
     message_template_file = message_template_files[0]
 
   filters = BuildFilterChain(macro_file, message_template_file)
+  extra_filters = BuildExtraFilterChain()
 
   # Sort 'debugger' sources first.
   source_files = sorted(source_files,
                         lambda l,r: IsDebuggerFile(r) - IsDebuggerFile(l))
 
   result = Sources()
+
   for source in source_files:
     try:
       lines = filters(source)
     except Error as e:
       raise Error("In file %s:\n%s" % (source, str(e)))
 
-    result.modules.append(lines);
+    result.modules.append(lines)
 
     is_debugger = IsDebuggerFile(source)
-    result.is_debugger_id.append(is_debugger);
+    result.is_debugger_id.append(is_debugger)
 
     name = os.path.basename(source)[:-3]
-    result.names.append(name if not is_debugger else name[:-9]);
+    result.names.append(name if not is_debugger else name[:-9])
+
+  for extra in extra_files:
+    try:
+      lines = extra_filters(extra)
+    except Error as e:
+      raise Error("In file %s:\n%s" % (source, str(e)))
+
+    result.modules.append(lines)
+    name = os.path.basename(source)[:-3]
+    result.names.append(name)
+
   return result
 
 
@@ -531,32 +550,33 @@ def WriteStartupBlob(sources, startup_blob):
   output.close()
 
 
-def JS2C(source, extraSource, target, native_type, raw_file, startup_blob):
-  # For now we treat source and extraSource the same, but we keep them separate
-  # in the input so that we can start treating them differently in the future.
-  sources = PrepareSources(source + extraSource)
-  sources_bytes = "".join(sources.modules)
-  metadata = BuildMetadata(sources, sources_bytes, native_type)
+def JS2C(sources, extra_sources, target, native_type, raw_file, startup_blob, emitJS):
+  prepared_sources = PrepareSources(sources, extra_sources, emitJS)
+  sources_output = "".join(prepared_sources.modules)
+  metadata = BuildMetadata(prepared_sources, sources_output, native_type)
 
   # Optionally emit raw file.
   if raw_file:
     output = open(raw_file, "w")
-    output.write(sources_bytes)
+    output.write(sources_output)
     output.close()
 
   if startup_blob:
-    WriteStartupBlob(sources, startup_blob);
+    WriteStartupBlob(prepared_sources, startup_blob)
 
   # Emit resulting source file.
   output = open(target, "w")
-  output.write(HEADER_TEMPLATE % metadata)
+  if emitJS:
+    output.write(sources_output)
+  else:
+    output.write(HEADER_TEMPLATE % metadata)
   output.close()
 
 
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("out.cc",
-                      help="C code to be generated")
+                      help="output filename")
   parser.add_argument("type",
                       help="type parameter for NativesCollection template")
   parser.add_argument("sources.js",
@@ -569,9 +589,13 @@ def main():
   parser.add_argument("--extra",
                       help="extra JS sources.",
                       nargs="*")
+  parser.add_argument("--js",
+                      help="writes a JS file output instead of a C file",
+                      action="store_true")
 
   args = vars(parser.parse_args())
-  JS2C(args["sources.js"], args["extra"] or [], args["out.cc"], args["type"], args["raw"], args["startup_blob"])
+  JS2C(args["sources.js"], args["extra"] or [], args["out.cc"], args["type"], args["raw"], args["startup_blob"],
+       args["js"])
 
 
 if __name__ == "__main__":
