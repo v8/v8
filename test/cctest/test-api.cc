@@ -11265,13 +11265,15 @@ THREADED_TEST(ObjectGetConstructorName) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
   v8::HandleScope scope(isolate);
-  v8_compile("function Parent() {};"
-             "function Child() {};"
-             "Child.prototype = new Parent();"
-             "var outer = { inner: function() { } };"
-             "var p = new Parent();"
-             "var c = new Child();"
-             "var x = new outer.inner();")->Run();
+  v8_compile(
+      "function Parent() {};"
+      "function Child() {};"
+      "Child.prototype = new Parent();"
+      "var outer = { inner: function() { } };"
+      "var p = new Parent();"
+      "var c = new Child();"
+      "var x = new outer.inner();"
+      "var proto = Child.prototype;")->Run();
 
   Local<v8::Value> p = context->Global()->Get(v8_str("p"));
   CHECK(p->IsObject() &&
@@ -11285,6 +11287,11 @@ THREADED_TEST(ObjectGetConstructorName) {
   CHECK(x->IsObject() &&
         x->ToObject(isolate)->GetConstructorName()->Equals(
             v8_str("outer.inner")));
+
+  Local<v8::Value> child_prototype = context->Global()->Get(v8_str("proto"));
+  CHECK(child_prototype->IsObject() &&
+        child_prototype->ToObject(isolate)->GetConstructorName()->Equals(
+            v8_str("Parent")));
 }
 
 

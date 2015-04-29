@@ -5461,6 +5461,7 @@ ACCESSORS(Box, value, Object, kValueOffset)
 
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
 ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
+ACCESSORS(PrototypeInfo, constructor_name, Object, kConstructorNameOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

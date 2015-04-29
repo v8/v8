@@ -6642,6 +6642,8 @@ class PrototypeInfo : public Struct {
   // [validity_cell]: Cell containing the validity bit for prototype chains
   // going through this object, or Smi(0) if uninitialized.
   DECL_ACCESSORS(validity_cell, Object)
+  // [constructor_name]: User-friendly name of the original constructor.
+  DECL_ACCESSORS(constructor_name, Object)
 
   DECLARE_CAST(PrototypeInfo)
 
@@ -6651,7 +6653,8 @@ class PrototypeInfo : public Struct {
 
   static const int kPrototypeUsersOffset = HeapObject::kHeaderSize;
   static const int kValidityCellOffset = kPrototypeUsersOffset + kPointerSize;
-  static const int kSize = kValidityCellOffset + kPointerSize;
+  static const int kConstructorNameOffset = kValidityCellOffset + kPointerSize;
+  static const int kSize = kConstructorNameOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);

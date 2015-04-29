@@ -1697,6 +1697,12 @@ String* JSReceiver::class_name() {
 
 
 String* Map::constructor_name() {
+  if (is_prototype_map() && prototype_info()->IsPrototypeInfo()) {
+    PrototypeInfo* proto_info = PrototypeInfo::cast(prototype_info());
+    if (proto_info->constructor_name()->IsString()) {
+      return String::cast(proto_info->constructor_name());
+    }
+  }
   Object* maybe_constructor = GetConstructor();
   if (maybe_constructor->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(maybe_constructor);
@@ -10062,21 +10068,26 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
       JSObject::MigrateToMap(object, new_map);
     }
+    object->map()->set_is_prototype_map(true);
+
+    // Replace the pointer to the exact constructor with the Object function
+    // from the same context if undetectable from JS. This is to avoid keeping
+    // memory alive unnecessarily.
     Object* maybe_constructor = object->map()->GetConstructor();
     if (maybe_constructor->IsJSFunction()) {
       JSFunction* constructor = JSFunction::cast(maybe_constructor);
-      // Replace the pointer to the exact constructor with the Object function
-      // from the same context if undetectable from JS. This is to avoid keeping
-      // memory alive unnecessarily.
+      Isolate* isolate = object->GetIsolate();
       if (!constructor->shared()->IsApiFunction() &&
-          object->class_name() ==
-              object->GetIsolate()->heap()->Object_string()) {
+          object->class_name() == isolate->heap()->Object_string()) {
+        Handle<String> constructor_name(object->constructor_name(), isolate);
         Context* context = constructor->context()->native_context();
         JSFunction* object_function = context->object_function();
         object->map()->SetConstructor(object_function);
+        Handle<PrototypeInfo> proto_info =
+            Map::GetOrCreatePrototypeInfo(object, isolate);
+        proto_info->set_constructor_name(*constructor_name);
       }
     }
-    object->map()->set_is_prototype_map(true);
   }
 }
 

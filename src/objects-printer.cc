@@ -881,6 +881,7 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PrototypeInfo");
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - validity cell: " << Brief(validity_cell());
+  os << "\n - constructor name: " << Brief(constructor_name());
   os << "\n";
 }
 
