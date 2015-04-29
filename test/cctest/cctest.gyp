@@ -50,7 +50,6 @@
         'compiler/function-tester.h',
         'compiler/graph-builder-tester.cc',
         'compiler/graph-builder-tester.h',
-        'compiler/graph-tester.h',
         'compiler/simplified-graph-builder.cc',
         'compiler/simplified-graph-builder.h',
         'compiler/test-basic-block-profiler.cc',
