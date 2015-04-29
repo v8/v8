@@ -64,6 +64,7 @@
         'compiler/machine-operator-reducer-unittest.cc',
         'compiler/machine-operator-unittest.cc',
         'compiler/move-optimizer-unittest.cc',
+        'compiler/node-cache-unittest.cc',
         'compiler/node-matchers-unittest.cc',
         'compiler/node-properties-unittest.cc',
         'compiler/node-test-utils.cc',
