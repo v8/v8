@@ -1277,7 +1277,7 @@ void CodeGenerator::AssembleReturn() {
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
-    __ ret(pop_count * kPointerSize);
+    __ Ret(pop_count * kPointerSize, ebx);
   } else {
     __ ret(0);
   }
