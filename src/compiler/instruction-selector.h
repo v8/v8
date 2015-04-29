@@ -146,21 +146,14 @@ class InstructionSelector final {
   // will need to generate code for it.
   void MarkAsUsed(Node* node);
 
-  // Checks if {node} is marked as double.
-  bool IsDouble(const Node* node) const;
-
-  // Inform the register allocator of a double result.
-  void MarkAsDouble(Node* node);
-
-  // Checks if {node} is marked as reference.
-  bool IsReference(const Node* node) const;
-
-  // Inform the register allocator of a reference result.
-  void MarkAsReference(Node* node);
-
   // Inform the register allocation of the representation of the value produced
   // by {node}.
   void MarkAsRepresentation(MachineType rep, Node* node);
+  void MarkAsWord32(Node* node) { MarkAsRepresentation(kRepWord32, node); }
+  void MarkAsWord64(Node* node) { MarkAsRepresentation(kRepWord64, node); }
+  void MarkAsFloat32(Node* node) { MarkAsRepresentation(kRepFloat32, node); }
+  void MarkAsFloat64(Node* node) { MarkAsRepresentation(kRepFloat64, node); }
+  void MarkAsReference(Node* node) { MarkAsRepresentation(kRepTagged, node); }
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.

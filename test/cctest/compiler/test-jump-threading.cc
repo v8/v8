@@ -59,13 +59,14 @@ class TestCode : public HandleAndZoneScope {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, RegisterOperand(13), RegisterOperand(13));
+    AddGapMove(index, RegisterOperand(kRepWord32, 13),
+               RegisterOperand(kRepWord32, 13));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, ConstantOperand(11), RegisterOperand(11));
+    AddGapMove(index, ConstantOperand(11), RegisterOperand(kRepWord32, 11));
   }
   void Other() {
     Start();
