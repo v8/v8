@@ -463,7 +463,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       DCHECK_EQ(IrOpcode::kCall, input->opcode());
       BasicBlock* success = block->SuccessorAt(0);
       BasicBlock* exception = block->SuccessorAt(1);
-      return VisitCall(input, exception), VisitGoto(success);
+      return VisitCall(input, exception, NORMAL_CALL), VisitGoto(success);
     }
     case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
@@ -506,7 +506,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kReturn: {
       DCHECK_EQ(IrOpcode::kReturn, input->opcode());
-      return VisitReturn(input->InputAt(0));
+      return VisitReturn(input);
     }
     case BasicBlock::kDeoptimize: {
       // If the result itself is a return, return its input.
@@ -583,7 +583,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitConstant(node);
     }
     case IrOpcode::kCall:
-      return VisitCall(node, nullptr);
+      return VisitCall(node, nullptr, NORMAL_CALL);
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
       return;
@@ -988,7 +988,46 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
 }
 
 
-void InstructionSelector::VisitReturn(Node* value) {
+namespace {
+
+// Returns the call node if the given return node is part of a tail call,
+// nullptr otherwise.
+Node* TryMatchTailCall(Node* ret) {
+  // The value which is returned must be the result of a potential tail call,
+  // there must be no try/catch/finally around the call, and there must be no
+  // effects between the call and the return.
+  Node* call = NodeProperties::GetValueInput(ret, 0);
+  if (call->opcode() != IrOpcode::kCall ||
+      !OpParameter<const CallDescriptor*>(call)->SupportsTailCalls() ||
+      NodeProperties::IsExceptionalCall(call) ||
+      NodeProperties::GetEffectInput(ret, 0) != call) {
+    return nullptr;
+  }
+  // Furthermore, control has to flow via an IfSuccess from the call (for calls
+  // which can throw), or the return and the call have to use the same control
+  // input (for calls which can't throw).
+  Node* control = NodeProperties::GetControlInput(ret, 0);
+  bool found = (control->opcode() == IrOpcode::kIfSuccess)
+                   ? (NodeProperties::GetControlInput(control, 0) == call)
+                   : (control == NodeProperties::GetControlInput(call, 0));
+  return found ? call : nullptr;
+}
+
+}  // namespace
+
+
+void InstructionSelector::VisitReturn(Node* node) {
+  if (FLAG_turbo_tail_calls) {
+    Node* call = TryMatchTailCall(node);
+    if (call != nullptr) {
+      const CallDescriptor* desc = OpParameter<const CallDescriptor*>(call);
+      if (desc->UsesOnlyRegisters() &&
+          desc->HasSameReturnLocationsAs(linkage()->GetIncomingDescriptor())) {
+        return VisitCall(call, nullptr, TAIL_CALL);
+      }
+    }
+  }
+  Node* value = NodeProperties::GetValueInput(node, 0);
   DCHECK_NOT_NULL(value);
   OperandGenerator g(this);
   Emit(kArchRet, g.NoOutput(),
@@ -1119,7 +1158,8 @@ MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
 #undef DECLARE_UNIMPLEMENTED_SELECTOR
 
 
-void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+void InstructionSelector::VisitCall(Node* node, BasicBlock* handler,
+                                    CallMode call_mode) {
   UNIMPLEMENTED();
 }
 

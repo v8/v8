@@ -62,7 +62,7 @@ PARSE_INFO_GETTER(Handle<Script>, script)
 PARSE_INFO_GETTER(bool, is_eval)
 PARSE_INFO_GETTER(bool, is_native)
 PARSE_INFO_GETTER(bool, is_module)
-PARSE_INFO_GETTER(LanguageMode, language_mode)
+PARSE_INFO_GETTER_WITH_DEFAULT(LanguageMode, language_mode, STRICT)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<JSFunction>, closure,
                                Handle<JSFunction>::null())
 PARSE_INFO_GETTER(FunctionLiteral*, function)

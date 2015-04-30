@@ -93,6 +93,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   // to tear down a stack frame.
   void AssembleReturn();
 
+  // Generates code to deconstruct a the caller's frame, including arguments.
+  void AssembleDeconstructActivationRecord();
+
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================

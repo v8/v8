@@ -34,7 +34,17 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
             << "j" << d.JSParameterCount() << "i" << d.InputCount() << "f"
-            << d.FrameStateCount();
+            << d.FrameStateCount() << "t" << d.SupportsTailCalls();
+}
+
+
+bool CallDescriptor::HasSameReturnLocationsAs(
+    const CallDescriptor* other) const {
+  if (ReturnCount() != other->ReturnCount()) return false;
+  for (size_t i = 0; i < ReturnCount(); ++i) {
+    if (GetReturnLocation(i) != other->GetReturnLocation(i)) return false;
+  }
+  return true;
 }
 
 
@@ -137,6 +147,17 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   const Runtime::Function* const f = Runtime::FunctionForId(function);
   if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
 
+  return true;
+}
+
+
+bool CallDescriptor::UsesOnlyRegisters() const {
+  for (size_t i = 0; i < InputCount(); ++i) {
+    if (!GetInputLocation(i).is_register()) return false;
+  }
+  for (size_t i = 0; i < ReturnCount(); ++i) {
+    if (!GetReturnLocation(i).is_register()) return false;
+  }
   return true;
 }
 

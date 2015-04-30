@@ -284,6 +284,23 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
   } while (false)
 
 
+void CodeGenerator::AssembleDeconstructActivationRecord() {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
+  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
+    __ mov(esp, ebp);
+    __ pop(ebp);
+    int32_t bytes_to_pop =
+        descriptor->IsJSFunctionCall()
+            ? static_cast<int32_t>(descriptor->JSParameterCount() *
+                                   kPointerSize)
+            : 0;
+    __ pop(Operand(esp, bytes_to_pop));
+    __ add(esp, Immediate(bytes_to_pop));
+  }
+}
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   IA32OperandConverter i(this, instr);
@@ -301,6 +318,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       RecordCallPosition(instr);
       break;
     }
+    case kArchTailCallCodeObject: {
+      AssembleDeconstructActivationRecord();
+      if (HasImmediateInput(instr, 0)) {
+        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
+        __ jmp(code, RelocInfo::CODE_TARGET);
+      } else {
+        Register reg = i.InputRegister(0);
+        __ jmp(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
+      }
+      break;
+    }
     case kArchCallJSFunction: {
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
@@ -311,6 +339,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       RecordCallPosition(instr);
+      break;
+    }
+    case kArchTailCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (FLAG_debug_code) {
+        // Check the function's context matches the context argument.
+        __ cmp(esi, FieldOperand(func, JSFunction::kContextOffset));
+        __ Assert(equal, kWrongFunctionContext);
+      }
+      AssembleDeconstructActivationRecord();
+      __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }
     case kArchJmp:

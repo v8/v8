@@ -299,6 +299,19 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 
+void CodeGenerator::AssembleDeconstructActivationRecord() {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
+  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
+    __ LeaveFrame(StackFrame::MANUAL);
+    int pop_count = descriptor->IsJSFunctionCall()
+                        ? static_cast<int>(descriptor->JSParameterCount())
+                        : 0;
+    __ Drop(pop_count);
+  }
+}
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   ArmOperandConverter i(this, instr);
@@ -318,6 +331,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArchTailCallCodeObject: {
+      AssembleDeconstructActivationRecord();
+      if (instr->InputAt(0)->IsImmediate()) {
+        __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ add(ip, i.InputRegister(0),
+               Operand(Code::kHeaderSize - kHeapObjectTag));
+        __ Jump(ip);
+      }
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArchCallJSFunction: {
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
@@ -330,6 +356,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
       RecordCallPosition(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArchTailCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (FLAG_debug_code) {
+        // Check the function's context matches the context argument.
+        __ ldr(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ cmp(cp, kScratchReg);
+        __ Assert(eq, kWrongFunctionContext);
+      }
+      AssembleDeconstructActivationRecord();
+      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Jump(ip);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }

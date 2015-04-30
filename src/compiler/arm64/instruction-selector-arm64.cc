@@ -1204,7 +1204,8 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
-void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+void InstructionSelector::VisitCall(Node* node, BasicBlock* handler,
+                                    CallMode call_mode) {
   Arm64OperandGenerator g(this);
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
 
@@ -1260,14 +1261,15 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   }
 
   // Select the appropriate opcode based on the call type.
+  bool is_tail_call = call_mode == TAIL_CALL;
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      opcode = kArchCallCodeObject;
+      opcode = is_tail_call ? kArchTailCallCodeObject : kArchCallCodeObject;
       break;
     }
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction;
+      opcode = is_tail_call ? kArchTailCallJSFunction : kArchCallJSFunction;
       break;
     default:
       UNREACHABLE();
@@ -1276,11 +1278,12 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
+  size_t size = is_tail_call ? 0 : buffer.outputs.size();
   InstructionOperand* first_output =
-      buffer.outputs.size() > 0 ? &buffer.outputs.front() : NULL;
+      size > 0 ? &buffer.outputs.front() : nullptr;
   Instruction* call_instr =
-      Emit(opcode, buffer.outputs.size(), first_output,
-           buffer.instruction_args.size(), &buffer.instruction_args.front());
+      Emit(opcode, size, first_output, buffer.instruction_args.size(),
+           &buffer.instruction_args.front());
   call_instr->MarkAsCall();
 }
 

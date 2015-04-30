@@ -394,6 +394,20 @@ FPUCondition FlagsConditionToConditionCmpD(bool& predicate,
   } while (0)
 
 
+void CodeGenerator::AssembleDeconstructActivationRecord() {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
+  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
+    __ mov(sp, fp);
+    __ Pop(ra, fp);
+    int pop_count = descriptor->IsJSFunctionCall()
+                        ? static_cast<int>(descriptor->JSParameterCount())
+                        : 0;
+    __ Drop(pop_count);
+  }
+}
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   MipsOperandConverter i(this, instr);
@@ -412,6 +426,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       RecordCallPosition(instr);
       break;
     }
+    case kArchTailCallCodeObject: {
+      AssembleDeconstructActivationRecord();
+      if (instr->InputAt(0)->IsImmediate()) {
+        __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ addiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(at);
+      }
+      break;
+    }
     case kArchCallJSFunction: {
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
@@ -424,6 +449,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(at);
       RecordCallPosition(instr);
+      break;
+    }
+    case kArchTailCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (FLAG_debug_code) {
+        // Check the function's context matches the context argument.
+        __ lw(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
+      }
+
+      AssembleDeconstructActivationRecord();
+      __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Jump(at);
       break;
     }
     case kArchJmp:

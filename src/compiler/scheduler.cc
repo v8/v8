@@ -318,7 +318,7 @@ class CFGBuilder : public ZoneObject {
         BuildBlocksForSuccessors(node);
         break;
       case IrOpcode::kCall:
-        if (IsExceptionalCall(node)) {
+        if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
         break;
@@ -354,7 +354,7 @@ class CFGBuilder : public ZoneObject {
         ConnectThrow(node);
         break;
       case IrOpcode::kCall:
-        if (IsExceptionalCall(node)) {
+        if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);
         }
@@ -517,13 +517,6 @@ class CFGBuilder : public ZoneObject {
       TRACE("Connect #%d:%s, id:%d -> id:%d\n", node->id(),
             node->op()->mnemonic(), block->id().ToInt(), succ->id().ToInt());
     }
-  }
-
-  bool IsExceptionalCall(Node* node) {
-    for (Node* const use : node->uses()) {
-      if (use->opcode() == IrOpcode::kIfException) return true;
-    }
-    return false;
   }
 
   bool IsFinalMerge(Node* node) {

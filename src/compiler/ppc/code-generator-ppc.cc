@@ -581,6 +581,18 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 
+void CodeGenerator::AssembleDeconstructActivationRecord() {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
+  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
+    int pop_count = descriptor->IsJSFunctionCall()
+                        ? static_cast<int>(descriptor->JSParameterCount())
+                        : 0;
+    __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
+  }
+}
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   PPCOperandConverter i(this, instr);
@@ -601,6 +613,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
+    case kArchTailCallCodeObject: {
+      AssembleDeconstructActivationRecord();
+      if (HasRegisterInput(instr, 0)) {
+        __ addi(ip, i.InputRegister(0),
+                Operand(Code::kHeaderSize - kHeapObjectTag));
+        __ Jump(ip);
+      } else {
+        __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
+                RelocInfo::CODE_TARGET);
+      }
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    }
     case kArchCallJSFunction: {
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
@@ -614,6 +639,21 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
       RecordCallPosition(instr);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    }
+    case kArchTailCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (FLAG_debug_code) {
+        // Check the function's context matches the context argument.
+        __ LoadP(kScratchReg,
+                 FieldMemOperand(func, JSFunction::kContextOffset));
+        __ cmp(cp, kScratchReg);
+        __ Assert(eq, kWrongFunctionContext);
+      }
+      AssembleDeconstructActivationRecord();
+      __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Jump(ip);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
@@ -1085,7 +1125,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       UNREACHABLE();
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 // Assembles branches after an instruction.

@@ -72,6 +72,7 @@ class NodeProperties final {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
 
+  static bool IsExceptionalCall(Node* node);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.

@@ -454,6 +454,8 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
+enum CallMode { NORMAL_CALL, TAIL_CALL };
+
 enum VisitMode {
   VISIT_ALL,
   VISIT_ALL_IN_SCAVENGE,

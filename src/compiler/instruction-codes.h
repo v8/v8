@@ -35,7 +35,9 @@ namespace compiler {
 // Most opcodes specify a single instruction.
 #define ARCH_OPCODE_LIST(V) \
   V(ArchCallCodeObject)     \
+  V(ArchTailCallCodeObject) \
   V(ArchCallJSFunction)     \
+  V(ArchTailCallJSFunction) \
   V(ArchJmp)                \
   V(ArchLookupSwitch)       \
   V(ArchTableSwitch)        \
