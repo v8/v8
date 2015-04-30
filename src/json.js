@@ -25,7 +25,7 @@ function Revive(holder, name, reviver) {
       }
     } else {
       for (var p in val) {
-        if (%_CallFunction(val, p, ObjectHasOwnProperty)) {
+        if (%_CallFunction(val, p, $objectHasOwnProperty)) {
           var newElement = Revive(val, p, reviver);
           if (IS_UNDEFINED(newElement)) {
             delete val[p];
@@ -91,7 +91,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {
-      if (%_CallFunction(replacer, i, ObjectHasOwnProperty)) {
+      if (%_CallFunction(replacer, i, $objectHasOwnProperty)) {
         var p = replacer[i];
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
@@ -104,7 +104,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
     }
   } else {
     for (var p in value) {
-      if (%_CallFunction(value, p, ObjectHasOwnProperty)) {
+      if (%_CallFunction(value, p, $objectHasOwnProperty)) {
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
           var member = %QuoteJSONString(p) + ":";
@@ -224,7 +224,7 @@ function JSONStringify(value, replacer, space) {
 %AddNamedProperty(GlobalJSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
 
 // Set up non-enumerable properties of the JSON object.
-InstallFunctions(GlobalJSON, DONT_ENUM, [
+$installFunctions(GlobalJSON, DONT_ENUM, [
   "parse", JSONParse,
   "stringify", JSONStringify
 ]);

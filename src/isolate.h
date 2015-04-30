@@ -751,6 +751,9 @@ class Isolate {
   Object* Throw(Object* exception, MessageLocation* location = NULL);
   Object* ThrowIllegalOperation();
 
+  void ReportBootstrappingException(Handle<Object> exception,
+                                    MessageLocation* location);
+
   template <typename T>
   MUST_USE_RESULT MaybeHandle<T> Throw(Handle<Object> exception,
                                        MessageLocation* location = NULL) {

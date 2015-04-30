@@ -377,7 +377,7 @@ function ObjectObserve(object, callback, acceptList) {
     throw MakeTypeError("observe_global_proxy", ["observe"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["observe"]);
-  if (ObjectIsFrozen(callback))
+  if ($objectIsFrozen(callback))
     throw MakeTypeError("observe_callback_frozen");
 
   var objectObserveFn = %GetObjectContextObjectObserve(object);
@@ -470,7 +470,7 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
     %DefineDataPropertyUnchecked(
         newRecord, prop, changeRecord[prop], READ_ONLY + DONT_DELETE);
   }
-  ObjectFreezeJS(newRecord);
+  $objectFreeze(newRecord);
 
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
@@ -522,8 +522,8 @@ function EnqueueSpliceRecord(array, index, removed, addedCount) {
     addedCount: addedCount
   };
 
-  ObjectFreezeJS(changeRecord);
-  ObjectFreezeJS(changeRecord.removed);
+  $objectFreeze(changeRecord);
+  $objectFreeze(changeRecord.removed);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
@@ -547,7 +547,7 @@ function NotifyChange(type, object, name, oldValue) {
     };
   }
 
-  ObjectFreezeJS(changeRecord);
+  $objectFreeze(changeRecord);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
@@ -604,7 +604,7 @@ function ObjectGetNotifier(object) {
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError("observe_global_proxy", ["getNotifier"]);
 
-  if (ObjectIsFrozen(object)) return null;
+  if ($objectIsFrozen(object)) return null;
 
   if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
 
@@ -662,17 +662,17 @@ function ObserveMicrotaskRunner() {
 
 // -------------------------------------------------------------------
 
-InstallFunctions(GlobalObject, DONT_ENUM, [
+$installFunctions(GlobalObject, DONT_ENUM, [
   "deliverChangeRecords", ObjectDeliverChangeRecords,
   "getNotifier", ObjectGetNotifier,
   "observe", ObjectObserve,
   "unobserve", ObjectUnobserve
 ]);
-InstallFunctions(GlobalArray, DONT_ENUM, [
+$installFunctions(GlobalArray, DONT_ENUM, [
   "observe", ArrayObserve,
   "unobserve", ArrayUnobserve
 ]);
-InstallFunctions(notifierPrototype, DONT_ENUM, [
+$installFunctions(notifierPrototype, DONT_ENUM, [
   "notify", ObjectNotifierNotify,
   "performChange", ObjectNotifierPerformChange
 ]);

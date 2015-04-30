@@ -1552,9 +1552,9 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToInt32", to_int32_fun);
   INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
 
-  INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
+  INSTALL_NATIVE(JSFunction, "$globalEval", global_eval_fun);
   INSTALL_NATIVE(JSFunction, "$getStackTraceLine", get_stack_trace_line_fun);
-  INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
+  INSTALL_NATIVE(JSFunction, "$toCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 
   INSTALL_NATIVE(Symbol, "$promiseStatus", promise_status);

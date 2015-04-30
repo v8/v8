@@ -909,10 +909,14 @@ void Isolate::InvokeApiInterruptCallbacks() {
 }
 
 
-void ReportBootstrappingException(Handle<Object> exception,
-                                  MessageLocation* location) {
+void Isolate::ReportBootstrappingException(Handle<Object> exception,
+                                           MessageLocation* location) {
   base::OS::PrintError("Exception thrown during bootstrapping\n");
-  if (location == NULL || location->script().is_null()) return;
+  if (location == NULL || location->script().is_null()) {
+    exception->Print();
+    PrintStack(stdout);
+    return;
+  }
   // We are bootstrapping and caught an error where the location is set
   // and we have a script for the location.
   // In this case we could have an extension (or an internal error
@@ -981,8 +985,12 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
     debug()->OnThrow(exception_handle);
   }
 
-  // Generate the message if required.
-  if (requires_message && !rethrowing_message) {
+  if (bootstrapper()->IsActive()) {
+    // It's not safe to try to make message objects or collect stack traces
+    // while the bootstrapper is active since the infrastructure may not have
+    // been properly initialized.
+    ReportBootstrappingException(exception_handle, location);
+  } else if (requires_message && !rethrowing_message) {
     MessageLocation potential_computed_location;
     if (location == NULL) {
       // If no location was specified we use a computed one instead.
@@ -990,27 +998,20 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
       location = &potential_computed_location;
     }
 
-    if (bootstrapper()->IsActive()) {
-      // It's not safe to try to make message objects or collect stack traces
-      // while the bootstrapper is active since the infrastructure may not have
-      // been properly initialized.
-      ReportBootstrappingException(exception_handle, location);
-    } else {
-      Handle<Object> message_obj = CreateMessage(exception_handle, location);
-      thread_local_top()->pending_message_obj_ = *message_obj;
+    Handle<Object> message_obj = CreateMessage(exception_handle, location);
+    thread_local_top()->pending_message_obj_ = *message_obj;
 
-      // If the abort-on-uncaught-exception flag is specified, abort on any
-      // exception not caught by JavaScript, even when an external handler is
-      // present.  This flag is intended for use by JavaScript developers, so
-      // print a user-friendly stack trace (not an internal one).
-      if (FLAG_abort_on_uncaught_exception &&
-          PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) {
-        FLAG_abort_on_uncaught_exception = false;  // Prevent endless recursion.
-        PrintF(stderr, "%s\n\nFROM\n",
-               MessageHandler::GetLocalizedMessage(this, message_obj).get());
-        PrintCurrentStackTrace(stderr);
-        base::OS::Abort();
-      }
+    // If the abort-on-uncaught-exception flag is specified, abort on any
+    // exception not caught by JavaScript, even when an external handler is
+    // present.  This flag is intended for use by JavaScript developers, so
+    // print a user-friendly stack trace (not an internal one).
+    if (FLAG_abort_on_uncaught_exception &&
+        PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) {
+      FLAG_abort_on_uncaught_exception = false;  // Prevent endless recursion.
+      PrintF(stderr, "%s\n\nFROM\n",
+             MessageHandler::GetLocalizedMessage(this, message_obj).get());
+      PrintCurrentStackTrace(stderr);
+      base::OS::Abort();
     }
   }
 

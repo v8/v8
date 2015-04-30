@@ -83,13 +83,13 @@ function ArrayBufferIsViewJS(obj) {
 %AddNamedProperty(GlobalArrayBuffer.prototype,
     symbolToStringTag, "ArrayBuffer", DONT_ENUM | READ_ONLY);
 
-InstallGetter(GlobalArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
+$installGetter(GlobalArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
-InstallFunctions(GlobalArrayBuffer, DONT_ENUM, [
+$installFunctions(GlobalArrayBuffer, DONT_ENUM, [
   "isView", ArrayBufferIsViewJS
 ]);
 
-InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
+$installFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice
 ]);
 

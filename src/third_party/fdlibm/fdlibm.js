@@ -1012,7 +1012,7 @@ function MathLog2(x) {
 
 //-------------------------------------------------------------------
 
-InstallFunctions(GlobalMath, DONT_ENUM, [
+$installFunctions(GlobalMath, DONT_ENUM, [
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,

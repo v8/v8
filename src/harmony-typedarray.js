@@ -8,8 +8,6 @@
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
 FUNCTION(1, Uint8Array, 1)
@@ -23,6 +21,13 @@ FUNCTION(8, Float64Array, 8)
 FUNCTION(9, Uint8ClampedArray, 1)
 endmacro
 
+macro DECLARE_GLOBALS(INDEX, NAME, SIZE)
+var GlobalNAME = global.NAME;
+endmacro
+
+TYPED_ARRAYS(DECLARE_GLOBALS)
+
+// -------------------------------------------------------------------
 
 macro TYPED_ARRAY_HARMONY_ADDITIONS(ARRAY_ID, NAME, ELEMENT_SIZE)
 
@@ -74,12 +79,12 @@ TYPED_ARRAYS(TYPED_ARRAY_HARMONY_ADDITIONS)
 
 macro EXTEND_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   // Set up non-enumerable functions on the object.
-  InstallFunctions(global.NAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+  $installFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
     "of", NAMEOf
   ]);
 
   // Set up non-enumerable functions on the prototype object.
-  InstallFunctions(global.NAME.prototype, DONT_ENUM, [
+  $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
     "forEach", NAMEForEach
   ]);
 endmacro

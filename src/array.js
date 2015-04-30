@@ -372,7 +372,7 @@ function ArrayToString() {
     func = array.join;
   }
   if (!IS_SPEC_FUNCTION(func)) {
-    return %_CallFunction(array, ObjectToString);
+    return %_CallFunction(array, $objectToString);
   }
   return %_CallFunction(array, func);
 }
@@ -447,7 +447,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
-  Delete(array, ToName(n), true);
+  $delete(array, ToName(n), true);
   array.length = n;
   return value;
 }
@@ -620,7 +620,7 @@ function ArrayShift() {
     return;
   }
 
-  if (ObjectIsSealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
+  if ($objectIsSealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
 
   if (%IsObserved(array))
     return ObservedArrayShift.call(array, len);
@@ -671,7 +671,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var num_arguments = %_ArgumentsLength();
 
   if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
-     !ObjectIsSealed(array)) {
+      !$objectIsSealed(array)) {
     SparseMove(array, 0, 0, len, num_arguments);
   } else {
     SimpleMove(array, 0, 0, len, num_arguments);
@@ -817,9 +817,9 @@ function ArraySplice(start, delete_count) {
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && ObjectIsSealed(array)) {
+  if (del_count != num_elements_to_add && $objectIsSealed(array)) {
     throw MakeTypeError(kArrayFunctionsOnSealed);
-  } else if (del_count > 0 && ObjectIsFrozen(array)) {
+  } else if (del_count > 0 && $objectIsFrozen(array)) {
     throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
@@ -1523,7 +1523,7 @@ var unscopables = {
                   DONT_ENUM | READ_ONLY);
 
 // Set up non-enumerable functions on the Array object.
-InstallFunctions(GlobalArray, DONT_ENUM, [
+$installFunctions(GlobalArray, DONT_ENUM, [
   "isArray", ArrayIsArray
 ]);
 
@@ -1544,7 +1544,7 @@ var getFunction = function(name, jsBuiltin, len) {
 // set their names.
 // Manipulate the length of some of the functions to meet
 // expectations set by ECMA-262 or Mozilla.
-InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+$installFunctions(GlobalArray.prototype, DONT_ENUM, [
   "toString", getFunction("toString", ArrayToString),
   "toLocaleString", getFunction("toLocaleString", ArrayToLocaleString),
   "join", getFunction("join", ArrayJoin),
@@ -1573,7 +1573,7 @@ InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 // The internal Array prototype doesn't need to be fancy, since it's never
 // exposed to user code.
 // Adding only the functions that are actually used.
-SetUpLockedPrototype(InternalArray, GlobalArray(), [
+$setUpLockedPrototype(InternalArray, GlobalArray(), [
   "concat", getFunction("concat", ArrayConcatJS),
   "indexOf", getFunction("indexOf", ArrayIndexOf),
   "join", getFunction("join", ArrayJoin),
@@ -1583,7 +1583,7 @@ SetUpLockedPrototype(InternalArray, GlobalArray(), [
   "splice", getFunction("splice", ArraySplice)
 ]);
 
-SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
+$setUpLockedPrototype(InternalPackedArray, GlobalArray(), [
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush),
