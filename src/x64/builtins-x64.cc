@@ -1122,20 +1122,12 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   __ movp(receiver, Operand(rbp, argumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  if (FLAG_vector_ics) {
-    // TODO(mvstanton): Vector-based ics need additional infrastructure to
-    // be embedded here. For now, just call the runtime.
-    __ Push(receiver);
-    __ Push(key);
-    __ CallRuntime(Runtime::kGetProperty, 2);
-  } else {
-    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
-    __ Call(ic, RelocInfo::CODE_TARGET);
-    // It is important that we do not have a test instruction after the
-    // call.  A test instruction after the call is used to indicate that
-    // we have generated an inline version of the keyed load.  In this
-    // case, we know that we are not generating a test instruction next.
-  }
+  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // It is important that we do not have a test instruction after the
+  // call.  A test instruction after the call is used to indicate that
+  // we have generated an inline version of the keyed load.  In this
+  // case, we know that we are not generating a test instruction next.
 
   // Push the nth argument.
   __ Push(rax);

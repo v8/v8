@@ -1731,18 +1731,6 @@ void Genesis::InitializeGlobal_harmony_reflect() {
     Handle<JSFunction> construct = InstallFunction(
         builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
         MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
-    if (FLAG_vector_ics) {
-      // Apply embeds an IC, so we need a type vector of size 1 in the shared
-      // function info.
-      FeedbackVectorSpec spec(0, Code::CALL_IC);
-      Handle<TypeFeedbackVector> feedback_vector =
-          factory()->NewTypeFeedbackVector(&spec);
-      apply->shared()->set_feedback_vector(*feedback_vector);
-
-      feedback_vector = factory()->NewTypeFeedbackVector(&spec);
-      construct->shared()->set_feedback_vector(*feedback_vector);
-    }
-
     apply->shared()->set_internal_formal_parameter_count(3);
     apply->shared()->set_length(3);
 
@@ -2181,14 +2169,6 @@ bool Genesis::InstallNatives() {
     Handle<JSFunction> apply =
         InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
                         MaybeHandle<JSObject>(), Builtins::kFunctionApply);
-    if (FLAG_vector_ics) {
-      // Apply embeds an IC, so we need a type vector of size 1 in the shared
-      // function info.
-      FeedbackVectorSpec spec(0, Code::CALL_IC);
-      Handle<TypeFeedbackVector> feedback_vector =
-          factory()->NewTypeFeedbackVector(&spec);
-      apply->shared()->set_feedback_vector(*feedback_vector);
-    }
 
     // Make sure that Function.prototype.call appears to be compiled.
     // The code will never be called, but inline caching for call will
