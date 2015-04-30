@@ -715,6 +715,13 @@ void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 }
 
 
+void GrowArrayElementsStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kGrowArrayElements)->entry);
+}
+
+
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
   stub.GetCode();

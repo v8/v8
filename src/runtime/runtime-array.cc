@@ -1218,6 +1218,44 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
 }
 
 
+// GrowArrayElements returns a sentinel Smi if the object was normalized.
+RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_SMI_ARG_CHECKED(key, 1);
+
+  if (key < 0) {
+    return object->elements();
+  }
+
+  uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
+  uint32_t index = static_cast<uint32_t>(key);
+
+  if (index >= capacity) {
+    if (object->WouldConvertToSlowElements(index)) {
+      JSObject::NormalizeElements(object);
+      return Smi::FromInt(0);
+    }
+
+    uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
+    ElementsKind kind = object->GetElementsKind();
+    if (IsFastDoubleElementsKind(kind)) {
+      JSObject::SetFastDoubleElementsCapacity(object, new_capacity);
+    } else {
+      JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
+          object->HasFastSmiElements() ? JSObject::kAllowSmiElements
+                                       : JSObject::kDontAllowSmiElements;
+      JSObject::SetFastElementsCapacity(object, new_capacity,
+                                        set_capacity_mode);
+    }
+  }
+
+  // On success, return the fixed array elements.
+  return object->elements();
+}
+
+
 RUNTIME_FUNCTION(Runtime_HasComplexElements) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

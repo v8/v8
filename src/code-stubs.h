@@ -69,6 +69,7 @@ namespace internal {
   V(FastCloneShallowObject)                 \
   V(FastNewClosure)                         \
   V(FastNewContext)                         \
+  V(GrowArrayElements)                      \
   V(InternalArrayNArgumentsConstructor)     \
   V(InternalArrayNoArgumentConstructor)     \
   V(InternalArraySingleArgumentConstructor) \
@@ -708,6 +709,28 @@ class CreateWeakCellStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(CreateWeakCell, HydrogenCodeStub);
 };
 
+
+class GrowArrayElementsStub : public HydrogenCodeStub {
+ public:
+  GrowArrayElementsStub(Isolate* isolate, bool is_js_array, ElementsKind kind)
+      : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(ElementsKindBits::encode(kind) |
+                      IsJsArrayBits::encode(is_js_array));
+  }
+
+  ElementsKind elements_kind() const {
+    return ElementsKindBits::decode(sub_minor_key());
+  }
+
+  bool is_js_array() const { return IsJsArrayBits::decode(sub_minor_key()); }
+
+ private:
+  class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
+  class IsJsArrayBits : public BitField<bool, ElementsKindBits::kNext, 1> {};
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(GrowArrayElements);
+  DEFINE_HYDROGEN_CODE_STUB(GrowArrayElements, HydrogenCodeStub);
+};
 
 class InstanceofStub: public PlatformCodeStub {
  public:

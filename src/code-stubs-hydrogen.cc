@@ -577,6 +577,31 @@ Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
 
 
 template <>
+HValue* CodeStubGraphBuilder<GrowArrayElementsStub>::BuildCodeStub() {
+  HValue* object = GetParameter(GrowArrayElementsDescriptor::kObjectIndex);
+  HValue* key = GetParameter(GrowArrayElementsDescriptor::kKeyIndex);
+  HValue* current_capacity =
+      GetParameter(GrowArrayElementsDescriptor::kCapacityIndex);
+  ElementsKind kind = casted_stub()->elements_kind();
+
+  HValue* elements = AddLoadElements(object);
+  HValue* length =
+      casted_stub()->is_js_array()
+          ? Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                 HObjectAccess::ForArrayLength(kind))
+          : current_capacity;
+
+  return BuildCheckAndGrowElementsCapacity(object, elements, kind, length,
+                                           current_capacity, key);
+}
+
+
+Handle<Code> GrowArrayElementsStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
   LoadKeyedHoleMode hole_mode = casted_stub()->convert_hole_to_undefined()
                                     ? CONVERT_HOLE_TO_UNDEFINED

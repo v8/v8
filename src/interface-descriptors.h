@@ -57,7 +57,8 @@ class PlatformInterfaceDescriptor;
   V(StoreArrayLiteralElement)                 \
   V(MathPowTagged)                            \
   V(MathPowInteger)                           \
-  V(ContextOnly)
+  V(ContextOnly)                              \
+  V(GrowArrayElements)
 
 
 class CallInterfaceDescriptorData {
@@ -523,6 +524,17 @@ class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
 class ContextOnlyDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
+};
+
+
+class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(GrowArrayElementsDescriptor, CallInterfaceDescriptor)
+
+  enum RegisterInfo { kObjectIndex, kKeyIndex, kCapacityIndex };
+  static const Register ObjectRegister();
+  static const Register KeyRegister();
+  static const Register CapacityRegister();
 };
 
 #undef DECLARE_DESCRIPTOR
