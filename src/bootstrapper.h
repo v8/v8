@@ -87,7 +87,8 @@ class Bootstrapper final {
   void Iterate(ObjectVisitor* v);
 
   // Accessor for the native scripts source code.
-  Handle<String> NativesSourceLookup(int index);
+  template <class Source>
+  Handle<String> SourceLookup(int index);
 
   // Tells whether bootstrapping is active.
   bool IsActive() const { return nesting_ != 0; }

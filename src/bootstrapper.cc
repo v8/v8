@@ -26,12 +26,29 @@ Bootstrapper::Bootstrapper(Isolate* isolate)
       extensions_cache_(Script::TYPE_EXTENSION) {}
 
 
-Handle<String> Bootstrapper::NativesSourceLookup(int index) {
-  DCHECK(0 <= index && index < Natives::GetBuiltinsCount());
+template <class Source>
+inline FixedArray* GetCache(Heap* heap);
+
+
+template <>
+FixedArray* GetCache<Natives>(Heap* heap) {
+  return heap->natives_source_cache();
+}
+
+
+template <>
+FixedArray* GetCache<ExperimentalNatives>(Heap* heap) {
+  return heap->experimental_natives_source_cache();
+}
+
+
+template <class Source>
+Handle<String> Bootstrapper::SourceLookup(int index) {
+  DCHECK(0 <= index && index < Source::GetBuiltinsCount());
   Heap* heap = isolate_->heap();
-  if (heap->natives_source_cache()->get(index)->IsUndefined()) {
+  if (GetCache<Source>(heap)->get(index)->IsUndefined()) {
     // We can use external strings for the natives.
-    Vector<const char> source = Natives::GetScriptSource(index);
+    Vector<const char> source = Source::GetScriptSource(index);
     NativesExternalStringResource* resource =
         new NativesExternalStringResource(source.start(), source.length());
     // We do not expect this to throw an exception. Change this if it does.
@@ -40,12 +57,16 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
                                      .ToHandleChecked();
     // Mark this external string with a special map.
     source_code->set_map(isolate_->heap()->native_source_string_map());
-    heap->natives_source_cache()->set(index, *source_code);
+    GetCache<Source>(heap)->set(index, *source_code);
   }
-  Handle<Object> cached_source(heap->natives_source_cache()->get(index),
-                               isolate_);
+  Handle<Object> cached_source(GetCache<Source>(heap)->get(index), isolate_);
   return Handle<String>::cast(cached_source);
 }
+
+
+template Handle<String> Bootstrapper::SourceLookup<Natives>(int index);
+template Handle<String> Bootstrapper::SourceLookup<ExperimentalNatives>(
+    int index);
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
@@ -94,12 +115,11 @@ void Bootstrapper::TearDownExtensions() {
 }
 
 
-void Bootstrapper::TearDown() {
-  Object* natives_source_cache = isolate_->heap()->natives_source_cache();
-  if (natives_source_cache->IsFixedArray()) {
-    FixedArray* natives_source_array = FixedArray::cast(natives_source_cache);
-    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-      Object* natives_source = natives_source_array->get(i);
+void DeleteNativeSources(Object* maybe_array) {
+  if (maybe_array->IsFixedArray()) {
+    FixedArray* array = FixedArray::cast(maybe_array);
+    for (int i = 0; i < array->length(); i++) {
+      Object* natives_source = array->get(i);
       if (!natives_source->IsUndefined()) {
         const NativesExternalStringResource* resource =
             reinterpret_cast<const NativesExternalStringResource*>(
@@ -108,7 +128,12 @@ void Bootstrapper::TearDown() {
       }
     }
   }
+}
 
+
+void Bootstrapper::TearDown() {
+  DeleteNativeSources(isolate_->heap()->natives_source_cache());
+  DeleteNativeSources(isolate_->heap()->experimental_natives_source_cache());
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
@@ -1409,19 +1434,15 @@ void Genesis::InitializeExperimentalGlobal() {
 bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
-      isolate->bootstrapper()->NativesSourceLookup(index);
+      isolate->bootstrapper()->SourceLookup<Natives>(index);
   return CompileNative(isolate, name, source_code);
 }
 
 
 bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = ExperimentalNatives::GetScriptName(index);
-  Factory* factory = isolate->factory();
-  Handle<String> source_code;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, source_code,
-      factory->NewStringFromAscii(ExperimentalNatives::GetScriptSource(index)),
-      false);
+  Handle<String> source_code =
+      isolate->bootstrapper()->SourceLookup<ExperimentalNatives>(index);
   return CompileNative(isolate, name, source_code);
 }
 

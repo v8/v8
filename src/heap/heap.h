@@ -173,6 +173,8 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
+  V(FixedArray, experimental_natives_source_cache,                             \
+    ExperimentalNativesSourceCache)                                            \
   V(Script, empty_script, EmptyScript)                                         \
   V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
   V(Cell, undefined_cell, UndefinedCell)                                       \

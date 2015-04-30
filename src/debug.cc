@@ -636,7 +636,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
 
   // Find source and name for the requested script.
   Handle<String> source_code =
-      isolate->bootstrapper()->NativesSourceLookup(index);
+      isolate->bootstrapper()->SourceLookup<Natives>(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name =
       factory->NewStringFromAscii(name).ToHandleChecked();

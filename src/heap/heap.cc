@@ -3069,6 +3069,9 @@ void Heap::CreateInitialObjects() {
   set_natives_source_cache(
       *factory->NewFixedArray(Natives::GetBuiltinsCount()));
 
+  set_experimental_natives_source_cache(
+      *factory->NewFixedArray(ExperimentalNatives::GetBuiltinsCount()));
+
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
   // The symbol registry is initialized lazily.

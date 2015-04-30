@@ -296,7 +296,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
     {
       HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
     heap->CollectAllGarbage();
@@ -419,7 +419,7 @@ UNINITIALIZED_TEST(ContextSerialization) {
     {
       HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
     // If we don't do this then we end up with a stray root pointing at the
@@ -554,7 +554,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
     {
       HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
     // If we don't do this then we end up with a stray root pointing at the

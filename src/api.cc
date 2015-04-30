@@ -363,7 +363,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       {
         HandleScope scope(isolate);
         for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-          internal_isolate->bootstrapper()->NativesSourceLookup(i);
+          internal_isolate->bootstrapper()->SourceLookup<i::Natives>(i);
         }
       }
       // If we don't do this then we end up with a stray root pointing at the
