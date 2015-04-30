@@ -804,7 +804,7 @@ void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_MarkCodeToBeExecutedOnce(MacroAssembler* masm) {
+void Builtins::Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm) {
   Generate_MarkCodeAsExecutedOnce(masm);
 }
 
