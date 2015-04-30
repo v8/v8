@@ -1645,8 +1645,10 @@ void Genesis::InitializeBuiltinTypedArrays() {
 
   {  // Initialize a result array for rempio2 calculation
     const size_t num_elements = 2;
-    SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
-                                 NULL, num_elements, "rempio2result");
+    double* data =
+        SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
+                                     NULL, num_elements, "rempio2result");
+    for (size_t i = 0; i < num_elements; i++) data[i] = 0;
   }
 }
 
