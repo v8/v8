@@ -307,7 +307,6 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
   void Visit##type(type* node) override {      \
     HOptimizedGraphBuilder::Visit##type(node); \
   }
-  MODULE_NODE_LIST(DEF_VISIT)
   DECLARATION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 };

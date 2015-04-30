@@ -156,12 +156,6 @@ namespace internal {
   V(kMapBecameDeprecated, "Map became deprecated")                             \
   V(kMapBecameUnstable, "Map became unstable")                                 \
   V(kMapIsNoLongerInEax, "Map is no longer in eax")                            \
-  V(kModuleDeclaration, "Module declaration")                                  \
-  V(kModuleLiteral, "Module literal")                                          \
-  V(kModulePath, "Module path")                                                \
-  V(kModuleStatement, "Module statement")                                      \
-  V(kModuleVariable, "Module variable")                                        \
-  V(kModuleUrl, "Module url")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                         \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \

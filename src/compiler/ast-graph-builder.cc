@@ -998,11 +998,6 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 }
 
 
-void AstGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
 void AstGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
   UNREACHABLE();
 }
@@ -1011,15 +1006,6 @@ void AstGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
 void AstGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
   UNREACHABLE();
 }
-
-
-void AstGraphBuilder::VisitModuleLiteral(ModuleLiteral* modl) { UNREACHABLE(); }
-
-
-void AstGraphBuilder::VisitModulePath(ModulePath* modl) { UNREACHABLE(); }
-
-
-void AstGraphBuilder::VisitModuleUrl(ModuleUrl* modl) { UNREACHABLE(); }
 
 
 void AstGraphBuilder::VisitBlock(Block* stmt) {
@@ -1042,11 +1028,6 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
     }
   }
   if (stmt->labels() != NULL) block.EndBlock();
-}
-
-
-void AstGraphBuilder::VisitModuleStatement(ModuleStatement* stmt) {
-  UNREACHABLE();
 }
 
 

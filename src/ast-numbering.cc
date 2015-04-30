@@ -106,12 +106,6 @@ void AstNumberingVisitor::VisitExportDeclaration(ExportDeclaration* node) {
 }
 
 
-void AstNumberingVisitor::VisitModuleUrl(ModuleUrl* node) {
-  IncrementNodeCount();
-  DisableOptimization(kModuleUrl);
-}
-
-
 void AstNumberingVisitor::VisitEmptyStatement(EmptyStatement* node) {
   IncrementNodeCount();
 }
@@ -179,32 +173,10 @@ void AstNumberingVisitor::VisitSuperReference(SuperReference* node) {
 }
 
 
-void AstNumberingVisitor::VisitModuleDeclaration(ModuleDeclaration* node) {
-  IncrementNodeCount();
-  DisableOptimization(kModuleDeclaration);
-  VisitVariableProxy(node->proxy());
-  Visit(node->module());
-}
-
-
 void AstNumberingVisitor::VisitImportDeclaration(ImportDeclaration* node) {
   IncrementNodeCount();
   DisableOptimization(kImportDeclaration);
   VisitVariableProxy(node->proxy());
-}
-
-
-void AstNumberingVisitor::VisitModulePath(ModulePath* node) {
-  IncrementNodeCount();
-  DisableOptimization(kModulePath);
-  Visit(node->module());
-}
-
-
-void AstNumberingVisitor::VisitModuleStatement(ModuleStatement* node) {
-  IncrementNodeCount();
-  DisableOptimization(kModuleStatement);
-  Visit(node->body());
 }
 
 
@@ -263,13 +235,6 @@ void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
   IncrementNodeCount();
   VisitVariableProxy(node->proxy());
   VisitFunctionLiteral(node->fun());
-}
-
-
-void AstNumberingVisitor::VisitModuleLiteral(ModuleLiteral* node) {
-  IncrementNodeCount();
-  DisableCaching(kModuleLiteral);
-  VisitBlock(node->body());
 }
 
 

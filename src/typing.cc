@@ -796,35 +796,11 @@ void AstTyper::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
 }
 
 
-void AstTyper::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  RECURSE(Visit(declaration->module()));
-}
-
-
 void AstTyper::VisitImportDeclaration(ImportDeclaration* declaration) {
 }
 
 
 void AstTyper::VisitExportDeclaration(ExportDeclaration* declaration) {
-}
-
-
-void AstTyper::VisitModuleLiteral(ModuleLiteral* module) {
-  RECURSE(Visit(module->body()));
-}
-
-
-void AstTyper::VisitModulePath(ModulePath* module) {
-  RECURSE(Visit(module->module()));
-}
-
-
-void AstTyper::VisitModuleUrl(ModuleUrl* module) {
-}
-
-
-void AstTyper::VisitModuleStatement(ModuleStatement* stmt) {
-  RECURSE(Visit(stmt->body()));
 }
 
 

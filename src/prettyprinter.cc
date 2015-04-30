@@ -100,32 +100,11 @@ void CallPrinter::VisitVariableDeclaration(VariableDeclaration* node) {}
 void CallPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {}
 
 
-void CallPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-  Find(node->module());
-}
-
-
 void CallPrinter::VisitImportDeclaration(ImportDeclaration* node) {
 }
 
 
 void CallPrinter::VisitExportDeclaration(ExportDeclaration* node) {}
-
-
-void CallPrinter::VisitModuleLiteral(ModuleLiteral* node) {
-  VisitBlock(node->body());
-}
-
-
-void CallPrinter::VisitModulePath(ModulePath* node) { Find(node->module()); }
-
-
-void CallPrinter::VisitModuleUrl(ModuleUrl* node) {}
-
-
-void CallPrinter::VisitModuleStatement(ModuleStatement* node) {
-  Find(node->body());
-}
 
 
 void CallPrinter::VisitExpressionStatement(ExpressionStatement* node) {
@@ -474,15 +453,6 @@ void PrettyPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
 }
 
 
-void PrettyPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-  Print("module ");
-  PrintLiteral(node->proxy()->name(), false);
-  Print(" = ");
-  Visit(node->module());
-  Print(";");
-}
-
-
 void PrettyPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   Print("import ");
   PrintLiteral(node->proxy()->name(), false);
@@ -496,30 +466,6 @@ void PrettyPrinter::VisitExportDeclaration(ExportDeclaration* node) {
   Print("export ");
   PrintLiteral(node->proxy()->name(), false);
   Print(";");
-}
-
-
-void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
-  VisitBlock(node->body());
-}
-
-
-void PrettyPrinter::VisitModulePath(ModulePath* node) {
-  Visit(node->module());
-  Print(".");
-  PrintLiteral(node->name(), false);
-}
-
-
-void PrettyPrinter::VisitModuleUrl(ModuleUrl* node) {
-  Print("at ");
-  PrintLiteral(node->url(), true);
-}
-
-
-void PrettyPrinter::VisitModuleStatement(ModuleStatement* node) {
-  Print("module ");
-  Visit(node->body());
 }
 
 
@@ -1216,13 +1162,6 @@ void AstPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
 }
 
 
-void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-  IndentedScope indent(this, "MODULE");
-  PrintLiteralIndented("NAME", node->proxy()->name(), true);
-  Visit(node->module());
-}
-
-
 void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   IndentedScope indent(this, "IMPORT");
   PrintLiteralIndented("NAME", node->proxy()->name(), true);
@@ -1233,30 +1172,6 @@ void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
 void AstPrinter::VisitExportDeclaration(ExportDeclaration* node) {
   IndentedScope indent(this, "EXPORT ");
   PrintLiteral(node->proxy()->name(), true);
-}
-
-
-void AstPrinter::VisitModuleLiteral(ModuleLiteral* node) {
-  IndentedScope indent(this, "MODULE LITERAL");
-  VisitBlock(node->body());
-}
-
-
-void AstPrinter::VisitModulePath(ModulePath* node) {
-  IndentedScope indent(this, "MODULE PATH");
-  PrintIndentedVisit("MODULE PATH PARENT", node->module());
-  PrintLiteralIndented("NAME", node->name(), true);
-}
-
-
-void AstPrinter::VisitModuleUrl(ModuleUrl* node) {
-  PrintLiteralIndented("URL", node->url(), true);
-}
-
-
-void AstPrinter::VisitModuleStatement(ModuleStatement* node) {
-  IndentedScope indent(this, "MODULE STATEMENT");
-  PrintStatements(node->body()->statements());
 }
 
 

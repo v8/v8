@@ -423,11 +423,6 @@ class FullCodeGenerator: public AstVisitor {
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
 
-  // Generate code to allocate all (including nested) modules and contexts.
-  // Because of recursive linking and the presence of module alias declarations,
-  // this has to be a separate pass _before_ populating or executing any module.
-  void AllocateModules(ZoneList<Declaration*>* declarations);
-
   // Generate code to create an iterator result object.  The "value" property is
   // set to a value popped from the stack, and "done" is set according to the
   // argument.  The result object is left in the result register.

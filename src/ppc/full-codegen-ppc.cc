@@ -919,33 +919,6 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 }
 
 
-void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  Variable* variable = declaration->proxy()->var();
-  ModuleDescriptor* descriptor = declaration->module()->descriptor();
-  DCHECK(variable->location() == Variable::CONTEXT);
-  DCHECK(descriptor->IsFrozen());
-
-  Comment cmnt(masm_, "[ ModuleDeclaration");
-  EmitDebugCheckDeclarationContext(variable);
-
-  // Load instance object.
-  __ LoadContext(r4, scope_->ContextChainLength(scope_->ScriptScope()));
-  __ LoadP(r4, ContextOperand(r4, descriptor->Index()));
-  __ LoadP(r4, ContextOperand(r4, Context::EXTENSION_INDEX));
-
-  // Assign it.
-  __ StoreP(r4, ContextOperand(cp, variable->index()), r0);
-  // We know that we have written a module, which is not a smi.
-  __ RecordWriteContextSlot(cp, Context::SlotOffset(variable->index()), r4, r6,
-                            kLRHasBeenSaved, kDontSaveFPRegs,
-                            EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  PrepareForBailoutForId(declaration->proxy()->id(), NO_REGISTERS);
-
-  // Traverse into body.
-  Visit(declaration->module());
-}
-
-
 void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();

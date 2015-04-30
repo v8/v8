@@ -42,18 +42,11 @@ namespace internal {
 #define DECLARATION_NODE_LIST(V) \
   V(VariableDeclaration)         \
   V(FunctionDeclaration)         \
-  V(ModuleDeclaration)           \
   V(ImportDeclaration)           \
   V(ExportDeclaration)
 
-#define MODULE_NODE_LIST(V)                     \
-  V(ModuleLiteral)                              \
-  V(ModulePath)                                 \
-  V(ModuleUrl)
-
 #define STATEMENT_NODE_LIST(V)                  \
   V(Block)                                      \
-  V(ModuleStatement)                            \
   V(ExpressionStatement)                        \
   V(EmptyStatement)                             \
   V(IfStatement)                                \
@@ -99,7 +92,6 @@ namespace internal {
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
-  MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
@@ -617,25 +609,6 @@ class FunctionDeclaration final : public Declaration {
 };
 
 
-class ModuleDeclaration final : public Declaration {
- public:
-  DECLARE_NODE_TYPE(ModuleDeclaration)
-
-  Module* module() const { return module_; }
-  InitializationFlag initialization() const override {
-    return kCreatedInitialized;
-  }
-
- protected:
-  ModuleDeclaration(Zone* zone, VariableProxy* proxy, Module* module,
-                    Scope* scope, int pos)
-      : Declaration(zone, proxy, CONST, scope, pos), module_(module) {}
-
- private:
-  Module* module_;
-};
-
-
 class ImportDeclaration final : public Declaration {
  public:
   DECLARE_NODE_TYPE(ImportDeclaration)
@@ -691,64 +664,6 @@ class Module : public AstNode {
 
  private:
   ModuleDescriptor* descriptor_;
-  Block* body_;
-};
-
-
-class ModuleLiteral final : public Module {
- public:
-  DECLARE_NODE_TYPE(ModuleLiteral)
-
- protected:
-  ModuleLiteral(Zone* zone, Block* body, ModuleDescriptor* descriptor, int pos)
-      : Module(zone, descriptor, pos, body) {}
-};
-
-
-class ModulePath final : public Module {
- public:
-  DECLARE_NODE_TYPE(ModulePath)
-
-  Module* module() const { return module_; }
-  Handle<String> name() const { return name_->string(); }
-
- protected:
-  ModulePath(Zone* zone, Module* module, const AstRawString* name, int pos)
-      : Module(zone, pos), module_(module), name_(name) {}
-
- private:
-  Module* module_;
-  const AstRawString* name_;
-};
-
-
-class ModuleUrl final : public Module {
- public:
-  DECLARE_NODE_TYPE(ModuleUrl)
-
-  Handle<String> url() const { return url_; }
-
- protected:
-  ModuleUrl(Zone* zone, Handle<String> url, int pos)
-      : Module(zone, pos), url_(url) {
-  }
-
- private:
-  Handle<String> url_;
-};
-
-
-class ModuleStatement final : public Statement {
- public:
-  DECLARE_NODE_TYPE(ModuleStatement)
-
-  Block* body() const { return body_; }
-
- protected:
-  ModuleStatement(Zone* zone, Block* body, int pos)
-      : Statement(zone, pos), body_(body) {}
-
- private:
   Block* body_;
 };
 
@@ -3241,13 +3156,6 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) FunctionDeclaration(zone_, proxy, mode, fun, scope, pos);
   }
 
-  ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,
-                                          Module* module,
-                                          Scope* scope,
-                                          int pos) {
-    return new (zone_) ModuleDeclaration(zone_, proxy, module, scope, pos);
-  }
-
   ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
                                           const AstRawString* import_name,
                                           const AstRawString* module_specifier,
@@ -3260,19 +3168,6 @@ class AstNodeFactory final BASE_EMBEDDED {
                                           Scope* scope,
                                           int pos) {
     return new (zone_) ExportDeclaration(zone_, proxy, scope, pos);
-  }
-
-  ModuleLiteral* NewModuleLiteral(Block* body, ModuleDescriptor* descriptor,
-                                  int pos) {
-    return new (zone_) ModuleLiteral(zone_, body, descriptor, pos);
-  }
-
-  ModulePath* NewModulePath(Module* origin, const AstRawString* name, int pos) {
-    return new (zone_) ModulePath(zone_, origin, name, pos);
-  }
-
-  ModuleUrl* NewModuleUrl(Handle<String> url, int pos) {
-    return new (zone_) ModuleUrl(zone_, url, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels,
@@ -3306,10 +3201,6 @@ class AstNodeFactory final BASE_EMBEDDED {
     }
     UNREACHABLE();
     return NULL;
-  }
-
-  ModuleStatement* NewModuleStatement(Block* body, int pos) {
-    return new (zone_) ModuleStatement(zone_, body, pos);
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
