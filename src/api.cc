@@ -6466,6 +6466,15 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
 }
 
 
+bool v8::ArrayBufferView::HasBuffer() const {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
+  if (obj->IsJSDataView()) return true;
+  DCHECK(obj->IsJSTypedArray());
+  i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*obj));
+  return !typed_array->buffer()->IsSmi();
+}
+
+
 size_t v8::ArrayBufferView::ByteOffset() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_offset()->Number());

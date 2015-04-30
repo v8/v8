@@ -3454,6 +3454,12 @@ class V8_EXPORT ArrayBufferView : public Object {
    */
   size_t CopyContents(void* dest, size_t byte_length);
 
+  /**
+   * Returns true if ArrayBufferView's backing ArrayBuffer has already been
+   * allocated.
+   */
+  bool HasBuffer() const;
+
   V8_INLINE static ArrayBufferView* Cast(Value* obj);
 
   static const int kInternalFieldCount =
