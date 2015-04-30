@@ -2428,6 +2428,18 @@ void Assembler::ceil_w_d(FPURegister fd, FPURegister fs) {
 }
 
 
+void Assembler::rint_s(FPURegister fd, FPURegister fs) { rint(S, fd, fs); }
+
+
+void Assembler::rint_d(FPURegister fd, FPURegister fs) { rint(D, fd, fs); }
+
+
+void Assembler::rint(SecondaryField fmt, FPURegister fd, FPURegister fs) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, D, f0, fs, fd, RINT);
+}
+
+
 void Assembler::cvt_l_s(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, S, f0, fs, fd, CVT_L_S);

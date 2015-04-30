@@ -487,6 +487,9 @@ void Decoder::Unknown(Instruction* instr) {
 
 bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
+    case RINT:
+      Format(instr, "rint.'t    'fd, 'fs");
+      break;
     case MIN:
       Format(instr, "min.'t    'fd, 'fs, 'ft");
       break;

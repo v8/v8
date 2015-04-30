@@ -175,8 +175,11 @@ class Simulator {
   double get_fpu_register_double(int fpureg) const;
   void set_fcsr_bit(uint32_t cc, bool value);
   bool test_fcsr_bit(uint32_t cc);
+  void set_fcsr_rounding_mode(FPURoundingMode mode);
+  unsigned int get_fcsr_rounding_mode();
   bool set_fcsr_round_error(double original, double rounded);
-
+  void round_according_to_fcsr(double toRound, double& rounded,
+                               int32_t& rounded_int, double fs);
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int32_t value);
   int32_t get_pc() const;

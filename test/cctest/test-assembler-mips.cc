@@ -679,103 +679,105 @@ TEST(MIPS7) {
 
 TEST(MIPS8) {
   // Test ROTR and ROTRV instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+  if (IsMipsArchVariant(kMips32r2)) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
 
-  typedef struct {
-    int32_t input;
-    int32_t result_rotr_4;
-    int32_t result_rotr_8;
-    int32_t result_rotr_12;
-    int32_t result_rotr_16;
-    int32_t result_rotr_20;
-    int32_t result_rotr_24;
-    int32_t result_rotr_28;
-    int32_t result_rotrv_4;
-    int32_t result_rotrv_8;
-    int32_t result_rotrv_12;
-    int32_t result_rotrv_16;
-    int32_t result_rotrv_20;
-    int32_t result_rotrv_24;
-    int32_t result_rotrv_28;
-  } T;
-  T t;
+    typedef struct {
+      int32_t input;
+      int32_t result_rotr_4;
+      int32_t result_rotr_8;
+      int32_t result_rotr_12;
+      int32_t result_rotr_16;
+      int32_t result_rotr_20;
+      int32_t result_rotr_24;
+      int32_t result_rotr_28;
+      int32_t result_rotrv_4;
+      int32_t result_rotrv_8;
+      int32_t result_rotrv_12;
+      int32_t result_rotrv_16;
+      int32_t result_rotrv_20;
+      int32_t result_rotrv_24;
+      int32_t result_rotrv_28;
+    } T;
+    T t;
 
-  MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0);
 
-  // Basic word load.
-  __ lw(t0, MemOperand(a0, OFFSET_OF(T, input)) );
+    // Basic word load.
+    __ lw(t0, MemOperand(a0, OFFSET_OF(T, input)) );
 
-  // ROTR instruction (called through the Ror macro).
-  __ Ror(t1, t0, 0x0004);
-  __ Ror(t2, t0, 0x0008);
-  __ Ror(t3, t0, 0x000c);
-  __ Ror(t4, t0, 0x0010);
-  __ Ror(t5, t0, 0x0014);
-  __ Ror(t6, t0, 0x0018);
-  __ Ror(t7, t0, 0x001c);
+    // ROTR instruction (called through the Ror macro).
+    __ Ror(t1, t0, 0x0004);
+    __ Ror(t2, t0, 0x0008);
+    __ Ror(t3, t0, 0x000c);
+    __ Ror(t4, t0, 0x0010);
+    __ Ror(t5, t0, 0x0014);
+    __ Ror(t6, t0, 0x0018);
+    __ Ror(t7, t0, 0x001c);
 
-  // Basic word store.
-  __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotr_4)) );
-  __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotr_8)) );
-  __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotr_12)) );
-  __ sw(t4, MemOperand(a0, OFFSET_OF(T, result_rotr_16)) );
-  __ sw(t5, MemOperand(a0, OFFSET_OF(T, result_rotr_20)) );
-  __ sw(t6, MemOperand(a0, OFFSET_OF(T, result_rotr_24)) );
-  __ sw(t7, MemOperand(a0, OFFSET_OF(T, result_rotr_28)) );
+    // Basic word store.
+    __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotr_4)) );
+    __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotr_8)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotr_12)) );
+    __ sw(t4, MemOperand(a0, OFFSET_OF(T, result_rotr_16)) );
+    __ sw(t5, MemOperand(a0, OFFSET_OF(T, result_rotr_20)) );
+    __ sw(t6, MemOperand(a0, OFFSET_OF(T, result_rotr_24)) );
+    __ sw(t7, MemOperand(a0, OFFSET_OF(T, result_rotr_28)) );
 
-  // ROTRV instruction (called through the Ror macro).
-  __ li(t7, 0x0004);
-  __ Ror(t1, t0, t7);
-  __ li(t7, 0x0008);
-  __ Ror(t2, t0, t7);
-  __ li(t7, 0x000C);
-  __ Ror(t3, t0, t7);
-  __ li(t7, 0x0010);
-  __ Ror(t4, t0, t7);
-  __ li(t7, 0x0014);
-  __ Ror(t5, t0, t7);
-  __ li(t7, 0x0018);
-  __ Ror(t6, t0, t7);
-  __ li(t7, 0x001C);
-  __ Ror(t7, t0, t7);
+    // ROTRV instruction (called through the Ror macro).
+    __ li(t7, 0x0004);
+    __ Ror(t1, t0, t7);
+    __ li(t7, 0x0008);
+    __ Ror(t2, t0, t7);
+    __ li(t7, 0x000C);
+    __ Ror(t3, t0, t7);
+    __ li(t7, 0x0010);
+    __ Ror(t4, t0, t7);
+    __ li(t7, 0x0014);
+    __ Ror(t5, t0, t7);
+    __ li(t7, 0x0018);
+    __ Ror(t6, t0, t7);
+    __ li(t7, 0x001C);
+    __ Ror(t7, t0, t7);
 
-  // Basic word store.
-  __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotrv_4)) );
-  __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotrv_8)) );
-  __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotrv_12)) );
-  __ sw(t4, MemOperand(a0, OFFSET_OF(T, result_rotrv_16)) );
-  __ sw(t5, MemOperand(a0, OFFSET_OF(T, result_rotrv_20)) );
-  __ sw(t6, MemOperand(a0, OFFSET_OF(T, result_rotrv_24)) );
-  __ sw(t7, MemOperand(a0, OFFSET_OF(T, result_rotrv_28)) );
+    // Basic word store.
+    __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotrv_4)) );
+    __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotrv_8)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotrv_12)) );
+    __ sw(t4, MemOperand(a0, OFFSET_OF(T, result_rotrv_16)) );
+    __ sw(t5, MemOperand(a0, OFFSET_OF(T, result_rotrv_20)) );
+    __ sw(t6, MemOperand(a0, OFFSET_OF(T, result_rotrv_24)) );
+    __ sw(t7, MemOperand(a0, OFFSET_OF(T, result_rotrv_28)) );
 
-  __ jr(ra);
-  __ nop();
+    __ jr(ra);
+    __ nop();
 
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  t.input = 0x12345678;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
-  USE(dummy);
-  CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
-  CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotr_8);
-  CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotr_12);
-  CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotr_16);
-  CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotr_20);
-  CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotr_24);
-  CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotr_28);
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    t.input = 0x12345678;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
+    CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotr_8);
+    CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotr_12);
+    CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotr_16);
+    CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotr_20);
+    CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotr_24);
+    CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotr_28);
 
-  CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotrv_4);
-  CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotrv_8);
-  CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotrv_12);
-  CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotrv_16);
-  CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotrv_20);
-  CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotrv_24);
-  CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotrv_28);
+    CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotrv_4);
+    CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotrv_8);
+    CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotrv_12);
+    CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotrv_16);
+    CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotrv_20);
+    CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotrv_24);
+    CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotrv_28);
+  }
 }
 
 
@@ -1387,8 +1389,8 @@ TEST(MIPS16) {
       18446744073709551621.0, -18446744073709551621.0};
     double tests[test_size*2] = {2.8, 2.9, -2.8, -2.9,
       18446744073709551616.0, 18446744073709555712.0};
-    for (int j=0;j < test_size;j+=2) {
-      for (int i=0;i < input_size;i++) {
+    for (int j=0; j < test_size; j+=2) {
+      for (int i=0; i < input_size; i++) {
         test.e = inputs[i];
         test.f = tests[j];
         (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -1423,8 +1425,8 @@ TEST(MIPS17) {
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)));
-    __ min(D, f10, f8, f4);
-    __ max(D, f12, f8, f4);
+    __ min(D, f10, f4, f8);
+    __ max(D, f12, f4, f8);
     __ sdc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, c)));
     __ sdc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, d)));
     __ jr(ra);
@@ -1464,6 +1466,191 @@ TEST(MIPS17) {
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
     DCHECK(std::isnan(test.c));
     DCHECK(std::isnan(test.d));
+  }
+}
+
+
+TEST(MIPS18)  {
+  if (IsMipsArchVariant(kMips32r6)) {
+    const int tableLength = 30;
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test_float {
+      double a;
+      double b;
+      int fcsr;
+    }TestFloat;
+
+    TestFloat test;
+    double inputs[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E+308, 6.27463370218383111104242366943E-307,
+      309485009821345068724781056.89,
+      2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
+      -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RN[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+      -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RZ[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RP[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 1,
+      309485009821345068724781057.0,
+      3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RM[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    int fcsr_inputs[4] =
+      {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
+    double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)) );
+    __ lw(t0, MemOperand(a0, OFFSET_OF(TestFloat, fcsr)) );
+    __ cfc1(t1, FCSR);
+    __ ctc1(t0, FCSR);
+    __ rint_d(f8, f4);
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)) );
+    __ ctc1(t1, FCSR);
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    for (int j = 0; j < 4; j++) {
+      test.fcsr = fcsr_inputs[j];
+      for (int i = 0; i < tableLength; i++) {
+        test.a = inputs[i];
+        std::cout << j << " " << i << "\n";
+        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        CHECK_EQ(test.b, outputs[j][i]);
+      }
+    }
+  }
+}
+
+
+TEST(MIPS19) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0);
+
+  typedef struct test_float {
+    double a;
+    int32_t b;
+    int32_t fcsr;
+  }Test;
+  const int tableLength = 24;
+  double inputs[tableLength] = {
+      2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
+      -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, 2147483653.0
+      };
+  double outputs_RN[tableLength] = {
+      2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+      -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  double outputs_RZ[tableLength] = {
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  double outputs_RP[tableLength] = {
+      3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  double outputs_RM[tableLength] = {
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  int fcsr_inputs[4] =
+      {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
+  double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, a)) );
+  __ lw(t0, MemOperand(a0, OFFSET_OF(Test, fcsr)) );
+  __ cfc1(t1, FCSR);
+  __ ctc1(t0, FCSR);
+  __ cvt_w_d(f8, f4);
+  __ swc1(f8, MemOperand(a0, OFFSET_OF(Test, b)) );
+  __ ctc1(t1, FCSR);
+  __ jr(ra);
+  __ nop();
+  Test test;
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (int j = 0; j < 4; j++) {
+    test.fcsr = fcsr_inputs[j];
+    for (int i = 0; i < tableLength; i++) {
+      test.a = inputs[i];
+      std::cout << i << " " << j << "\n";
+      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      CHECK_EQ(test.b, outputs[j][i]);
+    }
   }
 }
 

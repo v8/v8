@@ -942,6 +942,10 @@ class Assembler : public AssemblerBase {
   void floor_w_d(FPURegister fd, FPURegister fs);
   void ceil_w_s(FPURegister fd, FPURegister fs);
   void ceil_w_d(FPURegister fd, FPURegister fs);
+  void rint_s(FPURegister fd, FPURegister fs);
+  void rint_d(FPURegister fd, FPURegister fs);
+  void rint(SecondaryField fmt, FPURegister fd, FPURegister fs);
+
 
   void cvt_l_s(FPURegister fd, FPURegister fs);
   void cvt_l_d(FPURegister fd, FPURegister fs);

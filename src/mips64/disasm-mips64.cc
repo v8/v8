@@ -517,6 +517,9 @@ int Decoder::DecodeBreakInstr(Instruction* instr) {
 
 bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
+    case RINT:
+      Format(instr, "rint.'t    'fd, 'fs");
+      break;
     case SELEQZ_C:
       Format(instr, "seleqz.'t    'fd, 'fs, 'ft");
       break;

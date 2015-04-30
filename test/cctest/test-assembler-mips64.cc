@@ -679,104 +679,106 @@ TEST(MIPS7) {
 
 
 TEST(MIPS8) {
-  // Test ROTR and ROTRV instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+  if (kArchVariant == kMips64r2) {
+    // Test ROTR and ROTRV instructions.
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
 
-  typedef struct {
-    int32_t input;
-    int32_t result_rotr_4;
-    int32_t result_rotr_8;
-    int32_t result_rotr_12;
-    int32_t result_rotr_16;
-    int32_t result_rotr_20;
-    int32_t result_rotr_24;
-    int32_t result_rotr_28;
-    int32_t result_rotrv_4;
-    int32_t result_rotrv_8;
-    int32_t result_rotrv_12;
-    int32_t result_rotrv_16;
-    int32_t result_rotrv_20;
-    int32_t result_rotrv_24;
-    int32_t result_rotrv_28;
-  } T;
-  T t;
+    typedef struct {
+      int32_t input;
+      int32_t result_rotr_4;
+      int32_t result_rotr_8;
+      int32_t result_rotr_12;
+      int32_t result_rotr_16;
+      int32_t result_rotr_20;
+      int32_t result_rotr_24;
+      int32_t result_rotr_28;
+      int32_t result_rotrv_4;
+      int32_t result_rotrv_8;
+      int32_t result_rotrv_12;
+      int32_t result_rotrv_16;
+      int32_t result_rotrv_20;
+      int32_t result_rotrv_24;
+      int32_t result_rotrv_28;
+    } T;
+    T t;
 
-  MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0);
 
-  // Basic word load.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, input)) );
+    // Basic word load.
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, input)) );
 
-  // ROTR instruction (called through the Ror macro).
-  __ Ror(a5, a4, 0x0004);
-  __ Ror(a6, a4, 0x0008);
-  __ Ror(a7, a4, 0x000c);
-  __ Ror(t0, a4, 0x0010);
-  __ Ror(t1, a4, 0x0014);
-  __ Ror(t2, a4, 0x0018);
-  __ Ror(t3, a4, 0x001c);
+    // ROTR instruction (called through the Ror macro).
+    __ Ror(a5, a4, 0x0004);
+    __ Ror(a6, a4, 0x0008);
+    __ Ror(a7, a4, 0x000c);
+    __ Ror(t0, a4, 0x0010);
+    __ Ror(t1, a4, 0x0014);
+    __ Ror(t2, a4, 0x0018);
+    __ Ror(t3, a4, 0x001c);
 
-  // Basic word store.
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, result_rotr_4)) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, result_rotr_8)) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, result_rotr_12)) );
-  __ sw(t0, MemOperand(a0, OFFSET_OF(T, result_rotr_16)) );
-  __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotr_20)) );
-  __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotr_24)) );
-  __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotr_28)) );
+    // Basic word store.
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, result_rotr_4)) );
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, result_rotr_8)) );
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, result_rotr_12)) );
+    __ sw(t0, MemOperand(a0, OFFSET_OF(T, result_rotr_16)) );
+    __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotr_20)) );
+    __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotr_24)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotr_28)) );
 
-  // ROTRV instruction (called through the Ror macro).
-  __ li(t3, 0x0004);
-  __ Ror(a5, a4, t3);
-  __ li(t3, 0x0008);
-  __ Ror(a6, a4, t3);
-  __ li(t3, 0x000C);
-  __ Ror(a7, a4, t3);
-  __ li(t3, 0x0010);
-  __ Ror(t0, a4, t3);
-  __ li(t3, 0x0014);
-  __ Ror(t1, a4, t3);
-  __ li(t3, 0x0018);
-  __ Ror(t2, a4, t3);
-  __ li(t3, 0x001C);
-  __ Ror(t3, a4, t3);
+    // ROTRV instruction (called through the Ror macro).
+    __ li(t3, 0x0004);
+    __ Ror(a5, a4, t3);
+    __ li(t3, 0x0008);
+    __ Ror(a6, a4, t3);
+    __ li(t3, 0x000C);
+    __ Ror(a7, a4, t3);
+    __ li(t3, 0x0010);
+    __ Ror(t0, a4, t3);
+    __ li(t3, 0x0014);
+    __ Ror(t1, a4, t3);
+    __ li(t3, 0x0018);
+    __ Ror(t2, a4, t3);
+    __ li(t3, 0x001C);
+    __ Ror(t3, a4, t3);
 
-  // Basic word store.
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, result_rotrv_4)) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, result_rotrv_8)) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, result_rotrv_12)) );
-  __ sw(t0, MemOperand(a0, OFFSET_OF(T, result_rotrv_16)) );
-  __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotrv_20)) );
-  __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotrv_24)) );
-  __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotrv_28)) );
+    // Basic word store.
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, result_rotrv_4)) );
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, result_rotrv_8)) );
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, result_rotrv_12)) );
+    __ sw(t0, MemOperand(a0, OFFSET_OF(T, result_rotrv_16)) );
+    __ sw(t1, MemOperand(a0, OFFSET_OF(T, result_rotrv_20)) );
+    __ sw(t2, MemOperand(a0, OFFSET_OF(T, result_rotrv_24)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(T, result_rotrv_28)) );
 
-  __ jr(ra);
-  __ nop();
+    __ jr(ra);
+    __ nop();
 
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  t.input = 0x12345678;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
-  USE(dummy);
-  CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
-  CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotr_8);
-  CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotr_12);
-  CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotr_16);
-  CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotr_20);
-  CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotr_24);
-  CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotr_28);
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    t.input = 0x12345678;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
+    CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotr_8);
+    CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotr_12);
+    CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotr_16);
+    CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotr_20);
+    CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotr_24);
+    CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotr_28);
 
-  CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotrv_4);
-  CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotrv_8);
-  CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotrv_12);
-  CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotrv_16);
-  CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotrv_20);
-  CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotrv_24);
-  CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotrv_28);
+    CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotrv_4);
+    CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotrv_8);
+    CHECK_EQ(static_cast<int32_t>(0x67812345), t.result_rotrv_12);
+    CHECK_EQ(static_cast<int32_t>(0x56781234), t.result_rotrv_16);
+    CHECK_EQ(static_cast<int32_t>(0x45678123), t.result_rotrv_20);
+    CHECK_EQ(static_cast<int32_t>(0x34567812), t.result_rotrv_24);
+    CHECK_EQ(static_cast<int32_t>(0x23456781), t.result_rotrv_28);
+  }
 }
 
 
@@ -1533,8 +1535,8 @@ TEST(MIPS18) {
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)));
-    __ min(D, f10, f8, f4);
-    __ max(D, f12, f8, f4);
+    __ min(D, f10, f4, f8);
+    __ max(D, f12, f4, f8);
     __ sdc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, c)));
     __ sdc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, d)));
     __ jr(ra);
@@ -1576,6 +1578,295 @@ TEST(MIPS18) {
     DCHECK(std::isnan(test.d));
   }
 }
+
+
+TEST(MIPS19)  {
+  if (kArchVariant == kMips64r6) {
+    const int tableLength = 30;
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test_float {
+      double a;
+      double b;
+      int fcsr;
+    }TestFloat;
+
+    TestFloat test;
+    double inputs[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E+308, 6.27463370218383111104242366943E-307,
+      309485009821345068724781056.89,
+      2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
+      -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RN[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+      -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RZ[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RP[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 1,
+      309485009821345068724781057.0,
+      3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RM[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    int fcsr_inputs[4] =
+      {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
+    double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)) );
+    __ lw(t0, MemOperand(a0, OFFSET_OF(TestFloat, fcsr)) );
+    __ ctc1(t0, FCSR);
+    __ rint_d(f8, f4);
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)) );
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    for (int j = 0;j < 4;j++) {
+      test.fcsr = fcsr_inputs[j];
+      for (int i = 0;i < tableLength;i++) {
+        test.a = inputs[i];
+        std::cout << j << " " << i << "\n";
+        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        CHECK_EQ(test.b, outputs[j][i]);
+      }
+    }
+  }
+}
+
+
+TEST(MIPS20) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0);
+
+  typedef struct test_float {
+    double a;
+    int32_t b;
+    int fcsr;
+  }Test;
+  const int tableLength = 24;
+  double inputs[tableLength] = {
+      2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
+      -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, 2147483653.0
+      };
+  double outputs_RN[tableLength] = {
+      2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+      -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  double outputs_RZ[tableLength] = {
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  double outputs_RP[tableLength] = {
+      3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  double outputs_RM[tableLength] = {
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+      2147483637.0, 2147483638.0, 2147483639.0,
+      2147483640.0, 2147483641.0, 2147483642.0,
+      2147483643.0, 2147483644.0, 2147483645.0,
+      2147483646.0, 2147483647.0, kFPUInvalidResult};
+  int fcsr_inputs[4] =
+      {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
+  double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, a)) );
+  __ lw(t0, MemOperand(a0, OFFSET_OF(Test, fcsr)) );
+  __ cfc1(t1, FCSR);
+  __ ctc1(t0, FCSR);
+  __ cvt_w_d(f8, f4);
+  __ swc1(f8, MemOperand(a0, OFFSET_OF(Test, b)) );
+  __ ctc1(t1, FCSR);
+  __ jr(ra);
+  __ nop();
+  Test test;
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (int j = 0;j < 4;j++) {
+    test.fcsr = fcsr_inputs[j];
+    for (int i = 0;i < tableLength;i++) {
+      test.a = inputs[i];
+      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      CHECK_EQ(test.b, outputs[j][i]);
+    }
+  }
+}
+
+
+TEST(MIPS21)  {
+  if (kArchVariant == kMips64r6) {
+    const int tableLength = 30;
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test_float {
+      double a;
+      double b;
+      int fcsr;
+    }TestFloat;
+
+    TestFloat test;
+    double inputs[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 6.27463370218383111104242366943E-307,
+      309485009821345068724781056.89,
+      2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
+      -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RN[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+      -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RZ[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RP[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 1,
+      309485009821345068724781057.0,
+      3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    double outputs_RM[tableLength] = {18446744073709551617.0,
+      4503599627370496.0, -4503599627370496.0,
+      1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
+      1.7976931348623157E308, 0,
+      309485009821345068724781057.0,
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+      37778931862957161709568.0, 37778931862957161709569.0,
+      37778931862957161709580.0, 37778931862957161709581.0,
+      37778931862957161709582.0, 37778931862957161709583.0,
+      37778931862957161709584.0, 37778931862957161709585.0,
+      37778931862957161709586.0, 37778931862957161709587.0};
+    int fcsr_inputs[4] =
+      {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
+    double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)) );
+    __ lw(t0, MemOperand(a0, OFFSET_OF(TestFloat, fcsr)) );
+    __ cfc1(t1, FCSR);
+    __ ctc1(t0, FCSR);
+    __ rint_d(f8, f4);
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)) );
+    __ ctc1(t1, FCSR);
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    for (int j = 0;j < 4;j++) {
+      test.fcsr = fcsr_inputs[j];
+      for (int i = 0;i < tableLength;i++) {
+        test.a = inputs[i];
+        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        CHECK_EQ(test.b, outputs[j][i]);
+      }
+    }
+  }
+}
+
+
 
 
 TEST(jump_tables1) {

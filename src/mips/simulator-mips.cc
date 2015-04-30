@@ -1272,6 +1272,16 @@ bool Simulator::test_fcsr_bit(uint32_t cc) {
 }
 
 
+void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
+  FCSR_ |= mode & kFPURoundingModeMask;
+}
+
+
+unsigned int Simulator::get_fcsr_rounding_mode() {
+  return FCSR_ & kFPURoundingModeMask;
+}
+
+
 // Sets the rounding error codes in FCSR based on the result of the rounding.
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
@@ -1301,6 +1311,47 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
   }
 
   return ret;
+}
+
+
+void Simulator::round_according_to_fcsr(double toRound, double& rounded,
+                                        int32_t& rounded_int, double fs) {
+  // 0 RN (round to nearest): Round a result to the nearest
+  // representable value; if the result is exactly halfway between
+  // two representable values, round to zero. Behave like round_w_d.
+
+  // 1 RZ (round toward zero): Round a result to the closest
+  // representable value whose absolute value is less than or
+  // equal to the infinitely accurate result. Behave like trunc_w_d.
+
+  // 2 RP (round up, or toward  infinity): Round a result to the
+  // next representable value up. Behave like ceil_w_d.
+
+  // 3 RD (round down, or toward −infinity): Round a result to
+  // the next representable value down. Behave like floor_w_d.
+  switch (get_fcsr_rounding_mode()) {
+    case kRoundToNearest:
+      rounded = std::floor(fs + 0.5);
+      rounded_int = static_cast<int32_t>(rounded);
+      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+        // If the number is halfway between two integers,
+        // round to the even one.
+        rounded_int--;
+      }
+      break;
+    case kRoundToZero:
+      rounded = trunc(fs);
+      rounded_int = static_cast<int32_t>(rounded);
+      break;
+    case kRoundToPlusInf:
+      rounded = std::ceil(fs);
+      rounded_int = static_cast<int32_t>(rounded);
+      break;
+    case kRoundToMinusInf:
+      rounded = std::floor(fs);
+      rounded_int = static_cast<int32_t>(rounded);
+      break;
+  }
 }
 
 
@@ -2146,6 +2197,43 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
   cc = instr->FCccValue();
   fcsr_cc = get_fcsr_condition_bit(cc);
   switch (instr->FunctionFieldRaw()) {
+    case RINT: {
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      double result, temp, temp_result;
+      double upper = std::ceil(fs);
+      double lower = std::floor(fs);
+      switch (get_fcsr_rounding_mode()) {
+        case kRoundToNearest:
+          if (upper - fs < fs - lower) {
+            result = upper;
+          } else if (upper - fs > fs - lower) {
+            result = lower;
+          } else {
+            temp_result = upper / 2;
+            double reminder = modf(temp_result, &temp);
+            if (reminder == 0) {
+              result = upper;
+            } else {
+              result = lower;
+            }
+          }
+          break;
+        case kRoundToZero:
+          result = (fs > 0 ? lower : upper);
+          break;
+        case kRoundToPlusInf:
+          result = upper;
+          break;
+        case kRoundToMinusInf:
+          result = lower;
+          break;
+      }
+      set_fpu_register_double(fd_reg, result);
+      if (result != fs) {
+        set_fcsr_bit(kFCSRInexactFlagBit, true);
+      }
+      break;
+    }
     case SEL:
       DCHECK(IsMipsArchVariant(kMips32r6));
       set_fpu_register_double(fd_reg, (fd_int & 0x1) == 0 ? fs : ft);
@@ -2230,10 +2318,15 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
     case C_ULE_D:
       set_fcsr_bit(fcsr_cc, (fs <= ft) || (std::isnan(fs) || std::isnan(ft)));
       break;
-    case CVT_W_D:  // Convert double to word.
-      // Rounding modes are not yet supported.
-      DCHECK((FCSR_ & 3) == 0);
-    // In rounding mode 0 it should behave like ROUND.
+    case CVT_W_D: {  // Convert double to word.
+      double rounded;
+      int32_t result;
+      round_according_to_fcsr(fs, rounded, result, fs);
+      set_fpu_register_word(fd_reg, result);
+      if (set_fcsr_round_error(fs, rounded)) {
+        set_fpu_register_word(fd_reg, kFPUInvalidResult);
+      }
+    } break;
     case ROUND_W_D:  // Round double to word (round half to even).
     {
       double rounded = std::floor(fs + 0.5);

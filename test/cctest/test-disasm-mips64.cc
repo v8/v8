@@ -685,6 +685,7 @@ TEST(Type1) {
 
     COMPARE(min(D, f3, f4, f5), "462520dc       min.d    f3, f4, f5");
     COMPARE(max(D, f3, f4, f5), "462520de       max.d    f3, f4, f5");
+    COMPARE(rint_d(f8, f6), "4620321a       rint.d    f8, f6");
     VERIFY_RUN();
   }
 }
