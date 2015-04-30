@@ -1738,6 +1738,16 @@ SetUpNumber();
 // ----------------------------------------------------------------------------
 // Function
 
+function NativeCodeFunctionSourceString(func) {
+  var name = %FunctionGetName(func);
+  if (name) {
+    // Mimic what KJS does.
+    return 'function ' + name + '() { [native code] }';
+  }
+
+  return 'function () { [native code] }';
+}
+
 function FunctionSourceString(func) {
   while (%IsJSFunctionProxy(func)) {
     func = %GetCallTrap(func);
@@ -1747,20 +1757,18 @@ function FunctionSourceString(func) {
     throw MakeTypeError(kNotGeneric, 'Function.prototype.toString');
   }
 
+  if (%FunctionIsBuiltin(func)) {
+    return NativeCodeFunctionSourceString(func);
+  }
+
   var classSource = %ClassGetSourceCode(func);
   if (IS_STRING(classSource)) {
     return classSource;
   }
 
   var source = %FunctionGetSourceCode(func);
-  if (!IS_STRING(source) || %FunctionIsBuiltin(func)) {
-    var name = %FunctionGetName(func);
-    if (name) {
-      // Mimic what KJS does.
-      return 'function ' + name + '() { [native code] }';
-    } else {
-      return 'function () { [native code] }';
-    }
+  if (!IS_STRING(source)) {
+    return NativeCodeFunctionSourceString(func);
   }
 
   if (%FunctionIsArrow(func)) {
