@@ -143,6 +143,8 @@
   # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
   'result-table-min': [PASS, NO_VARIANTS],
   'result-table-max': [PASS, NO_VARIANTS],
+  # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
+  'regress/regress-1122': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.

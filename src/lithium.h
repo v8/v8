@@ -252,6 +252,17 @@ class LUnallocated : public LOperand {
     DCHECK(basic_policy() == EXTENDED_POLICY);
     return LifetimeField::decode(value_) == USED_AT_START;
   }
+
+  static bool TooManyParameters(int num_parameters) {
+    const int parameter_limit = -LUnallocated::kMinFixedSlotIndex;
+    return num_parameters + 1 > parameter_limit;
+  }
+
+  static bool TooManyParametersOrStackSlots(int num_parameters,
+                                            int num_stack_slots) {
+    const int locals_limit = LUnallocated::kMaxFixedSlotIndex;
+    return num_parameters + 1 + num_stack_slots > locals_limit;
+  }
 };
 
 
