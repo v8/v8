@@ -9848,9 +9848,8 @@ class PropertyCell : public HeapObject {
   static PropertyCellType UpdatedType(Handle<PropertyCell> cell,
                                       Handle<Object> value,
                                       PropertyDetails details);
-  static Handle<Object> UpdateCell(Handle<NameDictionary> dictionary, int entry,
-                                   Handle<Object> value,
-                                   PropertyDetails details);
+  static void UpdateCell(Handle<NameDictionary> dictionary, int entry,
+                         Handle<Object> value, PropertyDetails details);
 
   static Handle<PropertyCell> InvalidateEntry(Handle<NameDictionary> dictionary,
                                               int entry);

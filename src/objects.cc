@@ -3374,7 +3374,7 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   it->PrepareForDataProperty(value);
 
   // Write the property value.
-  value = it->WriteDataValue(value);
+  it->WriteDataValue(value);
 
   // Send the change record if there are observers.
   if (is_observed && !value->SameValue(*maybe_old.ToHandleChecked())) {
@@ -3429,7 +3429,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     JSObject::AddSlowProperty(receiver, it->name(), value, attributes);
   } else {
     // Write the property value.
-    value = it->WriteDataValue(value);
+    it->WriteDataValue(value);
   }
 
   // Send the change record if there are observers.
@@ -4293,7 +4293,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         }
 
         it.ReconfigureDataProperty(value, attributes);
-        value = it.WriteDataValue(value);
+        it.WriteDataValue(value);
 
         if (is_observed) {
           RETURN_ON_EXCEPTION(
@@ -4317,7 +4317,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         if (is_observed) old_value = it.GetDataValue();
 
         it.ReconfigureDataProperty(value, attributes);
-        value = it.WriteDataValue(value);
+        it.WriteDataValue(value);
 
         if (is_observed) {
           if (old_value->SameValue(*value)) {
@@ -17156,9 +17156,8 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
 }
 
 
-Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
-                                        int entry, Handle<Object> value,
-                                        PropertyDetails details) {
+void PropertyCell::UpdateCell(Handle<NameDictionary> dictionary, int entry,
+                              Handle<Object> value, PropertyDetails details) {
   DCHECK(!value->IsTheHole());
   DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
   Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
@@ -17179,18 +17178,6 @@ Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
   DCHECK(index > 0);
   details = details.set_index(index);
 
-  // Heuristic: if a small-ish string is stored in a previously uninitialized
-  // property cell, internalize it.
-  const int kMaxLengthForInternalization = 200;
-  if ((old_type == PropertyCellType::kUninitialized ||
-       old_type == PropertyCellType::kUndefined) &&
-      value->IsString()) {
-    auto string = Handle<String>::cast(value);
-    if (string->length() <= kMaxLengthForInternalization) {
-      value = cell->GetIsolate()->factory()->InternalizeString(string);
-    }
-  }
-
   auto new_type = UpdatedType(cell, value, original_details);
   if (invalidate) cell = PropertyCell::InvalidateEntry(dictionary, entry);
 
@@ -17205,7 +17192,6 @@ Handle<Object> PropertyCell::UpdateCell(Handle<NameDictionary> dictionary,
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
   }
-  return value;
 }
 
 
