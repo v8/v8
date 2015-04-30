@@ -1579,13 +1579,15 @@ SetUpLockedPrototype(InternalArray, GlobalArray(), [
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush),
+  "shift", getFunction("shift", ArrayShift),
   "splice", getFunction("splice", ArraySplice)
 ]);
 
 SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
-  "push", getFunction("push", ArrayPush)
+  "push", getFunction("push", ArrayPush),
+  "shift", getFunction("shift", ArrayShift)
 ]);
 
 $arrayConcat = ArrayConcatJS;
