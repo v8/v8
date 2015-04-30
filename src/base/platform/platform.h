@@ -446,10 +446,6 @@ class Thread {
   }
 #endif
 
-  // A hint to the scheduler to let another thread run.
-  static void YieldCPU();
-
-
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().
   static const int kMaxThreadNameLength = 16;

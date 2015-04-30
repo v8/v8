@@ -631,13 +631,6 @@ void Thread::Join() {
 }
 
 
-void Thread::YieldCPU() {
-  int result = sched_yield();
-  DCHECK_EQ(0, result);
-  USE(result);
-}
-
-
 static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
 #if V8_OS_CYGWIN
   // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
@@ -761,5 +754,5 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   USE(result);
 }
 
-
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

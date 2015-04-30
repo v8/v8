@@ -1384,10 +1384,5 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   DCHECK(result);
 }
 
-
-
-void Thread::YieldCPU() {
-  Sleep(0);
-}
-
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

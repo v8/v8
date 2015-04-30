@@ -70,7 +70,6 @@ class ThreadA : public v8::base::Thread {
     do {
       {
         v8::Unlocker unlocker(CcTest::isolate());
-        Thread::YieldCPU();
       }
     } while (turn != SECOND_TIME_FILL_CACHE);
 
@@ -102,8 +101,6 @@ class ThreadB : public v8::base::Thread {
           break;
         }
       }
-
-      Thread::YieldCPU();
     } while (true);
   }
 };
