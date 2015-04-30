@@ -712,9 +712,11 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
+  enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
   void PrintCurrentStackTrace(FILE* out);
-  void PrintStack(StringStream* accumulator);
-  void PrintStack(FILE* out);
+  void PrintStack(StringStream* accumulator,
+                  PrintStackMode mode = kPrintStackVerbose);
+  void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,

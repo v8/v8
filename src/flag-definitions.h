@@ -603,6 +603,8 @@ DEFINE_BOOL(print_max_heap_committed, false,
             "in name=value format on exit")
 DEFINE_BOOL(trace_gc_verbose, false,
             "print more details following each garbage collection")
+DEFINE_INT(trace_allocation_stack_interval, -1,
+           "print stack trace after <n> free-list allocations")
 DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
 DEFINE_BOOL(trace_fragmentation_verbose, false,
             "report fragmentation for old space (detailed)")

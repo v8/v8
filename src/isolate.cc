@@ -667,14 +667,14 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 }
 
 
-void Isolate::PrintStack(FILE* out) {
+void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
     StringStream::ClearMentionedObjectCache(this);
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
-    PrintStack(&accumulator);
+    PrintStack(&accumulator, mode);
     accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
     accumulator.Log(this);
@@ -701,7 +701,7 @@ static void PrintFrames(Isolate* isolate,
 }
 
 
-void Isolate::PrintStack(StringStream* accumulator) {
+void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   // The MentionedObjectCache is not GC-proof at the moment.
   DisallowHeapAllocation no_gc;
   DCHECK(StringStream::IsMentionedObjectCacheClear(this));
@@ -712,12 +712,12 @@ void Isolate::PrintStack(StringStream* accumulator) {
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
   PrintFrames(this, accumulator, StackFrame::OVERVIEW);
-
-  accumulator->Add(
-      "\n==== Details ================================================\n\n");
-  PrintFrames(this, accumulator, StackFrame::DETAILS);
-
-  accumulator->PrintMentionedObjectCache(this);
+  if (mode == kPrintStackVerbose) {
+    accumulator->Add(
+        "\n==== Details ================================================\n\n");
+    PrintFrames(this, accumulator, StackFrame::DETAILS);
+    accumulator->PrintMentionedObjectCache(this);
+  }
   accumulator->Add("=====================\n\n");
 }
 
