@@ -91,6 +91,9 @@
   # Fails sometimes.
   'test-debug/ProcessDebugMessagesThreaded': [PASS, FLAKY],
 
+  # BUG(2340). Preprocessing stack traces is disabled at the moment.
+  'test-heap/PreprocessStackTrace': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 
