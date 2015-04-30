@@ -29,6 +29,9 @@
                     "v8_linux64_asan_rel": [
                         "defaulttests"
                     ],
+                    "v8_linux64_avx2_rel": [
+                        "defaulttests"
+                    ],
                     "v8_linux64_rel": [
                         "defaulttests"
                     ],
