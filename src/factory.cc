@@ -1987,7 +1987,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
   Handle<Object> length_object = NewNumberFromSize(number_of_elements);
   obj->set_length(*length_object);
 
-  obj->set_buffer(Smi::FromInt(0));
+  Handle<JSArrayBuffer> buffer = isolate()->factory()->NewJSArrayBuffer();
+  Runtime::SetupArrayBuffer(isolate(), buffer, true, NULL, byte_length);
+  obj->set_buffer(*buffer);
   Handle<FixedTypedArrayBase> elements =
       isolate()->factory()->NewFixedTypedArray(
           static_cast<int>(number_of_elements), array_type);

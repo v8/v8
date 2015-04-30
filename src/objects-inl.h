@@ -6508,7 +6508,7 @@ ACCESSORS(JSArrayBufferView, raw_byte_length, Object, kByteLengthOffset)
 
 
 bool JSArrayBufferView::WasNeutered() const {
-  return !buffer()->IsSmi() && JSArrayBuffer::cast(buffer())->was_neutered();
+  return JSArrayBuffer::cast(buffer())->was_neutered();
 }
 
 

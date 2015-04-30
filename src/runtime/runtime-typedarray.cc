@@ -241,7 +241,9 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     JSObject::SetMapAndElements(holder, map, elements);
     DCHECK(IsExternalArrayElementsKind(holder->map()->elements_kind()));
   } else {
-    holder->set_buffer(Smi::FromInt(0));
+    Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+    Runtime::SetupArrayBuffer(isolate, buffer, true, NULL, byte_length);
+    holder->set_buffer(*buffer);
     Handle<FixedTypedArrayBase> elements =
         isolate->factory()->NewFixedTypedArray(static_cast<int>(length),
                                                array_type);

@@ -3191,29 +3191,21 @@ HValue* HGraphBuilder::BuildArrayBufferViewFieldAccessor(HValue* object,
       object, checked_object, HObjectAccess::ForJSArrayBufferViewBuffer());
   HInstruction* field = Add<HLoadNamedField>(object, checked_object, access);
 
-  IfBuilder if_has_buffer(this);
-  HValue* has_buffer = if_has_buffer.IfNot<HIsSmiAndBranch>(buffer);
-  if_has_buffer.Then();
-  {
-    HInstruction* flags = Add<HLoadNamedField>(
-        buffer, has_buffer, HObjectAccess::ForJSArrayBufferBitField());
-    HValue* was_neutered_mask =
-        Add<HConstant>(1 << JSArrayBuffer::WasNeutered::kShift);
-    HValue* was_neutered_test =
-        AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
+  HInstruction* flags = Add<HLoadNamedField>(
+      buffer, nullptr, HObjectAccess::ForJSArrayBufferBitField());
+  HValue* was_neutered_mask =
+      Add<HConstant>(1 << JSArrayBuffer::WasNeutered::kShift);
+  HValue* was_neutered_test =
+      AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
 
-    IfBuilder if_was_neutered(this);
-    if_was_neutered.If<HCompareNumericAndBranch>(
-        was_neutered_test, graph()->GetConstant0(), Token::NE);
-    if_was_neutered.Then();
-    Push(graph()->GetConstant0());
-    if_was_neutered.Else();
-    Push(field);
-    if_was_neutered.End();
-  }
-  if_has_buffer.Else();
+  IfBuilder if_was_neutered(this);
+  if_was_neutered.If<HCompareNumericAndBranch>(
+      was_neutered_test, graph()->GetConstant0(), Token::NE);
+  if_was_neutered.Then();
+  Push(graph()->GetConstant0());
+  if_was_neutered.Else();
   Push(field);
-  if_has_buffer.End();
+  if_was_neutered.End();
 
   return Pop();
 }
@@ -9726,6 +9718,45 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 }
 
 
+HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
+  HAllocate* result =
+      BuildAllocate(Add<HConstant>(JSArrayBuffer::kSizeWithInternalFields),
+                    HType::JSObject(), JS_ARRAY_BUFFER_TYPE, HAllocationMode());
+
+  HValue* global_object = Add<HLoadNamedField>(
+      context(), nullptr,
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HValue* native_context = Add<HLoadNamedField>(
+      global_object, nullptr, HObjectAccess::ForGlobalObjectNativeContext());
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForMap(),
+      Add<HLoadNamedField>(
+          native_context, nullptr,
+          HObjectAccess::ForContextSlot(Context::ARRAY_BUFFER_MAP_INDEX)));
+
+  Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferBackingStore(),
+                        Add<HConstant>(ExternalReference()));
+  Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferByteLength(),
+                        byte_length);
+  Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferBitFieldSlot(),
+                        graph()->GetConstant0());
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayBufferBitField(),
+      Add<HConstant>((1 << JSArrayBuffer::IsExternal::kShift) |
+                     (1 << JSArrayBuffer::IsNeuterable::kShift)));
+
+  for (int field = 0; field < v8::ArrayBuffer::kInternalFieldCount; ++field) {
+    Add<HStoreNamedField>(
+        result,
+        HObjectAccess::ForObservableJSObjectOffset(
+            JSArrayBuffer::kSize + field * kPointerSize, Representation::Smi()),
+        graph()->GetConstant0());
+  }
+
+  return result;
+}
+
+
 template <class ViewClass>
 void HGraphBuilder::BuildArrayBufferViewInitialization(
     HValue* obj,
@@ -9749,17 +9780,8 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
       obj,
       HObjectAccess::ForJSArrayBufferViewByteLength(),
       byte_length);
-
-  if (buffer != NULL) {
-    Add<HStoreNamedField>(
-        obj,
-        HObjectAccess::ForJSArrayBufferViewBuffer(), buffer);
-  } else {
-    Add<HStoreNamedField>(
-        obj,
-        HObjectAccess::ForJSArrayBufferViewBuffer(),
-        Add<HConstant>(static_cast<int32_t>(0)));
-  }
+  Add<HStoreNamedField>(obj, HObjectAccess::ForJSArrayBufferViewBuffer(),
+                        buffer);
 }
 
 
@@ -9981,8 +10003,12 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
 
 
   { //  byte_offset is Smi.
-    BuildArrayBufferViewInitialization<JSTypedArray>(
-        obj, buffer, byte_offset, byte_length);
+    HValue* allocated_buffer = buffer;
+    if (buffer == NULL) {
+      allocated_buffer = BuildAllocateEmptyArrayBuffer(byte_length);
+    }
+    BuildArrayBufferViewInitialization<JSTypedArray>(obj, allocated_buffer,
+                                                     byte_offset, byte_length);
 
 
     HInstruction* length = AddUncasted<HDiv>(byte_length,

@@ -17076,11 +17076,18 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
           map,
           FixedToExternalElementsKind(map->elements_kind()));
 
-  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   Handle<FixedTypedArrayBase> fixed_typed_array(
       FixedTypedArrayBase::cast(typed_array->elements()));
-  Runtime::SetupArrayBufferAllocatingData(isolate, buffer,
-      fixed_typed_array->DataSize(), false);
+
+  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
+                               isolate);
+  void* backing_store =
+      isolate->array_buffer_allocator()->AllocateUninitialized(
+          fixed_typed_array->DataSize());
+  isolate->heap()->RegisterNewArrayBuffer(backing_store,
+                                          fixed_typed_array->DataSize());
+  buffer->set_backing_store(backing_store);
+  buffer->set_is_external(false);
   memcpy(buffer->backing_store(),
          fixed_typed_array->DataPtr(),
          fixed_typed_array->DataSize());
@@ -17089,7 +17096,6 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
           fixed_typed_array->length(), typed_array->type(),
           static_cast<uint8_t*>(buffer->backing_store()));
 
-  typed_array->set_buffer(*buffer);
   JSObject::SetMapAndElements(typed_array, new_map, new_elements);
 
   return buffer;
@@ -17097,9 +17103,8 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
-  Handle<Object> result(buffer(), GetIsolate());
-  if (*result != Smi::FromInt(0)) {
-    DCHECK(IsExternalArrayElementsKind(map()->elements_kind()));
+  if (IsExternalArrayElementsKind(map()->elements_kind())) {
+    Handle<Object> result(buffer(), GetIsolate());
     return Handle<JSArrayBuffer>::cast(result);
   }
   Handle<JSTypedArray> self(this);

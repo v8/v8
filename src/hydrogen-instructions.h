@@ -6130,6 +6130,11 @@ class HObjectAccess final {
         JSArrayBuffer::kBitFieldOffset, Representation::Integer32());
   }
 
+  static HObjectAccess ForJSArrayBufferBitFieldSlot() {
+    return HObjectAccess::ForObservableJSObjectOffset(
+        JSArrayBuffer::kBitFieldSlot, Representation::Smi());
+  }
+
   static HObjectAccess ForExternalArrayExternalPointer() {
     return HObjectAccess::ForObservableJSObjectOffset(
         ExternalArray::kExternalPointerOffset, Representation::External());

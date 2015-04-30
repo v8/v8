@@ -1151,6 +1151,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
             isolate->initial_object_prototype(),
             Builtins::kIllegal);
     native_context()->set_array_buffer_fun(*array_buffer_fun);
+    native_context()->set_array_buffer_map(array_buffer_fun->initial_map());
   }
 
   {  // -- T y p e d A r r a y s

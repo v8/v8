@@ -1899,6 +1899,7 @@ class HGraphBuilder {
   SourcePosition source_position() { return position_; }
   void set_source_position(SourcePosition position) { position_ = position; }
 
+  HValue* BuildAllocateEmptyArrayBuffer(HValue* byte_length);
   template <typename ViewClass>
   void BuildArrayBufferViewInitialization(HValue* obj,
                                           HValue* buffer,
