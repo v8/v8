@@ -110,7 +110,6 @@ var kMessages = {
   not_a_promise:                 ["%0", " is not a promise"],
   resolver_not_a_function:       ["Promise resolver ", "%0", " is not a function"],
   promise_cyclic:                ["Chaining cycle detected for promise ", "%0"],
-  first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
   iterator_result_not_an_object: ["Iterator result ", "%0", " is not an object"],
   iterator_value_not_an_object:  ["Iterator value ", "%0", " is not an entry object"],
   // RangeError
@@ -128,10 +127,6 @@ var kMessages = {
   invalid_data_view_length:      ["Invalid data view length"],
   invalid_data_view_accessor_offset:
                                  ["Offset is outside the bounds of the DataView"],
-
-  invalid_time_value:            ["Invalid time value"],
-  invalid_count_value:           ["Invalid count value"],
-  invalid_code_point:            ["Invalid code point ", "%0"],
   // ReferenceError
   invalid_lhs_in_assignment:     ["Invalid left-hand side in assignment"],
   invalid_lhs_in_for:            ["Invalid left-hand side in for-loop"],

@@ -691,7 +691,7 @@ function PadInt(n, digits) {
 // ECMA 262 - 15.9.5.43
 function DateToISOString() {
   var t = UTC_DATE_VALUE(this);
-  if (NUMBER_IS_NAN(t)) throw MakeRangeError("invalid_time_value", []);
+  if (NUMBER_IS_NAN(t)) throw MakeRangeError(kInvalidTimeValue);
   var year = this.getUTCFullYear();
   var year_string;
   if (year >= 0 && year <= 9999) {

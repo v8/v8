@@ -936,9 +936,7 @@ function StringRepeat(count) {
   var n = ToInteger(count);
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n < 0 || n > %_MaxSmi()) {
-    throw MakeRangeError("invalid_count_value", []);
-  }
+  if (n < 0 || n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
 
   var r = "";
   while (true) {
@@ -957,8 +955,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
-    throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.startsWith"]);
+    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
   var ss = TO_STRING_INLINE(searchString);
@@ -986,8 +983,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
-    throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.endsWith"]);
+    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
   var ss = TO_STRING_INLINE(searchString);
@@ -1018,8 +1014,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
-    throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.includes"]);
+    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
   var ss = TO_STRING_INLINE(searchString);
@@ -1074,7 +1069,7 @@ function StringFromCodePoint(_) {  // length = 1
       code = ToNumber(code);
     }
     if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
-      throw MakeRangeError("invalid_code_point", [code]);
+      throw MakeRangeError(kInvalidCodePoint, code);
     }
     if (code <= 0xFFFF) {
       result += %_StringCharFromCode(code);

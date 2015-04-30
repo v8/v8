@@ -131,8 +131,10 @@ class CallSite {
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(DateType, "this is not a Date object.")                                    \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
-  T(GeneratorRunning, "Generator is already running")                          \
+  T(FirstArgumentNotRegExp,                                                    \
+    "First argument to % must not be a regular expression")                    \
   T(FunctionBind, "Bind must be called on a function")                         \
+  T(GeneratorRunning, "Generator is already running")                          \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofFunctionExpected,                                                \
     "Expecting a function in instanceof check, but got %")                     \
@@ -189,8 +191,11 @@ class CallSite {
   T(ArrayLengthOutOfRange, "defineProperty() array length out of range")       \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedLocation, "Expected Area/Location for time zone, got %")           \
+  T(InvalidCodePoint, "Invalid code point %")                                  \
+  T(InvalidCountValue, "Invalid count value")                                  \
   T(InvalidCurrencyCode, "Invalid currency code: %")                           \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
+  T(InvalidTimeValue, "Invalid time value")                                    \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(NumberFormatRange, "% argument must be between 0 and 20")                  \

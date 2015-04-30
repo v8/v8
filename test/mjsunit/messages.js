@@ -79,6 +79,17 @@ test(function() {
   Object.defineProperty(o, "x", { value: 1 });
 }, "Cannot define property:x, object is not extensible.", TypeError);
 
+// kFirstArgumentNotRegExp
+test(function() {
+  "a".startsWith(/a/);
+}, "First argument to String.prototype.startsWith " +
+   "must not be a regular expression", TypeError);
+
+// kFunctionBind
+test(function() {
+  Function.prototype.bind.call(1);
+}, "Bind must be called on a function", TypeError);
+
 // kGeneratorRunning
 test(function() {
   var iter;
@@ -86,11 +97,6 @@ test(function() {
   var iter = generator();
   iter.next();
 }, "Generator is already running", TypeError);
-
-// kFunctionBind
-test(function() {
-  Function.prototype.bind.call(1);
-}, "Bind must be called on a function", TypeError);
 
 // kIncompatibleMethodReceiver
 test(function() {
@@ -259,6 +265,16 @@ test(function() {
   Object.defineProperty([], "length", { value: 1E100 });
 }, "defineProperty() array length out of range", RangeError);
 
+// kInvalidCodePoint
+test(function() {
+  String.fromCodePoint(-1);
+}, "Invalid code point -1", RangeError);
+
+// kInvalidCountValue
+test(function() {
+  "a".repeat(-1);
+}, "Invalid count value", RangeError);
+
 // kNormalizationForm
 test(function() {
   "".normalize("ABC");
@@ -266,11 +282,11 @@ test(function() {
 
 // kNumberFormatRange
 test(function() {
-Number(1).toFixed(100);
+  Number(1).toFixed(100);
 }, "toFixed() digits argument must be between 0 and 20", RangeError);
 
 test(function() {
-Number(1).toExponential(100);
+  Number(1).toExponential(100);
 }, "toExponential() argument must be between 0 and 20", RangeError);
 
 // kStackOverflow
