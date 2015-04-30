@@ -28,6 +28,7 @@ enum BuiltinExtraArguments {
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
 #define CODE_AGE_LIST_COMPLETE(V)                  \
+  V(ToBeExecutedOnce)                              \
   V(NotExecuted)                                   \
   V(ExecutedOnce)                                  \
   V(NoAge)                                         \
@@ -122,6 +123,7 @@ enum BuiltinExtraArguments {
   V(OsrAfterStackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(StackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                                \
+  V(MarkCodeAsToBeExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(MarkCodeAsExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(MarkCodeAsExecutedTwice, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
@@ -353,6 +355,7 @@ class Builtins {
   CODE_AGE_LIST(DECLARE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DECLARE_CODE_AGE_BUILTIN_GENERATOR
 
+  static void Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
 

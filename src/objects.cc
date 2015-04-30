@@ -11379,21 +11379,40 @@ void Code::MarkCodeAsExecuted(byte* sequence, Isolate* isolate) {
 }
 
 
-static Code::Age EffectiveAge(Code::Age age) {
-  if (age == Code::kNotExecutedCodeAge) {
-    // Treat that's never been executed as old immediately.
-    age = Code::kIsOldCodeAge;
-  } else if (age == Code::kExecutedOnceCodeAge) {
-    // Pre-age code that has only been executed once.
-    age = Code::kPreAgedCodeAge;
+// NextAge defines the Code::Age state transitions during a GC cycle.
+static Code::Age NextAge(Code::Age age) {
+  switch (age) {
+    case Code::kNotExecutedCodeAge:  // Keep, until we've been executed.
+    case Code::kToBeExecutedOnceCodeAge:  // Keep, until we've been executed.
+    case Code::kLastCodeAge:  // Clamp at last Code::Age value.
+      return age;
+    case Code::kExecutedOnceCodeAge:
+      // Pre-age code that has only been executed once.
+      return static_cast<Code::Age>(Code::kPreAgedCodeAge + 1);
+    default:
+      return static_cast<Code::Age>(age + 1);  // Default case: Increase age.
   }
-  return age;
+}
+
+
+// IsOldAge defines the collection criteria for a Code object.
+static bool IsOldAge(Code::Age age) {
+  return age >= Code::kIsOldCodeAge || age == Code::kNotExecutedCodeAge;
 }
 
 
 void Code::MakeYoung(Isolate* isolate) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, isolate);
+}
+
+
+void Code::MarkToBeExecutedOnce(Isolate* isolate) {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence != NULL) {
+    PatchPlatformCodeAge(isolate, sequence, kToBeExecutedOnceCodeAge,
+                         NO_MARKING_PARITY);
+  }
 }
 
 
@@ -11404,19 +11423,16 @@ void Code::MakeOlder(MarkingParity current_parity) {
     MarkingParity code_parity;
     Isolate* isolate = GetIsolate();
     GetCodeAgeAndParity(isolate, sequence, &age, &code_parity);
-    age = EffectiveAge(age);
-    if (age != kLastCodeAge && code_parity != current_parity) {
-      PatchPlatformCodeAge(isolate,
-                           sequence,
-                           static_cast<Age>(age + 1),
-                           current_parity);
+    Age next_age = NextAge(age);
+    if (age != next_age && code_parity != current_parity) {
+      PatchPlatformCodeAge(isolate, sequence, next_age, current_parity);
     }
   }
 }
 
 
 bool Code::IsOld() {
-  return GetAge() >= kIsOldCodeAge;
+  return IsOldAge(GetAge());
 }
 
 
@@ -11431,11 +11447,6 @@ byte* Code::FindCodeAgeSequence() {
 
 
 Code::Age Code::GetAge() {
-  return EffectiveAge(GetRawAge());
-}
-
-
-Code::Age Code::GetRawAge() {
   byte* sequence = FindCodeAgeSequence();
   if (sequence == NULL) {
     return kNoAgeCodeAge;
@@ -11479,6 +11490,12 @@ void Code::GetCodeAgeAndParity(Code* code, Age* age,
     *parity = NO_MARKING_PARITY;
     return;
   }
+  stub = *builtins->MarkCodeAsToBeExecutedOnce();
+  if (code == stub) {
+    *age = kToBeExecutedOnceCodeAge;
+    *parity = NO_MARKING_PARITY;
+    return;
+  }
   UNREACHABLE();
 }
 
@@ -11502,6 +11519,10 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
     case kExecutedOnceCodeAge: {
       DCHECK(parity == NO_MARKING_PARITY);
       return *builtins->MarkCodeAsExecutedTwice();
+    }
+    case kToBeExecutedOnceCodeAge: {
+      DCHECK(parity == NO_MARKING_PARITY);
+      return *builtins->MarkCodeAsToBeExecutedOnce();
     }
     default:
       UNREACHABLE();
