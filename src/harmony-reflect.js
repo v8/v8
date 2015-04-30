@@ -10,7 +10,7 @@
 
 var GlobalReflect = global.Reflect;
 
-$installFunctions(GlobalReflect, DONT_ENUM, [
+InstallFunctions(GlobalReflect, DONT_ENUM, [
   "apply", $reflectApply,
   "construct", $reflectConstruct
 ]);

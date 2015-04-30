@@ -72,7 +72,7 @@ function GeneratorObjectIterator() {
 
 
 function GeneratorFunctionConstructor(arg1) {  // length == 1
-  var source = $newFunctionString(arguments, 'function*');
+  var source = NewFunctionString(arguments, 'function*');
   var global_proxy = %GlobalProxy(global);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
@@ -90,12 +90,12 @@ function GeneratorFunctionConstructor(arg1) {  // length == 1
 
 // Set up non-enumerable functions on the generator prototype object.
 var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-$installFunctions(GeneratorObjectPrototype,
+InstallFunctions(GeneratorObjectPrototype,
                  DONT_ENUM,
                  ["next", GeneratorObjectNext,
                   "throw", GeneratorObjectThrow]);
 
-$setFunctionName(GeneratorObjectIterator, symbolIterator);
+SetFunctionName(GeneratorObjectIterator, symbolIterator);
 %AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
     GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
 %AddNamedProperty(GeneratorObjectPrototype, "constructor",

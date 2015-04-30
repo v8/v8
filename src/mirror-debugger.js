@@ -1008,7 +1008,7 @@ FunctionMirror.prototype.source = function() {
   // Return source if function is resolved. Otherwise just fall through to
   // return undefined.
   if (this.resolved()) {
-    return builtins.$functionSourceString(this.value_);
+    return builtins.FunctionSourceString(this.value_);
   }
 };
 

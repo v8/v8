@@ -2,44 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $delete;
-var $functionSourceString;
-var $getIterator;
-var $getMethod;
-var $globalEval;
-var $installConstants;
-var $installFunctions;
-var $installGetter;
-var $isFinite;
-var $isNaN;
-var $newFunctionString;
-var $numberIsNaN;
-var $objectDefineProperties;
-var $objectDefineProperty;
-var $objectFreeze;
-var $objectGetOwnPropertyDescriptor;
-var $objectGetOwnPropertyKeys;
-var $objectHasOwnProperty;
-var $objectIsFrozen;
-var $objectIsSealed;
-var $objectLookupGetter;
-var $objectLookupSetter;
-var $objectToString;
-var $overrideFunction;
-var $setFunctionName;
-var $setUpLockedPrototype;
-var $toCompletePropertyDescriptor;
-var $toNameArray;
+// This file relies on the fact that the following declarations have been made
+// in runtime.js:
+// var $Object = global.Object;
+// var $Boolean = global.Boolean;
+// var $Number = global.Number;
+// var $Function = global.Function;
+// var $Array = global.Array;
 
-(function() {
-
-%CheckIsBootstrapping();
-
-var GlobalArray = global.Array;
-var GlobalBoolean = global.Boolean;
-var GlobalFunction = global.Function;
-var GlobalNumber = global.Number;
-var GlobalObject = global.Object;
+var $isNaN = GlobalIsNaN;
+var $isFinite = GlobalIsFinite;
 
 // ----------------------------------------------------------------------------
 
@@ -223,31 +195,44 @@ function GlobalEval(x) {
 // ----------------------------------------------------------------------------
 
 // Set up global object.
-var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
+function SetUpGlobal() {
+  %CheckIsBootstrapping();
 
-InstallConstants(global, [
+  var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
+
   // ECMA 262 - 15.1.1.1.
-  "NaN", NAN,
-  // ECMA-262 - 15.1.1.2.
-  "Infinity", INFINITY,
-  // ECMA-262 - 15.1.1.2.
-  "undefined", UNDEFINED,
-]);
+  %AddNamedProperty(global, "NaN", NAN, attributes);
 
-// Set up non-enumerable function on the global object.
-InstallFunctions(global, DONT_ENUM, [
-  "isNaN", GlobalIsNaN,
-  "isFinite", GlobalIsFinite,
-  "parseInt", GlobalParseInt,
-  "parseFloat", GlobalParseFloat,
-  "eval", GlobalEval
-]);
+  // ECMA-262 - 15.1.1.2.
+  %AddNamedProperty(global, "Infinity", INFINITY, attributes);
+
+  // ECMA-262 - 15.1.1.3.
+  %AddNamedProperty(global, "undefined", UNDEFINED, attributes);
+
+  // Set up non-enumerable function on the global object.
+  InstallFunctions(global, DONT_ENUM, [
+    "isNaN", GlobalIsNaN,
+    "isFinite", GlobalIsFinite,
+    "parseInt", GlobalParseInt,
+    "parseFloat", GlobalParseFloat,
+    "eval", GlobalEval
+  ]);
+}
+
+SetUpGlobal();
 
 
 // ----------------------------------------------------------------------------
 // Object
 
 // ECMA-262 - 15.2.4.2
+function NoSideEffectsObjectToString() {
+  if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
+  if (IS_NULL(this)) return "[object Null]";
+  return "[object " + %_ClassOf(TO_OBJECT_INLINE(this)) + "]";
+}
+
+
 function ObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
@@ -257,7 +242,7 @@ function ObjectToString() {
 
   // TODO(caitp): cannot wait to get rid of this flag :>
   if (harmony_tostring) {
-    tag = O[symbolToStringTag];
+    var tag = O[symbolToStringTag];
     if (!IS_STRING(tag)) {
       tag = builtinTag;
     }
@@ -426,7 +411,7 @@ function FromPropertyDescriptor(desc) {
 // Harmony Proxies
 function FromGenericPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
-  var obj = new GlobalObject();
+  var obj = new $Object();
 
   if (desc.hasValue()) {
     %AddNamedProperty(obj, "value", desc.getValue(), NONE);
@@ -1055,7 +1040,7 @@ function ToNameArray(obj, trap, includeSymbols) {
     throw MakeTypeError(kProxyNonObjectPropNames, trap, obj);
   }
   var n = ToUint32(obj.length);
-  var array = new GlobalArray(n);
+  var array = new $Array(n);
   var realLength = 0;
   var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
   for (var index = 0; index < n; index++) {
@@ -1264,8 +1249,8 @@ function ProxyFix(obj) {
     %SetCode(obj, code);
     // TODO(rossberg): What about length and other properties? Not specified.
     // We just put in some half-reasonable defaults for now.
-    var prototype = new GlobalObject();
-    ObjectDefineProperty(prototype, "constructor",
+    var prototype = new $Object();
+    $Object.defineProperty(prototype, "constructor",
       {value: obj, writable: true, enumerable: false, configurable: true});
     // TODO(v8:1530): defineProperty does not handle prototype and length.
     %FunctionSetPrototype(obj, prototype);
@@ -1430,49 +1415,54 @@ function ObjectConstructor(x) {
 // ----------------------------------------------------------------------------
 // Object
 
-%SetNativeFlag(GlobalObject);
-%SetCode(GlobalObject, ObjectConstructor);
+function SetUpObject() {
+  %CheckIsBootstrapping();
 
-%AddNamedProperty(GlobalObject.prototype, "constructor", GlobalObject,
-                  DONT_ENUM);
+  %SetNativeFlag($Object);
+  %SetCode($Object, ObjectConstructor);
 
-// Set up non-enumerable functions on the Object.prototype object.
-InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
-  "toString", ObjectToString,
-  "toLocaleString", ObjectToLocaleString,
-  "valueOf", ObjectValueOf,
-  "hasOwnProperty", ObjectHasOwnProperty,
-  "isPrototypeOf", ObjectIsPrototypeOf,
-  "propertyIsEnumerable", ObjectPropertyIsEnumerable,
-  "__defineGetter__", ObjectDefineGetter,
-  "__lookupGetter__", ObjectLookupGetter,
-  "__defineSetter__", ObjectDefineSetter,
-  "__lookupSetter__", ObjectLookupSetter
-]);
-InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
-                    ObjectSetProto);
+  %AddNamedProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
 
-// Set up non-enumerable functions in the Object object.
-InstallFunctions(GlobalObject, DONT_ENUM, [
-  "keys", ObjectKeys,
-  "create", ObjectCreate,
-  "defineProperty", ObjectDefineProperty,
-  "defineProperties", ObjectDefineProperties,
-  "freeze", ObjectFreezeJS,
-  "getPrototypeOf", ObjectGetPrototypeOf,
-  "setPrototypeOf", ObjectSetPrototypeOf,
-  "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
-  "getOwnPropertyNames", ObjectGetOwnPropertyNames,
-  // getOwnPropertySymbols is added in symbol.js.
-  "is", ObjectIs,
-  "isExtensible", ObjectIsExtensible,
-  "isFrozen", ObjectIsFrozen,
-  "isSealed", ObjectIsSealed,
-  "preventExtensions", ObjectPreventExtension,
-  "seal", ObjectSealJS
-  // deliverChangeRecords, getNotifier, observe and unobserve are added
-  // in object-observe.js.
-]);
+  // Set up non-enumerable functions on the Object.prototype object.
+  InstallFunctions($Object.prototype, DONT_ENUM, [
+    "toString", ObjectToString,
+    "toLocaleString", ObjectToLocaleString,
+    "valueOf", ObjectValueOf,
+    "hasOwnProperty", ObjectHasOwnProperty,
+    "isPrototypeOf", ObjectIsPrototypeOf,
+    "propertyIsEnumerable", ObjectPropertyIsEnumerable,
+    "__defineGetter__", ObjectDefineGetter,
+    "__lookupGetter__", ObjectLookupGetter,
+    "__defineSetter__", ObjectDefineSetter,
+    "__lookupSetter__", ObjectLookupSetter
+  ]);
+  InstallGetterSetter($Object.prototype, "__proto__",
+                      ObjectGetProto, ObjectSetProto);
+
+  // Set up non-enumerable functions in the Object object.
+  InstallFunctions($Object, DONT_ENUM, [
+    "keys", ObjectKeys,
+    "create", ObjectCreate,
+    "defineProperty", ObjectDefineProperty,
+    "defineProperties", ObjectDefineProperties,
+    "freeze", ObjectFreezeJS,
+    "getPrototypeOf", ObjectGetPrototypeOf,
+    "setPrototypeOf", ObjectSetPrototypeOf,
+    "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
+    "getOwnPropertyNames", ObjectGetOwnPropertyNames,
+    // getOwnPropertySymbols is added in symbol.js.
+    "is", ObjectIs,
+    "isExtensible", ObjectIsExtensible,
+    "isFrozen", ObjectIsFrozen,
+    "isSealed", ObjectIsSealed,
+    "preventExtensions", ObjectPreventExtension,
+    "seal", ObjectSealJS
+    // deliverChangeRecords, getNotifier, observe and unobserve are added
+    // in object-observe.js.
+  ]);
+}
+
+SetUpObject();
 
 
 // ----------------------------------------------------------------------------
@@ -1513,15 +1503,20 @@ function BooleanValueOf() {
 
 // ----------------------------------------------------------------------------
 
-%SetCode(GlobalBoolean, BooleanConstructor);
-%FunctionSetPrototype(GlobalBoolean, new GlobalBoolean(false));
-%AddNamedProperty(GlobalBoolean.prototype, "constructor", GlobalBoolean,
-                  DONT_ENUM);
+function SetUpBoolean () {
+  %CheckIsBootstrapping();
 
-InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
-  "toString", BooleanToString,
-  "valueOf", BooleanValueOf
-]);
+  %SetCode($Boolean, BooleanConstructor);
+  %FunctionSetPrototype($Boolean, new $Boolean(false));
+  %AddNamedProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
+
+  InstallFunctions($Boolean.prototype, DONT_ENUM, [
+    "toString", BooleanToString,
+    "valueOf", BooleanValueOf
+  ]);
+}
+
+SetUpBoolean();
 
 
 // ----------------------------------------------------------------------------
@@ -1677,9 +1672,7 @@ function NumberIsNaN(number) {
 function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
-    if (integral == number) {
-      return $abs(integral) <= GlobalNumber.MAX_SAFE_INTEGER;
-    }
+    if (integral == number) return $abs(integral) <= $Number.MAX_SAFE_INTEGER;
   }
   return false;
 }
@@ -1687,54 +1680,59 @@ function NumberIsSafeInteger(number) {
 
 // ----------------------------------------------------------------------------
 
-%SetCode(GlobalNumber, NumberConstructor);
-%FunctionSetPrototype(GlobalNumber, new GlobalNumber(0));
+function SetUpNumber() {
+  %CheckIsBootstrapping();
 
-%OptimizeObjectForAddingMultipleProperties(GlobalNumber.prototype, 8);
-// Set up the constructor property on the Number prototype object.
-%AddNamedProperty(GlobalNumber.prototype, "constructor", GlobalNumber,
-                  DONT_ENUM);
+  %SetCode($Number, NumberConstructor);
+  %FunctionSetPrototype($Number, new $Number(0));
 
-InstallConstants(GlobalNumber, [
-  // ECMA-262 section 15.7.3.1.
-  "MAX_VALUE", 1.7976931348623157e+308,
-  // ECMA-262 section 15.7.3.2.
-  "MIN_VALUE", 5e-324,
-  // ECMA-262 section 15.7.3.3.
-  "NaN", NAN,
-  // ECMA-262 section 15.7.3.4.
-  "NEGATIVE_INFINITY", -INFINITY,
-  // ECMA-262 section 15.7.3.5.
-  "POSITIVE_INFINITY", INFINITY,
+  %OptimizeObjectForAddingMultipleProperties($Number.prototype, 8);
+  // Set up the constructor property on the Number prototype object.
+  %AddNamedProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
-  // --- Harmony constants (no spec refs until settled.)
+  InstallConstants($Number, [
+    // ECMA-262 section 15.7.3.1.
+    "MAX_VALUE", 1.7976931348623157e+308,
+    // ECMA-262 section 15.7.3.2.
+    "MIN_VALUE", 5e-324,
+    // ECMA-262 section 15.7.3.3.
+    "NaN", NAN,
+    // ECMA-262 section 15.7.3.4.
+    "NEGATIVE_INFINITY", -INFINITY,
+    // ECMA-262 section 15.7.3.5.
+    "POSITIVE_INFINITY", INFINITY,
 
-  "MAX_SAFE_INTEGER", %_MathPow(2, 53) - 1,
-  "MIN_SAFE_INTEGER", -%_MathPow(2, 53) + 1,
-  "EPSILON", %_MathPow(2, -52)
-]);
+    // --- Harmony constants (no spec refs until settled.)
 
-// Set up non-enumerable functions on the Number prototype object.
-InstallFunctions(GlobalNumber.prototype, DONT_ENUM, [
-  "toString", NumberToStringJS,
-  "toLocaleString", NumberToLocaleString,
-  "valueOf", NumberValueOf,
-  "toFixed", NumberToFixedJS,
-  "toExponential", NumberToExponentialJS,
-  "toPrecision", NumberToPrecisionJS
-]);
+    "MAX_SAFE_INTEGER", %_MathPow(2, 53) - 1,
+    "MIN_SAFE_INTEGER", -%_MathPow(2, 53) + 1,
+    "EPSILON", %_MathPow(2, -52)
+  ]);
 
-// Harmony Number constructor additions
-InstallFunctions(GlobalNumber, DONT_ENUM, [
-  "isFinite", NumberIsFinite,
-  "isInteger", NumberIsInteger,
-  "isNaN", NumberIsNaN,
-  "isSafeInteger", NumberIsSafeInteger,
-  "parseInt", GlobalParseInt,
-  "parseFloat", GlobalParseFloat
-]);
+  // Set up non-enumerable functions on the Number prototype object.
+  InstallFunctions($Number.prototype, DONT_ENUM, [
+    "toString", NumberToStringJS,
+    "toLocaleString", NumberToLocaleString,
+    "valueOf", NumberValueOf,
+    "toFixed", NumberToFixedJS,
+    "toExponential", NumberToExponentialJS,
+    "toPrecision", NumberToPrecisionJS
+  ]);
 
-%SetInlineBuiltinFlag(NumberIsNaN);
+  // Harmony Number constructor additions
+  InstallFunctions($Number, DONT_ENUM, [
+    "isFinite", NumberIsFinite,
+    "isInteger", NumberIsInteger,
+    "isNaN", NumberIsNaN,
+    "isSafeInteger", NumberIsSafeInteger,
+    "parseInt", GlobalParseInt,
+    "parseFloat", GlobalParseFloat
+  ]);
+
+  %SetInlineBuiltinFlag(NumberIsNaN);
+}
+
+SetUpNumber();
 
 
 // ----------------------------------------------------------------------------
@@ -1852,13 +1850,13 @@ function FunctionBind(this_arg) { // Length is 1.
 }
 
 
-function NewFunctionString(args, function_token) {
-  var n = args.length;
+function NewFunctionString(arguments, function_token) {
+  var n = arguments.length;
   var p = '';
   if (n > 1) {
-    p = ToString(args[0]);
+    p = ToString(arguments[0]);
     for (var i = 1; i < n - 1; i++) {
-      p += ',' + ToString(args[i]);
+      p += ',' + ToString(arguments[i]);
     }
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
@@ -1871,7 +1869,7 @@ function NewFunctionString(args, function_token) {
     // comments we can include a trailing block comment to catch this.
     p += '\n/' + '**/';
   }
-  var body = (n > 0) ? ToString(args[n - 1]) : '';
+  var body = (n > 0) ? ToString(arguments[n - 1]) : '';
   return '(' + function_token + '(' + p + ') {\n' + body + '\n})';
 }
 
@@ -1889,14 +1887,20 @@ function FunctionConstructor(arg1) {  // length == 1
 
 // ----------------------------------------------------------------------------
 
-%SetCode(GlobalFunction, FunctionConstructor);
-%AddNamedProperty(GlobalFunction.prototype, "constructor", GlobalFunction,
-                  DONT_ENUM);
+function SetUpFunction() {
+  %CheckIsBootstrapping();
 
-InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
-  "bind", FunctionBind,
-  "toString", FunctionToString
-]);
+  %SetCode($Function, FunctionConstructor);
+  %AddNamedProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
+
+  InstallFunctions($Function.prototype, DONT_ENUM, [
+    "bind", FunctionBind,
+    "toString", FunctionToString
+  ]);
+}
+
+SetUpFunction();
+
 
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
@@ -1916,36 +1920,3 @@ function GetIterator(obj, method) {
   }
   return iterator;
 }
-
-//----------------------------------------------------------------------------
-
-$delete = Delete;
-$functionSourceString = FunctionSourceString;
-$getIterator = GetIterator;
-$getMethod = GetMethod;
-$globalEval = GlobalEval;
-$installConstants = InstallConstants;
-$installFunctions = InstallFunctions;
-$installGetter = InstallGetter;
-$isFinite = GlobalIsFinite;
-$isNaN = GlobalIsNaN;
-$newFunctionString = NewFunctionString;
-$numberIsNaN = NumberIsNaN;
-$objectDefineProperties = ObjectDefineProperties;
-$objectDefineProperty = ObjectDefineProperty;
-$objectFreeze = ObjectFreezeJS;
-$objectGetOwnPropertyDescriptor = ObjectGetOwnPropertyDescriptor;
-$objectGetOwnPropertyKeys = ObjectGetOwnPropertyKeys;
-$objectHasOwnProperty = ObjectHasOwnProperty;
-$objectIsFrozen = ObjectIsFrozen;
-$objectIsSealed = ObjectIsSealed;
-$objectLookupGetter = ObjectLookupGetter;
-$objectLookupSetter = ObjectLookupSetter;
-$objectToString = ObjectToString;
-$overrideFunction = OverrideFunction;
-$setFunctionName = SetFunctionName;
-$setUpLockedPrototype = SetUpLockedPrototype;
-$toCompletePropertyDescriptor = ToCompletePropertyDescriptor;
-$toNameArray = ToNameArray;
-
-})();

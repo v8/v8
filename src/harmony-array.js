@@ -173,7 +173,7 @@ function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
     if (end > length) end = length;
   }
 
-  if ((end - i) > 0 && $objectIsFrozen(array)) {
+  if ((end - i) > 0 && ObjectIsFrozen(array)) {
     throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
@@ -197,7 +197,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     }
   }
 
-  var iterable = $getMethod(items, symbolIterator);
+  var iterable = GetMethod(items, symbolIterator);
   var k;
   var result;
   var mappedValue;
@@ -206,7 +206,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   if (!IS_UNDEFINED(iterable)) {
     result = %IsConstructor(this) ? new this() : [];
 
-    var iterator = $getIterator(items, iterable);
+    var iterator = GetIterator(items, iterable);
 
     k = 0;
     while (true) {
@@ -263,7 +263,7 @@ function ArrayOf() {
 
 // -------------------------------------------------------------------
 
-$installConstants(GlobalSymbol, [
+InstallConstants(GlobalSymbol, [
   // TODO(dslomov, caitp): Move to symbol.js when shipping
   "isConcatSpreadable", symbolIsConcatSpreadable
 ]);
@@ -272,13 +272,13 @@ $installConstants(GlobalSymbol, [
 %FunctionSetLength(ArrayFrom, 1);
 
 // Set up non-enumerable functions on the Array object.
-$installFunctions(GlobalArray, DONT_ENUM, [
+InstallFunctions(GlobalArray, DONT_ENUM, [
   "from", ArrayFrom,
   "of", ArrayOf
 ]);
 
 // Set up the non-enumerable functions on the Array prototype object.
-$installFunctions(GlobalArray.prototype, DONT_ENUM, [
+InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "copyWithin", ArrayCopyWithin,
   "find", ArrayFind,
   "findIndex", ArrayFindIndex,
