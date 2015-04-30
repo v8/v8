@@ -158,6 +158,7 @@
         'test-thread-termination.cc',
         'test-threads.cc',
         'test-transitions.cc',
+        'test-typedarrays.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
         'test-unboxed-doubles.cc',

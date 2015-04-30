@@ -6433,6 +6433,39 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 }
 
 
+size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
+  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  size_t byte_offset = i::NumberToSize(isolate, obj->byte_offset());
+  size_t bytes_to_copy =
+      i::Min(byte_length, i::NumberToSize(isolate, obj->byte_length()));
+  if (bytes_to_copy) {
+    i::DisallowHeapAllocation no_gc;
+    const char* source = nullptr;
+    if (obj->IsJSDataView()) {
+      i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*obj));
+      i::Handle<i::JSArrayBuffer> buffer(
+          i::JSArrayBuffer::cast(data_view->buffer()));
+      source = reinterpret_cast<char*>(buffer->backing_store());
+    } else {
+      DCHECK(obj->IsJSTypedArray());
+      i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*obj));
+      if (typed_array->buffer()->IsSmi()) {
+        i::Handle<i::FixedTypedArrayBase> fixed_array(
+            i::FixedTypedArrayBase::cast(typed_array->elements()));
+        source = reinterpret_cast<char*>(fixed_array->DataPtr());
+      } else {
+        i::Handle<i::JSArrayBuffer> buffer(
+            i::JSArrayBuffer::cast(typed_array->buffer()));
+        source = reinterpret_cast<char*>(buffer->backing_store());
+      }
+    }
+    memcpy(dest, source + byte_offset, bytes_to_copy);
+  }
+  return bytes_to_copy;
+}
+
+
 size_t v8::ArrayBufferView::ByteOffset() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_offset()->Number());
