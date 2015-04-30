@@ -136,9 +136,11 @@ TEST_F(MoveOptimizerTest, SimpleMerge) {
   StartBlock();
   EndBlock(Last());
 
+  auto last = LastInstruction();
+
   Optimize();
 
-  auto move = LastInstruction()->parallel_moves()[0];
+  auto move = last->parallel_moves()[0];
   CHECK_EQ(1, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
 }
@@ -163,11 +165,13 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   StartBlock();
   EndBlock(Last());
 
+  auto last = LastInstruction();
+
   Optimize();
 
   CHECK(gap_0->AreMovesRedundant());
   CHECK(gap_1->AreMovesRedundant());
-  auto move = LastInstruction()->parallel_moves()[0];
+  auto move = last->parallel_moves()[0];
   CHECK_EQ(2, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
   CHECK(Contains(move, Reg(1), Reg(0)));
