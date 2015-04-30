@@ -528,6 +528,12 @@ class RegisterAllocationData final : public ZoneObject {
   };
   typedef ZoneMap<int, PhiMapValue*> PhiMap;
 
+  struct DelayedReference {
+    ReferenceMap* map;
+    InstructionOperand* operand;
+  };
+  typedef ZoneVector<DelayedReference> DelayedReferences;
+
   RegisterAllocationData(const RegisterConfiguration* config,
                          Zone* allocation_zone, Frame* frame,
                          InstructionSequence* code,
@@ -547,6 +553,7 @@ class RegisterAllocationData final : public ZoneObject {
   }
   ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
+  DelayedReferences& delayed_references() { return delayed_references_; }
   InstructionSequence* code() const { return code_; }
   // This zone is for datastructures only needed during register allocation
   // phases.
@@ -595,6 +602,7 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<LiveRange*> fixed_live_ranges_;
   ZoneVector<LiveRange*> fixed_double_live_ranges_;
   ZoneVector<SpillRange*> spill_ranges_;
+  DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
   int virtual_register_count_;

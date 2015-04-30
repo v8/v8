@@ -210,7 +210,7 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
-void ReferenceMap::RecordReference(const InstructionOperand& op) {
+void ReferenceMap::RecordReference(const AllocatedOperand& op) {
   // Do not record arguments as pointers.
   if (op.IsStackSlot() && StackSlotOperand::cast(op).index() < 0) return;
   DCHECK(!op.IsDoubleRegister() && !op.IsDoubleStackSlot());

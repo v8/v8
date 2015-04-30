@@ -592,7 +592,7 @@ class ReferenceMap final : public ZoneObject {
     instruction_position_ = pos;
   }
 
-  void RecordReference(const InstructionOperand& op);
+  void RecordReference(const AllocatedOperand& op);
 
  private:
   friend std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);

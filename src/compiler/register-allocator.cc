@@ -902,6 +902,7 @@ RegisterAllocationData::RegisterAllocationData(
       fixed_double_live_ranges_(this->config()->num_double_registers(), nullptr,
                                 allocation_zone()),
       spill_ranges_(allocation_zone()),
+      delayed_references_(allocation_zone()),
       assigned_registers_(nullptr),
       assigned_double_registers_(nullptr),
       virtual_register_count_(code->VirtualRegisterCount()) {
@@ -1057,7 +1058,7 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
     TRACE("Fixed reg is tagged at %d\n", pos);
     auto instr = InstructionAt(pos);
     if (instr->HasReferenceMap()) {
-      instr->reference_map()->RecordReference(*operand);
+      instr->reference_map()->RecordReference(*AllocatedOperand::cast(operand));
     }
   }
   return operand;
@@ -1206,10 +1207,13 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
     int input_vreg = cur_input->virtual_register();
     UnallocatedOperand input_copy(UnallocatedOperand::ANY, input_vreg);
     cur_input->set_virtual_register(second_output->virtual_register());
-    data()->AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
+    auto gap_move = data()->AddGapMove(instr_index, Instruction::END,
+                                       input_copy, *cur_input);
     if (IsReference(input_vreg) && !IsReference(output_vreg)) {
       if (second->HasReferenceMap()) {
-        second->reference_map()->RecordReference(input_copy);
+        RegisterAllocationData::DelayedReference delayed_reference = {
+            second->reference_map(), &gap_move->source()};
+        data()->delayed_references().push_back(delayed_reference);
       }
     } else if (!IsReference(input_vreg) && IsReference(output_vreg)) {
       // The input is assumed to immediately have a tagged representation,
@@ -2755,7 +2759,11 @@ bool ReferenceMapPopulator::SafePointsAreInOrder() const {
 
 void ReferenceMapPopulator::PopulateReferenceMaps() {
   DCHECK(SafePointsAreInOrder());
-
+  // Map all delayed references.
+  for (auto& delayed_reference : data()->delayed_references()) {
+    delayed_reference.map->RecordReference(
+        AllocatedOperand::cast(*delayed_reference.operand));
+  }
   // Iterate over all safe point positions and record a pointer
   // for all spilled live ranges at this point.
   int last_range_start = 0;
@@ -2792,6 +2800,20 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
       if (map->instruction_position() >= start) break;
     }
 
+    InstructionOperand spill_operand;
+    if (((range->HasSpillOperand() &&
+          !range->GetSpillOperand()->IsConstant()) ||
+         range->HasSpillRange())) {
+      if (range->HasSpillOperand()) {
+        spill_operand = *range->GetSpillOperand();
+      } else {
+        spill_operand = range->GetSpillRangeOperand();
+      }
+      DCHECK(spill_operand.IsStackSlot());
+      DCHECK_EQ(kRepTagged,
+                AllocatedOperand::cast(spill_operand).machine_type());
+    }
+
     // Step through the safe points to see whether they are in the range.
     for (auto it = first_it; it != reference_maps->end(); ++it) {
       auto map = *it;
@@ -2812,21 +2834,11 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
 
       // Check if the live range is spilled and the safe point is after
       // the spill position.
-      if (((range->HasSpillOperand() &&
-            !range->GetSpillOperand()->IsConstant()) ||
-           range->HasSpillRange()) &&
+      if (!spill_operand.IsInvalid() &&
           safe_point >= range->spill_start_index()) {
         TRACE("Pointer for range %d (spilled at %d) at safe point %d\n",
               range->id(), range->spill_start_index(), safe_point);
-        InstructionOperand operand;
-        if (range->HasSpillOperand()) {
-          operand = *range->GetSpillOperand();
-        } else {
-          operand = range->GetSpillRangeOperand();
-        }
-        DCHECK(operand.IsStackSlot());
-        DCHECK_EQ(kRepTagged, AllocatedOperand::cast(operand).machine_type());
-        map->RecordReference(operand);
+        map->RecordReference(AllocatedOperand::cast(spill_operand));
       }
 
       if (!cur->spilled()) {
@@ -2837,7 +2849,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
         auto operand = cur->GetAssignedOperand();
         DCHECK(!operand.IsStackSlot());
         DCHECK_EQ(kRepTagged, AllocatedOperand::cast(operand).machine_type());
-        map->RecordReference(operand);
+        map->RecordReference(AllocatedOperand::cast(operand));
       }
     }
   }
