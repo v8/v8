@@ -160,6 +160,15 @@ function ADD(x) {
 }
 
 
+// Strong mode ADD throws if an implicit conversion would be performed
+function ADD_STRONG(x) {
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
+
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // Left operand (this) is already a string.
 function STRING_ADD_LEFT(y) {
   if (!IS_STRING(y)) {
@@ -172,6 +181,15 @@ function STRING_ADD_LEFT(y) {
     }
   }
   return %_StringAdd(this, y);
+}
+
+
+// Left operand (this) is already a string.
+function STRING_ADD_LEFT_STRONG(y) {
+  if (IS_STRING(y)) {
+    return %_StringAdd(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
 }
 
 
@@ -191,6 +209,15 @@ function STRING_ADD_RIGHT(y) {
 }
 
 
+// Right operand (y) is already a string.
+function STRING_ADD_RIGHT_STRONG(y) {
+  if (IS_STRING(this)) {
+    return %_StringAdd(this, y);
+  }
+  throw %MakeTypeError('strong_implicit_cast');
+}
+
+
 // ECMA-262, section 11.6.2, page 50.
 function SUB(y) {
   var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
@@ -199,7 +226,7 @@ function SUB(y) {
 }
 
 
-// ECMA-262, section 11.6.2, page 50.
+// Strong mode SUB throws if an implicit conversion would be performed
 function SUB_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberSub(this, y);
@@ -216,7 +243,7 @@ function MUL(y) {
 }
 
 
-// ECMA-262, section 11.5.1, page 48.
+// Strong mode MUL throws if an implicit conversion would be performed
 function MUL_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberMul(this, y);
@@ -233,7 +260,7 @@ function DIV(y) {
 }
 
 
-// ECMA-262, section 11.5.2, page 49.
+// Strong mode DIV throws if an implicit conversion would be performed
 function DIV_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberDiv(this, y);
@@ -250,7 +277,7 @@ function MOD(y) {
 }
 
 
-// ECMA-262, section 11.5.3, page 49.
+// Strong mode MOD throws if an implicit conversion would be performed
 function MOD_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberMod(this, y);
@@ -272,7 +299,7 @@ function BIT_OR(y) {
 }
 
 
-//ECMA-262, section 11.10, page 57.
+// Strong mode BIT_OR throws if an implicit conversion would be performed
 function BIT_OR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberOr(this, y);
@@ -303,7 +330,7 @@ function BIT_AND(y) {
 }
 
 
-//ECMA-262, section 11.10, page 57.
+// Strong mode BIT_AND throws if an implicit conversion would be performed
 function BIT_AND_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberAnd(this, y);
@@ -320,7 +347,7 @@ function BIT_XOR(y) {
 }
 
 
-//ECMA-262, section 11.10, page 57.
+// Strong mode BIT_XOR throws if an implicit conversion would be performed
 function BIT_XOR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberXor(this, y);
@@ -337,7 +364,7 @@ function SHL(y) {
 }
 
 
-//ECMA-262, section 11.7.1, page 51.
+// Strong mode SHL throws if an implicit conversion would be performed
 function SHL_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberShl(this, y);
@@ -368,7 +395,7 @@ function SAR(y) {
 }
 
 
-//ECMA-262, section 11.7.2, page 51.
+// Strong mode SAR throws if an implicit conversion would be performed
 function SAR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberSar(this, y);
@@ -385,7 +412,7 @@ function SHR(y) {
 }
 
 
-//ECMA-262, section 11.7.3, page 52.
+// Strong mode SHR throws if an implicit conversion would be performed
 function SHR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberShr(this, y);

@@ -1187,14 +1187,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
                     state.op(), left, right,
                     Type::String(zone()), right_type,
                     result_type, state.fixed_right_arg(),
-                    allocation_mode));
+                    allocation_mode, state.language_mode()));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode));
+                    state.fixed_right_arg(), allocation_mode,
+                    state.language_mode()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -1207,14 +1208,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
                     state.op(), left, right,
                     left_type, Type::String(zone()),
                     result_type, state.fixed_right_arg(),
-                    allocation_mode));
+                    allocation_mode, state.language_mode()));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode));
+                    state.fixed_right_arg(), allocation_mode,
+                    state.language_mode()));
       }
       if_rightisstring.End();
       result = Pop();
@@ -1223,7 +1225,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
     result = BuildBinaryOperation(
             state.op(), left, right,
             left_type, right_type, result_type,
-            state.fixed_right_arg(), allocation_mode);
+            state.fixed_right_arg(), allocation_mode, state.language_mode());
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -1257,7 +1259,8 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
 
   return BuildBinaryOperation(state.op(), left, right,
                               left_type, right_type, result_type,
-                              state.fixed_right_arg(), allocation_mode);
+                              state.fixed_right_arg(), allocation_mode,
+                              state.language_mode());
 }
 
 

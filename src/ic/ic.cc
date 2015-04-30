@@ -2821,7 +2821,7 @@ Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op,
   if (is_strong(language_mode)) {
     switch (op) {
       default: UNREACHABLE();
-      case Token::ADD: return Builtins::ADD;
+      case Token::ADD: return Builtins::ADD_STRONG;
       case Token::SUB: return Builtins::SUB_STRONG;
       case Token::MUL: return Builtins::MUL_STRONG;
       case Token::DIV: return Builtins::DIV_STRONG;

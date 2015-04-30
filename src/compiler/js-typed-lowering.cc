@@ -165,6 +165,8 @@ class JSBinopReduction final {
     return ChangeToPureOperator(op, false, type);
   }
 
+  bool IsStrong() { return is_strong(OpParameter<LanguageMode>(node_)); }
+
   bool OneInputIs(Type* t) { return left_type()->Is(t) || right_type()->Is(t); }
 
   bool BothInputsAre(Type* t) {
@@ -320,7 +322,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
-  if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
+  if (r.NeitherInputCanBe(Type::StringOrReceiver()) && !r.IsStrong()) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
     r.ConvertInputsToNumber(frame_state);
@@ -331,7 +333,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   //   a) The inserted ToString operation screws up valueOf vs. toString order.
   //   b) Deoptimization at ToString doesn't have corresponding bailout id.
   //   c) Our current StringAddStub is actually non-pure and requires context.
-  if (r.OneInputIs(Type::String())) {
+  if ((r.OneInputIs(Type::String()) && !r.IsStrong()) ||
+      r.BothInputsAre(Type::String())) {
     // JSAdd(x:string, y:string) => StringAdd(x, y)
     // JSAdd(x:string, y) => StringAdd(x, ToString(y))
     // JSAdd(x, y:string) => StringAdd(ToString(x), y)
@@ -346,7 +349,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
                                              const Operator* numberOp) {
   JSBinopReduction r(this, node);
-  if (is_strong(OpParameter<LanguageMode>(node))) {
+  if (r.IsStrong()) {
     if (r.BothInputsAre(Type::Number())) {
       return r.ChangeToPureOperator(numberOp, Type::Number());
     }
@@ -360,7 +363,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   JSBinopReduction r(this, node);
-  if (is_strong(OpParameter<LanguageMode>(node))) {
+  if (r.IsStrong()) {
     if (r.BothInputsAre(Type::Number())) {
       r.ConvertInputsToUI32(kSigned, kSigned);
       return r.ChangeToPureOperator(intOp, Type::Integral32());
@@ -378,9 +381,7 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
                                            Signedness left_signedness,
                                            const Operator* shift_op) {
   JSBinopReduction r(this, node);
-  Type* reduce_type = is_strong(
-                        OpParameter<LanguageMode>(node)) ? Type::Number() :
-                                                           Type::Primitive();
+  Type* reduce_type = r.IsStrong() ? Type::Number() : Type::Primitive();
   if (r.BothInputsAre(reduce_type)) {
     r.ConvertInputsForShift(left_signedness);
     return r.ChangeToPureOperator(shift_op, Type::Integral32());
