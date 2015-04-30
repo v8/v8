@@ -441,10 +441,10 @@ def PrepareSources(source_files, extra_files, emit_js):
     try:
       lines = extra_filters(extra)
     except Error as e:
-      raise Error("In file %s:\n%s" % (source, str(e)))
+      raise Error("In file %s:\n%s" % (extra, str(e)))
 
     result.modules.append(lines)
-    name = os.path.basename(source)[:-3]
+    name = os.path.basename(extra)[:-3]
     result.names.append(name)
 
   return result
