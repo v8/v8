@@ -29,7 +29,8 @@ InstructionSelectorTest::~InstructionSelectorTest() {}
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
-    InstructionSelectorTest::StreamBuilderMode mode) {
+    InstructionSelectorTest::StreamBuilderMode mode,
+    InstructionSelector::SourcePositionMode source_position_mode) {
   Schedule* schedule = Export();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
@@ -45,7 +46,8 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
-                               schedule, &source_position_table, features);
+                               schedule, &source_position_table,
+                               source_position_mode, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);

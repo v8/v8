@@ -45,7 +45,7 @@ inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
 
 class SourcePositionTable final {
  public:
-  class Scope {
+  class Scope final {
    public:
     Scope(SourcePositionTable* source_positions, SourcePosition position)
         : source_positions_(source_positions),
@@ -66,14 +66,14 @@ class SourcePositionTable final {
       }
     }
 
-    SourcePositionTable* source_positions_;
-    SourcePosition prev_position_;
+    SourcePositionTable* const source_positions_;
+    SourcePosition const prev_position_;
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
   explicit SourcePositionTable(Graph* graph);
   ~SourcePositionTable() {
-    if (decorator_ != NULL) RemoveDecorator();
+    if (decorator_) RemoveDecorator();
   }
 
   void AddDecorator();
@@ -86,7 +86,7 @@ class SourcePositionTable final {
  private:
   class Decorator;
 
-  Graph* graph_;
+  Graph* const graph_;
   Decorator* decorator_;
   SourcePosition current_position_;
   NodeAuxData<SourcePosition> table_;
@@ -98,4 +98,4 @@ class SourcePositionTable final {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_SOURCE_POSITION_H_

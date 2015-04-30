@@ -18,16 +18,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-InstructionSelector::InstructionSelector(Zone* zone, size_t node_count,
-                                         Linkage* linkage,
-                                         InstructionSequence* sequence,
-                                         Schedule* schedule,
-                                         SourcePositionTable* source_positions,
-                                         Features features)
+InstructionSelector::InstructionSelector(
+    Zone* zone, size_t node_count, Linkage* linkage,
+    InstructionSequence* sequence, Schedule* schedule,
+    SourcePositionTable* source_positions,
+    SourcePositionMode source_position_mode, Features features)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
       source_positions_(source_positions),
+      source_position_mode_(source_position_mode),
       features_(features),
       schedule_(schedule),
       current_block_(NULL),
@@ -426,7 +426,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
     if (source_position.IsUnknown()) continue;
     DCHECK(!source_position.IsInvalid());
-    if (FLAG_turbo_source_positions || node->opcode() == IrOpcode::kCall) {
+    if (source_position_mode_ == kAllSourcePositions ||
+        node->opcode() == IrOpcode::kCall) {
       sequence()->SetSourcePosition(instructions_[current_node_end],
                                     source_position);
     }

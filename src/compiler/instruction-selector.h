@@ -33,10 +33,14 @@ class InstructionSelector final {
   // Forward declarations.
   class Features;
 
-  InstructionSelector(Zone* zone, size_t node_count, Linkage* linkage,
-                      InstructionSequence* sequence, Schedule* schedule,
-                      SourcePositionTable* source_positions,
-                      Features features = SupportedFeatures());
+  enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
+
+  InstructionSelector(
+      Zone* zone, size_t node_count, Linkage* linkage,
+      InstructionSequence* sequence, Schedule* schedule,
+      SourcePositionTable* source_positions,
+      SourcePositionMode source_position_mode = kCallSourcePositions,
+      Features features = SupportedFeatures());
 
   // Visit code for the entire graph with the included schedule.
   void SelectInstructions();
@@ -219,6 +223,7 @@ class InstructionSelector final {
   Linkage* const linkage_;
   InstructionSequence* const sequence_;
   SourcePositionTable* const source_positions_;
+  SourcePositionMode const source_position_mode_;
   Features features_;
   Schedule* const schedule_;
   BasicBlock* current_block_;

@@ -27,22 +27,22 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
 
 SourcePositionTable::SourcePositionTable(Graph* graph)
     : graph_(graph),
-      decorator_(NULL),
+      decorator_(nullptr),
       current_position_(SourcePosition::Invalid()),
       table_(graph->zone()) {}
 
 
 void SourcePositionTable::AddDecorator() {
-  DCHECK(decorator_ == NULL);
+  DCHECK_NULL(decorator_);
   decorator_ = new (graph_->zone()) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
 
 
 void SourcePositionTable::RemoveDecorator() {
-  DCHECK(decorator_ != NULL);
+  DCHECK_NOT_NULL(decorator_);
   graph_->RemoveDecorator(decorator_);
-  decorator_ = NULL;
+  decorator_ = nullptr;
 }
 
 

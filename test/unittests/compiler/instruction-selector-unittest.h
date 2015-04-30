@@ -73,7 +73,9 @@ class InstructionSelectorTest : public TestWithContext,
       return Build(InstructionSelector::Features(), mode);
     }
     Stream Build(InstructionSelector::Features features,
-                 StreamBuilderMode mode = kTargetInstructions);
+                 StreamBuilderMode mode = kTargetInstructions,
+                 InstructionSelector::SourcePositionMode source_position_mode =
+                     InstructionSelector::kAllSourcePositions);
 
    private:
     MachineSignature* MakeMachineSignature(Zone* zone,

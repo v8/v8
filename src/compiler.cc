@@ -117,6 +117,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   if (FLAG_turbo_builtin_inlining) MarkAsBuiltinInliningEnabled();
   if (FLAG_turbo_deoptimization) MarkAsDeoptimizationEnabled();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
+  if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (FLAG_turbo_types) MarkAsTypingEnabled();
 

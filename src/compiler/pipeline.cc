@@ -312,6 +312,8 @@ class PipelineData {
 };
 
 
+namespace {
+
 struct TurboCfgFile : public std::ofstream {
   explicit TurboCfgFile(Isolate* isolate)
       : std::ofstream(isolate->GetTurboCfgFileName().c_str(),
@@ -319,7 +321,7 @@ struct TurboCfgFile : public std::ofstream {
 };
 
 
-static void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
+void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
   if (FLAG_trace_turbo) {
     FILE* json_file = OpenVisualizerLogFile(info, NULL, "json", "a+");
     if (json_file != nullptr) {
@@ -341,7 +343,7 @@ static void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
 }
 
 
-static SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
+SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
   if (info->code_stub() != NULL) {
     CodeStub::Major major_key = info->code_stub()->MajorKey();
     const char* major_name = CodeStub::MajorName(major_key, false);
@@ -356,7 +358,7 @@ static SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
 }
 
 
-class AstGraphBuilderWithPositions : public AstGraphBuilder {
+class AstGraphBuilderWithPositions final : public AstGraphBuilder {
  public:
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
                                JSGraph* jsgraph,
@@ -383,45 +385,43 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
 #undef DEF_VISIT
 
  private:
-  SourcePositionTable* source_positions_;
-  SourcePosition start_position_;
+  SourcePositionTable* const source_positions_;
+  SourcePosition const start_position_;
 };
 
 
-namespace {
-
-class SourcePositionWrapper : public Reducer {
+class SourcePositionWrapper final : public Reducer {
  public:
   SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
       : reducer_(reducer), table_(table) {}
-  virtual ~SourcePositionWrapper() {}
+  ~SourcePositionWrapper() final {}
 
-  virtual Reduction Reduce(Node* node) {
-    SourcePosition pos = table_->GetSourcePosition(node);
+  Reduction Reduce(Node* node) final {
+    SourcePosition const pos = table_->GetSourcePosition(node);
     SourcePositionTable::Scope position(table_, pos);
     return reducer_->Reduce(node);
   }
 
  private:
-  Reducer* reducer_;
-  SourcePositionTable* table_;
+  Reducer* const reducer_;
+  SourcePositionTable* const table_;
 
   DISALLOW_COPY_AND_ASSIGN(SourcePositionWrapper);
 };
 
 
-static void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
-                       Reducer* reducer) {
-  if (FLAG_turbo_source_positions) {
-    void* buffer = data->graph_zone()->New(sizeof(SourcePositionWrapper));
-    SourcePositionWrapper* wrapper =
+void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
+                Reducer* reducer) {
+  if (data->info()->is_source_positions_enabled()) {
+    void* const buffer = data->graph_zone()->New(sizeof(SourcePositionWrapper));
+    SourcePositionWrapper* const wrapper =
         new (buffer) SourcePositionWrapper(reducer, data->source_positions());
     graph_reducer->AddReducer(wrapper);
   } else {
     graph_reducer->AddReducer(reducer);
   }
 }
-}  // namespace
+
 
 class PipelineRunScope {
  public:
@@ -437,6 +437,8 @@ class PipelineRunScope {
   PhaseScope phase_scope_;
   ZonePool::Scope zone_scope_;
 };
+
+}  // namespace
 
 
 template <typename Phase>
@@ -712,9 +714,12 @@ struct InstructionSelectionPhase {
   static const char* phase_name() { return "select instructions"; }
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    InstructionSelector selector(temp_zone, data->graph()->NodeCount(), linkage,
-                                 data->sequence(), data->schedule(),
-                                 data->source_positions());
+    InstructionSelector selector(
+        temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
+        data->schedule(), data->source_positions(),
+        data->info()->is_source_positions_enabled()
+            ? InstructionSelector::kAllSourcePositions
+            : InstructionSelector::kCallSourcePositions);
     selector.SelectInstructions();
   }
 };

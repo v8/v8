@@ -111,13 +111,9 @@ class RepresentationSelector {
       Node* node = *i;
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       // Reuse {VisitNode()} so the representation rules are in one place.
-      if (FLAG_turbo_source_positions) {
-        SourcePositionTable::Scope scope(
-            source_positions_, source_positions_->GetSourcePosition(node));
-        VisitNode(node, GetUseInfo(node), lowering);
-      } else {
-        VisitNode(node, GetUseInfo(node), lowering);
-      }
+      SourcePositionTable::Scope scope(
+          source_positions_, source_positions_->GetSourcePosition(node));
+      VisitNode(node, GetUseInfo(node), lowering);
     }
 
     // Perform the final replacements.
