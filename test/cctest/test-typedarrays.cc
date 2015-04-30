@@ -10,6 +10,7 @@
 #include "src/api.h"
 #include "src/heap/heap.h"
 #include "src/objects.h"
+#include "src/v8.h"
 
 using namespace v8::internal;
 
@@ -65,4 +66,16 @@ TEST(CopyContentsView) {
       "c[5] = 3;"
       "var a = new DataView(b, 2);");
   TestArrayBufferViewContents(env, true);
+}
+
+
+TEST(AllocateNotExternal) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  void* memory = V8::ArrayBufferAllocator()->Allocate(1024);
+  v8::Local<v8::ArrayBuffer> buffer =
+      v8::ArrayBuffer::New(env->GetIsolate(), memory, 1024,
+                           v8::ArrayBufferCreationMode::kInternalized);
+  CHECK(!buffer->IsExternal());
+  CHECK_EQ(memory, buffer->GetContents().Data());
 }
