@@ -6254,12 +6254,9 @@ bool v8::ArrayBuffer::IsNeuterable() const {
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
   Utils::ApiCheck(!self->is_external(), "v8::ArrayBuffer::Externalize",
                   "ArrayBuffer already externalized");
   self->set_is_external(true);
-  isolate->heap()->UnregisterArrayBuffer(self->backing_store());
-
   return GetContents();
 }
 

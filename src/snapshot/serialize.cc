@@ -563,6 +563,10 @@ void Deserializer::Deserialize(Isolate* isolate) {
 
   isolate_->heap()->set_native_contexts_list(
       isolate_->heap()->undefined_value());
+  isolate_->heap()->set_array_buffers_list(
+      isolate_->heap()->undefined_value());
+  isolate_->heap()->set_last_array_buffer_in_list(
+      isolate_->heap()->undefined_value());
 
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.

@@ -10258,6 +10258,9 @@ class JSArrayBuffer: public JSObject {
   inline bool was_neutered();
   inline void set_was_neutered(bool value);
 
+  // [weak_next]: linked list of array buffers.
+  DECL_ACCESSORS(weak_next, Object)
+
   DECLARE_CAST(JSArrayBuffer)
 
   void Neuter();
@@ -10274,7 +10277,8 @@ class JSArrayBuffer: public JSObject {
 #else
   static const int kBitFieldOffset = kBitFieldSlot + kIntSize;
 #endif
-  static const int kSize = kBitFieldSlot + kPointerSize;
+  static const int kWeakNextOffset = kBitFieldSlot + kPointerSize;
+  static const int kSize = kWeakNextOffset + kPointerSize;
 
   static const int kSizeWithInternalFields =
       kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;

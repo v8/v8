@@ -4386,8 +4386,6 @@ void MarkCompactCollector::SweepSpaces() {
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
-  heap()->FreeDeadArrayBuffers();
-
   MoveEvacuationCandidatesToEndOfPagesList();
 
   // Noncompacting collections simply sweep the spaces to clear the mark

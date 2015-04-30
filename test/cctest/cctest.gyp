@@ -166,6 +166,7 @@
         'test-version.cc',
         'test-weakmaps.cc',
         'test-weaksets.cc',
+        'test-weaktypedarrays.cc',
         'trace-extension.cc',
         '../../src/startup-data-util.h',
         '../../src/startup-data-util.cc'
