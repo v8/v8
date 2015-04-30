@@ -779,6 +779,16 @@ struct AllocateDoubleRegistersPhase {
 };
 
 
+struct LocateSpillSlotsPhase {
+  static const char* phase_name() { return "locate spill slots"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    SpillSlotLocator locator(data->register_allocation_data());
+    locator.LocateSpillSlots();
+  }
+};
+
+
 struct AssignSpillSlotsPhase {
   static const char* phase_name() { return "assign spill slots"; }
 
@@ -1200,10 +1210,6 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
     return Handle<Code>();
   }
 
-  if (FLAG_turbo_frame_elision) {
-    Run<FrameElisionPhase>();
-  }
-
   BeginPhaseKind("code generation");
 
   // Optimimize jumps.
@@ -1299,6 +1305,12 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
     Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
   }
+
+  if (FLAG_turbo_frame_elision) {
+    Run<LocateSpillSlotsPhase>();
+    Run<FrameElisionPhase>();
+  }
+
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();

@@ -559,7 +559,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
 }
 
 
-const InstructionBlock* InstructionSequence::GetInstructionBlock(
+InstructionBlock* InstructionSequence::GetInstructionBlock(
     int instruction_index) const {
   DCHECK(instruction_blocks_->size() == block_starts_.size());
   auto begin = block_starts_.begin();
@@ -760,6 +760,9 @@ std::ostream& operator<<(std::ostream& os,
     os << "B" << block->rpo_number();
     os << ": AO#" << block->ao_number();
     if (block->IsDeferred()) os << " (deferred)";
+    if (!block->needs_frame()) os << " (no frame)";
+    if (block->must_construct_frame()) os << " (construct frame)";
+    if (block->must_deconstruct_frame()) os << " (deconstruct frame)";
     if (block->IsLoopHeader()) {
       os << " loop blocks: [" << block->rpo_number() << ", "
          << block->loop_end() << ")";

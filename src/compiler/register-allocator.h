@@ -418,9 +418,13 @@ class LiveRange final : public ZoneObject {
   void SetUseHints(int register_index);
   void UnsetUseHints() { SetUseHints(kUnassignedRegister); }
 
- private:
   struct SpillAtDefinitionList;
 
+  SpillAtDefinitionList* spills_at_definition() const {
+    return spills_at_definition_;
+  }
+
+ private:
   void set_spill_type(SpillType value) {
     bits_ = SpillTypeField::update(bits_, value);
   }
@@ -860,6 +864,21 @@ class GreedyAllocator final : public RegisterAllocator {
   ZoneVector<CoallescedLiveRanges*> allocations_;
   PQueue queue_;
   DISALLOW_COPY_AND_ASSIGN(GreedyAllocator);
+};
+
+
+class SpillSlotLocator final : public ZoneObject {
+ public:
+  explicit SpillSlotLocator(RegisterAllocationData* data);
+
+  void LocateSpillSlots();
+
+ private:
+  RegisterAllocationData* data() const { return data_; }
+
+  RegisterAllocationData* const data_;
+
+  DISALLOW_COPY_AND_ASSIGN(SpillSlotLocator);
 };
 
 

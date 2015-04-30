@@ -1052,7 +1052,7 @@ class InstructionSequence final : public ZoneObject {
     return instruction_blocks_->at(rpo_number.ToSize());
   }
 
-  const InstructionBlock* GetInstructionBlock(int instruction_index) const;
+  InstructionBlock* GetInstructionBlock(int instruction_index) const;
 
   static MachineType DefaultRepresentation() {
     return kPointerSize == 8 ? kRepWord64 : kRepWord32;

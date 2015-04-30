@@ -2694,6 +2694,25 @@ bool GreedyAllocator::AllocateBlockedRange(
 }
 
 
+SpillSlotLocator::SpillSlotLocator(RegisterAllocationData* data)
+    : data_(data) {}
+
+
+void SpillSlotLocator::LocateSpillSlots() {
+  auto code = data()->code();
+  for (auto range : data()->live_ranges()) {
+    if (range == nullptr || range->IsEmpty() || range->IsChild()) continue;
+    // We care only about ranges which spill in the frame.
+    if (!range->HasSpillRange()) continue;
+    auto spills = range->spills_at_definition();
+    DCHECK_NOT_NULL(spills);
+    for (; spills != nullptr; spills = spills->next) {
+      code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
+    }
+  }
+}
+
+
 OperandAssigner::OperandAssigner(RegisterAllocationData* data) : data_(data) {}
 
 
