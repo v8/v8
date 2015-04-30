@@ -191,7 +191,8 @@ struct WeakListVisitor;
 
 
 template <class T>
-Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
+Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer,
+                      bool stop_after_young, Object** list_tail) {
   Object* undefined = heap->undefined_value();
   Object* head = undefined;
   T* tail = NULL;
@@ -234,7 +235,10 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
   }
 
   // Terminate the list if there is one or more elements.
-  if (tail != NULL) WeakListVisitor<T>::SetWeakNext(tail, undefined);
+  if (tail != NULL) {
+    WeakListVisitor<T>::SetWeakNext(tail, undefined);
+    if (list_tail) *list_tail = tail;
+  }
   return head;
 }
 
@@ -316,7 +320,8 @@ struct WeakListVisitor<Context> {
   static void DoWeakList(Heap* heap, Context* context,
                          WeakObjectRetainer* retainer, int index) {
     // Visit the weak list, removing dead intermediate elements.
-    Object* list_head = VisitWeakList<T>(heap, context->get(index), retainer);
+    Object* list_head =
+        VisitWeakList<T>(heap, context->get(index), retainer, false, NULL);
 
     // Update the list head.
     context->set(index, list_head, UPDATE_WRITE_BARRIER);
@@ -340,6 +345,26 @@ struct WeakListVisitor<Context> {
 
 
 template <>
+struct WeakListVisitor<JSArrayBuffer> {
+  static void SetWeakNext(JSArrayBuffer* obj, Object* next) {
+    obj->set_weak_next(next);
+  }
+
+  static Object* WeakNext(JSArrayBuffer* obj) { return obj->weak_next(); }
+
+  static int WeakNextOffset() { return JSArrayBuffer::kWeakNextOffset; }
+
+  static void VisitLiveObject(Heap* heap, JSArrayBuffer* array_buffer,
+                              WeakObjectRetainer* retainer) {
+  }
+
+  static void VisitPhantomObject(Heap* heap, JSArrayBuffer* phantom) {
+    Runtime::FreeArrayBuffer(heap->isolate(), phantom);
+  }
+};
+
+
+template <>
 struct WeakListVisitor<AllocationSite> {
   static void SetWeakNext(AllocationSite* obj, Object* next) {
     obj->set_weak_next(next);
@@ -356,9 +381,19 @@ struct WeakListVisitor<AllocationSite> {
 
 
 template Object* VisitWeakList<Context>(Heap* heap, Object* list,
-                                        WeakObjectRetainer* retainer);
+                                        WeakObjectRetainer* retainer,
+                                        bool stop_after_young,
+                                        Object** list_tail);
+
+
+template Object* VisitWeakList<JSArrayBuffer>(Heap* heap, Object* list,
+                                              WeakObjectRetainer* retainer,
+                                              bool stop_after_young,
+                                              Object** list_tail);
 
 template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
-                                               WeakObjectRetainer* retainer);
+                                               WeakObjectRetainer* retainer,
+                                               bool stop_after_young,
+                                               Object** list_tail);
 }
 }  // namespace v8::internal
