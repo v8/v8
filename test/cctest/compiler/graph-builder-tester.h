@@ -19,21 +19,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// A class that just passes node creation on to the Graph.
-class DirectGraphBuilder : public GraphBuilder {
- public:
-  DirectGraphBuilder(Isolate* isolate, Graph* graph)
-      : GraphBuilder(isolate, graph) {}
-  virtual ~DirectGraphBuilder() {}
-
- protected:
-  virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs, bool incomplete) final {
-    return graph()->NewNode(op, value_input_count, value_inputs, incomplete);
-  }
-};
-
-
 class MachineCallHelper : public CallHelper {
  public:
   MachineCallHelper(Isolate* isolate, MachineSignature* machine_sig);
