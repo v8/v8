@@ -1566,8 +1566,6 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
 
 void V8HeapExplorer::ExtractJSArrayBufferReferences(
     int entry, JSArrayBuffer* buffer) {
-  SetWeakReference(buffer, entry, "weak_next", buffer->weak_next(),
-                   JSArrayBuffer::kWeakNextOffset);
   // Setup a reference to a native memory backing_store object.
   if (!buffer->backing_store())
     return;

@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_H_
 
 #include <cmath>
+#include <map>
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
@@ -874,16 +875,6 @@ class Heap {
   }
   Object* native_contexts_list() const { return native_contexts_list_; }
 
-  void set_array_buffers_list(Object* object) { array_buffers_list_ = object; }
-  Object* array_buffers_list() const { return array_buffers_list_; }
-
-  void set_last_array_buffer_in_list(Object* object) {
-    last_array_buffer_in_list_ = object;
-  }
-  Object* last_array_buffer_in_list() const {
-    return last_array_buffer_in_list_;
-  }
-
   void set_allocation_sites_list(Object* object) {
     allocation_sites_list_ = object;
   }
@@ -1490,6 +1481,11 @@ class Heap {
 
   bool deserialization_complete() const { return deserialization_complete_; }
 
+  void RegisterNewArrayBuffer(void* data, size_t length);
+  void UnregisterArrayBuffer(void* data);
+  void RegisterLiveArrayBuffer(void* data);
+  void FreeDeadArrayBuffers();
+
  protected:
   // Methods made available to tests.
 
@@ -1660,8 +1656,6 @@ class Heap {
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.
   Object* native_contexts_list_;
-  Object* array_buffers_list_;
-  Object* last_array_buffer_in_list_;
   Object* allocation_sites_list_;
 
   // List of encountered weak collections (JSWeakMap and JSWeakSet) during
@@ -1995,7 +1989,6 @@ class Heap {
   void MarkCompactEpilogue();
 
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
-  void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool stop_after_young);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
 
   // Deopts all code that contains allocation instruction which are tenured or
@@ -2155,6 +2148,9 @@ class Heap {
   bool deserialization_complete_;
 
   bool concurrent_sweeping_enabled_;
+
+  std::map<void*, size_t> live_array_buffers_;
+  std::map<void*, size_t> not_yet_discovered_array_buffers_;
 
   friend class AlwaysAllocateScope;
   friend class Deserializer;

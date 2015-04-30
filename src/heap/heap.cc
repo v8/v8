@@ -154,8 +154,6 @@ Heap::Heap()
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   set_native_contexts_list(NULL);
-  set_array_buffers_list(Smi::FromInt(0));
-  set_last_array_buffer_in_list(Smi::FromInt(0));
   set_allocation_sites_list(Smi::FromInt(0));
   set_encountered_weak_collections(Smi::FromInt(0));
   set_encountered_weak_cells(Smi::FromInt(0));
@@ -1707,64 +1705,69 @@ void Heap::UpdateReferencesInExternalStringTable(
 
 
 void Heap::ProcessAllWeakReferences(WeakObjectRetainer* retainer) {
-  ProcessArrayBuffers(retainer, false);
   ProcessNativeContexts(retainer);
   ProcessAllocationSites(retainer);
 }
 
 
 void Heap::ProcessYoungWeakReferences(WeakObjectRetainer* retainer) {
-  ProcessArrayBuffers(retainer, true);
   ProcessNativeContexts(retainer);
 }
 
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
-  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer,
-                                        false, NULL);
+  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
 }
 
 
-void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
-                               bool stop_after_young) {
-  Object* last_array_buffer = undefined_value();
-  Object* array_buffer_obj =
-      VisitWeakList<JSArrayBuffer>(this, array_buffers_list(), retainer,
-                                   stop_after_young, &last_array_buffer);
-  set_array_buffers_list(array_buffer_obj);
-  set_last_array_buffer_in_list(last_array_buffer);
+void Heap::RegisterNewArrayBuffer(void* data, size_t length) {
+  if (!data) return;
+  live_array_buffers_[data] = length;
+  reinterpret_cast<v8::Isolate*>(isolate_)
+      ->AdjustAmountOfExternalAllocatedMemory(length);
+}
 
-  // Verify invariant that young array buffers come before old array buffers
-  // in array buffers list if there was no promotion failure.
-  Object* undefined = undefined_value();
-  Object* next = array_buffers_list();
-  bool old_objects_recorded = false;
-  while (next != undefined) {
-    if (!old_objects_recorded) {
-      old_objects_recorded = !InNewSpace(next);
-    }
-    CHECK((InNewSpace(next) && !old_objects_recorded) || !InNewSpace(next));
-    next = JSArrayBuffer::cast(next)->weak_next();
+
+void Heap::UnregisterArrayBuffer(void* data) {
+  if (!data) return;
+  DCHECK(live_array_buffers_.count(data) > 0);
+  live_array_buffers_.erase(data);
+  not_yet_discovered_array_buffers_.erase(data);
+}
+
+
+void Heap::RegisterLiveArrayBuffer(void* data) {
+  not_yet_discovered_array_buffers_.erase(data);
+}
+
+
+void Heap::FreeDeadArrayBuffers() {
+  for (auto buffer = not_yet_discovered_array_buffers_.begin();
+       buffer != not_yet_discovered_array_buffers_.end(); ++buffer) {
+    isolate_->array_buffer_allocator()->Free(buffer->first, buffer->second);
+    // Don't use the API method here since this could trigger another GC.
+    amount_of_external_allocated_memory_ -= buffer->second;
+    live_array_buffers_.erase(buffer->first);
   }
+  not_yet_discovered_array_buffers_ = live_array_buffers_;
 }
 
 
 void Heap::TearDownArrayBuffers() {
-  Object* undefined = undefined_value();
-  for (Object* o = array_buffers_list(); o != undefined;) {
-    JSArrayBuffer* buffer = JSArrayBuffer::cast(o);
-    Runtime::FreeArrayBuffer(isolate(), buffer);
-    o = buffer->weak_next();
+  for (auto buffer = live_array_buffers_.begin();
+       buffer != live_array_buffers_.end(); ++buffer) {
+    isolate_->array_buffer_allocator()->Free(buffer->first, buffer->second);
   }
-  set_array_buffers_list(undefined);
+  live_array_buffers_.clear();
+  not_yet_discovered_array_buffers_.clear();
 }
 
 
 void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
-  Object* allocation_site_obj = VisitWeakList<AllocationSite>(
-      this, allocation_sites_list(), retainer, false, NULL);
+  Object* allocation_site_obj =
+      VisitWeakList<AllocationSite>(this, allocation_sites_list(), retainer);
   set_allocation_sites_list(allocation_site_obj);
 }
 
@@ -5410,8 +5413,6 @@ bool Heap::CreateHeapObjects() {
   CHECK_EQ(0u, gc_count_);
 
   set_native_contexts_list(undefined_value());
-  set_array_buffers_list(undefined_value());
-  set_last_array_buffer_in_list(undefined_value());
   set_allocation_sites_list(undefined_value());
   return true;
 }
