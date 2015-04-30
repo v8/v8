@@ -536,8 +536,8 @@ TEST(Type1) {
     COMPARE(seleqz(D, f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
     COMPARE(selnez(D, f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
 
-    COMPARE(min(D, f3, f4, f5), "462520dc       min.d    f3, f4, f5");
-    COMPARE(max(D, f3, f4, f5), "462520de       max.d    f3, f4, f5");
+    COMPARE(min_d(f3, f4, f5), "462520dc       min.d    f3, f4, f5");
+    COMPARE(max_d(f3, f4, f5), "462520de       max.d    f3, f4, f5");
     COMPARE(rint_d(f8, f6), "4620321a       rint.d    f8, f6");
 
     VERIFY_RUN();

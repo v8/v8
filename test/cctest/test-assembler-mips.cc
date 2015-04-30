@@ -1425,8 +1425,8 @@ TEST(MIPS17) {
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)));
-    __ min(D, f10, f4, f8);
-    __ max(D, f12, f4, f8);
+    __ min_d(f10, f4, f8);
+    __ max_d(f12, f4, f8);
     __ sdc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, c)));
     __ sdc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, d)));
     __ jr(ra);

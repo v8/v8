@@ -2100,6 +2100,46 @@ void Assembler::movf(Register rd, Register rs, uint16_t cc) {
 }
 
 
+void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  min(S, fd, fs, ft);
+}
+
+
+void Assembler::min_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  min(D, fd, fs, ft);
+}
+
+
+void Assembler::max_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  max(S, fd, fs, ft);
+}
+
+
+void Assembler::max_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  max(D, fd, fs, ft);
+}
+
+
+void Assembler::mina_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  mina(S, fd, fs, ft);
+}
+
+
+void Assembler::mina_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  mina(D, fd, fs, ft);
+}
+
+
+void Assembler::maxa_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  maxa(S, fd, fs, ft);
+}
+
+
+void Assembler::maxa_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  maxa(D, fd, fs, ft);
+}
+
+
 void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
                     FPURegister ft) {
   DCHECK(kArchVariant == kMips64r6);
