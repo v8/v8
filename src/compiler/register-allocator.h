@@ -6,6 +6,7 @@
 #define V8_REGISTER_ALLOCATOR_H_
 
 #include "src/compiler/instruction.h"
+#include "src/ostreams.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -150,6 +151,9 @@ class LifetimePosition final {
 
   int value_;
 };
+
+
+std::ostream& operator<<(std::ostream& os, const LifetimePosition pos);
 
 
 // Representation of the non-empty interval [start,end[.
@@ -466,6 +470,16 @@ class LiveRange final : public ZoneObject {
 
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
+
+
+struct PrintableLiveRange {
+  const RegisterConfiguration* register_configuration_;
+  const LiveRange* range_;
+};
+
+
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableLiveRange& printable_range);
 
 
 class SpillRange final : public ZoneObject {
@@ -826,7 +840,7 @@ class LinearScanAllocator final : public RegisterAllocator {
   DISALLOW_COPY_AND_ASSIGN(LinearScanAllocator);
 };
 
-class CoallescedLiveRanges;
+class CoalescedLiveRanges;
 
 
 // A variant of the LLVM Greedy Register Allocator. See
@@ -839,7 +853,11 @@ class GreedyAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
+  LifetimePosition GetSplittablePos(LifetimePosition pos);
   const RegisterConfiguration* config() const { return data()->config(); }
+  Zone* local_zone() const { return local_zone_; }
+  bool TryReuseSpillForPhi(LiveRange* range);
+  int GetHintedRegister(LiveRange* range);
 
   typedef ZonePriorityQueue<std::pair<unsigned, LiveRange*>> PQueue;
 
@@ -855,13 +873,18 @@ class GreedyAllocator final : public RegisterAllocator {
   bool TryAllocatePhysicalRegister(unsigned reg_id, LiveRange* range,
                                    ZoneSet<LiveRange*>* conflicting);
   bool HandleSpillOperands(LiveRange* range);
-  bool AllocateBlockedRange(LiveRange*, const ZoneSet<LiveRange*>&);
+  void AllocateBlockedRange(LiveRange* current, LifetimePosition pos,
+                            bool spill);
 
   LiveRange* SpillBetweenUntil(LiveRange* range, LifetimePosition start,
                                LifetimePosition until, LifetimePosition end);
   void AssignRangeToRegister(int reg_id, LiveRange* range);
 
-  ZoneVector<CoallescedLiveRanges*> allocations_;
+  LifetimePosition FindProgressingSplitPosition(LiveRange* range,
+                                                bool* is_spill_pos);
+
+  Zone* local_zone_;
+  ZoneVector<CoalescedLiveRanges*> allocations_;
   PQueue queue_;
   DISALLOW_COPY_AND_ASSIGN(GreedyAllocator);
 };
