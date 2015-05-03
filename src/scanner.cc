@@ -225,10 +225,6 @@ static const byte one_char_tokens[] = {
 
 
 Token::Value Scanner::Next() {
-  if (next_.token == Token::EOS) {
-    next_.location.beg_pos = current_.location.beg_pos;
-    next_.location.end_pos = current_.location.end_pos;
-  }
   current_ = next_;
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
