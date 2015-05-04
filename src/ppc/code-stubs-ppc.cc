@@ -1131,7 +1131,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Ask the runtime for help to determine the handler. This will set r3 to
   // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler(Runtime::kUnwindFindExceptionHandler,
+  ExternalReference find_handler(Runtime::kUnwindAndFindExceptionHandler,
                                  isolate());
   {
     FrameScope scope(masm, StackFrame::MANUAL);
