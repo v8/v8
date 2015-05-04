@@ -176,7 +176,7 @@ function ProxyEnumerate(proxy) {
   if (IS_UNDEFINED(handler.enumerate)) {
     return %Apply(DerivedEnumerateTrap, handler, [], 0, 0)
   } else {
-    return $toNameArray(handler.enumerate(), "enumerate", false)
+    return ToNameArray(handler.enumerate(), "enumerate", false)
   }
 }
 
@@ -186,7 +186,7 @@ var Proxy = new GlobalObject();
 %AddNamedProperty(global, "Proxy", Proxy, DONT_ENUM);
 
 //Set up non-enumerable properties of the Proxy object.
-$installFunctions(Proxy, DONT_ENUM, [
+InstallFunctions(Proxy, DONT_ENUM, [
   "create", ProxyCreate,
   "createFunction", ProxyCreateFunction
 ])

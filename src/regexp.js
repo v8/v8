@@ -363,7 +363,7 @@ function RegExpMakeCaptureGetter(n) {
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
 
-$installFunctions(GlobalRegExp.prototype, DONT_ENUM, [
+InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "exec", RegExpExecJS,
   "test", RegExpTest,
   "toString", RegExpToString,

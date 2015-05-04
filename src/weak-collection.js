@@ -90,7 +90,7 @@ function WeakMapDelete(key) {
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakMap prototype object.
-$installFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
+InstallFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
   "get", WeakMapGet,
   "set", WeakMapSet,
   "has", WeakMapHas,
@@ -162,7 +162,7 @@ function WeakSetDelete(value) {
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakSet prototype object.
-$installFunctions(GlobalWeakSet.prototype, DONT_ENUM, [
+InstallFunctions(GlobalWeakSet.prototype, DONT_ENUM, [
   "add", WeakSetAdd,
   "has", WeakSetHas,
   "delete", WeakSetDelete

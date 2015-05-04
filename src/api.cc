@@ -3589,7 +3589,7 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   i::Handle<i::Object> args[] = { obj, key_name };
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$objectGetOwnPropertyDescriptor",
+      !CallV8HeapFunction(isolate, "ObjectGetOwnPropertyDescriptor",
                           isolate->factory()->undefined_value(),
                           arraysize(args), args).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);

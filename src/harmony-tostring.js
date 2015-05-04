@@ -10,7 +10,7 @@
 
 var GlobalSymbol = global.Symbol;
 
-$installConstants(GlobalSymbol, [
+InstallConstants(GlobalSymbol, [
    // TODO(dslomov, caitp): Move to symbol.js when shipping
    "toStringTag", symbolToStringTag
 ]);
