@@ -57,6 +57,61 @@ Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
 }
 
 
+// A helper class to construct inline allocations on the simplified operator
+// level. This keeps track of the effect chain for initial stores on a newly
+// allocated object and also provides helpers for commonly allocated objects.
+class AllocationBuilder final {
+ public:
+  AllocationBuilder(JSGraph* jsgraph, SimplifiedOperatorBuilder* simplified,
+                    Node* effect, Node* control)
+      : jsgraph_(jsgraph),
+        simplified_(simplified),
+        allocation_(nullptr),
+        effect_(effect),
+        control_(control) {}
+
+  // Primitive allocation of static size.
+  void Allocate(int size) {
+    allocation_ = graph()->NewNode(
+        simplified()->Allocate(), jsgraph()->Constant(size), effect_, control_);
+    effect_ = allocation_;
+  }
+
+  // Primitive store into a field.
+  void Store(const FieldAccess& access, Node* value) {
+    effect_ = graph()->NewNode(simplified()->StoreField(access), allocation_,
+                               value, effect_, control_);
+  }
+
+  // Compound allocation of a FixedArray.
+  void AllocateArray(int length, Handle<Map> map) {
+    Allocate(FixedArray::SizeFor(length));
+    Store(AccessBuilder::ForMap(), map);
+    Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
+  }
+
+  // Compound store of a constant into a field.
+  void Store(const FieldAccess& access, Handle<Object> value) {
+    Store(access, jsgraph()->Constant(value));
+  }
+
+  Node* allocation() const { return allocation_; }
+  Node* effect() const { return effect_; }
+
+ protected:
+  JSGraph* jsgraph() { return jsgraph_; }
+  Graph* graph() { return jsgraph_->graph(); }
+  SimplifiedOperatorBuilder* simplified() { return simplified_; }
+
+ private:
+  JSGraph* const jsgraph_;
+  SimplifiedOperatorBuilder* simplified_;
+  Node* allocation_;
+  Node* effect_;
+  Node* control_;
+};
+
+
 // A helper class to simplify the process of reducing a single binop node with a
 // JSOperator. This class manages the rewriting of context, control, and effect
 // dependencies during lowering of a binop and contains numerous helper
@@ -1019,6 +1074,79 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* input_type = NodeProperties::GetBounds(input).upper;
+  if (FLAG_turbo_allocate && input_type->Is(Type::Receiver())) {
+    // JSCreateWithContext(o:receiver, f)
+    Node* const effect = NodeProperties::GetEffectInput(node);
+    Node* const control = NodeProperties::GetControlInput(node);
+    Node* const closure = NodeProperties::GetValueInput(node, 1);
+    Node* const context = NodeProperties::GetContextInput(node);
+    Node* const load = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
+        context, effect, control);
+    AllocationBuilder a(jsgraph(), simplified(), effect, control);
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
+    a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
+    a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+    a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), input);
+    a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
+    // TODO(mstarzinger): We could mutate {node} into the allocation instead.
+    NodeProperties::SetBounds(a.allocation(), NodeProperties::GetBounds(node));
+    NodeProperties::ReplaceWithValue(node, node, a.effect());
+    node->ReplaceInput(0, a.allocation());
+    node->ReplaceInput(1, a.effect());
+    node->set_op(common()->Finish(1));
+    node->TrimInputCount(2);
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  HeapObjectMatcher<ScopeInfo> minput(input);
+  DCHECK(minput.HasValue());  // TODO(mstarzinger): Make ScopeInfo static.
+  int context_length = minput.Value().handle()->ContextLength();
+  if (FLAG_turbo_allocate && context_length < kBlockContextAllocationLimit) {
+    // JSCreateBlockContext(s:scope[length < limit], f)
+    Node* const effect = NodeProperties::GetEffectInput(node);
+    Node* const control = NodeProperties::GetControlInput(node);
+    Node* const closure = NodeProperties::GetValueInput(node, 1);
+    Node* const context = NodeProperties::GetContextInput(node);
+    Node* const load = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
+        context, effect, control);
+    AllocationBuilder a(jsgraph(), simplified(), effect, control);
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
+    a.AllocateArray(context_length, factory()->block_context_map());
+    a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+    a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), input);
+    a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
+    for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
+      a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
+    }
+    // TODO(mstarzinger): We could mutate {node} into the allocation instead.
+    NodeProperties::SetBounds(a.allocation(), NodeProperties::GetBounds(node));
+    NodeProperties::ReplaceWithValue(node, node, a.effect());
+    node->ReplaceInput(0, a.allocation());
+    node->ReplaceInput(1, a.effect());
+    node->set_op(common()->Finish(1));
+    node->TrimInputCount(2);
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
@@ -1111,6 +1239,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateLiteralArray(node);
     case IrOpcode::kJSCreateLiteralObject:
       return ReduceJSCreateLiteralObject(node);
+    case IrOpcode::kJSCreateWithContext:
+      return ReduceJSCreateWithContext(node);
+    case IrOpcode::kJSCreateBlockContext:
+      return ReduceJSCreateBlockContext(node);
     default:
       break;
   }

@@ -967,6 +967,30 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
 }
 #endif
 
+
+// -----------------------------------------------------------------------------
+// JSCreateWithContext
+
+
+TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
+  FLAG_turbo_allocate = true;
+  Node* const object = Parameter(Type::Receiver());
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->CreateWithContext(), object,
+                              closure, context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinish(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                      Context::MIN_CONTEXT_SLOTS)),
+                                  effect, control),
+                       _));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

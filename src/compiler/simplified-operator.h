@@ -163,6 +163,8 @@ class SimplifiedOperatorBuilder final {
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsNonNegativeSmi();
 
+  const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
+
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
 

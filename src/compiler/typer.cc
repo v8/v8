@@ -1784,6 +1784,11 @@ Bounds Typer::Visitor::TypeChangeBitToBool(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeAllocate(Node* node) {
+  return Bounds(Type::TaggedPointer());
+}
+
+
 Bounds Typer::Visitor::TypeLoadField(Node* node) {
   return Bounds(FieldAccessOf(node->op()).type);
 }

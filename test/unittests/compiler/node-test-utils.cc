@@ -659,6 +659,33 @@ class IsCallMatcher final : public NodeMatcher {
 };
 
 
+class IsAllocateMatcher final : public NodeMatcher {
+ public:
+  IsAllocateMatcher(const Matcher<Node*>& size_matcher,
+                    const Matcher<Node*>& effect_matcher,
+                    const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kAllocate),
+        size_matcher_(size_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "size",
+                                 size_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> size_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 class IsLoadFieldMatcher final : public NodeMatcher {
  public:
   IsLoadFieldMatcher(const Matcher<FieldAccess>& access_matcher,
@@ -1467,6 +1494,14 @@ Matcher<Node*> IsCall(
   value_matchers.push_back(value6_matcher);
   return MakeMatcher(new IsCallMatcher(descriptor_matcher, value_matchers,
                                        effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
+                          const Matcher<Node*>& effect_matcher,
+                          const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(
+      new IsAllocateMatcher(size_matcher, effect_matcher, control_matcher));
 }
 
 

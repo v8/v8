@@ -22,6 +22,7 @@
 #include "src/scopes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -75,6 +76,17 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     Handle<Object> num = factory()->NewNumber(input);
     Object* result = this->Call(*num);
     CHECK(factory()->NewNumber(expected)->SameValue(result));
+  }
+
+  template <typename T>
+  T* CallWithPotentialGC() {
+    // TODO(titzer): we wrap the code in a JSFunction here to reuse the
+    // JSEntryStub; that could be done with a special prologue or other stub.
+    Handle<JSFunction> fun = FunctionTester::ForMachineGraph(this->graph());
+    Handle<Object>* args = NULL;
+    MaybeHandle<Object> result = Execution::Call(
+        this->isolate(), fun, factory()->undefined_value(), 0, args, false);
+    return T::cast(*result.ToHandleChecked());
   }
 
   Factory* factory() { return this->isolate()->factory(); }
@@ -647,6 +659,31 @@ TEST(RunAccessTests_Smi) {
                  Smi::FromInt(0),     Smi::FromInt(666),
                  Smi::FromInt(77777), Smi::FromInt(Smi::kMaxValue)};
   RunAccessTest<Smi*>(kMachAnyTagged, data, arraysize(data));
+}
+
+
+TEST(RunAllocate) {
+  PretenureFlag flag[] = {NOT_TENURED, TENURED};
+
+  for (size_t i = 0; i < arraysize(flag); i++) {
+    SimplifiedLoweringTester<HeapObject*> t;
+    FieldAccess access = AccessBuilder::ForMap();
+    Node* size = t.jsgraph.Constant(HeapNumber::kSize);
+    Node* alloc = t.NewNode(t.simplified()->Allocate(flag[i]), size);
+    Node* map = t.jsgraph.Constant(t.factory()->heap_number_map());
+    t.StoreField(access, alloc, map);
+    t.Return(alloc);
+
+    t.LowerAllNodes();
+    t.GenerateCode();
+
+    if (Pipeline::SupportedTarget()) {
+      HeapObject* result = t.CallWithPotentialGC<HeapObject>();
+      CHECK(t.heap()->new_space()->Contains(result) || flag[i] == TENURED);
+      CHECK(t.heap()->old_space()->Contains(result) || flag[i] == NOT_TENURED);
+      CHECK(result->IsHeapNumber());
+    }
+  }
 }
 
 

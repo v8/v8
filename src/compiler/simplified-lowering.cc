@@ -783,6 +783,13 @@ class RepresentationSelector {
         if (lower()) lowering->DoStringAdd(node);
         break;
       }
+      case IrOpcode::kAllocate: {
+        ProcessInput(node, 0, kMachAnyTagged);
+        ProcessRemainingInputs(node, 1);
+        SetOutput(node, kMachAnyTagged);
+        if (lower()) lowering->DoAllocate(node);
+        break;
+      }
       case IrOpcode::kLoadField: {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
@@ -1159,6 +1166,23 @@ WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
 }  // namespace
 
 
+void SimplifiedLowering::DoAllocate(Node* node) {
+  PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
+  AllocationSpace space = pretenure == TENURED ? OLD_SPACE : NEW_SPACE;
+  Runtime::FunctionId f = Runtime::kAllocateInTargetSpace;
+  Operator::Properties props = node->op()->properties();
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
+  node->set_op(common()->Call(desc));
+  ExternalReference ref(f, jsgraph()->isolate());
+  int32_t flags = AllocateTargetSpace::encode(space);
+  node->InsertInput(graph()->zone(), 0, jsgraph()->CEntryStubConstant(1));
+  node->InsertInput(graph()->zone(), 2, jsgraph()->SmiConstant(flags));
+  node->InsertInput(graph()->zone(), 3, jsgraph()->ExternalConstant(ref));
+  node->InsertInput(graph()->zone(), 4, jsgraph()->Int32Constant(2));
+  node->InsertInput(graph()->zone(), 5, jsgraph()->NoContextConstant());
+}
+
+
 void SimplifiedLowering::DoLoadField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   node->set_op(machine()->Load(access.machine_type));
@@ -1303,7 +1327,6 @@ void SimplifiedLowering::DoStringAdd(Node* node) {
 
 
 Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
-  CEntryStub stub(jsgraph()->isolate(), 1);
   Runtime::FunctionId f =
       requires_ordering ? Runtime::kStringCompareRT : Runtime::kStringEquals;
   ExternalReference ref(f, jsgraph()->isolate());
@@ -1312,12 +1335,12 @@ Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
   // interface descriptor is available for it.
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
   return graph()->NewNode(common()->Call(desc),
-                          jsgraph()->HeapConstant(stub.GetCode()),
+                          jsgraph()->CEntryStubConstant(1),
                           NodeProperties::GetValueInput(node, 0),
                           NodeProperties::GetValueInput(node, 1),
                           jsgraph()->ExternalConstant(ref),
                           jsgraph()->Int32Constant(2),
-                          jsgraph()->UndefinedConstant());
+                          jsgraph()->NoContextConstant());
 }
 
 

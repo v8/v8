@@ -57,6 +57,8 @@ class JSTypedLowering final : public Reducer {
   Reduction ReduceJSCreateClosure(Node* node);
   Reduction ReduceJSCreateLiteralArray(Node* node);
   Reduction ReduceJSCreateLiteralObject(Node* node);
+  Reduction ReduceJSCreateWithContext(Node* node);
+  Reduction ReduceJSCreateBlockContext(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
@@ -76,6 +78,9 @@ class JSTypedLowering final : public Reducer {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   MachineOperatorBuilder* machine() const;
+
+  // Limits up to which context allocations are inlined.
+  static const int kBlockContextAllocationLimit = 16;
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;

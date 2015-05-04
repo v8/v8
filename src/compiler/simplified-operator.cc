@@ -242,6 +242,13 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
 }
 
 
+const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {
+  return new (zone())
+      Operator1<PretenureFlag>(IrOpcode::kAllocate, Operator::kNoThrow,
+                               "Allocate", 1, 1, 1, 1, 1, 0, pretenure);
+}
+
+
 const Operator* SimplifiedOperatorBuilder::LoadBuffer(BufferAccess access) {
   switch (access.external_array_type()) {
 #define LOAD_BUFFER(Type, type, TYPE, ctype, size) \

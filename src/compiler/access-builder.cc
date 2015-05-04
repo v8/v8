@@ -45,6 +45,13 @@ FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
 
 
 // static
+FieldAccess AccessBuilder::ForFixedArrayLength() {
+  return {kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
+          Type::TaggedSigned(), kMachAnyTagged};
+}
+
+
+// static
 FieldAccess AccessBuilder::ForExternalArrayPointer() {
   return {kTaggedBase, ExternalArray::kExternalPointerOffset,
           MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};

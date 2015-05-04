@@ -172,6 +172,7 @@
   V(ChangeFloat64ToTagged)         \
   V(ChangeBoolToBit)               \
   V(ChangeBitToBool)               \
+  V(Allocate)                      \
   V(LoadField)                     \
   V(LoadBuffer)                    \
   V(LoadElement)                   \
