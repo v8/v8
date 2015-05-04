@@ -148,6 +148,7 @@ class CompilationInfo {
   Handle<JSFunction> closure() const;
   FunctionLiteral* function() const;
   Scope* scope() const;
+  bool MayUseThis() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;

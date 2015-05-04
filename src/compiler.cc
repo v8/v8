@@ -214,6 +214,12 @@ bool CompilationInfo::is_simple_parameter_list() {
 }
 
 
+bool CompilationInfo::MayUseThis() const {
+  return scope()->uses_this() || scope()->inner_uses_this() ||
+         scope()->calls_sloppy_eval();
+}
+
+
 int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                           SourcePosition position,
                                           int parent_id) {

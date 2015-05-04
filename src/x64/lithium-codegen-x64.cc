@@ -129,7 +129,7 @@ bool LCodeGen::GeneratePrologue() {
 
     // Sloppy mode functions need to replace the receiver with the global proxy
     // when called as functions (without an explicit receiver object).
-    if (graph()->this_has_uses() && is_sloppy(info_->language_mode()) &&
+    if (is_sloppy(info_->language_mode()) && info()->MayUseThis() &&
         !info_->is_native()) {
       Label ok;
       StackArgumentsAccessor args(rsp, scope()->num_parameters());

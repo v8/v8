@@ -124,7 +124,8 @@ void FullCodeGenerator::Generate() {
   // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object).
-  if (is_sloppy(info->language_mode()) && !info->is_native()) {
+  if (is_sloppy(info->language_mode()) && !info->is_native() &&
+      info->MayUseThis()) {
     Label ok;
     int receiver_offset = info->scope()->num_parameters() * kXRegSize;
     __ Peek(x10, receiver_offset);

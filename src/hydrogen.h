@@ -410,9 +410,6 @@ class HGraph final : public ZoneObject {
   void MarkRecursive() { is_recursive_ = true; }
   bool is_recursive() const { return is_recursive_; }
 
-  void MarkThisHasUses() { this_has_uses_ = true; }
-  bool this_has_uses() const { return this_has_uses_; }
-
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
     if (depends_on_empty_array_proto_elements_) return;
@@ -493,7 +490,6 @@ class HGraph final : public ZoneObject {
   Zone* zone_;
 
   bool is_recursive_;
-  bool this_has_uses_;
   bool use_optimistic_licm_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;

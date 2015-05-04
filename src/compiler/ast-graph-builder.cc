@@ -2642,10 +2642,7 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   // There is no need to perform patching if the receiver is never used. Note
   // that scope predicates are purely syntactical, a call to eval might still
   // inspect the receiver value.
-  if (!info()->scope()->uses_this() && !info()->scope()->inner_uses_this() &&
-      !info()->scope()->calls_sloppy_eval()) {
-    return receiver;
-  }
+  if (!info()->MayUseThis()) return receiver;
 
   IfBuilder receiver_check(this);
   Node* undefined = jsgraph()->UndefinedConstant();
