@@ -980,7 +980,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kFloat32Abs | MachineOperatorBuilder::kFloat64Abs;
 
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
     flags |= MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat64RoundTruncate;
   }
