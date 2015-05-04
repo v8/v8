@@ -223,10 +223,6 @@
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
 
-  # BUG(v8:3985). Wrong materialization of arguments object after throwing
-  # an exception.
-  'regress/regress-3985': [PASS, FAIL],
-
   # Skip endain dependent test for mips due to different typed views of the same
   # array buffer.
   'nans': [PASS, ],

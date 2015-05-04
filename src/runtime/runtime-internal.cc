@@ -37,10 +37,10 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FindExceptionHandler) {
+RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
-  return isolate->FindHandler();
+  return isolate->UnwindAndFindHandler();
 }
 
 

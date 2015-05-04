@@ -1025,7 +1025,7 @@ Object* Isolate::ReThrow(Object* exception) {
 }
 
 
-Object* Isolate::FindHandler() {
+Object* Isolate::UnwindAndFindHandler() {
   Object* exception = pending_exception();
 
   Code* code = nullptr;
@@ -1062,19 +1062,19 @@ Object* Isolate::FindHandler() {
       OptimizedFrame* js_frame = static_cast<OptimizedFrame*>(frame);
       int stack_slots = 0;  // Will contain stack slot count of frame.
       offset = js_frame->LookupExceptionHandlerInTable(&stack_slots);
-      if (offset < 0) continue;
+      if (offset >= 0) {
+        // Compute the stack pointer from the frame pointer. This ensures that
+        // argument slots on the stack are dropped as returning would.
+        Address return_sp = frame->fp() -
+                            StandardFrameConstants::kFixedFrameSizeFromFp -
+                            stack_slots * kPointerSize;
 
-      // Compute the stack pointer from the frame pointer. This ensures that
-      // argument slots on the stack are dropped as returning would.
-      Address return_sp = frame->fp() -
-                          StandardFrameConstants::kFixedFrameSizeFromFp -
-                          stack_slots * kPointerSize;
-
-      // Gather information from the frame.
-      code = frame->LookupCode();
-      handler_sp = return_sp;
-      handler_fp = frame->fp();
-      break;
+        // Gather information from the frame.
+        code = frame->LookupCode();
+        handler_sp = return_sp;
+        handler_fp = frame->fp();
+        break;
+      }
     }
 
     // For JavaScript frames we perform a range lookup in the handler table.
@@ -1082,23 +1082,25 @@ Object* Isolate::FindHandler() {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
       int stack_slots = 0;  // Will contain operand stack depth of handler.
       offset = js_frame->LookupExceptionHandlerInTable(&stack_slots);
-      if (offset < 0) continue;
+      if (offset >= 0) {
+        // Compute the stack pointer from the frame pointer. This ensures that
+        // operand stack slots are dropped for nested statements. Also restore
+        // correct context for the handler which is pushed within the try-block.
+        Address return_sp = frame->fp() -
+                            StandardFrameConstants::kFixedFrameSizeFromFp -
+                            stack_slots * kPointerSize;
+        STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
+        context = Context::cast(Memory::Object_at(return_sp - kPointerSize));
 
-      // Compute the stack pointer from the frame pointer. This ensures that
-      // operand stack slots are dropped for nested statements. Also restore
-      // correct context for the handler which is pushed within the try-block.
-      Address return_sp = frame->fp() -
-                          StandardFrameConstants::kFixedFrameSizeFromFp -
-                          stack_slots * kPointerSize;
-      STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
-      context = Context::cast(Memory::Object_at(return_sp - kPointerSize));
-
-      // Gather information from the frame.
-      code = frame->LookupCode();
-      handler_sp = return_sp;
-      handler_fp = frame->fp();
-      break;
+        // Gather information from the frame.
+        code = frame->LookupCode();
+        handler_sp = return_sp;
+        handler_fp = frame->fp();
+        break;
+      }
     }
+
+    RemoveMaterializedObjectsOnUnwind(frame);
   }
 
   // Handler must exist.
@@ -1151,6 +1153,17 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 
   // Handler not found.
   return NOT_CAUGHT;
+}
+
+
+void Isolate::RemoveMaterializedObjectsOnUnwind(StackFrame* frame) {
+  if (frame->is_optimized()) {
+    bool removed = materialized_object_store_->Remove(frame->fp());
+    USE(removed);
+    // If there were any materialized objects, the code should be
+    // marked for deopt.
+    DCHECK(!removed || frame->LookupCode()->marked_for_deoptimization());
+  }
 }
 
 

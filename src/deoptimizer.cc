@@ -2017,7 +2017,8 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   }
 
   if (prev_materialized_count_ > 0) {
-    materialized_store->Remove(stack_fp_);
+    bool removed = materialized_store->Remove(stack_fp_);
+    CHECK(removed);
   }
 }
 
@@ -3679,17 +3680,21 @@ void MaterializedObjectStore::Set(Address fp,
 }
 
 
-void MaterializedObjectStore::Remove(Address fp) {
+bool MaterializedObjectStore::Remove(Address fp) {
   int index = StackIdToIndex(fp);
+  if (index == -1) {
+    return false;
+  }
   CHECK_GE(index, 0);
 
   frame_fps_.Remove(index);
-  Handle<FixedArray> array = GetStackEntries();
+  FixedArray* array = isolate()->heap()->materialized_objects();
   CHECK_LT(index, array->length());
   for (int i = index; i < frame_fps_.length(); i++) {
     array->set(i, array->get(i + 1));
   }
   array->set(frame_fps_.length(), isolate()->heap()->undefined_value());
+  return true;
 }
 
 

@@ -966,7 +966,7 @@ class MaterializedObjectStore {
 
   Handle<FixedArray> Get(Address fp);
   void Set(Address fp, Handle<FixedArray> materialized_objects);
-  void Remove(Address fp);
+  bool Remove(Address fp);
 
  private:
   Isolate* isolate() { return isolate_; }
