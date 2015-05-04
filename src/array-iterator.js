@@ -125,16 +125,16 @@ function ArrayKeys() {
 %FunctionSetPrototype(ArrayIterator, new GlobalObject());
 %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
 
-InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
+$installFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
-SetFunctionName(ArrayIteratorIterator, symbolIterator);
+$setFunctionName(ArrayIteratorIterator, symbolIterator);
 %AddNamedProperty(ArrayIterator.prototype, symbolIterator,
                   ArrayIteratorIterator, DONT_ENUM);
 %AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
-InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+$installFunctions(GlobalArray.prototype, DONT_ENUM, [
   // No 'values' since it breaks webcompat: http://crbug.com/409858
   'entries', ArrayEntries,
   'keys', ArrayKeys

@@ -356,7 +356,7 @@ function URIEncodeComponent(component) {
 
 // Set up non-enumerable URI functions on the global object and set
 // their names.
-InstallFunctions(global, DONT_ENUM, [
+$installFunctions(global, DONT_ENUM, [
   "escape", URIEscapeJS,
   "unescape", URIUnescapeJS,
   "decodeURI", URIDecode,

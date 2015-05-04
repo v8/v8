@@ -22,7 +22,7 @@ function HashToEntry(table, hash, numBuckets) {
 
 
 function SetFindEntry(table, numBuckets, key, hash) {
-  var keyIsNaN = NumberIsNaN(key);
+  var keyIsNaN = $numberIsNaN(key);
   for (var entry = HashToEntry(table, hash, numBuckets);
        entry !== NOT_FOUND;
        entry = ORDERED_HASH_SET_CHAIN_AT(table, entry, numBuckets)) {
@@ -30,7 +30,7 @@ function SetFindEntry(table, numBuckets, key, hash) {
     if (key === candidate) {
       return entry;
     }
-    if (keyIsNaN && NumberIsNaN(candidate)) {
+    if (keyIsNaN && $numberIsNaN(candidate)) {
       return entry;
     }
   }
@@ -40,7 +40,7 @@ function SetFindEntry(table, numBuckets, key, hash) {
 
 
 function MapFindEntry(table, numBuckets, key, hash) {
-  var keyIsNaN = NumberIsNaN(key);
+  var keyIsNaN = $numberIsNaN(key);
   for (var entry = HashToEntry(table, hash, numBuckets);
        entry !== NOT_FOUND;
        entry = ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets)) {
@@ -48,7 +48,7 @@ function MapFindEntry(table, numBuckets, key, hash) {
     if (key === candidate) {
       return entry;
     }
-    if (keyIsNaN && NumberIsNaN(candidate)) {
+    if (keyIsNaN && $numberIsNaN(candidate)) {
       return entry;
     }
   }
@@ -239,8 +239,8 @@ function SetForEach(f, receiver) {
 %FunctionSetLength(SetForEach, 1);
 
 // Set up the non-enumerable functions on the Set prototype object.
-InstallGetter(GlobalSet.prototype, "size", SetGetSize);
-InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
+$installGetter(GlobalSet.prototype, "size", SetGetSize);
+$installFunctions(GlobalSet.prototype, DONT_ENUM, [
   "add", SetAdd,
   "has", SetHas,
   "delete", SetDelete,
@@ -427,8 +427,8 @@ function MapForEach(f, receiver) {
 %FunctionSetLength(MapForEach, 1);
 
 // Set up the non-enumerable functions on the Map prototype object.
-InstallGetter(GlobalMap.prototype, "size", MapGetSize);
-InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
+$installGetter(GlobalMap.prototype, "size", MapGetSize);
+$installFunctions(GlobalMap.prototype, DONT_ENUM, [
   "get", MapGet,
   "set", MapSet,
   "has", MapHas,
