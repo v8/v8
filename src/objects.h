@@ -10296,7 +10296,7 @@ class JSArrayBufferView: public JSObject {
   // [buffer]: ArrayBuffer that this typed array views.
   DECL_ACCESSORS(buffer, Object)
 
-  // [byte_length]: offset of typed array in bytes.
+  // [byte_offset]: offset of typed array in bytes.
   DECL_ACCESSORS(byte_offset, Object)
 
   // [byte_length]: length of typed array in bytes.
