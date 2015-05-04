@@ -1139,6 +1139,12 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool;
   PipelineData data(&zone_pool, info, graph, schedule);
+  SmartPointer<PipelineStatistics> pipeline_statistics;
+  if (FLAG_turbo_stats) {
+    pipeline_statistics.Reset(new PipelineStatistics(info, &zone_pool));
+    pipeline_statistics->BeginPhaseKind("test codegen");
+  }
+
   Pipeline pipeline(info);
   pipeline.data_ = &data;
   if (data.schedule() == nullptr) {
