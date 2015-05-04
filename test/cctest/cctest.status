@@ -269,6 +269,7 @@
 
   # TODO(mips-team): Currently fails on mips board.
   'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
+  'test-simplified-lowering/RunNumberDivide_2_TruncatingToUint32': [SKIP],
   'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading3': [SKIP],
   'test-api/RequestInterruptTestWithNativeAccessor': [SKIP],
