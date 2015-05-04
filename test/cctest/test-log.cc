@@ -190,7 +190,7 @@ class LoopingJsThread : public LoopingThread {
             "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
       }
       context.Dispose();
-      i::OS::Sleep(1);
+      i::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
     }
   }
 };
@@ -210,7 +210,7 @@ class LoopingNonJsThread : public LoopingThread {
     SignalRunning();
     while (IsRunning()) {
       i = std::sin(i);
-      i::OS::Sleep(1);
+      i::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
     }
   }
 };

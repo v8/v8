@@ -176,7 +176,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       sync_with_compiler_thread) {
     while (function->IsInOptimizationQueue()) {
       isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-      base::OS::Sleep(50);
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
     }
   }
   if (FLAG_always_opt) {

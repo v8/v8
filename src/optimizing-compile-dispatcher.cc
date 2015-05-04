@@ -63,7 +63,8 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
       if (dispatcher->recompilation_delay_ != 0) {
-        base::OS::Sleep(dispatcher->recompilation_delay_);
+        base::OS::Sleep(base::TimeDelta::FromMilliseconds(
+            dispatcher->recompilation_delay_));
       }
 
       dispatcher->CompileNext(dispatcher->NextInput(true));

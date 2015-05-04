@@ -190,8 +190,8 @@ class OS {
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
 
-  // Sleep for a number of milliseconds.
-  static void Sleep(const int milliseconds);
+  // Sleep for a specified time interval.
+  static void Sleep(TimeDelta interval);
 
   // Abort the current process.
   static void Abort();
