@@ -627,7 +627,7 @@ class SpecialRPONumberer : public ZoneObject {
 #endif
   }
 
-  const ZoneList<BasicBlock*>& GetOutgoingBlocks(BasicBlock* block) {
+  const ZoneVector<BasicBlock*>& GetOutgoingBlocks(BasicBlock* block) {
     if (HasLoopNumber(block)) {
       LoopInfo const& loop = loops_[GetLoopNumber(block)];
       if (loop.outgoing) return *loop.outgoing;
@@ -652,7 +652,7 @@ class SpecialRPONumberer : public ZoneObject {
 
   struct LoopInfo {
     BasicBlock* header;
-    ZoneList<BasicBlock*>* outgoing;
+    ZoneVector<BasicBlock*>* outgoing;
     BitVector* members;
     LoopInfo* prev;
     BasicBlock* end;
@@ -660,9 +660,10 @@ class SpecialRPONumberer : public ZoneObject {
 
     void AddOutgoing(Zone* zone, BasicBlock* block) {
       if (outgoing == NULL) {
-        outgoing = new (zone) ZoneList<BasicBlock*>(2, zone);
+        outgoing = new (zone->New(sizeof(ZoneVector<BasicBlock*>)))
+            ZoneVector<BasicBlock*>(zone);
       }
-      outgoing->Add(block, zone);
+      outgoing->push_back(block);
     }
   };
 
@@ -791,12 +792,11 @@ class SpecialRPONumberer : public ZoneObject {
           }
 
           // Use the next outgoing edge if there are any.
-          int outgoing_index =
-              static_cast<int>(frame->index - block->SuccessorCount());
+          size_t outgoing_index = frame->index - block->SuccessorCount();
           LoopInfo* info = &loops_[GetLoopNumber(block)];
           DCHECK(loop != info);
           if (block != entry && info->outgoing != NULL &&
-              outgoing_index < info->outgoing->length()) {
+              outgoing_index < info->outgoing->size()) {
             succ = info->outgoing->at(outgoing_index);
             frame->index++;
           }
@@ -1055,7 +1055,7 @@ class SpecialRPONumberer : public ZoneObject {
   ZoneVector<Backedge> backedges_;
   ZoneVector<SpecialRPOStackFrame> stack_;
   size_t previous_block_count_;
-  ZoneList<BasicBlock*> const empty_;
+  ZoneVector<BasicBlock*> const empty_;
 };
 
 
