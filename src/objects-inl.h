@@ -1917,7 +1917,13 @@ void WeakCell::clear() {
 
 void WeakCell::initialize(HeapObject* val) {
   WRITE_FIELD(this, kValueOffset, val);
-  WRITE_BARRIER(GetHeap(), this, kValueOffset, val);
+  Heap* heap = GetHeap();
+  // We just have to execute the generational barrier here because we never
+  // mark through a weak cell and collect evacuation candidates when we process
+  // all weak cells.
+  if (heap->InNewSpace(val)) {
+    heap->RecordWrite(address(), kValueOffset);
+  }
 }
 
 
