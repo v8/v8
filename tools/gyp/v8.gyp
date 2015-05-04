@@ -863,6 +863,7 @@
         '../../src/scopeinfo.h',
         '../../src/scopes.cc',
         '../../src/scopes.h',
+        '../../src/signature.h',
         '../../src/small-pointer-list.h',
         '../../src/smart-pointers.h',
         '../../src/snapshot/natives.h',
