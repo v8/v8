@@ -502,8 +502,7 @@ class CaptureStackTraceHelper {
     }
   }
 
-  Handle<JSObject> NewStackFrameObject(Handle<JSFunction> fun,
-                                       Handle<Code> code, Address pc,
+  Handle<JSObject> NewStackFrameObject(Handle<JSFunction> fun, int position,
                                        bool is_constructor) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
@@ -512,7 +511,6 @@ class CaptureStackTraceHelper {
 
     if (!line_key_.is_null()) {
       int script_line_offset = script->line_offset()->value();
-      int position = code->SourcePosition(pc);
       int line_number = Script::GetLineNumber(script, position);
       // line_number is already shifted by the script_line_offset.
       int relative_line_number = line_number - script_line_offset;
@@ -586,6 +584,19 @@ class CaptureStackTraceHelper {
 };
 
 
+int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
+  DisallowHeapAllocation no_gc;
+  Object* maybe_code = elements->get(index + 2);
+  if (maybe_code->IsSmi()) {
+    return Smi::cast(maybe_code)->value();
+  } else {
+    Code* code = Code::cast(maybe_code);
+    Address pc = code->address() + Smi::cast(elements->get(index + 3))->value();
+    return code->SourcePosition(pc);
+  }
+}
+
+
 Handle<JSArray> Isolate::GetDetailedFromSimpleStackTrace(
     Handle<JSObject> error_object) {
   Handle<Name> key = factory()->stack_trace_symbol();
@@ -608,15 +619,13 @@ Handle<JSArray> Isolate::GetDetailedFromSimpleStackTrace(
     Handle<Object> recv = handle(elements->get(i), this);
     Handle<JSFunction> fun =
         handle(JSFunction::cast(elements->get(i + 1)), this);
-    Handle<Code> code = handle(Code::cast(elements->get(i + 2)), this);
-    Handle<Smi> offset = handle(Smi::cast(elements->get(i + 3)), this);
-    Address pc = code->address() + offset->value();
     bool is_constructor =
         recv->IsJSObject() &&
         Handle<JSObject>::cast(recv)->map()->GetConstructor() == *fun;
+    int position = PositionFromStackTrace(elements, i);
 
     Handle<JSObject> stack_frame =
-        helper.NewStackFrameObject(fun, code, pc, is_constructor);
+        helper.NewStackFrameObject(fun, position, is_constructor);
 
     FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
     frames_seen++;
@@ -648,9 +657,9 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       // Filter frames from other security contexts.
       if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
           !this->context()->HasSameSecurityTokenAs(fun->context())) continue;
-
-      Handle<JSObject> stack_frame = helper.NewStackFrameObject(
-          fun, frames[i].code(), frames[i].pc(), frames[i].is_constructor());
+      int position = frames[i].code()->SourcePosition(frames[i].pc());
+      Handle<JSObject> stack_frame =
+          helper.NewStackFrameObject(fun, position, frames[i].is_constructor());
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
       frames_seen++;
@@ -1303,14 +1312,11 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     Handle<JSFunction> fun =
         handle(JSFunction::cast(elements->get(i + 1)), this);
     if (fun->IsFromNativeScript()) continue;
-    Handle<Code> code = handle(Code::cast(elements->get(i + 2)), this);
-    Handle<Smi> offset = handle(Smi::cast(elements->get(i + 3)), this);
-    Address pc = code->address() + offset->value();
 
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined())) {
-      int pos = code->SourcePosition(pc);
+      int pos = PositionFromStackTrace(elements, i);
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);
       return true;
