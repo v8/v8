@@ -501,6 +501,8 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   data->realms_[index].Reset();
+  isolate->ContextDisposedNotification();
+  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
 }
 
 
