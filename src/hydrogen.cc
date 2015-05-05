@@ -10664,14 +10664,29 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Maybe<int> fixed_right_arg,
     HAllocationMode allocation_mode,
     LanguageMode language_mode) {
+  bool maybe_string_add = false;
+  if (op == Token::ADD) {
+    // If we are adding constant string with something for which we don't have
+    // a feedback yet, assume that it's also going to be a string and don't
+    // generate deopt instructions.
+    if (!left_type->IsInhabited() && right->IsConstant() &&
+        HConstant::cast(right)->HasStringValue()) {
+      left_type = Type::String();
+    }
+
+    if (!right_type->IsInhabited() && left->IsConstant() &&
+        HConstant::cast(left)->HasStringValue()) {
+      right_type = Type::String();
+    }
+
+    maybe_string_add = (left_type->Maybe(Type::String()) ||
+                        left_type->Maybe(Type::Receiver()) ||
+                        right_type->Maybe(Type::String()) ||
+                        right_type->Maybe(Type::Receiver()));
+  }
+
   Representation left_rep = RepresentationFor(left_type);
   Representation right_rep = RepresentationFor(right_type);
-
-  bool maybe_string_add = op == Token::ADD &&
-                          (left_type->Maybe(Type::String()) ||
-                           left_type->Maybe(Type::Receiver()) ||
-                           right_type->Maybe(Type::String()) ||
-                           right_type->Maybe(Type::Receiver()));
 
   if (!left_type->IsInhabited()) {
     Add<HDeoptimize>(
