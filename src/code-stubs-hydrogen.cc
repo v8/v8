@@ -578,11 +578,15 @@ Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<GrowArrayElementsStub>::BuildCodeStub() {
+  ElementsKind kind = casted_stub()->elements_kind();
+  if (IsFastDoubleElementsKind(kind)) {
+    info()->MarkAsSavesCallerDoubles();
+  }
+
   HValue* object = GetParameter(GrowArrayElementsDescriptor::kObjectIndex);
   HValue* key = GetParameter(GrowArrayElementsDescriptor::kKeyIndex);
   HValue* current_capacity =
       GetParameter(GrowArrayElementsDescriptor::kCapacityIndex);
-  ElementsKind kind = casted_stub()->elements_kind();
 
   HValue* elements = AddLoadElements(object);
   HValue* length =
