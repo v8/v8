@@ -360,7 +360,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     }
     %_DataViewInitialize(this, buffer, offset, length);
   } else {
-    throw MakeTypeError('constructor_not_function', ["DataView"]);
+    throw MakeTypeError(kConstructorNotFunction, "DataView");
   }
 }
 
