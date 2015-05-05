@@ -1430,33 +1430,80 @@ void MacroAssembler::Mfhc1(Register rt, FPURegister fs) {
 
 
 void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
-                                   Label* nan, Condition cc, FPURegister cmp1,
+                                   Label* nan, Condition cond, FPURegister cmp1,
                                    FPURegister cmp2, BranchDelaySlot bd) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (cc == al) {
-    Branch(bd, target);
-    return;
-  }
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (cond == al) {
+      Branch(bd, target);
+      return;
+    }
 
-  if (IsMipsArchVariant(kMips32r6)) {
-    sizeField = sizeField == D ? L : W;
-  }
-  DCHECK(nan || target);
-  // Check for unordered (NaN) cases.
-  if (nan) {
-    if (!IsMipsArchVariant(kMips32r6)) {
-      c(UN, D, cmp1, cmp2);
-      bc1t(nan);
-    } else {
-      // Use kDoubleCompareReg for comparison result. It has to be unavailable
-      // to lithium register allocator.
-      DCHECK(!cmp1.is(kDoubleCompareReg) && !cmp2.is(kDoubleCompareReg));
-      cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
-      bc1nez(nan, kDoubleCompareReg);
+    if (IsMipsArchVariant(kMips32r6)) {
+      sizeField = sizeField == D ? L : W;
+    }
+    DCHECK(nan || target);
+    // Check for unordered (NaN) cases.
+    if (nan) {
+      bool long_branch =
+          nan->is_bound() ? is_near(nan) : is_trampoline_emitted();
+      if (!IsMipsArchVariant(kMips32r6)) {
+        if (long_branch) {
+          Label skip;
+          c(UN, D, cmp1, cmp2);
+          bc1f(&skip);
+          nop();
+          Jr(nan, bd);
+          bind(&skip);
+        } else {
+          c(UN, D, cmp1, cmp2);
+          bc1t(nan);
+          if (bd == PROTECT) {
+            nop();
+          }
+        }
+      } else {
+        // Use kDoubleCompareReg for comparison result. It has to be unavailable
+        // to lithium register allocator.
+        DCHECK(!cmp1.is(kDoubleCompareReg) && !cmp2.is(kDoubleCompareReg));
+        if (long_branch) {
+          Label skip;
+          cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(&skip, kDoubleCompareReg);
+          nop();
+          Jr(nan, bd);
+          bind(&skip);
+        } else {
+          cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(nan, kDoubleCompareReg);
+          if (bd == PROTECT) {
+            nop();
+          }
+        }
+      }
+    }
+
+    if (target) {
+      bool long_branch =
+          target->is_bound() ? is_near(target) : is_trampoline_emitted();
+      if (long_branch) {
+        Label skip;
+        Condition neg_cond = NegateFpuCondition(cond);
+        BranchShortF(sizeField, &skip, neg_cond, cmp1, cmp2, bd);
+        Jr(target, bd);
+        bind(&skip);
+      } else {
+        BranchShortF(sizeField, target, cond, cmp1, cmp2, bd);
+      }
     }
   }
+}
 
+void MacroAssembler::BranchShortF(SecondaryField sizeField, Label* target,
+                                  Condition cc, FPURegister cmp1,
+                                  FPURegister cmp2, BranchDelaySlot bd) {
   if (!IsMipsArchVariant(kMips32r6)) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     if (target) {
       // Here NaN cases were either handled by this function or are assumed to
       // have been handled by the caller.
@@ -1465,16 +1512,32 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           c(OLT, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
+        case ult:
+          c(ULT, sizeField, cmp1, cmp2);
+          bc1t(target);
+          break;
         case gt:
           c(ULE, sizeField, cmp1, cmp2);
+          bc1f(target);
+          break;
+        case ugt:
+          c(OLE, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         case ge:
           c(ULT, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
+        case uge:
+          c(OLT, sizeField, cmp1, cmp2);
+          bc1f(target);
+          break;
         case le:
           c(OLE, sizeField, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case ule:
+          c(ULE, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case eq:
@@ -1485,11 +1548,11 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           c(UEQ, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
-        case ne:
+        case ne:  // Unordered or not equal.
           c(EQ, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
-        case nue:
+        case ogl:
           c(UEQ, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
@@ -1498,6 +1561,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
       }
     }
   } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     if (target) {
       // Here NaN cases were either handled by this function or are assumed to
       // have been handled by the caller.
@@ -1510,16 +1574,32 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(target, kDoubleCompareReg);
           break;
+        case ult:
+          cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
+          break;
         case gt:
           cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
+          break;
+        case ugt:
+          cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
         case ge:
           cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
+        case uge:
+          cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
+          break;
         case le:
           cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
+          break;
+        case ule:
+          cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(target, kDoubleCompareReg);
           break;
         case eq:
@@ -1534,7 +1614,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
-        case nue:
+        case ogl:
           cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(target, kDoubleCompareReg);
           break;
@@ -1543,7 +1623,6 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
       }
     }
   }
-
   if (bd == PROTECT) {
     nop();
   }

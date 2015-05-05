@@ -580,10 +580,10 @@ enum Condition {
   no_overflow = 1,
   Uless = 2,
   Ugreater_equal = 3,
-  equal = 4,
-  not_equal = 5,
-  Uless_equal = 6,
-  Ugreater = 7,
+  Uless_equal = 4,
+  Ugreater = 5,
+  equal = 6,
+  not_equal = 7,  // Unordered or Not Equal.
   negative = 8,
   positive = 9,
   parity_even = 10,
@@ -593,7 +593,7 @@ enum Condition {
   less_equal = 14,
   greater = 15,
   ueq = 16,  // Unordered or Equal.
-  nue = 17,  // Not (Unordered or Equal).
+  ogl = 17,  // Ordered and Not Equal.
   cc_always = 18,
 
   // Aliases.
@@ -617,6 +617,10 @@ enum Condition {
   hs = Ugreater_equal,
   lo = Uless,
   al = cc_always,
+  ult = Uless,
+  uge = Ugreater_equal,
+  ule = Uless_equal,
+  ugt = Ugreater,
   cc_default = kNoCondition
 };
 
@@ -628,6 +632,39 @@ enum Condition {
 inline Condition NegateCondition(Condition cc) {
   DCHECK(cc != cc_always);
   return static_cast<Condition>(cc ^ 1);
+}
+
+
+inline Condition NegateFpuCondition(Condition cc) {
+  DCHECK(cc != cc_always);
+  switch (cc) {
+    case ult:
+      return ge;
+    case ugt:
+      return le;
+    case uge:
+      return lt;
+    case ule:
+      return gt;
+    case lt:
+      return uge;
+    case gt:
+      return ule;
+    case ge:
+      return ult;
+    case le:
+      return ugt;
+    case eq:
+      return ne;
+    case ne:
+      return eq;
+    case ueq:
+      return ogl;
+    case ogl:
+      return ueq;
+    default:
+      return cc;
+  }
 }
 
 

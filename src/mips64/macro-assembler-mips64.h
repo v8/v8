@@ -1710,6 +1710,11 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                      Condition cc, FPURegister cmp1, FPURegister cmp2,
                      BranchDelaySlot bd = PROTECT);
 
+  void BranchShortF(SecondaryField sizeField, Label* target, Condition cc,
+                    FPURegister cmp1, FPURegister cmp2,
+                    BranchDelaySlot bd = PROTECT);
+
+
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual,

@@ -2100,7 +2100,7 @@ void LCodeGen::EmitBranchF(InstrType instr,
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     __ BranchF(chunk_->GetAssemblyLabel(right_block), NULL,
-               NegateCondition(condition), src1, src2);
+               NegateFpuCondition(condition), src1, src2);
   } else if (right_block == next_block) {
     __ BranchF(chunk_->GetAssemblyLabel(left_block), NULL,
                condition, src1, src2);
@@ -2148,7 +2148,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     DCHECK(!info()->IsStub());
     DoubleRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
-    EmitBranchF(instr, nue, reg, kDoubleRegZero);
+    EmitBranchF(instr, ogl, reg, kDoubleRegZero);
   } else {
     DCHECK(r.IsTagged());
     Register reg = ToRegister(instr->value());
@@ -2168,7 +2168,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       DoubleRegister dbl_scratch = double_scratch0();
       __ ldc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
       // Test the double value. Zero and NaN are false.
-      EmitBranchF(instr, nue, dbl_scratch, kDoubleRegZero);
+      EmitBranchF(instr, ogl, dbl_scratch, kDoubleRegZero);
     } else if (type.IsString()) {
       DCHECK(!info()->IsStub());
       __ ld(at, FieldMemOperand(reg, String::kLengthOffset));
