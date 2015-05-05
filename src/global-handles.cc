@@ -849,9 +849,9 @@ int GlobalHandles::PostGarbageCollectionProcessing(GarbageCollector collector) {
     return freed_nodes;
   }
   if (collector == SCAVENGER) {
-    freed_nodes = PostScavengeProcessing(initial_post_gc_processing_count);
+    freed_nodes += PostScavengeProcessing(initial_post_gc_processing_count);
   } else {
-    freed_nodes = PostMarkSweepProcessing(initial_post_gc_processing_count);
+    freed_nodes += PostMarkSweepProcessing(initial_post_gc_processing_count);
   }
   if (initial_post_gc_processing_count != post_gc_processing_count_) {
     // If the callbacks caused a nested GC, then return.  See comment in
