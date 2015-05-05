@@ -778,31 +778,8 @@ function CallSiteGetMethodName() {
   // this function.
   var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
   var fun = GET_PRIVATE(this, CallSiteFunctionKey);
-  var ownName = fun.name;
-  if (ownName && receiver &&
-      (%_CallFunction(receiver, ownName, $objectLookupGetter) === fun ||
-       %_CallFunction(receiver, ownName, $objectLookupSetter) === fun ||
-       (IS_OBJECT(receiver) && %GetDataProperty(receiver, ownName) === fun))) {
-    // To handle DontEnum properties we guess that the method has
-    // the same name as the function.
-    return ownName;
-  }
-  var name = null;
-  for (var prop in receiver) {
-    if (%_CallFunction(receiver, prop, $objectLookupGetter) === fun ||
-        %_CallFunction(receiver, prop, $objectLookupSetter) === fun ||
-        (IS_OBJECT(receiver) && %GetDataProperty(receiver, prop) === fun)) {
-      // If we find more than one match bail out to avoid confusion.
-      if (name) {
-        return null;
-      }
-      name = prop;
-    }
-  }
-  if (name) {
-    return name;
-  }
-  return null;
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteGetMethodNameRT(receiver, fun, pos);
 }
 
 function CallSiteGetFileName() {
@@ -835,10 +812,9 @@ function CallSiteIsNative() {
 
 function CallSiteIsConstructor() {
   var receiver = GET_PRIVATE(this, CallSiteReceiverKey);
-  var constructor = (receiver != null && IS_OBJECT(receiver))
-                        ? %GetDataProperty(receiver, "constructor") : null;
-  if (!constructor) return false;
-  return GET_PRIVATE(this, CallSiteFunctionKey) === constructor;
+  var fun = GET_PRIVATE(this, CallSiteFunctionKey);
+  var pos = GET_PRIVATE(this, CallSitePositionKey);
+  return %CallSiteIsConstructorRT(receiver, fun, pos);
 }
 
 function CallSiteToString() {

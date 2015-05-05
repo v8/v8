@@ -6240,8 +6240,8 @@ static Handle<FixedArray> ReduceFixedArrayTo(
 }
 
 
-static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
-                                              bool cache_result) {
+Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
+                                                 bool cache_result) {
   Isolate* isolate = object->GetIsolate();
   if (object->HasFastProperties()) {
     int own_property_count = object->map()->EnumLength();
@@ -6422,7 +6422,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, content,
         FixedArray::UnionOfKeys(
-            content, GetEnumPropertyKeys(current, cache_enum_keys)),
+            content, JSObject::GetEnumPropertyKeys(current, cache_enum_keys)),
         FixedArray);
     DCHECK(ContainsOnlyValidKeys(content));
 

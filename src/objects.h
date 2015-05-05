@@ -2069,6 +2069,9 @@ class JSObject: public JSReceiver {
   // Returns the number of enumerable elements.
   int GetEnumElementKeys(FixedArray* storage);
 
+  static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
+                                                bool cache_result);
+
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
   static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,

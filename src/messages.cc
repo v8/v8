@@ -197,6 +197,67 @@ Handle<Object> CallSite::GetScriptNameOrSourceUrl(Isolate* isolate) {
 }
 
 
+bool CheckMethodName(Handle<JSObject> obj, Handle<Name> name,
+                     Handle<JSFunction> fun,
+                     LookupIterator::Configuration config) {
+  LookupIterator iter(obj, name, config);
+  if (iter.state() == LookupIterator::DATA) {
+    return iter.GetDataValue().is_identical_to(fun);
+  } else if (iter.state() == LookupIterator::ACCESSOR) {
+    Handle<Object> accessors = iter.GetAccessors();
+    if (accessors->IsAccessorPair()) {
+      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
+      return pair->getter() == *fun || pair->setter() == *fun;
+    }
+  }
+  return false;
+}
+
+
+Handle<Object> CallSite::GetMethodName(Isolate* isolate) {
+  MaybeHandle<JSReceiver> maybe = Object::ToObject(isolate, receiver_);
+  Handle<JSReceiver> receiver;
+  if (!maybe.ToHandle(&receiver) || !receiver->IsJSObject()) {
+    return isolate->factory()->null_value();
+  }
+
+  Handle<JSObject> obj = Handle<JSObject>::cast(receiver);
+  Handle<Object> function_name(fun_->shared()->name(), isolate);
+  if (function_name->IsName()) {
+    Handle<Name> name = Handle<Name>::cast(function_name);
+    if (CheckMethodName(obj, name, fun_,
+                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR))
+      return name;
+  }
+
+  HandleScope outer_scope(isolate);
+  Handle<Object> result;
+  for (PrototypeIterator iter(isolate, obj,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
+    if (!current->IsJSObject()) break;
+    Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
+    if (current_obj->IsAccessCheckNeeded()) break;
+    Handle<FixedArray> keys = JSObject::GetEnumPropertyKeys(current_obj, false);
+    for (int i = 0; i < keys->length(); i++) {
+      HandleScope inner_scope(isolate);
+      if (!keys->get(i)->IsName()) continue;
+      Handle<Name> name_key(Name::cast(keys->get(i)), isolate);
+      if (!CheckMethodName(current_obj, name_key, fun_,
+                           LookupIterator::OWN_SKIP_INTERCEPTOR))
+        continue;
+      // Return null in case of duplicates to avoid confusion.
+      if (!result.is_null()) return isolate->factory()->null_value();
+      result = inner_scope.CloseAndEscape(name_key);
+    }
+  }
+
+  if (!result.is_null()) return outer_scope.CloseAndEscape(result);
+  return isolate->factory()->null_value();
+}
+
+
 int CallSite::GetLineNumber(Isolate* isolate) {
   if (pos_ >= 0) {
     Handle<Object> script_obj(fun_->shared()->script(), isolate);
@@ -239,6 +300,15 @@ bool CallSite::IsEval(Isolate* isolate) {
   return script->IsScript() &&
          Handle<Script>::cast(script)->compilation_type() ==
              Script::COMPILATION_TYPE_EVAL;
+}
+
+
+bool CallSite::IsConstructor(Isolate* isolate) {
+  if (!receiver_->IsJSObject()) return false;
+  Handle<Object> constructor =
+      JSObject::GetDataProperty(Handle<JSObject>::cast(receiver_),
+                                isolate->factory()->constructor_string());
+  return constructor.is_identical_to(fun_);
 }
 
 

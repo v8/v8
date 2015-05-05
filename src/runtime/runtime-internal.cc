@@ -354,11 +354,13 @@ static inline Object* ReturnBoolean(bool value, Isolate* isolate) {
 CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
 CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
 CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
+CALLSITE_GET(GetMethodName, ReturnDereferencedHandle)
 CALLSITE_GET(GetLineNumber, ReturnPositiveSmiOrNull)
 CALLSITE_GET(GetColumnNumber, ReturnPositiveSmiOrNull)
 CALLSITE_GET(IsNative, ReturnBoolean)
 CALLSITE_GET(IsToplevel, ReturnBoolean)
 CALLSITE_GET(IsEval, ReturnBoolean)
+CALLSITE_GET(IsConstructor, ReturnBoolean)
 
 #undef CALLSITE_GET
 

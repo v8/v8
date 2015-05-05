@@ -96,6 +96,7 @@ class CallSite {
   Handle<Object> GetFileName(Isolate* isolate);
   Handle<Object> GetFunctionName(Isolate* isolate);
   Handle<Object> GetScriptNameOrSourceUrl(Isolate* isolate);
+  Handle<Object> GetMethodName(Isolate* isolate);
   // Return 1-based line number, including line offset.
   int GetLineNumber(Isolate* isolate);
   // Return 1-based column number, including column offset if first line.
@@ -103,6 +104,7 @@ class CallSite {
   bool IsNative(Isolate* isolate);
   bool IsToplevel(Isolate* isolate);
   bool IsEval(Isolate* isolate);
+  bool IsConstructor(Isolate* isolate);
 
  private:
   Handle<Object> receiver_;

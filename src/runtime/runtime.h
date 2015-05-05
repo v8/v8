@@ -291,11 +291,13 @@ namespace internal {
   F(CallSiteGetFileNameRT, 3, 1)              \
   F(CallSiteGetFunctionNameRT, 3, 1)          \
   F(CallSiteGetScriptNameOrSourceUrlRT, 3, 1) \
+  F(CallSiteGetMethodNameRT, 3, 1)            \
   F(CallSiteGetLineNumberRT, 3, 1)            \
   F(CallSiteGetColumnNumberRT, 3, 1)          \
   F(CallSiteIsNativeRT, 3, 1)                 \
   F(CallSiteIsToplevelRT, 3, 1)               \
   F(CallSiteIsEvalRT, 3, 1)                   \
+  F(CallSiteIsConstructorRT, 3, 1)            \
   F(IS_VAR, 1, 1)                             \
   F(GetFromCache, 2, 1)                       \
   F(IncrementStatsCounter, 1, 1)              \
