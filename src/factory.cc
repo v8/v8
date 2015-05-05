@@ -2399,7 +2399,9 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                                                bool* is_result_from_cache) {
   const int kMapCacheSize = 128;
 
-  if (number_of_properties > kMapCacheSize) {
+  // We do not cache maps for too many properties or when running builtin code.
+  if (number_of_properties > kMapCacheSize ||
+      isolate()->bootstrapper()->IsActive()) {
     *is_result_from_cache = false;
     return Map::Create(isolate(), number_of_properties);
   }
