@@ -144,15 +144,14 @@ class Scope: public ZoneObject {
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
-                               Variable::Kind kind = Variable::NORMAL,
                                int start_position = RelocInfo::kNoPosition,
                                int end_position = RelocInfo::kNoPosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
     DCHECK(!already_resolved());
-    VariableProxy* proxy =
-        factory->NewVariableProxy(name, kind, start_position, end_position);
+    VariableProxy* proxy = factory->NewVariableProxy(
+        name, Variable::NORMAL, start_position, end_position);
     unresolved_.Add(proxy, zone_);
     return proxy;
   }
@@ -347,21 +346,7 @@ class Scope: public ZoneObject {
   LanguageMode language_mode() const { return language_mode_; }
 
   // The variable corresponding to the 'this' value.
-  Variable* receiver() {
-    DCHECK(has_this_declaration());
-    DCHECK_NOT_NULL(receiver_);
-    return receiver_;
-  }
-
-  Variable* LookupThis() { return Lookup(ast_value_factory_->this_string()); }
-
-  // TODO(wingo): Add a GLOBAL_SCOPE scope type which will lexically allocate
-  // "this" (and no other variable) on the native context.  Script scopes then
-  // will not have a "this" declaration.
-  bool has_this_declaration() const {
-    return (is_function_scope() && !is_arrow_scope()) || is_module_scope() ||
-           is_script_scope();
-  }
+  Variable* receiver() { return receiver_; }
 
   // The variable corresponding to the 'new.target' value.
   Variable* new_target_var() { return new_target_; }
@@ -721,8 +706,6 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocal(Isolate* isolate, Variable* var);
   void AllocateNonParameterLocals(Isolate* isolate);
   void AllocateVariablesRecursively(Isolate* isolate);
-  void AllocateParameter(Variable* var, int index);
-  void AllocateReceiver();
   void AllocateModules();
 
   // Resolve and fill in the allocation information for all variables

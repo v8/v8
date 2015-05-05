@@ -115,7 +115,7 @@ void FullCodeGenerator::Generate() {
   // global proxy when called as functions (without an explicit receiver
   // object).
   if (is_sloppy(info->language_mode()) && !info->is_native() &&
-      info->MayUseThis() && info->scope()->has_this_declaration()) {
+      info->MayUseThis()) {
     Label ok;
     // +1 for return address.
     StackArgumentsAccessor args(rsp, info->scope()->num_parameters());
@@ -209,9 +209,8 @@ void FullCodeGenerator::Generate() {
 
     // Copy any necessary parameters into the context.
     int num_parameters = info->scope()->num_parameters();
-    int first_parameter = info->scope()->has_this_declaration() ? -1 : 0;
-    for (int i = first_parameter; i < num_parameters; i++) {
-      Variable* var = (i == -1) ? scope()->receiver() : scope()->parameter(i);
+    for (int i = 0; i < num_parameters; i++) {
+      Variable* var = scope()->parameter(i);
       if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
@@ -2961,9 +2960,8 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
 
   // Push the receiver of the enclosing function and do runtime call.
-  Variable* this_var = scope()->LookupThis();
-  DCHECK_NOT_NULL(this_var);
-  __ Push(VarOperand(this_var, kScratchRegister));
+  StackArgumentsAccessor args(rbp, info_->scope()->num_parameters());
+  __ Push(args.GetReceiverOperand());
 
   // Push the language mode.
   __ Push(Smi::FromInt(language_mode()));
