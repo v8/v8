@@ -2416,7 +2416,7 @@ void Heap::ConfigureInitialOldGenerationSize() {
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                                           int instance_size) {
-  Object* result;
+  Object* result = nullptr;
   AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
   if (!allocation.To(&result)) return allocation;
 
