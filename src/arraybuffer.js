@@ -18,7 +18,7 @@ function ArrayBufferConstructor(length) { // length = 1
     var byteLength = ToPositiveInteger(length, 'invalid_array_buffer_length');
     %ArrayBufferInitialize(this, byteLength);
   } else {
-    throw MakeTypeError('constructor_not_function', ["ArrayBuffer"]);
+    throw MakeTypeError(kConstructorNotFunction, "ArrayBuffer");
   }
 }
 

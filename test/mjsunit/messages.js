@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --harmony --harmony-reflect
+// Flags: --stack-size=100 --harmony --harmony-reflect --harmony-arrays
+// Flags: --harmony-regexps
 
 function test(f, expected, type) {
   try {
@@ -66,6 +67,11 @@ test(function() {
   [].join(Object(Symbol(1)));
 }, "Cannot convert object to primitive value", TypeError);
 
+// kConstructorNotFunction
+test(function() {
+  Uint16Array(1);
+}, "Constructor Uint16Array requires 'new'", TypeError);
+
 // kDateType
 test(function() {
   Date.prototype.setYear.call({}, 1);
@@ -84,6 +90,11 @@ test(function() {
   "a".startsWith(/a/);
 }, "First argument to String.prototype.startsWith " +
    "must not be a regular expression", TypeError);
+
+// kFlagsGetterNonObject
+test(function() {
+  Object.getOwnPropertyDescriptor(RegExp.prototype, "flags").get.call(1);
+}, "RegExp.prototype.flags getter called on non-object 1", TypeError);
 
 // kFunctionBind
 test(function() {
@@ -122,6 +133,18 @@ test(function() {
   1 in 1;
 }, "Cannot use 'in' operator to search for '1' in 1", TypeError);
 
+// kIteratorResultNotAnObject
+test(function() {
+  var obj = {};
+  obj[Symbol.iterator] = function() { return { next: function() { return 1 }}};
+  Array.from(obj);
+}, "Iterator result 1 is not an object", TypeError);
+
+// kIteratorValueNotAnObject
+test(function() {
+  new Map([1]);
+}, "Iterator value 1 is not an entry object", TypeError);
+
 // kNotConstructor
 test(function() {
   new Symbol();
@@ -155,6 +178,11 @@ test(function() {
 test(function() {
   Function.prototype.toString.call(1);
 }, "Function.prototype.toString is not generic", TypeError);
+
+// kNotTypedArray
+test(function() {
+  Uint16Array.prototype.forEach.call(1);
+}, "this is not a typed array.", TypeError);
 
 // kObjectGetterExpectingFunction
 test(function() {

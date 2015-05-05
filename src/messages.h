@@ -127,12 +127,15 @@ class CallSite {
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
-  T(CurrencyCode, "Currency code is required with currency style.")            \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
+  T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
+  T(CurrencyCode, "Currency code is required with currency style.")            \
   T(DateType, "this is not a Date object.")                                    \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(FirstArgumentNotRegExp,                                                    \
     "First argument to % must not be a regular expression")                    \
+  T(FlagsGetterNonObject,                                                      \
+    "RegExp.prototype.flags getter called on non-object %")                    \
   T(FunctionBind, "Bind must be called on a function")                         \
   T(GeneratorRunning, "Generator is already running")                          \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
@@ -141,6 +144,8 @@ class CallSite {
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
   T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")   \
+  T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
+  T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
   T(LanguageID, "Language ID should be string or object.")                     \
   T(MethodCalledOnWrongObject,                                                 \
     "Method % called on a non-object or on a wrong type of object.")           \
@@ -151,12 +156,25 @@ class CallSite {
   T(NotConstructor, "% is not a constructor")                                  \
   T(NotGeneric, "% is not generic")                                            \
   T(NotIterable, "% is not iterable")                                          \
+  T(NotTypedArray, "this is not a typed array.")                               \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
   T(ObjectSetterExpectingFunction,                                             \
     "Object.prototype.__defineSetter__: Expecting function")                   \
   T(ObjectSetterCallable, "Setter must be a function: %")                      \
+  T(ObserveCallbackFrozen,                                                     \
+    "Object.observe cannot deliver to a frozen function object")               \
+  T(ObserveGlobalProxy, "% cannot be called on the global proxy object")       \
+  T(ObserveInvalidAccept,                                                      \
+    "Third argument to Object.observe must be an array of strings.")           \
+  T(ObserveNonFunction, "Object.% cannot deliver to non-function")             \
+  T(ObserveNonObject, "Object.% cannot % non-object")                          \
+  T(ObserveNotifyNonNotifier, "notify called on non-notifier object")          \
+  T(ObservePerformNonFunction, "Cannot perform non-function")                  \
+  T(ObservePerformNonString, "Invalid non-string changeType")                  \
+  T(ObserveTypeNonString,                                                      \
+    "Invalid changeRecord with non-string 'type' property")                    \
   T(OrdinaryFunctionCalledAsConstructor,                                       \
     "Function object that's not a constructor was created with new")           \
   T(PropertyDescObject, "Property description must be an object: %")           \

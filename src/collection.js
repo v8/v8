@@ -91,7 +91,7 @@ function GetHash(key) {
 
 function SetConstructor(iterable) {
   if (!%_IsConstructCall()) {
-    throw MakeTypeError('constructor_not_function', ['Set']);
+    throw MakeTypeError(kConstructorNotFunction, "Set");
   }
 
   %_SetInitialize(this);
@@ -254,7 +254,7 @@ InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 
 function MapConstructor(iterable) {
   if (!%_IsConstructCall()) {
-    throw MakeTypeError('constructor_not_function', ['Map']);
+    throw MakeTypeError(kConstructorNotFunction, "Map");
   }
 
   %_MapInitialize(this);
@@ -267,7 +267,7 @@ function MapConstructor(iterable) {
 
     for (var nextItem of iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
-        throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
+        throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
       %_CallFunction(this, nextItem[0], nextItem[1], adder);
     }

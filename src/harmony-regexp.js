@@ -16,8 +16,7 @@ var GlobalRegExp = global.RegExp;
 // + https://bugs.ecmascript.org/show_bug.cgi?id=3423
 function RegExpGetFlags() {
   if (!IS_SPEC_OBJECT(this)) {
-    throw MakeTypeError('flags_getter_non_object',
-                        [%ToString(this)]);
+    throw MakeTypeError(kFlagsGetterNonObject, %ToString(this));
   }
   var result = '';
   if (this.global) result += 'g';

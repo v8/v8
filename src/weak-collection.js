@@ -17,7 +17,7 @@ var GlobalWeakSet = global.WeakSet;
 
 function WeakMapConstructor(iterable) {
   if (!%_IsConstructCall()) {
-    throw MakeTypeError('constructor_not_function', ['WeakMap']);
+    throw MakeTypeError(kConstructorNotFunction, "WeakMap");
   }
 
   %WeakCollectionInitialize(this);
@@ -29,7 +29,7 @@ function WeakMapConstructor(iterable) {
     }
     for (var nextItem of iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
-        throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
+        throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
       %_CallFunction(this, nextItem[0], nextItem[1], adder);
     }
@@ -102,7 +102,7 @@ InstallFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
 
 function WeakSetConstructor(iterable) {
   if (!%_IsConstructCall()) {
-    throw MakeTypeError('constructor_not_function', ['WeakSet']);
+    throw MakeTypeError(kConstructorNotFunction, "WeakSet");
   }
 
   %WeakCollectionInitialize(this);

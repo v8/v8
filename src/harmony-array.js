@@ -213,7 +213,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       var next = iterator.next();
 
       if (!IS_OBJECT(next)) {
-        throw MakeTypeError("iterator_result_not_an_object", [next]);
+        throw MakeTypeError(kIteratorResultNotAnObject, next);
       }
 
       if (next.done) {

@@ -66,7 +66,7 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
-      NewTypeError("iterator_result_not_an_object", HandleVector(&value, 1)));
+      NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
 }
 
 

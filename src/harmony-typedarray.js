@@ -28,9 +28,7 @@ macro TYPED_ARRAY_HARMONY_ADDITIONS(ARRAY_ID, NAME, ELEMENT_SIZE)
 
 // ES6 draft 08-24-14, section 22.2.3.12
 function NAMEForEach(f /* thisArg */) {  // length == 1
-  if (!%IsTypedArray(this)) {
-    throw MakeTypeError('not_typed_array', []);
-  }
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var length = %_TypedArrayGetLength(this);

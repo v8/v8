@@ -113,7 +113,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
       NAMEConstructByArrayLike(this, arg1);
     }
   } else {
-    throw MakeTypeError("constructor_not_function", ["NAME"])
+    throw MakeTypeError(kConstructorNotFunction, "NAME")
   }
 }
 

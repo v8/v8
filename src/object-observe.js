@@ -315,8 +315,7 @@ function ConvertAcceptListToTypeMap(arg) {
   if (IS_UNDEFINED(arg))
     return arg;
 
-  if (!IS_SPEC_OBJECT(arg))
-    throw MakeTypeError("observe_invalid_accept");
+  if (!IS_SPEC_OBJECT(arg)) throw MakeTypeError(kObserveInvalidAccept);
 
   var len = ToInteger(arg.length);
   if (len < 0) len = 0;
@@ -372,13 +371,13 @@ function CallbackInfoNormalize(callback) {
 
 function ObjectObserve(object, callback, acceptList) {
   if (!IS_SPEC_OBJECT(object))
-    throw MakeTypeError("observe_non_object", ["observe"]);
+    throw MakeTypeError(kObserveNonObject, "observe", "observe");
   if (%IsJSGlobalProxy(object))
-    throw MakeTypeError("observe_global_proxy", ["observe"]);
+    throw MakeTypeError(kObserveGlobalProxy, "observe");
   if (!IS_SPEC_FUNCTION(callback))
-    throw MakeTypeError("observe_non_function", ["observe"]);
+    throw MakeTypeError(kObserveNonFunction, "observe");
   if (ObjectIsFrozen(callback))
-    throw MakeTypeError("observe_callback_frozen");
+    throw MakeTypeError(kObserveCallbackFrozen);
 
   var objectObserveFn = %GetObjectContextObjectObserve(object);
   return objectObserveFn(object, callback, acceptList);
@@ -395,11 +394,11 @@ function NativeObjectObserve(object, callback, acceptList) {
 
 function ObjectUnobserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))
-    throw MakeTypeError("observe_non_object", ["unobserve"]);
+    throw MakeTypeError(kObserveNonObject, "unobserve", "unobserve");
   if (%IsJSGlobalProxy(object))
-    throw MakeTypeError("observe_global_proxy", ["unobserve"]);
+    throw MakeTypeError(kObserveGlobalProxy, "unobserve");
   if (!IS_SPEC_FUNCTION(callback))
-    throw MakeTypeError("observe_non_function", ["unobserve"]);
+    throw MakeTypeError(kObserveNonFunction, "unobserve");
 
   var objectInfo = ObjectInfoGet(object);
   if (IS_UNDEFINED(objectInfo))
@@ -558,9 +557,9 @@ function ObjectNotifierNotify(changeRecord) {
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
   if (IS_UNDEFINED(objectInfo))
-    throw MakeTypeError("observe_notify_non_notifier");
+    throw MakeTypeError(kObserveNotifyNonNotifier);
   if (!IS_STRING(changeRecord.type))
-    throw MakeTypeError("observe_type_non_string");
+    throw MakeTypeError(kObserveTypeNonString);
 
   ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord);
 }
@@ -572,11 +571,11 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
   if (IS_UNDEFINED(objectInfo))
-    throw MakeTypeError("observe_notify_non_notifier");
+    throw MakeTypeError(kObserveNotifyNonNotifier);
   if (!IS_STRING(changeType))
-    throw MakeTypeError("observe_perform_non_string");
+    throw MakeTypeError(kObservePerformNonString);
   if (!IS_SPEC_FUNCTION(changeFn))
-    throw MakeTypeError("observe_perform_non_function");
+    throw MakeTypeError(kObservePerformNonFunction);
 
   var performChangeFn = %GetObjectContextNotifierPerformChange(objectInfo);
   performChangeFn(objectInfo, changeType, changeFn);
@@ -600,9 +599,9 @@ function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
 
 function ObjectGetNotifier(object) {
   if (!IS_SPEC_OBJECT(object))
-    throw MakeTypeError("observe_non_object", ["getNotifier"]);
+    throw MakeTypeError(kObserveNonObject, "getNotifier", "getNotifier");
   if (%IsJSGlobalProxy(object))
-    throw MakeTypeError("observe_global_proxy", ["getNotifier"]);
+    throw MakeTypeError(kObserveGlobalProxy, "getNotifier");
 
   if (ObjectIsFrozen(object)) return null;
 
@@ -644,7 +643,7 @@ function CallbackDeliverPending(callback) {
 
 function ObjectDeliverChangeRecords(callback) {
   if (!IS_SPEC_FUNCTION(callback))
-    throw MakeTypeError("observe_non_function", ["deliverChangeRecords"]);
+    throw MakeTypeError(kObserveNonFunction, "deliverChangeRecords");
 
   while (CallbackDeliverPending(callback)) {}
 }

@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/messages.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -399,8 +400,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   DCHECK(args.length() == 3);
   if (!args[0]->IsJSTypedArray()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError("not_typed_array", HandleVector<Object>(NULL, 0)));
+        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
 
   if (!args[1]->IsJSTypedArray())
