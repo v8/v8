@@ -290,7 +290,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   if (cc == less || cc == greater) {
     __ GetObjectType(a0, t0, t0);
     __ Branch(slow, greater, t0, Operand(FIRST_SPEC_OBJECT_TYPE));
-    __ GetObjectType(a0, t0, t0);
     __ Branch(slow, eq, t0, Operand(SYMBOL_TYPE));
   } else {
     __ GetObjectType(a0, t0, t0);
