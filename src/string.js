@@ -1118,14 +1118,14 @@ function StringRaw(callSite) {
     GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
 
 // Set up the non-enumerable functions on the String object.
-InstallFunctions(GlobalString, DONT_ENUM, [
+$installFunctions(GlobalString, DONT_ENUM, [
   "fromCharCode", StringFromCharCode,
   "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
 ]);
 
 // Set up the non-enumerable functions on the String prototype object.
-InstallFunctions(GlobalString.prototype, DONT_ENUM, [
+$installFunctions(GlobalString.prototype, DONT_ENUM, [
   "valueOf", StringValueOf,
   "toString", StringToString,
   "charAt", StringCharAtJS,

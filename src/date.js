@@ -760,7 +760,7 @@ function CreateDate(time) {
 %FunctionSetPrototype(GlobalDate, new GlobalDate(NAN));
 
 // Set up non-enumerable properties of the Date object itself.
-InstallFunctions(GlobalDate, DONT_ENUM, [
+$installFunctions(GlobalDate, DONT_ENUM, [
   "UTC", DateUTC,
   "parse", DateParse,
   "now", DateNow
@@ -771,7 +771,7 @@ InstallFunctions(GlobalDate, DONT_ENUM, [
 
 // Set up non-enumerable functions of the Date prototype object and
 // set their names.
-InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
+$installFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toString", DateToString,
   "toDateString", DateToDateString,
   "toTimeString", DateToTimeString,

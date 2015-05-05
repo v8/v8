@@ -88,16 +88,16 @@ function StringPrototypeIterator() {
 %FunctionSetPrototype(StringIterator, new GlobalObject());
 %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
-InstallFunctions(StringIterator.prototype, DONT_ENUM, [
+$installFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
-SetFunctionName(StringIteratorIterator, symbolIterator);
+$setFunctionName(StringIteratorIterator, symbolIterator);
 %AddNamedProperty(StringIterator.prototype, symbolIterator,
                   StringIteratorIterator, DONT_ENUM);
 %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
-SetFunctionName(StringPrototypeIterator, symbolIterator);
+$setFunctionName(StringPrototypeIterator, symbolIterator);
 %AddNamedProperty(GlobalString.prototype, symbolIterator,
                   StringPrototypeIterator, DONT_ENUM);
 

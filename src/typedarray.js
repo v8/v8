@@ -10,8 +10,9 @@
 
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
+var GlobalDataView = global.DataView;
+var GlobalObject = global.Object;
 
-// --------------- Typed Arrays ---------------------
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
 FUNCTION(1, Uint8Array, 1)
@@ -24,6 +25,14 @@ FUNCTION(7, Float32Array, 4)
 FUNCTION(8, Float64Array, 8)
 FUNCTION(9, Uint8ClampedArray, 1)
 endmacro
+
+macro DECLARE_GLOBALS(INDEX, NAME, SIZE)
+var GlobalNAME = global.NAME;
+endmacro
+
+TYPED_ARRAYS(DECLARE_GLOBALS)
+
+// --------------- Typed Arrays ---------------------
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
@@ -145,8 +154,6 @@ function NAME_GetLength() {
   return %_TypedArrayGetLength(this);
 }
 
-var $NAME = global.NAME;
-
 function NAMESubArray(begin, end) {
   if (!(%_ClassOf(this) === 'NAME')) {
     throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.subarray", this);
@@ -175,8 +182,8 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return new $NAME(%TypedArrayGetBuffer(this),
-                   beginByteOffset, newLength);
+  return new GlobalNAME(%TypedArrayGetBuffer(this),
+                        beginByteOffset, newLength);
 }
 endmacro
 
@@ -297,26 +304,26 @@ function TypedArrayGetToStringTag() {
 // -------------------------------------------------------------------
 
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
-  %SetCode(global.NAME, NAMEConstructor);
-  %FunctionSetPrototype(global.NAME, new $Object());
+  %SetCode(GlobalNAME, NAMEConstructor);
+  %FunctionSetPrototype(GlobalNAME, new GlobalObject());
 
-  %AddNamedProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
+  %AddNamedProperty(GlobalNAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  %AddNamedProperty(global.NAME.prototype,
+  %AddNamedProperty(GlobalNAME.prototype,
                     "constructor", global.NAME, DONT_ENUM);
-  %AddNamedProperty(global.NAME.prototype,
+  %AddNamedProperty(GlobalNAME.prototype,
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  InstallGetter(global.NAME.prototype, "buffer", NAME_GetBuffer);
-  InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset,
-      DONT_ENUM | DONT_DELETE);
-  InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength,
-      DONT_ENUM | DONT_DELETE);
-  InstallGetter(global.NAME.prototype, "length", NAME_GetLength,
-      DONT_ENUM | DONT_DELETE);
-  InstallGetter(global.NAME.prototype, symbolToStringTag,
-                TypedArrayGetToStringTag);
-  InstallFunctions(global.NAME.prototype, DONT_ENUM, [
+  $installGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
+  $installGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
+                 DONT_ENUM | DONT_DELETE);
+  $installGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
+                 DONT_ENUM | DONT_DELETE);
+  $installGetter(GlobalNAME.prototype, "length", NAME_GetLength,
+                 DONT_ENUM | DONT_DELETE);
+  $installGetter(GlobalNAME.prototype, symbolToStringTag,
+                 TypedArrayGetToStringTag);
+  $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
     "subarray", NAMESubArray,
     "set", TypedArraySet
   ]);
@@ -325,8 +332,6 @@ endmacro
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 // --------------------------- DataView -----------------------------
-
-var $DataView = global.DataView;
 
 function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   if (%_IsConstructCall()) {
@@ -430,19 +435,20 @@ endmacro
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 
 // Setup the DataView constructor.
-%SetCode($DataView, DataViewConstructor);
-%FunctionSetPrototype($DataView, new $Object);
+%SetCode(GlobalDataView, DataViewConstructor);
+%FunctionSetPrototype(GlobalDataView, new GlobalObject);
 
 // Set up constructor property on the DataView prototype.
-%AddNamedProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
-%AddNamedProperty(
-    $DataView.prototype, symbolToStringTag, "DataView", READ_ONLY|DONT_ENUM);
+%AddNamedProperty(GlobalDataView.prototype, "constructor", GlobalDataView,
+                  DONT_ENUM);
+%AddNamedProperty(GlobalDataView.prototype, symbolToStringTag, "DataView",
+                  READ_ONLY|DONT_ENUM);
 
-InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
-InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
-InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
+$installGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
+$installGetter(GlobalDataView.prototype, "byteOffset", DataViewGetByteOffset);
+$installGetter(GlobalDataView.prototype, "byteLength", DataViewGetByteLength);
 
-InstallFunctions($DataView.prototype, DONT_ENUM, [
+$installFunctions(GlobalDataView.prototype, DONT_ENUM, [
   "getInt8", DataViewGetInt8JS,
   "setInt8", DataViewSetInt8JS,
 

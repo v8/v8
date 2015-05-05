@@ -52,7 +52,7 @@ function ArrayIncludes(searchElement, fromIndex) {
 %FunctionSetLength(ArrayIncludes, 1);
 
 // Set up the non-enumerable functions on the Array prototype object.
-InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+$installFunctions(GlobalArray.prototype, DONT_ENUM, [
   "includes", ArrayIncludes
 ]);
 

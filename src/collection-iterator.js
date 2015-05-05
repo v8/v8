@@ -76,17 +76,17 @@ function SetValues() {
 %SetCode(SetIterator, SetIteratorConstructor);
 %FunctionSetPrototype(SetIterator, new GlobalObject());
 %FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
-InstallFunctions(SetIterator.prototype, DONT_ENUM, [
+$installFunctions(SetIterator.prototype, DONT_ENUM, [
   'next', SetIteratorNextJS
 ]);
 
-SetFunctionName(SetIteratorSymbolIterator, symbolIterator);
+$setFunctionName(SetIteratorSymbolIterator, symbolIterator);
 %AddNamedProperty(SetIterator.prototype, symbolIterator,
     SetIteratorSymbolIterator, DONT_ENUM);
 %AddNamedProperty(SetIterator.prototype, symbolToStringTag,
     "Set Iterator", READ_ONLY | DONT_ENUM);
 
-InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
+$installFunctions(GlobalSet.prototype, DONT_ENUM, [
   'entries', SetEntries,
   'keys', SetValues,
   'values', SetValues
@@ -166,18 +166,18 @@ function MapValues() {
 %SetCode(MapIterator, MapIteratorConstructor);
 %FunctionSetPrototype(MapIterator, new GlobalObject());
 %FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
-InstallFunctions(MapIterator.prototype, DONT_ENUM, [
+$installFunctions(MapIterator.prototype, DONT_ENUM, [
   'next', MapIteratorNextJS
 ]);
 
-SetFunctionName(MapIteratorSymbolIterator, symbolIterator);
+$setFunctionName(MapIteratorSymbolIterator, symbolIterator);
 %AddNamedProperty(MapIterator.prototype, symbolIterator,
     MapIteratorSymbolIterator, DONT_ENUM);
 %AddNamedProperty(MapIterator.prototype, symbolToStringTag,
     "Map Iterator", READ_ONLY | DONT_ENUM);
 
 
-InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
+$installFunctions(GlobalMap.prototype, DONT_ENUM, [
   'entries', MapEntries,
   'keys', MapKeys,
   'values', MapValues
