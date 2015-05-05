@@ -231,6 +231,7 @@ namespace internal {
   V(source_string, "source")                                   \
   V(source_url_string, "source_url")                           \
   V(source_mapping_url_string, "source_mapping_url")           \
+  V(this_string, "this")                                       \
   V(global_string, "global")                                   \
   V(ignore_case_string, "ignoreCase")                          \
   V(multiline_string, "multiline")                             \
