@@ -2141,6 +2141,15 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 }
 
 
+void MacroAssembler::BranchIfNotBuiltin(Register function, Register temp,
+                                        BuiltinFunctionId id, Label* miss) {
+  mov(temp, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  mov(temp, FieldOperand(temp, SharedFunctionInfo::kFunctionDataOffset));
+  cmp(temp, Immediate(Smi::FromInt(id)));
+  j(not_equal, miss);
+}
+
+
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.

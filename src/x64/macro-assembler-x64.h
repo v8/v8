@@ -378,6 +378,8 @@ class MacroAssembler: public Assembler {
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
+  void BranchIfNotBuiltin(Register function, Register temp,
+                          BuiltinFunctionId id, Label* miss);
 
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.

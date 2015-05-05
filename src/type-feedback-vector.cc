@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/code-stubs.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-state.h"
 #include "src/objects.h"
@@ -312,7 +313,9 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
   DCHECK(!FLAG_vector_ics ||
-         GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate));
+         GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate) ||
+         GetFeedbackExtra() ==
+             Smi::FromInt(CallICStub::kHasReturnedMinusZeroSentinel));
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
     return GENERIC;
@@ -340,6 +343,14 @@ void CallICNexus::ConfigureMonomorphicArray() {
         GetIsolate()->factory()->NewAllocationSite();
     SetFeedback(*new_site);
   }
+}
+
+
+void CallICNexus::ConfigureMonomorphicMathFunction(
+    Handle<JSFunction> function) {
+  Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
+  SetFeedback(*new_cell);
+  SetFeedbackExtra(*vector()->UninitializedSentinel(GetIsolate()));
 }
 
 

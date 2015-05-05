@@ -30,6 +30,9 @@ namespace internal {
   V(CallFunction)                           \
   V(CallIC)                                 \
   V(CallIC_Array)                           \
+  V(CallIC_Round)                           \
+  V(CallIC_Floor)                           \
+  V(CallIC_Ceil)                            \
   V(CEntry)                                 \
   V(CompareIC)                              \
   V(DoubleToI)                              \
@@ -41,6 +44,9 @@ namespace internal {
   V(LoadICTrampoline)                       \
   V(CallICTrampoline)                       \
   V(CallIC_ArrayTrampoline)                 \
+  V(CallIC_RoundTrampoline)                 \
+  V(CallIC_FloorTrampoline)                 \
+  V(CallIC_CeilTrampoline)                  \
   V(LoadIndexedInterceptor)                 \
   V(LoadIndexedString)                      \
   V(MathPow)                                \
@@ -870,6 +876,8 @@ class CallICStub: public PlatformCodeStub {
     return static_cast<ExtraICState>(minor_key_);
   }
 
+  static const int kHasReturnedMinusZeroSentinel = 1;
+
  protected:
   bool CallAsMethod() const {
     return state().call_type() == CallICState::METHOD;
@@ -889,6 +897,48 @@ class CallICStub: public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedbackAndVector);
   DEFINE_PLATFORM_CODE_STUB(CallIC, PlatformCodeStub);
+};
+
+
+class CallIC_RoundStub : public CallICStub {
+ public:
+  CallIC_RoundStub(Isolate* isolate, const CallICState& state_in)
+      : CallICStub(isolate, state_in) {}
+
+  InlineCacheState GetICState() const final { return MONOMORPHIC; }
+
+ private:
+  void PrintState(std::ostream& os) const override;  // NOLINT
+
+  DEFINE_PLATFORM_CODE_STUB(CallIC_Round, CallICStub);
+};
+
+
+class CallIC_FloorStub : public CallICStub {
+ public:
+  CallIC_FloorStub(Isolate* isolate, const CallICState& state_in)
+      : CallICStub(isolate, state_in) {}
+
+  InlineCacheState GetICState() const final { return MONOMORPHIC; }
+
+ private:
+  void PrintState(std::ostream& os) const override;  // NOLINT
+
+  DEFINE_PLATFORM_CODE_STUB(CallIC_Floor, CallICStub);
+};
+
+
+class CallIC_CeilStub : public CallICStub {
+ public:
+  CallIC_CeilStub(Isolate* isolate, const CallICState& state_in)
+      : CallICStub(isolate, state_in) {}
+
+  InlineCacheState GetICState() const final { return MONOMORPHIC; }
+
+ private:
+  void PrintState(std::ostream& os) const override;  // NOLINT
+
+  DEFINE_PLATFORM_CODE_STUB(CallIC_Ceil, CallICStub);
 };
 
 
@@ -2101,6 +2151,36 @@ class CallIC_ArrayTrampolineStub : public CallICTrampolineStub {
 
  private:
   DEFINE_PLATFORM_CODE_STUB(CallIC_ArrayTrampoline, CallICTrampolineStub);
+};
+
+
+class CallIC_RoundTrampolineStub : public CallICTrampolineStub {
+ public:
+  CallIC_RoundTrampolineStub(Isolate* isolate, const CallICState& state)
+      : CallICTrampolineStub(isolate, state) {}
+
+ private:
+  DEFINE_PLATFORM_CODE_STUB(CallIC_RoundTrampoline, CallICTrampolineStub);
+};
+
+
+class CallIC_FloorTrampolineStub : public CallICTrampolineStub {
+ public:
+  CallIC_FloorTrampolineStub(Isolate* isolate, const CallICState& state)
+      : CallICTrampolineStub(isolate, state) {}
+
+ private:
+  DEFINE_PLATFORM_CODE_STUB(CallIC_FloorTrampoline, CallICTrampolineStub);
+};
+
+
+class CallIC_CeilTrampolineStub : public CallICTrampolineStub {
+ public:
+  CallIC_CeilTrampolineStub(Isolate* isolate, const CallICState& state)
+      : CallICTrampolineStub(isolate, state) {}
+
+ private:
+  DEFINE_PLATFORM_CODE_STUB(CallIC_CeilTrampoline, CallICTrampolineStub);
 };
 
 

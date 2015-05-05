@@ -540,11 +540,15 @@ void AstTyper::VisitCall(Call* expr) {
   if (expr->IsUsingCallFeedbackICSlot(isolate())) {
     FeedbackVectorICSlot slot = expr->CallFeedbackICSlot();
     is_uninitialized = oracle()->CallIsUninitialized(slot);
-    if (!expr->expression()->IsProperty() &&
-        oracle()->CallIsMonomorphic(slot)) {
-      expr->set_target(oracle()->GetCallTarget(slot));
-      Handle<AllocationSite> site = oracle()->GetCallAllocationSite(slot);
-      expr->set_allocation_site(site);
+    if (oracle()->CallIsMonomorphic(slot)) {
+      if (oracle()->CallIsBuiltinWithMinusZeroResult(slot)) {
+        expr->MarkShouldHandleMinusZeroResult();
+      }
+      if (!expr->expression()->IsProperty()) {
+        expr->set_target(oracle()->GetCallTarget(slot));
+        Handle<AllocationSite> site = oracle()->GetCallAllocationSite(slot);
+        expr->set_allocation_site(site);
+      }
     }
   }
 

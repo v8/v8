@@ -1323,6 +1323,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
 
+  void BranchIfNotBuiltin(Register function, Register temp,
+                          BuiltinFunctionId id, Label* miss);
+
   struct Unresolved {
     int pc;
     uint32_t flags;  // See Bootstrapper::FixupFlags decoders/encoders.

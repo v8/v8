@@ -130,6 +130,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Logger::LeaveExternal");
   Add(ExternalReference::address_of_minus_one_half().address(),
       "double_constants.minus_one_half");
+  Add(ExternalReference::address_of_minus_one().address(),
+      "double_constants.minus_one");
   Add(ExternalReference::stress_deopt_count(isolate).address(),
       "Isolate::stress_deopt_count_address()");
 

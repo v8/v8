@@ -52,7 +52,7 @@ function MathAtan2JS(y, x) {
 
 // ECMA 262 - 15.8.2.6
 function MathCeil(x) {
-  return -%_MathFloor(-x);
+  return -MathFloorJS(-x);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -62,7 +62,7 @@ function MathExp(x) {
 
 // ECMA 262 - 15.8.2.9
 function MathFloorJS(x) {
-  return %_MathFloor(+x);
+  return %MathFloor(+x);
 }
 
 // ECMA 262 - 15.8.2.10
@@ -167,8 +167,8 @@ function MathSign(x) {
 // ES6 draft 09-27-13, section 20.2.2.34.
 function MathTrunc(x) {
   x = +x;
-  if (x > 0) return %_MathFloor(x);
-  if (x < 0) return -%_MathFloor(-x);
+  if (x > 0) return MathFloorJS(x);
+  if (x < 0) return -MathFloorJS(-x);
   // -0, 0 or NaN.
   return x;
 }

@@ -957,6 +957,7 @@ class ExternalReference BASE_EMBEDDED {
   // Static variables containing common double constants.
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
+  static ExternalReference address_of_minus_one();
   static ExternalReference address_of_minus_one_half();
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_the_hole_nan();

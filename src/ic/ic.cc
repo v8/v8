@@ -2223,9 +2223,9 @@ bool CallIC::DoCustomHandler(Handle<Object> function,
   // Are we the array function?
   Handle<JSFunction> array_function =
       Handle<JSFunction>(isolate()->native_context()->array_function());
+  CallICNexus* nexus = casted_nexus<CallICNexus>();
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
-    CallICNexus* nexus = casted_nexus<CallICNexus>();
     nexus->ConfigureMonomorphicArray();
 
     // Vector-based ICs have a different calling convention in optimized code
@@ -2247,6 +2247,48 @@ bool CallIC::DoCustomHandler(Handle<Object> function,
     OnTypeFeedbackChanged(isolate(), get_host(), nexus->vector(), state(),
                           MONOMORPHIC);
     return true;
+  } else {
+    Handle<JSFunction> maybe_builtin(Handle<JSFunction>::cast(function));
+    if (maybe_builtin->shared()->HasBuiltinFunctionId()) {
+      BuiltinFunctionId id = maybe_builtin->shared()->builtin_function_id();
+      switch (id) {
+        case kMathRound: {
+          nexus->ConfigureMonomorphicMathFunction(maybe_builtin);
+          if (AddressIsOptimizedCode()) {
+            CallIC_RoundStub stub(isolate(), callic_state);
+            set_target(*stub.GetCode());
+          } else {
+            CallIC_RoundTrampolineStub stub(isolate(), callic_state);
+            set_target(*stub.GetCode());
+          }
+          return true;
+        }
+        case kMathFloor:
+          nexus->ConfigureMonomorphicMathFunction(maybe_builtin);
+          if (AddressIsOptimizedCode()) {
+            CallIC_FloorStub stub(isolate(), callic_state);
+            set_target(*stub.GetCode());
+          } else {
+            CallIC_FloorTrampolineStub stub(isolate(), callic_state);
+            set_target(*stub.GetCode());
+          }
+          return true;
+          break;
+        case kMathCeil:
+          nexus->ConfigureMonomorphicMathFunction(maybe_builtin);
+          if (AddressIsOptimizedCode()) {
+            CallIC_CeilStub stub(isolate(), callic_state);
+            set_target(*stub.GetCode());
+          } else {
+            CallIC_CeilTrampolineStub stub(isolate(), callic_state);
+            set_target(*stub.GetCode());
+          }
+          return true;
+          break;
+        default:
+          break;
+      }
+    }
   }
   return false;
 }

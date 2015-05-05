@@ -355,6 +355,7 @@ class CallICNexus : public FeedbackNexus {
   void ConfigureUninitialized();
   void ConfigureGeneric();
   void ConfigureMonomorphicArray();
+  void ConfigureMonomorphicMathFunction(Handle<JSFunction> function);
   void ConfigureMonomorphic(Handle<JSFunction> function);
 
   InlineCacheState StateFromFeedback() const override;

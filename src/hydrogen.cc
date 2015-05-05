@@ -8341,8 +8341,13 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
       if (!FLAG_fast_math) break;
       // Fall through if FLAG_fast_math.
     case kMathRound:
-    case kMathFround:
     case kMathFloor:
+      // If round has seen minus zero, don't inline, since that assumes
+      // returned value is an integer, which -0 definitely is not.
+      if (expr->ShouldHandleMinusZeroResult()) {
+        break;
+      }
+    case kMathFround:
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
@@ -8352,6 +8357,28 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
         Drop(2);  // Receiver and function.
         HInstruction* op = NewUncasted<HUnaryMathOperation>(argument, id);
         ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kMathCeil:
+      // If round/floor has seen minus zero, don't inline, since that assumes
+      // returned value is an integer, which -0 definitely is not.
+      if (expr->ShouldHandleMinusZeroResult()) {
+        break;
+      }
+      if (expr->arguments()->length() == 1) {
+        HValue* argument = Pop();
+        Drop(2);  // Receiver and function.
+        HValue* op = NULL;
+        {
+          NoObservableSideEffectsScope s(this);
+          HValue* neg_arg =
+              AddUncasted<HMul>(graph()->GetConstantMinus1(), argument);
+          op = AddUncasted<HUnaryMathOperation>(neg_arg, kMathFloor);
+        }
+        HInstruction* neg_op =
+            NewUncasted<HMul>(graph()->GetConstantMinus1(), op);
+        ast_context()->ReturnInstruction(neg_op, expr->id());
         return true;
       }
       break;
@@ -8448,8 +8475,13 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (!FLAG_fast_math) break;
       // Fall through if FLAG_fast_math.
     case kMathRound:
-    case kMathFround:
     case kMathFloor:
+      // If round/floor has seen minus zero, don't inline, since that assumes
+      // returned value is an integer, which -0 definitely is not.
+      if (expr->ShouldHandleMinusZeroResult()) {
+        break;
+      }
+    case kMathFround:
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
@@ -8459,6 +8491,28 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         Drop(2);  // Receiver and function.
         HInstruction* op = NewUncasted<HUnaryMathOperation>(argument, id);
         ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    case kMathCeil:
+      // If round/floor has seen minus zero, don't inline, since that assumes
+      // returned value is an integer, which -0 definitely is not.
+      if (expr->ShouldHandleMinusZeroResult()) {
+        break;
+      }
+      if (argument_count == 2) {
+        HValue* argument = Pop();
+        Drop(2);  // Receiver and function.
+        HValue* op = NULL;
+        {
+          NoObservableSideEffectsScope s(this);
+          HValue* neg_arg =
+              AddUncasted<HMul>(graph()->GetConstantMinus1(), argument);
+          op = AddUncasted<HUnaryMathOperation>(neg_arg, kMathFloor);
+        }
+        HInstruction* neg_op =
+            NewUncasted<HMul>(graph()->GetConstantMinus1(), op);
+        ast_context()->ReturnInstruction(neg_op, expr->id());
         return true;
       }
       break;
@@ -12205,15 +12259,6 @@ void HOptimizedGraphBuilder::GenerateMathClz32(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
   HInstruction* result = NewUncasted<HUnaryMathOperation>(value, kMathClz32);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
-void HOptimizedGraphBuilder::GenerateMathFloor(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HInstruction* result = NewUncasted<HUnaryMathOperation>(value, kMathFloor);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

@@ -538,6 +538,21 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 }
 
 
+void CallIC_RoundStub::PrintState(std::ostream& os) const {  // NOLINT
+  os << state() << " (Round)";
+}
+
+
+void CallIC_FloorStub::PrintState(std::ostream& os) const {  // NOLINT
+  os << state() << " (Floor)";
+}
+
+
+void CallIC_CeilStub::PrintState(std::ostream& os) const {  // NOLINT
+  os << state() << " (Ceil)";
+}
+
+
 void CallIC_ArrayStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state() << " (Array)";
 }
