@@ -12,6 +12,7 @@ find_depot_tools.add_depot_tools_to_path()
 from git_cl import Changelist
 
 BOTS = {
+  '--arm32': 'v8_arm32_perf_try',
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
   '--linux64_haswell': 'v8_linux64_haswell_perf_try',
