@@ -430,6 +430,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCall:
       // TODO(rossberg): what are the constraints on these?
       break;
+    case IrOpcode::kTailCall:
+      // TODO(bmeurer): what are the constraints on these?
+      break;
 
     // JavaScript operators
     // --------------------

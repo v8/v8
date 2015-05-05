@@ -78,6 +78,7 @@
         'compiler/simplified-operator-reducer-unittest.cc',
         'compiler/simplified-operator-unittest.cc',
         'compiler/state-values-utils-unittest.cc',
+        'compiler/tail-call-optimization-unittest.cc',
         'compiler/typer-unittest.cc',
         'compiler/value-numbering-reducer-unittest.cc',
         'compiler/zone-pool-unittest.cc',

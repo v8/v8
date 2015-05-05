@@ -113,6 +113,7 @@ inline int ElementSizeOf(MachineType machine_type) {
 }
 
 typedef Signature<MachineType> MachineSignature;
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

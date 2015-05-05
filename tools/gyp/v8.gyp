@@ -564,6 +564,8 @@
         '../../src/compiler/source-position.h',
         '../../src/compiler/state-values-utils.cc',
         '../../src/compiler/state-values-utils.h',
+        '../../src/compiler/tail-call-optimization.cc',
+        '../../src/compiler/tail-call-optimization.h',
         '../../src/compiler/typer.cc',
         '../../src/compiler/typer.h',
         '../../src/compiler/value-numbering-reducer.cc',

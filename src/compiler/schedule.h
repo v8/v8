@@ -37,6 +37,7 @@ class BasicBlock final : public ZoneObject {
     kBranch,      // Branch if true to first successor, otherwise second.
     kSwitch,      // Table dispatch to one of the successor blocks.
     kDeoptimize,  // Return a value from this method.
+    kTailCall,    // Tail call another method from this method.
     kReturn,      // Return a value from this method.
     kThrow        // Throw an exception.
   };
@@ -219,6 +220,9 @@ class Schedule final : public ZoneObject {
 
   // BasicBlock building: add a deoptimize at the end of {block}.
   void AddDeoptimize(BasicBlock* block, Node* input);
+
+  // BasicBlock building: add a tailcall at the end of {block}.
+  void AddTailCall(BasicBlock* block, Node* input);
 
   // BasicBlock building: add a return at the end of {block}.
   void AddReturn(BasicBlock* block, Node* input);

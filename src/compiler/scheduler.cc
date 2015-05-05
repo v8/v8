@@ -345,6 +345,10 @@ class CFGBuilder : public ZoneObject {
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectDeoptimize(node);
         break;
+      case IrOpcode::kTailCall:
+        scheduler_->UpdatePlacement(node, Scheduler::kFixed);
+        ConnectTailCall(node);
+        break;
       case IrOpcode::kReturn:
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectReturn(node);
@@ -485,6 +489,13 @@ class CFGBuilder : public ZoneObject {
       TraceConnect(merge, predecessor_block, block);
       schedule_->AddGoto(predecessor_block, block);
     }
+  }
+
+  void ConnectTailCall(Node* call) {
+    Node* call_control = NodeProperties::GetControlInput(call);
+    BasicBlock* call_block = FindPredecessorBlock(call_control);
+    TraceConnect(call, call_block, NULL);
+    schedule_->AddTailCall(call_block, call);
   }
 
   void ConnectReturn(Node* ret) {

@@ -659,6 +659,64 @@ class IsCallMatcher final : public NodeMatcher {
 };
 
 
+class IsTailCallMatcher final : public NodeMatcher {
+ public:
+  IsTailCallMatcher(const Matcher<CallDescriptor const*>& descriptor_matcher,
+                    const std::vector<Matcher<Node*>>& value_matchers,
+                    const Matcher<Node*>& effect_matcher,
+                    const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kTailCall),
+        descriptor_matcher_(descriptor_matcher),
+        value_matchers_(value_matchers),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    for (size_t i = 0; i < value_matchers_.size(); ++i) {
+      if (i == 0) {
+        *os << " whose value0 (";
+      } else {
+        *os << "), value" << i << " (";
+      }
+      value_matchers_[i].DescribeTo(os);
+    }
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    if (!NodeMatcher::MatchAndExplain(node, listener) ||
+        !PrintMatchAndExplain(OpParameter<CallDescriptor const*>(node),
+                              "descriptor", descriptor_matcher_, listener)) {
+      return false;
+    }
+    for (size_t i = 0; i < value_matchers_.size(); ++i) {
+      std::ostringstream ost;
+      ost << "value" << i;
+      if (!PrintMatchAndExplain(
+              NodeProperties::GetValueInput(node, static_cast<int>(i)),
+              ost.str(), value_matchers_[i], listener)) {
+        return false;
+      }
+    }
+    return (PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<CallDescriptor const*> descriptor_matcher_;
+  const std::vector<Matcher<Node*>> value_matchers_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 class IsAllocateMatcher final : public NodeMatcher {
  public:
   IsAllocateMatcher(const Matcher<Node*>& size_matcher,
@@ -1494,6 +1552,19 @@ Matcher<Node*> IsCall(
   value_matchers.push_back(value6_matcher);
   return MakeMatcher(new IsCallMatcher(descriptor_matcher, value_matchers,
                                        effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
+                                           effect_matcher, control_matcher));
 }
 
 

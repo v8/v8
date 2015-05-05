@@ -138,6 +138,8 @@ const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                        0, 1, 0, 0);
 const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
                          0, 0, 1, 1, 0, 2);
+const Operator kMockTailCall(IrOpcode::kTailCall, Operator::kNoProperties,
+                             "MockTailCall", 1, 1, 1, 0, 0, 1);
 
 }  // namespace
 
@@ -2403,6 +2405,20 @@ TARGET_TEST_F(SchedulerTest, CallException) {
   EXPECT_TRUE(schedule->block(ex2)->deferred());
   EXPECT_TRUE(schedule->block(hdl)->deferred());
   EXPECT_FALSE(schedule->block(m)->deferred());
+}
+
+
+TARGET_TEST_F(SchedulerTest, TailCall) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* call = graph()->NewNode(&kMockTailCall, p0, start, start);
+  Node* end = graph()->NewNode(common()->End(), call);
+
+  graph()->SetEnd(end);
+
+  ComputeAndVerifySchedule(4);
 }
 
 

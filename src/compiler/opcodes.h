@@ -21,6 +21,7 @@
   V(Merge)                 \
   V(Deoptimize)            \
   V(Return)                \
+  V(TailCall)              \
   V(OsrNormalEntry)        \
   V(OsrLoopEntry)          \
   V(Throw)                 \

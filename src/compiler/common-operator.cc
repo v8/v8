@@ -662,9 +662,9 @@ const Operator* CommonOperatorBuilder::FrameState(
 const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
   class CallOperator final : public Operator1<const CallDescriptor*> {
    public:
-    CallOperator(const CallDescriptor* descriptor, const char* mnemonic)
+    explicit CallOperator(const CallDescriptor* descriptor)
         : Operator1<const CallDescriptor*>(
-              IrOpcode::kCall, descriptor->properties(), mnemonic,
+              IrOpcode::kCall, descriptor->properties(), "Call",
               descriptor->InputCount() + descriptor->FrameStateCount(),
               Operator::ZeroIfPure(descriptor->properties()),
               Operator::ZeroIfEliminatable(descriptor->properties()),
@@ -676,7 +676,25 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
       os << "[" << *parameter() << "]";
     }
   };
-  return new (zone()) CallOperator(descriptor, "Call");
+  return new (zone()) CallOperator(descriptor);
+}
+
+
+const Operator* CommonOperatorBuilder::TailCall(
+    const CallDescriptor* descriptor) {
+  class TailCallOperator final : public Operator1<const CallDescriptor*> {
+   public:
+    explicit TailCallOperator(const CallDescriptor* descriptor)
+        : Operator1<const CallDescriptor*>(
+              IrOpcode::kTailCall, descriptor->properties(), "TailCall",
+              descriptor->InputCount() + descriptor->FrameStateCount(), 1, 1, 0,
+              0, 1, descriptor) {}
+
+    void PrintParameter(std::ostream& os) const override {
+      os << "[" << *parameter() << "]";
+    }
+  };
+  return new (zone()) TailCallOperator(descriptor);
 }
 
 

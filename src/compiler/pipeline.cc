@@ -44,6 +44,7 @@
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
+#include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
@@ -688,9 +689,12 @@ struct GenericLoweringPhase {
     JSGenericLowering generic(data->info()->is_typing_enabled(),
                               data->jsgraph());
     SelectLowering select(data->jsgraph()->graph(), data->jsgraph()->common());
+    TailCallOptimization tco(data->common(), data->graph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &generic);
     AddReducer(data, &graph_reducer, &select);
+    // TODO(turbofan): TCO is currently limited to stubs.
+    if (data->info()->IsStub()) AddReducer(data, &graph_reducer, &tco);
     graph_reducer.ReduceGraph();
   }
 };

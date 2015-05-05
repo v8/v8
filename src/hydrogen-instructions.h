@@ -2242,6 +2242,9 @@ class HCallJSFunction final : public HCall<1> {
 };
 
 
+enum CallMode { NORMAL_CALL, TAIL_CALL };
+
+
 class HCallWithDescriptor final : public HInstruction {
  public:
   static HCallWithDescriptor* New(Isolate* isolate, Zone* zone, HValue* context,

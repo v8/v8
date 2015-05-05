@@ -146,6 +146,9 @@ class Node final {
     return first_use_ && first_use_->from == owner && !first_use_->next;
   }
 
+  // Returns true if {owner1} and {owner2} are the only users of {this} node.
+  bool OwnedBy(Node const* owner1, Node const* owner2) const;
+
  private:
   struct Use final : public ZoneObject {
     Node* from;

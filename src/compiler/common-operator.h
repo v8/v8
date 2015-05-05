@@ -232,6 +232,7 @@ class CommonOperatorBuilder final : public ZoneObject {
       OutputFrameStateCombine state_combine,
       MaybeHandle<JSFunction> jsfunction = MaybeHandle<JSFunction>());
   const Operator* Call(const CallDescriptor* descriptor);
+  const Operator* TailCall(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but

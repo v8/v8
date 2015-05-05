@@ -201,7 +201,8 @@ class InstructionSelector final {
   void VisitPhi(Node* node);
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
-  void VisitCall(Node* call, BasicBlock* handler, CallMode call_mode);
+  void VisitCall(Node* call, BasicBlock* handler = nullptr);
+  void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
