@@ -353,9 +353,6 @@ class MacroAssembler: public Assembler {
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
-  void BranchIfNotBuiltin(Register function, Register temp,
-                          BuiltinFunctionId id, Label* miss);
-
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use

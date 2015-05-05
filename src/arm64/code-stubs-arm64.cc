@@ -3113,162 +3113,6 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallIC_RoundStub::Generate(MacroAssembler* masm) {
-  Register function = x1;
-  Register vector = x2;
-  Register slot = x3;
-
-  Register temp1 = x0;
-  Register temp2 = x4;
-  DoubleRegister double_temp1 = d1;
-  DoubleRegister double_temp2 = d2;
-  Label tail, miss;
-
-  // Ensure nobody has snuck in another function.
-  __ BranchIfNotBuiltin(function, temp1, kMathRound, &miss);
-
-  if (arg_count() > 0) {
-    __ Ldr(temp1, MemOperand(jssp, (arg_count() - 1) * kPointerSize));
-    Handle<Map> map = isolate()->factory()->heap_number_map();
-    __ CheckMap(temp1, temp2, map, &tail, DO_SMI_CHECK);
-    __ Sub(temp1, temp1, Operand(kHeapObjectTag));
-    __ Ldr(double_temp1, MemOperand(temp1, HeapNumber::kValueOffset));
-
-    // If the number is >0, it doesn't round to -0
-    __ Fmov(double_temp2, 0);
-    __ Fcmp(double_temp1, double_temp2);
-    __ B(gt, &tail);
-
-    // If the number is <-.5, it doesn't round to -0
-    __ Fmov(double_temp2, -.5);
-    __ Fcmp(double_temp1, double_temp2);
-    __ B(lt, &tail);
-
-    __ Fmov(temp1, double_temp1);
-    __ Cmp(temp1, Operand(0x8000000000000000));
-    __ B(ne, &tail);
-
-    __ SmiUntag(temp1, slot);
-    __ Mov(temp1, Operand(temp1, LSL, kPointerSizeLog2));
-    __ Add(temp1, temp1, vector);
-    __ Mov(temp2, Smi::FromInt(kHasReturnedMinusZeroSentinel));
-    __ Str(temp2,
-           FieldMemOperand(temp1, FixedArray::kHeaderSize + kPointerSize));
-  }
-
-  __ bind(&tail);
-  // The slow case, we need this no matter what to complete a call after a miss.
-  CallFunctionNoFeedback(masm, arg_count(), true, CallAsMethod());
-
-  __ Unreachable();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-  __ b(&tail);
-}
-
-
-void CallIC_FloorStub::Generate(MacroAssembler* masm) {
-  Register function = x1;
-  Register vector = x2;
-  Register slot = x3;
-
-  Register temp1 = x0;
-  Register temp2 = x4;
-  DoubleRegister double_temp = d1;
-  Label tail, miss;
-
-  // Ensure nobody has snuck in another function.
-  __ BranchIfNotBuiltin(function, temp1, kMathFloor, &miss);
-
-  if (arg_count() > 0) {
-    __ Ldr(temp1, MemOperand(jssp, (arg_count() - 1) * kPointerSize));
-    Handle<Map> map = isolate()->factory()->heap_number_map();
-    __ CheckMap(temp1, temp2, map, &tail, DO_SMI_CHECK);
-    __ Sub(temp1, temp1, Operand(kHeapObjectTag));
-    __ Ldr(double_temp, MemOperand(temp1, HeapNumber::kValueOffset));
-
-    // Only -0 floors to -0.
-    __ Fmov(temp1, double_temp);
-    __ Cmp(temp1, Operand(0x8000000000000000));
-    __ B(ne, &tail);
-
-    __ SmiUntag(temp1, slot);
-    __ Mov(temp1, Operand(temp1, LSL, kPointerSizeLog2));
-    __ Add(temp1, temp1, vector);
-    __ Mov(temp2, Operand(Smi::FromInt(kHasReturnedMinusZeroSentinel)));
-    __ Str(temp2,
-           FieldMemOperand(temp1, FixedArray::kHeaderSize + kPointerSize));
-  }
-
-  __ bind(&tail);
-  // The slow case, we need this no matter what to complete a call after a miss.
-  CallFunctionNoFeedback(masm, arg_count(), true, CallAsMethod());
-
-  __ Unreachable();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-  __ b(&tail);
-}
-
-
-void CallIC_CeilStub::Generate(MacroAssembler* masm) {
-  Register function = x1;
-  Register vector = x2;
-  Register slot = x3;
-
-  Register temp1 = x0;
-  Register temp2 = x4;
-  DoubleRegister double_temp1 = d1;
-  DoubleRegister double_temp2 = d2;
-  Label tail, miss;
-
-  // Ensure nobody has snuck in another function.
-  __ BranchIfNotBuiltin(function, temp1, kMathCeil, &miss);
-
-  if (arg_count() > 0) {
-    __ Ldr(temp1, MemOperand(jssp, (arg_count() - 1) * kPointerSize));
-    Handle<Map> map = isolate()->factory()->heap_number_map();
-    __ CheckMap(temp1, temp2, map, &tail, DO_SMI_CHECK);
-    __ Sub(temp1, temp1, Operand(kHeapObjectTag));
-    __ Ldr(double_temp1, MemOperand(temp1, HeapNumber::kValueOffset));
-
-    // If the number is positive, it doesn't ceil to -0
-    __ Fmov(double_temp2, 0);
-    __ Fcmp(double_temp1, double_temp2);
-    __ B(gt, &tail);
-
-    // If it's less or equal to  1, it doesn't ceil to -0
-    __ Fmov(double_temp2, -1);
-    __ Fcmp(double_temp1, double_temp2);
-    __ B(le, &tail);
-
-    // +Zero doesn't round to -0
-    __ Fmov(temp1, double_temp1);
-    __ Cmp(temp1, Operand(0x8000000000000000));
-    __ B(ne, &tail);
-
-    __ SmiUntag(temp1, slot);
-    __ Mov(temp1, Operand(temp1, LSL, kPointerSizeLog2));
-    __ Add(temp1, temp1, vector);
-    __ Mov(temp2, Operand(Smi::FromInt(kHasReturnedMinusZeroSentinel)));
-    __ Str(temp2,
-           FieldMemOperand(temp1, FixedArray::kHeaderSize + kPointerSize));
-  }
-
-  __ bind(&tail);
-  // The slow case, we need this no matter what to complete a call after a miss.
-  CallFunctionNoFeedback(masm, arg_count(), true, CallAsMethod());
-
-  __ Unreachable();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-  __ b(&tail);
-}
-
-
 void CallICStub::Generate(MacroAssembler* masm) {
   ASM_LOCATION("CallICStub");
 
@@ -3386,12 +3230,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, x5);
   __ Cmp(function, x5);
   __ B(eq, &miss);
-
-  // Some builtin functions require special handling, miss to the runtime.
-  __ Ldr(x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(x0, FieldMemOperand(x0, SharedFunctionInfo::kFunctionDataOffset));
-  __ Cmp(x0, Operand(Smi::FromInt(0)));
-  __ B(ne, &miss);
 
   // Update stats.
   __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
@@ -4658,27 +4496,6 @@ void CallICTrampolineStub::Generate(MacroAssembler* masm) {
 void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, x2);
   CallIC_ArrayStub stub(isolate(), state());
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_RoundTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, x2);
-  CallIC_RoundStub stub(isolate(), state());
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_FloorTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, x2);
-  CallIC_FloorStub stub(isolate(), state());
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_CeilTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, x2);
-  CallIC_CeilStub stub(isolate(), state());
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

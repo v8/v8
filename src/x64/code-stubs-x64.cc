@@ -2147,161 +2147,6 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallIC_RoundStub::Generate(MacroAssembler* masm) {
-  Register function = rdi;
-  Register vector = rbx;
-  Register slot = rdx;
-
-  Register temp = rax;
-  XMMRegister xmm_temp1 = xmm1;
-  XMMRegister xmm_temp2 = xmm0;
-  Label tail, miss;
-
-  __ SmiToInteger64(slot, slot);
-
-  // Ensure nobody has snuck in another function.
-  __ BranchIfNotBuiltin(function, temp, kMathRound, &miss);
-
-  if (arg_count() > 0) {
-    __ movp(temp, Operand(rsp, arg_count() * kPointerSize));
-    Handle<Map> map = isolate()->factory()->heap_number_map();
-    __ CheckMap(temp, map, &tail, DO_SMI_CHECK);
-
-    __ movsd(xmm_temp1, FieldOperand(temp, HeapNumber::kValueOffset));
-
-    // If the number is >0, it doesn't round to -0
-    __ xorps(xmm_temp2, xmm_temp2);
-    __ ucomisd(xmm_temp1, xmm_temp2);
-    __ j(above, &tail, Label::kNear);
-
-    // If the number is <-.5, it doesn't round to -0
-    static int64_t minus_one_half = V8_INT64_C(0xBFE0000000000000);  // -0.5
-    __ movq(temp, minus_one_half);
-    __ movq(xmm_temp2, temp);
-    __ ucomisd(xmm_temp1, xmm_temp2);
-    __ j(below, &tail, Label::kNear);
-
-    // +0 doesn't round to -0
-    __ movmskpd(temp, xmm_temp1);
-    __ testl(temp, Immediate(1));
-    __ j(zero, &tail, Label::kNear);
-
-    __ Move(FieldOperand(vector, slot, times_pointer_size,
-                         FixedArray::kHeaderSize + kPointerSize),
-            Smi::FromInt(kHasReturnedMinusZeroSentinel));
-  }
-
-  __ bind(&tail);
-  CallFunctionNoFeedback(masm, arg_count(), true, CallAsMethod());
-
-  // Unreachable.
-  __ int3();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-  __ jmp(&tail);
-}
-
-
-void CallIC_FloorStub::Generate(MacroAssembler* masm) {
-  Register function = rdi;
-  Register vector = rbx;
-  Register slot = rdx;
-
-  Register temp1 = rax;
-  Register temp2 = rsi;
-  Label tail, miss;
-
-  __ SmiToInteger64(slot, slot);
-
-  // Ensure nobody has snuck in another function.
-  __ BranchIfNotBuiltin(function, temp1, kMathFloor, &miss);
-
-  if (arg_count() > 0) {
-    __ movp(temp1, Operand(rsp, arg_count() * kPointerSize));
-    Handle<Map> map = isolate()->factory()->heap_number_map();
-    __ CheckMap(temp1, map, &tail, DO_SMI_CHECK);
-
-    // Only -0 floors to -0.
-    __ movq(temp1, FieldOperand(temp1, HeapNumber::kValueOffset));
-    static int64_t minus_zero = V8_INT64_C(0x8000000000000000);  // -0.0
-    __ movq(temp2, minus_zero);
-    __ cmpq(temp1, temp2);
-    __ j(not_equal, &tail);
-
-    __ Move(FieldOperand(vector, slot, times_pointer_size,
-                         FixedArray::kHeaderSize + kPointerSize),
-            Smi::FromInt(kHasReturnedMinusZeroSentinel));
-  }
-
-  __ bind(&tail);
-  CallFunctionNoFeedback(masm, arg_count(), true, CallAsMethod());
-
-  // Unreachable.
-  __ int3();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-  __ jmp(&tail);
-}
-
-
-void CallIC_CeilStub::Generate(MacroAssembler* masm) {
-  Register function = rdi;
-  Register vector = rbx;
-  Register slot = rdx;
-
-  Register temp = rax;
-  XMMRegister xmm_temp1 = xmm1;
-  XMMRegister xmm_temp2 = xmm0;
-  Label tail, miss;
-
-  __ SmiToInteger64(slot, slot);
-
-  // Ensure nobody has snuck in another function.
-  __ BranchIfNotBuiltin(function, temp, kMathCeil, &miss);
-
-  if (arg_count() > 0) {
-    __ movp(temp, Operand(rsp, arg_count() * kPointerSize));
-    Handle<Map> map = isolate()->factory()->heap_number_map();
-    __ CheckMap(temp, map, &tail, DO_SMI_CHECK);
-
-    __ movsd(xmm_temp1, FieldOperand(rax, HeapNumber::kValueOffset));
-
-    // If the number is >0, it doesn't round to -0
-    __ xorps(xmm_temp2, xmm_temp2);
-    __ ucomisd(xmm_temp1, xmm_temp2);
-    __ j(greater, &tail, Label::kNear);
-
-    // If the number is <=-1, it doesn't round to -0
-    static int64_t minus_one = V8_INT64_C(0xbff0000000000000);  // -1
-    __ movq(temp, minus_one);
-    __ movq(xmm_temp2, temp);
-    __ ucomisd(xmm_temp1, xmm_temp2);
-    __ j(less_equal, &tail, Label::kNear);
-
-    // +0 doesn't round to -0.
-    __ movmskpd(temp, xmm_temp1);
-    __ testq(temp, Immediate(1));
-    __ j(zero, &tail, Label::kNear);
-
-    __ Move(FieldOperand(vector, slot, times_pointer_size,
-                         FixedArray::kHeaderSize + kPointerSize),
-            Smi::FromInt(kHasReturnedMinusZeroSentinel));
-  }
-
-  __ bind(&tail);
-  CallFunctionNoFeedback(masm, arg_count(), true, CallAsMethod());
-
-  // Unreachable.
-  __ int3();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-  __ jmp(&tail);
-}
-
-
 void CallICStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id
@@ -2410,11 +2255,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
   __ cmpp(rdi, rcx);
   __ j(equal, &miss);
-
-  __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rax, FieldOperand(rax, SharedFunctionInfo::kFunctionDataOffset));
-  __ Cmp(rax, Smi::FromInt(0));
-  __ j(not_equal, &miss);
 
   // Update stats.
   __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(1));
@@ -4728,27 +4568,6 @@ void CallICTrampolineStub::Generate(MacroAssembler* masm) {
 void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, rbx);
   CallIC_ArrayStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_RoundTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, rbx);
-  CallIC_RoundStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_FloorTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, rbx);
-  CallIC_FloorStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_CeilTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, rbx);
-  CallIC_CeilStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

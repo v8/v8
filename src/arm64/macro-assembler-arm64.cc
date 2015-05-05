@@ -1689,15 +1689,6 @@ void MacroAssembler::GetBuiltinEntry(Register target,
 }
 
 
-void MacroAssembler::BranchIfNotBuiltin(Register function, Register temp,
-                                        BuiltinFunctionId id, Label* miss) {
-  Ldr(temp, FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  Ldr(temp, FieldMemOperand(temp, SharedFunctionInfo::kFunctionDataOffset));
-  Cmp(temp, Operand(Smi::FromInt(id)));
-  B(ne, miss);
-}
-
-
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {

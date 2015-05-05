@@ -733,15 +733,6 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 }
 
 
-void MacroAssembler::BranchIfNotBuiltin(Register function, Register temp,
-                                        BuiltinFunctionId id, Label* miss) {
-  movp(temp, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  movp(temp, FieldOperand(temp, SharedFunctionInfo::kFunctionDataOffset));
-  Cmp(temp, Smi::FromInt(id));
-  j(not_equal, miss);
-}
-
-
 #define REG(Name) { kRegister_ ## Name ## _Code }
 
 static const Register saved_regs[] = {

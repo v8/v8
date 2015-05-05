@@ -1143,9 +1143,6 @@ class MacroAssembler : public Assembler {
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
 
-  void BranchIfNotBuiltin(Register function, Register temp,
-                          BuiltinFunctionId id, Label* miss);
-
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode);

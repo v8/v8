@@ -1818,13 +1818,6 @@ class Call final : public Expression {
     bit_field_ = IsUninitializedField::update(bit_field_, b);
   }
 
-  void MarkShouldHandleMinusZeroResult() {
-    bit_field_ = ShouldHandleMinusZeroResultField::update(bit_field_, true);
-  }
-  bool ShouldHandleMinusZeroResult() {
-    return ShouldHandleMinusZeroResultField::decode(bit_field_);
-  }
-
   enum CallType {
     POSSIBLY_EVAL_CALL,
     GLOBAL_CALL,
@@ -1851,8 +1844,7 @@ class Call final : public Expression {
         ic_slot_or_slot_(FeedbackVectorICSlot::Invalid().ToInt()),
         expression_(expression),
         arguments_(arguments),
-        bit_field_(IsUninitializedField::encode(false) |
-                   ShouldHandleMinusZeroResultField::encode(false)) {
+        bit_field_(IsUninitializedField::encode(false)) {
     if (expression->IsProperty()) {
       expression->AsProperty()->mark_for_call();
     }
@@ -1870,7 +1862,6 @@ class Call final : public Expression {
   Handle<JSFunction> target_;
   Handle<AllocationSite> allocation_site_;
   class IsUninitializedField : public BitField8<bool, 0, 1> {};
-  class ShouldHandleMinusZeroResultField : public BitField8<bool, 1, 1> {};
   uint8_t bit_field_;
 };
 

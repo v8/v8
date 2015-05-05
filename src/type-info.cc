@@ -142,22 +142,6 @@ bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorICSlot slot) {
 }
 
 
-bool TypeFeedbackOracle::CallIsBuiltinWithMinusZeroResult(
-    FeedbackVectorICSlot slot) {
-  Handle<Object> value = GetInfo(slot);
-  if (!value->IsJSFunction()) return false;
-  Handle<JSFunction> maybe_round(Handle<JSFunction>::cast(value));
-  if (!maybe_round->shared()->HasBuiltinFunctionId()) return false;
-  if (maybe_round->shared()->builtin_function_id() != kMathRound &&
-      maybe_round->shared()->builtin_function_id() != kMathFloor &&
-      maybe_round->shared()->builtin_function_id() != kMathCeil) {
-    return false;
-  }
-  return feedback_vector_->get(feedback_vector_->GetIndex(slot) + 1) ==
-         Smi::FromInt(CallICStub::kHasReturnedMinusZeroSentinel);
-}
-
-
 bool TypeFeedbackOracle::CallNewIsMonomorphic(FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
   return FLAG_pretenuring_call_new

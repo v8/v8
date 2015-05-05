@@ -109,7 +109,6 @@ namespace internal {
 struct DoubleConstant BASE_EMBEDDED {
 double min_int;
 double one_half;
-double minus_one;
 double minus_one_half;
 double negative_infinity;
 double the_hole_nan;
@@ -951,7 +950,6 @@ void RelocInfo::Verify(Isolate* isolate) {
 void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
-  double_constants.minus_one = -1;
   double_constants.minus_one_half = -0.5;
   double_constants.the_hole_nan = bit_cast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
@@ -1273,12 +1271,6 @@ ExternalReference ExternalReference::address_of_one_half() {
 ExternalReference ExternalReference::address_of_minus_one_half() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.minus_one_half));
-}
-
-
-ExternalReference ExternalReference::address_of_minus_one() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.minus_one));
 }
 
 
