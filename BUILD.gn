@@ -338,7 +338,12 @@ if (v8_use_external_startup_data) {
 }
 
 action("postmortem-metadata") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and the top-level visibility target can
+  # depend on this.
+  visibility = [
+    ":*",
+    "//:gn_visibility",
+  ]
 
   script = "tools/gen-postmortem-metadata.py"
 
@@ -423,7 +428,12 @@ source_set("v8_nosnapshot") {
 }
 
 source_set("v8_snapshot") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and the top-level visibility target can
+  # depend on this.
+  visibility = [
+    ":*",
+    "//:gn_visibility",
+  ]
 
   deps = [
     ":js2c",
