@@ -329,7 +329,7 @@ void Heap::PrintShortHeapStatistics() {
                          ", committed: %6" V8_PTR_PREFIX "d KB\n",
                new_space_.Size() / KB, new_space_.Available() / KB,
                new_space_.CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Old space,       used: %6" V8_PTR_PREFIX
+  PrintIsolate(isolate_, "Old space,          used: %6" V8_PTR_PREFIX
                          "d KB"
                          ", available: %6" V8_PTR_PREFIX
                          "d KB"
@@ -5266,6 +5266,7 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   // TODO(hpayer): The idle factor could make the handles heuristic obsolete.
   // Look into that.
   double factor;
+  double idle_factor;
   if (freed_global_handles <= kMinHandles) {
     factor = max_factor;
   } else if (freed_global_handles >= kMaxHandles) {
@@ -5283,10 +5284,21 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = min_factor;
   }
 
+  idle_factor = Min(factor, idle_max_factor);
+
   old_generation_allocation_limit_ =
       CalculateOldGenerationAllocationLimit(factor, old_gen_size);
-  idle_old_generation_allocation_limit_ = CalculateOldGenerationAllocationLimit(
-      Min(factor, idle_max_factor), old_gen_size);
+  idle_old_generation_allocation_limit_ =
+      CalculateOldGenerationAllocationLimit(idle_factor, old_gen_size);
+
+  if (FLAG_trace_gc_verbose) {
+    PrintIsolate(
+        isolate_,
+        "Grow: old size: %" V8_PTR_PREFIX "d KB, new limit: %" V8_PTR_PREFIX
+        "d KB (%.1f), new idle limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
+        old_gen_size / KB, old_generation_allocation_limit_ / KB, factor,
+        idle_old_generation_allocation_limit_ / KB, idle_factor);
+  }
 }
 
 
