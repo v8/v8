@@ -224,6 +224,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   if ((cond == lt) || (cond == gt)) {
     __ JumpIfObjectType(right, scratch, scratch, FIRST_SPEC_OBJECT_TYPE, slow,
                         ge);
+    __ JumpIfObjectType(right, scratch, scratch, SYMBOL_TYPE, slow, eq);
   } else if (cond == eq) {
     __ JumpIfHeapNumber(right, &heap_number);
   } else {

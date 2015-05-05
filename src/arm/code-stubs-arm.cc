@@ -253,6 +253,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   if (cond == lt || cond == gt) {
     __ CompareObjectType(r0, r4, r4, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, slow);
+    __ CompareObjectType(r0, r4, r4, SYMBOL_TYPE);
+    __ b(eq, slow);
   } else {
     __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
     __ b(eq, &heap_number);

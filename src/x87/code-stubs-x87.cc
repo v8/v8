@@ -1385,6 +1385,9 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Call runtime on identical JSObjects.  Otherwise return equal.
       __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
       __ j(above_equal, &not_identical);
+      // Call runtime on identical symbols since we need to throw a TypeError.
+      __ CmpObjectType(eax, SYMBOL_TYPE, ecx);
+      __ j(equal, &not_identical);
     }
     __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
     __ ret(0);

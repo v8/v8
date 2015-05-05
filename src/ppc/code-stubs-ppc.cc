@@ -262,6 +262,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   if (cond == lt || cond == gt) {
     __ CompareObjectType(r3, r7, r7, FIRST_SPEC_OBJECT_TYPE);
     __ bge(slow);
+    __ CompareObjectType(r3, r7, r7, SYMBOL_TYPE);
+    __ beq(slow);
   } else {
     __ CompareObjectType(r3, r7, r7, HEAP_NUMBER_TYPE);
     __ beq(&heap_number);

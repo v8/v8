@@ -504,3 +504,33 @@ function TestGetOwnPropertySymbolsOnPrimitives() {
   assertEquals(Object.getOwnPropertySymbols("OK"), []);
 }
 TestGetOwnPropertySymbolsOnPrimitives();
+
+
+function TestComparison() {
+  function f() {
+    var a = Symbol();
+    a < a;
+    a > a;
+    a <= a;
+    a >= a;
+  }
+
+  assertThrows(f, TypeError);
+  %OptimizeFunctionOnNextCall(f);
+  assertThrows(f, TypeError);
+  assertThrows(f, TypeError);
+
+  function g() {
+    var a = Symbol();
+    var b = Symbol();
+    a < b;
+    a > b;
+    a <= b;
+    a >= b;
+  }
+  assertThrows(g, TypeError);
+  %OptimizeFunctionOnNextCall(g);
+  assertThrows(g, TypeError);
+  assertThrows(g, TypeError);
+}
+TestComparison();

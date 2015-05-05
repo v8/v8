@@ -1578,6 +1578,9 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Call runtime on identical objects.  Otherwise return equal.
       __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
       __ j(above_equal, &not_identical, Label::kNear);
+      // Call runtime on identical symbols since we need to throw a TypeError.
+      __ CmpObjectType(rax, SYMBOL_TYPE, rcx);
+      __ j(equal, &not_identical, Label::kNear);
     }
     __ Set(rax, EQUAL);
     __ ret(0);
