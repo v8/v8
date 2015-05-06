@@ -2060,7 +2060,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->result()).is(v0));
 
   Handle<Code> code = CodeFactory::BinaryOpIC(
-      isolate(), instr->op(), language_mode()).code();
+      isolate(), instr->op(), instr->language_mode()).code();
   CallCode(code, RelocInfo::CODE_TARGET, instr);
   // Other arch use a nop here, to signal that there is no inlined
   // patchable code. Mips does not need the nop, since our marker

@@ -10289,7 +10289,8 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   HConstant* delta = (expr->op() == Token::INC)
       ? graph()->GetConstant1()
       : graph()->GetConstantMinus1();
-  HInstruction* instr = AddUncasted<HAdd>(Top(), delta);
+  HInstruction* instr = AddUncasted<HAdd>(Top(), delta,
+                                          function_language_mode());
   if (instr->IsAdd()) {
     HAdd* add = HAdd::cast(instr);
     add->set_observed_input_representation(1, rep);
@@ -10637,7 +10638,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   if (!left_type->IsInhabited()) {
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForLHSOfBinaryOperation,
-        is_strong(language_mode) ? Deoptimizer::EAGER : Deoptimizer::SOFT);
+        Deoptimizer::SOFT);
     left_type = Type::Any(zone());
     left_rep = RepresentationFor(left_type);
     maybe_string_add = op == Token::ADD;
@@ -10646,7 +10647,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   if (!right_type->IsInhabited()) {
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForRHSOfBinaryOperation,
-        is_strong(language_mode) ? Deoptimizer::EAGER : Deoptimizer::SOFT);
+        Deoptimizer::SOFT);
     right_type = Type::Any(zone());
     right_rep = RepresentationFor(right_type);
     maybe_string_add = op == Token::ADD;
@@ -10709,7 +10710,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     if (!right_string.is_null() && right_string->length() == 0) return left;
     if (!left_string.is_null() && !right_string.is_null()) {
       return AddUncasted<HStringAdd>(
-          left, right, allocation_mode.GetPretenureMode(),
+          left, right, language_mode, allocation_mode.GetPretenureMode(),
           STRING_ADD_CHECK_NONE, allocation_mode.feedback_site());
     }
 
@@ -10738,7 +10739,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
 
     // Fallback to using the string add stub.
     return AddUncasted<HStringAdd>(
-        left, right, allocation_mode.GetPretenureMode(),
+        left, right, language_mode, allocation_mode.GetPretenureMode(),
         STRING_ADD_CHECK_NONE, allocation_mode.feedback_site());
   }
 
@@ -10764,13 +10765,13 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   } else {
     switch (op) {
       case Token::ADD:
-        instr = AddUncasted<HAdd>(left, right);
+        instr = AddUncasted<HAdd>(left, right, language_mode);
         break;
       case Token::SUB:
-        instr = AddUncasted<HSub>(left, right);
+        instr = AddUncasted<HSub>(left, right, language_mode);
         break;
       case Token::MUL:
-        instr = AddUncasted<HMul>(left, right);
+        instr = AddUncasted<HMul>(left, right, language_mode);
         break;
       case Token::MOD: {
         if (fixed_right_arg.IsJust() &&
@@ -10783,38 +10784,38 @@ HValue* HGraphBuilder::BuildBinaryOperation(
           if_same.ElseDeopt(Deoptimizer::kUnexpectedRHSOfBinaryOperation);
           right = fixed_right;
         }
-        instr = AddUncasted<HMod>(left, right);
+        instr = AddUncasted<HMod>(left, right, language_mode);
         break;
       }
       case Token::DIV:
-        instr = AddUncasted<HDiv>(left, right);
+        instr = AddUncasted<HDiv>(left, right, language_mode);
         break;
       case Token::BIT_XOR:
       case Token::BIT_AND:
-        instr = AddUncasted<HBitwise>(op, left, right);
+        instr = AddUncasted<HBitwise>(op, left, right, language_mode);
         break;
       case Token::BIT_OR: {
         HValue* operand, *shift_amount;
         if (left_type->Is(Type::Signed32()) &&
             right_type->Is(Type::Signed32()) &&
             MatchRotateRight(left, right, &operand, &shift_amount)) {
-          instr = AddUncasted<HRor>(operand, shift_amount);
+          instr = AddUncasted<HRor>(operand, shift_amount, language_mode);
         } else {
-          instr = AddUncasted<HBitwise>(op, left, right);
+          instr = AddUncasted<HBitwise>(op, left, right, language_mode);
         }
         break;
       }
       case Token::SAR:
-        instr = AddUncasted<HSar>(left, right);
+        instr = AddUncasted<HSar>(left, right, language_mode);
         break;
       case Token::SHR:
-        instr = AddUncasted<HShr>(left, right);
+        instr = AddUncasted<HShr>(left, right, language_mode);
         if (instr->IsShr() && CanBeZero(right)) {
           graph()->RecordUint32Instruction(instr);
         }
         break;
       case Token::SHL:
-        instr = AddUncasted<HShl>(left, right);
+        instr = AddUncasted<HShl>(left, right, language_mode);
         break;
       default:
         UNREACHABLE();
@@ -12054,7 +12055,8 @@ void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   HValue* right = Pop();
   HValue* left = Pop();
-  HInstruction* result = NewUncasted<HStringAdd>(left, right);
+  HInstruction* result = NewUncasted<HStringAdd>(left, right,
+                                                 function_language_mode());
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

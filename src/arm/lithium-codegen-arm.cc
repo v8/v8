@@ -2175,7 +2175,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->result()).is(r0));
 
   Handle<Code> code = CodeFactory::BinaryOpIC(
-      isolate(), instr->op(), language_mode()).code();
+      isolate(), instr->op(), instr->language_mode()).code();
   // Block literal pool emission to ensure nop indicating no inlined smi code
   // is in the correct position.
   Assembler::BlockConstPoolScope block_const_pool(masm());

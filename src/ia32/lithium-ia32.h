@@ -1551,12 +1551,15 @@ class LArithmeticT final : public LTemplateInstruction<1, 3, 0> {
   LOperand* context() { return inputs_[0]; }
   LOperand* left() { return inputs_[1]; }
   LOperand* right() { return inputs_[2]; }
+  Token::Value op() const { return op_; }
 
   Opcode opcode() const override { return LInstruction::kArithmeticT; }
   void CompileToNative(LCodeGen* generator) override;
   const char* Mnemonic() const override;
 
-  Token::Value op() const { return op_; }
+  DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
+
+  LanguageMode language_mode() { return hydrogen()->language_mode(); }
 
  private:
   Token::Value op_;

@@ -1773,7 +1773,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->result()).is(x0));
 
   Handle<Code> code = CodeFactory::BinaryOpIC(
-      isolate(), instr->op(), info()->language_mode()).code();
+      isolate(), instr->op(), instr->language_mode()).code();
   CallCode(code, RelocInfo::CODE_TARGET, instr);
 }
 

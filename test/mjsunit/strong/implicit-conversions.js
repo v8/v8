@@ -199,26 +199,6 @@ let strongStringOrNumberFuncs = [add_strong];
 
 let strongFuncs = strongNumberFuncs.concat(strongStringOrNumberFuncs);
 
-function inline_sub_strong(x, y) {
-  "use strong";
-  let v = x - y;
-  return v;
-}
-
-function inline_outer(x, y) {
-  return inline_sub_strong(x, y);
-}
-
-function inline_sub(x, y) {
-  let v = x - y;
-  return v;
-}
-
-function inline_outer_strong(x, y) {
-  "use strong";
-  return inline_sub(x, y);
-}
-
 function assertStrongNonThrowBehaviour(expr) {
   assertEquals(eval(expr), eval("'use strong';" + expr));
   assertDoesNotThrow("'use strong'; " + expr + ";");
@@ -318,15 +298,3 @@ for (let func of strongStringOrNumberFuncs) {
   assertThrows(function(){func(2, "foo");}, TypeError);
   %DeoptimizeFunction(func);
 }
-
-assertThrows(function(){inline_outer(1, {})}, TypeError);
-for (var i = 0; i < 100; i++) {
-  inline_outer(1, 2);
-}
-assertThrows(function(){inline_outer(1, {})}, TypeError);
-
-assertDoesNotThrow(function(){inline_outer_strong(1, {})});
-for (var i = 0; i < 100; i++) {
-  inline_outer_strong(1, 2);
-}
-assertDoesNotThrow(function(){inline_outer_strong(1, {})});
