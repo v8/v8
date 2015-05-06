@@ -4036,6 +4036,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       parenthesized_function_ ? FunctionLiteral::kShouldEagerCompile
                               : FunctionLiteral::kShouldLazyCompile;
+  bool should_be_used_once_hint = false;
   // Parse function body.
   {
     AstNodeFactory function_factory(ast_value_factory());
@@ -4133,14 +4134,36 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                              !parenthesized_function_);
     parenthesized_function_ = false;  // The bit was set for this function only.
 
+    // Eager or lazy parse?
+    // If is_lazily_parsed, we'll parse lazy. If we can set a bookmark, we'll
+    // pass it to SkipLazyFunctionBody, which may use it to abort lazy
+    // parsing if it suspect that wasn't a good idea. If so, or if we didn't
+    // try to lazy parse in the first place, we'll have to parse eagerly.
+    Scanner::BookmarkScope bookmark(scanner());
     if (is_lazily_parsed) {
       for (Scope* s = scope_->outer_scope();
            s != nullptr && (s != s->DeclarationScope()); s = s->outer_scope()) {
         s->ForceContextAllocation();
       }
+
+      Scanner::BookmarkScope* maybe_bookmark =
+          bookmark.Set() ? &bookmark : nullptr;
       SkipLazyFunctionBody(&materialized_literal_count,
-                           &expected_property_count, CHECK_OK);
-    } else {
+                           &expected_property_count, /*CHECK_OK*/ ok,
+                           maybe_bookmark);
+
+      if (bookmark.HasBeenReset()) {
+        // Trigger eager (re-)parsing, just below this block.
+        is_lazily_parsed = false;
+
+        // This is probably an initialization function. Inform the compiler it
+        // should also eager-compile this function, and that we expect it to be
+        // used once.
+        eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
+        should_be_used_once_hint = true;
+      }
+    }
+    if (!is_lazily_parsed) {
       body = ParseEagerFunctionBody(function_name, pos, fvar, fvar_init_op,
                                     kind, CHECK_OK);
       materialized_literal_count = function_state.materialized_literal_count();
@@ -4183,6 +4206,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       num_parameters, duplicate_parameters, function_type,
       FunctionLiteral::kIsFunction, eager_compile_hint, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
+  if (should_be_used_once_hint)
+    function_literal->set_should_be_used_once_hint();
 
   if (scope->has_rest_parameter()) {
     // TODO(caitp): enable optimization of functions with rest params
@@ -4195,8 +4220,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
 
 void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
-                                  int* expected_property_count,
-                                  bool* ok) {
+                                  int* expected_property_count, bool* ok,
+                                  Scanner::BookmarkScope* bookmark) {
+  DCHECK_IMPLIES(bookmark, bookmark->HasBeenSet());
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
@@ -4229,7 +4255,10 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
   // AST. This gathers the data needed to build a lazy function.
   SingletonLogger logger;
   PreParser::PreParseResult result =
-      ParseLazyFunctionBodyWithPreParser(&logger);
+      ParseLazyFunctionBodyWithPreParser(&logger, bookmark);
+  if (bookmark && bookmark->HasBeenReset()) {
+    return;  // Return immediately if pre-parser devided to abort parsing.
+  }
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
@@ -4358,7 +4387,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
 
 PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
-    SingletonLogger* logger) {
+    SingletonLogger* logger, Scanner::BookmarkScope* bookmark) {
   // This function may be called on a background thread too; record only the
   // main thread preparse times.
   if (pre_parse_timer_ != NULL) {
@@ -4390,7 +4419,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_strong_mode(allow_strong_mode());
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
-      language_mode(), function_state_->kind(), logger);
+      language_mode(), function_state_->kind(), logger, bookmark);
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

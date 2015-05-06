@@ -43,12 +43,18 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
                                     size_t end_position);
   virtual ~GenericStringUtf16CharacterStream();
 
+  virtual bool SetBookmark();
+  virtual void ResetToBookmark();
+
  protected:
+  static const size_t kNoBookmark = -1;
+
   virtual size_t BufferSeekForward(size_t delta);
   virtual size_t FillBuffer(size_t position);
 
   Handle<String> string_;
   size_t length_;
+  size_t bookmark_;
 };
 
 
@@ -129,6 +135,9 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
     pos_--;
   }
 
+  virtual bool SetBookmark();
+  virtual void ResetToBookmark();
+
  protected:
   virtual size_t SlowSeekForward(size_t delta) {
     // Fast case always handles seeking.
@@ -140,6 +149,11 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   }
   Handle<ExternalTwoByteString> source_;
   const uc16* raw_data_;  // Pointer to the actual array of characters.
+
+ private:
+  static const size_t kNoBookmark = -1;
+
+  size_t bookmark_;
 };
 
 } }  // namespace v8::internal

@@ -99,7 +99,8 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    LanguageMode language_mode, FunctionKind kind, ParserRecorder* log) {
+    LanguageMode language_mode, FunctionKind kind, ParserRecorder* log,
+    Scanner::BookmarkScope* bookmark) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   Scope* top_scope = NewScope(scope_, SCRIPT_SCOPE);
@@ -114,9 +115,12 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
-  ParseLazyFunctionLiteralBody(&ok);
-  if (stack_overflow()) return kPreParseStackOverflow;
-  if (!ok) {
+  ParseLazyFunctionLiteralBody(&ok, bookmark);
+  if (bookmark && bookmark->HasBeenReset()) {
+    ;  // Do nothing, as we've just aborted scanning this function.
+  } else if (stack_overflow()) {
+    return kPreParseStackOverflow;
+  } else if (!ok) {
     ReportUnexpectedToken(scanner()->current_token());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
@@ -196,15 +200,22 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
 }
 
 
-void PreParser::ParseStatementList(int end_token, bool* ok) {
+void PreParser::ParseStatementList(int end_token, bool* ok,
+                                   Scanner::BookmarkScope* bookmark) {
   // SourceElements ::
   //   (Statement)* <end_token>
+
+  // Bookkeeping for trial parse if bookmark is set:
+  DCHECK_IMPLIES(bookmark, bookmark->HasBeenSet());
+  bool maybe_reset = bookmark != nullptr;
+  int count_statements = 0;
 
   bool directive_prologue = true;
   while (peek() != end_token) {
     if (directive_prologue && peek() != Token::STRING) {
       directive_prologue = false;
     }
+    bool starts_with_identifier = peek() == Token::IDENTIFIER;
     Scanner::Location token_loc = scanner()->peek_location();
     Scanner::Location old_this_loc = function_state_->this_location();
     Scanner::Location old_super_loc = function_state_->super_location();
@@ -240,6 +251,20 @@ void PreParser::ParseStatementList(int end_token, bool* ok) {
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }
+    }
+
+    // If we're allowed to reset to a bookmark, we will do so when we see a long
+    // and trivial function.
+    // Our current definition of 'long and trivial' is:
+    // - over 200 statements
+    // - all starting with an identifier (i.e., no if, for, while, etc.)
+    if (maybe_reset && (!starts_with_identifier ||
+                        ++count_statements > kLazyParseTrialLimit)) {
+      if (count_statements > kLazyParseTrialLimit) {
+        bookmark->Reset();
+        return;
+      }
+      maybe_reset = false;
     }
   }
 }
@@ -1057,10 +1082,12 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 }
 
 
-void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
+void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
+                                             Scanner::BookmarkScope* bookmark) {
   int body_start = position();
-  ParseStatementList(Token::RBRACE, ok);
+  ParseStatementList(Token::RBRACE, ok, bookmark);
   if (!*ok) return;
+  if (bookmark && bookmark->HasBeenReset()) return;
 
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());

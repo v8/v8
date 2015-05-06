@@ -2421,6 +2421,8 @@ class FunctionLiteral final : public Expression {
 
   enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
 
+  enum ShouldBeUsedOnceHint { kShouldBeUsedOnce, kDontKnowIfShouldBeUsedOnce };
+
   enum ArityRestriction {
     NORMAL_ARITY,
     GETTER_ARITY,
@@ -2516,6 +2518,15 @@ class FunctionLiteral final : public Expression {
     bitfield_ = EagerCompileHintBit::update(bitfield_, kShouldEagerCompile);
   }
 
+  // A hint that we expect this function to be called (exactly) once,
+  // i.e. we suspect it's an initialization function.
+  bool should_be_used_once_hint() const {
+    return ShouldBeUsedOnceHintBit::decode(bitfield_) == kShouldBeUsedOnce;
+  }
+  void set_should_be_used_once_hint() {
+    bitfield_ = ShouldBeUsedOnceHintBit::update(bitfield_, kShouldBeUsedOnce);
+  }
+
   FunctionKind kind() { return FunctionKindBits::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
@@ -2560,7 +2571,8 @@ class FunctionLiteral final : public Expression {
                 HasDuplicateParameters::encode(has_duplicate_parameters) |
                 IsFunction::encode(is_function) |
                 EagerCompileHintBit::encode(eager_compile_hint) |
-                FunctionKindBits::encode(kind);
+                FunctionKindBits::encode(kind) |
+                ShouldBeUsedOnceHintBit::encode(kDontKnowIfShouldBeUsedOnce);
     DCHECK(IsValidFunctionKind(kind));
   }
 
@@ -2589,6 +2601,8 @@ class FunctionLiteral final : public Expression {
   class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
   class EagerCompileHintBit : public BitField<EagerCompileHint, 5, 1> {};
   class FunctionKindBits : public BitField<FunctionKind, 6, 8> {};
+  class ShouldBeUsedOnceHintBit : public BitField<ShouldBeUsedOnceHint, 15, 1> {
+  };
 };
 
 

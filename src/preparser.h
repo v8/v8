@@ -1821,11 +1821,14 @@ class PreParser : public ParserBase<PreParserTraits> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(LanguageMode language_mode,
-                                      FunctionKind kind, ParserRecorder* log);
+  PreParseResult PreParseLazyFunction(
+      LanguageMode language_mode, FunctionKind kind, ParserRecorder* log,
+      Scanner::BookmarkScope* bookmark = nullptr);
 
  private:
   friend class PreParserTraits;
+
+  static const int kLazyParseTrialLimit = 200;
 
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
@@ -1837,7 +1840,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   Statement ParseStatementListItem(bool* ok);
-  void ParseStatementList(int end_token, bool* ok);
+  void ParseStatementList(int end_token, bool* ok,
+                          Scanner::BookmarkScope* bookmark = nullptr);
   Statement ParseStatement(bool* ok);
   Statement ParseSubStatement(bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
@@ -1879,7 +1883,8 @@ class PreParser : public ParserBase<PreParserTraits> {
       bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
-  void ParseLazyFunctionLiteralBody(bool* ok);
+  void ParseLazyFunctionLiteralBody(bool* ok,
+                                    Scanner::BookmarkScope* bookmark = nullptr);
 
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,

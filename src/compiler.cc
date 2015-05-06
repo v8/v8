@@ -1371,6 +1371,10 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     // appropriately sized.
     DCHECK(!info.code().is_null());
     scope_info = ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
+    if (literal->should_eager_compile() &&
+        literal->should_be_used_once_hint()) {
+      info.code()->MarkToBeExecutedOnce(isolate);
+    }
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
