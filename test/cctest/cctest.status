@@ -132,6 +132,9 @@
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
+
+  # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
+  'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
 }],  # ALWAYS
 
 ##############################################################################
