@@ -88,7 +88,7 @@ function MathMax(arg1, arg2) {  // length == 2
   var r = -INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
-    n = TO_NUMBER_INLINE(n);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
     // Make sure +0 is considered greater than -0.
     if (NUMBER_IS_NAN(n) || n > r || (r === 0 && n === 0 && %_IsMinusZero(r))) {
       r = n;
@@ -115,7 +115,7 @@ function MathMin(arg1, arg2) {  // length == 2
   var r = INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
-    n = TO_NUMBER_INLINE(n);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
     // Make sure -0 is considered less than +0.
     if (NUMBER_IS_NAN(n) || n < r || (r === 0 && n === 0 && %_IsMinusZero(n))) {
       r = n;
@@ -175,7 +175,7 @@ function MathTrunc(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.33.
 function MathTanh(x) {
-  x = TO_NUMBER_INLINE(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   // Idempotent for +/-0.
   if (x === 0) return x;
   // Returns +/-1 for +/-Infinity.
@@ -187,7 +187,7 @@ function MathTanh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.5.
 function MathAsinh(x) {
-  x = TO_NUMBER_INLINE(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   // Idempotent for NaN, +/-0 and +/-Infinity.
   if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
   if (x > 0) return MathLog(x + %_MathSqrt(x * x + 1));
@@ -197,7 +197,7 @@ function MathAsinh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.3.
 function MathAcosh(x) {
-  x = TO_NUMBER_INLINE(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   if (x < 1) return NAN;
   // Idempotent for NaN and +Infinity.
   if (!NUMBER_IS_FINITE(x)) return x;
@@ -206,7 +206,7 @@ function MathAcosh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.7.
 function MathAtanh(x) {
-  x = TO_NUMBER_INLINE(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   // Idempotent for +/-0.
   if (x === 0) return x;
   // Returns NaN for NaN and +/- Infinity.
@@ -224,7 +224,7 @@ function MathHypot(x, y) {  // Function length is 2.
   var max = 0;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
-    n = TO_NUMBER_INLINE(n);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
     if (n === INFINITY || n === -INFINITY) return INFINITY;
     n = MathAbs(n);
     if (n > max) max = n;
@@ -261,7 +261,7 @@ function MathClz32JS(x) {
 // Using initial approximation adapted from Kahan's cbrt and 4 iterations
 // of Newton's method.
 function MathCbrt(x) {
-  x = TO_NUMBER_INLINE(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   if (x == 0 || !NUMBER_IS_FINITE(x)) return x;
   return x >= 0 ? CubeRoot(x) : -CubeRoot(-x);
 }

@@ -38,10 +38,10 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
       byteOffset =
-          $toPositiveInteger(byteOffset, kInvalidTypedArrayLength);
+          ToPositiveInteger(byteOffset, kInvalidTypedArrayLength);
   }
   if (!IS_UNDEFINED(length)) {
-      length = $toPositiveInteger(length, kInvalidTypedArrayLength);
+      length = ToPositiveInteger(length, kInvalidTypedArrayLength);
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -82,7 +82,7 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
 
 function NAMEConstructByLength(obj, length) {
   var l = IS_UNDEFINED(length) ?
-    0 : $toPositiveInteger(length, kInvalidTypedArrayLength);
+    0 : ToPositiveInteger(length, kInvalidTypedArrayLength);
   if (l > %_MaxSmi()) {
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
@@ -97,7 +97,7 @@ function NAMEConstructByLength(obj, length) {
 
 function NAMEConstructByArrayLike(obj, arrayLike) {
   var length = arrayLike.length;
-  var l = $toPositiveInteger(length, kInvalidTypedArrayLength);
+  var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
     throw MakeRangeError(kInvalidTypedArrayLength);
@@ -335,7 +335,7 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   if (%_IsConstructCall()) {
     if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
     if (!IS_UNDEFINED(byteOffset)) {
-        byteOffset = $toPositiveInteger(byteOffset, kInvalidDataViewOffset);
+        byteOffset = ToPositiveInteger(byteOffset, kInvalidDataViewOffset);
     }
     if (!IS_UNDEFINED(byteLength)) {
         byteLength = TO_INTEGER(byteLength);
@@ -392,6 +392,10 @@ macro DATA_VIEW_TYPES(FUNCTION)
   FUNCTION(Float64)
 endmacro
 
+function ToPositiveDataViewOffset(offset) {
+  return ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+}
+
 
 macro DATA_VIEW_GETTER_SETTER(TYPENAME)
 function DataViewGetTYPENAMEJS(offset, little_endian) {
@@ -400,8 +404,9 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
                         'DataView.getTYPENAME', this);
   }
   if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
-  offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
-  return %DataViewGetTYPENAME(this, offset, !!little_endian);
+  return %DataViewGetTYPENAME(this,
+                          ToPositiveDataViewOffset(offset),
+                          !!little_endian);
 }
 
 function DataViewSetTYPENAMEJS(offset, value, little_endian) {
@@ -410,8 +415,10 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
                         'DataView.setTYPENAME', this);
   }
   if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
-  offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
-  %DataViewSetTYPENAME(this, offset, TO_NUMBER_INLINE(value), !!little_endian);
+  %DataViewSetTYPENAME(this,
+                   ToPositiveDataViewOffset(offset),
+                   TO_NUMBER_INLINE(value),
+                   !!little_endian);
 }
 endmacro
 

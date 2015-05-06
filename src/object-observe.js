@@ -317,7 +317,7 @@ function ConvertAcceptListToTypeMap(arg) {
 
   if (!IS_SPEC_OBJECT(arg)) throw MakeTypeError(kObserveInvalidAccept);
 
-  var len = $toInteger(arg.length);
+  var len = ToInteger(arg.length);
   if (len < 0) len = 0;
 
   return TypeMapCreateFromList(arg, len);

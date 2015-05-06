@@ -18,7 +18,7 @@ function ArrayCopyWithin(target, start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
 
   var array = TO_OBJECT_INLINE(this);
-  var length = $toLength(array.length);
+  var length = ToLength(array.length);
 
   target = TO_INTEGER(target);
   var to;
@@ -70,8 +70,8 @@ function ArrayCopyWithin(target, start, end) {
 function ArrayFind(predicate /* thisArg */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
 
-  var array = $toObject(this);
-  var length = $toInteger(array.length);
+  var array = ToObject(this);
+  var length = ToInteger(array.length);
 
   if (!IS_SPEC_FUNCTION(predicate)) {
     throw MakeTypeError(kCalledNonCallable, predicate);
@@ -92,7 +92,7 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
-      var newThisArg = needs_wrapper ? $toObject(thisArg) : thisArg;
+      var newThisArg = needs_wrapper ? ToObject(thisArg) : thisArg;
       if (%_CallFunction(newThisArg, element, i, array, predicate)) {
         return element;
       }
@@ -107,8 +107,8 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
 function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
 
-  var array = $toObject(this);
-  var length = $toInteger(array.length);
+  var array = ToObject(this);
+  var length = ToInteger(array.length);
 
   if (!IS_SPEC_FUNCTION(predicate)) {
     throw MakeTypeError(kCalledNonCallable, predicate);
@@ -129,7 +129,7 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
-      var newThisArg = needs_wrapper ? $toObject(thisArg) : thisArg;
+      var newThisArg = needs_wrapper ? ToObject(thisArg) : thisArg;
       if (%_CallFunction(newThisArg, element, i, array, predicate)) {
         return i;
       }
@@ -144,7 +144,7 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
 function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
 
-  var array = $toObject(this);
+  var array = ToObject(this);
   var length = TO_UINT32(array.length);
 
   var i = 0;
@@ -184,7 +184,7 @@ function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
 
 // ES6, draft 10-14-14, section 22.1.2.1
 function ArrayFrom(arrayLike, mapfn, receiver) {
-  var items = $toObject(arrayLike);
+  var items = ToObject(arrayLike);
   var mapping = !IS_UNDEFINED(mapfn);
 
   if (mapping) {
@@ -232,8 +232,8 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       %AddElement(result, k++, mappedValue, NONE);
     }
   } else {
-    var len = $toLength(items.length);
-    result = %IsConstructor(this) ? new this(len) : new GlobalArray(len);
+    var len = ToLength(items.length);
+    result = %IsConstructor(this) ? new this(len) : new $Array(len);
 
     for (k = 0; k < len; ++k) {
       nextValue = items[k];

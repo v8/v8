@@ -1564,14 +1564,14 @@ void Genesis::InstallNativeFunctions() {
   HandleScope scope(isolate());
   INSTALL_NATIVE(JSFunction, "$createDate", create_date_fun);
 
-  INSTALL_NATIVE(JSFunction, "$toNumber", to_number_fun);
-  INSTALL_NATIVE(JSFunction, "$toString", to_string_fun);
+  INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
+  INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
   INSTALL_NATIVE(JSFunction, "$toDetailString", to_detail_string_fun);
-  INSTALL_NATIVE(JSFunction, "$toObject", to_object_fun);
-  INSTALL_NATIVE(JSFunction, "$toInteger", to_integer_fun);
-  INSTALL_NATIVE(JSFunction, "$toUint32", to_uint32_fun);
-  INSTALL_NATIVE(JSFunction, "$toInt32", to_int32_fun);
-  INSTALL_NATIVE(JSFunction, "$toLength", to_length_fun);
+  INSTALL_NATIVE(JSFunction, "ToObject", to_object_fun);
+  INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
+  INSTALL_NATIVE(JSFunction, "ToUint32", to_uint32_fun);
+  INSTALL_NATIVE(JSFunction, "ToInt32", to_int32_fun);
+  INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
 
   INSTALL_NATIVE(JSFunction, "$globalEval", global_eval_fun);
   INSTALL_NATIVE(JSFunction, "$getStackTraceLine", get_stack_trace_line_fun);

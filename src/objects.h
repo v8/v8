@@ -2245,8 +2245,8 @@ class JSObject: public JSReceiver {
   // permissible values (see the DCHECK in heap.cc).
   static const int kInitialMaxFastElementArray = 100000;
 
-  // This constant applies only to the initial map of "global.Object" and
-  // not to arbitrary other JSObject maps.
+  // This constant applies only to the initial map of "$Object" aka
+  // "global.Object" and not to arbitrary other JSObject maps.
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
   static const int kMaxInstanceSize = 255 * kPointerSize;

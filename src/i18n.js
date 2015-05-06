@@ -287,7 +287,7 @@ function supportedLocalesOf(service, locales, options) {
   if (options === undefined) {
     options = {};
   } else {
-    options = $toObject(options);
+    options = ToObject(options);
   }
 
   var matcher = options.localeMatcher;
@@ -743,7 +743,7 @@ function initializeLocaleList(locales) {
       return freezeArray(seen);
     }
 
-    var o = $toObject(locales);
+    var o = ToObject(locales);
     // Converts it to UInt32 (>>> is shr on 32bit integers).
     var len = o.length >>> 0;
 
@@ -955,7 +955,7 @@ function initializeCollator(collator, locales, options) {
       return new Intl.Collator(locales, options);
     }
 
-    return initializeCollator($toObject(this), locales, options);
+    return initializeCollator(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1181,7 +1181,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       return new Intl.NumberFormat(locales, options);
     }
 
-    return initializeNumberFormat($toObject(this), locales, options);
+    return initializeNumberFormat(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1266,7 +1266,7 @@ $setFunctionName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = $toNumber(value) + 0;
+  var number = GlobalNumber(value) + 0;
 
   return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
                                number);
@@ -1573,7 +1573,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       return new Intl.DateTimeFormat(locales, options);
     }
 
-    return initializeDateTimeFormat($toObject(this), locales, options);
+    return initializeDateTimeFormat(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1661,7 +1661,7 @@ function formatDate(formatter, dateValue) {
   if (dateValue === undefined) {
     dateMs = GlobalDate.now();
   } else {
-    dateMs = $toNumber(dateValue);
+    dateMs = GlobalNumber(dateValue);
   }
 
   if (!$isFinite(dateMs)) throw MakeRangeError(kDateRange);
@@ -1774,7 +1774,7 @@ function initializeBreakIterator(iterator, locales, options) {
       return new Intl.v8BreakIterator(locales, options);
     }
 
-    return initializeBreakIterator($toObject(this), locales, options);
+    return initializeBreakIterator(ToObject(this), locales, options);
   },
   DONT_ENUM
 );

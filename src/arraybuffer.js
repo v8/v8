@@ -15,7 +15,7 @@ var GlobalObject = global.Object;
 
 function ArrayBufferConstructor(length) { // length = 1
   if (%_IsConstructCall()) {
-    var byteLength = $toPositiveInteger(length, kInvalidArrayBufferLength);
+    var byteLength = ToPositiveInteger(length, kInvalidArrayBufferLength);
     %ArrayBufferInitialize(this, byteLength);
   } else {
     throw MakeTypeError(kConstructorNotFunction, "ArrayBuffer");

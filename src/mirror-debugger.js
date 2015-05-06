@@ -823,7 +823,7 @@ ObjectMirror.prototype.internalProperties = function() {
 
 
 ObjectMirror.prototype.property = function(name) {
-  var details = %DebugGetPropertyDetails(this.value_, builtins.$toName(name));
+  var details = %DebugGetPropertyDetails(this.value_, %ToName(name));
   if (details) {
     return new PropertyMirror(this, name, details);
   }
@@ -1186,7 +1186,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index,
   if (from_index > to_index) return new Array();
   var values = new Array(to_index - from_index + 1);
   for (var i = from_index; i <= to_index; i++) {
-    var details = %DebugGetPropertyDetails(this.value_, builtins.$toString(i));
+    var details = %DebugGetPropertyDetails(this.value_, %ToString(i));
     var value;
     if (details) {
       value = new PropertyMirror(this, i, details);
