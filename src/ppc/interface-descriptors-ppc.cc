@@ -83,6 +83,12 @@ void NumberToStringDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
+void TypeofDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {cp, r6};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void FastCloneShallowArrayDescriptor::Initialize(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {cp, r6, r5, r4};

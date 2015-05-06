@@ -5824,9 +5824,17 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
-  Register input = ToRegister(instr->value());
-  __ push(input);
-  CallRuntime(Runtime::kTypeof, 1, instr);
+  DCHECK(ToRegister(instr->value()).is(r6));
+  DCHECK(ToRegister(instr->result()).is(r3));
+  Label end, do_call;
+  Register value_register = ToRegister(instr->value());
+  __ JumpIfNotSmi(value_register, &do_call);
+  __ mov(r3, Operand(isolate()->factory()->number_string()));
+  __ b(&end);
+  __ bind(&do_call);
+  TypeofStub stub(isolate());
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ bind(&end);
 }
 
 
