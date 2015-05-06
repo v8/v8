@@ -661,7 +661,7 @@ TEST(RunAccessTests_Smi) {
   RunAccessTest<Smi*>(kMachAnyTagged, data, arraysize(data));
 }
 
-
+#if V8_TURBOFAN_TARGET
 TEST(RunAllocate) {
   PretenureFlag flag[] = {NOT_TENURED, TENURED};
 
@@ -685,7 +685,7 @@ TEST(RunAllocate) {
     }
   }
 }
-
+#endif
 
 // Fills in most of the nodes of the graph in order to make tests shorter.
 class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
