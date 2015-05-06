@@ -786,6 +786,7 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
     }
   }
   new_space_nodes_.Rewind(last);
+  new_space_nodes_.Trim();
 }
 
 
@@ -811,6 +812,7 @@ int GlobalHandles::DispatchPendingPhantomCallbacks() {
     // Fire second pass callback.
     callback.Invoke(isolate());
   }
+  pending_phantom_callbacks_.Clear();
   return freed_nodes;
 }
 
