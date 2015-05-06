@@ -1193,6 +1193,13 @@ Handle<Object> Factory::NewTypeError(MessageTemplate::Template template_index,
 }
 
 
+Handle<Object> Factory::NewRangeError(MessageTemplate::Template template_index,
+                                      Handle<Object> arg0, Handle<Object> arg1,
+                                      Handle<Object> arg2) {
+  return NewError("MakeRangeError", template_index, arg0, arg1, arg2);
+}
+
+
 Handle<Object> Factory::NewEvalError(MessageTemplate::Template template_index,
                                      Handle<Object> arg0, Handle<Object> arg1,
                                      Handle<Object> arg2) {

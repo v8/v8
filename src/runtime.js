@@ -876,9 +876,9 @@ function DefaultString(x) {
   throw %MakeTypeError(kCannotConvertToPrimitive);
 }
 
-function ToPositiveInteger(x, rangeErrorName) {
+function ToPositiveInteger(x, rangeErrorIndex) {
   var i = TO_INTEGER_MAP_MINUS_ZERO(x);
-  if (i < 0) throw MakeRangeError(rangeErrorName);
+  if (i < 0) throw MakeRangeError(rangeErrorIndex);
   return i;
 }
 

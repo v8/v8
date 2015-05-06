@@ -13,6 +13,7 @@
 #include "src/frames-inl.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
+#include "src/messages.h"
 #include "src/property-details.h"
 #include "src/prototype.h"
 
@@ -260,8 +261,8 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  Handle<Object> exception = isolate->factory()->NewRangeError(
-      "invalid_array_length", HandleVector<Object>(NULL, 0));
+  Handle<Object> exception =
+      isolate->factory()->NewRangeError(MessageTemplate::kInvalidArrayLength);
   isolate->ScheduleThrow(*exception);
 }
 

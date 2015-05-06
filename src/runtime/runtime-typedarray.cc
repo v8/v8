@@ -80,14 +80,12 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
   size_t allocated_length = 0;
   if (!TryNumberToSize(isolate, *byteLength, &allocated_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError("invalid_array_buffer_length",
-                               HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
   if (!Runtime::SetupArrayBufferAllocatingData(isolate, holder,
                                                allocated_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError("invalid_array_buffer_length",
-                               HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
   return *holder;
 }
@@ -214,8 +212,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   if (length > static_cast<unsigned>(Smi::kMaxValue)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError("invalid_typed_array_length",
-                               HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidTypedArrayLength));
   }
 
   // All checks are done, now we can modify objects.
@@ -291,8 +288,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
       (length > (kMaxInt / element_size))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError("invalid_typed_array_length",
-                               HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidTypedArrayLength));
   }
   size_t byte_length = length * element_size;
 
@@ -321,8 +317,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   if (!Runtime::SetupArrayBufferAllocatingData(isolate, buffer, byte_length,
                                                false)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError("invalid_array_buffer_length",
-                               HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
 
   holder->set_buffer(*buffer);
@@ -421,8 +416,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   if (offset > target_length || offset + source_length > target_length ||
       offset + source_length < offset) {  // overflow
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError("typed_array_set_source_too_large",
-                               HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
   }
 
   size_t target_offset = NumberToSize(isolate, target->byte_offset());
@@ -614,22 +608,22 @@ static bool DataViewSetValue(Isolate* isolate, Handle<JSDataView> data_view,
 }
 
 
-#define DATA_VIEW_GETTER(TypeName, Type, Converter)                   \
-  RUNTIME_FUNCTION(Runtime_DataViewGet##TypeName) {                   \
-    HandleScope scope(isolate);                                       \
-    DCHECK(args.length() == 3);                                       \
-    CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);                \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset, 1);                     \
-    CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 2);                 \
-    Type result;                                                      \
-    if (DataViewGetValue(isolate, holder, offset, is_little_endian,   \
-                         &result)) {                                  \
-      return *isolate->factory()->Converter(result);                  \
-    } else {                                                          \
-      THROW_NEW_ERROR_RETURN_FAILURE(                                 \
-          isolate, NewRangeError("invalid_data_view_accessor_offset", \
-                                 HandleVector<Object>(NULL, 0)));     \
-    }                                                                 \
+#define DATA_VIEW_GETTER(TypeName, Type, Converter)                        \
+  RUNTIME_FUNCTION(Runtime_DataViewGet##TypeName) {                        \
+    HandleScope scope(isolate);                                            \
+    DCHECK(args.length() == 3);                                            \
+    CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);                     \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset, 1);                          \
+    CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 2);                      \
+    Type result;                                                           \
+    if (DataViewGetValue(isolate, holder, offset, is_little_endian,        \
+                         &result)) {                                       \
+      return *isolate->factory()->Converter(result);                       \
+    } else {                                                               \
+      THROW_NEW_ERROR_RETURN_FAILURE(                                      \
+          isolate,                                                         \
+          NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset)); \
+    }                                                                      \
   }
 
 DATA_VIEW_GETTER(Uint8, uint8_t, NewNumberFromUint)
@@ -696,22 +690,22 @@ double DataViewConvertValue<double>(double value) {
 }
 
 
-#define DATA_VIEW_SETTER(TypeName, Type)                                  \
-  RUNTIME_FUNCTION(Runtime_DataViewSet##TypeName) {                       \
-    HandleScope scope(isolate);                                           \
-    DCHECK(args.length() == 4);                                           \
-    CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);                    \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset, 1);                         \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);                          \
-    CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 3);                     \
-    Type v = DataViewConvertValue<Type>(value->Number());                 \
-    if (DataViewSetValue(isolate, holder, offset, is_little_endian, v)) { \
-      return isolate->heap()->undefined_value();                          \
-    } else {                                                              \
-      THROW_NEW_ERROR_RETURN_FAILURE(                                     \
-          isolate, NewRangeError("invalid_data_view_accessor_offset",     \
-                                 HandleVector<Object>(NULL, 0)));         \
-    }                                                                     \
+#define DATA_VIEW_SETTER(TypeName, Type)                                   \
+  RUNTIME_FUNCTION(Runtime_DataViewSet##TypeName) {                        \
+    HandleScope scope(isolate);                                            \
+    DCHECK(args.length() == 4);                                            \
+    CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);                     \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset, 1);                          \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);                           \
+    CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 3);                      \
+    Type v = DataViewConvertValue<Type>(value->Number());                  \
+    if (DataViewSetValue(isolate, holder, offset, is_little_endian, v)) {  \
+      return isolate->heap()->undefined_value();                           \
+    } else {                                                               \
+      THROW_NEW_ERROR_RETURN_FAILURE(                                      \
+          isolate,                                                         \
+          NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset)); \
+    }                                                                      \
   }
 
 DATA_VIEW_SETTER(Uint8, uint8_t)

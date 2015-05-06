@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -906,8 +907,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
 
   if (visitor.exceeds_array_limit()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError("invalid_array_length", HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
   }
   return *visitor.ToArray();
 }

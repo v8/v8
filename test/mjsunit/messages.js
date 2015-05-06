@@ -72,6 +72,11 @@ test(function() {
   Uint16Array(1);
 }, "Constructor Uint16Array requires 'new'", TypeError);
 
+// kDataViewNotArrayBuffer
+test(function() {
+  new DataView(1);
+}, "First argument to DataView constructor must be an ArrayBuffer", TypeError);
+
 // kDateType
 test(function() {
   Date.prototype.setYear.call({}, 1);
@@ -144,6 +149,11 @@ test(function() {
 test(function() {
   new Map([1]);
 }, "Iterator value 1 is not an entry object", TypeError);
+
+// kNotAPromise
+test(function() {
+  Promise.prototype.chain.call(1);
+}, "1 is not a promise", TypeError);
 
 // kNotConstructor
 test(function() {
@@ -233,6 +243,11 @@ test(function() {
   [].reduce(function() {});
 }, "Reduce of empty array with no initial value", TypeError);
 
+// kResolverNotAFunction
+test(function() {
+  new Promise(1);
+}, "Promise resolver 1 is not a function", TypeError);
+
 // kSymbolToPrimitive
 test(function() {
   1 + Object(Symbol());
@@ -293,6 +308,16 @@ test(function() {
   Object.defineProperty([], "length", { value: 1E100 });
 }, "defineProperty() array length out of range", RangeError);
 
+// kInvalidArrayBufferLength
+test(function() {
+  new ArrayBuffer(-1);
+}, "Invalid array buffer length", RangeError);
+
+// kInvalidArrayLength
+test(function() {
+  [].length = -1;
+}, "Invalid array length", RangeError);
+
 // kInvalidCodePoint
 test(function() {
   String.fromCodePoint(-1);
@@ -302,6 +327,11 @@ test(function() {
 test(function() {
   "a".repeat(-1);
 }, "Invalid count value", RangeError);
+
+// kInvalidArrayBufferLength
+test(function() {
+  new Uint16Array(-1);
+}, "Invalid typed array length", RangeError);
 
 // kNormalizationForm
 test(function() {

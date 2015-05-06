@@ -38,10 +38,10 @@ macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
       byteOffset =
-          ToPositiveInteger(byteOffset,  "invalid_typed_array_length");
+          ToPositiveInteger(byteOffset, kInvalidTypedArrayLength);
   }
   if (!IS_UNDEFINED(length)) {
-      length = ToPositiveInteger(length, "invalid_typed_array_length");
+      length = ToPositiveInteger(length, kInvalidTypedArrayLength);
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -52,11 +52,11 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
     offset = byteOffset;
 
     if (offset % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError("invalid_typed_array_alignment",
-          ["start offset", "NAME", ELEMENT_SIZE]);
+      throw MakeRangeError(kInvalidTypedArrayAlignment,
+                           "start offset", "NAME", ELEMENT_SIZE);
     }
     if (offset > bufferByteLength) {
-      throw MakeRangeError("invalid_typed_array_offset");
+      throw MakeRangeError(kInvalidTypedArrayOffset);
     }
   }
 
@@ -64,8 +64,8 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   var newLength;
   if (IS_UNDEFINED(length)) {
     if (bufferByteLength % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError("invalid_typed_array_alignment",
-        ["byte length", "NAME", ELEMENT_SIZE]);
+      throw MakeRangeError(kInvalidTypedArrayAlignment,
+                           "byte length", "NAME", ELEMENT_SIZE);
     }
     newByteLength = bufferByteLength - offset;
     newLength = newByteLength / ELEMENT_SIZE;
@@ -75,16 +75,16 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   }
   if ((offset + newByteLength > bufferByteLength)
       || (newLength > %_MaxSmi())) {
-    throw MakeRangeError("invalid_typed_array_length");
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
   %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
 }
 
 function NAMEConstructByLength(obj, length) {
   var l = IS_UNDEFINED(length) ?
-    0 : ToPositiveInteger(length, "invalid_typed_array_length");
+    0 : ToPositiveInteger(length, kInvalidTypedArrayLength);
   if (l > %_MaxSmi()) {
-    throw MakeRangeError("invalid_typed_array_length");
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
   var byteLength = l * ELEMENT_SIZE;
   if (byteLength > %_TypedArrayMaxSizeInHeap()) {
@@ -97,10 +97,10 @@ function NAMEConstructByLength(obj, length) {
 
 function NAMEConstructByArrayLike(obj, arrayLike) {
   var length = arrayLike.length;
-  var l = ToPositiveInteger(length, "invalid_typed_array_length");
+  var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
-    throw MakeRangeError("invalid_typed_array_length");
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
   if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
     for (var i = 0; i < l; i++) {
@@ -257,12 +257,10 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
 
 function TypedArraySet(obj, offset) {
   var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
-  if (intOffset < 0) {
-    throw MakeTypeError("typed_array_set_negative_offset");
-  }
+  if (intOffset < 0) throw MakeTypeError(kTypedArraySetNegativeOffset);
 
   if (intOffset > %_MaxSmi()) {
-    throw MakeRangeError("typed_array_set_source_too_large");
+    throw MakeRangeError(kTypedArraySetSourceTooLarge);
   }
   switch (%TypedArraySetFastCases(this, obj, intOffset)) {
     // These numbers should be synchronized with runtime.cc.
@@ -282,12 +280,12 @@ function TypedArraySet(obj, offset) {
             // instead of silently ignoring the call, so that
             // the user knows (s)he did something wrong.
             // (Consistent with Firefox and Blink/WebKit)
-            throw MakeTypeError("invalid_argument");
+            throw MakeTypeError(kInvalidArgument);
         }
         return;
       }
       if (intOffset + l > this.length) {
-        throw MakeRangeError("typed_array_set_source_too_large");
+        throw MakeRangeError(kTypedArraySetSourceTooLarge);
       }
       TypedArraySetFromArrayLike(this, obj, l, intOffset);
       return;
@@ -335,11 +333,9 @@ TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   if (%_IsConstructCall()) {
-    if (!IS_ARRAYBUFFER(buffer)) {
-      throw MakeTypeError('data_view_not_array_buffer', []);
-    }
+    if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
     if (!IS_UNDEFINED(byteOffset)) {
-        byteOffset = ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
+        byteOffset = ToPositiveInteger(byteOffset, kInvalidDataViewOffset);
     }
     if (!IS_UNDEFINED(byteLength)) {
         byteLength = TO_INTEGER(byteLength);
@@ -348,15 +344,13 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
 
     var offset = IS_UNDEFINED(byteOffset) ?  0 : byteOffset;
-    if (offset > bufferByteLength) {
-      throw MakeRangeError('invalid_data_view_offset');
-    }
+    if (offset > bufferByteLength) throw MakeRangeError(kInvalidDataViewOffset);
 
     var length = IS_UNDEFINED(byteLength)
         ? bufferByteLength - offset
         : byteLength;
     if (length < 0 || offset + length > bufferByteLength) {
-      throw new MakeRangeError('invalid_data_view_length');
+      throw new MakeRangeError(kInvalidDataViewLength);
     }
     %_DataViewInitialize(this, buffer, offset, length);
   } else {
@@ -399,7 +393,7 @@ macro DATA_VIEW_TYPES(FUNCTION)
 endmacro
 
 function ToPositiveDataViewOffset(offset) {
-  return ToPositiveInteger(offset, 'invalid_data_view_accessor_offset');
+  return ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
 }
 
 
@@ -409,9 +403,7 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.getTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
+  if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
   return %DataViewGetTYPENAME(this,
                           ToPositiveDataViewOffset(offset),
                           !!little_endian);
@@ -422,9 +414,7 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.setTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
+  if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
   %DataViewSetTYPENAME(this,
                    ToPositiveDataViewOffset(offset),
                    TO_NUMBER_INLINE(value),

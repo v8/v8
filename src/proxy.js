@@ -23,19 +23,19 @@ var GlobalObject = global.Object;
 
 function ProxyCreate(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
-    throw MakeTypeError("handler_non_object", ["create"])
+    throw MakeTypeError(kProxyHandlerNonObject, "create")
   if (IS_UNDEFINED(proto))
     proto = null
   else if (!(IS_SPEC_OBJECT(proto) || IS_NULL(proto)))
-    throw MakeTypeError("proto_non_object", ["create"])
+    throw MakeTypeError(kProxyProtoNonObject)
   return %CreateJSProxy(handler, proto)
 }
 
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
   if (!IS_SPEC_OBJECT(handler))
-    throw MakeTypeError("handler_non_object", ["create"])
+    throw MakeTypeError(kProxyHandlerNonObject, "createFunction")
   if (!IS_SPEC_FUNCTION(callTrap))
-    throw MakeTypeError("trap_function_expected", ["createFunction", "call"])
+    throw MakeTypeError(kProxyTrapFunctionExpected, "call")
   if (IS_UNDEFINED(constructTrap)) {
     constructTrap = DerivedConstructTrap(callTrap)
   } else if (IS_SPEC_FUNCTION(constructTrap)) {
@@ -45,8 +45,7 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
       return %Apply(construct, UNDEFINED, arguments, 0, %_ArgumentsLength());
     }
   } else {
-    throw MakeTypeError("trap_function_expected",
-                        ["createFunction", "construct"])
+    throw MakeTypeError(kProxyTrapFunctionExpected, "construct")
   }
   return %CreateJSFunctionProxy(
     handler, callTrap, constructTrap, GlobalFunction.prototype)

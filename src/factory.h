@@ -556,8 +556,7 @@ class Factory final {
   Handle<Object> NewRangeError(Handle<String> message);
 
   Handle<Object> NewInvalidStringLengthError() {
-    return NewRangeError("invalid_string_length",
-                         HandleVector<Object>(NULL, 0));
+    return NewRangeError(MessageTemplate::kInvalidStringLength);
   }
 
   Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
@@ -585,6 +584,11 @@ class Factory final {
                               Handle<Object> arg0 = Handle<Object>(),
                               Handle<Object> arg1 = Handle<Object>(),
                               Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewRangeError(MessageTemplate::Template template_index,
+                               Handle<Object> arg0 = Handle<Object>(),
+                               Handle<Object> arg1 = Handle<Object>(),
+                               Handle<Object> arg2 = Handle<Object>());
 
   Handle<Object> NewEvalError(MessageTemplate::Template template_index,
                               Handle<Object> arg0 = Handle<Object>(),

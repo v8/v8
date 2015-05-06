@@ -31,9 +31,9 @@ var lastMicrotaskId = 0;
 
 var GlobalPromise = function Promise(resolver) {
   if (resolver === promiseRaw) return;
-  if (!%_IsConstructCall()) throw MakeTypeError('not_a_promise', [this]);
+  if (!%_IsConstructCall()) throw MakeTypeError(kNotAPromise, this);
   if (!IS_SPEC_FUNCTION(resolver))
-    throw MakeTypeError('resolver_not_a_function', [resolver]);
+    throw MakeTypeError(kResolverNotAFunction, resolver);
   var promise = PromiseInit(this);
   try {
     %DebugPushPromise(promise, Promise);
@@ -106,7 +106,7 @@ function PromiseHandle(value, handler, deferred) {
     DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
     var result = handler(value);
     if (result === deferred.promise)
-      throw MakeTypeError('promise_cyclic', [result]);
+      throw MakeTypeError(kPromiseCyclic, result);
     else if (IsPromise(result))
       %_CallFunction(result, deferred.resolve, deferred.reject, PromiseChain);
     else
@@ -224,7 +224,7 @@ function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
   var deferred = %_CallFunction(this.constructor, PromiseDeferred);
   switch (GET_PRIVATE(this, promiseStatus)) {
     case UNDEFINED:
-      throw MakeTypeError('not_a_promise', [this]);
+      throw MakeTypeError(kNotAPromise, this);
     case 0:  // Pending
       GET_PRIVATE(this, promiseOnResolve).push(onResolve, deferred);
       GET_PRIVATE(this, promiseOnReject).push(onReject, deferred);
@@ -272,7 +272,7 @@ function PromiseThen(onResolve, onReject) {
       x = PromiseCoerce(constructor, x);
       if (x === that) {
         DEBUG_PREPARE_STEP_IN_IF_STEPPING(onReject);
-        return onReject(MakeTypeError('promise_cyclic', [x]));
+        return onReject(MakeTypeError(kPromiseCyclic, x));
       } else if (IsPromise(x)) {
         return x.then(onResolve, onReject);
       } else {
