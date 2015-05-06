@@ -1386,35 +1386,37 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
                                           const int indexOffset,
                                           const int limitOffset) {
   Label entry, loop;
-  Register current = x0;
-  __ Ldr(current, MemOperand(fp, indexOffset));
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+
+  __ Ldr(key, MemOperand(fp, indexOffset));
   __ B(&entry);
 
+  // Load the current argument from the arguments array.
   __ Bind(&loop);
-  // Load the current argument from the arguments array and push it.
-  // TODO(all): Couldn't we optimize this for JS arrays?
+  __ Ldr(receiver, MemOperand(fp, argumentsOffset));
 
-  __ Ldr(x1, MemOperand(fp, argumentsOffset));
-  __ Push(x1, current);
+  // Use inline caching to speed up access to arguments.
+  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  __ Call(ic, RelocInfo::CODE_TARGET);
 
-  // Call the runtime to access the property in the arguments array.
-  __ CallRuntime(Runtime::kGetProperty, 2);
+  // Push the nth argument.
   __ Push(x0);
 
-  // Use inline caching to access the arguments.
-  __ Ldr(current, MemOperand(fp, indexOffset));
-  __ Add(current, current, Smi::FromInt(1));
-  __ Str(current, MemOperand(fp, indexOffset));
+  __ Ldr(key, MemOperand(fp, indexOffset));
+  __ Add(key, key, Smi::FromInt(1));
+  __ Str(key, MemOperand(fp, indexOffset));
 
   // Test if the copy loop has finished copying all the elements from the
   // arguments object.
   __ Bind(&entry);
   __ Ldr(x1, MemOperand(fp, limitOffset));
-  __ Cmp(current, x1);
+  __ Cmp(key, x1);
   __ B(ne, &loop);
 
   // On exit, the pushed arguments count is in x0, untagged
-  __ SmiUntag(current);
+  __ Mov(x0, key);
+  __ SmiUntag(x0);
 }
 
 

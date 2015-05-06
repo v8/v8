@@ -1390,33 +1390,36 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
                                           const int indexOffset,
                                           const int limitOffset) {
   Label entry, loop;
-  __ ldr(r0, MemOperand(fp, indexOffset));
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+
+  __ ldr(key, MemOperand(fp, indexOffset));
   __ b(&entry);
 
-  // Load the current argument from the arguments array and push it to the
-  // stack.
-  // r0: current argument index
+  // Load the current argument from the arguments array.
   __ bind(&loop);
-  __ ldr(r1, MemOperand(fp, argumentsOffset));
-  __ Push(r1, r0);
+  __ ldr(receiver, MemOperand(fp, argumentsOffset));
 
-  // Call the runtime to access the property in the arguments array.
-  __ CallRuntime(Runtime::kGetProperty, 2);
+  // Use inline caching to speed up access to arguments.
+  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  __ Call(ic, RelocInfo::CODE_TARGET);
+
+  // Push the nth argument.
   __ push(r0);
 
-  // Use inline caching to access the arguments.
-  __ ldr(r0, MemOperand(fp, indexOffset));
-  __ add(r0, r0, Operand(1 << kSmiTagSize));
-  __ str(r0, MemOperand(fp, indexOffset));
+  __ ldr(key, MemOperand(fp, indexOffset));
+  __ add(key, key, Operand(1 << kSmiTagSize));
+  __ str(key, MemOperand(fp, indexOffset));
 
   // Test if the copy loop has finished copying all the elements from the
   // arguments object.
   __ bind(&entry);
   __ ldr(r1, MemOperand(fp, limitOffset));
-  __ cmp(r0, r1);
+  __ cmp(key, r1);
   __ b(ne, &loop);
 
   // On exit, the pushed arguments count is in r0, untagged
+  __ mov(r0, key);
   __ SmiUntag(r0);
 }
 
