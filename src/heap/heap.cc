@@ -2105,11 +2105,15 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     DCHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
     AllocationResult allocation;
+#ifndef V8_HOST_ARCH_64_BIT
     if (alignment == kDoubleAlignment) {
       allocation = heap->new_space()->AllocateRawDoubleAligned(object_size);
     } else {
       allocation = heap->new_space()->AllocateRaw(object_size);
     }
+#else
+    allocation = heap->new_space()->AllocateRaw(object_size);
+#endif
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
@@ -2137,11 +2141,15 @@ class ScavengingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
 
     AllocationResult allocation;
+#ifndef V8_HOST_ARCH_64_BIT
     if (alignment == kDoubleAlignment) {
       allocation = heap->old_space()->AllocateRawDoubleAligned(object_size);
     } else {
       allocation = heap->old_space()->AllocateRaw(object_size);
     }
+#else
+    allocation = heap->old_space()->AllocateRaw(object_size);
+#endif
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
