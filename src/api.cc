@@ -1198,8 +1198,9 @@ void FunctionTemplate::RemovePrototype() {
 // --- O b j e c t T e m p l a t e ---
 
 
-Local<ObjectTemplate> ObjectTemplate::New(Isolate* isolate) {
-  return New(reinterpret_cast<i::Isolate*>(isolate), Local<FunctionTemplate>());
+Local<ObjectTemplate> ObjectTemplate::New(
+    Isolate* isolate, v8::Handle<FunctionTemplate> constructor) {
+  return New(reinterpret_cast<i::Isolate*>(isolate), constructor);
 }
 
 

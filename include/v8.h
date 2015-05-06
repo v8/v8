@@ -4274,7 +4274,9 @@ struct IndexedPropertyHandlerConfiguration {
 class V8_EXPORT ObjectTemplate : public Template {
  public:
   /** Creates an ObjectTemplate. */
-  static Local<ObjectTemplate> New(Isolate* isolate);
+  static Local<ObjectTemplate> New(
+      Isolate* isolate,
+      Handle<FunctionTemplate> constructor = Handle<FunctionTemplate>());
   static V8_DEPRECATE_SOON("Use isolate version", Local<ObjectTemplate> New());
 
   /** Creates a new instance of this template.*/
