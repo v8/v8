@@ -47,6 +47,7 @@
         'compiler/control-reducer-unittest.cc',
         'compiler/diamond-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
+        'compiler/graph-reducer-unittest.h',
         'compiler/graph-unittest.cc',
         'compiler/graph-unittest.h',
         'compiler/instruction-selector-unittest.cc',

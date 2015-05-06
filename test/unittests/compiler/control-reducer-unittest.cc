@@ -41,8 +41,7 @@ class ControlReducerTest : public TypedGraphTest {
       os << "-- Graph before control reduction" << std::endl;
       os << AsRPO(*graph());
     }
-    ControlReducer::ReduceGraph(zone(), jsgraph(), common(),
-                                max_phis_for_select);
+    ControlReducer::ReduceGraph(zone(), jsgraph(), max_phis_for_select);
     if (FLAG_trace_turbo_graph) {
       OFStream os(stdout);
       os << "-- Graph after control reduction" << std::endl;

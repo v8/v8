@@ -339,12 +339,12 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   // but we need to avoid that because the osr_loop is reachable through
   // the second input, so reduce it and its phis manually.
   osr_loop->ReplaceInput(0, dead);
-  Node* node = ControlReducer::ReduceMerge(jsgraph, common, osr_loop);
+  Node* node = ControlReducer::ReduceMerge(jsgraph, osr_loop);
   if (node != osr_loop) osr_loop->ReplaceUses(node);
 
   // Run the normal control reduction, which naturally trims away the dead
   // parts of the graph.
-  ControlReducer::ReduceGraph(tmp_zone, jsgraph, common);
+  ControlReducer::ReduceGraph(tmp_zone, jsgraph);
 }
 
 
