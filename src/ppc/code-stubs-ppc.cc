@@ -262,7 +262,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   if (cond == lt || cond == gt) {
     __ CompareObjectType(r3, r7, r7, FIRST_SPEC_OBJECT_TYPE);
     __ bge(slow);
-    __ CompareObjectType(r3, r7, r7, SYMBOL_TYPE);
+    __ cmpi(r7, Operand(SYMBOL_TYPE));
     __ beq(slow);
   } else {
     __ CompareObjectType(r3, r7, r7, HEAP_NUMBER_TYPE);
@@ -271,6 +271,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     if (cond != eq) {
       __ cmpi(r7, Operand(FIRST_SPEC_OBJECT_TYPE));
       __ bge(slow);
+      __ cmpi(r7, Operand(SYMBOL_TYPE));
+      __ beq(slow);
       // Normally here we fall through to return_equal, but undefined is
       // special: (undefined == undefined) == true, but
       // (undefined <= undefined) == false!  See ECMAScript 11.8.5.

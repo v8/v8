@@ -221,19 +221,22 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   // so we do the second best thing - test it ourselves.
   // They are both equal and they are not both Smis so both of them are not
   // Smis.  If it's not a heap number, then return equal.
+  Register right_type = scratch;
   if ((cond == lt) || (cond == gt)) {
-    __ JumpIfObjectType(right, scratch, scratch, FIRST_SPEC_OBJECT_TYPE, slow,
-                        ge);
-    __ JumpIfObjectType(right, scratch, scratch, SYMBOL_TYPE, slow, eq);
+    __ JumpIfObjectType(right, right_type, right_type, FIRST_SPEC_OBJECT_TYPE,
+                        slow, ge);
+    __ Cmp(right_type, SYMBOL_TYPE);
+    __ B(eq, slow);
   } else if (cond == eq) {
     __ JumpIfHeapNumber(right, &heap_number);
   } else {
-    Register right_type = scratch;
     __ JumpIfObjectType(right, right_type, right_type, HEAP_NUMBER_TYPE,
                         &heap_number);
     // Comparing JS objects with <=, >= is complicated.
     __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
     __ B(ge, slow);
+    __ Cmp(right_type, SYMBOL_TYPE);
+    __ B(eq, slow);
     // Normally here we fall through to return_equal, but undefined is
     // special: (undefined == undefined) == true, but
     // (undefined <= undefined) == false!  See ECMAScript 11.8.5.

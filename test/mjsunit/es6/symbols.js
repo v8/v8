@@ -507,30 +507,22 @@ TestGetOwnPropertySymbolsOnPrimitives();
 
 
 function TestComparison() {
-  function f() {
-    var a = Symbol();
-    a < a;
-    a > a;
-    a <= a;
-    a >= a;
-  }
+  function lt() { var a = Symbol(); var b = Symbol(); a < b; }
+  function gt() { var a = Symbol(); var b = Symbol(); a > b; }
+  function le() { var a = Symbol(); var b = Symbol(); a <= b; }
+  function ge() { var a = Symbol(); var b = Symbol(); a >= b; }
+  function lt_same() { var a = Symbol(); a < a; }
+  function gt_same() { var a = Symbol(); a > a; }
+  function le_same() { var a = Symbol(); a <= a; }
+  function ge_same() { var a = Symbol(); a >= a; }
 
-  assertThrows(f, TypeError);
-  %OptimizeFunctionOnNextCall(f);
-  assertThrows(f, TypeError);
-  assertThrows(f, TypeError);
+  var throwFuncs = [lt, gt, le, ge, lt_same, gt_same, le_same, ge_same];
 
-  function g() {
-    var a = Symbol();
-    var b = Symbol();
-    a < b;
-    a > b;
-    a <= b;
-    a >= b;
+  for (var f of throwFuncs) {
+    assertThrows(f, TypeError);
+    %OptimizeFunctionOnNextCall(f);
+    assertThrows(f, TypeError);
+    assertThrows(f, TypeError);
   }
-  assertThrows(g, TypeError);
-  %OptimizeFunctionOnNextCall(g);
-  assertThrows(g, TypeError);
-  assertThrows(g, TypeError);
 }
 TestComparison();
