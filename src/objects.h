@@ -10981,22 +10981,23 @@ class BreakPointInfo: public Struct {
 #undef DECLARE_CAST
 #undef DECLARE_VERIFIER
 
-#define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                            \
-  V(kStringTable, "string_table", "(Internalized strings)")             \
+#define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                               \
+  V(kStringTable, "string_table", "(Internalized strings)")                \
   V(kExternalStringsTable, "external_strings_table", "(External strings)") \
-  V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
-  V(kSmiRootList, "smi_root_list", "(Smi roots)")                       \
-  V(kInternalizedString, "internalized_string", "(Internal string)")    \
-  V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
-  V(kTop, "top", "(Isolate)")                                           \
-  V(kRelocatable, "relocatable", "(Relocatable)")                       \
-  V(kDebug, "debug", "(Debugger)")                                      \
-  V(kCompilationCache, "compilationcache", "(Compilation cache)")       \
-  V(kHandleScope, "handlescope", "(Handle scope)")                      \
-  V(kBuiltins, "builtins", "(Builtins)")                                \
-  V(kGlobalHandles, "globalhandles", "(Global handles)")                \
-  V(kEternalHandles, "eternalhandles", "(Eternal handles)")             \
-  V(kThreadManager, "threadmanager", "(Thread manager)")                \
+  V(kStrongRootList, "strong_root_list", "(Strong roots)")                 \
+  V(kSmiRootList, "smi_root_list", "(Smi roots)")                          \
+  V(kInternalizedString, "internalized_string", "(Internal string)")       \
+  V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                       \
+  V(kTop, "top", "(Isolate)")                                              \
+  V(kRelocatable, "relocatable", "(Relocatable)")                          \
+  V(kDebug, "debug", "(Debugger)")                                         \
+  V(kCompilationCache, "compilationcache", "(Compilation cache)")          \
+  V(kHandleScope, "handlescope", "(Handle scope)")                         \
+  V(kBuiltins, "builtins", "(Builtins)")                                   \
+  V(kGlobalHandles, "globalhandles", "(Global handles)")                   \
+  V(kEternalHandles, "eternalhandles", "(Eternal handles)")                \
+  V(kThreadManager, "threadmanager", "(Thread manager)")                   \
+  V(kStrongRoots, "strong roots", "(Strong roots)")                        \
   V(kExtensions, "Extensions", "(Extensions)")
 
 class VisitorSynchronization : public AllStatic {

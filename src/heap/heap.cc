@@ -54,6 +54,13 @@ namespace v8 {
 namespace internal {
 
 
+struct Heap::StrongRootsList {
+  Object** start;
+  Object** end;
+  StrongRootsList* next;
+};
+
+
 Heap::Heap()
     : amount_of_external_allocated_memory_(0),
       amount_of_external_allocated_memory_at_last_global_gc_(0),
@@ -141,7 +148,8 @@ Heap::Heap()
       chunks_queued_for_free_(NULL),
       gc_callbacks_depth_(0),
       deserialization_complete_(false),
-      concurrent_sweeping_enabled_(false) {
+      concurrent_sweeping_enabled_(false),
+      strong_roots_list_(NULL) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -5027,6 +5035,12 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   isolate_->thread_manager()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kThreadManager);
 
+  // Iterate over other strong roots (currently only identity maps).
+  for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
+    v->VisitPointers(list->start, list->end);
+  }
+  v->Synchronize(VisitorSynchronization::kStrongRoots);
+
   // Iterate over the pointers the Serialization/Deserialization code is
   // holding.
   // During garbage collection this keeps the partial snapshot cache alive.
@@ -5541,6 +5555,13 @@ void Heap::TearDown() {
   store_buffer()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
+
+  StrongRootsList* next = NULL;
+  for (StrongRootsList* list = strong_roots_list_; list; list = next) {
+    next = list->next;
+    delete list;
+  }
+  strong_roots_list_ = NULL;
 }
 
 
@@ -6438,6 +6459,35 @@ void Heap::CheckpointObjectStats() {
   MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
+}
+
+
+void Heap::RegisterStrongRoots(Object** start, Object** end) {
+  StrongRootsList* list = new StrongRootsList();
+  list->next = strong_roots_list_;
+  list->start = start;
+  list->end = end;
+  strong_roots_list_ = list;
+}
+
+
+void Heap::UnregisterStrongRoots(Object** start) {
+  StrongRootsList* prev = NULL;
+  StrongRootsList* list = strong_roots_list_;
+  while (list != nullptr) {
+    StrongRootsList* next = list->next;
+    if (list->start == start) {
+      if (prev) {
+        prev->next = next;
+      } else {
+        strong_roots_list_ = next;
+      }
+      delete list;
+    } else {
+      prev = list;
+    }
+    list = next;
+  }
 }
 }
 }  // namespace v8::internal

@@ -659,6 +659,8 @@
         '../../src/heap/heap-inl.h',
         '../../src/heap/heap.cc',
         '../../src/heap/heap.h',
+        '../../src/heap/identity-map.cc',
+        '../../src/heap/identity-map.h',
         '../../src/heap/incremental-marking-inl.h',
         '../../src/heap/incremental-marking.cc',
         '../../src/heap/incremental-marking.h',

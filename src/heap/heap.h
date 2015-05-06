@@ -1446,19 +1446,40 @@ class Heap {
   void TraceObjectStat(const char* name, int count, int size, double time);
   void CheckpointObjectStats();
 
-  // We don't use a LockGuard here since we want to lock the heap
-  // only when FLAG_concurrent_recompilation is true.
+  void RegisterStrongRoots(Object** start, Object** end);
+  void UnregisterStrongRoots(Object** start);
+
+  // Taking this lock prevents the GC from entering a phase that relocates
+  // object references.
   class RelocationLock {
    public:
     explicit RelocationLock(Heap* heap) : heap_(heap) {
       heap_->relocation_mutex_.Lock();
     }
 
-
     ~RelocationLock() { heap_->relocation_mutex_.Unlock(); }
 
    private:
     Heap* heap_;
+  };
+
+  // An optional version of the above lock that can be used for some critical
+  // sections on the mutator thread; only safe since the GC currently does not
+  // do concurrent compaction.
+  class OptionalRelocationLock {
+   public:
+    OptionalRelocationLock(Heap* heap, bool concurrent)
+        : heap_(heap), concurrent_(concurrent) {
+      if (concurrent_) heap_->relocation_mutex_.Lock();
+    }
+
+    ~OptionalRelocationLock() {
+      if (concurrent_) heap_->relocation_mutex_.Unlock();
+    }
+
+   private:
+    Heap* heap_;
+    bool concurrent_;
   };
 
   void AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
@@ -2153,6 +2174,9 @@ class Heap {
 
   std::map<void*, size_t> live_array_buffers_;
   std::map<void*, size_t> not_yet_discovered_array_buffers_;
+
+  struct StrongRootsList;
+  StrongRootsList* strong_roots_list_;
 
   friend class AlwaysAllocateScope;
   friend class Deserializer;

@@ -128,6 +128,7 @@
         'test-heap.cc',
         'test-heap-profiler.cc',
         'test-hydrogen-types.cc',
+        'test-identity-map.cc',
         'test-list.cc',
         'test-liveedit.cc',
         'test-lockers.cc',
