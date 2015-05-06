@@ -1759,6 +1759,11 @@ class PagedSpace : public Space {
   // failure object if not.
   MUST_USE_RESULT inline AllocationResult AllocateRaw(int size_in_bytes);
 
+  // Allocate the requested number of bytes in the space double aligned if
+  // possible, return a failure object if not.
+  MUST_USE_RESULT inline AllocationResult AllocateRawDoubleAligned(
+      int size_in_bytes);
+
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
@@ -1918,6 +1923,10 @@ class PagedSpace : public Space {
   // Generic fast case allocation function that tries linear allocation at the
   // address denoted by top in allocation_info_.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
+
+  // Generic fast case allocation function that tries double aligned linear
+  // allocation at the address denoted by top in allocation_info_.
+  inline HeapObject* AllocateLinearlyDoubleAlign(int size_in_bytes);
 
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and re-try free-list
@@ -2484,6 +2493,9 @@ class NewSpace : public Space {
     return allocation_info_.limit_address();
   }
 
+  MUST_USE_RESULT INLINE(
+      AllocationResult AllocateRawDoubleAligned(int size_in_bytes));
+
   MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(int size_in_bytes));
 
   // Reset the allocation pointer to the beginning of the active semispace.
@@ -2601,7 +2613,8 @@ class NewSpace : public Space {
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 
-  MUST_USE_RESULT AllocationResult SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT AllocationResult
+  SlowAllocateRaw(int size_in_bytes, bool double_aligned);
 
   friend class SemiSpaceIterator;
 

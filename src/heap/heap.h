@@ -714,6 +714,11 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       CopyJSObject(JSObject* source, AllocationSite* site = NULL);
 
+  // This method assumes overallocation of one word. It will store a filler
+  // before the object if the given object is not double aligned, otherwise
+  // it will place the filler after the object.
+  MUST_USE_RESULT HeapObject* EnsureDoubleAligned(HeapObject* object, int size);
+
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 

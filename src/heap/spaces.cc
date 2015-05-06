@@ -1458,19 +1458,23 @@ bool NewSpace::AddFreshPage() {
 }
 
 
-AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes) {
+AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes,
+                                           bool double_aligned) {
   Address old_top = allocation_info_.top();
   Address high = to_space_.page_high();
   if (allocation_info_.limit() < high) {
     // Either the limit has been lowered because linear allocation was disabled
     // or because incremental marking wants to get a chance to do a step. Set
     // the new limit accordingly.
-    Address new_top = old_top + size_in_bytes;
+    int aligned_size = size_in_bytes;
+    aligned_size += (double_aligned ? kPointerSize : 0);
+    Address new_top = old_top + aligned_size;
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
     heap()->incremental_marking()->Step(bytes_allocated,
                                         IncrementalMarking::GC_VIA_STACK_GUARD);
-    UpdateInlineAllocationLimit(size_in_bytes);
+    UpdateInlineAllocationLimit(aligned_size);
     top_on_previous_step_ = new_top;
+    if (double_aligned) return AllocateRawDoubleAligned(size_in_bytes);
     return AllocateRaw(size_in_bytes);
   } else if (AddFreshPage()) {
     // Switched to new page. Try allocating again.
@@ -1478,6 +1482,7 @@ AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes) {
     heap()->incremental_marking()->Step(bytes_allocated,
                                         IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = to_space_.page_low();
+    if (double_aligned) return AllocateRawDoubleAligned(size_in_bytes);
     return AllocateRaw(size_in_bytes);
   } else {
     return AllocationResult::Retry();
