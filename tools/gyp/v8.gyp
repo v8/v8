@@ -1286,6 +1286,10 @@
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },
           'msvs_disabled_warnings': [4351, 4355, 4800],
+          # When building Official, the .lib is too large and exceeds the 2G
+          # limit. This breaks it into multiple pieces to avoid the limit.
+          # See http://crbug.com/485155.
+          'msvs_shard': 4,
         }],
         ['component=="shared_library"', {
           'defines': [
