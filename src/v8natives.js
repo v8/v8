@@ -26,6 +26,7 @@ var $objectLookupGetter;
 var $objectLookupSetter;
 var $objectToString;
 var $overrideFunction;
+var $ownPropertyKeys;
 var $setFunctionName;
 var $setUpLockedPrototype;
 var $toCompletePropertyDescriptor;
@@ -1141,6 +1142,19 @@ function ObjectGetOwnPropertyKeys(obj, filter) {
 }
 
 
+// ES6 section 9.1.12 / 9.5.12
+function OwnPropertyKeys(obj) {
+  if (%_IsJSProxy(obj)) {
+    var handler = %GetHandler(obj);
+    // TODO(caitp): Proxy.[[OwnPropertyKeys]] can not be implemented to spec
+    // without an implementation of Direct Proxies.
+    var names = CallTrap0(handler, "ownKeys", UNDEFINED);
+    return ToNameArray(names, "getOwnPropertyNames", false);
+  }
+  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
+}
+
+
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
   obj = TO_OBJECT_INLINE(obj);
@@ -1943,6 +1957,7 @@ $objectLookupGetter = ObjectLookupGetter;
 $objectLookupSetter = ObjectLookupSetter;
 $objectToString = ObjectToString;
 $overrideFunction = OverrideFunction;
+$ownPropertyKeys = OwnPropertyKeys;
 $setFunctionName = SetFunctionName;
 $setUpLockedPrototype = SetUpLockedPrototype;
 $toCompletePropertyDescriptor = ToCompletePropertyDescriptor;
