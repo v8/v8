@@ -91,7 +91,6 @@ REPLACE_COMPARE_IC_CALL(JSGreaterThanOrEqual, Token::GTE)
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
   }
-REPLACE_RUNTIME_CALL(JSTypeOf, Runtime::kTypeof)
 REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
@@ -269,6 +268,12 @@ void JSGenericLowering::LowerJSUnaryNot(Node* node) {
   Callable callable = CodeFactory::ToBoolean(
       isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
+}
+
+
+void JSGenericLowering::LowerJSTypeOf(Node* node) {
+  Callable callable = CodeFactory::Typeof(isolate());
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags);
 }
 
 

@@ -73,6 +73,12 @@ void FastNewContextDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
+void TypeofDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rbx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void ToNumberDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   // ToNumberStub invokes a function, and therefore needs a context.
   Register registers[] = {rsi, rax};

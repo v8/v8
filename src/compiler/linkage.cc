@@ -130,7 +130,6 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
-    case Runtime::kTypeof:
       return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:

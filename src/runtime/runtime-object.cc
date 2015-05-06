@@ -1146,48 +1146,6 @@ RUNTIME_FUNCTION(Runtime_ToBool) {
 }
 
 
-// Returns the type string of a value; see ECMA-262, 11.4.3 (p 47).
-// Possible optimizations: put the type string into the oddballs.
-RUNTIME_FUNCTION(Runtime_Typeof) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (obj->IsNumber()) return isolate->heap()->number_string();
-  HeapObject* heap_obj = HeapObject::cast(obj);
-
-  // typeof an undetectable object is 'undefined'
-  if (heap_obj->map()->is_undetectable()) {
-    return isolate->heap()->undefined_string();
-  }
-
-  InstanceType instance_type = heap_obj->map()->instance_type();
-  if (instance_type < FIRST_NONSTRING_TYPE) {
-    return isolate->heap()->string_string();
-  }
-
-  switch (instance_type) {
-    case ODDBALL_TYPE:
-      if (heap_obj->IsTrue() || heap_obj->IsFalse()) {
-        return isolate->heap()->boolean_string();
-      }
-      if (heap_obj->IsNull()) {
-        return isolate->heap()->object_string();
-      }
-      DCHECK(heap_obj->IsUndefined());
-      return isolate->heap()->undefined_string();
-    case SYMBOL_TYPE:
-      return isolate->heap()->symbol_string();
-    case JS_FUNCTION_TYPE:
-    case JS_FUNCTION_PROXY_TYPE:
-      return isolate->heap()->function_string();
-    default:
-      // For any kind of object not handled above, the spec rule for
-      // host objects gives that it is okay to return "object"
-      return isolate->heap()->object_string();
-  }
-}
-
-
 RUNTIME_FUNCTION(Runtime_NewStringWrapper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

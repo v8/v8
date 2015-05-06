@@ -5627,10 +5627,17 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
+  DCHECK(ToRegister(instr->value()).is(a3));
   DCHECK(ToRegister(instr->result()).is(v0));
-  Register input = ToRegister(instr->value());
-  __ push(input);
-  CallRuntime(Runtime::kTypeof, 1, instr);
+  Label end, do_call;
+  Register value_register = ToRegister(instr->value());
+  __ JumpIfNotSmi(value_register, &do_call);
+  __ li(v0, Operand(isolate()->factory()->number_string()));
+  __ jmp(&end);
+  __ bind(&do_call);
+  TypeofStub stub(isolate());
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ bind(&end);
 }
 
 

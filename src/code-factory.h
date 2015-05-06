@@ -66,6 +66,8 @@ class CodeFactory final {
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
 
+  static Callable Typeof(Isolate* isolate);
+
   static Callable FastCloneShallowArray(Isolate* isolate);
   static Callable FastCloneShallowObject(Isolate* isolate, int length);
 

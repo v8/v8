@@ -2582,7 +2582,7 @@ LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
 
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
   LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* value = UseAtStart(instr->value());
+  LOperand* value = UseFixed(instr->value(), rbx);
   LTypeof* result = new(zone()) LTypeof(context, value);
   return MarkAsCall(DefineFixed(result, rax), instr);
 }

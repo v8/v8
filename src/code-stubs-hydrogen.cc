@@ -299,6 +299,117 @@ Handle<Code> NumberToStringStub::GenerateCode() {
 }
 
 
+// Returns the type string of a value; see ECMA-262, 11.4.3 (p 47).
+// Possible optimizations: put the type string into the oddballs.
+template <>
+HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
+  Factory* factory = isolate()->factory();
+  HConstant* number_string = Add<HConstant>(factory->number_string());
+  HValue* object = GetParameter(TypeofStub::kObject);
+
+  IfBuilder is_smi(this);
+  HValue* smi_check = is_smi.If<HIsSmiAndBranch>(object);
+  is_smi.Then();
+  { Push(number_string); }
+  is_smi.Else();
+  {
+    IfBuilder is_number(this);
+    is_number.If<HCompareMap>(object, isolate()->factory()->heap_number_map());
+    is_number.Then();
+    { Push(number_string); }
+    is_number.Else();
+    {
+      HConstant* undefined_string = Add<HConstant>(factory->undefined_string());
+      HValue* map = AddLoadMap(object, smi_check);
+      HValue* instance_type = Add<HLoadNamedField>(
+          map, nullptr, HObjectAccess::ForMapInstanceType());
+      IfBuilder is_string(this);
+      is_string.If<HCompareNumericAndBranch>(
+          instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE), Token::LT);
+      is_string.Then();
+      { Push(Add<HConstant>(factory->string_string())); }
+      is_string.Else();
+      {
+        HConstant* object_string = Add<HConstant>(factory->object_string());
+        IfBuilder is_oddball(this);
+        is_oddball.If<HCompareNumericAndBranch>(
+            instance_type, Add<HConstant>(ODDBALL_TYPE), Token::EQ);
+        is_oddball.Then();
+        {
+          IfBuilder is_true_or_false(this);
+          is_true_or_false.If<HCompareObjectEqAndBranch>(
+              object, graph()->GetConstantTrue());
+          is_true_or_false.OrIf<HCompareObjectEqAndBranch>(
+              object, graph()->GetConstantFalse());
+          is_true_or_false.Then();
+          { Push(Add<HConstant>(factory->boolean_string())); }
+          is_true_or_false.Else();
+          {
+            IfBuilder is_null(this);
+            is_null.If<HCompareObjectEqAndBranch>(object,
+                                                  graph()->GetConstantNull());
+            is_null.Then();
+            { Push(object_string); }
+            is_null.Else();
+            { Push(undefined_string); }
+          }
+          is_true_or_false.End();
+        }
+        is_oddball.Else();
+        {
+          IfBuilder is_symbol(this);
+          is_symbol.If<HCompareNumericAndBranch>(
+              instance_type, Add<HConstant>(SYMBOL_TYPE), Token::EQ);
+          is_symbol.Then();
+          { Push(Add<HConstant>(factory->symbol_string())); }
+          is_symbol.Else();
+          {
+            IfBuilder is_function(this);
+            HConstant* js_function = Add<HConstant>(JS_FUNCTION_TYPE);
+            HConstant* js_function_proxy =
+                Add<HConstant>(JS_FUNCTION_PROXY_TYPE);
+            is_function.If<HCompareNumericAndBranch>(instance_type, js_function,
+                                                     Token::EQ);
+            is_function.OrIf<HCompareNumericAndBranch>(
+                instance_type, js_function_proxy, Token::EQ);
+            is_function.Then();
+            { Push(Add<HConstant>(factory->function_string())); }
+            is_function.Else();
+            {
+              // Is it an undetectable object?
+              IfBuilder is_undetectable(this);
+              is_undetectable.If<HIsUndetectableAndBranch>(object);
+              is_undetectable.Then();
+              {
+                // typeof an undetectable object is 'undefined'.
+                Push(undefined_string);
+              }
+              is_undetectable.Else();
+              {
+                // For any kind of object not handled above, the spec rule for
+                // host objects gives that it is okay to return "object".
+                Push(object_string);
+              }
+            }
+            is_function.End();
+          }
+          is_symbol.End();
+        }
+        is_oddball.End();
+      }
+      is_string.End();
+    }
+    is_number.End();
+  }
+  is_smi.End();
+
+  return environment()->Pop();
+}
+
+
+Handle<Code> TypeofStub::GenerateCode() { return DoGenerateCode(this); }
+
+
 template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();

@@ -426,7 +426,6 @@ namespace internal {
   F(OwnKeys, 1, 1)                                   \
   F(ToFastProperties, 1, 1)                          \
   F(ToBool, 1, 1)                                    \
-  F(Typeof, 1, 1)                                    \
   F(NewStringWrapper, 1, 1)                          \
   F(AllocateHeapNumber, 0, 1)                        \
   F(NewObject, 2, 1)                                 \

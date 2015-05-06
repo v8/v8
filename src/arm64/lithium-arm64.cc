@@ -2569,12 +2569,8 @@ LInstruction* LChunkBuilder::DoTrapAllocationMemento(
 
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  // TODO(jbramley): In ARM, this uses UseFixed to force the input to x0.
-  // However, LCodeGen::DoTypeof just pushes it to the stack (for CallRuntime)
-  // anyway, so the input doesn't have to be in x0. We might be able to improve
-  // the ARM back-end a little by relaxing this restriction.
-  LTypeof* result =
-      new(zone()) LTypeof(context, UseRegisterAtStart(instr->value()));
+  LOperand* value = UseFixed(instr->value(), x3);
+  LTypeof* result = new (zone()) LTypeof(context, value);
   return MarkAsCall(DefineFixed(result, x0), instr);
 }
 

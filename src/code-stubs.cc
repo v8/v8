@@ -633,6 +633,9 @@ void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
+void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
+
+
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(
@@ -719,6 +722,12 @@ void GrowArrayElementsStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kGrowArrayElements)->entry);
+}
+
+
+void TypeofStub::GenerateAheadOfTime(Isolate* isolate) {
+  TypeofStub stub(isolate);
+  stub.GetCode();
 }
 
 

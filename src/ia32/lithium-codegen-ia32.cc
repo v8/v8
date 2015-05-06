@@ -5386,9 +5386,16 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
-  LOperand* input = instr->value();
-  EmitPushTaggedOperand(input);
-  CallRuntime(Runtime::kTypeof, 1, instr);
+  DCHECK(ToRegister(instr->value()).is(ebx));
+  Label end, do_call;
+  Register value_register = ToRegister(instr->value());
+  __ JumpIfNotSmi(value_register, &do_call);
+  __ mov(eax, Immediate(isolate()->factory()->number_string()));
+  __ jmp(&end);
+  __ bind(&do_call);
+  TypeofStub stub(isolate());
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ bind(&end);
 }
 
 

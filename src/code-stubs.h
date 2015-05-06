@@ -80,6 +80,7 @@ namespace internal {
   V(MegamorphicLoad)                        \
   V(NameDictionaryLookup)                   \
   V(NumberToString)                         \
+  V(Typeof)                                 \
   V(RegExpConstructResult)                  \
   V(StoreFastElement)                       \
   V(StoreScriptContextField)                \
@@ -592,6 +593,20 @@ class NumberToStringStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(NumberToString);
   DEFINE_HYDROGEN_CODE_STUB(NumberToString, HydrogenCodeStub);
+};
+
+
+class TypeofStub final : public HydrogenCodeStub {
+ public:
+  explicit TypeofStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  static const int kObject = 0;
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Typeof);
+  DEFINE_HYDROGEN_CODE_STUB(Typeof, HydrogenCodeStub);
 };
 
 

@@ -25,6 +25,7 @@ class PlatformInterfaceDescriptor;
   V(FastNewContext)                           \
   V(ToNumber)                                 \
   V(NumberToString)                           \
+  V(Typeof)                                   \
   V(FastCloneShallowArray)                    \
   V(FastCloneShallowObject)                   \
   V(CreateAllocationSite)                     \
@@ -300,6 +301,12 @@ class ToNumberDescriptor : public CallInterfaceDescriptor {
 class NumberToStringDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(NumberToStringDescriptor, CallInterfaceDescriptor)
+};
+
+
+class TypeofDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(TypeofDescriptor, CallInterfaceDescriptor)
 };
 
 
