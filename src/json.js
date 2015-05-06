@@ -154,10 +154,10 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     if (IS_ARRAY(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
     } else if (IS_NUMBER_WRAPPER(value)) {
-      value = ToNumber(value);
+      value = $toNumber(value);
       return JSON_NUMBER_TO_STRING(value);
     } else if (IS_STRING_WRAPPER(value)) {
-      return %QuoteJSONString(ToString(value));
+      return %QuoteJSONString($toString(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
       return %_ValueOf(value) ? "true" : "false";
     } else {
@@ -176,14 +176,14 @@ function JSONStringify(value, replacer, space) {
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
     if (IS_NUMBER_WRAPPER(space)) {
-      space = ToNumber(space);
+      space = $toNumber(space);
     } else if (IS_STRING_WRAPPER(space)) {
-      space = ToString(space);
+      space = $toString(space);
     }
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = $max(0, $min(ToInteger(space), 10));
+    space = $max(0, $min($toInteger(space), 10));
     gap = %_SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {
@@ -203,9 +203,9 @@ function JSONStringify(value, replacer, space) {
     for (var i = 0; i < length; i++) {
       var item = replacer[i];
       if (IS_STRING_WRAPPER(item)) {
-        item = ToString(item);
+        item = $toString(item);
       } else {
-        if (IS_NUMBER_WRAPPER(item)) item = ToNumber(item);
+        if (IS_NUMBER_WRAPPER(item)) item = $toNumber(item);
         if (IS_NUMBER(item)) item = %_NumberToString(item);
       }
       if (IS_STRING(item) && seen_properties[item] != seen_sentinel) {

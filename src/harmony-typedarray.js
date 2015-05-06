@@ -55,7 +55,7 @@ function NAMEForEach(f /* thisArg */) {  // length == 1
     var element = this[i];
     // Prepare break slots for debugger step in.
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
     %_CallFunction(new_receiver, TO_OBJECT_INLINE(element), i, this, f);
   }
 }

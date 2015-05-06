@@ -113,7 +113,7 @@ function StringLastIndexOfJS(pat /* position */) {  // length == 1
   var patLength = pat.length;
   var index = subLength - patLength;
   if (%_ArgumentsLength() > 1) {
-    var position = ToNumber(%_Arguments(1));
+    var position = $toNumber(%_Arguments(1));
     if (!NUMBER_IS_NAN(position)) {
       position = TO_INTEGER(position);
       if (position < 0) {
@@ -803,7 +803,7 @@ function StringTrimRight() {
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
   if (n == 1) {
-    if (!%_IsSmi(code)) code = ToNumber(code);
+    if (!%_IsSmi(code)) code = $toNumber(code);
     return %_StringCharFromCode(code & 0xffff);
   }
 
@@ -811,7 +811,7 @@ function StringFromCharCode(code) {
   var i;
   for (i = 0; i < n; i++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (!%_IsSmi(code)) code = $toNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
     if (code > 0xff) break;
     %_OneByteSeqStringSetChar(i, code, one_byte);
@@ -822,7 +822,7 @@ function StringFromCharCode(code) {
   var two_byte = %NewString(n - i, NEW_TWO_BYTE_STRING);
   for (var j = 0; i < n; i++, j++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (!%_IsSmi(code)) code = $toNumber(code) & 0xffff;
     %_TwoByteSeqStringSetChar(j, code, two_byte);
   }
   return one_byte + two_byte;
@@ -930,7 +930,7 @@ function StringRepeat(count) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
   var s = TO_STRING_INLINE(this);
-  var n = ToInteger(count);
+  var n = $toInteger(count);
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
   if (n < 0 || n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
@@ -959,7 +959,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     pos = %_Arguments(1);  // position
-    pos = ToInteger(pos);
+    pos = $toInteger(pos);
   }
 
   var s_len = s.length;
@@ -989,7 +989,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
   if (%_ArgumentsLength() > 1) {
     var arg = %_Arguments(1);  // position
     if (!IS_UNDEFINED(arg)) {
-      pos = ToInteger(arg);
+      pos = $toInteger(arg);
     }
   }
 
@@ -1018,7 +1018,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     pos = %_Arguments(1);  // position
-    pos = ToInteger(pos);
+    pos = $toInteger(pos);
   }
 
   var s_len = s.length;
@@ -1063,7 +1063,7 @@ function StringFromCodePoint(_) {  // length = 1
   for (index = 0; index < length; index++) {
     code = %_Arguments(index);
     if (!%_IsSmi(code)) {
-      code = ToNumber(code);
+      code = $toNumber(code);
     }
     if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
       throw MakeRangeError(kInvalidCodePoint, code);
@@ -1087,18 +1087,18 @@ function StringFromCodePoint(_) {  // length = 1
 function StringRaw(callSite) {
   // TODO(caitp): Use rest parameters when implemented
   var numberOfSubstitutions = %_ArgumentsLength();
-  var cooked = ToObject(callSite);
-  var raw = ToObject(cooked.raw);
-  var literalSegments = ToLength(raw.length);
+  var cooked = $toObject(callSite);
+  var raw = $toObject(cooked.raw);
+  var literalSegments = $toLength(raw.length);
   if (literalSegments <= 0) return "";
 
-  var result = ToString(raw[0]);
+  var result = $toString(raw[0]);
 
   for (var i = 1; i < literalSegments; ++i) {
     if (i < numberOfSubstitutions) {
-      result += ToString(%_Arguments(i));
+      result += $toString(%_Arguments(i));
     }
-    result += ToString(raw[i]);
+    result += $toString(raw[i]);
   }
 
   return result;

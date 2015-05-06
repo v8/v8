@@ -269,7 +269,7 @@ function ToStringCheckErrorObject(obj) {
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
     return %_CallFunction(obj, ErrorToString);
   } else {
-    return ToString(obj);
+    return $toString(obj);
   }
 }
 
@@ -1089,7 +1089,7 @@ function DefineError(f) {
       // object. This avoids going through getters and setters defined
       // on prototype objects.
       if (!IS_UNDEFINED(m)) {
-        %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
+        %AddNamedProperty(this, 'message', $toString(m), DONT_ENUM);
       }
     } else {
       return new f(m);

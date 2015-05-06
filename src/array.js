@@ -196,7 +196,7 @@ function ConvertToString(x) {
   // Assumes x is a non-string.
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
-  return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));
+  return (IS_NULL_OR_UNDEFINED(x)) ? '' : $toString($defaultString(x));
 }
 
 
@@ -207,8 +207,8 @@ function ConvertToLocaleString(e) {
     // According to ES5, section 15.4.4.3, the toLocaleString conversion
     // must throw a TypeError if ToObject(e).toLocaleString isn't
     // callable.
-    var e_obj = ToObject(e);
-    return %ToString(e_obj.toLocaleString());
+    var e_obj = $toObject(e);
+    return $toString(e_obj.toLocaleString());
   }
 }
 
@@ -368,7 +368,7 @@ function ArrayToString() {
     }
     array = this;
   } else {
-    array = ToObject(this);
+    array = $toObject(this);
     func = array.join;
   }
   if (!IS_SPEC_FUNCTION(func)) {
@@ -379,7 +379,7 @@ function ArrayToString() {
 
 
 function ArrayToLocaleString() {
-  var array = ToObject(this);
+  var array = $toObject(this);
   var arrayLen = array.length;
   var len = TO_UINT32(arrayLen);
   if (len === 0) return "";
@@ -395,7 +395,7 @@ function ArrayJoin(separator) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
-    separator = NonStringToString(separator);
+    separator = $nonStringToString(separator);
   }
 
   var result = %_FastOneByteArrayJoin(array, separator);
@@ -406,7 +406,7 @@ function ArrayJoin(separator) {
     var e = array[0];
     if (IS_STRING(e)) return e;
     if (IS_NULL_OR_UNDEFINED(e)) return '';
-    return NonStringToString(e);
+    return $nonStringToString(e);
   }
 
   return Join(array, length, separator, ConvertToString);
@@ -447,7 +447,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
-  $delete(array, ToName(n), true);
+  $delete(array, $toName(n), true);
   array.length = n;
   return value;
 }
@@ -501,7 +501,7 @@ function ArrayPush() {
 function ArrayConcatJS(arg1) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.concat");
 
-  var array = ToObject(this);
+  var array = $toObject(this);
   var arg_count = %_ArgumentsLength();
   var arrays = new InternalArray(1 + arg_count);
   arrays[0] = array;
@@ -866,8 +866,8 @@ function ArraySort(comparefn) {
       if (%_IsSmi(x) && %_IsSmi(y)) {
         return %SmiLexicographicCompare(x, y);
       }
-      x = ToString(x);
-      y = ToString(y);
+      x = $toString(x);
+      y = $toString(y);
       if (x == y) return 0;
       else return x < y ? -1 : 1;
     };
@@ -1148,8 +1148,8 @@ function ArrayFilter(f, receiver) {
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
-  var array = ToObject(this);
-  var length = ToUint32(array.length);
+  var array = $toObject(this);
+  var length = $toUint32(array.length);
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
@@ -1169,7 +1169,7 @@ function ArrayFilter(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
       if (%_CallFunction(new_receiver, element, i, array, f)) {
         accumulator[accumulator_length++] = element;
       }
@@ -1185,7 +1185,7 @@ function ArrayForEach(f, receiver) {
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
-  var array = ToObject(this);
+  var array = $toObject(this);
   var length = TO_UINT32(array.length);
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
@@ -1203,7 +1203,7 @@ function ArrayForEach(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
       %_CallFunction(new_receiver, element, i, array, f);
     }
   }
@@ -1217,7 +1217,7 @@ function ArraySome(f, receiver) {
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
-  var array = ToObject(this);
+  var array = $toObject(this);
   var length = TO_UINT32(array.length);
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
@@ -1235,7 +1235,7 @@ function ArraySome(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
       if (%_CallFunction(new_receiver, element, i, array, f)) return true;
     }
   }
@@ -1248,7 +1248,7 @@ function ArrayEvery(f, receiver) {
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
-  var array = ToObject(this);
+  var array = $toObject(this);
   var length = TO_UINT32(array.length);
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
@@ -1266,7 +1266,7 @@ function ArrayEvery(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
       if (!%_CallFunction(new_receiver, element, i, array, f)) return false;
     }
   }
@@ -1279,7 +1279,7 @@ function ArrayMap(f, receiver) {
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
-  var array = ToObject(this);
+  var array = $toObject(this);
   var length = TO_UINT32(array.length);
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
@@ -1299,7 +1299,7 @@ function ArrayMap(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
       accumulator[i] = %_CallFunction(new_receiver, element, i, array, f);
     }
   }
@@ -1423,8 +1423,8 @@ function ArrayReduce(callback, current) {
 
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
-  var array = ToObject(this);
-  var length = ToUint32(array.length);
+  var array = $toObject(this);
+  var length = $toUint32(array.length);
 
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
@@ -1460,8 +1460,8 @@ function ArrayReduceRight(callback, current) {
 
   // Pull out the length so that side effects are visible before the
   // callback function is checked.
-  var array = ToObject(this);
-  var length = ToUint32(array.length);
+  var array = $toObject(this);
+  var length = $toUint32(array.length);
 
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
