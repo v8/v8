@@ -33,32 +33,6 @@ RUNTIME_FUNCTION(Runtime_IsSloppyModeFunction) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetDefaultReceiver) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSReceiver, callable, 0);
-
-  if (!callable->IsJSFunction()) {
-    HandleScope scope(isolate);
-    Handle<Object> delegate;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, delegate, Execution::TryGetFunctionDelegate(
-                               isolate, Handle<JSReceiver>(callable)));
-    callable = JSFunction::cast(*delegate);
-  }
-  JSFunction* function = JSFunction::cast(callable);
-
-  SharedFunctionInfo* shared = function->shared();
-  if (shared->native() || is_strict(shared->language_mode())) {
-    return isolate->heap()->undefined_value();
-  }
-  // Returns undefined for strict or native functions, or
-  // the associated global receiver for "normal" functions.
-
-  return function->global_proxy();
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionGetName) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

@@ -209,9 +209,9 @@ function SetForEach(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -399,9 +399,9 @@ function MapForEach(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 

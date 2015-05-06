@@ -44,9 +44,9 @@ function NAMEForEach(f /* thisArg */) {  // length == 1
   }
 
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(mapfn)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 

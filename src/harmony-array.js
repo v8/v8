@@ -83,9 +83,9 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
   }
 
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(thisArg)) {
-    thisArg = %GetDefaultReceiver(predicate) || thisArg;
-  } else {
+  if (IS_NULL(thisArg)) {
+    if (%IsSloppyModeFunction(predicate)) thisArg = UNDEFINED;
+  } else if (!IS_UNDEFINED(thisArg)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(predicate, thisArg);
   }
 
@@ -120,9 +120,9 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
   }
 
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(thisArg)) {
-    thisArg = %GetDefaultReceiver(predicate) || thisArg;
-  } else {
+  if (IS_NULL(thisArg)) {
+    if (%IsSloppyModeFunction(predicate)) thisArg = UNDEFINED;
+  } else if (!IS_UNDEFINED(thisArg)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(predicate, thisArg);
   }
 
@@ -190,10 +190,12 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   if (mapping) {
     if (!IS_SPEC_FUNCTION(mapfn)) {
       throw MakeTypeError(kCalledNonCallable, mapfn);
-    } else if (IS_NULL_OR_UNDEFINED(receiver)) {
-      receiver = %GetDefaultReceiver(mapfn) || receiver;
-    } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(mapfn)) {
-      receiver = ToObject(receiver);
+    } else if (%IsSloppyModeFunction(mapfn)) {
+      if (IS_NULL(receiver)) {
+        receiver = UNDEFINED;
+      } else if (!IS_UNDEFINED(receiver)) {
+        receiver = TO_OBJECT_INLINE(receiver);
+      }
     }
   }
 

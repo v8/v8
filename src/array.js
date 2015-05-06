@@ -872,14 +872,12 @@ function ArraySort(comparefn) {
       else return x < y ? -1 : 1;
     };
   }
-  var receiver = %GetDefaultReceiver(comparefn);
-
   var InsertionSort = function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
       for (var j = i - 1; j >= from; j--) {
         var tmp = a[j];
-        var order = %_CallFunction(receiver, tmp, element, comparefn);
+        var order = %_CallFunction(UNDEFINED, tmp, element, comparefn);
         if (order > 0) {
           a[j + 1] = tmp;
         } else {
@@ -898,7 +896,7 @@ function ArraySort(comparefn) {
       t_array[j] = [i, a[i]];
     }
     %_CallFunction(t_array, function(a, b) {
-      return %_CallFunction(receiver, a[1], b[1], comparefn);
+      return %_CallFunction(UNDEFINED, a[1], b[1], comparefn);
     }, ArraySort);
     var third_index = t_array[t_array.length >> 1][0];
     return third_index;
@@ -921,14 +919,14 @@ function ArraySort(comparefn) {
       var v0 = a[from];
       var v1 = a[to - 1];
       var v2 = a[third_index];
-      var c01 = %_CallFunction(receiver, v0, v1, comparefn);
+      var c01 = %_CallFunction(UNDEFINED, v0, v1, comparefn);
       if (c01 > 0) {
         // v1 < v0, so swap them.
         var tmp = v0;
         v0 = v1;
         v1 = tmp;
       } // v0 <= v1.
-      var c02 = %_CallFunction(receiver, v0, v2, comparefn);
+      var c02 = %_CallFunction(UNDEFINED, v0, v2, comparefn);
       if (c02 >= 0) {
         // v2 <= v0 <= v1.
         var tmp = v0;
@@ -937,7 +935,7 @@ function ArraySort(comparefn) {
         v1 = tmp;
       } else {
         // v0 <= v1 && v0 < v2
-        var c12 = %_CallFunction(receiver, v1, v2, comparefn);
+        var c12 = %_CallFunction(UNDEFINED, v1, v2, comparefn);
         if (c12 > 0) {
           // v0 <= v2 < v1
           var tmp = v1;
@@ -958,7 +956,7 @@ function ArraySort(comparefn) {
       // From i to high_start are elements that haven't been compared yet.
       partition: for (var i = low_end + 1; i < high_start; i++) {
         var element = a[i];
-        var order = %_CallFunction(receiver, element, pivot, comparefn);
+        var order = %_CallFunction(UNDEFINED, element, pivot, comparefn);
         if (order < 0) {
           a[i] = a[low_end];
           a[low_end] = element;
@@ -968,7 +966,7 @@ function ArraySort(comparefn) {
             high_start--;
             if (high_start == i) break partition;
             var top_elem = a[high_start];
-            order = %_CallFunction(receiver, top_elem, pivot, comparefn);
+            order = %_CallFunction(UNDEFINED, top_elem, pivot, comparefn);
           } while (order > 0);
           a[i] = a[high_start];
           a[high_start] = element;
@@ -1155,9 +1153,9 @@ function ArrayFilter(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -1192,9 +1190,9 @@ function ArrayForEach(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -1224,9 +1222,9 @@ function ArraySome(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -1255,9 +1253,9 @@ function ArrayEvery(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -1286,9 +1284,9 @@ function ArrayMap(f, receiver) {
 
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -1444,14 +1442,13 @@ function ArrayReduce(callback, current) {
     throw MakeTypeError(kReduceNoInitial);
   }
 
-  var receiver = %GetDefaultReceiver(callback);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);
-      current = %_CallFunction(receiver, current, element, i, array, callback);
+      current = %_CallFunction(UNDEFINED, current, element, i, array, callback);
     }
   }
   return current;
@@ -1482,14 +1479,13 @@ function ArrayReduceRight(callback, current) {
     throw MakeTypeError(kReduceNoInitial);
   }
 
-  var receiver = %GetDefaultReceiver(callback);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i >= 0; i--) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);
-      current = %_CallFunction(receiver, current, element, i, array, callback);
+      current = %_CallFunction(UNDEFINED, current, element, i, array, callback);
     }
   }
   return current;

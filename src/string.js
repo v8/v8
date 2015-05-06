@@ -291,7 +291,7 @@ function StringReplace(search, replace) {
 
   // Compute the string to replace with.
   if (IS_SPEC_FUNCTION(replace)) {
-    var receiver = %GetDefaultReceiver(replace);
+    var receiver = UNDEFINED;
     result += %_CallFunction(receiver, search, start, subject, replace);
   } else {
     reusableMatchInfo[CAPTURE0] = start;
@@ -440,7 +440,6 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // function.
     var match_start = 0;
     var override = new InternalPackedArray(null, 0, subject);
-    var receiver = %GetDefaultReceiver(replace);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (%_IsSmi(elem)) {
@@ -457,7 +456,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         override[1] = match_start;
         $regexpLastMatchInfoOverride = override;
         var func_result =
-            %_CallFunction(receiver, elem, match_start, subject, replace);
+            %_CallFunction(UNDEFINED, elem, match_start, subject, replace);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
@@ -465,14 +464,13 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
       }
     }
   } else {
-    var receiver = %GetDefaultReceiver(replace);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (!%_IsSmi(elem)) {
         // elem must be an Array.
         // Use the apply argument as backing for global RegExp properties.
         $regexpLastMatchInfoOverride = elem;
-        var func_result = %Apply(replace, receiver, elem, 0, elem.length);
+        var func_result = %Apply(replace, UNDEFINED, elem, 0, elem.length);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
@@ -500,12 +498,11 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   // The number of captures plus one for the match.
   var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;
   var replacement;
-  var receiver = %GetDefaultReceiver(replace);
   if (m == 1) {
     // No captures, only the match, which is always valid.
     var s = %_SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
-    replacement = %_CallFunction(receiver, s, index, subject, replace);
+    replacement = %_CallFunction(UNDEFINED, s, index, subject, replace);
   } else {
     var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {
@@ -514,7 +511,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     parameters[j] = index;
     parameters[j + 1] = subject;
 
-    replacement = %Apply(replace, receiver, parameters, 0, j + 2);
+    replacement = %Apply(replace, UNDEFINED, parameters, 0, j + 2);
   }
 
   result += replacement;  // The add method converts to string if necessary.
