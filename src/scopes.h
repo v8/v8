@@ -212,9 +212,6 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { if (!is_script_scope()) scope_calls_eval_ = true; }
 
-  // Inform the scope that the corresponding code uses "arguments".
-  void RecordArgumentsUsage() { scope_uses_arguments_ = true; }
-
   // Inform the scope that the corresponding code uses "super".
   void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
 
@@ -311,10 +308,6 @@ class Scope: public ZoneObject {
   // Does this scope contain a with statement.
   bool contains_with() const { return scope_contains_with_; }
 
-  // Does this scope access "arguments".
-  bool uses_arguments() const { return scope_uses_arguments_; }
-  // Does any inner scope access "arguments".
-  bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
   // Does any inner scope access "super" property.
@@ -581,8 +574,6 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
-  // This scope uses "arguments".
-  bool scope_uses_arguments_;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_;
   // This scope contains an "use asm" annotation.
@@ -598,7 +589,6 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
-  bool inner_scope_uses_arguments_;
   bool inner_scope_uses_super_property_;
   bool force_eager_compilation_;
   bool force_context_allocation_;

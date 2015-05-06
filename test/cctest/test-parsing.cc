@@ -960,7 +960,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
     ARGUMENTS = 1,
     SUPER_PROPERTY = 1 << 1,
     THIS = 1 << 2,
-    INNER_ARGUMENTS = 1 << 3,
     INNER_SUPER_PROPERTY = 1 << 4,
   };
 
@@ -1001,9 +1000,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"return { m(x) { return () => super.m() } }", NONE},
     // Flags must be correctly set when using block scoping.
     {"\"use strict\"; while (true) { let x; this, arguments; }",
-     INNER_ARGUMENTS | THIS},
+     ARGUMENTS | THIS},
     {"\"use strict\"; while (true) { let x; this, super.f(), arguments; }",
-     INNER_ARGUMENTS | INNER_SUPER_PROPERTY | THIS},
+     ARGUMENTS | INNER_SUPER_PROPERTY | THIS},
     {"\"use strict\"; if (foo()) { let x; this.f() }", THIS},
     {"\"use strict\"; if (foo()) { let x; super.f() }",
      INNER_SUPER_PROPERTY},
@@ -1064,8 +1063,10 @@ TEST(ScopeUsesArgumentsSuperThis) {
         CHECK_EQ(1, scope->inner_scopes()->length());
         scope = scope->inner_scopes()->at(0);
       }
-      CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
-               scope->uses_arguments());
+      // Arguments usage in an arrow function doesn't cause local allocation of
+      // an arguments object.
+      CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0 && j != 1,
+               scope->arguments() != nullptr);
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
                scope->uses_super_property());
       if ((source_data[i].expected & THIS) != 0) {
@@ -1073,8 +1074,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
         // script scope are marked as used.
         CHECK(scope->LookupThis()->is_used());
       }
-      CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
-               scope->inner_uses_arguments());
       CHECK_EQ((source_data[i].expected & INNER_SUPER_PROPERTY) != 0,
                scope->inner_uses_super_property());
     }
