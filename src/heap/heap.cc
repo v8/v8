@@ -1939,6 +1939,8 @@ STATIC_ASSERT((ConstantPoolArray::kFirstEntryOffset & kDoubleAlignmentMask) ==
               0);  // NOLINT
 STATIC_ASSERT((ConstantPoolArray::kExtendedFirstOffset &
                kDoubleAlignmentMask) == 0);  // NOLINT
+STATIC_ASSERT((FixedTypedArrayBase::kDataOffset & kDoubleAlignmentMask) ==
+              0);  // NOLINT
 
 
 HeapObject* Heap::EnsureDoubleAligned(HeapObject* object, int size) {

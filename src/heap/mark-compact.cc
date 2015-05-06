@@ -1940,7 +1940,16 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
         continue;
       }
 
-      AllocationResult allocation = new_space->AllocateRaw(size);
+      AllocationResult allocation;
+#ifndef V8_HOST_ARCH_64_BIT
+      if (object->NeedsToEnsureDoubleAlignment()) {
+        allocation = new_space->AllocateRawDoubleAligned(size);
+      } else {
+        allocation = new_space->AllocateRaw(size);
+      }
+#else
+      allocation = new_space->AllocateRaw(size);
+#endif
       if (allocation.IsRetry()) {
         if (!new_space->AddFreshPage()) {
           // Shouldn't happen. We are sweeping linearly, and to-space
@@ -1948,7 +1957,15 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
           // always room.
           UNREACHABLE();
         }
+#ifndef V8_HOST_ARCH_64_BIT
+        if (object->NeedsToEnsureDoubleAlignment()) {
+          allocation = new_space->AllocateRawDoubleAligned(size);
+        } else {
+          allocation = new_space->AllocateRaw(size);
+        }
+#else
         allocation = new_space->AllocateRaw(size);
+#endif
         DCHECK(!allocation.IsRetry());
       }
       Object* target = allocation.ToObjectChecked();
@@ -3077,7 +3094,16 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   OldSpace* old_space = heap()->old_space();
 
   HeapObject* target;
-  AllocationResult allocation = old_space->AllocateRaw(object_size);
+  AllocationResult allocation;
+#ifndef V8_HOST_ARCH_64_BIT
+  if (object->NeedsToEnsureDoubleAlignment()) {
+    allocation = old_space->AllocateRawDoubleAligned(object_size);
+  } else {
+    allocation = old_space->AllocateRaw(object_size);
+  }
+#else
+  allocation = old_space->AllocateRaw(object_size);
+#endif
   if (allocation.To(&target)) {
     MigrateObject(target, object, object_size, old_space->identity());
     heap()->IncrementPromotedObjectsSize(object_size);
