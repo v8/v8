@@ -323,6 +323,37 @@ class IsReturnMatcher final : public NodeMatcher {
 };
 
 
+class IsTerminateMatcher final : public NodeMatcher {
+ public:
+  IsTerminateMatcher(const Matcher<Node*>& effect_matcher,
+                     const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kTerminate),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 template <typename T>
 class IsConstantMatcher final : public NodeMatcher {
  public:
@@ -1289,11 +1320,6 @@ class IsUnopMatcher final : public NodeMatcher {
 }  // namespace
 
 
-Matcher<Node*> IsAlways() {
-  return MakeMatcher(new NodeMatcher(IrOpcode::kAlways));
-}
-
-
 Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control_matcher));
 }
@@ -1386,6 +1412,12 @@ Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher) {
   return MakeMatcher(
       new IsReturnMatcher(value_matcher, effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
+                           const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsTerminateMatcher(effect_matcher, control_matcher));
 }
 
 

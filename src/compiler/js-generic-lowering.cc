@@ -38,11 +38,9 @@ Reduction JSGenericLowering::Reduce(Node* node) {
       // poor-man's representation inference here and insert manual change.
       if (!is_typing_enabled_) {
         Node* condition = node->InputAt(0);
-        if (condition->opcode() != IrOpcode::kAlways) {
-          Node* test = graph()->NewNode(machine()->WordEqual(), condition,
-                                        jsgraph()->TrueConstant());
-          node->ReplaceInput(0, test);
-        }
+        Node* test = graph()->NewNode(machine()->WordEqual(), condition,
+                                      jsgraph()->TrueConstant());
+        node->ReplaceInput(0, test);
         break;
       }
       // Fall-through.

@@ -313,6 +313,13 @@ class CFGBuilder : public ZoneObject {
       case IrOpcode::kMerge:
         BuildBlockForNode(node);
         break;
+      case IrOpcode::kTerminate: {
+        // Put Terminate in the loop to which it refers.
+        Node* loop = NodeProperties::GetControlInput(node);
+        BasicBlock* block = BuildBlockForNode(loop);
+        FixNode(block, node);
+        break;
+      }
       case IrOpcode::kBranch:
       case IrOpcode::kSwitch:
         BuildBlocksForSuccessors(node);

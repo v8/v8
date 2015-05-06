@@ -31,7 +31,6 @@ class Node;
 using ::testing::Matcher;
 
 
-Matcher<Node*> IsAlways();
 Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
@@ -59,6 +58,8 @@ Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
 Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher,
                         const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
+                           const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(

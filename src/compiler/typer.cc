@@ -253,6 +253,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Deoptimize)
       DECLARE_CASE(Return)
       DECLARE_CASE(TailCall)
+      DECLARE_CASE(Terminate)
       DECLARE_CASE(OsrNormalEntry)
       DECLARE_CASE(OsrLoopEntry)
       DECLARE_CASE(Throw)
@@ -297,6 +298,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Deoptimize)
       DECLARE_CASE(Return)
       DECLARE_CASE(TailCall)
+      DECLARE_CASE(Terminate)
       DECLARE_CASE(OsrNormalEntry)
       DECLARE_CASE(OsrLoopEntry)
       DECLARE_CASE(Throw)
@@ -641,11 +643,6 @@ Bounds Typer::Visitor::TypeIfException(Node* node) {
 
 
 // Common operators.
-
-
-Bounds Typer::Visitor::TypeAlways(Node* node) {
-  return Bounds(Type::None(zone()), Type::Boolean(zone()));
-}
 
 
 Bounds Typer::Visitor::TypeParameter(Node* node) {

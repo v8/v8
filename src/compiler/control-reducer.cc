@@ -150,17 +150,11 @@ class ControlReducerImpl final : public AdvancedReducer {
     TRACE("ConnectNTL: #%d:%s\n", loop->id(), loop->op()->mnemonic());
     DCHECK_EQ(IrOpcode::kLoop, loop->opcode());
 
-    Node* always = graph()->NewNode(common()->Always());
-    Node* branch = graph()->NewNode(common()->Branch(), always, loop);
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-
-    // Insert the branch into the loop and collect all loop effects.
+    // Collect all loop effects.
     NodeVector effects(zone_);
     for (auto edge : loop->use_edges()) {
       DCHECK_EQ(loop, edge.to());
       DCHECK(NodeProperties::IsControlEdge(edge));
-      if (edge.from() == branch) continue;
       switch (edge.from()->opcode()) {
         case IrOpcode::kPhi:
           break;
@@ -168,8 +162,6 @@ class ControlReducerImpl final : public AdvancedReducer {
           effects.push_back(edge.from());
           break;
         default:
-          // Update all control edges (except {branch}) pointing to the {loop}.
-          edge.UpdateTo(if_true);
           break;
       }
     }
@@ -184,33 +176,32 @@ class ControlReducerImpl final : public AdvancedReducer {
                                 effects_count, &effects.front());
     }
 
-    // Add a return to connect the NTL to the end.
-    Node* ret = graph()->NewNode(
-        common()->Return(), jsgraph_->UndefinedConstant(), effect, if_false);
+    // Add a terminate to connect the NTL to the end.
+    Node* terminate = graph()->NewNode(common()->Terminate(), effect, loop);
 
     Node* end = graph()->end();
     if (end->opcode() == IrOpcode::kDead) {
       // End is actually the dead node. Make a new end.
-      end = graph()->NewNode(common()->End(), ret);
+      end = graph()->NewNode(common()->End(), terminate);
       graph()->SetEnd(end);
       return end;
     }
     // End is not dead.
     Node* merge = end->InputAt(0);
     if (merge == NULL || merge->opcode() == IrOpcode::kDead) {
-      // The end node died; just connect end to {ret}.
-      end->ReplaceInput(0, ret);
+      // The end node died; just connect end to {terminate}.
+      end->ReplaceInput(0, terminate);
     } else if (merge->opcode() != IrOpcode::kMerge) {
-      // Introduce a final merge node for {end->InputAt(0)} and {ret}.
-      merge = graph()->NewNode(common()->Merge(2), merge, ret);
+      // Introduce a final merge node for {end->InputAt(0)} and {terminate}.
+      merge = graph()->NewNode(common()->Merge(2), merge, terminate);
       end->ReplaceInput(0, merge);
-      ret = merge;
+      terminate = merge;
     } else {
       // Append a new input to the final merge at the end.
-      merge->AppendInput(graph()->zone(), ret);
+      merge->AppendInput(graph()->zone(), terminate);
       merge->set_op(common()->Merge(merge->InputCount()));
     }
-    return ret;
+    return terminate;
   }
 
   void AddNodesReachableFromRoots(ReachabilityMarker& marked,

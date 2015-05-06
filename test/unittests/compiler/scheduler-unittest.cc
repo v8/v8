@@ -2467,6 +2467,29 @@ TARGET_TEST_F(SchedulerTest, FloatingSwitch) {
   ComputeAndVerifySchedule(16);
 }
 
+
+TARGET_TEST_F(SchedulerTest, Terminate) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* loop = graph()->NewNode(common()->Loop(2), start, start);
+  loop->ReplaceInput(1, loop);  // self loop, NTL.
+
+  Node* effect = graph()->NewNode(common()->EffectPhi(1), start, loop);
+
+  Node* terminate = graph()->NewNode(common()->Terminate(), effect, loop);
+  effect->ReplaceInput(1, terminate);
+
+  Node* end = graph()->NewNode(common()->End(), terminate);
+
+  graph()->SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(6);
+  BasicBlock* block = schedule->block(loop);
+  EXPECT_EQ(block, schedule->block(effect));
+  EXPECT_GE(block->rpo_number(), 0);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -142,7 +142,6 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 
 #define CACHED_OP_LIST(V)                                  \
-  V(Always, Operator::kPure, 0, 0, 0, 1, 0, 0)             \
   V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
   V(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0)             \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
@@ -153,6 +152,7 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
+  V(Terminate, Operator::kNoThrow, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
 

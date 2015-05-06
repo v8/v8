@@ -500,8 +500,6 @@ class RepresentationSelector {
         SetOutput(node, kRepTagged | changer_->TypeFromUpperBound(upper));
         return;
       }
-      case IrOpcode::kAlways:
-        return VisitLeaf(node, kRepBit);
       case IrOpcode::kInt32Constant:
         return VisitLeaf(node, kRepWord32);
       case IrOpcode::kInt64Constant:
