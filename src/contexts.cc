@@ -258,8 +258,13 @@ Handle<Object> Context::Lookup(Handle<String> name,
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
       } else if (context->IsWithContext()) {
-        LookupIterator it(object, name);
-        maybe = UnscopableLookup(&it);
+        // A with context will never bind "this".
+        if (name->Equals(*isolate->factory()->this_string())) {
+          maybe = Just(ABSENT);
+        } else {
+          LookupIterator it(object, name);
+          maybe = UnscopableLookup(&it);
+        }
       } else {
         maybe = JSReceiver::GetPropertyAttributes(object, name);
       }

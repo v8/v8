@@ -740,7 +740,9 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
 
 Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
                                          int pos) {
-  return factory->NewVariableProxy(scope->receiver(), pos);
+  return scope->NewUnresolved(factory,
+                              parser_->ast_value_factory()->this_string(),
+                              Variable::THIS, pos, pos + 4);
 }
 
 Expression* ParserTraits::SuperReference(Scope* scope, AstNodeFactory* factory,
@@ -788,7 +790,8 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    Scope* scope,
                                                    AstNodeFactory* factory) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
-  return scope->NewUnresolved(factory, name, start_position, end_position);
+  return scope->NewUnresolved(factory, name, Variable::NORMAL, start_position,
+                              end_position);
 }
 
 
@@ -967,6 +970,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
   FunctionLiteral* result = NULL;
   {
+    // TODO(wingo): Add an outer GLOBAL_SCOPE corresponding to the native
+    // context, which will have the "this" binding for script scopes.
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
     info->set_script_scope(scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
@@ -1919,9 +1924,9 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
   // scope.
   // Let/const variables in harmony mode are always added to the immediately
   // enclosing scope.
-  return DeclarationScope(mode)->NewUnresolved(factory(), name,
-                                               scanner()->location().beg_pos,
-                                               scanner()->location().end_pos);
+  return DeclarationScope(mode)->NewUnresolved(
+      factory(), name, Variable::NORMAL, scanner()->location().beg_pos,
+      scanner()->location().end_pos);
 }
 
 
@@ -3585,8 +3590,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each =
-            scope_->NewUnresolved(factory(), name, each_beg_pos, each_end_pos);
+        VariableProxy* each = scope_->NewUnresolved(
+            factory(), name, Variable::NORMAL, each_beg_pos, each_end_pos);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         InitializeForEachStatement(loop, each, enumerable, body);
         Block* result =
@@ -3667,8 +3672,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each =
-            scope_->NewUnresolved(factory(), name, each_beg_pos, each_end_pos);
+        VariableProxy* each = scope_->NewUnresolved(
+            factory(), name, Variable::NORMAL, each_beg_pos, each_end_pos);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
