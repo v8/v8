@@ -2580,15 +2580,15 @@ void Assembler::dd(uint32_t data) {
 void Assembler::dd(Label* label) {
   CheckBuffer();
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  uint32_t data;
   if (label->is_bound()) {
-    uint32_t data = reinterpret_cast<uint32_t>(buffer_ + label->pos());
-    *reinterpret_cast<uint32_t*>(pc_) = data;
-    pc_ += sizeof(uint32_t);
+    data = reinterpret_cast<uint32_t>(buffer_ + label->pos());
   } else {
-    uint32_t target_pos = jump_address(label);
-    emit(target_pos);
+    data = jump_address(label);
     internal_reference_positions_.insert(label->pos());
   }
+  *reinterpret_cast<uint32_t*>(pc_) = data;
+  pc_ += sizeof(uint32_t);
 }
 
 

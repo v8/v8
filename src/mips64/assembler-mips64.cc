@@ -2756,15 +2756,15 @@ void Assembler::dd(uint32_t data) {
 void Assembler::dd(Label* label) {
   CheckBuffer();
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  uint64_t data;
   if (label->is_bound()) {
-    uint64_t data = reinterpret_cast<uint64_t>(buffer_ + label->pos());
-    *reinterpret_cast<uint64_t*>(pc_) = data;
-    pc_ += sizeof(uint64_t);
+    data = reinterpret_cast<uint64_t>(buffer_ + label->pos());
   } else {
-    uint64_t target_pos = jump_address(label);
-    emit(target_pos);
+    data = jump_address(label);
     internal_reference_positions_.insert(label->pos());
   }
+  *reinterpret_cast<uint64_t*>(pc_) = data;
+  pc_ += sizeof(uint64_t);
 }
 
 
