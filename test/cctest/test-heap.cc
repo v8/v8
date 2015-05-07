@@ -37,6 +37,7 @@
 #include "src/global-handles.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -4341,6 +4342,10 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+
+  // Do not run for no-snap builds.
+  if (!i::Snapshot::HaveASnapshotToStartFrom(isolate)) return;
+
   v8::internal::Heap* heap = CcTest::heap();
 
   // Get a clean slate regarding optimized functions on the heap.
