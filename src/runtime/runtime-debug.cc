@@ -1298,21 +1298,16 @@ class ScopeIterator {
       context_ = Handle<Context>();
       return;
     }
-    if (scope_type == ScopeTypeScript) {
-      seen_script_scope_ = true;
-      if (context_->IsScriptContext()) {
+    if (scope_type == ScopeTypeScript) seen_script_scope_ = true;
+    if (nested_scope_chain_.is_empty()) {
+      if (scope_type == ScopeTypeScript) {
+        if (context_->IsScriptContext()) {
+          context_ = Handle<Context>(context_->previous(), isolate_);
+        }
+        CHECK(context_->IsNativeContext());
+      } else {
         context_ = Handle<Context>(context_->previous(), isolate_);
       }
-      if (!nested_scope_chain_.is_empty()) {
-        DCHECK_EQ(nested_scope_chain_.last()->scope_type(), SCRIPT_SCOPE);
-        nested_scope_chain_.RemoveLast();
-        DCHECK(nested_scope_chain_.is_empty());
-      }
-      CHECK(context_->IsNativeContext());
-      return;
-    }
-    if (nested_scope_chain_.is_empty()) {
-      context_ = Handle<Context>(context_->previous(), isolate_);
     } else {
       if (nested_scope_chain_.last()->HasContext()) {
         DCHECK(context_->previous() != NULL);
