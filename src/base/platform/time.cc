@@ -24,11 +24,6 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 
-// CLOCK_REALTIME_COARSE was added in Linux 2.6.32.
-#if V8_OS_LINUX && !defined(CLOCK_REALTIME_COARSE)
-#define CLOCK_REALTIME_COARSE 5
-#endif
-
 namespace v8 {
 namespace base {
 
@@ -257,44 +252,11 @@ FILETIME Time::ToFiletime() const {
 #elif V8_OS_POSIX
 
 Time Time::Now() {
-#ifdef CLOCK_REALTIME_COARSE
-  struct timespec ts;
-  // clockid_t is an int32_t; loads and stores are atomic.
-  static const clockid_t kInvalidClockId = static_cast<clockid_t>(-1);
-  static clockid_t clock_id = kInvalidClockId;
-  if (V8_UNLIKELY(clock_id == kInvalidClockId)) {
-    // CLOCK_REALTIME_COARSE is not supported on Linux kernels < 2.6.32.
-    // Probe the kernel to see if it's available and has <= 1 ms resolution.
-    //
-    // CLOCK_REALTIME_COARSE, unlike CLOCK_REALTIME, can often be serviced
-    // entirely from the vDSO without the need to make a system call.
-    // It can have a dramatic impact on applications that frequently
-    // query the current time.
-    //
-    // One caveat is that CLOCK_REALTIME_COARSE is tied to CONFIG_HZ, the
-    // number of ticks per second that the kernel runs at.  Its granularity
-    // can be as low as one update every 300 ms so we need to make sure that
-    // it is accurate enough.  Fortunately, many if not most kernels are built
-    // with CONFIG_HZ=1000, giving it a one millisecond precision and that is
-    // good enough for our purposes.
-    if (clock_getres(CLOCK_REALTIME_COARSE, &ts) < 0 || ts.tv_sec > 0 ||
-        ts.tv_nsec > 1000 * 1000) {
-      clock_id = CLOCK_REALTIME;  // Not available or not suitable.
-    } else {
-      clock_id = CLOCK_REALTIME_COARSE;
-    }
-  }
-  int result = clock_gettime(clock_id, &ts);
-  DCHECK_EQ(0, result);
-  USE(result);
-  return FromTimespec(ts);
-#else
   struct timeval tv;
   int result = gettimeofday(&tv, NULL);
   DCHECK_EQ(0, result);
   USE(result);
   return FromTimeval(tv);
-#endif
 }
 
 
