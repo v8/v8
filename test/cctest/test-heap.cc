@@ -31,6 +31,7 @@
 #include "src/v8.h"
 
 #include "src/compilation-cache.h"
+#include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
@@ -4341,6 +4342,10 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
+
+  // Get a clean slate regarding optimized functions on the heap.
+  i::Deoptimizer::DeoptimizeAll(isolate);
+  heap->CollectAllGarbage();
 
   if (!isolate->use_crankshaft()) return;
   HandleScope outer_scope(heap->isolate());
