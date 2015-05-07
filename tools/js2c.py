@@ -340,9 +340,9 @@ def BuildFilterChain(macro_filename, message_template_file):
     macro_filename: Name of the macro file, if any.
 
   Returns:
-    A function (string -> string) that processes a source file.
+    A function (string -> string) that reads a source file and processes it.
   """
-  filter_chain = []
+  filter_chain = [ReadFile]
 
   if macro_filename:
     (consts, macros) = ReadMacros(ReadFile(macro_filename))
@@ -367,7 +367,7 @@ def BuildFilterChain(macro_filename, message_template_file):
   return reduce(chain, filter_chain)
 
 def BuildExtraFilterChain():
-  return lambda x: RemoveCommentsAndTrailingWhitespace(Validate(x))
+  return lambda x: RemoveCommentsAndTrailingWhitespace(Validate(ReadFile(x)))
 
 class Sources:
   def __init__(self):
@@ -386,14 +386,14 @@ def IsMessageTemplateFile(filename):
   return filename.endswith("messages.h")
 
 
-def PrepareSources(source_files, native_type, emit_js):
+def PrepareSources(source_files, extra_files, emit_js):
   """Read, prepare and assemble the list of source files.
 
   Args:
     source_files: List of JavaScript-ish source files. A file named macros.py
         will be treated as a list of macros.
-    native_type: String corresponding to a NativeType enum value, allowing us
-        to treat different types of sources differently.
+    extra_files: List of JavaScript-ish extra source files, passed in
+        externally from V8. Will not be minified or macro-ified.
     emit_js: True if we should skip the byte conversion and just leave the
         sources as JS strings.
 
@@ -414,28 +414,18 @@ def PrepareSources(source_files, native_type, emit_js):
     source_files.remove(message_template_files[0])
     message_template_file = message_template_files[0]
 
-  filters = None
-  if native_type == "EXTRA":
-    filters = BuildExtraFilterChain()
-  else:
-    filters = BuildFilterChain(macro_file, message_template_file)
+  filters = BuildFilterChain(macro_file, message_template_file)
+  extra_filters = BuildExtraFilterChain()
 
   # Sort 'debugger' sources first.
   source_files = sorted(source_files,
                         lambda l,r: IsDebuggerFile(r) - IsDebuggerFile(l))
 
-  source_files_and_contents = [(f, ReadFile(f)) for f in source_files]
-
-  # Have a single not-quite-empty source file if there are none present;
-  # otherwise you get errors trying to compile an empty C++ array.
-  if not source_files_and_contents:
-    source_files_and_contents = [("dummy.js", " ")]
-
   result = Sources()
 
-  for (source, contents) in source_files_and_contents:
+  for source in source_files:
     try:
-      lines = filters(contents)
+      lines = filters(source)
     except Error as e:
       raise Error("In file %s:\n%s" % (source, str(e)))
 
@@ -446,6 +436,16 @@ def PrepareSources(source_files, native_type, emit_js):
 
     name = os.path.basename(source)[:-3]
     result.names.append(name if not is_debugger else name[:-9])
+
+  for extra in extra_files:
+    try:
+      lines = extra_filters(extra)
+    except Error as e:
+      raise Error("In file %s:\n%s" % (extra, str(e)))
+
+    result.modules.append(lines)
+    name = os.path.basename(extra)[:-3]
+    result.names.append(name)
 
   return result
 
@@ -550,8 +550,8 @@ def WriteStartupBlob(sources, startup_blob):
   output.close()
 
 
-def JS2C(sources, target, native_type, raw_file, startup_blob, emit_js):
-  prepared_sources = PrepareSources(sources, native_type, emit_js)
+def JS2C(sources, extra_sources, target, native_type, raw_file, startup_blob, emitJS):
+  prepared_sources = PrepareSources(sources, extra_sources, emitJS)
   sources_output = "".join(prepared_sources.modules)
   metadata = BuildMetadata(prepared_sources, sources_output, native_type)
 
@@ -566,7 +566,7 @@ def JS2C(sources, target, native_type, raw_file, startup_blob, emit_js):
 
   # Emit resulting source file.
   output = open(target, "w")
-  if emit_js:
+  if emitJS:
     output.write(sources_output)
   else:
     output.write(HEADER_TEMPLATE % metadata)
@@ -578,21 +578,24 @@ def main():
   parser.add_argument("out.cc",
                       help="output filename")
   parser.add_argument("type",
-                      help="type parameter for NativesCollection template " +
-                           "(see NativeType enum)")
+                      help="type parameter for NativesCollection template")
   parser.add_argument("sources.js",
                       help="JS internal sources or macros.py.",
-                      nargs="*")
+                      nargs="+")
   parser.add_argument("--raw",
                       help="file to write the processed sources array to.")
   parser.add_argument("--startup_blob",
                       help="file to write the startup blob to.")
+  parser.add_argument("--extra",
+                      help="extra JS sources.",
+                      nargs="*")
   parser.add_argument("--js",
                       help="writes a JS file output instead of a C file",
                       action="store_true")
 
   args = vars(parser.parse_args())
-  JS2C(args["sources.js"], args["out.cc"], args["type"], args["raw"], args["startup_blob"], args["js"])
+  JS2C(args["sources.js"], args["extra"] or [], args["out.cc"], args["type"], args["raw"], args["startup_blob"],
+       args["js"])
 
 
 if __name__ == "__main__":

@@ -296,36 +296,6 @@ action("js2c_experimental") {
   }
 }
 
-action("js2c_extras") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/js2c.py"
-
-  # The script depends on this other script, this rule causes a rebuild if it
-  # changes.
-  inputs = [ "tools/jsmin.py" ]
-
-  sources = v8_extra_library_files
-
-  outputs = [
-    "$target_gen_dir/extras-libraries.cc",
-  ]
-
-  args = [
-           rebase_path("$target_gen_dir/extras-libraries.cc",
-                       root_build_dir),
-           "EXTRAS",
-         ] + rebase_path(sources, root_build_dir)
-
-  if (v8_use_external_startup_data) {
-    outputs += [ "$target_gen_dir/libraries_extras.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$target_gen_dir/libraries_extras.bin", root_build_dir),
-    ]
-  }
-}
-
 action("d8_js2c") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -351,13 +321,11 @@ if (v8_use_external_startup_data) {
     deps = [
       ":js2c",
       ":js2c_experimental",
-      ":js2c_extras",
     ]
 
     sources = [
       "$target_gen_dir/libraries.bin",
       "$target_gen_dir/libraries_experimental.bin",
-      "$target_gen_dir/libraries_extras.bin",
     ]
 
     outputs = [
@@ -442,14 +410,12 @@ source_set("v8_nosnapshot") {
   deps = [
     ":js2c",
     ":js2c_experimental",
-    ":js2c_extras",
     ":v8_base",
   ]
 
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
-    "$target_gen_dir/extras-libraries.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
 
@@ -473,7 +439,6 @@ source_set("v8_snapshot") {
   deps = [
     ":js2c",
     ":js2c_experimental",
-    ":js2c_extras",
     ":run_mksnapshot",
     ":v8_base",
   ]
@@ -481,7 +446,6 @@ source_set("v8_snapshot") {
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
-    "$target_gen_dir/extras-libraries.cc",
     "$target_gen_dir/snapshot.cc",
   ]
 
@@ -501,7 +465,6 @@ if (v8_use_external_startup_data) {
     deps = [
       ":js2c",
       ":js2c_experimental",
-      ":js2c_extras",
       ":run_mksnapshot",
       ":v8_base",
       ":natives_blob",
