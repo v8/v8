@@ -12570,6 +12570,18 @@ THREADED_TEST(TryCatchSourceInfo) {
 }
 
 
+THREADED_TEST(TryCatchSourceInfoForEOSError) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  v8::TryCatch try_catch;
+  v8::Script::Compile(v8_str("!\n"));
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK_EQ(1, message->GetLineNumber());
+  CHECK_EQ(0, message->GetStartColumn());
+}
+
+
 THREADED_TEST(CompilationCache) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
