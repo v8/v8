@@ -719,6 +719,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   os << " - map = " << reinterpret_cast<void*>(map()) << "\n";
   os << " - backing_store = " << backing_store() << "\n";
   os << " - byte_length = " << Brief(byte_length());
+  if (was_neutered()) os << " - neutered\n";
   os << "\n";
 }
 
@@ -730,8 +731,9 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - byte_offset = " << Brief(byte_offset());
   os << "\n - byte_length = " << Brief(byte_length());
   os << "\n - length = " << Brief(length());
+  if (WasNeutered()) os << " - neutered\n";
   os << "\n";
-  PrintElements(os);
+  if (!WasNeutered()) PrintElements(os);
 }
 
 
@@ -741,6 +743,7 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   os << " - buffer =" << Brief(buffer());
   os << "\n - byte_offset = " << Brief(byte_offset());
   os << "\n - byte_length = " << Brief(byte_length());
+  if (WasNeutered()) os << " - neutered\n";
   os << "\n";
 }
 
