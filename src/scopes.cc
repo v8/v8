@@ -165,6 +165,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   scope_calls_eval_ = false;
   scope_uses_arguments_ = false;
   scope_uses_super_property_ = false;
+  scope_uses_this_ = false;
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the language mode from the parent scope.
@@ -172,6 +173,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   inner_scope_uses_arguments_ = false;
+  inner_scope_uses_this_ = false;
   inner_scope_uses_super_property_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
@@ -378,6 +380,7 @@ Scope* Scope::FinalizeBlockScope() {
   // Propagate usage flags to outer scope.
   if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
   if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
+  if (uses_this()) outer_scope_->RecordThisUsage();
   if (scope_calls_eval_) outer_scope_->RecordEvalCall();
 
   return NULL;
@@ -927,11 +930,13 @@ void Scope::Print(int n) {
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");
+  if (scope_uses_this_) Indent(n1, "// scope uses 'this'\n");
   if (inner_scope_uses_arguments_) {
     Indent(n1, "// inner scope uses 'arguments'\n");
   }
   if (inner_scope_uses_super_property_)
     Indent(n1, "// inner scope uses 'super' property\n");
+  if (inner_scope_uses_this_) Indent(n1, "// inner scope uses 'this'\n");
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
@@ -1286,6 +1291,9 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
       if (inner->scope_uses_super_property_ ||
           inner->inner_scope_uses_super_property_) {
         inner_scope_uses_super_property_ = true;
+      }
+      if (inner->scope_uses_this_ || inner->inner_scope_uses_this_) {
+        inner_scope_uses_this_ = true;
       }
     }
     if (inner->force_eager_compilation_) {

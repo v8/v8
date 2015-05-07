@@ -962,6 +962,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
     THIS = 1 << 2,
     INNER_ARGUMENTS = 1 << 3,
     INNER_SUPER_PROPERTY = 1 << 4,
+    INNER_THIS = 1 << 5
   };
 
   static const struct {
@@ -976,7 +977,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"return this + arguments[0]", ARGUMENTS | THIS},
     {"return this + arguments[0] + super.x",
      ARGUMENTS | SUPER_PROPERTY | THIS},
-    {"return x => this + x", THIS},
+    {"return x => this + x", INNER_THIS},
     {"return x => super.f() + x", INNER_SUPER_PROPERTY},
     {"this.foo = 42;", THIS},
     {"this.foo();", THIS},
@@ -990,7 +991,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"while (true) { while (true) { while (true) return this } }", THIS},
     {"while (true) { while (true) { while (true) return super.f() } }",
      SUPER_PROPERTY},
-    {"if (1) { return () => { while (true) new this() } }", THIS},
+    {"if (1) { return () => { while (true) new this() } }", INNER_THIS},
+    // Note that propagation of the inner_uses_this() value does not
+    // cross boundaries of normal functions onto parent scopes.
     {"return function (x) { return this + x }", NONE},
     {"return { m(x) { return super.m() + x } }", NONE},
     {"var x = function () { this.foo = 42 };", NONE},
@@ -1001,10 +1004,10 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"return { m(x) { return () => super.m() } }", NONE},
     // Flags must be correctly set when using block scoping.
     {"\"use strict\"; while (true) { let x; this, arguments; }",
-     INNER_ARGUMENTS | THIS},
+     INNER_ARGUMENTS | INNER_THIS},
     {"\"use strict\"; while (true) { let x; this, super.f(), arguments; }",
-     INNER_ARGUMENTS | INNER_SUPER_PROPERTY | THIS},
-    {"\"use strict\"; if (foo()) { let x; this.f() }", THIS},
+     INNER_ARGUMENTS | INNER_SUPER_PROPERTY | INNER_THIS},
+    {"\"use strict\"; if (foo()) { let x; this.f() }", INNER_THIS},
     {"\"use strict\"; if (foo()) { let x; super.f() }",
      INNER_SUPER_PROPERTY},
     {"\"use strict\"; if (1) {"
@@ -1068,15 +1071,13 @@ TEST(ScopeUsesArgumentsSuperThis) {
                scope->uses_arguments());
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
                scope->uses_super_property());
-      if ((source_data[i].expected & THIS) != 0) {
-        // Currently the is_used() flag is conservative; all variables in a
-        // script scope are marked as used.
-        CHECK(scope->LookupThis()->is_used());
-      }
+      CHECK_EQ((source_data[i].expected & THIS) != 0, scope->uses_this());
       CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
                scope->inner_uses_arguments());
       CHECK_EQ((source_data[i].expected & INNER_SUPER_PROPERTY) != 0,
                scope->inner_uses_super_property());
+      CHECK_EQ((source_data[i].expected & INNER_THIS) != 0,
+               scope->inner_uses_this());
     }
   }
 }

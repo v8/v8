@@ -217,6 +217,9 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code uses "super".
   void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
 
+  // Inform the scope that the corresponding code uses "this".
+  void RecordThisUsage() { scope_uses_this_ = true; }
+
   // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
     language_mode_ = language_mode;
@@ -320,6 +323,10 @@ class Scope: public ZoneObject {
   bool inner_uses_super_property() const {
     return inner_scope_uses_super_property_;
   }
+  // Does this scope access "this".
+  bool uses_this() const { return scope_uses_this_; }
+  // Does any inner scope access "this".
+  bool inner_uses_this() const { return inner_scope_uses_this_; }
 
   const Scope* NearestOuterEvalScope() const {
     if (is_eval_scope()) return this;
@@ -570,6 +577,8 @@ class Scope: public ZoneObject {
   bool scope_uses_arguments_;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_;
+  // This scope uses "this".
+  bool scope_uses_this_;
   // This scope contains an "use asm" annotation.
   bool asm_module_;
   // This scope's outer context is an asm module.
@@ -585,6 +594,7 @@ class Scope: public ZoneObject {
   bool inner_scope_calls_eval_;
   bool inner_scope_uses_arguments_;
   bool inner_scope_uses_super_property_;
+  bool inner_scope_uses_this_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 
