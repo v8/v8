@@ -4647,14 +4647,17 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
 
   GCIdleTimeAction action =
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
+
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
       static_cast<int>(idle_time_in_ms));
-  int committed_memory = static_cast<int>(CommittedMemory() / KB);
-  int used_memory = static_cast<int>(heap_state.size_of_objects / KB);
-  isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
-      start_ms, committed_memory);
-  isolate()->counters()->aggregated_memory_heap_used()->AddSample(start_ms,
-                                                                  used_memory);
+  if (is_long_idle_notification) {
+    int committed_memory = static_cast<int>(CommittedMemory() / KB);
+    int used_memory = static_cast<int>(heap_state.size_of_objects / KB);
+    isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
+        start_ms, committed_memory);
+    isolate()->counters()->aggregated_memory_heap_used()->AddSample(
+        start_ms, used_memory);
+  }
 
   bool result = false;
   switch (action.type) {
