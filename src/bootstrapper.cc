@@ -42,6 +42,12 @@ FixedArray* GetCache<ExperimentalNatives>(Heap* heap) {
 }
 
 
+template <>
+FixedArray* GetCache<ExtraNatives>(Heap* heap) {
+  return heap->extra_natives_source_cache();
+}
+
+
 template <class Source>
 Handle<String> Bootstrapper::SourceLookup(int index) {
   DCHECK(0 <= index && index < Source::GetBuiltinsCount());
@@ -67,6 +73,7 @@ Handle<String> Bootstrapper::SourceLookup(int index) {
 template Handle<String> Bootstrapper::SourceLookup<Natives>(int index);
 template Handle<String> Bootstrapper::SourceLookup<ExperimentalNatives>(
     int index);
+template Handle<String> Bootstrapper::SourceLookup<ExtraNatives>(int index);
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
@@ -134,6 +141,7 @@ void DeleteNativeSources(Object* maybe_array) {
 void Bootstrapper::TearDown() {
   DeleteNativeSources(isolate_->heap()->natives_source_cache());
   DeleteNativeSources(isolate_->heap()->experimental_natives_source_cache());
+  DeleteNativeSources(isolate_->heap()->extra_natives_source_cache());
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
@@ -220,6 +228,7 @@ class Genesis BASE_EMBEDDED {
       Handle<JSFunction>* fun,
       Handle<Map>* external_map);
   bool InstallExperimentalNatives();
+  bool InstallExtraNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
@@ -300,6 +309,7 @@ class Genesis BASE_EMBEDDED {
 
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
+  static bool CompileExtraBuiltin(Isolate* isolate, int index);
   static bool CompileNative(Isolate* isolate,
                             Vector<const char> name,
                             Handle<String> source);
@@ -1447,6 +1457,14 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
 }
 
 
+bool Genesis::CompileExtraBuiltin(Isolate* isolate, int index) {
+  Vector<const char> name = ExtraNatives::GetScriptName(index);
+  Handle<String> source_code =
+      isolate->bootstrapper()->SourceLookup<ExtraNatives>(index);
+  return CompileNative(isolate, name, source_code);
+}
+
+
 bool Genesis::CompileNative(Isolate* isolate,
                             Vector<const char> name,
                             Handle<String> source) {
@@ -2356,6 +2374,16 @@ bool Genesis::InstallExperimentalNatives() {
 }
 
 
+bool Genesis::InstallExtraNatives() {
+  for (int i = ExtraNatives::GetDebuggerCount();
+       i < ExtraNatives::GetBuiltinsCount(); i++) {
+    if (!CompileExtraBuiltin(isolate(), i)) return false;
+  }
+
+  return true;
+}
+
+
 static void InstallBuiltinFunctionId(Handle<JSObject> holder,
                                      const char* function_name,
                                      BuiltinFunctionId id) {
@@ -2929,12 +2957,13 @@ Genesis::Genesis(Isolate* isolate,
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 
-  // Install experimental natives. Do not include them into the snapshot as we
-  // should be able to turn them off at runtime. Re-installing them after
-  // they have already been deserialized would also fail.
+  // Install experimental and extra natives. Do not include them into the
+  // snapshot as we should be able to turn them off at runtime. Re-installing
+  // them after they have already been deserialized would also fail.
   if (!isolate->serializer_enabled()) {
     InitializeExperimentalGlobal();
     if (!InstallExperimentalNatives()) return;
+    if (!InstallExtraNatives()) return;
   }
 
   // The serializer cannot serialize typed arrays. Reset those typed arrays
