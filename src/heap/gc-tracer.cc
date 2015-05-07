@@ -113,7 +113,7 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
   if (start_counter_ != 1) return;
 
   previous_ = current_;
-  double start_time = base::OS::TimeCurrentMillis();
+  double start_time = heap_->MonotonicallyIncreasingTimeInMs();
   if (new_space_top_after_gc_ != 0) {
     AddNewSpaceAllocationTime(
         start_time - previous_.end_time,
@@ -154,6 +154,12 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     current_.scopes[i] = 0;
   }
+  int committed_memory = static_cast<int>(heap_->CommittedMemory() / KB);
+  int used_memory = static_cast<int>(current_.start_object_size / KB);
+  heap_->isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
+      start_time, committed_memory);
+  heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
+      start_time, used_memory);
 }
 
 
@@ -174,12 +180,19 @@ void GCTracer::Stop(GarbageCollector collector) {
           (current_.type == Event::MARK_COMPACTOR ||
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR)));
 
-  current_.end_time = base::OS::TimeCurrentMillis();
+  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();
   current_.end_holes_size = CountTotalHolesSize(heap_);
   new_space_top_after_gc_ =
       reinterpret_cast<intptr_t>(heap_->new_space()->top());
+
+  int committed_memory = static_cast<int>(heap_->CommittedMemory() / KB);
+  int used_memory = static_cast<int>(current_.end_object_size / KB);
+  heap_->isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
+      current_.end_time, committed_memory);
+  heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
+      current_.end_time, used_memory);
 
   if (current_.type == Event::SCAVENGER) {
     current_.incremental_marking_steps =

@@ -648,6 +648,10 @@ DEFINE_IMPLICATION(trace_detached_contexts, track_detached_contexts)
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
 #endif
 
+// counters.cc
+DEFINE_INT(histogram_interval, 600000,
+           "time interval in ms for aggregating memory histograms")
+
 
 // heap-snapshot-generator.cc
 DEFINE_BOOL(heap_profiler_trace_objects, false,

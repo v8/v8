@@ -4580,7 +4580,7 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
 }
 
 
-static double MonotonicallyIncreasingTimeInMs() {
+double Heap::MonotonicallyIncreasingTimeInMs() {
   return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
          static_cast<double>(base::Time::kMillisecondsPerSecond);
 }
@@ -4601,7 +4601,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       static_cast<double>(base::Time::kMillisecondsPerSecond);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
-  double idle_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
+  double start_ms = MonotonicallyIncreasingTimeInMs();
+  double idle_time_in_ms = deadline_in_ms - start_ms;
   bool is_long_idle_notification =
       static_cast<size_t>(idle_time_in_ms) >
       GCIdleTimeHandler::kMaxFrameRenderingIdleTime;
@@ -4645,6 +4646,12 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
       static_cast<int>(idle_time_in_ms));
+  int committed_memory = static_cast<int>(CommittedMemory() / KB);
+  int used_memory = static_cast<int>(heap_state.size_of_objects / KB);
+  isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
+      start_ms, committed_memory);
+  isolate()->counters()->aggregated_memory_heap_used()->AddSample(start_ms,
+                                                                  used_memory);
 
   bool result = false;
   switch (action.type) {

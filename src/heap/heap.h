@@ -1151,6 +1151,8 @@ class Heap {
   bool IdleNotification(double deadline_in_seconds);
   bool IdleNotification(int idle_time_in_ms);
 
+  double MonotonicallyIncreasingTimeInMs();
+
   // Declare all the root indices.  This defines the root list order.
   enum RootListIndex {
 #define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
