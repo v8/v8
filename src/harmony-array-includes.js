@@ -16,14 +16,14 @@ var GlobalArray = global.Array;
 // https://github.com/tc39/Array.prototype.includes
 // 6e3b78c927aeda20b9d40e81303f9d44596cd904
 function ArrayIncludes(searchElement, fromIndex) {
-  var array = ToObject(this);
-  var len = ToLength(array.length);
+  var array = $toObject(this);
+  var len = $toLength(array.length);
 
   if (len === 0) {
     return false;
   }
 
-  var n = ToInteger(fromIndex);
+  var n = $toInteger(fromIndex);
 
   var k;
   if (n >= 0) {
@@ -37,7 +37,7 @@ function ArrayIncludes(searchElement, fromIndex) {
 
   while (k < len) {
     var elementK = array[k];
-    if (SameValueZero(searchElement, elementK)) {
+    if ($sameValueZero(searchElement, elementK)) {
       return true;
     }
 

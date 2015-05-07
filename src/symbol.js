@@ -26,7 +26,7 @@ var GlobalSymbol = global.Symbol;
 function SymbolConstructor(x) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Symbol");
   // NOTE: Passing in a Symbol value will throw on ToString().
-  return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
+  return %CreateSymbol(IS_UNDEFINED(x) ? x : $toString(x));
 }
 
 
@@ -69,7 +69,7 @@ function SymbolKeyFor(symbol) {
 
 // ES6 19.1.2.8
 function ObjectGetOwnPropertySymbols(obj) {
-  obj = ToObject(obj);
+  obj = $toObject(obj);
 
   // TODO(arv): Proxies use a shared trap for String and Symbol keys.
 

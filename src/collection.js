@@ -222,7 +222,7 @@ function SetForEach(f, receiver) {
   while (%SetIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
     key = value_array[0];
-    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
     %_CallFunction(new_receiver, key, key, this, f);
   }
 }
@@ -410,7 +410,7 @@ function MapForEach(f, receiver) {
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
     %_CallFunction(new_receiver, value_array[1], value_array[0], this, f);
   }
 }

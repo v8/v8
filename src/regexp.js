@@ -55,8 +55,8 @@ function DoConstructRegExp(object, pattern, flags) {
     pattern = pattern.source;
   }
 
-  pattern = IS_UNDEFINED(pattern) ? '' : ToString(pattern);
-  flags = IS_UNDEFINED(flags) ? '' : ToString(flags);
+  pattern = IS_UNDEFINED(pattern) ? '' : $toString(pattern);
+  flags = IS_UNDEFINED(flags) ? '' : $toString(flags);
 
   %RegExpInitializeAndCompile(object, pattern, flags);
 }
@@ -381,7 +381,7 @@ var RegExpGetInput = function() {
   return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
 };
 var RegExpSetInput = function(string) {
-  LAST_INPUT($regexpLastMatchInfo) = ToString(string);
+  LAST_INPUT($regexpLastMatchInfo) = $toString(string);
 };
 
 %OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);
