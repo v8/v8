@@ -640,6 +640,10 @@ struct AccessorDescriptor {
 #define CODE_POINTER_ALIGN(value)                               \
   (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
 
+// DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
+#define DOUBLE_POINTER_ALIGN(value) \
+  (((value) + kDoubleAlignmentMask) & ~kDoubleAlignmentMask)
+
 // Support for tracking C++ memory allocation.  Insert TRACK_MEMORY("Fisk")
 // inside a C++ class and new and delete will be overloaded so logging is
 // performed.

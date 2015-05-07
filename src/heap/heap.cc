@@ -2714,8 +2714,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
 
-#define ALLOCATE_EXTERNAL_ARRAY_MAP(Type, type, TYPE, ctype, size)        \
-  ALLOCATE_MAP(EXTERNAL_##TYPE##_ARRAY_TYPE, ExternalArray::kAlignedSize, \
+#define ALLOCATE_EXTERNAL_ARRAY_MAP(Type, type, TYPE, ctype, size) \
+  ALLOCATE_MAP(EXTERNAL_##TYPE##_ARRAY_TYPE, ExternalArray::kSize, \
                external_##type##_array)
 
     TYPED_ARRAYS(ALLOCATE_EXTERNAL_ARRAY_MAP)
@@ -3619,7 +3619,7 @@ AllocationResult Heap::AllocateExternalArray(int length,
                                              ExternalArrayType array_type,
                                              void* external_pointer,
                                              PretenureFlag pretenure) {
-  int size = ExternalArray::kAlignedSize;
+  int size = ExternalArray::kSize;
   AllocationSpace space = SelectSpace(size, pretenure);
   HeapObject* result;
   {

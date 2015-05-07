@@ -4645,8 +4645,7 @@ class ExternalArray: public FixedArrayBase {
   // ExternalArray headers are not quadword aligned.
   static const int kExternalPointerOffset =
       POINTER_SIZE_ALIGN(FixedArrayBase::kLengthOffset + kPointerSize);
-  static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
+  static const int kSize = kExternalPointerOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalArray);
@@ -4888,7 +4887,7 @@ class FixedTypedArrayBase: public FixedArrayBase {
  public:
   DECLARE_CAST(FixedTypedArrayBase)
 
-  static const int kDataOffset = kHeaderSize;
+  static const int kDataOffset = DOUBLE_POINTER_ALIGN(kHeaderSize);
 
   inline int size();
 
@@ -4916,14 +4915,6 @@ class FixedTypedArray: public FixedTypedArrayBase {
   static const InstanceType kInstanceType = Traits::kInstanceType;
 
   DECLARE_CAST(FixedTypedArray<Traits>)
-
-  static inline int ElementOffset(int index) {
-    return kDataOffset + index * sizeof(ElementType);
-  }
-
-  static inline int SizeFor(int length) {
-    return ElementOffset(length);
-  }
 
   inline ElementType get_scalar(int index);
   static inline Handle<Object> get(Handle<FixedTypedArray> array, int index);

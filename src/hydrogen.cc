@@ -9835,11 +9835,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
   // conversion after allocation but before the new object fields are set.
   length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
   HValue* elements =
-      Add<HAllocate>(
-          Add<HConstant>(ExternalArray::kAlignedSize),
-          HType::HeapObject(),
-          NOT_TENURED,
-          external_array_map->instance_type());
+      Add<HAllocate>(Add<HConstant>(ExternalArray::kSize), HType::HeapObject(),
+                     NOT_TENURED, external_array_map->instance_type());
 
   AddStoreMapConstant(elements, external_array_map);
   Add<HStoreNamedField>(elements,
@@ -9892,9 +9889,16 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
   Handle<Map> fixed_typed_array_map(
       isolate()->heap()->MapForFixedTypedArray(array_type));
-  HValue* elements =
-      Add<HAllocate>(total_size, HType::HeapObject(),
-                     NOT_TENURED, fixed_typed_array_map->instance_type());
+  HAllocate* elements =
+      Add<HAllocate>(total_size, HType::HeapObject(), NOT_TENURED,
+                     fixed_typed_array_map->instance_type());
+
+#ifndef V8_HOST_ARCH_64_BIT
+  if (array_type == kExternalFloat64Array) {
+    elements->MakeDoubleAligned();
+  }
+#endif
+
   AddStoreMapConstant(elements, fixed_typed_array_map);
 
   Add<HStoreNamedField>(elements,
