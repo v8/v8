@@ -2076,6 +2076,7 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
       classifier->RecordExpressionError(scanner()->location(),
                                         "strong_arguments");
     }
+    if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
     return name;
   } else if (is_sloppy(language_mode()) &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
@@ -2108,6 +2109,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
   }
 
   IdentifierT name = this->GetSymbol(scanner());
+  if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
   return name;
 }
 
@@ -2125,6 +2127,7 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   }
 
   IdentifierT name = this->GetSymbol(scanner());
+  if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
   return name;
 }
 
