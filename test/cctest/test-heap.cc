@@ -4358,7 +4358,7 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
                "bar%d();"
                "bar%d();"
                "bar%d();"
-               "%%OptimizeFwunctionOnNextCall(bar%d);"
+               "%%OptimizeFunctionOnNextCall(bar%d);"
                "bar%d();",
                i, i, i, i, i, i, i, i);
       CompileRun(source.start());
