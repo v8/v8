@@ -2375,7 +2375,7 @@ class InspectionWebFormatter(object):
       f.write(address_fmt % self.format_address(slot))
       f.write("  ")
       self.td_from_address(f, maybe_address)
-      f.write(":&nbsp; %s &nbsp;</td>\n" % straddress)
+      f.write(":&nbsp;%s&nbsp;</td>\n" % straddress)
       f.write("  <td>")
       if maybe_address != None:
         self.output_comment_box(
