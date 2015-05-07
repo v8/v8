@@ -1110,12 +1110,6 @@ Handle<Object> Factory::NewSyntaxError(Handle<String> message) {
 
 
 Handle<Object> Factory::NewReferenceError(const char* message,
-                                          Vector<Handle<Object> > args) {
-  return NewError("MakeReferenceError", message, args);
-}
-
-
-Handle<Object> Factory::NewReferenceError(const char* message,
                                           Handle<JSArray> args) {
   return NewError("MakeReferenceError", message, args);
 }
@@ -1173,12 +1167,6 @@ Handle<Object> Factory::NewError(const char* maker,
 }
 
 
-Handle<Object> Factory::NewEvalError(const char* message,
-                                     Vector<Handle<Object> > args) {
-  return NewError("MakeEvalError", message, args);
-}
-
-
 Handle<Object> Factory::NewError(MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,
                                  Handle<Object> arg2) {
@@ -1190,6 +1178,13 @@ Handle<Object> Factory::NewTypeError(MessageTemplate::Template template_index,
                                      Handle<Object> arg0, Handle<Object> arg1,
                                      Handle<Object> arg2) {
   return NewError("MakeTypeError", template_index, arg0, arg1, arg2);
+}
+
+
+Handle<Object> Factory::NewReferenceError(
+    MessageTemplate::Template template_index, Handle<Object> arg0,
+    Handle<Object> arg1, Handle<Object> arg2) {
+  return NewError("MakeReferenceError", template_index, arg0, arg1, arg2);
 }
 
 

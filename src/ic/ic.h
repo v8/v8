@@ -164,7 +164,7 @@ class IC {
 
   MaybeHandle<Object> TypeError(const char* type, Handle<Object> object,
                                 Handle<Object> key);
-  MaybeHandle<Object> ReferenceError(const char* type, Handle<Name> name);
+  MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address,

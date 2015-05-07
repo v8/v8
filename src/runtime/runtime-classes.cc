@@ -9,6 +9,7 @@
 
 #include "src/arguments.h"
 #include "src/debug.h"
+#include "src/messages.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -21,21 +22,15 @@ RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
-}
-
-
-static Object* ThrowUnsupportedSuper(Isolate* isolate) {
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
+      isolate, NewReferenceError(MessageTemplate::kNonMethod));
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  return ThrowUnsupportedSuper(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError(MessageTemplate::kUnsupportedSuper));
 }
 
 
@@ -43,8 +38,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("constructor_noncallable", HandleVector<Object>(NULL, 0)));
+      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable));
 }
 
 
@@ -52,8 +46,7 @@ RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("array_not_subclassable", HandleVector<Object>(NULL, 0)));
+      isolate, NewTypeError(MessageTemplate::kArrayNotSubclassable));
 }
 
 

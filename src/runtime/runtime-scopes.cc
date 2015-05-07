@@ -911,7 +911,7 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
       case IMMUTABLE_CHECK_INITIALIZED_HARMONY:
         if (value->IsTheHole()) {
           Handle<Object> error = isolate->factory()->NewReferenceError(
-              "not_defined", HandleVector(&name, 1));
+              MessageTemplate::kNotDefined, name);
           isolate->Throw(*error);
           return MakePair(isolate->heap()->exception(), NULL);
         }
@@ -959,7 +959,7 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
   if (throw_error) {
     // The property doesn't exist - throw exception.
     Handle<Object> error = isolate->factory()->NewReferenceError(
-        "not_defined", HandleVector(&name, 1));
+        MessageTemplate::kNotDefined, name);
     isolate->Throw(*error);
     return MakePair(isolate->heap()->exception(), NULL);
   } else {
@@ -1021,7 +1021,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
   } else {
     // If absent in sloppy mode: add the property to the global object.
     object = Handle<JSReceiver>(context->global_object());

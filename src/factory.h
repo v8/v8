@@ -562,13 +562,8 @@ class Factory final {
   Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
   Handle<Object> NewSyntaxError(Handle<String> message);
 
-  Handle<Object> NewReferenceError(const char* message,
-                                   Vector<Handle<Object> > args);
   Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
   Handle<Object> NewReferenceError(Handle<String> message);
-
-  Handle<Object> NewEvalError(const char* message,
-                              Vector<Handle<Object> > args);
 
   Handle<Object> NewError(const char* maker,
                           MessageTemplate::Template template_index,
@@ -584,6 +579,11 @@ class Factory final {
                               Handle<Object> arg0 = Handle<Object>(),
                               Handle<Object> arg1 = Handle<Object>(),
                               Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewReferenceError(MessageTemplate::Template template_index,
+                                   Handle<Object> arg0 = Handle<Object>(),
+                                   Handle<Object> arg1 = Handle<Object>(),
+                                   Handle<Object> arg2 = Handle<Object>());
 
   Handle<Object> NewRangeError(MessageTemplate::Template template_index,
                                Handle<Object> arg0 = Handle<Object>(),

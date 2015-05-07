@@ -56,7 +56,7 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
+      isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
 

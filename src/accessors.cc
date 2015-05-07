@@ -1444,7 +1444,7 @@ static void ModuleGetExport(
     Handle<String> name = v8::Utils::OpenHandle(*property);
 
     Handle<Object> exception = isolate->factory()->NewReferenceError(
-        "not_defined", HandleVector(&name, 1));
+        MessageTemplate::kNotDefined, name);
     isolate->ScheduleThrow(*exception);
     return;
   }
@@ -1465,7 +1465,7 @@ static void ModuleSetExport(
   if (old_value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
     Handle<Object> exception = isolate->factory()->NewReferenceError(
-        "not_defined", HandleVector(&name, 1));
+        MessageTemplate::kNotDefined, name);
     isolate->ScheduleThrow(*exception);
     return;
   }

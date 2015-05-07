@@ -300,6 +300,13 @@ test(function() {
 }, "Function arg string contains parenthesis", SyntaxError);
 
 
+// === ReferenceError ===
+
+test(function() {
+  "use strict";
+  o;
+}, "o is not defined", ReferenceError);
+
 // === RangeError ===
 
 // kArrayLengthOutOfRange

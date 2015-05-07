@@ -126,10 +126,13 @@ class CallSite {
     "function")                                                                \
   T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
+  T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
+  T(ConstructorNonCallable,                                                    \
+    "Class constructors cannot be invoked without 'new'")                      \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
   T(CurrencyCode, "Currency code is required with currency style.")            \
   T(DataViewNotArrayBuffer,                                                    \
@@ -217,6 +220,10 @@ class CallSite {
     "writable or have a value, %")                                             \
   T(WithExpression, "% has no properties")                                     \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
+  /* ReferenceError */                                                         \
+  T(NonMethod, "'super' is referenced from non-method")                        \
+  T(NotDefined, "% is not defined")                                            \
+  T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(ArrayLengthOutOfRange, "defineProperty() array length out of range")       \
   T(DateRange, "Provided date is not in valid range.")                         \

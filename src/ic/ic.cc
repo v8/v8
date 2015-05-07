@@ -16,6 +16,7 @@
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/messages.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
 
@@ -369,10 +370,10 @@ MaybeHandle<Object> IC::TypeError(const char* type, Handle<Object> object,
 }
 
 
-MaybeHandle<Object> IC::ReferenceError(const char* type, Handle<Name> name) {
+MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
   HandleScope scope(isolate());
-  THROW_NEW_ERROR(isolate(), NewReferenceError(type, HandleVector(&name, 1)),
-                  Object);
+  THROW_NEW_ERROR(
+      isolate(), NewReferenceError(MessageTemplate::kNotDefined, name), Object);
 }
 
 
@@ -737,7 +738,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       if (*result == *isolate()->factory()->the_hole_value()) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
-        return ReferenceError("not_defined", name);
+        return ReferenceError(name);
       }
 
       if (use_ic && LoadScriptContextFieldStub::Accepted(&lookup_result)) {
@@ -767,7 +768,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       return result;
     }
   }
-  return ReferenceError("not_defined", name);
+  return ReferenceError(name);
 }
 
 
@@ -1566,7 +1567,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       if (*previous_value == *isolate()->factory()->the_hole_value()) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
-        return ReferenceError("not_defined", name);
+        return ReferenceError(name);
       }
 
       if (FLAG_use_ic &&
@@ -2937,7 +2938,7 @@ static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
   // Throw a reference error.
   Handle<Name> name_handle(name);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("not_defined", HandleVector(&name_handle, 1)));
+      isolate, NewReferenceError(MessageTemplate::kNotDefined, name_handle));
 }
 
 
