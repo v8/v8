@@ -3264,8 +3264,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       DeoptimizeIf(equal, instr, Deoptimizer::kHole);
     }
   } else if (hinstr->hole_mode() == CONVERT_HOLE_TO_UNDEFINED) {
-    DCHECK(hinstr->elements_kind() == FAST_HOLEY_SMI_ELEMENTS ||
-           hinstr->elements_kind() == FAST_HOLEY_ELEMENTS);
+    DCHECK(hinstr->elements_kind() == FAST_HOLEY_ELEMENTS);
     Label done;
     __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
     __ j(not_equal, &done);

@@ -3335,8 +3335,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       DeoptimizeIf(eq, instr, Deoptimizer::kHole, result, Operand(scratch));
     }
   } else if (instr->hydrogen()->hole_mode() == CONVERT_HOLE_TO_UNDEFINED) {
-    DCHECK(instr->hydrogen()->elements_kind() == FAST_HOLEY_SMI_ELEMENTS ||
-           instr->hydrogen()->elements_kind() == FAST_HOLEY_ELEMENTS);
+    DCHECK(instr->hydrogen()->elements_kind() == FAST_HOLEY_ELEMENTS);
     Label done;
     __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
     __ Branch(&done, ne, result, Operand(scratch));
