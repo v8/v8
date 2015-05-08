@@ -3260,15 +3260,14 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 int HashTableBase::ComputeCapacity(int at_least_space_for) {
   const int kMinCapacity = 4;
   int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
-  if (capacity < kMinCapacity) {
-    capacity = kMinCapacity;  // Guarantee min capacity.
-  }
-  return capacity;
+  return Max(capacity, kMinCapacity);
 }
 
 
 int HashTableBase::ComputeCapacityForSerialization(int at_least_space_for) {
-  return base::bits::RoundUpToPowerOfTwo32(at_least_space_for);
+  const int kMinCapacity = 1;
+  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for);
+  return Max(capacity, kMinCapacity);
 }
 
 

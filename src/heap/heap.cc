@@ -3116,7 +3116,7 @@ void Heap::CreateInitialObjects() {
                           TENURED));
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
-      SeededNumberDictionary::New(isolate(), 1, TENURED);
+      SeededNumberDictionary::New(isolate(), 0, TENURED);
   slow_element_dictionary->set_requires_slow_elements();
   set_empty_slow_element_dictionary(*slow_element_dictionary);
 
