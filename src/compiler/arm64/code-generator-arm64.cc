@@ -642,13 +642,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Sxtw:
       __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
       break;
+    case kArm64Sbfx32:
+      __ Sbfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
+              i.InputInt5(2));
+      break;
     case kArm64Ubfx:
-      __ Ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-              i.InputInt8(2));
+      __ Ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt6(1),
+              i.InputInt6(2));
       break;
     case kArm64Ubfx32:
-      __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt8(1),
-              i.InputInt8(2));
+      __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
+              i.InputInt5(2));
       break;
     case kArm64Bfi:
       __ Bfi(i.OutputRegister(), i.InputRegister(1), i.InputInt6(2),

@@ -2366,30 +2366,62 @@ TEST_F(InstructionSelectorTest, Int32MulHighWithParameters) {
 
 
 TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
-  {
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
     Node* const p0 = m.Parameter(0);
-    Node* const r =
-        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)), m.Int32Constant(24));
+    Node* const r = m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(shift)),
+                                m.Int32Constant(shift));
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Sxtb32, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(kArm64Sbfx32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
   }
-  {
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
     Node* const p0 = m.Parameter(0);
-    Node* const r =
-        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)), m.Int32Constant(16));
+    Node* const r = m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(shift + 32)),
+                                m.Int32Constant(shift + 64));
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Sxth32, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(kArm64Sbfx32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32ShrWithWord32Shl) {
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32Shr(m.Word32Shl(p0, m.Int32Constant(shift)),
+                                m.Int32Constant(shift));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32Shr(m.Word32Shl(p0, m.Int32Constant(shift + 32)),
+                                m.Int32Constant(shift + 64));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));

@@ -660,8 +660,36 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
 }
 
 
+namespace {
+
+bool TryEmitBitfieldExtract32(InstructionSelector* selector, Node* node) {
+  Arm64OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  if (selector->CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
+    // Select Ubfx or Sbfx for (x << (K & 0x1f)) OP (K & 0x1f), where
+    // OP is >>> or >> and (K & 0x1f) != 0.
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue() && m.right().HasValue() &&
+        (mleft.right().Value() & 0x1f) == (m.right().Value() & 0x1f)) {
+      DCHECK(m.IsWord32Shr() || m.IsWord32Sar());
+      ArchOpcode opcode = m.IsWord32Sar() ? kArm64Sbfx32 : kArm64Ubfx32;
+
+      int right_val = m.right().Value() & 0x1f;
+      DCHECK_NE(right_val, 0);
+
+      selector->Emit(opcode, g.DefineAsRegister(node),
+                     g.UseRegister(mleft.left().node()), g.TempImmediate(0),
+                     g.TempImmediate(32 - right_val));
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+
 void InstructionSelector::VisitWord32Shr(Node* node) {
-  Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
     uint32_t lsb = m.right().Value();
@@ -673,6 +701,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       if ((mask_msb + mask_width + lsb) == 32) {
+        Arm64OperandGenerator g(this);
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(mask));
         Emit(kArm64Ubfx32, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
@@ -680,6 +709,8 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
         return;
       }
     }
+  } else if (TryEmitBitfieldExtract32(this, node)) {
+    return;
   }
   VisitRRO(this, kArm64Lsr32, node, kShift32Imm);
 }
@@ -711,20 +742,8 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
-  Arm64OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  // Select Sxth/Sxtb for (x << K) >> K where K is 16 or 24.
-  if (CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
-    Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().Is(16) && m.right().Is(16)) {
-      Emit(kArm64Sxth32, g.DefineAsRegister(node),
-           g.UseRegister(mleft.left().node()));
-      return;
-    } else if (mleft.right().Is(24) && m.right().Is(24)) {
-      Emit(kArm64Sxtb32, g.DefineAsRegister(node),
-           g.UseRegister(mleft.left().node()));
-      return;
-    }
+  if (TryEmitBitfieldExtract32(this, node)) {
+    return;
   }
   VisitRRO(this, kArm64Asr32, node, kShift32Imm);
 }
