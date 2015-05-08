@@ -90,11 +90,10 @@ class ControlReducerImpl final : public AdvancedReducer {
       bool pop = true;
       while (fw_stack.back().second != node->use_edges().end()) {
         Edge edge = *(fw_stack.back().second);
+        Node* succ = edge.from();
         if (NodeProperties::IsControlEdge(edge) &&
-            edge.from()->op()->ControlOutputCount() > 0) {
+            succ->op()->ControlOutputCount() > 0) {
           // Only walk control edges to control nodes.
-          Node* succ = edge.from();
-
           if (marked.IsOnStack(succ) && !marked.IsReachableFromEnd(succ)) {
             // {succ} is on stack and not reachable from end.
             Node* added = ConnectNTL(succ);
@@ -112,11 +111,14 @@ class ControlReducerImpl final : public AdvancedReducer {
           }
           if (!marked.IsReachableFromStart(succ)) {
             // {succ} is not yet reached from start.
-            marked.Push(succ);
             marked.SetReachableFromStart(succ);
-            fw_stack.push_back(FwIter(succ, succ->use_edges().begin()));
-            pop = false;  // "recurse" into successor control node.
-            break;
+            if (succ->opcode() != IrOpcode::kOsrLoopEntry) {
+              // Skip OsrLoopEntry; forms a confusing irredducible loop.
+              marked.Push(succ);
+              fw_stack.push_back(FwIter(succ, succ->use_edges().begin()));
+              pop = false;  // "recurse" into successor control node.
+              break;
+            }
           }
         }
         ++fw_stack.back().second;
