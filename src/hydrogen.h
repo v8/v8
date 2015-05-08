@@ -2818,10 +2818,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildEmitObjectHeader(Handle<JSObject> boilerplate_object,
                              HInstruction* object);
 
-  void BuildInitElementsInObjectHeader(Handle<JSObject> boilerplate_object,
-                                       HInstruction* object,
-                                       HInstruction* object_elements);
-
   void BuildEmitInObjectProperties(Handle<JSObject> boilerplate_object,
                                    HInstruction* object,
                                    AllocationSiteUsageContext* site_context,
