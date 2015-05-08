@@ -1058,9 +1058,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  MachineOperatorBuilder::Flags flags =
-      MachineOperatorBuilder::kFloat32Abs | MachineOperatorBuilder::kFloat64Abs;
-
+  MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
       IsFp64Mode()) {
     flags |= MachineOperatorBuilder::kFloat64RoundDown |

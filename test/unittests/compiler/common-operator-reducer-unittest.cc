@@ -120,7 +120,7 @@ TEST_F(CommonOperatorReducerTest, PhiToFloat32Abs) {
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* phi =
       graph()->NewNode(common()->Phi(kMachFloat32, 2), vtrue, vfalse, merge);
-  Reduction r = Reduce(phi, MachineOperatorBuilder::kFloat32Abs);
+  Reduction r = Reduce(phi);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat32Abs(p0));
 }
@@ -138,7 +138,7 @@ TEST_F(CommonOperatorReducerTest, PhiToFloat64Abs) {
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* phi =
       graph()->NewNode(common()->Phi(kMachFloat64, 2), vtrue, vfalse, merge);
-  Reduction r = Reduce(phi, MachineOperatorBuilder::kFloat64Abs);
+  Reduction r = Reduce(phi);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
 }
@@ -250,7 +250,7 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat32Abs) {
   Node* select =
       graph()->NewNode(common()->Select(kMachFloat32), check, p0,
                        graph()->NewNode(machine()->Float32Sub(), c0, p0));
-  Reduction r = Reduce(select, MachineOperatorBuilder::kFloat32Abs);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat32Abs(p0));
 }
@@ -263,7 +263,7 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat64Abs) {
   Node* select =
       graph()->NewNode(common()->Select(kMachFloat64), check, p0,
                        graph()->NewNode(machine()->Float64Sub(), c0, p0));
-  Reduction r = Reduce(select, MachineOperatorBuilder::kFloat64Abs);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
 }

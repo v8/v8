@@ -58,8 +58,7 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
       if (cond->opcode() == IrOpcode::kFloat32LessThan) {
         Float32BinopMatcher mcond(cond);
         if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
-            vfalse->opcode() == IrOpcode::kFloat32Sub &&
-            machine()->HasFloat32Abs()) {
+            vfalse->opcode() == IrOpcode::kFloat32Sub) {
           Float32BinopMatcher mvfalse(vfalse);
           if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
             return Change(node, machine()->Float32Abs(), vtrue);
@@ -75,8 +74,7 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
       } else if (cond->opcode() == IrOpcode::kFloat64LessThan) {
         Float64BinopMatcher mcond(cond);
         if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
-            vfalse->opcode() == IrOpcode::kFloat64Sub &&
-            machine()->HasFloat64Abs()) {
+            vfalse->opcode() == IrOpcode::kFloat64Sub) {
           Float64BinopMatcher mvfalse(vfalse);
           if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
             return Change(node, machine()->Float64Abs(), vtrue);
@@ -117,8 +115,7 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
     case IrOpcode::kFloat32LessThan: {
       Float32BinopMatcher mcond(cond);
       if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
-          vfalse->opcode() == IrOpcode::kFloat32Sub &&
-          machine()->HasFloat32Abs()) {
+          vfalse->opcode() == IrOpcode::kFloat32Sub) {
         Float32BinopMatcher mvfalse(vfalse);
         if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
           return Change(node, machine()->Float32Abs(), vtrue);
@@ -136,8 +133,7 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
     case IrOpcode::kFloat64LessThan: {
       Float64BinopMatcher mcond(cond);
       if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
-          vfalse->opcode() == IrOpcode::kFloat64Sub &&
-          machine()->HasFloat64Abs()) {
+          vfalse->opcode() == IrOpcode::kFloat64Sub) {
         Float64BinopMatcher mvfalse(vfalse);
         if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
           return Change(node, machine()->Float64Abs(), vtrue);

@@ -4950,7 +4950,6 @@ TEST(RunFloat32Abs) {
   float input = -1.0;
   float result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat32Abs()) return;
   m.StoreToPointer(&result, kMachFloat32,
                    m.Float32Abs(m.LoadFromPointer(&input, kMachFloat32)));
   m.Return(m.Int32Constant(0));
@@ -4967,7 +4966,6 @@ TEST(RunFloat64Abs) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Abs()) return;
   m.StoreToPointer(&result, kMachFloat64,
                    m.Float64Abs(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));

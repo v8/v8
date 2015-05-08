@@ -1871,10 +1871,8 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat32Abs |
-         MachineOperatorBuilder::kFloat32Max |
+  return MachineOperatorBuilder::kFloat32Max |
          MachineOperatorBuilder::kFloat32Min |
-         MachineOperatorBuilder::kFloat64Abs |
          MachineOperatorBuilder::kFloat64Max |
          MachineOperatorBuilder::kFloat64Min |
          MachineOperatorBuilder::kFloat64RoundDown |
