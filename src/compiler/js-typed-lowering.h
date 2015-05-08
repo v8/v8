@@ -65,9 +65,6 @@ class JSTypedLowering final : public Reducer {
                             const Operator* shift_op);
 
   Node* ConvertPrimitiveToNumber(Node* input);
-  template <IrOpcode::Value>
-  Node* FindConversion(Node* input);
-  void InsertConversion(Node* conversion);
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
@@ -84,7 +81,6 @@ class JSTypedLowering final : public Reducer {
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;
-  ZoneVector<Node*> conversions_;  // Cache inserted JSToXXX() conversions.
   Type* zero_range_;
   Type* one_range_;
   Type* zero_thirtyone_range_;

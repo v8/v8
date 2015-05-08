@@ -39,7 +39,7 @@ static void RelaxControls(Node* node) {
 
 
 JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
-    : jsgraph_(jsgraph), simplified_(graph()->zone()), conversions_(zone) {
+    : jsgraph_(jsgraph), simplified_(graph()->zone()) {
   zero_range_ = Type::Range(0.0, 0.0, graph()->zone());
   one_range_ = Type::Range(1.0, 1.0, graph()->zone());
   zero_thirtyone_range_ = Type::Range(0.0, 31.0, graph()->zone());
@@ -658,8 +658,6 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     return Changed(input);  // JSToNumber(JSToNumber(x)) => JSToNumber(x)
   }
   // Check if we have a cached conversion.
-  Node* conversion = FindConversion<IrOpcode::kJSToNumber>(input);
-  if (conversion) return Replace(conversion);
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Number())) {
     // JSToNumber(x:number) => x
@@ -692,67 +690,6 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   }
   Type* const input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::PlainPrimitive())) {
-    if (input->opcode() == IrOpcode::kPhi) {
-      // JSToNumber(phi(x1,...,xn,control):plain-primitive,context)
-      //   => phi(JSToNumber(x1,no-context),
-      //          ...,
-      //          JSToNumber(xn,no-context),control)
-      int const input_count = input->InputCount() - 1;
-      Node* const control = input->InputAt(input_count);
-      DCHECK_LE(0, input_count);
-      DCHECK(NodeProperties::IsControl(control));
-      DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
-      DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
-      RelaxEffectsAndControls(node);
-      node->set_op(common()->Phi(kMachAnyTagged, input_count));
-      for (int i = 0; i < input_count; ++i) {
-        // We must be very careful not to introduce cycles when pushing
-        // operations into phis. It is safe for {value}, since it appears
-        // as input to the phi that we are replacing, but it's not safe
-        // to simply reuse the context of the {node}. However, ToNumber()
-        // does not require a context anyways, so it's safe to discard it
-        // here and pass the dummy context.
-        Node* const value = ConvertPrimitiveToNumber(input->InputAt(i));
-        if (i < node->InputCount()) {
-          node->ReplaceInput(i, value);
-        } else {
-          node->AppendInput(graph()->zone(), value);
-        }
-      }
-      if (input_count < node->InputCount()) {
-        node->ReplaceInput(input_count, control);
-      } else {
-        node->AppendInput(graph()->zone(), control);
-      }
-      node->TrimInputCount(input_count + 1);
-      return Changed(node);
-    }
-    if (input->opcode() == IrOpcode::kSelect) {
-      // JSToNumber(select(c,x1,x2):plain-primitive,context)
-      //   => select(c,JSToNumber(x1,no-context),JSToNumber(x2,no-context))
-      int const input_count = input->InputCount();
-      BranchHint const input_hint = SelectParametersOf(input->op()).hint();
-      DCHECK_EQ(3, input_count);
-      DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::Number()));
-      DCHECK(!NodeProperties::GetBounds(input).upper->Is(Type::Number()));
-      RelaxEffectsAndControls(node);
-      node->set_op(common()->Select(kMachAnyTagged, input_hint));
-      node->ReplaceInput(0, input->InputAt(0));
-      for (int i = 1; i < input_count; ++i) {
-        // We must be very careful not to introduce cycles when pushing
-        // operations into selects. It is safe for {value}, since it appears
-        // as input to the select that we are replacing, but it's not safe
-        // to simply reuse the context of the {node}. However, ToNumber()
-        // does not require a context anyways, so it's safe to discard it
-        // here and pass the dummy context.
-        Node* const value = ConvertPrimitiveToNumber(input->InputAt(i));
-        node->ReplaceInput(i, value);
-      }
-      node->TrimInputCount(input_count);
-      return Changed(node);
-    }
-    // Remember this conversion.
-    InsertConversion(node);
     if (NodeProperties::GetContextInput(node) !=
             jsgraph()->NoContextConstant() ||
         NodeProperties::GetEffectInput(node) != graph()->start() ||
@@ -1258,34 +1195,9 @@ Node* JSTypedLowering::ConvertPrimitiveToNumber(Node* input) {
   Reduction const reduction = ReduceJSToNumberInput(input);
   if (reduction.Changed()) return reduction.replacement();
   // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
-  Node* const conversion = graph()->NewNode(
+  return graph()->NewNode(
       javascript()->ToNumber(), input, jsgraph()->NoContextConstant(),
       jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());
-  InsertConversion(conversion);
-  return conversion;
-}
-
-
-template <IrOpcode::Value kOpcode>
-Node* JSTypedLowering::FindConversion(Node* input) {
-  size_t const input_id = input->id();
-  if (input_id < conversions_.size()) {
-    Node* const conversion = conversions_[input_id];
-    if (conversion && conversion->opcode() == kOpcode) {
-      return conversion;
-    }
-  }
-  return nullptr;
-}
-
-
-void JSTypedLowering::InsertConversion(Node* conversion) {
-  DCHECK(conversion->opcode() == IrOpcode::kJSToNumber);
-  size_t const input_id = conversion->InputAt(0)->id();
-  if (input_id >= conversions_.size()) {
-    conversions_.resize(2 * input_id + 1);
-  }
-  conversions_[input_id] = conversion;
 }
 
 
