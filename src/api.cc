@@ -5492,6 +5492,14 @@ void Context::DetachGlobal() {
 }
 
 
+Local<v8::Object> Context::GetExtrasExportsObject() {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  i::Handle<i::JSObject> exports(context->extras_exports_object(), isolate);
+  return Utils::ToLocal(exports);
+}
+
+
 void Context::AllowCodeGenerationFromStrings(bool allow) {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();

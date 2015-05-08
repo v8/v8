@@ -201,6 +201,7 @@ class Genesis BASE_EMBEDDED {
   void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
   void InitializeExperimentalGlobal();
+  void InitializeExtrasExportsObject();
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
@@ -1438,6 +1439,20 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
+}
+
+
+void Genesis::InitializeExtrasExportsObject() {
+  Handle<JSObject> exports =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+
+  native_context()->set_extras_exports_object(*exports);
+
+  Handle<JSBuiltinsObject> builtins(native_context()->builtins());
+  Handle<String> exports_string =
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("extrasExports"));
+  Runtime::SetObjectProperty(isolate(), builtins, exports_string, exports,
+                             STRICT).Assert();
 }
 
 
@@ -2962,6 +2977,7 @@ Genesis::Genesis(Isolate* isolate,
   // them after they have already been deserialized would also fail.
   if (!isolate->serializer_enabled()) {
     InitializeExperimentalGlobal();
+    InitializeExtrasExportsObject();
     if (!InstallExperimentalNatives()) return;
     if (!InstallExtraNatives()) return;
   }

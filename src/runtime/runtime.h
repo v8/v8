@@ -592,6 +592,7 @@ namespace internal {
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(NativeScriptsCount, 0, 1)                 \
+  F(NativeExtrasCount, 0, 1)                  \
   F(GetV8Version, 0, 1)                       \
   F(DisassembleFunction, 1, 1)                \
   F(TraceEnter, 0, 1)                         \

@@ -185,7 +185,8 @@ enum BindingFlags {
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
-  V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)
+  V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
+  V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_exports_object)
 
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -422,6 +423,7 @@ class Context: public FixedArray {
     SCRIPT_CONTEXT_TABLE_INDEX,
     MAP_CACHE_INDEX,
     TO_LENGTH_FUN_INDEX,
+    EXTRAS_EXPORTS_OBJECT_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

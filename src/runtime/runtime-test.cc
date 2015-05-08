@@ -364,6 +364,12 @@ RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_NativeExtrasCount) {
+  DCHECK(args.length() == 0);
+  return Smi::FromInt(ExtraNatives::GetBuiltinsCount());
+}
+
+
 // Returns V8 version as a string.
 RUNTIME_FUNCTION(Runtime_GetV8Version) {
   HandleScope scope(isolate);

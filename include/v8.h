@@ -6371,6 +6371,12 @@ class V8_EXPORT Context {
   V8_INLINE Local<Value> GetEmbedderData(int index);
 
   /**
+   * Gets the exports object used by V8 extras. Extra natives get a reference
+   * to this object and can use it to export functionality.
+   */
+  Local<Object> GetExtrasExportsObject();
+
+  /**
    * Sets the embedder data with the given index, growing the data as
    * needed. Note that index 0 currently has a special meaning for Chrome's
    * debugger.
