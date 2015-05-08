@@ -704,7 +704,7 @@ class MarkCompactCollector {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
-  void EnsureMarkingDequeIsCommittedAndInitialize();
+  void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size = 4 * MB);
 
   void InitializeMarkingDeque();
 
