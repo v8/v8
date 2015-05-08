@@ -3669,20 +3669,13 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
   ForFixedTypedArray(array_type, &element_size, &elements_kind);
   int size = OBJECT_POINTER_ALIGN(length * element_size +
                                   FixedTypedArrayBase::kDataOffset);
-#ifndef V8_HOST_ARCH_64_BIT
-  if (array_type == kExternalFloat64Array) {
-    size += kPointerSize;
-  }
-#endif
   AllocationSpace space = SelectSpace(size, pretenure);
 
   HeapObject* object;
-  AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+  AllocationResult allocation = AllocateRaw(
+      size, space, OLD_SPACE,
+      array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
   if (!allocation.To(&object)) return allocation;
-
-  if (array_type == kExternalFloat64Array) {
-    object = EnsureDoubleAligned(object, size);
-  }
 
   object->set_map(MapForFixedTypedArray(array_type));
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
@@ -4398,21 +4391,20 @@ AllocationResult Heap::AllocateUninitializedFixedDoubleArray(
 AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
                                                    PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length",
+                                                kDoubleAligned);
   }
   int size = FixedDoubleArray::SizeFor(length);
-#ifndef V8_HOST_ARCH_64_BIT
-  size += kPointerSize;
-#endif
   AllocationSpace space = SelectSpace(size, pretenure);
 
   HeapObject* object;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation =
+        AllocateRaw(size, space, OLD_SPACE, kDoubleAligned);
     if (!allocation.To(&object)) return allocation;
   }
 
-  return EnsureDoubleAligned(object, size);
+  return object;
 }
 
 
@@ -4420,17 +4412,14 @@ AllocationResult Heap::AllocateConstantPoolArray(
     const ConstantPoolArray::NumberOfEntries& small) {
   CHECK(small.are_in_range(0, ConstantPoolArray::kMaxSmallEntriesPerType));
   int size = ConstantPoolArray::SizeFor(small);
-#ifndef V8_HOST_ARCH_64_BIT
-  size += kPointerSize;
-#endif
   AllocationSpace space = SelectSpace(size, TENURED);
 
   HeapObject* object;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation =
+        AllocateRaw(size, space, OLD_SPACE, kDoubleAligned);
     if (!allocation.To(&object)) return allocation;
   }
-  object = EnsureDoubleAligned(object, size);
   object->set_map_no_write_barrier(constant_pool_array_map());
 
   ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
@@ -4446,17 +4435,14 @@ AllocationResult Heap::AllocateExtendedConstantPoolArray(
   CHECK(small.are_in_range(0, ConstantPoolArray::kMaxSmallEntriesPerType));
   CHECK(extended.are_in_range(0, kMaxInt));
   int size = ConstantPoolArray::SizeForExtended(small, extended);
-#ifndef V8_HOST_ARCH_64_BIT
-  size += kPointerSize;
-#endif
   AllocationSpace space = SelectSpace(size, TENURED);
 
   HeapObject* object;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation =
+        AllocateRaw(size, space, OLD_SPACE, kDoubleAligned);
     if (!allocation.To(&object)) return allocation;
   }
-  object = EnsureDoubleAligned(object, size);
   object->set_map_no_write_barrier(constant_pool_array_map());
 
   ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);

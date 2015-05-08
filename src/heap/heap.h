@@ -1816,12 +1816,15 @@ class Heap {
 
   HeapObject* DoubleAlignForDeserialization(HeapObject* object, int size);
 
+  enum Alignment { kWordAligned, kDoubleAligned };
+
   // Allocate an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.  This is the single choke-point for allocations
   // performed by the runtime and should not be bypassed (to extend this to
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   MUST_USE_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationSpace space, AllocationSpace retry_space);
+      int size_in_bytes, AllocationSpace space, AllocationSpace retry_space,
+      Alignment aligment = kWordAligned);
 
   // Allocates a heap object based on the map.
   MUST_USE_RESULT AllocationResult
