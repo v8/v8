@@ -3198,13 +3198,18 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
     case EXTERNAL_INT8_ELEMENTS:
+    case INT8_ELEMENTS:
       return new(zone) Range(kMinInt8, kMaxInt8);
     case EXTERNAL_UINT8_ELEMENTS:
     case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       return new(zone) Range(kMinUInt8, kMaxUInt8);
     case EXTERNAL_INT16_ELEMENTS:
+    case INT16_ELEMENTS:
       return new(zone) Range(kMinInt16, kMaxInt16);
     case EXTERNAL_UINT16_ELEMENTS:
+    case UINT16_ELEMENTS:
       return new(zone) Range(kMinUInt16, kMaxUInt16);
     default:
       return HValue::InferRange(zone);
