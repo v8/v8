@@ -897,30 +897,25 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   out << "Unsupported " << #opcode << " condition: \"" << condition << "\""; \
   UNIMPLEMENTED();
 
-static bool convertCondition(FlagsCondition condition, Condition& cc,
-                             bool& acceptNaN) {
-  acceptNaN = false;
+static bool convertCondition(FlagsCondition condition, Condition& cc) {
   switch (condition) {
     case kEqual:
       cc = eq;
       return true;
     case kNotEqual:
       cc = ne;
-      acceptNaN = true;
       return true;
     case kUnsignedLessThan:
       cc = lt;
       return true;
     case kUnsignedGreaterThanOrEqual:
-      cc = ge;
-      acceptNaN = true;
+      cc = uge;
       return true;
     case kUnsignedLessThanOrEqual:
       cc = le;
       return true;
     case kUnsignedGreaterThan:
-      cc = gt;
-      acceptNaN = true;
+      cc = ugt;
       return true;
     default:
       break;
@@ -960,27 +955,19 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
   } else if (instr->arch_opcode() == kMips64CmpS) {
-    // TODO(dusmil) optimize unordered checks to use fewer instructions
-    // even if we have to unfold BranchF macro.
-    bool acceptNaN = false;
-    if (!convertCondition(branch->condition, cc, acceptNaN)) {
+    if (!convertCondition(branch->condition, cc)) {
       UNSUPPORTED_COND(kMips64CmpS, branch->condition);
     }
-    Label* nan = acceptNaN ? tlabel : flabel;
-    __ BranchF32(tlabel, nan, cc, i.InputSingleRegister(0),
+    __ BranchF32(tlabel, NULL, cc, i.InputSingleRegister(0),
                  i.InputSingleRegister(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 
   } else if (instr->arch_opcode() == kMips64CmpD) {
-    // TODO(dusmil) optimize unordered checks to use less instructions
-    // even if we have to unfold BranchF macro.
-    bool acceptNaN = false;
-    if (!convertCondition(branch->condition, cc, acceptNaN)) {
+    if (!convertCondition(branch->condition, cc)) {
       UNSUPPORTED_COND(kMips64CmpD, branch->condition);
     }
-    Label* nan = acceptNaN ? tlabel : flabel;
-    __ BranchF64(tlabel, nan, cc, i.InputDoubleRegister(0),
+    __ BranchF64(tlabel, NULL, cc, i.InputDoubleRegister(0),
                  i.InputDoubleRegister(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
