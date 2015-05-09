@@ -10,18 +10,18 @@
 
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
-FUNCTION(1, Uint8Array, 1)
-FUNCTION(2, Int8Array, 1)
-FUNCTION(3, Uint16Array, 2)
-FUNCTION(4, Int16Array, 2)
-FUNCTION(5, Uint32Array, 4)
-FUNCTION(6, Int32Array, 4)
-FUNCTION(7, Float32Array, 4)
-FUNCTION(8, Float64Array, 8)
-FUNCTION(9, Uint8ClampedArray, 1)
+FUNCTION(Uint8Array)
+FUNCTION(Int8Array)
+FUNCTION(Uint16Array)
+FUNCTION(Int16Array)
+FUNCTION(Uint32Array)
+FUNCTION(Int32Array)
+FUNCTION(Float32Array)
+FUNCTION(Float64Array)
+FUNCTION(Uint8ClampedArray)
 endmacro
 
-macro DECLARE_GLOBALS(INDEX, NAME, SIZE)
+macro DECLARE_GLOBALS(NAME)
 var GlobalNAME = global.NAME;
 endmacro
 
@@ -29,10 +29,8 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 // -------------------------------------------------------------------
 
-macro TYPED_ARRAY_HARMONY_ADDITIONS(ARRAY_ID, NAME, ELEMENT_SIZE)
-
 // ES6 draft 05-05-15, section 22.2.3.7
-function NAMEEvery(f /* thisArg */) {  // length == 1
+function TypedArrayEvery(f /* thisArg */) {  // length == 1
   if (!%IsTypedArray(this)) {
     throw MakeTypeError('not_typed_array', []);
   }
@@ -66,7 +64,7 @@ function NAMEEvery(f /* thisArg */) {  // length == 1
 }
 
 // ES6 draft 08-24-14, section 22.2.3.12
-function NAMEForEach(f /* thisArg */) {  // length == 1
+function TypedArrayForEach(f /* thisArg */) {  // length == 1
   if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
 
@@ -95,7 +93,7 @@ function NAMEForEach(f /* thisArg */) {  // length == 1
 }
 
 // ES6 draft 08-24-14, section 22.2.2.2
-function NAMEOf() {  // length == 0
+function TypedArrayOf() {  // length == 0
   var length = %_ArgumentsLength();
   var array = new this(length);
   for (var i = 0; i < length; i++) {
@@ -104,21 +102,16 @@ function NAMEOf() {  // length == 0
   return array;
 }
 
-endmacro
-
-TYPED_ARRAYS(TYPED_ARRAY_HARMONY_ADDITIONS)
-
-
-macro EXTEND_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
+macro EXTEND_TYPED_ARRAY(NAME)
   // Set up non-enumerable functions on the object.
   $installFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
-    "of", NAMEOf
+    "of", TypedArrayOf
   ]);
 
   // Set up non-enumerable functions on the prototype object.
   $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
-    "every", NAMEEvery,
-    "forEach", NAMEForEach
+    "every", TypedArrayEvery,
+    "forEach", TypedArrayForEach
   ]);
 endmacro
 
