@@ -1223,7 +1223,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_SMI_ARG_CHECKED(key, 1);
+  CONVERT_NUMBER_CHECKED(int, key, Int32, args[1]);
 
   if (key < 0) {
     return object->elements();
