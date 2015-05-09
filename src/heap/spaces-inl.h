@@ -303,7 +303,9 @@ AllocationResult PagedSpace::AllocateRawDoubleAligned(int size_in_bytes) {
     if (object == NULL) {
       object = SlowAllocateRaw(aligned_size_in_bytes);
     }
-    object = heap()->EnsureDoubleAligned(object, aligned_size_in_bytes);
+    if (object != NULL) {
+      object = heap()->EnsureDoubleAligned(object, aligned_size_in_bytes);
+    }
   }
 
   if (object != NULL) {
