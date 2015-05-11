@@ -431,7 +431,7 @@ def PrepareSources(source_files, native_type, emit_js):
   # It cannot be empty (or whitespace, which gets trimmed to empty), as
   # the deserialization code assumes each file is nonempty.
   if not source_files_and_contents:
-    source_files_and_contents = [("dummy.js", "void 0;")]
+    source_files_and_contents = [("dummy.js", "(function() {})")]
 
   result = Sources()
 
