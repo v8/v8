@@ -1754,10 +1754,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // If the function is strong we need to throw an error.
     Label weak_function;
-    __ ld(t1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ lbu(t1, FieldMemOperand(t1, SharedFunctionInfo::kCompilerHintsOffset));
-    __ And(t2, t1, Operand(1 << SharedFunctionInfo::kStrongModeBitWithinByte));
-    __ Branch(&weak_function, eq, t2, Operand(zero_reg));
+    __ ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ lbu(a4, FieldMemOperand(a4, SharedFunctionInfo::kStrongModeByteOffset));
+    __ And(a4, a4, Operand(1 << SharedFunctionInfo::kStrongModeBitWithinByte));
+    __ Branch(&weak_function, eq, a4, Operand(zero_reg));
 
     {
       FrameScope frame(masm, StackFrame::MANUAL);
