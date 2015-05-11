@@ -1742,6 +1742,22 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   {  // Too few parameters: Actual < expected.
     __ bind(&too_few);
+
+    // If the function is strong we need to throw an error.
+    Label weak_function;
+    __ lw(t1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(t1, FieldMemOperand(t1, SharedFunctionInfo::kCompilerHintsOffset));
+    __ And(t2, t1, Operand(1 << (SharedFunctionInfo::kStrongModeFunction +
+                                 kSmiTagSize)));
+    __ Branch(&weak_function, eq, t2, Operand(zero_reg));
+
+    {
+      FrameScope frame(masm, StackFrame::MANUAL);
+      EnterArgumentsAdaptorFrame(masm);
+      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
+    }
+
+    __ bind(&weak_function);
     EnterArgumentsAdaptorFrame(masm);
 
     // Calculate copy start address into a0 and copy end address is fp.

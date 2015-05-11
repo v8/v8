@@ -526,4 +526,32 @@ TEST(InlineNestedBuiltin) {
   T.CheckCall(T.true_value());
 }
 
+
+TEST(StrongModeArity) {
+  FLAG_turbo_deoptimization = true;
+  FLAG_strong_mode = true;
+  FunctionTester T(
+      "(function () {"
+      "  function foo(x, y) { 'use strong'; return x; }"
+      "  function bar(x, y) { return foo(x); }"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+  T.CheckThrows(T.undefined(), T.undefined());
+}
+
+
+TEST(StrongModeArityOuter) {
+  FLAG_turbo_deoptimization = true;
+  FLAG_strong_mode = true;
+  FunctionTester T(
+      "(function () {"
+      "  'use strong';"
+      "  function foo(x, y) { return x; }"
+      "  function bar(x, y) { return foo(x); }"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+  T.CheckThrows(T.undefined(), T.undefined());
+}
 #endif  // V8_TURBOFAN_TARGET

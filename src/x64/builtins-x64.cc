@@ -1642,6 +1642,23 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   {  // Too few parameters: Actual < expected.
     __ bind(&too_few);
+
+    // If the function is strong we need to throw an error.
+    Label weak_function;
+    __ movp(kScratchRegister,
+            FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ testb(FieldOperand(kScratchRegister,
+                          SharedFunctionInfo::kStrongModeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kStrongModeBitWithinByte));
+    __ j(equal, &weak_function, Label::kNear);
+
+    {
+      FrameScope frame(masm, StackFrame::MANUAL);
+      EnterArgumentsAdaptorFrame(masm);
+      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
+    }
+
+    __ bind(&weak_function);
     EnterArgumentsAdaptorFrame(masm);
 
     // Copy receiver and all actual arguments.

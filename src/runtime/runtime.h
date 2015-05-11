@@ -207,6 +207,7 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1)                                \
   F(SetCode, 2, 1)                                          \
   F(SetNativeFlag, 1, 1)                                    \
+  F(ThrowStrongModeTooFewArguments, 0, 1)                   \
   F(IsConstructor, 1, 1)                                    \
   F(SetInlineBuiltinFlag, 1, 1)                             \
   F(FunctionBindArguments, 4, 1)                            \

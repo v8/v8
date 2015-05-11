@@ -141,6 +141,7 @@ var kMessages = {
   strong_constructor_this:       ["In strong mode, 'this' can only be used to initialize properties, and cannot be nested inside another statement or expression"],
   strong_constructor_return_value: ["In strong mode, returning a value from a constructor is deprecated"],
   strong_constructor_return_misplaced: ["In strong mode, returning from a constructor before its super constructor invocation or all assignments to 'this' is deprecated"],
+  strong_arity:                  ["In strong mode, calling a function with too few arguments is deprecated"],
   sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
   malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],

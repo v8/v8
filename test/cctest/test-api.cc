@@ -21029,3 +21029,78 @@ TEST(SealHandleScopeNested) {
     USE(obj);
   }
 }
+
+
+TEST(StrongModeArityCallFromApi) {
+  i::FLAG_strong_mode = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Function> fun;
+  {
+    v8::TryCatch try_catch;
+    fun = Local<Function>::Cast(CompileRun(
+        "function f(x) { 'use strong'; }"
+        "f"));
+
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    fun->Call(v8::Undefined(isolate), 0, nullptr);
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    v8::Handle<Value> args[] = {v8_num(42)};
+    fun->Call(v8::Undefined(isolate), arraysize(args), args);
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    v8::Handle<Value> args[] = {v8_num(42), v8_num(555)};
+    fun->Call(v8::Undefined(isolate), arraysize(args), args);
+    CHECK(!try_catch.HasCaught());
+  }
+}
+
+
+TEST(StrongModeArityCallFromApi2) {
+  i::FLAG_strong_mode = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Function> fun;
+  {
+    v8::TryCatch try_catch;
+    fun = Local<Function>::Cast(CompileRun(
+        "'use strong';"
+        "function f(x) {}"
+        "f"));
+
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    fun->Call(v8::Undefined(isolate), 0, nullptr);
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    v8::Handle<Value> args[] = {v8_num(42)};
+    fun->Call(v8::Undefined(isolate), arraysize(args), args);
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    v8::Handle<Value> args[] = {v8_num(42), v8_num(555)};
+    fun->Call(v8::Undefined(isolate), arraysize(args), args);
+    CHECK(!try_catch.HasCaught());
+  }
+}

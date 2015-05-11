@@ -211,13 +211,14 @@ function assertThrowsHelper(code) {
   func2;
 
   function func4(p, ...rest) { p; rest; this; func2; }
-  func4();
+  // TODO(arv): The arity checking is not correct with rest parameters.
+  func4(1, 2);
 
   let func5 = (p1, p2) => { p1; p2; };
-  func5();
+  func5(1, 2);
 
   let func5b = p1 => p1;
-  func5b();
+  func5b(1);
 
   function func6() {
     var1, var2a, var2b, var2c;

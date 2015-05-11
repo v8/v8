@@ -61,7 +61,7 @@ class JSCallFunctionAccessor {
 
 namespace {
 
-// A facade on a JSFunction's graph to facilitate inlining. It assumes the
+// A facade on a JSFunction's graph to facilitate inlining. It assumes
 // that the function graph has only one return statement, and provides
 // {UnifyReturn} to convert a function graph to that end.
 class Inlinee {
@@ -363,6 +363,12 @@ Reduction JSInliner::Reduce(Node* node) {
   Node* outer_frame_state = call.frame_state();
   // Insert argument adaptor frame if required.
   if (call.formal_arguments() != inlinee.formal_parameters()) {
+    // In strong mode, in case of too few arguments we need to throw a
+    // TypeError so we must not inline this call.
+    if (is_strong(info.language_mode()) &&
+        call.formal_arguments() < inlinee.formal_parameters()) {
+      return NoChange();
+    }
     outer_frame_state =
         CreateArgumentsAdaptorFrameState(&call, function, info.zone());
   }

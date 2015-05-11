@@ -605,5 +605,13 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSFunction());
 }
+
+
+RUNTIME_FUNCTION(Runtime_ThrowStrongModeTooFewArguments) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError("strong_arity", HandleVector<Object>(NULL, 0)));
+}
 }
 }  // namespace v8::internal
