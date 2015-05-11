@@ -369,6 +369,21 @@ void ApiAccessorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   };
   data->Initialize(arraysize(registers), registers, representations);
 }
+
+
+void MathRoundVariantDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      cp,  // context
+      r4,  // math rounding function
+      r6,  // vector slot id
+  };
+  Representation representations[] = {
+      Representation::Tagged(),  //
+      Representation::Tagged(),  //
+      Representation::Tagged(),  //
+  };
+  data->Initialize(arraysize(registers), registers, representations);
+}
 }
 }  // namespace v8::internal
 
