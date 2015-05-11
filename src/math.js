@@ -10,7 +10,7 @@ var $floor;
 var $max;
 var $min;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -360,4 +360,4 @@ $floor = MathFloorJS;
 $max = MathMax;
 $min = MathMin;
 
-})();
+})

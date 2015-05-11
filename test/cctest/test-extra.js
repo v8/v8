@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 (function () {
-    'use strict';
 
-    extrasExports.testExtraShouldReturnFive = function () {
-        return 5;
-    };
-})();
+  'use strict';
+
+  extrasExports.testExtraShouldReturnFive = function () {
+    return 5;
+  };
+
+});

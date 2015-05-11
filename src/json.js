@@ -4,7 +4,7 @@
 
 var $jsonSerializeAdapter;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -239,4 +239,4 @@ $jsonSerializeAdapter = function(key, object) {
   return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
 
-})();
+})

@@ -10,7 +10,7 @@ var $observeNativeObjectObserve;
 var $observeNativeObjectGetNotifier;
 var $observeNativeObjectNotifierPerformChange;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -684,4 +684,4 @@ $observeNativeObjectObserve = NativeObjectObserve;
 $observeNativeObjectGetNotifier = NativeObjectGetNotifier;
 $observeNativeObjectNotifierPerformChange = NativeObjectNotifierPerformChange;
 
-})();
+})

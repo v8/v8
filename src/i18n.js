@@ -8,7 +8,7 @@
  * Intl object is a single object that has some named properties,
  * all of which are constructors.
  */
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -2058,4 +2058,4 @@ $overrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
   }
 );
 
-})();
+})

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -43,4 +43,4 @@ $installFunctions(GlobalObject, DONT_ENUM, [
   "assign", ObjectAssign
 ]);
 
-})();
+})

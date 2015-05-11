@@ -32,7 +32,7 @@ var $setUpLockedPrototype;
 var $toCompletePropertyDescriptor;
 var $toNameArray;
 
-(function() {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
@@ -212,7 +212,7 @@ function GlobalParseFloat(string) {
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
-  var global_proxy = %GlobalProxy(global);
+  var global_proxy = %GlobalProxy(GlobalEval);
 
   var f = %CompileString(x, false);
   if (!IS_FUNCTION(f)) return f;
@@ -322,7 +322,7 @@ function ObjectPropertyIsEnumerable(V) {
 function ObjectDefineGetter(name, fun) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalProxy(global);
+    receiver = %GlobalProxy(ObjectDefineGetter);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
     throw MakeTypeError(kObjectGetterExpectingFunction);
@@ -338,7 +338,7 @@ function ObjectDefineGetter(name, fun) {
 function ObjectLookupGetter(name) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalProxy(global);
+    receiver = %GlobalProxy(ObjectLookupGetter);
   }
   return %LookupAccessor(TO_OBJECT_INLINE(receiver), $toName(name), GETTER);
 }
@@ -347,7 +347,7 @@ function ObjectLookupGetter(name) {
 function ObjectDefineSetter(name, fun) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalProxy(global);
+    receiver = %GlobalProxy(ObjectDefineSetter);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
     throw MakeTypeError(kObjectSetterExpectingFunction);
@@ -363,7 +363,7 @@ function ObjectDefineSetter(name, fun) {
 function ObjectLookupSetter(name) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalProxy(global);
+    receiver = %GlobalProxy(ObjectLookupSetter);
   }
   return %LookupAccessor(TO_OBJECT_INLINE(receiver), $toName(name), SETTER);
 }
@@ -1893,7 +1893,7 @@ function NewFunctionString(args, function_token) {
 
 function FunctionConstructor(arg1) {  // length == 1
   var source = NewFunctionString(arguments, 'function');
-  var global_proxy = %GlobalProxy(global);
+  var global_proxy = %GlobalProxy(FunctionConstructor);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
   var f = %_CallFunction(global_proxy, %CompileString(source, true));
@@ -1964,4 +1964,4 @@ $setUpLockedPrototype = SetUpLockedPrototype;
 $toCompletePropertyDescriptor = ToCompletePropertyDescriptor;
 $toNameArray = ToNameArray;
 
-})();
+})

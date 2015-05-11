@@ -5,7 +5,7 @@
 var $spreadArguments;
 var $spreadIterable;
 
-(function() {
+(function(global, shared, exports) {
 
 'use strict';
 
@@ -40,4 +40,4 @@ function SpreadIterable(collection) {
 $spreadArguments = SpreadArguments;
 $spreadIterable = SpreadIterable;
 
-})();
+})

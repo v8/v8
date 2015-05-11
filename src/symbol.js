@@ -12,7 +12,7 @@
 
 var $symbolToString;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -114,4 +114,4 @@ $installFunctions(GlobalObject, DONT_ENUM, [
 
 $symbolToString = SymbolToString;
 
-})();
+})

@@ -6,7 +6,7 @@ var $stringCharAt;
 var $stringIndexOf;
 var $stringSubstring;
 
-(function() {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
@@ -1171,4 +1171,4 @@ $stringCharAt = StringCharAtJS;
 $stringIndexOf = StringIndexOfJS;
 $stringSubstring = StringSubstring;
 
-})();
+})

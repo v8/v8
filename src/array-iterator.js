@@ -5,7 +5,7 @@
 var $iteratorCreateResultObject;
 var $arrayValues;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -156,4 +156,4 @@ TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 $iteratorCreateResultObject = CreateIteratorResultObject;
 $arrayValues = ArrayValues;
 
-})();
+})

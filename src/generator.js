@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -73,7 +73,7 @@ function GeneratorObjectIterator() {
 
 function GeneratorFunctionConstructor(arg1) {  // length == 1
   var source = $newFunctionString(arguments, 'function*');
-  var global_proxy = %GlobalProxy(global);
+  var global_proxy = %GlobalProxy(GeneratorFunctionConstructor);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
   var f = %_CallFunction(global_proxy, %CompileString(source, true));
@@ -110,4 +110,4 @@ $setFunctionName(GeneratorObjectIterator, symbolIterator);
 %InternalSetPrototype(GeneratorFunction, GlobalFunction);
 %SetCode(GeneratorFunction, GeneratorFunctionConstructor);
 
-})();
+})

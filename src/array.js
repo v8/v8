@@ -11,7 +11,7 @@ var $arraySlice;
 var $arraySplice;
 var $arrayUnshift;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -1595,4 +1595,4 @@ $arraySlice = ArraySlice;
 $arraySplice = ArraySplice;
 $arrayUnshift = ArrayUnshift;
 
-})();
+})

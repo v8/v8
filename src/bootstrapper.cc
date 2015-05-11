@@ -1547,8 +1547,22 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
                      ? top_context->builtins()
                      : top_context->global_object(),
                      isolate);
-  return !Execution::Call(
-      isolate, fun, receiver, 0, NULL).is_null();
+  MaybeHandle<Object> result;
+  if (extension == NULL) {
+    // For non-extension scripts, run script to get the function wrapper.
+    Handle<Object> wrapper;
+    if (!Execution::Call(isolate, fun, receiver, 0, NULL).ToHandle(&wrapper)) {
+      return false;
+    }
+    // Then run the function wrapper.
+    Handle<Object> global_obj(top_context->global_object(), isolate);
+    Handle<Object> args[] = {global_obj};
+    result = Execution::Call(isolate, Handle<JSFunction>::cast(wrapper),
+                             receiver, arraysize(args), args);
+  } else {
+    result = Execution::Call(isolate, fun, receiver, 0, NULL);
+  }
+  return !result.is_null();
 }
 
 
@@ -1889,16 +1903,9 @@ bool Genesis::InstallNatives() {
   builtins->set_global_proxy(native_context()->global_proxy());
 
 
-  // Set up the 'global' properties of the builtins object. The
-  // 'global' property that refers to the global object is the only
-  // way to get from code running in the builtins context to the
-  // global object.
+  // Set up the 'builtin' property, which refers to the js builtins object.
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  Handle<String> global_string =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("global"));
-  Handle<Object> global_obj(native_context()->global_object(), isolate());
-  JSObject::AddProperty(builtins, global_string, global_obj, attributes);
   Handle<String> builtins_string =
       factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("builtins"));
   JSObject::AddProperty(builtins, builtins_string, builtins, attributes);

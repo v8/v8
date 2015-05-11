@@ -1278,9 +1278,8 @@ RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
 RUNTIME_FUNCTION(Runtime_GlobalProxy) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, global, 0);
-  if (!global->IsJSGlobalObject()) return isolate->heap()->null_value();
-  return JSGlobalObject::cast(global)->global_proxy();
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return function->context()->global_proxy();
 }
 
 

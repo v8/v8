@@ -7,7 +7,7 @@ var $mapIteratorNext;
 var $setIteratorNext;
 var $setValues;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -188,4 +188,4 @@ $installFunctions(GlobalMap.prototype, DONT_ENUM, [
 $mapEntries = MapEntries;
 $mapIteratorNext = MapIteratorNextJS;
 
-})();
+})

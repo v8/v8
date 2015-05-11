@@ -6,7 +6,7 @@
 
 var $getTemplateCallSite;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -70,4 +70,4 @@ $getTemplateCallSite = function(siteObj, rawStrings, hash) {
   return SetCachedCallSite(%ObjectFreeze(siteObj), hash);
 }
 
-})();
+})

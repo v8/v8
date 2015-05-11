@@ -26,7 +26,7 @@
 var kMath;
 var rempio2result;
 
-(function() {
+(function(global, shared, exports) {
   
 "use strict";
 
@@ -1027,4 +1027,4 @@ $installFunctions(GlobalMath, DONT_ENUM, [
 %SetInlineBuiltinFlag(MathSin);
 %SetInlineBuiltinFlag(MathCos);
 
-})();
+})

@@ -5,7 +5,7 @@
 // This file contains support for URI manipulations written in
 // JavaScript.
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -40,7 +40,7 @@ function isAlphaNumeric(cc) {
   return false;
 }
 
-//Lazily initialized.
+// Lazily initialized.
 var hexCharCodeArray = 0;
 
 function URIAddEncodedOctetToBuffer(octet, result, index) {
@@ -365,4 +365,4 @@ $installFunctions(global, DONT_ENUM, [
   "encodeURIComponent", URIEncodeComponent
 ]);
 
-})();
+})

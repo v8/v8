@@ -31,7 +31,7 @@ var MakeReferenceErrorEmbedded;
 var MakeSyntaxErrorEmbedded;
 var MakeTypeErrorEmbedded;
 
-(function() {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
@@ -1051,7 +1051,7 @@ var captureStackTrace = function captureStackTrace(obj, cons_opt) {
 
 
 // Define special error type constructors.
-function DefineError(f) {
+function DefineError(global, f) {
   // Store the error function in both the global object
   // and the runtime object. The function is fetched
   // from the runtime object when throwing errors from
@@ -1094,13 +1094,13 @@ function DefineError(f) {
   return f;
 };
 
-GlobalError = DefineError(function Error() { });
-GlobalEvalError = DefineError(function EvalError() { });
-GlobalRangeError = DefineError(function RangeError() { });
-GlobalReferenceError = DefineError(function ReferenceError() { });
-GlobalSyntaxError = DefineError(function SyntaxError() { });
-GlobalTypeError = DefineError(function TypeError() { });
-GlobalURIError = DefineError(function URIError() { });
+GlobalError = DefineError(global, function Error() { });
+GlobalEvalError = DefineError(global, function EvalError() { });
+GlobalRangeError = DefineError(global, function RangeError() { });
+GlobalReferenceError = DefineError(global, function ReferenceError() { });
+GlobalSyntaxError = DefineError(global, function SyntaxError() { });
+GlobalTypeError = DefineError(global, function TypeError() { });
+GlobalURIError = DefineError(global, function URIError() { });
 
 
 GlobalError.captureStackTrace = captureStackTrace;
@@ -1236,4 +1236,4 @@ $stackOverflowBoilerplate = MakeRangeError(kStackOverflow);
 %DefineAccessorPropertyUnchecked($stackOverflowBoilerplate, 'stack',
                                  StackTraceGetter, StackTraceSetter, DONT_ENUM);
 
-})();
+})

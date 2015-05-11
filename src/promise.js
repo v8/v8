@@ -12,7 +12,7 @@ var $promiseHasUserDefinedRejectHandler;
 var $promiseStatus;
 var $promiseValue;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -391,4 +391,4 @@ $promiseHasUserDefinedRejectHandler = PromiseHasUserDefinedRejectHandler;
 $promiseStatus = promiseStatus;
 $promiseValue = promiseValue;
 
-})();
+})

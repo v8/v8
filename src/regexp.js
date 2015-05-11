@@ -9,7 +9,7 @@ var $regexpLastMatchInfoOverride;
 var harmony_regexps = false;
 var harmony_unicode_regexps = false;
 
-(function() {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
@@ -442,4 +442,4 @@ for (var i = 1; i < 10; ++i) {
 $regexpExecNoTests = RegExpExecNoTests;
 $regexpExec = DoRegExpExec;
 
-})();
+})

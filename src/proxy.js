@@ -10,7 +10,7 @@ var $proxyDerivedKeysTrap;
 var $proxyDerivedSetTrap;
 var $proxyEnumerate;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -198,4 +198,4 @@ $proxyDerivedKeysTrap = DerivedKeysTrap;
 $proxyDerivedSetTrap = DerivedSetTrap;
 $proxyEnumerate = ProxyEnumerate;
 
-})();
+})

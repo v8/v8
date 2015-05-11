@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function() {
+(function(global, shared, exports) {
 
 'use strict';
 
@@ -31,4 +31,4 @@ function RegExpGetFlags() {
                                  RegExpGetFlags, null, DONT_ENUM);
 %SetNativeFlag(RegExpGetFlags);
 
-})();
+})
