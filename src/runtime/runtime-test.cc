@@ -212,6 +212,18 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetUndetectable) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+
+  Local<v8::ObjectTemplate> desc =
+      v8::ObjectTemplate::New((v8::Isolate*)isolate);
+  desc->MarkAsUndetectable();  // undetectable
+  Local<v8::Object> obj = desc->NewInstance();
+  return *Utils::OpenHandle(*obj);
+}
+
+
 RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
