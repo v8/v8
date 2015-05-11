@@ -62,47 +62,6 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
 }
 
 
-size_t hash_value(OutputFrameStateCombine const& sc) {
-  return base::hash_combine(sc.kind_, sc.parameter_);
-}
-
-
-std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
-  switch (sc.kind_) {
-    case OutputFrameStateCombine::kPushOutput:
-      if (sc.parameter_ == 0) return os << "Ignore";
-      return os << "Push(" << sc.parameter_ << ")";
-    case OutputFrameStateCombine::kPokeAt:
-      return os << "PokeAt(" << sc.parameter_ << ")";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
-bool operator==(FrameStateCallInfo const& lhs, FrameStateCallInfo const& rhs) {
-  return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
-         lhs.state_combine() == rhs.state_combine();
-}
-
-
-bool operator!=(FrameStateCallInfo const& lhs, FrameStateCallInfo const& rhs) {
-  return !(lhs == rhs);
-}
-
-
-size_t hash_value(FrameStateCallInfo const& info) {
-  return base::hash_combine(info.type(), info.bailout_id(),
-                            info.state_combine());
-}
-
-
-std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
-  return os << info.type() << ", " << info.bailout_id() << ", "
-            << info.state_combine();
-}
-
-
 size_t ProjectionIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kProjection, op->opcode());
   return OpParameter<size_t>(op);

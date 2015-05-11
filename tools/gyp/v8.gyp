@@ -462,6 +462,8 @@
         '../../src/compiler/frame.h',
         '../../src/compiler/frame-elider.cc',
         '../../src/compiler/frame-elider.h',
+        "../../src/compiler/frame-states.cc",
+        "../../src/compiler/frame-states.h",
         '../../src/compiler/gap-resolver.cc',
         '../../src/compiler/gap-resolver.h',
         '../../src/compiler/graph-builder.h',
