@@ -65,6 +65,12 @@ class AccessBuilder final : public AllStatic {
   // Provides access to the charaters of sequential strings.
   static ElementAccess ForSeqStringChar(String::Encoding encoding);
 
+  // Provides access to the SharedFunctionInfo in a JSFunction.
+  static FieldAccess ForJSFunctionSharedFunctionInfo();
+
+  // Provides access to the TypeFeedbackVector in SharedFunctionInfo.
+  static FieldAccess ForSharedFunctionInfoTypeFeedbackVector();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

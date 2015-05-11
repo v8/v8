@@ -408,5 +408,13 @@ RUNTIME_FUNCTION(Runtime_HarmonyToString) {
   // TODO(caitp): Delete this runtime method when removing --harmony-tostring
   return isolate->heap()->ToBoolean(FLAG_harmony_tostring);
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetTypeFeedbackVector) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return function->shared()->feedback_vector();
+}
 }
 }  // namespace v8::internal

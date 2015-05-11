@@ -34,6 +34,7 @@ class JSIntrinsicLowering final : public Reducer {
   Reduction ReduceDoubleLo(Node* node);
   Reduction ReduceHeapObjectGetMap(Node* node);
   Reduction ReduceIncrementStatsCounter(Node* node);
+  Reduction ReduceIsMinusZero(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsNonNegativeSmi(Node* node);
   Reduction ReduceIsSmi(Node* node);
@@ -47,8 +48,11 @@ class JSIntrinsicLowering final : public Reducer {
   Reduction ReduceStringGetLength(Node* node);
   Reduction ReduceUnLikely(Node* node, BranchHint hint);
   Reduction ReduceValueOf(Node* node);
+  Reduction ReduceFixedArraySet(Node* node);
+  Reduction ReduceGetTypeFeedbackVector(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
+  Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
   Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
 

@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/code-stubs.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-state.h"
 #include "src/objects.h"
@@ -312,7 +313,8 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
   DCHECK(!FLAG_vector_ics ||
-         GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate));
+         GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate) ||
+         GetFeedbackExtra() == Smi::FromInt(kHasReturnedMinusZeroSentinel));
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
     return GENERIC;

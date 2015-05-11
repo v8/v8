@@ -150,6 +150,20 @@ ElementAccess AccessBuilder::ForSeqStringChar(String::Encoding encoding) {
   return {kUntaggedBase, 0, Type::None(), kMachNone};
 }
 
+
+// static
+FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
+  return {kTaggedBase, JSFunction::kSharedFunctionInfoOffset, Handle<Name>(),
+          Type::Any(), kMachAnyTagged};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector() {
+  return {kTaggedBase, SharedFunctionInfo::kFeedbackVectorOffset,
+          Handle<Name>(), Type::Any(), kMachAnyTagged};
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

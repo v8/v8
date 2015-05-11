@@ -74,6 +74,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceUnLikely(node, BranchHint::kFalse);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
+    case Runtime::kInlineIsMinusZero:
+      return ReduceIsMinusZero(node);
+    case Runtime::kInlineFixedArraySet:
+      return ReduceFixedArraySet(node);
+    case Runtime::kInlineGetTypeFeedbackVector:
+      return ReduceGetTypeFeedbackVector(node);
     default:
       break;
   }
@@ -394,6 +400,67 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   NodeProperties::RemoveNonValueInputs(node);
   // Finally update the operator to the new one.
   node->set_op(op);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceIsMinusZero(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  Node* double_lo =
+      graph()->NewNode(machine()->Float64ExtractLowWord32(), value);
+  Node* check1 = graph()->NewNode(machine()->Word32Equal(), double_lo,
+                                  jsgraph()->ZeroConstant());
+
+  Node* double_hi =
+      graph()->NewNode(machine()->Float64ExtractHighWord32(), value);
+  Node* check2 = graph()->NewNode(
+      machine()->Word32Equal(), double_hi,
+      jsgraph()->Int32Constant(static_cast<int32_t>(0x80000000)));
+
+  NodeProperties::ReplaceWithValue(node, node, effect);
+
+  Node* and_result = graph()->NewNode(machine()->Word32And(), check1, check2);
+
+  return Change(node, machine()->Word32Equal(), and_result,
+                jsgraph()->Int32Constant(1));
+}
+
+
+Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* store = (graph()->NewNode(
+      simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()), base,
+      index, value, effect, control));
+  NodeProperties::ReplaceWithValue(node, value, store);
+  return Changed(store);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceGetTypeFeedbackVector(Node* node) {
+  Node* func = node->InputAt(0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  FieldAccess access = AccessBuilder::ForJSFunctionSharedFunctionInfo();
+  Node* load =
+      graph()->NewNode(simplified()->LoadField(access), func, effect, control);
+  access = AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector();
+  return Change(node, simplified()->LoadField(access), load, load, control);
+}
+
+
+Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
+                                      Node* b) {
+  node->set_op(op);
+  node->ReplaceInput(0, a);
+  node->ReplaceInput(1, b);
+  node->TrimInputCount(2);
+  NodeProperties::ReplaceWithValue(node, node, node);
   return Changed(node);
 }
 

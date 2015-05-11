@@ -1576,6 +1576,7 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsSmi:
     case Runtime::kInlineIsNonNegativeSmi:
     case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsMinusZero:
     case Runtime::kInlineIsFunction:
     case Runtime::kInlineIsRegExp:
       return Bounds(Type::None(zone()), Type::Boolean(zone()));

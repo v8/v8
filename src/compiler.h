@@ -165,6 +165,8 @@ class CompilationInfo {
   Handle<Code> unoptimized_code() const { return unoptimized_code_; }
   int opt_count() const { return opt_count_; }
   int num_parameters() const;
+  int num_parameters_including_this() const;
+  bool is_this_defined() const;
   int num_heap_slots() const;
   Code::Flags flags() const;
   bool has_scope() const { return scope() != nullptr; }
@@ -386,6 +388,8 @@ class CompilationInfo {
 #endif
 
   bool is_simple_parameter_list();
+
+  Handle<Code> GenerateCodeStub();
 
  protected:
   ParseInfo* parse_info_;

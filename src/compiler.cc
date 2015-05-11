@@ -175,6 +175,14 @@ int CompilationInfo::num_parameters() const {
 }
 
 
+int CompilationInfo::num_parameters_including_this() const {
+  return num_parameters() + (is_this_defined() ? 1 : 0);
+}
+
+
+bool CompilationInfo::is_this_defined() const { return !IsStub(); }
+
+
 int CompilationInfo::num_heap_slots() const {
   return has_scope() ? scope()->num_heap_slots() : 0;
 }
@@ -270,6 +278,14 @@ void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
   if (!track_positions_ || IsStub()) return;
   DCHECK_LT(static_cast<size_t>(inlining_id), inlined_function_infos_.size());
   inlined_function_infos_.at(inlining_id).deopt_pc_offsets.push_back(pc_offset);
+}
+
+
+Handle<Code> CompilationInfo::GenerateCodeStub() {
+  // Run a "mini pipeline", extracted from compiler.cc.
+  CHECK(Parser::ParseStatic(parse_info()));
+  CHECK(Compiler::Analyze(parse_info()));
+  return compiler::Pipeline(this).GenerateCode();
 }
 
 

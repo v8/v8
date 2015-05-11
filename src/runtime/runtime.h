@@ -49,6 +49,8 @@ namespace internal {
   F(IsArray, 1, 1)                                                    \
   F(HasCachedArrayIndex, 1, 1)                                        \
   F(GetCachedArrayIndex, 1, 1)                                        \
+  F(FixedArrayGet, 2, 1)                                              \
+  F(FixedArraySet, 3, 1)                                              \
   F(FastOneByteArrayJoin, 2, 1)
 
 
@@ -78,8 +80,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(StringGetRawHashField, 1, 1)          \
   F(TheHole, 0, 1)                        \
-  F(FixedArrayGet, 2, 1)                  \
-  F(FixedArraySet, 3, 1)                  \
   F(JSCollectionGetTable, 1, 1)           \
   F(GenericHash, 1, 1)                    \
   F(SetInitialize, 1, 1)                  \
@@ -302,7 +302,8 @@ namespace internal {
   F(IncrementStatsCounter, 1, 1)              \
   F(Likely, 1, 1)                             \
   F(Unlikely, 1, 1)                           \
-  F(HarmonyToString, 0, 1)
+  F(HarmonyToString, 0, 1)                    \
+  F(GetTypeFeedbackVector, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_JSON(F) \

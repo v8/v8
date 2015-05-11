@@ -58,6 +58,7 @@ class PlatformInterfaceDescriptor;
   V(StoreArrayLiteralElement)                 \
   V(MathPowTagged)                            \
   V(MathPowInteger)                           \
+  V(MathRoundVariant)                         \
   V(ContextOnly)                              \
   V(GrowArrayElements)
 
@@ -525,6 +526,12 @@ class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
 
   static const Register exponent();
+};
+
+
+class MathRoundVariantDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(MathRoundVariantDescriptor, CallInterfaceDescriptor)
 };
 
 

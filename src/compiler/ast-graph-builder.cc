@@ -429,7 +429,7 @@ void AstGraphBuilder::CreateFunctionContext(bool constant_context) {
 Node* AstGraphBuilder::NewOuterContextParam() {
   // Parameter (arity + 1) is special for the outer context of the function
   const Operator* op =
-      common()->Parameter(info()->num_parameters() + 1, "%context");
+      common()->Parameter(info()->num_parameters_including_this(), "%context");
   return NewNode(op, graph()->start());
 }
 
@@ -437,8 +437,8 @@ Node* AstGraphBuilder::NewOuterContextParam() {
 Node* AstGraphBuilder::NewCurrentContextOsrValue() {
   // TODO(titzer): use a real OSR value here; a parameter works by accident.
   // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op =
-      common()->Parameter(info()->num_parameters() + 1, "%osr-context");
+  const Operator* op = common()->Parameter(
+      info()->num_parameters_including_this(), "%osr-context");
   return NewNode(op, graph()->start());
 }
 
@@ -615,16 +615,22 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   DCHECK_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
-  Node* receiver = builder->graph()->NewNode(common()->Parameter(0, "%this"),
-                                             builder->graph()->start());
-  values()->push_back(receiver);
+  int param_num = 0;
+  if (builder->info()->is_this_defined()) {
+    Node* receiver = builder->graph()->NewNode(
+        common()->Parameter(param_num++, "%this"), builder->graph()->start());
+    values()->push_back(receiver);
+  } else {
+    values()->push_back(builder->jsgraph()->UndefinedConstant());
+  }
 
   // Bind all parameter variables. The parameter indices are shifted by 1
   // (receiver is parameter index -1 but environment index 0).
   for (int i = 0; i < scope->num_parameters(); ++i) {
     const char* debug_name = GetDebugParameterName(graph()->zone(), scope, i);
-    Node* parameter = builder->graph()->NewNode(
-        common()->Parameter(i + 1, debug_name), builder->graph()->start());
+    Node* parameter =
+        builder->graph()->NewNode(common()->Parameter(param_num++, debug_name),
+                                  builder->graph()->start());
     values()->push_back(parameter);
   }
 
