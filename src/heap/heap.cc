@@ -395,6 +395,20 @@ void Heap::ReportStatisticsAfterGC() {
 #else
   if (FLAG_log_gc) new_space_.ReportStatistics();
 #endif  // DEBUG
+  for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
+       ++i) {
+    int count = deferred_counters_[i];
+    deferred_counters_[i] = 0;
+    while (count > 0) {
+      count--;
+      isolate()->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(i));
+    }
+  }
+}
+
+
+void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
+  deferred_counters_[feature]++;
 }
 
 
@@ -923,6 +937,11 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     }
 
     tracer()->Stop(collector);
+  }
+
+  if (collector == MARK_COMPACTOR &&
+      (gc_callback_flags & kGCCallbackFlagForced) != 0) {
+    isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
   // Start incremental marking for the next cycle. The heap snapshot
@@ -5421,6 +5440,12 @@ bool Heap::SetUp() {
       set_hash_seed(Smi::FromInt(FLAG_hash_seed));
     }
   }
+
+  for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
+       i++) {
+    deferred_counters_[i] = 0;
+  }
+
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));

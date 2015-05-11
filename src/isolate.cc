@@ -2669,8 +2669,15 @@ void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {
 
 
 void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
-  if (use_counter_callback_) {
-    use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
+  // The counter callback may cause the embedder to call into V8, which is not
+  // generally possible during GC.
+  if (heap_.gc_state() == Heap::NOT_IN_GC) {
+    if (use_counter_callback_) {
+      HandleScope handle_scope(this);
+      use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
+    }
+  } else {
+    heap_.IncrementDeferredCount(feature);
   }
 }
 

@@ -1311,6 +1311,8 @@ class Heap {
   // Returns minimal interval between two subsequent collections.
   double get_min_in_mutator() { return min_in_mutator_; }
 
+  void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
+
   MarkCompactCollector* mark_compact_collector() {
     return &mark_compact_collector_;
   }
@@ -2046,6 +2048,8 @@ class Heap {
 
   // Total RegExp code ever generated
   double total_regexp_code_generated_;
+
+  int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 
   GCTracer tracer_;
 

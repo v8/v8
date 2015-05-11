@@ -3203,6 +3203,31 @@ TEST(ReleaseOverReservedPages) {
   CHECK_EQ(1, old_space->CountTotalPages());
 }
 
+static int forced_gc_counter = 0;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  isolate->GetCallingContext();
+  if (feature == v8::Isolate::kForcedGC) {
+    forced_gc_counter++;
+  }
+}
+
+
+TEST(CountForcedGC) {
+  i::FLAG_expose_gc = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+
+  isolate->SetUseCounterCallback(MockUseCounterCallback);
+
+  forced_gc_counter = 0;
+  const char* source = "gc();";
+  CompileRun(source);
+  CHECK_GT(forced_gc_counter, 0);
+}
+
 
 TEST(Regress2237) {
   i::FLAG_stress_compaction = false;
