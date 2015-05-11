@@ -1621,6 +1621,9 @@ class VariableProxy final : public Expression {
     return variable_feedback_slot_;
   }
 
+  static int num_ids() { return parent_num_ids() + 1; }
+  BailoutId BeforeId() const { return BailoutId(local_id(0)); }
+
  protected:
   VariableProxy(Zone* zone, Variable* var, int start_position,
                 int end_position);
@@ -1628,6 +1631,8 @@ class VariableProxy final : public Expression {
   VariableProxy(Zone* zone, const AstRawString* name,
                 Variable::Kind variable_kind, int start_position,
                 int end_position);
+  static int parent_num_ids() { return Expression::num_ids(); }
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   class IsThisField : public BitField8<bool, 0, 1> {};
   class IsAssignedField : public BitField8<bool, 1, 1> {};

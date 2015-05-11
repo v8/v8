@@ -1493,6 +1493,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
 void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
   // Record position before possible IC call.
   SetSourcePosition(proxy->position());
+  PrepareForBailoutForId(proxy->BeforeId(), NO_REGISTERS);
   Variable* var = proxy->var();
 
   // Three cases: global variables, lookup variables, and all other types of
