@@ -309,22 +309,16 @@ void Scope::Initialize() {
     scope_inside_with_ = is_with_scope();
   }
 
-  // Declare convenience variables.
-  // Declare and allocate receiver (even for the script scope, and even
-  // if naccesses_ == 0).
-  // NOTE: When loading parameters in the script scope, we must take
-  // care not to access them as properties of the global object, but
-  // instead load them directly from the stack. Currently, the only
-  // such parameter is 'this' which is passed on the stack when
-  // invoking scripts
+  // Declare convenience variables and the receiver.
   if (is_declaration_scope()) {
     DCHECK(!subclass_constructor || is_function_scope());
-    Variable* var = variables_.Declare(
-        this, ast_value_factory_->this_string(),
-        subclass_constructor ? CONST : VAR, Variable::THIS,
-        subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
-    var->AllocateTo(Variable::PARAMETER, -1);
-    receiver_ = var;
+    if (has_this_declaration()) {
+      Variable* var = variables_.Declare(
+          this, ast_value_factory_->this_string(),
+          subclass_constructor ? CONST : VAR, Variable::THIS,
+          subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
+      receiver_ = var;
+    }
 
     if (subclass_constructor) {
       new_target_ =
@@ -333,9 +327,6 @@ void Scope::Initialize() {
       new_target_->AllocateTo(Variable::PARAMETER, -2);
       new_target_->set_is_used();
     }
-  } else {
-    DCHECK(outer_scope() != NULL);
-    receiver_ = outer_scope()->receiver();
   }
 
   if (is_function_scope() && !is_arrow_scope()) {
@@ -1049,7 +1040,11 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     DCHECK(is_script_scope());
   }
 
-  if (is_with_scope()) {
+  // "this" can't be shadowed by "eval"-introduced bindings or by "with" scopes.
+  // TODO(wingo): There are other variables in this category; add them.
+  bool name_can_be_shadowed = var == nullptr || !var->is_this();
+
+  if (is_with_scope() && name_can_be_shadowed) {
     DCHECK(!already_resolved());
     // The current scope is a with scope, so the variable binding can not be
     // statically resolved. However, note that it was necessary to do a lookup
@@ -1060,7 +1055,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
-  } else if (calls_sloppy_eval()) {
+  } else if (calls_sloppy_eval() && name_can_be_shadowed) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be
     // the correct one (the 'eval' may introduce a binding with the same name).
@@ -1415,21 +1410,37 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
       // Force context allocation of the parameter.
       var->ForceContextAllocation();
     }
+    AllocateParameter(var, i);
+  }
+}
 
-    if (MustAllocate(var)) {
-      if (MustAllocateInContext(var)) {
-        DCHECK(var->IsUnallocated() || var->IsContextSlot());
-        if (var->IsUnallocated()) {
-          AllocateHeapSlot(var);
-        }
-      } else {
-        DCHECK(var->IsUnallocated() || var->IsParameter());
-        if (var->IsUnallocated()) {
-          var->AllocateTo(Variable::PARAMETER, i);
-        }
+
+void Scope::AllocateParameter(Variable* var, int index) {
+  if (MustAllocate(var)) {
+    if (MustAllocateInContext(var)) {
+      DCHECK(var->IsUnallocated() || var->IsContextSlot());
+      if (var->IsUnallocated()) {
+        AllocateHeapSlot(var);
+      }
+    } else {
+      DCHECK(var->IsUnallocated() || var->IsParameter());
+      if (var->IsUnallocated()) {
+        var->AllocateTo(Variable::PARAMETER, index);
       }
     }
   }
+}
+
+
+void Scope::AllocateReceiver() {
+  DCHECK_NOT_NULL(receiver());
+  DCHECK_EQ(receiver()->scope(), this);
+
+  if (has_forced_context_allocation()) {
+    // Force context allocation of the receiver.
+    receiver()->ForceContextAllocation();
+  }
+  AllocateParameter(receiver(), -1);
 }
 
 
@@ -1502,6 +1513,7 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
   // Allocate variables for this scope.
   // Parameters must be allocated first, if any.
   if (is_function_scope()) AllocateParameterLocals(isolate);
+  if (has_this_declaration()) AllocateReceiver();
   AllocateNonParameterLocals(isolate);
 
   // Force allocation of a context for this scope if necessary. For a 'with'

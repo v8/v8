@@ -210,8 +210,9 @@ void FullCodeGenerator::Generate() {
 
     // Copy parameters into context if necessary.
     int num_parameters = info->scope()->num_parameters();
-    for (int i = 0; i < num_parameters; i++) {
-      Variable* var = scope()->parameter(i);
+    int first_parameter = info->scope()->has_this_declaration() ? -1 : 0;
+    for (int i = first_parameter; i < num_parameters; i++) {
+      Variable* var = (i == -1) ? scope()->receiver() : scope()->parameter(i);
       if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
@@ -2959,7 +2960,9 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   // Push the enclosing function.
   __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   // Push the receiver of the enclosing function.
-  __ push(Operand(ebp, (2 + info_->scope()->num_parameters()) * kPointerSize));
+  Variable* this_var = scope()->LookupThis();
+  DCHECK_NOT_NULL(this_var);
+  __ push(VarOperand(this_var, ecx));
   // Push the language mode.
   __ push(Immediate(Smi::FromInt(language_mode())));
 
