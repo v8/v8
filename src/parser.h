@@ -869,6 +869,7 @@ class Parser : public ParserBase<ParserTraits> {
 
  private:
   friend class ParserTraits;
+  class PatternRewriter;
 
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar

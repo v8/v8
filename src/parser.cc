@@ -14,6 +14,7 @@
 #include "src/compiler.h"
 #include "src/messages.h"
 #include "src/parser.h"
+#include "src/pattern-rewriter.h"
 #include "src/preparser.h"
 #include "src/runtime/runtime.h"
 #include "src/scanner-character-streams.h"
@@ -2316,15 +2317,18 @@ Block* Parser::ParseVariableDeclarations(
   // ConstBinding ::
   //   BindingPattern '=' AssignmentExpression
 
-  int pos = peek_position();
-  VariableMode mode = VAR;
+  PatternRewriter::DeclarationDescriptor decl;
+  decl.parser = this;
+  decl.pos = peek_position();
+  decl.mode = VAR;
   // True if the binding needs initialization. 'let' and 'const' declared
   // bindings are created uninitialized by their declaration nodes and
   // need initialization. 'var' declared bindings are always initialized
   // immediately by their declaration nodes.
-  bool needs_init = false;
-  bool is_const = false;
-  Token::Value init_op = Token::INIT_VAR;
+  decl.needs_init = false;
+  decl.is_const = false;
+  decl.init_op = Token::INIT_VAR;
+  decl.names = names;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -2336,27 +2340,29 @@ Block* Parser::ParseVariableDeclarations(
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);
     if (is_sloppy(language_mode())) {
-      mode = CONST_LEGACY;
-      init_op = Token::INIT_CONST_LEGACY;
+      decl.mode = CONST_LEGACY;
+      decl.init_op = Token::INIT_CONST_LEGACY;
       ++use_counts_[v8::Isolate::kLegacyConst];
     } else {
       DCHECK(var_context != kStatement);
-      mode = CONST;
-      init_op = Token::INIT_CONST;
+      decl.mode = CONST;
+      decl.init_op = Token::INIT_CONST;
     }
-    is_const = true;
-    needs_init = true;
+    decl.is_const = true;
+    decl.needs_init = true;
   } else if (peek() == Token::LET && is_strict(language_mode())) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
-    mode = LET;
-    needs_init = true;
-    init_op = Token::INIT_LET;
+    decl.mode = LET;
+    decl.needs_init = true;
+    decl.init_op = Token::INIT_LET;
   } else {
     UNREACHABLE();  // by current callers
   }
 
-  Scope* declaration_scope = DeclarationScope(mode);
+  decl.declaration_scope = DeclarationScope(decl.mode);
+  decl.scope = scope_;
+
 
   // The scope of a var/const declared variable anywhere inside a function
   // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
@@ -2371,10 +2377,9 @@ Block* Parser::ParseVariableDeclarations(
   // is inside an initializer block, it is ignored.
   //
   // Create new block with one expected declaration.
-  Block* block = factory()->NewBlock(NULL, 1, true, pos);
+  decl.block = factory()->NewBlock(NULL, 1, true, decl.pos);
   int nvars = 0;  // the number of variables declared
   int bindings_start = peek_position();
-  const AstRawString* name = NULL;
   const AstRawString* first_name = NULL;
   bool is_for_iteration_variable;
   do {
@@ -2383,101 +2388,46 @@ Block* Parser::ParseVariableDeclarations(
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
 
+    PatternRewriter pattern_rewriter;
     {
       ExpressionClassifier pattern_classifier;
       Token::Value next = peek();
       Expression* pattern =
           ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
-      if (pattern->IsVariableProxy() &&
-          pattern->AsVariableProxy()->IsValidReferenceExpression()) {
-        scope_->RemoveUnresolved(pattern->AsVariableProxy());
-        name = pattern->AsVariableProxy()->raw_name();
-      } else if (allow_harmony_destructuring()) {
-        // TODO(dslomov): really destructure.
-        name = ast_value_factory()->GetOneByteString(".temp.variable");
-      } else {
+      pattern_rewriter = PatternRewriter(&decl, pattern);
+      if (!allow_harmony_destructuring() &&
+          !pattern_rewriter.IsSingleVariableBinding()) {
         ReportUnexpectedToken(next);
         *ok = false;
         return nullptr;
       }
+
+      // TODO(dslomov): unify
     }
 
-    if (!first_name) first_name = name;
     Scanner::Location variable_loc = scanner()->location();
-    if (fni_ != NULL) fni_->PushVariableName(name);
+    const bool single_name = pattern_rewriter.IsSingleVariableBinding();
+    if (single_name) {
+      if (!first_name) first_name = pattern_rewriter.SingleName();
+      if (fni_ != NULL) fni_->PushVariableName(pattern_rewriter.SingleName());
+    }
 
-    // Declare variable.
-    // Note that we *always* must treat the initial value via a separate init
-    // assignment for variables and constants because the value must be assigned
-    // when the variable is encountered in the source. But the variable/constant
-    // is declared (and set to 'undefined') upon entering the function within
-    // which the variable or constant is declared. Only function variables have
-    // an initial value in the declaration (because they are initialized upon
-    // entering the function).
-    //
-    // If we have a const declaration, in an inner scope, the proxy is always
-    // bound to the declared variable (independent of possibly surrounding with
-    // statements).
-    // For let/const declarations in harmony mode, we can also immediately
-    // pre-resolve the proxy because it resides in the same scope as the
-    // declaration.
     is_for_iteration_variable =
         var_context == kForStatement &&
         (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
-    if (is_for_iteration_variable && mode == CONST) {
-      needs_init = false;
+    if (is_for_iteration_variable && decl.mode == CONST) {
+      decl.needs_init = false;
     }
 
-    VariableProxy* proxy = NewUnresolved(name, mode);
-    Declaration* declaration =
-        factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
-    Variable* var = Declare(declaration, mode != VAR, CHECK_OK);
-    DCHECK_NOT_NULL(var);
-    DCHECK(!proxy->is_resolved() || proxy->var() == var);
-    nvars++;
-    if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
-      ReportMessage("too_many_variables");
-      *ok = false;
-      return NULL;
-    }
-    if (names) names->Add(name, zone());
-
-    // Parse initialization expression if present and/or needed. A
-    // declaration of the form:
-    //
-    //    var v = x;
-    //
-    // is syntactic sugar for:
-    //
-    //    var v; v = x;
-    //
-    // In particular, we need to re-lookup 'v' (in scope_, not
-    // declaration_scope) as it may be a different 'v' than the 'v' in the
-    // declaration (e.g., if we are inside a 'with' statement or 'catch'
-    // block).
-    //
-    // However, note that const declarations are different! A const
-    // declaration of the form:
-    //
-    //   const c = x;
-    //
-    // is *not* syntactic sugar for:
-    //
-    //   const c; c = x;
-    //
-    // The "variable" c initialized to x is the same as the declared
-    // one - there is no re-lookup (see the last parameter of the
-    // Declare() call above).
-
-    Scope* initialization_scope = is_const ? declaration_scope : scope_;
     Expression* value = NULL;
-    int pos = -1;
+    decl.pos = -1;
+    decl.initializer_position = -1;
     // Harmony consts have non-optional initializers.
     if (peek() == Token::ASSIGN ||
-        (mode == CONST && !is_for_iteration_variable)) {
+        (decl.mode == CONST && !is_for_iteration_variable)) {
       Expect(Token::ASSIGN, CHECK_OK);
-      pos = position();
+      decl.pos = position();
       ExpressionClassifier classifier;
       value = ParseAssignmentExpression(var_context != kForStatement,
                                         &classifier, CHECK_OK);
@@ -2489,129 +2439,29 @@ Block* Parser::ParseVariableDeclarations(
       }
 
       // Don't infer if it is "a = function(){...}();"-like expression.
-      if (fni_ != NULL &&
-          value->AsCall() == NULL &&
-          value->AsCallNew() == NULL) {
-        fni_->Infer();
-      } else {
-        fni_->RemoveLastFunction();
+      if (single_name) {
+        if (fni_ != NULL && value->AsCall() == NULL &&
+            value->AsCallNew() == NULL) {
+          fni_->Infer();
+        } else {
+          fni_->RemoveLastFunction();
+        }
       }
       // End position of the initializer is after the assignment expression.
-      var->set_initializer_position(scanner()->location().end_pos);
+      decl.initializer_position = scanner()->location().end_pos;
     } else {
       // End position of the initializer is after the variable.
-      var->set_initializer_position(position());
+      decl.initializer_position = position();
     }
 
     // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
-    if (value == NULL && needs_init) {
+    if (value == NULL && decl.needs_init) {
       value = GetLiteralUndefined(position());
     }
 
-    // Global variable declarations must be compiled in a specific
-    // way. When the script containing the global variable declaration
-    // is entered, the global variable must be declared, so that if it
-    // doesn't exist (on the global object itself, see ES5 errata) it
-    // gets created with an initial undefined value. This is handled
-    // by the declarations part of the function representing the
-    // top-level global code; see Runtime::DeclareGlobalVariable. If
-    // it already exists (in the object or in a prototype), it is
-    // *not* touched until the variable declaration statement is
-    // executed.
-    //
-    // Executing the variable declaration statement will always
-    // guarantee to give the global object an own property.
-    // This way, global variable declarations can shadow
-    // properties in the prototype chain, but only after the variable
-    // declaration statement has been executed. This is important in
-    // browsers where the global object (window) has lots of
-    // properties defined in prototype objects.
-    if (initialization_scope->is_script_scope() &&
-        !IsLexicalVariableMode(mode)) {
-      // Compute the arguments for the runtime call.
-      ZoneList<Expression*>* arguments =
-          new(zone()) ZoneList<Expression*>(3, zone());
-      // We have at least 1 parameter.
-      arguments->Add(factory()->NewStringLiteral(name, pos), zone());
-      CallRuntime* initialize;
+    pattern_rewriter.DeclareAndInitializeVariables(value, &nvars, CHECK_OK);
 
-      if (is_const) {
-        arguments->Add(value, zone());
-        value = NULL;  // zap the value to avoid the unnecessary assignment
-
-        // Construct the call to Runtime_InitializeConstGlobal
-        // and add it to the initialization statement block.
-        // Note that the function does different things depending on
-        // the number of arguments (1 or 2).
-        initialize = factory()->NewCallRuntime(
-            ast_value_factory()->initialize_const_global_string(),
-            Runtime::FunctionForId(Runtime::kInitializeConstGlobal), arguments,
-            pos);
-      } else {
-        // Add language mode.
-        // We may want to pass singleton to avoid Literal allocations.
-        LanguageMode language_mode = initialization_scope->language_mode();
-        arguments->Add(factory()->NewNumberLiteral(language_mode, pos), zone());
-
-        // Be careful not to assign a value to the global variable if
-        // we're in a with. The initialization value should not
-        // necessarily be stored in the global object in that case,
-        // which is why we need to generate a separate assignment node.
-        if (value != NULL && !inside_with()) {
-          arguments->Add(value, zone());
-          value = NULL;  // zap the value to avoid the unnecessary assignment
-          // Construct the call to Runtime_InitializeVarGlobal
-          // and add it to the initialization statement block.
-          initialize = factory()->NewCallRuntime(
-              ast_value_factory()->initialize_var_global_string(),
-              Runtime::FunctionForId(Runtime::kInitializeVarGlobal), arguments,
-              pos);
-        } else {
-          initialize = NULL;
-        }
-      }
-
-      if (initialize != NULL) {
-        block->AddStatement(factory()->NewExpressionStatement(
-                                initialize, RelocInfo::kNoPosition),
-                            zone());
-      }
-    } else if (needs_init) {
-      // Constant initializations always assign to the declared constant which
-      // is always at the function scope level. This is only relevant for
-      // dynamically looked-up variables and constants (the start context for
-      // constant lookups is always the function context, while it is the top
-      // context for var declared variables). Sigh...
-      // For 'let' and 'const' declared variables in harmony mode the
-      // initialization also always assigns to the declared variable.
-      DCHECK(proxy != NULL);
-      DCHECK(proxy->var() != NULL);
-      DCHECK(value != NULL);
-      Assignment* assignment =
-          factory()->NewAssignment(init_op, proxy, value, pos);
-      block->AddStatement(
-          factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-          zone());
-      value = NULL;
-    }
-
-    // Add an assignment node to the initialization statement block if we still
-    // have a pending initialization value.
-    if (value != NULL) {
-      DCHECK(mode == VAR);
-      // 'var' initializations are simply assignments (with all the consequences
-      // if they are inside a 'with' statement - they may change a 'with' object
-      // property).
-      VariableProxy* proxy =
-          initialization_scope->NewUnresolved(factory(), name);
-      Assignment* assignment =
-          factory()->NewAssignment(init_op, proxy, value, pos);
-      block->AddStatement(
-          factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-          zone());
-    }
-
-    if (fni_ != NULL) fni_->Leave();
+    if (single_name && fni_ != NULL) fni_->Leave();
   } while (peek() == Token::COMMA);
 
   if (bindings_loc) {
@@ -2622,7 +2472,7 @@ Block* Parser::ParseVariableDeclarations(
   if (num_decl) *num_decl = nvars;
   *out = first_name;
 
-  return block;
+  return decl.block;
 }
 
 
