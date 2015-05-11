@@ -21029,21 +21029,3 @@ TEST(SealHandleScopeNested) {
     USE(obj);
   }
 }
-
-
-TEST(ExtrasExportsObject) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  LocalContext env;
-
-  // standalone.gypi ensures we include the test-extra.js file, which should
-  // add the testExtraShouldReturnFive export
-  v8::Local<v8::Object> exports = env->GetExtrasExportsObject();
-
-  auto func =
-      exports->Get(v8_str("testExtraShouldReturnFive")).As<v8::Function>();
-  auto undefined = v8::Undefined(isolate);
-  auto result = func->Call(undefined, 0, {}).As<v8::Number>();
-
-  CHECK(result->Value() == 5.0);
-}
