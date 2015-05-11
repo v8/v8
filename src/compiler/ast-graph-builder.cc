@@ -2667,9 +2667,7 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   // object). Otherwise there is nothing left to do here.
   if (is_strict(language_mode()) || info()->is_native()) return receiver;
 
-  // There is no need to perform patching if the receiver is never used. Note
-  // that scope predicates are purely syntactical, a call to eval might still
-  // inspect the receiver value.
+  // There is no need to perform patching if the receiver will never be used.
   if (!info()->MayUseThis()) return receiver;
 
   IfBuilder receiver_check(this);
