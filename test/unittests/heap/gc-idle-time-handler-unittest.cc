@@ -94,7 +94,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
   static const size_t kScavengeSpeed = 100 * KB;
   static const size_t kNewSpaceCapacity = 1 * MB;
   static const size_t kNewSpaceAllocationThroughput = 10 * KB;
-  static const int kMaxNotifications = 100;
+  static const int kMaxNotifications = 1000;
 
  private:
   GCIdleTimeHandler handler_;

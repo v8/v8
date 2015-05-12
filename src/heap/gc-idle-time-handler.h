@@ -158,7 +158,7 @@ class GCIdleTimeHandler {
   //    with time >= kMinLongIdleTime and without any mutator GC in between.
   static const int kMinLongIdleTime = kMaxFrameRenderingIdleTime + 1;
   static const int kLargeLongIdleTime = 900;
-  static const int kLongIdleNotificationsBeforeMutatorIsIdle = 20;
+  static const int kLongIdleNotificationsBeforeMutatorIsIdle = 600;
 
 
   class HeapState {
