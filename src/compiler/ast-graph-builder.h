@@ -67,6 +67,7 @@ class AstGraphBuilder : public AstVisitor {
   class ControlScopeForCatch;
   class ControlScopeForFinally;
   class Environment;
+  class FrameStateBeforeAndAfter;
   friend class ControlBuilder;
 
   Zone* local_zone_;
@@ -212,9 +213,6 @@ class AstGraphBuilder : public AstVisitor {
   void PrepareFrameState(
       Node* node, BailoutId ast_id,
       OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
-  void PrepareFrameStateAfterAndBefore(Node* node, BailoutId ast_id,
-                                       OutputFrameStateCombine combine,
-                                       Node* frame_state_before);
 
   BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 

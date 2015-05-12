@@ -384,6 +384,48 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
 };
 
 
+// Helper for generating before and after frame states.
+class AstGraphBuilder::FrameStateBeforeAndAfter {
+ public:
+  FrameStateBeforeAndAfter(AstGraphBuilder* builder, BailoutId id_before)
+      : builder_(builder), frame_state_before_(nullptr) {
+    frame_state_before_ = id_before == BailoutId::None()
+                              ? builder_->jsgraph()->EmptyFrameState()
+                              : builder_->environment()->Checkpoint(id_before);
+  }
+
+  void AddToNode(Node* node, BailoutId id_after,
+                 OutputFrameStateCombine combine) {
+    int count = OperatorProperties::GetFrameStateInputCount(node->op());
+    DCHECK_LE(count, 2);
+
+    if (count >= 1) {
+      // Add the frame state for after the operation.
+      DCHECK_EQ(IrOpcode::kDead,
+                NodeProperties::GetFrameStateInput(node, 0)->opcode());
+
+      Node* frame_state_after =
+          id_after == BailoutId::None()
+              ? builder_->jsgraph()->EmptyFrameState()
+              : builder_->environment()->Checkpoint(id_after, combine);
+
+      NodeProperties::ReplaceFrameStateInput(node, 0, frame_state_after);
+    }
+
+    if (count >= 2) {
+      // Add the frame state for before the operation.
+      DCHECK_EQ(IrOpcode::kDead,
+                NodeProperties::GetFrameStateInput(node, 1)->opcode());
+      NodeProperties::ReplaceFrameStateInput(node, 1, frame_state_before_);
+    }
+  }
+
+ private:
+  AstGraphBuilder* builder_;
+  Node* frame_state_before_;
+};
+
+
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                                  JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
                                  JSTypeFeedbackTable* js_type_feedback)
@@ -1304,14 +1346,15 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
       is_property_missing.If(property_missing);
       is_property_missing.Then();
       // Inc counter and continue.
-      Node* index_inc =
-          NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
-                  jsgraph()->OneConstant());
-      // TODO(jarin): provide real bailout id.
-      PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
-                                      OutputFrameStateCombine::Ignore(),
-                                      jsgraph()->EmptyFrameState());
-      environment()->Poke(0, index_inc);
+      {
+        // TODO(jarin): provide real bailout id.
+        FrameStateBeforeAndAfter states(this, BailoutId::None());
+        Node* index_inc = NewNode(javascript()->Add(LanguageMode::SLOPPY),
+                                  index, jsgraph()->OneConstant());
+        states.AddToNode(index_inc, BailoutId::None(),
+                         OutputFrameStateCombine::Ignore());
+        environment()->Poke(0, index_inc);
+      }
       for_loop.Continue();
       is_property_missing.Else();
       is_property_missing.End();
@@ -1332,10 +1375,12 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   Node* index_inc =
       NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
               jsgraph()->OneConstant());
-  // TODO(jarin): provide real bailout id.
-  PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
-                                  OutputFrameStateCombine::Ignore(),
-                                  jsgraph()->EmptyFrameState());
+  {
+    // TODO(jarin): provide real bailout ids.
+    FrameStateBeforeAndAfter states(this, BailoutId::None());
+    states.AddToNode(index_inc, BailoutId::None(),
+                     OutputFrameStateCombine::Ignore());
+  }
   environment()->Poke(0, index_inc);
   for_loop.EndLoop();
   environment()->Drop(5);
@@ -1870,15 +1915,15 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     VisitForValue(subexpr);
-    Node* frame_state_before = environment()->Checkpoint(
-        subexpr->id(), OutputFrameStateCombine::PokeAt(0));
-    Node* value = environment()->Pop();
-    Node* index = jsgraph()->Constant(i);
-    Node* store =
-        BuildKeyedStore(literal, index, value, TypeFeedbackId::None());
-    PrepareFrameStateAfterAndBefore(store, expr->GetIdForElement(i),
-                                    OutputFrameStateCombine::Ignore(),
-                                    frame_state_before);
+    {
+      FrameStateBeforeAndAfter states(this, subexpr->id());
+      Node* value = environment()->Pop();
+      Node* index = jsgraph()->Constant(i);
+      Node* store =
+          BuildKeyedStore(literal, index, value, TypeFeedbackId::None());
+      states.AddToNode(store, expr->GetIdForElement(i),
+                       OutputFrameStateCombine::Ignore());
+    }
   }
 
   environment()->Pop();  // Array literal index.
@@ -1916,14 +1961,16 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       environment()->Push(value);
       VisitForValue(property->obj());
       VisitForValue(property->key());
-      Node* key = environment()->Pop();
-      Node* object = environment()->Pop();
-      value = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value, TypeFeedbackId::None());
-      // TODO(jarin) Provide a real frame state before.
-      PrepareFrameStateAfterAndBefore(store, bailout_id,
-                                      OutputFrameStateCombine::Ignore(),
-                                      jsgraph()->EmptyFrameState());
+      {
+        // TODO(jarin) Provide a real frame state before.
+        FrameStateBeforeAndAfter states(this, BailoutId::None());
+        Node* key = environment()->Pop();
+        Node* object = environment()->Pop();
+        value = environment()->Pop();
+        Node* store =
+            BuildKeyedStore(object, key, value, TypeFeedbackId::None());
+        states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
+      }
       break;
     }
   }
@@ -1936,12 +1983,19 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
   LhsKind assign_type = DetermineLhsKind(expr->target());
+  bool needs_frame_state_before = true;
 
   // Evaluate LHS expression.
   switch (assign_type) {
-    case VARIABLE:
-      // Nothing to do here.
+    case VARIABLE: {
+      Variable* variable = expr->target()->AsVariableProxy()->var();
+      if (variable->location() == Variable::PARAMETER ||
+          variable->location() == Variable::LOCAL ||
+          variable->location() == Variable::CONTEXT) {
+        needs_frame_state_before = false;
+      }
       break;
+    }
     case NAMED_PROPERTY:
       VisitForValue(property->obj());
       break;
@@ -1952,10 +2006,9 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     }
   }
 
+  BailoutId before_store_id = BailoutId::None();
   // Evaluate the value and potentially handle compound assignments by loading
   // the left-hand side value and performing a binary operation.
-  Node* frame_state_before_store = nullptr;
-  bool needs_frame_state_before = (assign_type == KEYED_PROPERTY);
   if (expr->is_compound()) {
     Node* old_value = NULL;
     switch (assign_type) {
@@ -1991,31 +2044,27 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     }
     environment()->Push(old_value);
     VisitForValue(expr->value());
-    Node* frame_state_before = environment()->Checkpoint(expr->value()->id());
-    Node* right = environment()->Pop();
-    Node* left = environment()->Pop();
-    Node* value = BuildBinaryOp(left, right, expr->binary_op());
-    PrepareFrameStateAfterAndBefore(value, expr->binary_operation()->id(),
-                                    OutputFrameStateCombine::Push(),
-                                    frame_state_before);
+    Node* value;
+    {
+      FrameStateBeforeAndAfter states(this, expr->value()->id());
+      Node* right = environment()->Pop();
+      Node* left = environment()->Pop();
+      value = BuildBinaryOp(left, right, expr->binary_op());
+      states.AddToNode(value, expr->binary_operation()->id(),
+                       OutputFrameStateCombine::Push());
+    }
     environment()->Push(value);
     if (needs_frame_state_before) {
-      frame_state_before_store = environment()->Checkpoint(
-          expr->binary_operation()->id(), OutputFrameStateCombine::PokeAt(0));
+      before_store_id = expr->binary_operation()->id();
     }
   } else {
     VisitForValue(expr->value());
     if (needs_frame_state_before) {
-      // This frame state can be used for lazy-deopting from a to-number
-      // conversion if we are storing into a typed array. It is important
-      // that the frame state is usable for such lazy deopt (i.e., it has
-      // to specify how to override the value before the conversion, in this
-      // case, it overwrites the stack top).
-      frame_state_before_store = environment()->Checkpoint(
-          expr->value()->id(), OutputFrameStateCombine::PokeAt(0));
+      before_store_id = expr->value()->id();
     }
   }
 
+  FrameStateBeforeAndAfter store_states(this, before_store_id);
   // Store the value.
   Node* value = environment()->Pop();
   switch (assign_type) {
@@ -2030,7 +2079,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store =
           BuildNamedStore(object, name, value, expr->AssignmentFeedbackId());
-      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
+      store_states.AddToNode(store, expr->id(),
+                             ast_context()->GetStateCombine());
       break;
     }
     case KEYED_PROPERTY: {
@@ -2038,9 +2088,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Node* object = environment()->Pop();
       Node* store =
           BuildKeyedStore(object, key, value, expr->AssignmentFeedbackId());
-      PrepareFrameStateAfterAndBefore(store, expr->id(),
-                                      ast_context()->GetStateCombine(),
-                                      frame_state_before_store);
+      store_states.AddToNode(store, expr->id(),
+                             ast_context()->GetStateCombine());
       break;
     }
   }
@@ -2362,22 +2411,25 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   PrepareFrameState(old_value, expr->ToNumberId(),
                     OutputFrameStateCombine::Push());
 
-  Node* frame_state_before_store =
-      assign_type == KEYED_PROPERTY
-          ? environment()->Checkpoint(expr->ToNumberId())
-          : nullptr;
+  // TODO(titzer): combine this framestate with the above?
+  FrameStateBeforeAndAfter store_states(this, assign_type == KEYED_PROPERTY
+                                                  ? expr->ToNumberId()
+                                                  : BailoutId::None());
 
   // Save result for postfix expressions at correct stack depth.
   if (is_postfix) environment()->Poke(stack_depth, old_value);
 
   // Create node to perform +1/-1 operation.
-  Node* value =
-      BuildBinaryOp(old_value, jsgraph()->OneConstant(), expr->binary_op());
-  // This should never deoptimize because we have converted to number
-  // before.
-  PrepareFrameStateAfterAndBefore(value, BailoutId::None(),
-                                  OutputFrameStateCombine::Ignore(),
-                                  jsgraph()->EmptyFrameState());
+  Node* value;
+  {
+    FrameStateBeforeAndAfter states(this, BailoutId::None());
+    value =
+        BuildBinaryOp(old_value, jsgraph()->OneConstant(), expr->binary_op());
+    // This should never deoptimize because we have converted to number
+    // before.
+    states.AddToNode(value, BailoutId::None(),
+                     OutputFrameStateCombine::Ignore());
+  }
 
   // Store the value.
   switch (assign_type) {
@@ -2405,9 +2457,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* store =
           BuildKeyedStore(object, key, value, expr->CountStoreFeedbackId());
       environment()->Push(value);
-      PrepareFrameStateAfterAndBefore(store, expr->AssignmentId(),
-                                      OutputFrameStateCombine::Ignore(),
-                                      frame_state_before_store);
+      store_states.AddToNode(store, expr->AssignmentId(),
+                             OutputFrameStateCombine::Ignore());
       environment()->Pop();
       break;
     }
@@ -2430,13 +2481,11 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     default: {
       VisitForValue(expr->left());
       VisitForValue(expr->right());
-      Node* frame_state_before = environment()->Checkpoint(expr->right()->id());
+      FrameStateBeforeAndAfter states(this, expr->right()->id());
       Node* right = environment()->Pop();
       Node* left = environment()->Pop();
       Node* value = BuildBinaryOp(left, right, expr->op());
-      PrepareFrameStateAfterAndBefore(value, expr->id(),
-                                      ast_context()->GetStateCombine(),
-                                      frame_state_before);
+      states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
       ast_context()->ProduceValue(value);
     }
   }
@@ -3293,24 +3342,6 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
               NodeProperties::GetFrameStateInput(node, 0)->opcode());
     NodeProperties::ReplaceFrameStateInput(
         node, 0, environment()->Checkpoint(ast_id, combine));
-  }
-}
-
-
-void AstGraphBuilder::PrepareFrameStateAfterAndBefore(
-    Node* node, BailoutId ast_id, OutputFrameStateCombine combine,
-    Node* frame_state_before) {
-  if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
-    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
-
-    DCHECK_EQ(IrOpcode::kDead,
-              NodeProperties::GetFrameStateInput(node, 0)->opcode());
-    NodeProperties::ReplaceFrameStateInput(
-        node, 0, environment()->Checkpoint(ast_id, combine));
-
-    DCHECK_EQ(IrOpcode::kDead,
-              NodeProperties::GetFrameStateInput(node, 1)->opcode());
-    NodeProperties::ReplaceFrameStateInput(node, 1, frame_state_before);
   }
 }
 
