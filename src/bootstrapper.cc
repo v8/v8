@@ -1923,6 +1923,11 @@ bool Genesis::InstallNatives() {
                                 "container to export to experimental natives");
   native_context()->set_builtin_exports_object(*builtin_exports);
 
+  if (FLAG_expose_natives_as != NULL) {
+    Handle<String> shared_key = factory()->NewStringFromAsciiChecked("shared");
+    JSObject::AddProperty(builtins, shared_key, shared, NONE);
+  }
+
   {  // -- S c r i p t
     // Builtin functions for Script.
     Handle<JSFunction> script_fun = InstallFunction(
