@@ -594,7 +594,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Handle the case where the objects are identical.  Either returns the answer
   // or goes to slow.  Only falls through if the objects were not identical.
-  EmitIdenticalObjectComparison(masm, &slow, cc);
+  EmitIdenticalObjectComparison(masm, &slow, cc, strong());
 
   // If either is a Smi (we know that not both are), then they can only
   // be strictly equal if the other is a HeapNumber.
