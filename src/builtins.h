@@ -171,6 +171,7 @@ enum BuiltinExtraArguments {
   V(EQUALS, 1)                             \
   V(STRICT_EQUALS, 1)                      \
   V(COMPARE, 2)                            \
+  V(COMPARE_STRONG, 2)                     \
   V(ADD, 1)                                \
   V(ADD_STRONG, 1)                         \
   V(SUB, 1)                                \

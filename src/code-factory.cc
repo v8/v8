@@ -105,8 +105,10 @@ Callable CodeFactory::KeyedStoreICInOptimizedCode(
 
 
 // static
-Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
-  Handle<Code> code = CompareIC::GetUninitialized(isolate, op);
+Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op,
+                                LanguageMode language_mode) {
+  Handle<Code> code =
+      CompareIC::GetUninitialized(isolate, op, is_strong(language_mode));
   return Callable(code, CompareDescriptor(isolate));
 }
 

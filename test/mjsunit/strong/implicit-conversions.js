@@ -6,22 +6,26 @@
 
 "use strict";
 
-// TODO(conradw): Implement other strong operators
+// Boolean indicates whether an operator can be part of a compound assignment.
 let strongNumberBinops = [
-  "-",
-  "*",
-  "/",
-  "%",
-  "|",
-  "&",
-  "^",
-  "<<",
-  ">>",
-  ">>>",
+  ["-", true],
+  ["*", true],
+  ["/", true],
+  ["%", true],
+  ["|", true],
+  ["&", true],
+  ["^", true],
+  ["<<", true],
+  [">>", true],
+  [">>>", true]
 ];
 
 let strongStringOrNumberBinops = [
-  "+"
+  ["+", true],
+  ["<", false],
+  [">", false],
+  ["<=", false],
+  [">=", false]
 ];
 
 let strongBinops = strongNumberBinops.concat(strongStringOrNumberBinops);
@@ -33,6 +37,8 @@ let strongUnops = [
 ];
 
 let nonStringOrNumberValues = [
+  "null",
+  "undefined",
   "{}",
   "false",
   "(function(){})",
@@ -132,6 +138,46 @@ function sar_strong(x, y) {
   return x >>> y;
 }
 
+function less_strong(x, y) {
+  "use strong";
+  return x < y;
+}
+
+function less_num_strong(x, y) {
+  "use strong";
+  return x < y;
+}
+
+function greater_strong(x, y) {
+  "use strong";
+  return x > y;
+}
+
+function greater_num_strong(x, y) {
+  "use strong";
+  return x > y;
+}
+
+function less_equal_strong(x, y) {
+  "use strong";
+  return x <= y;
+}
+
+function less_equal_num_strong(x, y) {
+  "use strong";
+  return x <= y;
+}
+
+function greater_equal_strong(x, y) {
+  "use strong";
+  return x >= y;
+}
+
+function greater_equal_num_strong(x, y) {
+  "use strong";
+  return x >= y;
+}
+
 function typed_add_strong(x, y) {
   "use strong";
   return (+x) + (+y);
@@ -187,15 +233,40 @@ function typed_sar_strong(x, y) {
   return (+x) >>> (+y);
 }
 
+function typed_less_strong(x, y) {
+  "use strong";
+  return (+x) < (+y);
+}
+
+function typed_greater_strong(x, y) {
+  "use strong";
+  return (+x) > (+y);
+}
+
+function typed_less_equal_strong(x, y) {
+  "use strong";
+  return (+x) <= (+y);
+}
+
+function typed_greater_equal_strong(x, y) {
+  "use strong";
+  return (+x) >= (+y);
+}
+
 let strongNumberFuncs = [add_num_strong, sub_strong, mul_strong, div_strong,
                          mod_strong, or_strong, and_strong, xor_strong,
-                         shl_strong, shr_strong, sar_strong, typed_add_strong,
+                         shl_strong, shr_strong, sar_strong, less_num_strong,
+                         greater_num_strong, less_equal_num_strong,
+                         greater_equal_num_strong, typed_add_strong,
                          typed_sub_strong, typed_mul_strong, typed_div_strong,
                          typed_mod_strong, typed_or_strong,  typed_and_strong,
                          typed_xor_strong, typed_shl_strong, typed_shr_strong,
-                         typed_sar_strong];
+                         typed_sar_strong, typed_less_strong,
+                         typed_greater_strong, typed_less_equal_strong,
+                         typed_greater_equal_strong];
 
-let strongStringOrNumberFuncs = [add_strong];
+let strongStringOrNumberFuncs = [add_strong, less_strong, greater_strong,
+                                 less_equal_strong, greater_equal_strong];
 
 let strongFuncs = strongNumberFuncs.concat(strongStringOrNumberFuncs);
 
@@ -214,16 +285,20 @@ function assertStrongThrowBehaviour(expr) {
 
 function checkArgumentCombinations(op, leftList, rightList, willThrow) {
   for (let v1 of leftList) {
-    let assignExpr = "foo " + op + "= " + v1 + ";";
+    let assignExpr = "foo " + op[0] + "= " + v1 + ";";
     for (let v2 of rightList) {
       let compoundAssignment = "'use strong'; let foo = " + v2 + "; " +
                                assignExpr;
-      if(willThrow) {
-        assertThrows(compoundAssignment, TypeError);
-        assertStrongThrowBehaviour("(" + v1 + op + v2 + ")");
+      if (willThrow) {
+        if (op[1]) {
+          assertThrows(compoundAssignment, TypeError);
+        }
+        assertStrongThrowBehaviour("(" + v1 + op[0] + v2 + ")");
       } else {
-        assertDoesNotThrow(compoundAssignment);
-        assertStrongNonThrowBehaviour("(" + v1 + op + v2 + ")");
+        if (op[1]) {
+          assertDoesNotThrow(compoundAssignment);
+        }
+        assertStrongNonThrowBehaviour("(" + v1 + op[0] + v2 + ")");
       }
     }
   }

@@ -203,13 +203,11 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
 
 // See call site for description.
-static void EmitIdenticalObjectComparison(MacroAssembler* masm,
-                                          Register left,
-                                          Register right,
-                                          Register scratch,
+static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
+                                          Register right, Register scratch,
                                           FPRegister double_scratch,
-                                          Label* slow,
-                                          Condition cond) {
+                                          Label* slow, Condition cond,
+                                          bool strong) {
   DCHECK(!AreAliased(left, right, scratch));
   Label not_identical, return_equal, heap_number;
   Register result = x0;
@@ -223,10 +221,20 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   // Smis.  If it's not a heap number, then return equal.
   Register right_type = scratch;
   if ((cond == lt) || (cond == gt)) {
+    // Call runtime on identical JSObjects.  Otherwise return equal.
     __ JumpIfObjectType(right, right_type, right_type, FIRST_SPEC_OBJECT_TYPE,
                         slow, ge);
+    // Call runtime on identical symbols since we need to throw a TypeError.
     __ Cmp(right_type, SYMBOL_TYPE);
     __ B(eq, slow);
+    if (strong) {
+      // Call the runtime on anything that is converted in the semantics, since
+      // we need to throw a TypeError. Smis have already been ruled out.
+      __ Cmp(right_type, Operand(HEAP_NUMBER_TYPE));
+      __ B(eq, &return_equal);
+      __ Tst(right_type, Operand(kIsNotStringMask));
+      __ B(ne, slow);
+    }
   } else if (cond == eq) {
     __ JumpIfHeapNumber(right, &heap_number);
   } else {
@@ -235,8 +243,16 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     // Comparing JS objects with <=, >= is complicated.
     __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
     __ B(ge, slow);
+    // Call runtime on identical symbols since we need to throw a TypeError.
     __ Cmp(right_type, SYMBOL_TYPE);
     __ B(eq, slow);
+    if (strong) {
+      // Call the runtime on anything that is converted in the semantics,
+      // since we need to throw a TypeError. Smis and heap numbers have
+      // already been ruled out.
+      __ Tst(right_type, Operand(kIsNotStringMask));
+      __ B(ne, slow);
+    }
     // Normally here we fall through to return_equal, but undefined is
     // special: (undefined == undefined) == true, but
     // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
@@ -513,7 +529,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Handle the case where the objects are identical. Either returns the answer
   // or goes to slow. Only falls through if the objects were not identical.
-  EmitIdenticalObjectComparison(masm, lhs, rhs, x10, d0, &slow, cond);
+  EmitIdenticalObjectComparison(masm, lhs, rhs, x10, d0, &slow, cond, strong());
 
   // If either is a smi (we know that at least one is not a smi), then they can
   // only be strictly equal if the other is a HeapNumber.
@@ -632,7 +648,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cond == eq) {
     native = strict() ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
-    native = Builtins::COMPARE;
+    native = strong() ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
     int ncr;  // NaN compare result
     if ((cond == lt) || (cond == le)) {
       ncr = GREATER;
@@ -3485,7 +3501,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&unordered);
-  CompareICStub stub(isolate(), op(), CompareICState::GENERIC,
+  CompareICStub stub(isolate(), op(), strong(), CompareICState::GENERIC,
                      CompareICState::GENERIC, CompareICState::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 

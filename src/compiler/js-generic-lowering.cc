@@ -116,7 +116,8 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 
 
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
-  Callable callable = CodeFactory::CompareIC(isolate(), token);
+  Callable callable =
+      CodeFactory::CompareIC(isolate(), token, OpParameter<LanguageMode>(node));
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node),

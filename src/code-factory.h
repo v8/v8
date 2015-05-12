@@ -50,7 +50,8 @@ class CodeFactory final {
       Isolate* isolate, LanguageMode mode,
       InlineCacheState initialization_state);
 
-  static Callable CompareIC(Isolate* isolate, Token::Value op);
+  static Callable CompareIC(Isolate* isolate, Token::Value op,
+                            LanguageMode language_mode);
 
   static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
                              LanguageMode language_mode);

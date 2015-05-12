@@ -1533,7 +1533,7 @@ static void BranchIfNotInternalizedString(MacroAssembler* masm,
 
 
 void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
-  Label check_unequal_objects, done;
+  Label runtime_call, check_unequal_objects, done;
   Condition cc = GetCondition();
   Factory* factory = isolate()->factory();
 
@@ -1566,12 +1566,17 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     if (cc != equal) {
       // Check for undefined.  undefined OP undefined is false even though
       // undefined == undefined.
-      Label check_for_nan;
       __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
-      __ j(not_equal, &check_for_nan, Label::kNear);
-      __ Set(rax, NegativeComparisonResult(cc));
-      __ ret(0);
-      __ bind(&check_for_nan);
+      if (strong()) {
+        // In strong mode, this comparison must throw, so call the runtime.
+        __ j(equal, &runtime_call, Label::kFar);
+      } else {
+        Label check_for_nan;
+        __ j(not_equal, &check_for_nan, Label::kNear);
+        __ Set(rax, NegativeComparisonResult(cc));
+        __ ret(0);
+        __ bind(&check_for_nan);
+      }
     }
 
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
@@ -1582,12 +1587,20 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
            factory->heap_number_map());
     __ j(equal, &heap_number, Label::kNear);
     if (cc != equal) {
+      __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
+      __ movzxbl(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));
       // Call runtime on identical objects.  Otherwise return equal.
-      __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
-      __ j(above_equal, &not_identical, Label::kNear);
+      __ cmpb(rcx, Immediate(static_cast<uint8_t>(FIRST_SPEC_OBJECT_TYPE)));
+      __ j(above_equal, &runtime_call, Label::kFar);
       // Call runtime on identical symbols since we need to throw a TypeError.
-      __ CmpObjectType(rax, SYMBOL_TYPE, rcx);
-      __ j(equal, &not_identical, Label::kNear);
+      __ cmpb(rcx, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
+      __ j(equal, &runtime_call, Label::kFar);
+      if (strong()) {
+        // We have already tested for smis and heap numbers, so if both
+        // arguments are not strings we must proceed to the slow case.
+        __ testb(rcx, Immediate(kIsNotStringMask));
+        __ j(not_zero, &runtime_call, Label::kFar);
+      }
     }
     __ Set(rax, EQUAL);
     __ ret(0);
@@ -1734,7 +1747,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // Not strict equality.  Objects are unequal if
     // they are both JSObjects and not undetectable,
     // and their pointers are different.
-    Label not_both_objects, return_unequal;
+    Label return_unequal;
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
@@ -1742,11 +1755,11 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     STATIC_ASSERT(kSmiTagMask == 1);
     __ leap(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
-    __ j(not_zero, &not_both_objects, Label::kNear);
+    __ j(not_zero, &runtime_call, Label::kNear);
     __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rbx);
-    __ j(below, &not_both_objects, Label::kNear);
+    __ j(below, &runtime_call, Label::kNear);
     __ CmpObjectType(rdx, FIRST_SPEC_OBJECT_TYPE, rcx);
-    __ j(below, &not_both_objects, Label::kNear);
+    __ j(below, &runtime_call, Label::kNear);
     __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
     __ j(zero, &return_unequal, Label::kNear);
@@ -1760,8 +1773,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // Return non-equal by returning the non-zero object pointer in rax,
     // or return equal if we fell through to here.
     __ ret(0);
-    __ bind(&not_both_objects);
   }
+  __ bind(&runtime_call);
 
   // Push arguments below the return address to prepare jump to builtin.
   __ PopReturnAddressTo(rcx);
@@ -1773,7 +1786,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cc == equal) {
     builtin = strict() ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
-    builtin = Builtins::COMPARE;
+    builtin = strong() ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
     __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
   }
 
@@ -3598,7 +3611,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  CompareICStub stub(isolate(), op(), CompareICState::GENERIC,
+  CompareICStub stub(isolate(), op(), strong(), CompareICState::GENERIC,
                      CompareICState::GENERIC, CompareICState::GENERIC);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 

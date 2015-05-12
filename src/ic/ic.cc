@@ -599,7 +599,8 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
   CompareICStub stub(target->stub_key(), isolate);
   // Only clear CompareICs that can retain objects.
   if (stub.state() != CompareICState::KNOWN_OBJECT) return;
-  SetTargetAtAddress(address, GetRawUninitialized(isolate, stub.op()),
+  SetTargetAtAddress(address,
+                     GetRawUninitialized(isolate, stub.op(), stub.strong()),
                      constant_pool);
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
@@ -2678,8 +2679,9 @@ RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite) {
 }
 
 
-Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
-  CompareICStub stub(isolate, op, CompareICState::UNINITIALIZED,
+Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op,
+                                     bool strong) {
+  CompareICStub stub(isolate, op, strong, CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED);
   Code* code = NULL;
@@ -2688,8 +2690,9 @@ Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
 }
 
 
-Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
-  CompareICStub stub(isolate, op, CompareICState::UNINITIALIZED,
+Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op,
+                                         bool strong) {
+  CompareICStub stub(isolate, op, strong, CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED);
   return stub.GetCode();
@@ -2706,7 +2709,8 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   CompareICState::State state = CompareICState::TargetState(
       old_stub.state(), old_stub.left(), old_stub.right(), op_,
       HasInlinedSmiCode(address()), x, y);
-  CompareICStub stub(isolate(), op_, new_left, new_right, state);
+  CompareICStub stub(isolate(), op_, old_stub.strong(), new_left, new_right,
+                     state);
   if (state == CompareICState::KNOWN_OBJECT) {
     stub.set_known_map(
         Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));

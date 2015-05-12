@@ -19,6 +19,7 @@
 var EQUALS;
 var STRICT_EQUALS;
 var COMPARE;
+var COMPARE_STRONG;
 var ADD;
 var ADD_STRONG;
 var STRING_ADD_LEFT;
@@ -202,6 +203,14 @@ COMPARE = function COMPARE(x, ncr) {
     if (NUMBER_IS_NAN(left_number) || NUMBER_IS_NAN(right_number)) return ncr;
     return %NumberCompare(left_number, right_number, ncr);
   }
+}
+
+// Strong mode COMPARE throws if an implicit conversion would be performed
+COMPARE_STRONG = function COMPARE_STRONG(x, ncr) {
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringCompare(this, x);
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberCompare(this, x, ncr);
+
+  throw %MakeTypeError('strong_implicit_cast');
 }
 
 

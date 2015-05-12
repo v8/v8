@@ -688,18 +688,20 @@ TEST_WITH_STRONG(MixedComparison1) {
     for (size_t j = 0; j < arraysize(types); j++) {
       Node* p1 = R.Parameter(types[j], 1);
       {
-        Node* cmp = R.Binop(R.javascript.LessThan(language_mode), p0, p1);
+        const Operator* less_than = R.javascript.LessThan(language_mode);
+        Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
-
-        if (!types[i]->Maybe(Type::String()) ||
-            !types[j]->Maybe(Type::String())) {
-          if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
-            R.CheckPureBinop(R.simplified.StringLessThan(), r);
-          } else {
-            R.CheckPureBinop(R.simplified.NumberLessThan(), r);
-          }
+        if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
+          R.CheckPureBinop(R.simplified.StringLessThan(), r);
+        } else if ((types[i]->Is(Type::Number()) &&
+                    types[j]->Is(Type::Number())) ||
+                   (!is_strong(language_mode) &&
+                    (!types[i]->Maybe(Type::String()) ||
+                     !types[j]->Maybe(Type::String())))) {
+          R.CheckPureBinop(R.simplified.NumberLessThan(), r);
         } else {
-          CHECK_EQ(cmp, r);  // No reduction of mixed types.
+          // No reduction of mixed types.
+          CHECK_EQ(r->op(), less_than);
         }
       }
     }

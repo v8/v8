@@ -470,6 +470,9 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     }
     return r.ChangeToPureOperator(stringOp);
   }
+  if (r.IsStrong() && !r.BothInputsAre(Type::Number())) {
+    return NoChange();
+  }
 #if 0
   // TODO(turbofan): General ToNumber disabled for now because:
   //   a) The inserted ToNumber operation screws up observability of valueOf.
