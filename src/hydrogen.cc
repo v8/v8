@@ -5917,7 +5917,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     if (object->IsJSObject()) {
       LookupIterator it(object, info->name(),
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
-      Handle<Object> value = JSObject::GetDataProperty(&it);
+      Handle<Object> value = JSReceiver::GetDataProperty(&it);
       if (it.IsFound() && it.IsReadOnly() && !it.IsConfigurable()) {
         return New<HConstant>(value);
       }

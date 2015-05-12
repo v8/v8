@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
 
 static Object* ThrowStaticPrototypeError(Isolate* isolate) {
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError("static_prototype", HandleVector<Object>(NULL, 0)));
+      isolate, NewTypeError(MessageTemplate::kStaticPrototype));
 }
 
 
@@ -113,28 +113,25 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsSpecFunction()) {
       if (Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
-        Handle<Object> args[1] = {super_class};
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,
-            NewTypeError("extends_value_generator", HandleVector(args, 1)));
+            NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class));
       }
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
                                      isolate->factory()->prototype_string()));
       if (!prototype_parent->IsNull() && !prototype_parent->IsSpecObject()) {
-        Handle<Object> args[1] = {prototype_parent};
         THROW_NEW_ERROR_RETURN_FAILURE(
-            isolate, NewTypeError("prototype_parent_not_an_object",
-                                  HandleVector(args, 1)));
+            isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
+                                  prototype_parent));
       }
       constructor_parent = super_class;
     } else {
       // TODO(arv): Should be IsConstructor.
-      Handle<Object> args[1] = {super_class};
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate,
-          NewTypeError("extends_value_not_a_function", HandleVector(args, 1)));
+          NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class));
     }
   }
 

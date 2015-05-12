@@ -145,15 +145,15 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 }
 
 
-Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
-                                         Handle<Name> key) {
+Handle<Object> JSReceiver::GetDataProperty(Handle<JSReceiver> object,
+                                           Handle<Name> key) {
   LookupIterator it(object, key,
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   return GetDataProperty(&it);
 }
 
 
-Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
+Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::INTERCEPTOR:
@@ -389,11 +389,10 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
           receiver, Handle<JSReceiver>::cast(setter), value);
     } else {
       if (is_sloppy(language_mode)) return value;
-      Handle<Object> args[] = {name, holder};
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError("no_setter_in_callback",
-                                   HandleVector(args, arraysize(args))),
-                      Object);
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(MessageTemplate::kNoSetterInCallback, name, holder),
+          Object);
     }
   }
 
@@ -3322,10 +3321,10 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(
     Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
     Handle<Object> value, LanguageMode language_mode) {
   if (is_sloppy(language_mode)) return value;
-  Handle<Object> args[] = {name, receiver};
-  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
-                                        HandleVector(args, arraysize(args))),
-                  Object);
+  THROW_NEW_ERROR(
+      isolate,
+      NewTypeError(MessageTemplate::kStrictReadOnlyProperty, name, receiver),
+      Object);
 }
 
 
@@ -3410,12 +3409,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
   it->PrepareTransitionToDataProperty(value, attributes, store_mode);
   if (it->state() != LookupIterator::TRANSITION) {
     if (is_sloppy(language_mode)) return value;
-
-    Handle<Object> args[] = {it->name()};
-    THROW_NEW_ERROR(it->isolate(),
-                    NewTypeError("object_not_extensible",
-                                 HandleVector(args, arraysize(args))),
-                    Object);
+    THROW_NEW_ERROR(
+        it->isolate(),
+        NewTypeError(MessageTemplate::kObjectNotExtensible, it->name()),
+        Object);
   }
   it->ApplyTransitionToDataProperty();
 
@@ -3969,10 +3966,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   }
 
   if (is_sloppy(language_mode)) return value;
-  Handle<Object> args2[] = { name, proxy };
-  THROW_NEW_ERROR(isolate, NewTypeError("no_setter_in_callback",
-                                        HandleVector(args2, arraysize(args2))),
-                  Object);
+  THROW_NEW_ERROR(
+      isolate, NewTypeError(MessageTemplate::kNoSetterInCallback, name, proxy),
+      Object);
 }
 
 
@@ -3997,12 +3993,10 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
   bool result_bool = result->BooleanValue();
   if (is_strict(language_mode) && !result_bool) {
     Handle<Object> handler(proxy->handler(), isolate);
-    Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("delete"));
-    Handle<Object> args[] = { handler, trap_name };
-    THROW_NEW_ERROR(isolate, NewTypeError("handler_failed",
-                                          HandleVector(args, arraysize(args))),
-                    Object);
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kProxyHandlerDeleteFailed, handler),
+        Object);
   }
   return isolate->factory()->ToBoolean(result_bool);
 }
@@ -5313,11 +5307,10 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     if (is_strict(language_mode)) {
       // Deleting a non-configurable property in strict mode.
       Handle<Object> name = factory->NewNumberFromUint(index);
-      Handle<Object> args[] = {name, object};
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError("strict_delete_property",
-                                   HandleVector(args, arraysize(args))),
-                      Object);
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(MessageTemplate::kStrictDeleteProperty, name, object),
+          Object);
     }
     return factory->false_value();
   }
@@ -5447,10 +5440,9 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
         if (!it.IsConfigurable()) {
           // Fail if the property is not configurable.
           if (is_strict(language_mode)) {
-            Handle<Object> args[] = {name, object};
             THROW_NEW_ERROR(it.isolate(),
-                            NewTypeError("strict_delete_property",
-                                         HandleVector(args, arraysize(args))),
+                            NewTypeError(MessageTemplate::kStrictDeleteProperty,
+                                         name, object),
                             Object);
           }
           return it.isolate()->factory()->false_value();
@@ -5671,10 +5663,9 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   // It's not possible to seal objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError("cant_prevent_ext_external_array_elements",
-                                 HandleVector(&object, 1)),
-                    Object);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kCannotPreventExtExternalArray),
+        Object);
   }
 
   // If there are fast elements we normalize.
@@ -5780,10 +5771,9 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
   // It's not possible to seal or freeze objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError("cant_prevent_ext_external_array_elements",
-                                 HandleVector(&object, 1)),
-                    Object);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kCannotPreventExtExternalArray),
+        Object);
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;
@@ -10522,7 +10512,7 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
 Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<Object> name =
-      JSObject::GetDataProperty(function, isolate->factory()->name_string());
+      JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
   if (name->IsString()) return Handle<String>::cast(name);
   return handle(function->shared()->DebugName(), isolate);
 }
@@ -12597,9 +12587,8 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
   if (!object->map()->is_extensible()) {
-    Handle<Object> args[] = { object };
-    THROW_NEW_ERROR(isolate, NewTypeError("non_extensible_proto",
-                                          HandleVector(args, arraysize(args))),
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kNonExtensibleProto, object),
                     Object);
   }
 
@@ -12629,11 +12618,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       iter.Advance();
       if (!real_receiver->map()->is_extensible()) {
-        Handle<Object> args[] = {object};
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError("non_extensible_proto",
-                                     HandleVector(args, arraysize(args))),
-                        Object);
+        THROW_NEW_ERROR(
+            isolate, NewTypeError(MessageTemplate::kNonExtensibleProto, object),
+            Object);
       }
     }
   }
@@ -12813,11 +12800,10 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(
     } else {
       if (is_sloppy(language_mode)) return value;
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
-      Handle<Object> args[] = {key, holder};
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError("no_setter_in_callback",
-                                   HandleVector(args, arraysize(args))),
-                      Object);
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(MessageTemplate::kNoSetterInCallback, key, holder),
+          Object);
     }
   }
 
@@ -13056,11 +13042,9 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
       } else {
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<String> name = isolate->factory()->NumberToString(number);
-        Handle<Object> args[] = {name};
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError("object_not_extensible",
-                                     HandleVector(args, arraysize(args))),
-                        Object);
+        THROW_NEW_ERROR(
+            isolate, NewTypeError(MessageTemplate::kObjectNotExtensible, name),
+            Object);
       }
     }
 
@@ -13277,11 +13261,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
   if ((object->HasExternalArrayElements() ||
           object->HasFixedTypedArrayElements()) &&
       set_mode == DEFINE_PROPERTY) {
-    Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<Object> args[] = { object, number };
-    THROW_NEW_ERROR(isolate, NewTypeError("redef_external_array_element",
-                                          HandleVector(args, arraysize(args))),
-                    Object);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kRedefineExternalArray), Object);
   }
 
   // Normalize the elements to enable attributes on the property.
@@ -13724,10 +13705,10 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
   Isolate* isolate = array->GetIsolate();
   Handle<Name> length = isolate->factory()->length_string();
-  Handle<Object> args[] = {length, array};
-  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
-                                        HandleVector(args, arraysize(args))),
-                  Object);
+  THROW_NEW_ERROR(
+      isolate,
+      NewTypeError(MessageTemplate::kStrictReadOnlyProperty, length, array),
+      Object);
 }
 
 

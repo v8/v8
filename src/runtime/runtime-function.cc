@@ -10,6 +10,7 @@
 #include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -610,8 +611,8 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
 RUNTIME_FUNCTION(Runtime_ThrowStrongModeTooFewArguments) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError("strong_arity", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kStrongArity));
 }
 }
 }  // namespace v8::internal

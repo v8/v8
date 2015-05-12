@@ -1076,20 +1076,8 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
-Handle<Object> Factory::NewTypeError(const char* message,
-                                     Vector<Handle<Object> > args) {
-  return NewError("MakeTypeError", message, args);
-}
-
-
 Handle<Object> Factory::NewTypeError(Handle<String> message) {
   return NewError("$TypeError", message);
-}
-
-
-Handle<Object> Factory::NewRangeError(const char* message,
-                                      Vector<Handle<Object> > args) {
-  return NewError("MakeRangeError", message, args);
 }
 
 

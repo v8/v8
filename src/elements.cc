@@ -1409,10 +1409,10 @@ class DictionaryElementsAccessor
         if (is_strict(language_mode)) {
           // Deleting a non-configurable property in strict mode.
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
-          Handle<Object> args[2] = { name, obj };
-          THROW_NEW_ERROR(isolate, NewTypeError("strict_delete_property",
-                                                HandleVector(args, 2)),
-                          Object);
+          THROW_NEW_ERROR(
+              isolate,
+              NewTypeError(MessageTemplate::kStrictDeleteProperty, name, obj),
+              Object);
         }
         return isolate->factory()->false_value();
       }

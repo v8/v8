@@ -51,9 +51,7 @@ function JSONParse(text, reviver) {
 
 
 function SerializeArray(value, replacer, stack, indent, gap) {
-  if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', []);
-  }
+  if (!%PushIfAbsent(stack, value)) throw MakeTypeError(kCircularStructure);
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();
@@ -82,9 +80,7 @@ function SerializeArray(value, replacer, stack, indent, gap) {
 
 
 function SerializeObject(value, replacer, stack, indent, gap) {
-  if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', []);
-  }
+  if (!%PushIfAbsent(stack, value)) throw MakeTypeError(kCircularStructure);
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();

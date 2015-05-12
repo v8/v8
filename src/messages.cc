@@ -306,8 +306,8 @@ bool CallSite::IsEval(Isolate* isolate) {
 bool CallSite::IsConstructor(Isolate* isolate) {
   if (!receiver_->IsJSObject()) return false;
   Handle<Object> constructor =
-      JSObject::GetDataProperty(Handle<JSObject>::cast(receiver_),
-                                isolate->factory()->constructor_string());
+      JSReceiver::GetDataProperty(Handle<JSObject>::cast(receiver_),
+                                  isolate->factory()->constructor_string());
   return constructor.is_identical_to(fun_);
 }
 

@@ -8,6 +8,7 @@
 #include "src/v8.h"
 
 #include "src/conversions.h"
+#include "src/messages.h"
 #include "src/string-builder.h"
 #include "src/utils.h"
 
@@ -272,8 +273,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
-        Handle<Object> error = factory()->NewTypeError(
-            "circular_structure", HandleVector<Object>(NULL, 0));
+        Handle<Object> error =
+            factory()->NewTypeError(MessageTemplate::kCircularStructure);
         isolate_->Throw(*error);
         return EXCEPTION;
       }
