@@ -248,7 +248,8 @@ class V8_EXPORT Debug {
    * Debugger is running in its own context which is entered while debugger
    * messages are being dispatched. This is an explicit getter for this
    * debugger context. Note that the content of the debugger context is subject
-   * to change.
+   * to change. The Context exists only when the debugger is active, i.e. at
+   * least one DebugEventListener or MessageHandler is set.
    */
   static Local<Context> GetDebugContext();
 

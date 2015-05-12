@@ -2803,6 +2803,7 @@ void Debug::ProcessCompileEventInDebugScope(v8::DebugEvent event,
 
 
 Handle<Context> Debug::GetDebugContext() {
+  if (!is_loaded()) return Handle<Context>();
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return Handle<Context>();
   // The global handle may be destroyed soon after.  Return it reboxed.

@@ -7384,7 +7384,7 @@ void Debug::ProcessDebugMessages() {
 Local<Context> Debug::GetDebugContext() {
   i::Isolate* isolate = i::Isolate::Current();
   ENTER_V8(isolate);
-  return Utils::ToLocal(i::Isolate::Current()->debug()->GetDebugContext());
+  return Utils::ToLocal(isolate->debug()->GetDebugContext());
 }
 
 

@@ -6925,6 +6925,13 @@ TEST(DebugContextIsPreservedBetweenAccesses) {
 }
 
 
+TEST(NoDebugContextWhenDebuggerDisabled) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Debug::GetDebugContext();
+  CHECK(context.IsEmpty());
+}
+
+
 static v8::Handle<v8::Value> expected_callback_data;
 static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
   CHECK(details.GetEventContext() == expected_context);
