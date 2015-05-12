@@ -3193,14 +3193,21 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
         }
         break;
 
-      case LookupIterator::ACCESSOR:
+      case LookupIterator::ACCESSOR: {
         if (it->property_details().IsReadOnly()) {
           return WriteToReadOnlyProperty(it, value, language_mode);
         }
+        Handle<Object> accessors = it->GetAccessors();
+        if (accessors->IsAccessorInfo() &&
+            !it->HolderIsReceiverOrHiddenPrototype() &&
+            AccessorInfo::cast(*accessors)->is_special_data_property()) {
+          done = true;
+          break;
+        }
         return SetPropertyWithAccessor(it->GetReceiver(), it->name(), value,
-                                       it->GetHolder<JSObject>(),
-                                       it->GetAccessors(), language_mode);
-
+                                       it->GetHolder<JSObject>(), accessors,
+                                       language_mode);
+      }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         done = true;
         break;
