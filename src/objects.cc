@@ -3279,6 +3279,11 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
       SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;
 
+  if (!it->GetReceiver()->IsJSReceiver()) {
+    return WriteToReadOnlyProperty(it->isolate(), it->GetReceiver(), it->name(),
+                                   value, language_mode);
+  }
+
   LookupIterator own_lookup(it->GetReceiver(), it->name(), LookupIterator::OWN);
 
   switch (own_lookup.state()) {
