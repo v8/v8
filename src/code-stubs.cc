@@ -594,11 +594,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void LoadFastElementStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
-}
-
-
 void LoadDictionaryElementStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
