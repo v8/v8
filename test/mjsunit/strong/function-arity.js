@@ -290,6 +290,19 @@ function generateSpread(n) {
 })();
 
 
+(function TestOptimized3() {
+  function f(x, y) {}
+  function g() {
+    'use strong';
+    f(1);
+  }
+
+  g();
+  %OptimizeFunctionOnNextCall(f);
+  g();
+})();
+
+
 // https://code.google.com/p/v8/issues/detail?id=4077
 // (function NoParametersSuper() {
 //   'use strong';
