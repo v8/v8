@@ -2812,13 +2812,22 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 
 
 bool HeapObject::NeedsToEnsureDoubleAlignment() {
-#ifndef V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_32_BIT
   return (IsFixedFloat64Array() || IsFixedDoubleArray() ||
           IsConstantPoolArray()) &&
          FixedArrayBase::cast(this)->length() != 0;
 #else
   return false;
-#endif  // V8_HOST_ARCH_64_BIT
+#endif  // V8_HOST_ARCH_32_BIT
+}
+
+
+bool HeapObject::NeedsToEnsureDoubleUnalignment() {
+#ifdef V8_HOST_ARCH_32_BIT
+  return IsHeapNumber();
+#else
+  return false;
+#endif  // V8_HOST_ARCH_32_BIT
 }
 
 

@@ -438,6 +438,7 @@ enum AllocationSpace {
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 
+enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 // A flag that indicates whether objects should be pretenured when
 // allocated (allocated directly into the old generation) or not

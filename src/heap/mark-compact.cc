@@ -1942,9 +1942,9 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
       }
 
       AllocationResult allocation;
-#ifndef V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_32_BIT
       if (object->NeedsToEnsureDoubleAlignment()) {
-        allocation = new_space->AllocateRawDoubleAligned(size);
+        allocation = new_space->AllocateRawAligned(size, kDoubleAligned);
       } else {
         allocation = new_space->AllocateRaw(size);
       }
@@ -1958,9 +1958,9 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
           // always room.
           UNREACHABLE();
         }
-#ifndef V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_32_BIT
         if (object->NeedsToEnsureDoubleAlignment()) {
-          allocation = new_space->AllocateRawDoubleAligned(size);
+          allocation = new_space->AllocateRawAligned(size, kDoubleAligned);
         } else {
           allocation = new_space->AllocateRaw(size);
         }
@@ -3120,9 +3120,9 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
   HeapObject* target;
   AllocationResult allocation;
-#ifndef V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_32_BIT
   if (object->NeedsToEnsureDoubleAlignment()) {
-    allocation = old_space->AllocateRawDoubleAligned(object_size);
+    allocation = old_space->AllocateRawAligned(object_size, kDoubleAligned);
   } else {
     allocation = old_space->AllocateRaw(object_size);
   }

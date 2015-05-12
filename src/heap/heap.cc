@@ -1965,10 +1965,20 @@ STATIC_ASSERT((ConstantPoolArray::kExtendedFirstOffset &
                kDoubleAlignmentMask) == 0);  // NOLINT
 STATIC_ASSERT((FixedTypedArrayBase::kDataOffset & kDoubleAlignmentMask) ==
               0);  // NOLINT
+#ifdef V8_HOST_ARCH_32_BIT
+STATIC_ASSERT((HeapNumber::kValueOffset & kDoubleAlignmentMask) !=
+              0);  // NOLINT
+#endif
 
 
-HeapObject* Heap::EnsureDoubleAligned(HeapObject* object, int size) {
-  if ((OffsetFrom(object->address()) & kDoubleAlignmentMask) != 0) {
+HeapObject* Heap::EnsureAligned(HeapObject* object, int size,
+                                AllocationAlignment alignment) {
+  if (alignment == kDoubleAligned &&
+      (OffsetFrom(object->address()) & kDoubleAlignmentMask) != 0) {
+    CreateFillerObjectAt(object->address(), kPointerSize);
+    return HeapObject::FromAddress(object->address() + kPointerSize);
+  } else if (alignment == kDoubleUnaligned &&
+             (OffsetFrom(object->address()) & kDoubleAlignmentMask) == 0) {
     CreateFillerObjectAt(object->address(), kPointerSize);
     return HeapObject::FromAddress(object->address() + kPointerSize);
   } else {
@@ -1978,8 +1988,14 @@ HeapObject* Heap::EnsureDoubleAligned(HeapObject* object, int size) {
 }
 
 
+HeapObject* Heap::PrecedeWithFiller(HeapObject* object) {
+  CreateFillerObjectAt(object->address(), kPointerSize);
+  return HeapObject::FromAddress(object->address() + kPointerSize);
+}
+
+
 HeapObject* Heap::DoubleAlignForDeserialization(HeapObject* object, int size) {
-  return EnsureDoubleAligned(object, size);
+  return EnsureAligned(object, size, kDoubleAligned);
 }
 
 
@@ -2131,9 +2147,10 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     DCHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
     AllocationResult allocation;
-#ifndef V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_32_BIT
     if (alignment == kDoubleAlignment) {
-      allocation = heap->new_space()->AllocateRawDoubleAligned(object_size);
+      allocation =
+          heap->new_space()->AllocateRawAligned(object_size, kDoubleAligned);
     } else {
       allocation = heap->new_space()->AllocateRaw(object_size);
     }
@@ -2167,9 +2184,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
 
     AllocationResult allocation;
-#ifndef V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_32_BIT
     if (alignment == kDoubleAlignment) {
-      allocation = heap->old_space()->AllocateRawDoubleAligned(object_size);
+      allocation =
+          heap->old_space()->AllocateRawAligned(object_size, kDoubleAligned);
     } else {
       allocation = heap->old_space()->AllocateRaw(object_size);
     }
@@ -2840,7 +2858,8 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
 
   HeapObject* result;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation =
+        AllocateRaw(size, space, OLD_SPACE, kDoubleUnaligned);
     if (!allocation.To(&result)) return allocation;
   }
 

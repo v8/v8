@@ -157,7 +157,7 @@ AllocationResult Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
                                    AllocationSpace retry_space,
-                                   Alignment alignment) {
+                                   AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(gc_state_ == NOT_IN_GC);
@@ -174,10 +174,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   AllocationResult allocation;
   if (NEW_SPACE == space) {
 #ifndef V8_HOST_ARCH_64_BIT
-    if (alignment == kDoubleAligned) {
-      allocation = new_space_.AllocateRawDoubleAligned(size_in_bytes);
-    } else {
+    if (alignment == kWordAligned) {
       allocation = new_space_.AllocateRaw(size_in_bytes);
+    } else {
+      allocation = new_space_.AllocateRawAligned(size_in_bytes, alignment);
     }
 #else
     allocation = new_space_.AllocateRaw(size_in_bytes);
@@ -194,10 +194,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 
   if (OLD_SPACE == space) {
 #ifndef V8_HOST_ARCH_64_BIT
-    if (alignment == kDoubleAligned) {
-      allocation = old_space_->AllocateRawDoubleAligned(size_in_bytes);
-    } else {
+    if (alignment == kWordAligned) {
       allocation = old_space_->AllocateRaw(size_in_bytes);
+    } else {
+      allocation = old_space_->AllocateRawAligned(size_in_bytes, alignment);
     }
 #else
     allocation = old_space_->AllocateRaw(size_in_bytes);

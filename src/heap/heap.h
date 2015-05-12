@@ -719,7 +719,10 @@ class Heap {
   // This method assumes overallocation of one word. It will store a filler
   // before the object if the given object is not double aligned, otherwise
   // it will place the filler after the object.
-  MUST_USE_RESULT HeapObject* EnsureDoubleAligned(HeapObject* object, int size);
+  MUST_USE_RESULT HeapObject* EnsureAligned(HeapObject* object, int size,
+                                            AllocationAlignment alignment);
+
+  MUST_USE_RESULT HeapObject* PrecedeWithFiller(HeapObject* object);
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
@@ -1819,15 +1822,13 @@ class Heap {
 
   HeapObject* DoubleAlignForDeserialization(HeapObject* object, int size);
 
-  enum Alignment { kWordAligned, kDoubleAligned };
-
   // Allocate an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.  This is the single choke-point for allocations
   // performed by the runtime and should not be bypassed (to extend this to
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   MUST_USE_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationSpace space, AllocationSpace retry_space,
-      Alignment aligment = kWordAligned);
+      AllocationAlignment aligment = kWordAligned);
 
   // Allocates a heap object based on the map.
   MUST_USE_RESULT AllocationResult
