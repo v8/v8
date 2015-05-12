@@ -9,7 +9,6 @@
 #include "src/api-natives.h"
 #include "src/arguments.h"
 #include "src/i18n.h"
-#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 #include "unicode/brkiter.h"
@@ -235,7 +234,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
+  Handle<Object> tag = JSObject::GetDataProperty(obj, marker);
   return isolate->heap()->ToBoolean(!tag->IsUndefined());
 }
 
@@ -252,7 +251,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
+  Handle<Object> tag = JSObject::GetDataProperty(obj, marker);
   return isolate->heap()->ToBoolean(tag->IsString() &&
                                     String::cast(*tag)->Equals(*expected_type));
 }
@@ -282,21 +281,23 @@ RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
 
   DCHECK(args.length() == 1);
 
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
 
   if (!input->IsJSObject()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotIntlObject, input));
+    Vector<Handle<Object> > arguments = HandleVector(&input, 1);
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                   NewTypeError("not_intl_object", arguments));
   }
 
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<Symbol> marker = isolate->factory()->intl_impl_object_symbol();
 
-  Handle<Object> impl = JSReceiver::GetDataProperty(obj, marker);
+  Handle<Object> impl = JSObject::GetDataProperty(obj, marker);
   if (impl->IsTheHole()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotIntlObject, obj));
+    Vector<Handle<Object> > arguments = HandleVector(&obj, 1);
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                   NewTypeError("not_intl_object", arguments));
   }
   return *impl;
 }

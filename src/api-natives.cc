@@ -7,7 +7,6 @@
 #include "src/api.h"
 #include "src/isolate.h"
 #include "src/lookup.h"
-#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
@@ -96,9 +95,10 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
     duplicate = maybe.FromJust();
   }
   if (duplicate) {
-    THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kDuplicateTemplateProperty, key),
-        Object);
+    Handle<Object> args[1] = {key};
+    THROW_NEW_ERROR(isolate, NewTypeError("duplicate_template_property",
+                                          HandleVector(args, 1)),
+                    Object);
   }
 #endif
 

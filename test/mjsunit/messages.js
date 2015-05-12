@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony --harmony-reflect --harmony-arrays
-// Flags: --harmony-regexps --strong-mode
+// Flags: --harmony-regexps
 
 function test(f, expected, type) {
   try {
@@ -62,29 +62,10 @@ test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 
-// kCannotPreventExtExternalArray
-test(function() {
-  Object.preventExtensions(new Uint16Array(1));
-}, "Cannot prevent extension of an object with external array elements", TypeError);
-
-// kConstAssign
-test(function() {
-  "use strict";
-  const a = 1;
-  a = 2;
-}, "Assignment to constant variable.", TypeError);
-
 // kCannotConvertToPrimitive
 test(function() {
   [].join(Object(Symbol(1)));
 }, "Cannot convert object to primitive value", TypeError);
-
-// kCircularStructure
-test(function() {
-  var o = {};
-  o.o = o;
-  JSON.stringify(o);
-}, "Converting circular structure to JSON", TypeError);
 
 // kConstructorNotFunction
 test(function() {
@@ -179,11 +160,6 @@ test(function() {
   new Symbol();
 }, "Symbol is not a constructor", TypeError);
 
-// kNotDateObject
-test(function() {
-  Date.prototype.setHours.call(1);
-}, "this is not a Date object.", TypeError);
-
 // kNotGeneric
 test(function() {
   String.prototype.toString.call(1);
@@ -228,14 +204,6 @@ test(function() {
   Object.defineProperty({}, "x", { get: 1 });
 }, "Getter must be a function: 1", TypeError);
 
-// kObjectNotExtensible
-test(function() {
-  "use strict";
-  var o = {};
-  Object.freeze(o);
-  o.a = 1;
-}, "Can't add property a, object is not extensible", TypeError);
-
 // kObjectSetterExpectingFunction
 test(function() {
   ({}).__defineSetter__("x", 0);
@@ -279,34 +247,6 @@ test(function() {
 test(function() {
   new Promise(1);
 }, "Promise resolver 1 is not a function", TypeError);
-
-// kStrictDeleteProperty
-test(function() {
-  "use strict";
-  var o = {};
-  Object.defineProperty(o, "p", { value: 1, writable: false });
-  delete o.p;
-}, "Cannot delete property 'p' of #<Object>", TypeError);
-
-// kStrictPoisonPill
-test(function() {
-  "use strict";
-  arguments.callee;
-}, "'caller', 'callee', and 'arguments' properties may not be accessed on " +
-   "strict mode functions or the arguments objects for calls to them",
-   TypeError);
-
-// kStrictReadOnlyProperty
-test(function() {
-  "use strict";
-  (1).a = 1;
-}, "Cannot assign to read only property 'a' of 1", TypeError);
-
-// kStrongImplicitCast
-test(function() {
-  "use strong";
-  "a" + 1;
-}, "In strong mode, implicit conversions are deprecated", TypeError);
 
 // kSymbolToPrimitive
 test(function() {

@@ -2507,7 +2507,7 @@ void Debug::OnPromiseReject(Handle<JSObject> promise, Handle<Object> value) {
   HandleScope scope(isolate_);
   // Check whether the promise has been marked as having triggered a message.
   Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined()) {
+  if (JSObject::GetDataProperty(promise, key)->IsUndefined()) {
     OnException(value, promise);
   }
 }
@@ -2516,9 +2516,9 @@ void Debug::OnPromiseReject(Handle<JSObject> promise, Handle<Object> value) {
 MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
     Handle<JSObject> promise) {
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      JSReceiver::GetDataProperty(isolate_->js_builtins_object(),
-                                  isolate_->factory()->NewStringFromStaticChars(
-                                      "$promiseHasUserDefinedRejectHandler")));
+      JSObject::GetDataProperty(isolate_->js_builtins_object(),
+                                isolate_->factory()->NewStringFromStaticChars(
+                                    "$promiseHasUserDefinedRejectHandler")));
   return Execution::Call(isolate_, fun, promise, 0, NULL);
 }
 

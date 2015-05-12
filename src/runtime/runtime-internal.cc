@@ -79,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   if (debug_event) isolate->debug()->OnPromiseReject(promise, value);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // Do not report if we actually have a handler.
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined()) {
+  if (JSObject::GetDataProperty(promise, key)->IsUndefined()) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
@@ -93,7 +93,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // At this point, no revocation has been issued before
-  RUNTIME_ASSERT(JSReceiver::GetDataProperty(promise, key)->IsUndefined());
+  RUNTIME_ASSERT(JSObject::GetDataProperty(promise, key)->IsUndefined());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return isolate->heap()->undefined_value();

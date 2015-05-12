@@ -7,7 +7,6 @@
 
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
-#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
@@ -163,8 +162,8 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name, State old_state,
                State new_state);
 
-  MaybeHandle<Object> TypeError(MessageTemplate::Template,
-                                Handle<Object> object, Handle<Object> key);
+  MaybeHandle<Object> TypeError(const char* type, Handle<Object> object,
+                                Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   // Access the target code for the given IC address.

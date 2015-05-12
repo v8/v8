@@ -70,10 +70,10 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key) {
   if (object->IsUndefined() || object->IsNull()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
-        Object);
+    Handle<Object> args[2] = {key, object};
+    THROW_NEW_ERROR(isolate, NewTypeError("non_object_property_load",
+                                          HandleVector(args, 2)),
+                    Object);
   }
 
   // Check if the given key is an array index.
@@ -102,10 +102,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> value,
                                                LanguageMode language_mode) {
   if (object->IsUndefined() || object->IsNull()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
-        Object);
+    Handle<Object> args[2] = {key, object};
+    THROW_NEW_ERROR(isolate, NewTypeError("non_object_property_store",
+                                          HandleVector(args, 2)),
+                    Object);
   }
 
   if (object->IsJSProxy()) {
@@ -1419,9 +1419,9 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
 RUNTIME_FUNCTION(Runtime_GetDataProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-  return *JSReceiver::GetDataProperty(object, key);
+  return *JSObject::GetDataProperty(object, key);
 }
 
 

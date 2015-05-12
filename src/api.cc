@@ -4400,7 +4400,7 @@ Handle<Value> Function::GetDisplayName() const {
   i::Handle<i::String> property_name =
       isolate->factory()->NewStringFromStaticChars("displayName");
   i::Handle<i::Object> value =
-      i::JSReceiver::GetDataProperty(func, property_name);
+      i::JSObject::GetDataProperty(func, property_name);
   if (value->IsString()) {
     i::Handle<i::String> name = i::Handle<i::String>::cast(value);
     if (name->length() > 0) return Utils::ToLocal(name);
@@ -6239,7 +6239,7 @@ bool Promise::HasHandler() {
   LOG_API(isolate, "Promise::HasRejectHandler");
   ENTER_V8(isolate);
   i::Handle<i::Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  return i::JSReceiver::GetDataProperty(promise, key)->IsTrue();
+  return i::JSObject::GetDataProperty(promise, key)->IsTrue();
 }
 
 

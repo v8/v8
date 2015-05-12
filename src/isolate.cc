@@ -341,8 +341,9 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   Handle<String> stackTraceLimit =
       factory()->InternalizeUtf8String("stackTraceLimit");
   DCHECK(!stackTraceLimit.is_null());
-  Handle<Object> stack_trace_limit = JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(error), stackTraceLimit);
+  Handle<Object> stack_trace_limit =
+      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
+                                stackTraceLimit);
   if (!stack_trace_limit->IsNumber()) return factory()->undefined_value();
   int limit = FastD2IChecked(stack_trace_limit->Number());
   limit = Max(limit, 0);  // Ensure that limit is not negative.
@@ -445,7 +446,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetSimpleStackTrace(
 Handle<JSArray> Isolate::GetDetailedStackTrace(Handle<JSObject> error_object) {
   Handle<Name> key_detailed = factory()->detailed_stack_trace_symbol();
   Handle<Object> stack_trace =
-      JSReceiver::GetDataProperty(error_object, key_detailed);
+      JSObject::GetDataProperty(error_object, key_detailed);
   if (stack_trace->IsJSArray()) return Handle<JSArray>::cast(stack_trace);
 
   if (!capture_stack_trace_for_uncaught_exceptions_) return Handle<JSArray>();
@@ -599,7 +600,7 @@ int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
 Handle<JSArray> Isolate::GetDetailedFromSimpleStackTrace(
     Handle<JSObject> error_object) {
   Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> property = JSReceiver::GetDataProperty(error_object, key);
+  Handle<Object> property = JSObject::GetDataProperty(error_object, key);
   if (!property->IsJSArray()) return Handle<JSArray>();
   Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
 
@@ -1271,19 +1272,19 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
   if (!exception->IsJSObject()) return false;
 
   Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
-  Handle<Object> start_pos = JSReceiver::GetDataProperty(
+  Handle<Object> start_pos = JSObject::GetDataProperty(
       Handle<JSObject>::cast(exception), start_pos_symbol);
   if (!start_pos->IsSmi()) return false;
   int start_pos_value = Handle<Smi>::cast(start_pos)->value();
 
   Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
-  Handle<Object> end_pos = JSReceiver::GetDataProperty(
+  Handle<Object> end_pos = JSObject::GetDataProperty(
       Handle<JSObject>::cast(exception), end_pos_symbol);
   if (!end_pos->IsSmi()) return false;
   int end_pos_value = Handle<Smi>::cast(end_pos)->value();
 
   Handle<Name> script_symbol = factory()->error_script_symbol();
-  Handle<Object> script = JSReceiver::GetDataProperty(
+  Handle<Object> script = JSObject::GetDataProperty(
       Handle<JSObject>::cast(exception), script_symbol);
   if (!script->IsScript()) return false;
 
@@ -1300,7 +1301,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   if (!exception->IsJSObject()) return false;
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> property =
-      JSReceiver::GetDataProperty(Handle<JSObject>::cast(exception), key);
+      JSObject::GetDataProperty(Handle<JSObject>::cast(exception), key);
   if (!property->IsJSArray()) return false;
   Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
 
