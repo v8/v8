@@ -723,6 +723,8 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
      << "[method: " << shared->DebugName()->ToCString().get() << "]\n"
      << "[source:\n" << SourceCodeOf(shared) << "\n]" << std::endl;
 
+  shared->GetHeap()->isolate()->PushStackTraceAndDie(0xfefefefe, data, shared,
+                                                     0xfefefeff);
   FATAL("unable to find pc offset during deoptimization");
   return -1;
 }
