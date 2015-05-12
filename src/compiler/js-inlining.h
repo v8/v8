@@ -13,14 +13,19 @@ namespace internal {
 namespace compiler {
 
 class JSCallFunctionAccessor;
+struct Inlinee;
 
-class JSInliner final : public Reducer {
+class JSInliner final : public AdvancedReducer {
  public:
   enum Mode { kBuiltinsInlining, kGeneralInlining };
 
-  JSInliner(Mode mode, Zone* local_zone, CompilationInfo* info,
+  JSInliner(Editor* editor, Mode mode, Zone* local_zone, CompilationInfo* info,
             JSGraph* jsgraph)
-      : mode_(mode), local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
+      : AdvancedReducer(editor),
+        mode_(mode),
+        local_zone_(local_zone),
+        info_(info),
+        jsgraph_(jsgraph) {}
 
   Reduction Reduce(Node* node) final;
 
@@ -34,6 +39,8 @@ class JSInliner final : public Reducer {
                                          Handle<JSFunction> jsfunction,
                                          Zone* temp_zone);
   void AddClosureToFrameState(Node* frame_state, Handle<JSFunction> jsfunction);
+
+  Reduction InlineCall(Node* call, Inlinee& inlinee);
 };
 
 }  // namespace compiler

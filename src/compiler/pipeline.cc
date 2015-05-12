@@ -504,11 +504,11 @@ struct InliningPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     SourcePositionTable::Scope pos(data->source_positions(),
                                    SourcePosition::Unknown());
-    JSInliner inliner(data->info()->is_inlining_enabled()
-                          ? JSInliner::kGeneralInlining
-                          : JSInliner::kBuiltinsInlining,
-                      temp_zone, data->info(), data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
+                                          ? JSInliner::kGeneralInlining
+                                          : JSInliner::kBuiltinsInlining,
+                      temp_zone, data->info(), data->jsgraph());
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
   }

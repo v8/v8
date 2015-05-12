@@ -554,6 +554,8 @@ class DummyEditor final : public AdvancedReducer::Editor {
     node->ReplaceUses(replacement);
   }
   void Revisit(Node* node) final {}
+  void ReplaceWithValue(Node* node, Node* value, Node* effect,
+                        Node* control) final {}
 };
 
 }  // namespace

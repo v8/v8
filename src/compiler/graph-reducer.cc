@@ -8,6 +8,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -205,6 +206,40 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
 
     // If there was a replacement, reduce it after popping {node}.
     Recurse(replacement);
+  }
+}
+
+
+void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
+                                    Node* control) {
+  if (!effect && node->op()->EffectInputCount() > 0) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
+  if (control == nullptr && node->op()->ControlInputCount() > 0) {
+    control = NodeProperties::GetControlInput(node);
+  }
+
+  // Requires distinguishing between value, effect and control edges.
+  for (Edge edge : node->use_edges()) {
+    Node* user = edge.from();
+    if (NodeProperties::IsControlEdge(edge)) {
+      if (user->opcode() == IrOpcode::kIfSuccess) {
+        Replace(user, control);
+      } else if (user->opcode() == IrOpcode::kIfException) {
+        // TODO(titzer): replace with dead control from JSGraph, and
+        // require the control reducer to propagate it.
+        UNREACHABLE();
+      } else {
+        UNREACHABLE();
+      }
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      DCHECK_NOT_NULL(effect);
+      edge.UpdateTo(effect);
+      Revisit(user);
+    } else {
+      edge.UpdateTo(value);
+      Revisit(user);
+    }
   }
 }
 
