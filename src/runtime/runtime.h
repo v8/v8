@@ -134,6 +134,7 @@ namespace internal {
   F(DebugBreak, 0, 1)                          \
   F(SetDebugEventListener, 2, 1)               \
   F(ScheduleBreak, 0, 1)                       \
+  F(DebugGetInternalProperties, 1, 1)          \
   F(DebugGetPropertyDetails, 2, 1)             \
   F(DebugGetProperty, 2, 1)                    \
   F(DebugPropertyTypeFromDetails, 1, 1)        \
@@ -854,6 +855,9 @@ class Runtime : public AllStatic {
                                 Handle<Object> key, Handle<Object> value);
   static bool WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
                                    Handle<Object> key);
+
+  static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
+                                                    Handle<Object>);
 };
 
 

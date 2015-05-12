@@ -101,6 +101,183 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
 }
 
 
+static Handle<Object> DebugGetProperty(Handle<Object> object,
+                                       Handle<Name> name) {
+  LookupIterator it(object, name);
+  return DebugGetProperty(&it);
+}
+
+
+template <class IteratorType>
+static MaybeHandle<JSArray> GetIteratorInternalProperties(
+    Isolate* isolate, Handle<IteratorType> object) {
+  Factory* factory = isolate->factory();
+  Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
+  RUNTIME_ASSERT_HANDLIFIED(iterator->kind()->IsSmi(), JSArray);
+  const char* kind = NULL;
+  switch (Smi::cast(iterator->kind())->value()) {
+    case IteratorType::kKindKeys:
+      kind = "keys";
+      break;
+    case IteratorType::kKindValues:
+      kind = "values";
+      break;
+    case IteratorType::kKindEntries:
+      kind = "entries";
+      break;
+    default:
+      RUNTIME_ASSERT_HANDLIFIED(false, JSArray);
+  }
+
+  Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
+  Handle<String> has_more =
+      factory->NewStringFromAsciiChecked("[[IteratorHasMore]]");
+  result->set(0, *has_more);
+  result->set(1, isolate->heap()->ToBoolean(iterator->HasMore()));
+
+  Handle<String> index =
+      factory->NewStringFromAsciiChecked("[[IteratorIndex]]");
+  result->set(2, *index);
+  result->set(3, iterator->index());
+
+  Handle<String> iterator_kind =
+      factory->NewStringFromAsciiChecked("[[IteratorKind]]");
+  result->set(4, *iterator_kind);
+  Handle<String> kind_str = factory->NewStringFromAsciiChecked(kind);
+  result->set(5, *kind_str);
+  return factory->NewJSArrayWithElements(result);
+}
+
+
+MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
+                                                    Handle<Object> object) {
+  Factory* factory = isolate->factory();
+  if (object->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(object);
+    if (function->shared()->bound()) {
+      RUNTIME_ASSERT_HANDLIFIED(function->function_bindings()->IsFixedArray(),
+                                JSArray);
+
+      Handle<FixedArray> bindings(function->function_bindings());
+
+      Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
+      Handle<String> target =
+          factory->NewStringFromAsciiChecked("[[TargetFunction]]");
+      result->set(0, *target);
+      result->set(1, bindings->get(JSFunction::kBoundFunctionIndex));
+
+      Handle<String> bound_this =
+          factory->NewStringFromAsciiChecked("[[BoundThis]]");
+      result->set(2, *bound_this);
+      result->set(3, bindings->get(JSFunction::kBoundThisIndex));
+
+      Handle<FixedArray> arguments = factory->NewFixedArray(
+          bindings->length() - JSFunction::kBoundArgumentsStartIndex);
+      bindings->CopyTo(
+          JSFunction::kBoundArgumentsStartIndex, *arguments, 0,
+          bindings->length() - JSFunction::kBoundArgumentsStartIndex);
+      Handle<String> bound_args =
+          factory->NewStringFromAsciiChecked("[[BoundArgs]]");
+      result->set(4, *bound_args);
+      Handle<JSArray> arguments_array =
+          factory->NewJSArrayWithElements(arguments);
+      result->set(5, *arguments_array);
+      return factory->NewJSArrayWithElements(result);
+    }
+  } else if (object->IsJSMapIterator()) {
+    Handle<JSMapIterator> iterator = Handle<JSMapIterator>::cast(object);
+    return GetIteratorInternalProperties(isolate, iterator);
+  } else if (object->IsJSSetIterator()) {
+    Handle<JSSetIterator> iterator = Handle<JSSetIterator>::cast(object);
+    return GetIteratorInternalProperties(isolate, iterator);
+  } else if (object->IsJSGeneratorObject()) {
+    Handle<JSGeneratorObject> generator =
+        Handle<JSGeneratorObject>::cast(object);
+
+    const char* status = "suspended";
+    if (generator->is_closed()) {
+      status = "closed";
+    } else if (generator->is_executing()) {
+      status = "running";
+    } else {
+      DCHECK(generator->is_suspended());
+    }
+
+    Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
+    Handle<String> generator_status =
+        factory->NewStringFromAsciiChecked("[[GeneratorStatus]]");
+    result->set(0, *generator_status);
+    Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
+    result->set(1, *status_str);
+
+    Handle<String> function =
+        factory->NewStringFromAsciiChecked("[[GeneratorFunction]]");
+    result->set(2, *function);
+    result->set(3, generator->function());
+
+    Handle<String> receiver =
+        factory->NewStringFromAsciiChecked("[[GeneratorReceiver]]");
+    result->set(4, *receiver);
+    result->set(5, generator->receiver());
+    return factory->NewJSArrayWithElements(result);
+  } else if (Object::IsPromise(object)) {
+    Handle<JSObject> promise = Handle<JSObject>::cast(object);
+
+    Handle<Object> status_obj =
+        DebugGetProperty(promise, isolate->promise_status());
+    RUNTIME_ASSERT_HANDLIFIED(status_obj->IsSmi(), JSArray);
+    const char* status = "rejected";
+    int status_val = Handle<Smi>::cast(status_obj)->value();
+    switch (status_val) {
+      case +1:
+        status = "resolved";
+        break;
+      case 0:
+        status = "pending";
+        break;
+      default:
+        DCHECK_EQ(-1, status_val);
+    }
+
+    Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
+    Handle<String> promise_status =
+        factory->NewStringFromAsciiChecked("[[PromiseStatus]]");
+    result->set(0, *promise_status);
+    Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
+    result->set(1, *status_str);
+
+    Handle<Object> value_obj =
+        DebugGetProperty(promise, isolate->promise_value());
+    Handle<String> promise_value =
+        factory->NewStringFromAsciiChecked("[[PromiseValue]]");
+    result->set(2, *promise_value);
+    result->set(3, *value_obj);
+    return factory->NewJSArrayWithElements(result);
+  } else if (object->IsJSValue()) {
+    Handle<JSValue> js_value = Handle<JSValue>::cast(object);
+
+    Handle<FixedArray> result = factory->NewFixedArray(2);
+    Handle<String> primitive_value =
+        factory->NewStringFromAsciiChecked("[[PrimitiveValue]]");
+    result->set(0, *primitive_value);
+    result->set(1, js_value->value());
+    return factory->NewJSArrayWithElements(result);
+  }
+  return factory->NewJSArray(0);
+}
+
+
+RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  Handle<JSArray> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Runtime::GetInternalProperties(isolate, obj));
+  return *result;
+}
+
+
 // Get debugger related details for an object property, in the following format:
 // 0: Property value
 // 1: Property details
