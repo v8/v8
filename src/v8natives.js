@@ -36,11 +36,15 @@ var $toNameArray;
 
 %CheckIsBootstrapping();
 
+// ----------------------------------------------------------------------------
+// Imports
+
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
 var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
+var InternalArray = shared.InternalArray;
 
 // ----------------------------------------------------------------------------
 

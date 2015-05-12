@@ -19,6 +19,11 @@ var $promiseValue;
 %CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
+// Imports
+
+var InternalArray = shared.InternalArray;
+
+// -------------------------------------------------------------------
 
 // Status values: 0 = pending, +1 = resolved, -1 = rejected
 var promiseStatus = GLOBAL_PRIVATE("Promise#status");

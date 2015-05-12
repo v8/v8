@@ -11,8 +11,12 @@
 
 %CheckIsBootstrapping();
 
+//- ------------------------------------------------------------------
+// Imports
+
 var GlobalObject = global.Object;
 var GlobalArray = global.Array;
+var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 // Define internal helper functions.

@@ -19,7 +19,12 @@ var $innerArrayEvery;
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalArray = global.Array;
+var InternalArray = exports.InternalArray;
+var InternalPackedArray = exports.InternalPackedArray;
 
 // -------------------------------------------------------------------
 

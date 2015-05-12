@@ -27,18 +27,18 @@
 
 // See: http://code.google.com/p/v8/issues/detail?id=1878
 
-// Flags: --allow-natives-syntax --expose_natives_as=natives
+// Flags: --allow-natives-syntax --expose-natives-as=natives
 
 var a = Array();
 
 for (var i = 0; i < 1000; i++) {
-  var ai = natives.InternalArray(10000);
+  var ai = natives.builtin_exports.InternalArray(10000);
   assertFalse(%HaveSameMap(ai, a));
   assertTrue(%HasFastObjectElements(ai));
 }
 
 for (var i = 0; i < 1000; i++) {
-  var ai = new natives.InternalArray(10000);
+  var ai = new natives.builtin_exports.InternalArray(10000);
   assertFalse(%HaveSameMap(ai, a));
   assertTrue(%HasFastObjectElements(ai));
 }
