@@ -1056,6 +1056,7 @@ class Object {
   INLINE(bool IsOrderedHashSet() const);
   INLINE(bool IsOrderedHashMap() const);
   bool IsCallable() const;
+  static bool IsPromise(Handle<Object> object);
 
   // Oddball testing.
   INLINE(bool IsUndefined() const);

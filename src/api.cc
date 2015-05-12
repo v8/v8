@@ -6090,16 +6090,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 
 bool Value::IsPromise() const {
   auto self = Utils::OpenHandle(this);
-  if (!self->IsJSObject()) return false;
-  auto js_object = i::Handle<i::JSObject>::cast(self);
-  // Promises can't have access checks.
-  if (js_object->map()->is_access_check_needed()) return false;
-  auto isolate = js_object->GetIsolate();
-  // TODO(dcarney): this should just be read from the symbol registry so as not
-  // to be context dependent.
-  auto key = isolate->promise_status();
-  // Shouldn't be possible to throw here.
-  return i::JSObject::HasRealNamedProperty(js_object, key).FromJust();
+  return i::Object::IsPromise(self);
 }
 
 
@@ -7391,6 +7382,18 @@ Local<Context> Debug::GetDebugContext() {
 void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->set_live_edit_enabled(enable);
+}
+
+
+MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
+                                               Local<Value> value) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  i::Handle<i::JSArray> result;
+  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
+    return MaybeLocal<Array>();
+  return Utils::ToLocal(result);
 }
 
 

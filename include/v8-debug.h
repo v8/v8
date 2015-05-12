@@ -260,6 +260,16 @@ class V8_EXPORT Debug {
    * unexpectedly used. LiveEdit is enabled by default.
    */
   static void SetLiveEditEnabled(Isolate* isolate, bool enable);
+
+  /**
+   * Returns array of internal properties specific to the value type. Result has
+   * the following
+   * format: [<name>, <value>,...,<name>, <value>]. Result array will be
+   * allocated in the current
+   * context.
+   */
+  static MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
+                                                 Local<Value> value);
 };
 
 

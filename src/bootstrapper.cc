@@ -1611,6 +1611,7 @@ void Genesis::InstallNativeFunctions() {
                  to_complete_property_descriptor);
 
   INSTALL_NATIVE(Symbol, "$promiseStatus", promise_status);
+  INSTALL_NATIVE(Symbol, "$promiseValue", promise_value);
   INSTALL_NATIVE(JSFunction, "$promiseCreate", promise_create);
   INSTALL_NATIVE(JSFunction, "$promiseResolve", promise_resolve);
   INSTALL_NATIVE(JSFunction, "$promiseReject", promise_reject);
