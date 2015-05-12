@@ -12,17 +12,9 @@ var $getTemplateCallSite;
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
-var GlobalMap = global.Map;
-var InternalArray = shared.InternalArray;
-
-// -------------------------------------------------------------------
-
-var callSiteCache = new GlobalMap;
-var mapGetFn = GlobalMap.prototype.get;
-var mapSetFn = GlobalMap.prototype.set;
+var callSiteCache = new global.Map;
+var mapGetFn = global.Map.prototype.get;
+var mapSetFn = global.Map.prototype.set;
 
 
 function SameCallSiteElements(rawStrings, other) {

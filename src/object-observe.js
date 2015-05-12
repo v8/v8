@@ -16,12 +16,8 @@ var $observeNativeObjectNotifierPerformChange;
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
-var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 

@@ -10,11 +10,7 @@ var $jsonSerializeAdapter;
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalJSON = global.JSON;
-var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 

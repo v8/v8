@@ -10,13 +10,8 @@ var $stringSubstring;
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var InternalArray = shared.InternalArray;
-var InternalPackedArray = shared.InternalPackedArray;
 
 //-------------------------------------------------------------------
 

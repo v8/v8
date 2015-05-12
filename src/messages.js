@@ -35,14 +35,7 @@ var MakeTypeErrorEmbedded;
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalObject = global.Object;
-var InternalArray = shared.InternalArray;
-
-// -------------------------------------------------------------------
-
 var GlobalError;
 var GlobalTypeError;
 var GlobalRangeError;
@@ -50,6 +43,8 @@ var GlobalURIError;
 var GlobalSyntaxError;
 var GlobalReferenceError;
 var GlobalEvalError;
+
+// -------------------------------------------------------------------
 
 var kMessages = {
   // Error

@@ -16,13 +16,7 @@ var $createDate;
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalDate = global.Date;
-var InternalArray = shared.InternalArray;
-
-// -------------------------------------------------------------------
 
 // This file contains date support implemented in JavaScript.
 
