@@ -696,10 +696,11 @@ HValue* CodeStubGraphBuilder<GrowArrayElementsStub>::BuildCodeStub() {
 
   HValue* object = GetParameter(GrowArrayElementsDescriptor::kObjectIndex);
   HValue* key = GetParameter(GrowArrayElementsDescriptor::kKeyIndex);
-  HValue* current_capacity =
-      GetParameter(GrowArrayElementsDescriptor::kCapacityIndex);
 
   HValue* elements = AddLoadElements(object);
+  HValue* current_capacity = Add<HLoadNamedField>(
+      elements, nullptr, HObjectAccess::ForFixedArrayLength());
+
   HValue* length =
       casted_stub()->is_js_array()
           ? Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),

@@ -874,6 +874,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kLoadKeyed:
     case HValue::kLoadKeyedGeneric:
     case HValue::kMathFloorOfDiv:
+    case HValue::kMaybeGrowElements:
     case HValue::kMod:
     case HValue::kMul:
     case HValue::kOsrEntry:

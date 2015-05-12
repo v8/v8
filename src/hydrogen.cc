@@ -1331,37 +1331,22 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(
 
   HValue* current_capacity = AddLoadFixedArrayLength(elements);
 
-  IfBuilder capacity_checker(this);
-
-  capacity_checker.If<HCompareNumericAndBranch>(key, current_capacity,
-                                                Token::GTE);
-  capacity_checker.Then();
-
-  // BuildCheckAndGrowElementsCapacity could de-opt without profitable feedback
-  // therefore we defer calling it to a stub in optimized functions. It is
-  // okay to call directly in a code stub though, because a bailout to the
-  // runtime is tolerable in the corner cases.
   if (top_info()->IsStub()) {
+    IfBuilder capacity_checker(this);
+    capacity_checker.If<HCompareNumericAndBranch>(key, current_capacity,
+                                                  Token::GTE);
+    capacity_checker.Then();
     HValue* new_elements = BuildCheckAndGrowElementsCapacity(
         object, elements, kind, length, current_capacity, key);
     environment()->Push(new_elements);
+    capacity_checker.Else();
+    environment()->Push(elements);
+    capacity_checker.End();
   } else {
-    GrowArrayElementsStub stub(isolate(), is_js_array, kind);
-    GrowArrayElementsDescriptor descriptor(isolate());
-    HConstant* target = Add<HConstant>(stub.GetCode());
-    HValue* op_vals[] = {context(), object, key, current_capacity};
-    HValue* new_elements = Add<HCallWithDescriptor>(
-        target, 0, descriptor, Vector<HValue*>(op_vals, 4));
-    // If the object changed to a dictionary, GrowArrayElements will return a
-    // smi to signal that deopt is required.
-    Add<HCheckHeapObject>(new_elements);
-    environment()->Push(new_elements);
+    HValue* result = Add<HMaybeGrowElements>(
+        object, elements, key, current_capacity, is_js_array, kind);
+    environment()->Push(result);
   }
-
-  capacity_checker.Else();
-
-  environment()->Push(elements);
-  capacity_checker.End();
 
   if (is_js_array) {
     HValue* new_length = AddUncasted<HAdd>(key, graph_->GetConstant1());

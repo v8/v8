@@ -43,7 +43,7 @@ namespace internal {
   F(ArrayConstructorWithSubclassing, -1, 1)                           \
   F(InternalArrayConstructor, -1, 1)                                  \
   F(NormalizeElements, 1, 1)                                          \
-  F(GrowArrayElements, 3, 1)                                          \
+  F(GrowArrayElements, 2, 1)                                          \
   F(HasComplexElements, 1, 1)                                         \
   F(ForInCacheArrayLength, 2, 1) /* TODO(turbofan): Only temporary */ \
   F(IsArray, 1, 1)                                                    \

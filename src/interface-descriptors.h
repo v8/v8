@@ -545,10 +545,9 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(GrowArrayElementsDescriptor, CallInterfaceDescriptor)
 
-  enum RegisterInfo { kObjectIndex, kKeyIndex, kCapacityIndex };
+  enum RegisterInfo { kObjectIndex, kKeyIndex };
   static const Register ObjectRegister();
   static const Register KeyRegister();
-  static const Register CapacityRegister();
 };
 
 #undef DECLARE_DESCRIPTOR

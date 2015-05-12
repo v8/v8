@@ -127,6 +127,7 @@ class LChunkBuilder;
   V(MapEnumLength)                            \
   V(MathFloorOfDiv)                           \
   V(MathMinMax)                               \
+  V(MaybeGrowElements)                        \
   V(Mod)                                      \
   V(Mul)                                      \
   V(OsrEntry)                                 \
@@ -963,6 +964,12 @@ std::ostream& operator<<(std::ostream& os, const ChangesOf& v);
   static I* New(Isolate* isolate, Zone* zone, HValue* context, P1 p1, P2 p2, \
                 P3 p3, P4 p4, P5 p5) {                                       \
     return new (zone) I(context, p1, p2, p3, p4, p5);                        \
+  }
+
+#define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P6(I, P1, P2, P3, P4, P5, P6) \
+  static I* New(Isolate* isolate, Zone* zone, HValue* context, P1 p1, P2 p2,   \
+                P3 p3, P4 p4, P5 p5, P6 p6) {                                  \
+    return new (zone) I(context, p1, p2, p3, p4, p5, p6);                      \
   }
 
 
@@ -7555,6 +7562,58 @@ class HTrapAllocationMemento final : public HTemplateInstruction<1> {
   explicit HTrapAllocationMemento(HValue* obj) {
     SetOperandAt(0, obj);
   }
+};
+
+
+class HMaybeGrowElements final : public HTemplateInstruction<5> {
+ public:
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P6(HMaybeGrowElements, HValue*,
+                                              HValue*, HValue*, HValue*, bool,
+                                              ElementsKind);
+
+  Representation RequiredInputRepresentation(int index) override {
+    if (index < 3) {
+      return Representation::Tagged();
+    }
+    DCHECK(index == 3 || index == 4);
+    return Representation::Integer32();
+  }
+
+  HValue* context() const { return OperandAt(0); }
+  HValue* object() const { return OperandAt(1); }
+  HValue* elements() const { return OperandAt(2); }
+  HValue* key() const { return OperandAt(3); }
+  HValue* current_capacity() const { return OperandAt(4); }
+
+  bool is_js_array() const { return is_js_array_; }
+  ElementsKind kind() const { return kind_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MaybeGrowElements)
+
+ protected:
+  bool DataEquals(HValue* other) override { return true; }
+
+ private:
+  explicit HMaybeGrowElements(HValue* context, HValue* object, HValue* elements,
+                              HValue* key, HValue* current_capacity,
+                              bool is_js_array, ElementsKind kind) {
+    is_js_array_ = is_js_array;
+    kind_ = kind;
+
+    SetOperandAt(0, context);
+    SetOperandAt(1, object);
+    SetOperandAt(2, elements);
+    SetOperandAt(3, key);
+    SetOperandAt(4, current_capacity);
+
+    SetFlag(kUseGVN);
+    SetChangesFlag(kElementsPointer);
+    SetChangesFlag(kNewSpacePromotion);
+    set_representation(Representation::Tagged());
+  }
+
+  bool is_js_array_;
+  ElementsKind kind_;
 };
 
 

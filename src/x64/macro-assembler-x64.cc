@@ -925,6 +925,8 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
+  // Special-casing 0 here to use xorl seems to make things slower, so we don't
+  // do it.
   Move(dst, source, Assembler::RelocInfoNone());
 }
 

@@ -149,8 +149,7 @@ void ContextOnlyDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 
 void GrowArrayElementsDescriptor::Initialize(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ContextRegister(), ObjectRegister(), KeyRegister(),
-                          CapacityRegister()};
+  Register registers[] = {ContextRegister(), ObjectRegister(), KeyRegister()};
   data->Initialize(arraysize(registers), registers, NULL);
 }
 }
