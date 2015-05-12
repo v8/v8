@@ -30,70 +30,27 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 // -------------------------------------------------------------------
 
 // ES6 draft 05-05-15, section 22.2.3.7
-function TypedArrayEvery(f /* thisArg */) {  // length == 1
-  if (!%IsTypedArray(this)) {
-    throw MakeTypeError('not_typed_array', []);
-  }
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+function TypedArrayEvery(f, receiver) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  var receiver;
 
-  if (%_ArgumentsLength() > 1) {
-    receiver = %_Arguments(1);
-  }
-
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(mapfn)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
-
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
-  for (var i = 0; i < length; i++) {
-    var element = this[i];
-    // Prepare break slots for debugger step in.
-    if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
-    if (!%_CallFunction(new_receiver, TO_OBJECT_INLINE(element), i, this, f)) {
-      return false;
-    }
-  }
-  return true;
+  return $innerArrayEvery(f, receiver, this, length);
 }
+%FunctionSetLength(TypedArrayEvery, 1);
 
 // ES6 draft 08-24-14, section 22.2.3.12
-function TypedArrayForEach(f /* thisArg */) {  // length == 1
+function TypedArrayForEach(f, receiver) {
   if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var length = %_TypedArrayGetLength(this);
-  var receiver;
 
-  if (%_ArgumentsLength() > 1) {
-    receiver = %_Arguments(1);
-  }
-
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(mapfn)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
-
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
-  for (var i = 0; i < length; i++) {
-    var element = this[i];
-    // Prepare break slots for debugger step in.
-    if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
-    %_CallFunction(new_receiver, TO_OBJECT_INLINE(element), i, this, f);
-  }
+  $innerArrayForEach(f, receiver, this, length);
 }
+%FunctionSetLength(TypedArrayForEach, 1);
 
 // ES6 draft 08-24-14, section 22.2.2.2
-function TypedArrayOf() {  // length == 0
+function TypedArrayOf() {
   var length = %_ArgumentsLength();
   var array = new this(length);
   for (var i = 0; i < length; i++) {

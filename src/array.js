@@ -10,6 +10,8 @@ var $arrayShift;
 var $arraySlice;
 var $arraySplice;
 var $arrayUnshift;
+var $innerArrayForEach;
+var $innerArrayEvery;
 
 (function(global, shared, exports) {
 
@@ -1179,15 +1181,7 @@ function ArrayFilter(f, receiver) {
   return result;
 }
 
-
-function ArrayForEach(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.forEach");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = $toObject(this);
-  var length = TO_UINT32(array.length);
-
+function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
@@ -1207,6 +1201,16 @@ function ArrayForEach(f, receiver) {
       %_CallFunction(new_receiver, element, i, array, f);
     }
   }
+}
+
+function ArrayForEach(f, receiver) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.forEach");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = TO_UINT32(array.length);
+  InnerArrayForEach(f, receiver, array, length);
 }
 
 
@@ -1243,14 +1247,7 @@ function ArraySome(f, receiver) {
 }
 
 
-function ArrayEvery(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.every");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = $toObject(this);
-  var length = TO_UINT32(array.length);
-
+function InnerArrayEvery(f, receiver, array, length) {
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
@@ -1271,6 +1268,16 @@ function ArrayEvery(f, receiver) {
     }
   }
   return true;
+}
+
+function ArrayEvery(f, receiver) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.every");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = TO_UINT32(array.length);
+  return InnerArrayEvery(f, receiver, array, length);
 }
 
 
@@ -1595,4 +1602,7 @@ $arraySlice = ArraySlice;
 $arraySplice = ArraySplice;
 $arrayUnshift = ArrayUnshift;
 
-})
+$innerArrayForEach = InnerArrayForEach;
+$innerArrayEvery = InnerArrayEvery;
+
+});

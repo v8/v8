@@ -85,8 +85,9 @@ function TestTypedArrayForEach(constructor) {
   // still make .forEach() finish, and the array should keep being
   // empty after neutering it.
   count = 0;
-  a = new constructor(2);
+  a = new constructor(3);
   result = a.every(function (n, index, array) {
+    assertFalse(array[index] === undefined);  // don't get here if neutered
     if (count > 0) %ArrayBufferNeuter(array.buffer);
     array[index] = n + 1;
     count++;
