@@ -29,6 +29,16 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 // -------------------------------------------------------------------
 
+function TypedArrayCopyWithin(target, start, end) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  // TODO(dehrenberg): Replace with a memcpy for better performance
+  return $innerArrayCopyWithin(target, start, end, this, length);
+}
+%FunctionSetLength(TypedArrayCopyWithin, 2);
+
 // ES6 draft 05-05-15, section 22.2.3.7
 function TypedArrayEvery(f, receiver) {
   if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
@@ -67,6 +77,7 @@ macro EXTEND_TYPED_ARRAY(NAME)
 
   // Set up non-enumerable functions on the prototype object.
   $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
+    "copyWithin", TypedArrayCopyWithin,
     "every", TypedArrayEvery,
     "forEach", TypedArrayForEach
   ]);

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $innerArrayCopyWithin;
+
 (function(global, exports) {
 
 'use strict';
@@ -13,13 +15,7 @@ var GlobalSymbol = global.Symbol;
 
 // -------------------------------------------------------------------
 
-// ES6 draft 03-17-15, section 22.1.3.3
-function ArrayCopyWithin(target, start, end) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
-
-  var array = TO_OBJECT_INLINE(this);
-  var length = $toLength(array.length);
-
+function InnerArrayCopyWithin(target, start, end, array, length) {
   target = TO_INTEGER(target);
   var to;
   if (target < 0) {
@@ -64,6 +60,17 @@ function ArrayCopyWithin(target, start, end) {
   }
 
   return array;
+}
+$innerArrayCopyWithin = InnerArrayCopyWithin;
+
+// ES6 draft 03-17-15, section 22.1.3.3
+function ArrayCopyWithin(target, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
+
+  var array = TO_OBJECT_INLINE(this);
+  var length = $toLength(array.length);
+
+  return InnerArrayCopyWithin(target, start, end, array, length);
 }
 
 // ES6 draft 07-15-13, section 15.4.3.23
