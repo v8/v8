@@ -271,7 +271,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
       // we need to throw a TypeError. Smis have already been ruled out.
       __ cmpi(r7, Operand(HEAP_NUMBER_TYPE));
       __ beq(&return_equal);
-      __ andi(r7, r7, Operand(kIsNotStringMask));
+      __ andi(r0, r7, Operand(kIsNotStringMask));
       __ bne(slow, cr0);
     }
   } else {
@@ -288,7 +288,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
         // Call the runtime on anything that is converted in the semantics,
         // since we need to throw a TypeError. Smis and heap numbers have
         // already been ruled out.
-        __ andi(r7, r7, Operand(kIsNotStringMask));
+        __ andi(r0, r7, Operand(kIsNotStringMask));
         __ bne(slow, cr0);
       }
       // Normally here we fall through to return_equal, but undefined is
