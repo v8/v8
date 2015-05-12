@@ -236,7 +236,7 @@ ADD_STRONG = function ADD_STRONG(x) {
   if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
   if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
 
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -260,7 +260,7 @@ STRING_ADD_LEFT_STRONG = function STRING_ADD_LEFT_STRONG(y) {
   if (IS_STRING(y)) {
     return %_StringAdd(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -285,7 +285,7 @@ STRING_ADD_RIGHT_STRONG = function STRING_ADD_RIGHT_STRONG(y) {
   if (IS_STRING(this)) {
     return %_StringAdd(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -302,7 +302,7 @@ SUB_STRONG = function SUB_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberSub(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -319,7 +319,7 @@ MUL_STRONG = function MUL_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberMul(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -336,7 +336,7 @@ DIV_STRONG = function DIV_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberDiv(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -353,7 +353,7 @@ MOD_STRONG = function MOD_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberMod(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -375,7 +375,7 @@ BIT_OR_STRONG = function BIT_OR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberOr(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -406,7 +406,7 @@ BIT_AND_STRONG = function BIT_AND_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberAnd(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -423,7 +423,7 @@ BIT_XOR_STRONG = function BIT_XOR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberXor(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -440,7 +440,7 @@ SHL_STRONG = function SHL_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberShl(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -471,7 +471,7 @@ SAR_STRONG = function SAR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberSar(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 
@@ -488,7 +488,7 @@ SHR_STRONG = function SHR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberShr(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 

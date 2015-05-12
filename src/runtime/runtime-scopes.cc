@@ -17,17 +17,15 @@ namespace internal {
 
 static Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name) {
   HandleScope scope(isolate);
-  Handle<Object> args[1] = {name};
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError("var_redeclaration", HandleVector(args, 1)));
+      isolate, NewTypeError(MessageTemplate::kVarRedeclaration, name));
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("const_assign", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kConstAssign));
 }
 
 
@@ -1019,8 +1017,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
     } else if (is_strict(language_mode)) {
       // Setting read only property in strict mode.
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError("strict_cannot_assign", HandleVector(&name, 1)));
+          isolate, NewTypeError(MessageTemplate::kStrictCannotAssign, name));
     }
     return *value;
   }
@@ -1111,8 +1108,7 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
     JSFunction* function = frame->function();
     if (is_strict(function->shared()->language_mode())) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError("strict_arguments_callee",
-                                HandleVector<Object>(NULL, 0)));
+          isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
     }
     return function;
   }

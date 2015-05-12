@@ -547,12 +547,8 @@ class Factory final {
   Handle<Object> NewError(Handle<String> message);
   Handle<Object> NewError(const char* constructor, Handle<String> message);
 
-  Handle<Object> NewTypeError(const char* message,
-                              Vector<Handle<Object> > args);
   Handle<Object> NewTypeError(Handle<String> message);
 
-  Handle<Object> NewRangeError(const char* message,
-                               Vector<Handle<Object> > args);
   Handle<Object> NewRangeError(Handle<String> message);
 
   Handle<Object> NewInvalidStringLengthError() {

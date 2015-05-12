@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/date.h"
 #include "src/dateparser-inl.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -62,8 +63,8 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
 RUNTIME_FUNCTION(Runtime_ThrowNotDateError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError("not_date_object", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kNotDateObject));
 }
 
 
@@ -179,8 +180,7 @@ RUNTIME_FUNCTION(Runtime_DateField) {
   if (!obj->IsJSDate()) {
     HandleScope scope(isolate);
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError("not_date_object", HandleVector<Object>(NULL, 0)));
+        isolate, NewTypeError(MessageTemplate::kNotDateObject));
   }
   JSDate* date = JSDate::cast(obj);
   if (index == 0) return date->value();

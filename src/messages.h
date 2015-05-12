@@ -131,6 +131,10 @@ class CallSite {
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
+  T(CannotPreventExtExternalArray,                                             \
+    "Cannot prevent extension of an object with external array elements")      \
+  T(CircularStructure, "Converting circular structure to JSON")                \
+  T(ConstAssign, "Assignment to constant variable.")                           \
   T(ConstructorNonCallable,                                                    \
     "Class constructors cannot be invoked without 'new'")                      \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
@@ -139,12 +143,18 @@ class CallSite {
     "First argument to DataView constructor must be an ArrayBuffer")           \
   T(DateType, "this is not a Date object.")                                    \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
+  T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
+  T(ExtendsValueGenerator,                                                     \
+    "Class extends value % may not be a generator function")                   \
+  T(ExtendsValueNotFunction,                                                   \
+    "Class extends value % is not a function or null")                         \
   T(FirstArgumentNotRegExp,                                                    \
     "First argument to % must not be a regular expression")                    \
   T(FlagsGetterNonObject,                                                      \
     "RegExp.prototype.flags getter called on non-object %")                    \
   T(FunctionBind, "Bind must be called on a function")                         \
   T(GeneratorRunning, "Generator is already running")                          \
+  T(IllegalInvocation, "Illegal invocation")                                   \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofFunctionExpected,                                                \
     "Expecting a function in instanceof check, but got %")                     \
@@ -160,15 +170,22 @@ class CallSite {
   T(MethodInvokedOnNullOrUndefined,                                            \
     "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
+  T(NonExtensibleProto, "% is not extensible")                                 \
+  T(NonObjectPropertyLoad, "Cannot read property '%' of %")                    \
+  T(NonObjectPropertyStore, "Cannot set property '%' of %")                    \
+  T(NoSetterInCallback, "Cannot set property % of % which has only a getter")  \
   T(NotAnIterator, "% is not an iterator")                                     \
   T(NotAPromise, "% is not a promise")                                         \
   T(NotConstructor, "% is not a constructor")                                  \
+  T(NotDateObject, "this is not a Date object.")                               \
+  T(NotIntlObject, "% is not an i18n object.")                                 \
   T(NotGeneric, "% is not generic")                                            \
   T(NotIterable, "% is not iterable")                                          \
   T(NotTypedArray, "this is not a typed array.")                               \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
+  T(ObjectNotExtensible, "Can't add property %, object is not extensible")     \
   T(ObjectSetterExpectingFunction,                                             \
     "Object.prototype.__defineSetter__: Expecting function")                   \
   T(ObjectSetterCallable, "Setter must be a function: %")                      \
@@ -190,6 +207,10 @@ class CallSite {
   T(PropertyDescObject, "Property description must be an object: %")           \
   T(PropertyNotFunction, "Property '%' of object % is not a function")         \
   T(ProtoObjectOrNull, "Object prototype may only be an Object or null: %")    \
+  T(PrototypeParentNotAnObject,                                                \
+    "Class extends value does not have valid prototype property %")            \
+  T(ProxyHandlerDeleteFailed,                                                  \
+    "Proxy handler % did not return a boolean value from 'delete' trap")       \
   T(ProxyHandlerNonObject, "Proxy.% called with non-object as handler")        \
   T(ProxyHandlerReturned, "Proxy handler % returned % from '%' trap")          \
   T(ProxyHandlerTrapMissing, "Proxy handler % has no '%' trap")                \
@@ -204,12 +225,25 @@ class CallSite {
   T(ProxyTrapFunctionExpected,                                                 \
     "Proxy.createFunction called with non-function for '%' trap")              \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \
+  T(RedefineExternalArray,                                                     \
+    "Cannot redefine a property of an object with external array elements")    \
   T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
   T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
   T(ResolvedOptionsCalledOnNonObject,                                          \
     "resolvedOptions method called on a non-object or on a object that is "    \
     "not Intl.%.")                                                             \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
+  T(RestrictedFunctionProperties,                                              \
+    "'caller' and 'arguments' are restricted function properties and cannot "  \
+    "be accessed in this context.")                                            \
+  T(StaticPrototype, "Classes may not have static property named prototype")   \
+  T(StrictCannotAssign, "Cannot assign to read only '% in strict mode")        \
+  T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
+  T(StrictPoisonPill,                                                          \
+    "'caller', 'callee', and 'arguments' properties may not be accessed on "   \
+    "strict mode functions or the arguments objects for calls to them")        \
+  T(StrictReadOnlyProperty, "Cannot assign to read only property '%' of %")    \
+  T(StrongImplicitCast, "In strong mode, implicit conversions are deprecated") \
   T(SymbolToPrimitive,                                                         \
     "Cannot convert a Symbol wrapper object to a primitive value")             \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
@@ -218,6 +252,7 @@ class CallSite {
   T(ValueAndAccessor,                                                          \
     "Invalid property.  A property cannot both have accessors and be "         \
     "writable or have a value, %")                                             \
+  T(VarRedeclaration, "Identifier '%' has already been declared")              \
   T(WithExpression, "% has no properties")                                     \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* ReferenceError */                                                         \

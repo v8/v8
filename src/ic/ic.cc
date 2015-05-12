@@ -16,7 +16,6 @@
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
-#include "src/messages.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
 
@@ -362,11 +361,10 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
 }
 
 
-MaybeHandle<Object> IC::TypeError(const char* type, Handle<Object> object,
-                                  Handle<Object> key) {
+MaybeHandle<Object> IC::TypeError(MessageTemplate::Template index,
+                                  Handle<Object> object, Handle<Object> key) {
   HandleScope scope(isolate());
-  Handle<Object> args[2] = {key, object};
-  THROW_NEW_ERROR(isolate(), NewTypeError(type, HandleVector(args, 2)), Object);
+  THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object), Object);
 }
 
 
@@ -696,7 +694,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
-    return TypeError("non_object_property_load", object, name);
+    return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
   // Check if the name is trivially convertible to an index and get
@@ -1558,7 +1556,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       Handle<Context> script_context = ScriptContextTable::GetContext(
           script_contexts, lookup_result.context_index);
       if (lookup_result.mode == CONST) {
-        return TypeError("const_assign", object, name);
+        return TypeError(MessageTemplate::kConstAssign, object, name);
       }
 
       Handle<Object> previous_value =
@@ -1594,7 +1592,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
-    return TypeError("non_object_property_store", object, name);
+    return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
   // Check if the given name is an array index.

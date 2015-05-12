@@ -16,6 +16,7 @@
 #include "src/heap-profiler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
+#include "src/messages.h"
 #include "src/prototype.h"
 #include "src/vm-state-inl.h"
 
@@ -1026,17 +1027,15 @@ BUILTIN(ArrayConcat) {
 
 BUILTIN(RestrictedFunctionPropertiesThrower) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError("restricted_function_properties",
-                                              HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kRestrictedFunctionProperties));
 }
 
 
 BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("strict_poison_pill", HandleVector<Object>(NULL, 0)));
+      isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
 }
 
 
@@ -1080,9 +1079,8 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
-    THROW_NEW_ERROR(
-        isolate, NewTypeError("illegal_invocation", HandleVector(&function, 1)),
-        Object);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIllegalInvocation),
+                    Object);
   }
 
   Object* raw_call_data = fun_data->call_code();
