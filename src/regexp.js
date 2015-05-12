@@ -13,7 +13,13 @@ var harmony_unicode_regexps = false;
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalRegExp = global.RegExp;
+var InternalPackedArray = shared.InternalPackedArray;
+
+// -------------------------------------------------------------------
 
 // Property of the builtins object for recording the result of the last
 // regexp match.  The property $regexpLastMatchInfo includes the matchIndices

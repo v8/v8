@@ -5430,3 +5430,56 @@ TEST(PreprocessStackTrace) {
     CHECK(!element->IsCode());
   }
 }
+
+
+static bool shared_has_been_collected = false;
+static bool builtin_exports_has_been_collected = false;
+
+static void SharedHasBeenCollected(
+    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
+  shared_has_been_collected = true;
+  data.GetParameter()->Reset();
+}
+
+
+static void BuiltinExportsHasBeenCollected(
+    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
+  builtin_exports_has_been_collected = true;
+  data.GetParameter()->Reset();
+}
+
+
+TEST(BootstrappingExports) {
+  FLAG_expose_natives_as = "natives";
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  if (Snapshot::HaveASnapshotToStartFrom(CcTest::i_isolate())) return;
+
+  shared_has_been_collected = false;
+  builtin_exports_has_been_collected = false;
+
+  v8::Persistent<v8::Object> shared;
+  v8::Persistent<v8::Object> builtin_exports;
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Handle<v8::Object> natives =
+        CcTest::global()->Get(v8_str("natives"))->ToObject(isolate);
+    shared.Reset(isolate, natives->Get(v8_str("shared"))->ToObject(isolate));
+    natives->Delete(v8_str("shared"));
+    builtin_exports.Reset(
+        isolate, natives->Get(v8_str("builtin_exports"))->ToObject(isolate));
+    natives->Delete(v8_str("builtin_exports"));
+  }
+
+  shared.SetWeak(&shared, SharedHasBeenCollected,
+                 v8::WeakCallbackType::kParameter);
+  builtin_exports.SetWeak(&builtin_exports, BuiltinExportsHasBeenCollected,
+                          v8::WeakCallbackType::kParameter);
+
+  CcTest::heap()->CollectAllAvailableGarbage("fire weak callbacks");
+
+  CHECK(shared_has_been_collected);
+  CHECK(builtin_exports_has_been_collected);
+}

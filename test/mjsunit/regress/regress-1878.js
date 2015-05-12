@@ -32,13 +32,13 @@
 var a = Array();
 
 for (var i = 0; i < 1000; i++) {
-  var ai = natives.InternalArray(10000);
+  var ai = natives.shared.InternalArray(10000);
   assertFalse(%HaveSameMap(ai, a));
   assertTrue(%HasFastObjectElements(ai));
 }
 
 for (var i = 0; i < 1000; i++) {
-  var ai = new natives.InternalArray(10000);
+  var ai = new natives.shared.InternalArray(10000);
   assertFalse(%HaveSameMap(ai, a));
   assertTrue(%HasFastObjectElements(ai));
 }

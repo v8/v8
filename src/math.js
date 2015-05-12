@@ -16,7 +16,11 @@ var $min;
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalObject = global.Object;
+var InternalArray = shared.InternalArray;
 
 //-------------------------------------------------------------------
 
