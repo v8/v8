@@ -91,6 +91,8 @@ class JSTypeFeedbackSpecializer : public Reducer {
 
   void GatherReceiverTypes(Node* receiver, Node* effect, TypeFeedbackId id,
                            Handle<Name> property, SmallMapList* maps);
+
+  Node* GetFrameStateBefore(Node* node);
 };
 
 }  // namespace compiler

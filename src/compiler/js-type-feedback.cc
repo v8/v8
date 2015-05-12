@@ -13,6 +13,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
@@ -23,8 +24,6 @@ namespace internal {
 namespace compiler {
 
 enum LoadOrStore { LOAD, STORE };
-
-#define EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT false
 
 JSTypeFeedbackTable::JSTypeFeedbackTable(Zone* zone)
     : map_(TypeFeedbackIdMap::key_compare(),
@@ -163,8 +162,8 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   }
 
   if (!FLAG_turbo_deoptimization) return NoChange();
-  // TODO(titzer): deopt locations are wrong for property accesses
-  if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
+  Node* frame_state_before = GetFrameStateBefore(node);
+  if (frame_state_before == nullptr) return NoChange();
 
   // TODO(turbofan): handle vector-based type feedback.
   TypeFeedbackId id = js_type_feedback_->find(node);
@@ -197,10 +196,8 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
                                 effect, check_success);
 
   // TODO(turbofan): handle slow case instead of deoptimizing.
-  // TODO(titzer): frame state should be from before the load.
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* deopt = graph()->NewNode(common()->Deoptimize(), frame_state, effect,
-                                 check_failed);
+  Node* deopt = graph()->NewNode(common()->Deoptimize(), frame_state_before,
+                                 effect, check_failed);
   NodeProperties::MergeControlToEnd(graph(), common(), deopt);
   NodeProperties::ReplaceWithValue(node, load, load, check_success);
   return Replace(load);
@@ -282,8 +279,8 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadProperty(Node* node) {
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
-  // TODO(titzer): deopt locations are wrong for property accesses
-  if (!EAGER_DEOPT_LOCATIONS_FOR_PROPERTY_ACCESS_ARE_CORRECT) return NoChange();
+  Node* frame_state_before = GetFrameStateBefore(node);
+  if (frame_state_before == nullptr) return NoChange();
 
   TypeFeedbackId id = js_type_feedback_->find(node);
   if (id.IsNone() || oracle()->StoreIsUninitialized(id)) return NoChange();
@@ -315,10 +312,8 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
                                  receiver, value, effect, check_success);
 
   // TODO(turbofan): handle slow case instead of deoptimizing.
-  // TODO(titzer): frame state should be from before the store.
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* deopt = graph()->NewNode(common()->Deoptimize(), frame_state, effect,
-                                 check_failed);
+  Node* deopt = graph()->NewNode(common()->Deoptimize(), frame_state_before,
+                                 effect, check_failed);
   NodeProperties::MergeControlToEnd(graph(), common(), deopt);
   NodeProperties::ReplaceWithValue(node, store, store, check_success);
   return Replace(store);
@@ -371,6 +366,21 @@ void JSTypeFeedbackSpecializer::GatherReceiverTypes(Node* receiver,
   oracle()->PropertyReceiverTypes(id, name, maps);
 }
 
+
+// Get the frame state before an operation if it exists and has a valid
+// bailout id.
+Node* JSTypeFeedbackSpecializer::GetFrameStateBefore(Node* node) {
+  int count = OperatorProperties::GetFrameStateInputCount(node->op());
+  DCHECK_LE(count, 2);
+  if (count == 2) {
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+    if (frame_state->opcode() == IrOpcode::kFrameState) {
+      BailoutId id = OpParameter<FrameStateCallInfo>(node).bailout_id();
+      if (id != BailoutId::None()) return frame_state;
+    }
+  }
+  return nullptr;
+}
 
 }  // namespace compiler
 }  // namespace internal
