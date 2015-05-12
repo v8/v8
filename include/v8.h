@@ -5126,7 +5126,7 @@ class V8_EXPORT Isolate {
    */
   static Isolate* New(const CreateParams& params);
 
-  static V8_DEPRECATE_SOON("Always pass CreateParams", Isolate* New());
+  static V8_DEPRECATED("Always pass CreateParams", Isolate* New());
 
   /**
    * Returns the entered isolate for the current thread or NULL in
