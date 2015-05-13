@@ -276,6 +276,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadProperty(Node* node) {
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
+  if (true) return NoChange();  // TODO(titzer): storenamed is broken
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
 
