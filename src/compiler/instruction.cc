@@ -657,8 +657,6 @@ bool InstructionSequence::GetSourcePosition(const Instruction* instr,
 
 void InstructionSequence::SetSourcePosition(const Instruction* instr,
                                             SourcePosition value) {
-  DCHECK(!value.IsInvalid());
-  DCHECK(!value.IsUnknown());
   source_positions_.insert(std::make_pair(instr, value));
 }
 

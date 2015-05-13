@@ -38,7 +38,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       info_(info),
       labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
-      current_source_position_(SourcePosition::Invalid()),
+      current_source_position_(SourcePosition::Unknown()),
       masm_(info->isolate(), NULL, 0),
       resolver_(this),
       safepoints_(code->zone()),
@@ -256,11 +256,10 @@ void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
   SourcePosition source_position;
   if (!code()->GetSourcePosition(instr, &source_position)) return;
   if (source_position == current_source_position_) return;
-  DCHECK(!source_position.IsInvalid());
   current_source_position_ = source_position;
   if (source_position.IsUnknown()) return;
   int code_pos = source_position.raw();
-  masm()->positions_recorder()->RecordPosition(source_position.raw());
+  masm()->positions_recorder()->RecordPosition(code_pos);
   masm()->positions_recorder()->WriteRecordedPositions();
   if (FLAG_code_comments) {
     Vector<char> buffer = Vector<char>::New(256);

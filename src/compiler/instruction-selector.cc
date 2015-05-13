@@ -423,10 +423,9 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (instructions_.size() == current_node_end) continue;
     // Mark source position on first instruction emitted.
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
-    if (source_position.IsUnknown()) continue;
-    DCHECK(!source_position.IsInvalid());
-    if (source_position_mode_ == kAllSourcePositions ||
-        node->opcode() == IrOpcode::kCall) {
+    if (source_position.IsKnown() &&
+        (source_position_mode_ == kAllSourcePositions ||
+         node->opcode() == IrOpcode::kCall)) {
       sequence()->SetSourcePosition(instructions_[current_node_end],
                                     source_position);
     }
