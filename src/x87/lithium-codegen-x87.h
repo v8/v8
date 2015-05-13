@@ -135,6 +135,7 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
+  void DoDeferredMaybeGrowElements(LMaybeGrowElements* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);

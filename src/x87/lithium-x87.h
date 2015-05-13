@@ -122,6 +122,7 @@ class LCodeGen;
   V(MathPowHalf)                             \
   V(MathRound)                               \
   V(MathSqrt)                                \
+  V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
   V(ModByPowerOf2I)                          \
   V(ModI)                                    \
@@ -2322,6 +2323,28 @@ class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento,
                                "trap-allocation-memento")
+};
+
+
+class LMaybeGrowElements final : public LTemplateInstruction<1, 5, 0> {
+ public:
+  LMaybeGrowElements(LOperand* context, LOperand* object, LOperand* elements,
+                     LOperand* key, LOperand* current_capacity) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = elements;
+    inputs_[3] = key;
+    inputs_[4] = current_capacity;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* elements() { return inputs_[2]; }
+  LOperand* key() { return inputs_[3]; }
+  LOperand* current_capacity() { return inputs_[4]; }
+
+  DECLARE_HYDROGEN_ACCESSOR(MaybeGrowElements)
+  DECLARE_CONCRETE_INSTRUCTION(MaybeGrowElements, "maybe-grow-elements")
 };
 
 

@@ -4815,6 +4815,97 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
 }
 
 
+void LCodeGen::DoMaybeGrowElements(LMaybeGrowElements* instr) {
+  class DeferredMaybeGrowElements final : public LDeferredCode {
+   public:
+    DeferredMaybeGrowElements(LCodeGen* codegen,
+                              LMaybeGrowElements* instr,
+                              const X87Stack& x87_stack)
+        : LDeferredCode(codegen, x87_stack), instr_(instr) {}
+    void Generate() override { codegen()->DoDeferredMaybeGrowElements(instr_); }
+    LInstruction* instr() override { return instr_; }
+
+   private:
+    LMaybeGrowElements* instr_;
+  };
+
+  Register result = eax;
+  DeferredMaybeGrowElements* deferred =
+      new (zone()) DeferredMaybeGrowElements(this, instr, x87_stack_);
+  LOperand* key = instr->key();
+  LOperand* current_capacity = instr->current_capacity();
+
+  DCHECK(instr->hydrogen()->key()->representation().IsInteger32());
+  DCHECK(instr->hydrogen()->current_capacity()->representation().IsInteger32());
+  DCHECK(key->IsConstantOperand() || key->IsRegister());
+  DCHECK(current_capacity->IsConstantOperand() ||
+         current_capacity->IsRegister());
+
+  if (key->IsConstantOperand() && current_capacity->IsConstantOperand()) {
+    int32_t constant_key = ToInteger32(LConstantOperand::cast(key));
+    int32_t constant_capacity =
+        ToInteger32(LConstantOperand::cast(current_capacity));
+    if (constant_key >= constant_capacity) {
+      // Deferred case.
+      __ jmp(deferred->entry());
+    }
+  } else if (key->IsConstantOperand()) {
+    int32_t constant_key = ToInteger32(LConstantOperand::cast(key));
+    __ cmp(ToOperand(current_capacity), Immediate(constant_key));
+    __ j(less_equal, deferred->entry());
+  } else if (current_capacity->IsConstantOperand()) {
+    int32_t constant_capacity =
+        ToInteger32(LConstantOperand::cast(current_capacity));
+    __ cmp(ToRegister(key), Immediate(constant_capacity));
+    __ j(greater_equal, deferred->entry());
+  } else {
+    __ cmp(ToRegister(key), ToRegister(current_capacity));
+    __ j(greater_equal, deferred->entry());
+  }
+
+  __ mov(result, ToOperand(instr->elements()));
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  Register result = eax;
+  __ Move(result, Immediate(0));
+
+  // We have to call a stub.
+  {
+    PushSafepointRegistersScope scope(this);
+    if (instr->object()->IsRegister()) {
+      __ Move(result, ToRegister(instr->object()));
+    } else {
+      __ mov(result, ToOperand(instr->object()));
+    }
+
+    LOperand* key = instr->key();
+    if (key->IsConstantOperand()) {
+      __ mov(ebx, ToImmediate(key, Representation::Smi()));
+    } else {
+      __ Move(ebx, ToRegister(key));
+      __ SmiTag(ebx);
+    }
+
+    GrowArrayElementsStub stub(isolate(), instr->hydrogen()->is_js_array(),
+                               instr->hydrogen()->kind());
+    __ CallStub(&stub);
+    RecordSafepointWithLazyDeopt(
+        instr, RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
+    __ StoreToSafepointRegisterSlot(result, result);
+  }
+
+  // Deopt on smi, which means the elements array changed to dictionary mode.
+  __ test(result, Immediate(kSmiTagMask));
+  DeoptimizeIf(equal, instr, Deoptimizer::kSmi);
+}
+
+
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object_reg = ToRegister(instr->object());
 
