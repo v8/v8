@@ -385,7 +385,8 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
 DEFINE_BOOL(turbo_greedy_regalloc, false, "use the greedy register allocator")
 DEFINE_IMPLICATION(turbo, turbo_deoptimization)
-DEFINE_IMPLICATION(turbo, turbo_type_feedback)
+// TODO(titzer): turn back on type feedback in turbo mode.
+// DEFINE_IMPLICATION(turbo, turbo_type_feedback)
 DEFINE_STRING(turbo_filter, "~~", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
