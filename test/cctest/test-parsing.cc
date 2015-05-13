@@ -3563,6 +3563,10 @@ TEST(ErrorsArrowFunctions) {
     "(foo ? bar : baz) => {}",
     "(a, foo ? bar : baz) => {}",
     "(foo ? bar : baz, a) => {}",
+    "(a.b, c) => {}",
+    "(c, a.b) => {}",
+    "(a['b'], c) => {}",
+    "(c, a['b']) => {}",
     NULL
   };
 

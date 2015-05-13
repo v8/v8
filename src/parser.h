@@ -760,11 +760,13 @@ class ParserTraits {
 
   void DeclareArrowFunctionParameters(Scope* scope, Expression* expr,
                                       const Scanner::Location& params_loc,
-                                      FormalParameterErrorLocations* error_locs,
+                                      Scanner::Location* duplicate_loc,
                                       bool* ok);
-  void ParseArrowFunctionFormalParameters(
-      Scope* scope, Expression* params, const Scanner::Location& params_loc,
-      FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok);
+  void ParseArrowFunctionFormalParameters(Scope* scope, Expression* params,
+                                          const Scanner::Location& params_loc,
+                                          bool* is_rest,
+                                          Scanner::Location* duplicate_loc,
+                                          bool* ok);
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);

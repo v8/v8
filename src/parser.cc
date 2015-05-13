@@ -1138,22 +1138,20 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     if (shared_info->is_arrow()) {
       Scope* scope = NewScope(scope_, ARROW_SCOPE);
       scope->set_start_position(shared_info->start_position());
-      FormalParameterErrorLocations error_locs;
+      ExpressionClassifier formals_classifier;
       bool has_rest = false;
       if (Check(Token::LPAREN)) {
         // '(' StrictFormalParameters ')'
-        ParseFormalParameterList(scope, &error_locs, &has_rest, &ok);
+        ParseFormalParameterList(scope, &has_rest, &formals_classifier, &ok);
         if (ok) ok = Check(Token::RPAREN);
       } else {
         // BindingIdentifier
-        ParseFormalParameter(scope, &error_locs, has_rest, &ok);
+        ParseFormalParameter(scope, has_rest, &formals_classifier, &ok);
       }
 
       if (ok) {
-        ExpressionClassifier classifier;
-        Expression* expression = ParseArrowFunctionLiteral(
-            scope, error_locs, has_rest, &classifier, &ok);
-        ValidateExpression(&classifier, &ok);
+        Expression* expression =
+            ParseArrowFunctionLiteral(scope, has_rest, formals_classifier, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -3720,7 +3718,7 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 void ParserTraits::DeclareArrowFunctionParameters(
     Scope* scope, Expression* expr, const Scanner::Location& params_loc,
-    FormalParameterErrorLocations* error_locs, bool* ok) {
+    Scanner::Location* duplicate_loc, bool* ok) {
   if (scope->num_parameters() >= Code::kMaxArguments) {
     ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
     *ok = false;
@@ -3739,6 +3737,7 @@ void ParserTraits::DeclareArrowFunctionParameters(
   // need to match the pre-parser's behavior.
   if (expr->IsBinaryOperation()) {
     BinaryOperation* binop = expr->AsBinaryOperation();
+    // TODO(wingo): These checks are now unnecessary, given the classifier.
     if (binop->op() != Token::COMMA) {
       ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
       *ok = false;
@@ -3751,7 +3750,7 @@ void ParserTraits::DeclareArrowFunctionParameters(
       *ok = false;
       return;
     }
-    DeclareArrowFunctionParameters(scope, left, params_loc, error_locs, ok);
+    DeclareArrowFunctionParameters(scope, left, params_loc, duplicate_loc, ok);
     if (!*ok) return;
     // LHS of comma expression should be unparenthesized.
     expr = right;
@@ -3774,13 +3773,6 @@ void ParserTraits::DeclareArrowFunctionParameters(
     return;
   }
 
-  if (!error_locs->eval_or_arguments.IsValid() && IsEvalOrArguments(raw_name))
-    error_locs->eval_or_arguments = param_location;
-  if (!error_locs->reserved.IsValid() && IsFutureStrictReserved(raw_name))
-    error_locs->reserved = param_location;
-  if (!error_locs->undefined.IsValid() && IsUndefined(raw_name))
-    error_locs->undefined = param_location;
-
   // When the formal parameter was originally seen, it was parsed as a
   // VariableProxy and recorded as unresolved in the scope.  Here we undo that
   // parse-time side-effect.
@@ -3789,22 +3781,15 @@ void ParserTraits::DeclareArrowFunctionParameters(
   bool is_rest = false;
   bool is_duplicate = DeclareFormalParameter(scope, raw_name, is_rest);
 
-  if (is_duplicate) {
-    // Arrow function parameter lists are parsed as StrictFormalParameters,
-    // which means that they cannot have duplicates.  Note that this is a subset
-    // of the restrictions placed on parameters to functions whose body is
-    // strict.
-    ReportMessageAt(param_location,
-                    "duplicate_arrow_function_formal_parameter");
-    *ok = false;
-    return;
+  if (is_duplicate && !duplicate_loc->IsValid()) {
+    *duplicate_loc = param_location;
   }
 }
 
 
 void ParserTraits::ParseArrowFunctionFormalParameters(
     Scope* scope, Expression* params, const Scanner::Location& params_loc,
-    FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok) {
+    bool* is_rest, Scanner::Location* duplicate_loc, bool* ok) {
   // Too many parentheses around expression:
   //   (( ... )) => ...
   if (params->is_multi_parenthesized()) {
@@ -3814,7 +3799,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     return;
   }
 
-  DeclareArrowFunctionParameters(scope, params, params_loc, error_locs, ok);
+  DeclareArrowFunctionParameters(scope, params, params_loc, duplicate_loc, ok);
 }
 
 
@@ -3887,7 +3872,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   int handler_count = 0;
-  FormalParameterErrorLocations error_locs;
+  ExpressionClassifier formals_classifier;
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       parenthesized_function_ ? FunctionLiteral::kShouldEagerCompile
                               : FunctionLiteral::kShouldLazyCompile;
@@ -3917,8 +3902,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Expect(Token::LPAREN, CHECK_OK);
     int start_position = scanner()->location().beg_pos;
     scope_->set_start_position(start_position);
-    num_parameters =
-        ParseFormalParameterList(scope, &error_locs, &has_rest, CHECK_OK);
+    num_parameters = ParseFormalParameterList(scope, &has_rest,
+                                              &formals_classifier, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -4041,8 +4026,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                       name_is_strict_reserved, function_name_location,
                       CHECK_OK);
     const bool use_strict_params = has_rest || IsConciseMethod(kind);
-    CheckFunctionParameterNames(language_mode(), use_strict_params, error_locs,
-                                CHECK_OK);
+    const bool allow_duplicate_parameters =
+        is_sloppy(language_mode()) && !use_strict_params;
+    ValidateFormalParameters(&formals_classifier, language_mode(),
+                             allow_duplicate_parameters, CHECK_OK);
 
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
@@ -4051,9 +4038,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
   }
 
+  bool has_duplicate_parameters =
+      !formals_classifier.is_valid_formal_parameter_list_without_duplicates();
   FunctionLiteral::ParameterFlag duplicate_parameters =
-      error_locs.duplicate.IsValid() ? FunctionLiteral::kHasDuplicateParameters
-                                     : FunctionLiteral::kNoDuplicateParameters;
+      has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters
+                               : FunctionLiteral::kNoDuplicateParameters;
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, ast_value_factory(), scope, body,
