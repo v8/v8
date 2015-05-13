@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 var $innerArrayCopyWithin;
+var $innerArrayFill;
+var $innerArrayFind;
+var $innerArrayFindIndex;
 
 (function(global, exports) {
 
@@ -73,20 +76,9 @@ function ArrayCopyWithin(target, start, end) {
   return InnerArrayCopyWithin(target, start, end, array, length);
 }
 
-// ES6 draft 07-15-13, section 15.4.3.23
-function ArrayFind(predicate /* thisArg */) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
-
-  var array = $toObject(this);
-  var length = $toInteger(array.length);
-
+function InnerArrayFind(predicate, thisArg, array, length) {
   if (!IS_SPEC_FUNCTION(predicate)) {
     throw MakeTypeError(kCalledNonCallable, predicate);
-  }
-
-  var thisArg;
-  if (%_ArgumentsLength() > 1) {
-    thisArg = %_Arguments(1);
   }
 
   var needs_wrapper = false;
@@ -108,22 +100,21 @@ function ArrayFind(predicate /* thisArg */) {  // length == 1
 
   return;
 }
+$innerArrayFind = InnerArrayFind;
 
-
-// ES6 draft 07-15-13, section 15.4.3.24
-function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
+// ES6 draft 07-15-13, section 15.4.3.23
+function ArrayFind(predicate, thisArg) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
 
   var array = $toObject(this);
   var length = $toInteger(array.length);
 
+  return InnerArrayFind(predicate, thisArg, array, length);
+}
+
+function InnerArrayFindIndex(predicate, thisArg, array, length) {
   if (!IS_SPEC_FUNCTION(predicate)) {
     throw MakeTypeError(kCalledNonCallable, predicate);
-  }
-
-  var thisArg;
-  if (%_ArgumentsLength() > 1) {
-    thisArg = %_Arguments(1);
   }
 
   var needs_wrapper = false;
@@ -145,26 +136,22 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
 
   return -1;
 }
+$innerArrayFindIndex = InnerArrayFindIndex;
 
-
-// ES6, draft 04-05-14, section 22.1.3.6
-function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
+// ES6 draft 07-15-13, section 15.4.3.24
+function ArrayFindIndex(predicate, thisArg) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
 
   var array = $toObject(this);
-  var length = TO_UINT32(array.length);
+  var length = $toInteger(array.length);
 
-  var i = 0;
-  var end = length;
+  return InnerArrayFindIndex(predicate, thisArg, array, length);
+}
 
-  if (%_ArgumentsLength() > 1) {
-    i = %_Arguments(1);
-    i = IS_UNDEFINED(i) ? 0 : TO_INTEGER(i);
-    if (%_ArgumentsLength() > 2) {
-      end = %_Arguments(2);
-      end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
-    }
-  }
+// ES6, draft 04-05-14, section 22.1.3.6
+function InnerArrayFill(value, start, end, array, length) {
+  var i = IS_UNDEFINED(start) ? 0 : TO_INTEGER(start);
+  var end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
 
   if (i < 0) {
     i += length;
@@ -187,6 +174,17 @@ function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
   for (; i < end; i++)
     array[i] = value;
   return array;
+}
+$innerArrayFill = InnerArrayFill;
+
+// ES6, draft 04-05-14, section 22.1.3.6
+function ArrayFill(value, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
+
+  var array = $toObject(this);
+  var length = TO_UINT32(array.length);
+
+  return InnerArrayFill(value, start, end, array, length);
 }
 
 // ES6, draft 10-14-14, section 22.1.2.1
@@ -279,6 +277,9 @@ $installConstants(GlobalSymbol, [
 
 %FunctionSetLength(ArrayCopyWithin, 2);
 %FunctionSetLength(ArrayFrom, 1);
+%FunctionSetLength(ArrayFill, 1);
+%FunctionSetLength(ArrayFind, 1);
+%FunctionSetLength(ArrayFindIndex, 1);
 
 // Set up non-enumerable functions on the Array object.
 $installFunctions(GlobalArray, DONT_ENUM, [
