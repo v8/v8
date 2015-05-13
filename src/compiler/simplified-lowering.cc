@@ -444,7 +444,9 @@ class RepresentationSelector {
   }
 
   bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
-    return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
+    return BothInputsAre(node, Type::Signed32()) &&
+           (!CanObserveNonInt32(use) ||
+            NodeProperties::GetBounds(node).upper->Is(Type::Signed32()));
   }
 
   bool CanLowerToInt32AdditiveBinop(Node* node, MachineTypeUnion use) {
@@ -453,7 +455,9 @@ class RepresentationSelector {
   }
 
   bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
-    return BothInputsAre(node, Type::Unsigned32()) && !CanObserveNonUint32(use);
+    return BothInputsAre(node, Type::Unsigned32()) &&
+           (!CanObserveNonUint32(use) ||
+            NodeProperties::GetBounds(node).upper->Is(Type::Unsigned32()));
   }
 
   bool CanLowerToUint32AdditiveBinop(Node* node, MachineTypeUnion use) {
