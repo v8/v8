@@ -363,19 +363,6 @@ class Expression : public AstNode {
   Bounds bounds() const { return bounds_; }
   void set_bounds(Bounds bounds) { bounds_ = bounds; }
 
-  // Whether the expression is parenthesized
-  bool is_single_parenthesized() const {
-    return IsSingleParenthesizedField::decode(bit_field_);
-  }
-  bool is_multi_parenthesized() const {
-    return IsMultiParenthesizedField::decode(bit_field_);
-  }
-  void increase_parenthesization_level() {
-    bit_field_ = IsMultiParenthesizedField::update(bit_field_,
-                                                   is_single_parenthesized());
-    bit_field_ = IsSingleParenthesizedField::update(bit_field_, true);
-  }
-
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -427,8 +414,6 @@ class Expression : public AstNode {
   int base_id_;
   Bounds bounds_;
   class ToBooleanTypesField : public BitField16<byte, 0, 8> {};
-  class IsSingleParenthesizedField : public BitField16<bool, 8, 1> {};
-  class IsMultiParenthesizedField : public BitField16<bool, 9, 1> {};
   uint16_t bit_field_;
   // Ends with 16-bit field; deriving classes in turn begin with
   // 16-bit fields for optimum packing efficiency.

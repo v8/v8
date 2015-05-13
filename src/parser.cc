@@ -3732,19 +3732,11 @@ void ParserTraits::DeclareArrowFunctionParameters(
   // need to match the pre-parser's behavior.
   if (expr->IsBinaryOperation()) {
     BinaryOperation* binop = expr->AsBinaryOperation();
-    // TODO(wingo): These checks are now unnecessary, given the classifier.
-    if (binop->op() != Token::COMMA) {
-      ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
-      *ok = false;
-      return;
-    }
+    // The classifier has already run, so we know that the expression is a valid
+    // arrow function formals production.
+    DCHECK_EQ(binop->op(), Token::COMMA);
     Expression* left = binop->left();
     Expression* right = binop->right();
-    if (left->is_single_parenthesized() || right->is_single_parenthesized()) {
-      ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
-      *ok = false;
-      return;
-    }
     DeclareArrowFunctionParameters(scope, left, params_loc, duplicate_loc, ok);
     if (!*ok) return;
     // LHS of comma expression should be unparenthesized.
@@ -3752,21 +3744,12 @@ void ParserTraits::DeclareArrowFunctionParameters(
   }
 
   // TODO(wingo): Support rest parameters.
-  if (!expr->IsVariableProxy()) {
-    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
-    *ok = false;
-    return;
-  }
+  DCHECK(expr->IsVariableProxy());
+  DCHECK(!expr->AsVariableProxy()->is_this());
 
   const AstRawString* raw_name = expr->AsVariableProxy()->raw_name();
   Scanner::Location param_location(expr->position(),
                                    expr->position() + raw_name->length());
-
-  if (expr->AsVariableProxy()->is_this()) {
-    ReportMessageAt(param_location, "this_formal_parameter");
-    *ok = false;
-    return;
-  }
 
   // When the formal parameter was originally seen, it was parsed as a
   // VariableProxy and recorded as unresolved in the scope.  Here we undo that
@@ -3785,15 +3768,6 @@ void ParserTraits::DeclareArrowFunctionParameters(
 void ParserTraits::ParseArrowFunctionFormalParameters(
     Scope* scope, Expression* params, const Scanner::Location& params_loc,
     bool* is_rest, Scanner::Location* duplicate_loc, bool* ok) {
-  // Too many parentheses around expression:
-  //   (( ... )) => ...
-  if (params->is_multi_parenthesized()) {
-    // TODO(wingo): Make a better message.
-    ReportMessageAt(params_loc, "malformed_arrow_function_parameter_list");
-    *ok = false;
-    return;
-  }
-
   DeclareArrowFunctionParameters(scope, params, params_loc, duplicate_loc, ok);
 }
 

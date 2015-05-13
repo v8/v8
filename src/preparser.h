@@ -1195,16 +1195,6 @@ class PreParserExpression {
     return TypeField::decode(code_) == kBinaryOperationExpression;
   }
 
-  bool is_single_parenthesized() const {
-    return ParenthesizationField::decode(code_) != kNotParenthesized;
-  }
-
-  void increase_parenthesization_level() {
-    code_ = ParenthesizationField::update(
-        code_, is_single_parenthesized() ? kMultiParenthesizedExpression
-                                         : kParanthesizedExpression);
-  }
-
   // Dummy implementation for making expression->somefunc() work in both Parser
   // and PreParser.
   PreParserExpression* operator->() { return this; }
@@ -1225,12 +1215,6 @@ class PreParserExpression {
     kSpreadExpression
   };
 
-  enum Parenthesization {
-    kNotParenthesized,
-    kParanthesizedExpression,
-    kMultiParenthesizedExpression
-  };
-
   enum ExpressionType {
     kThisExpression,
     kThisPropertyExpression,
@@ -1242,17 +1226,15 @@ class PreParserExpression {
   explicit PreParserExpression(uint32_t expression_code)
       : code_(expression_code) {}
 
-  // The first five bits are for the Type and Parenthesization.
+  // The first three bits are for the Type.
   typedef BitField<Type, 0, 3> TypeField;
-  typedef BitField<Parenthesization, TypeField::kNext, 2> ParenthesizationField;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  typedef BitField<ExpressionType, ParenthesizationField::kNext, 3>
-      ExpressionTypeField;
-  typedef BitField<bool, ParenthesizationField::kNext, 1> IsUseStrictField;
+  typedef BitField<ExpressionType, TypeField::kNext, 3> ExpressionTypeField;
+  typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
-  typedef BitField<PreParserIdentifier::Type, ParenthesizationField::kNext, 10>
+  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
 
   uint32_t code_;
@@ -2373,7 +2355,6 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         // seeing the call parentheses.
         parenthesized_function_ = (peek() == Token::FUNCTION);
         result = this->ParseExpression(true, classifier, CHECK_OK);
-        result->increase_parenthesization_level();
         Expect(Token::RPAREN, CHECK_OK);
       }
       break;
