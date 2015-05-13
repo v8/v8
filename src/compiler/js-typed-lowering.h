@@ -64,8 +64,6 @@ class JSTypedLowering final : public Reducer {
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
 
-  Node* ConvertPrimitiveToNumber(Node* input);
-
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
   Factory* factory() const;

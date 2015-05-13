@@ -40,13 +40,9 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
 
     // Compare operations
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSGreaterThan:
-    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
-    case IrOpcode::kJSLessThan:
-    case IrOpcode::kJSLessThanOrEqual:
-    case IrOpcode::kJSNotEqual:
 
     // Object operations
     case IrOpcode::kJSCreateLiteralArray:
@@ -91,6 +87,15 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
     case IrOpcode::kJSSubtract:
+      return 2;
+
+    // Compare operators that can deopt in the middle the operation (e.g.,
+    // as a result of lazy deopt in ToNumber conversion) need a second frame
+    // state so that we can resume before the operation.
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
       return 2;
 
     default:

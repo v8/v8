@@ -121,11 +121,6 @@ class JSBinopReduction final {
   JSBinopReduction(JSTypedLowering* lowering, Node* node)
       : lowering_(lowering), node_(node) {}
 
-  void ConvertPrimitiveInputsToNumber() {
-    node_->ReplaceInput(0, ConvertPrimitiveToNumber(left()));
-    node_->ReplaceInput(1, ConvertPrimitiveToNumber(right()));
-  }
-
   void ConvertInputsToNumber(Node* frame_state) {
     // To convert the inputs to numbers, we have to provide frame states
     // for lazy bailouts in the ToNumber conversions.
@@ -137,13 +132,13 @@ class JSBinopReduction final {
 
     Node* left_input =
         left_type()->Is(Type::PlainPrimitive())
-            ? ConvertPrimitiveToNumber(left())
+            ? ConvertPlainPrimitiveToNumber(left())
             : ConvertToNumber(left(),
                               CreateFrameStateForLeftInput(frame_state));
 
     Node* right_input =
         right_type()->Is(Type::PlainPrimitive())
-            ? ConvertPrimitiveToNumber(right())
+            ? ConvertPlainPrimitiveToNumber(right())
             : ConvertToNumber(right(), CreateFrameStateForRightInput(
                                            frame_state, left_input));
 
@@ -164,9 +159,10 @@ class JSBinopReduction final {
 
   // Convert inputs for bitwise shift operation (ES5 spec 11.7).
   void ConvertInputsForShift(Signedness left_signedness) {
-    node_->ReplaceInput(
-        0, ConvertToUI32(ConvertPrimitiveToNumber(left()), left_signedness));
-    Node* rnum = ConvertToUI32(ConvertPrimitiveToNumber(right()), kUnsigned);
+    node_->ReplaceInput(0, ConvertToUI32(ConvertPlainPrimitiveToNumber(left()),
+                                         left_signedness));
+    Node* rnum =
+        ConvertToUI32(ConvertPlainPrimitiveToNumber(right()), kUnsigned);
     Type* rnum_type = NodeProperties::GetBounds(rnum).upper;
     if (!rnum_type->Is(lowering_->zero_thirtyone_range_)) {
       rnum = graph()->NewNode(machine()->Word32And(), rnum,
@@ -333,13 +329,20 @@ class JSBinopReduction final {
                             frame_state->InputAt(3), frame_state->InputAt(4));
   }
 
-  Node* ConvertPrimitiveToNumber(Node* node) {
-    return lowering_->ConvertPrimitiveToNumber(node);
+  Node* ConvertPlainPrimitiveToNumber(Node* node) {
+    DCHECK(NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive()));
+    // Avoid inserting too many eager ToNumber() operations.
+    Reduction const reduction = lowering_->ReduceJSToNumberInput(node);
+    if (reduction.Changed()) return reduction.replacement();
+    // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
+    return graph()->NewNode(
+        javascript()->ToNumber(), node, jsgraph()->NoContextConstant(),
+        jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());
   }
 
   Node* ConvertToNumber(Node* node, Node* frame_state) {
     if (NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive())) {
-      return ConvertPrimitiveToNumber(node);
+      return ConvertPlainPrimitiveToNumber(node);
     } else {
       Node* const n =
           graph()->NewNode(javascript()->ToNumber(), node, context(),
@@ -470,21 +473,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     }
     return r.ChangeToPureOperator(stringOp);
   }
-  if (r.IsStrong() && !r.BothInputsAre(Type::Number())) {
-    return NoChange();
-  }
-#if 0
-  // TODO(turbofan): General ToNumber disabled for now because:
-  //   a) The inserted ToNumber operation screws up observability of valueOf.
-  //   b) Deoptimization at ToNumber doesn't have corresponding bailout id.
-  Type* maybe_string = Type::Union(Type::String(), Type::Receiver(), zone());
-  if (r.OneInputCannotBe(maybe_string)) {
-    // If one input cannot be a string, then emit a number comparison.
-    ...
-  }
-#endif
-  if (r.BothInputsAre(Type::PlainPrimitive()) &&
-      r.OneInputCannotBe(Type::StringOrReceiver())) {
+  if (r.OneInputCannotBe(Type::StringOrReceiver())) {
     const Operator* less_than;
     const Operator* less_than_or_equal;
     if (r.BothInputsAre(Type::Unsigned32())) {
@@ -495,7 +484,11 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       less_than_or_equal = machine()->Int32LessThanOrEqual();
     } else {
       // TODO(turbofan): mixed signed/unsigned int32 comparisons.
-      r.ConvertPrimitiveInputsToNumber();
+      if (r.IsStrong() && !r.BothInputsAre(Type::Number())) {
+        return NoChange();
+      }
+      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+      r.ConvertInputsToNumber(frame_state);
       less_than = simplified()->NumberLessThan();
       less_than_or_equal = simplified()->NumberLessThanOrEqual();
     }
@@ -1189,18 +1182,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       break;
   }
   return NoChange();
-}
-
-
-Node* JSTypedLowering::ConvertPrimitiveToNumber(Node* input) {
-  DCHECK(NodeProperties::GetBounds(input).upper->Is(Type::PlainPrimitive()));
-  // Avoid inserting too many eager ToNumber() operations.
-  Reduction const reduction = ReduceJSToNumberInput(input);
-  if (reduction.Changed()) return reduction.replacement();
-  // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
-  return graph()->NewNode(
-      javascript()->ToNumber(), input, jsgraph()->NoContextConstant(),
-      jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());
 }
 
 

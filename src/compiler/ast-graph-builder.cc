@@ -1311,10 +1311,12 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   Node* obj = environment()->Peek(4);
 
   // Check loop termination condition.
+  FrameStateBeforeAndAfter states(this, BailoutId::None());
   Node* exit_cond = NewNode(javascript()->LessThan(LanguageMode::SLOPPY),
                             index, cache_length);
   // TODO(jarin): provide real bailout id.
-  PrepareFrameState(exit_cond, BailoutId::None());
+  states.AddToNode(exit_cond, BailoutId::None(),
+                   OutputFrameStateCombine::Ignore());
   for_loop.BreakUnless(exit_cond);
   Node* pair = NewNode(javascript()->CallRuntime(Runtime::kForInNext, 4), obj,
                        cache_array, cache_type, index);
@@ -2531,10 +2533,11 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   VisitForValue(expr->left());
   VisitForValue(expr->right());
+  FrameStateBeforeAndAfter states(this, expr->right()->id());
   Node* right = environment()->Pop();
   Node* left = environment()->Pop();
   Node* value = NewNode(op, left, right);
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
 
