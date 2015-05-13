@@ -1518,6 +1518,15 @@ RUNTIME_FUNCTION(Runtime_IsSpecObject) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_IsStrong) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSReceiver() &&
+                                    JSReceiver::cast(obj)->map()->is_strong());
+}
+
+
 RUNTIME_FUNCTION(Runtime_ClassOf) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

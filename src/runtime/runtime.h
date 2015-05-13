@@ -452,6 +452,7 @@ namespace internal {
   F(IsObject, 1, 1)                                  \
   F(IsUndetectableObject, 1, 1)                      \
   F(IsSpecObject, 1, 1)                              \
+  F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)

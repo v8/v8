@@ -5901,7 +5901,8 @@ class Map: public HeapObject {
   class Deprecated : public BitField<bool, 23, 1> {};
   class IsUnstable : public BitField<bool, 24, 1> {};
   class IsMigrationTarget : public BitField<bool, 25, 1> {};
-  // Bits 26 and 27 are free.
+  class IsStrong : public BitField<bool, 26, 1> {};
+  // Bit 27 is free.
 
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
@@ -5979,6 +5980,8 @@ class Map: public HeapObject {
     return ((1 << kIsObserved) & bit_field()) != 0;
   }
 
+  inline void set_is_strong(bool value);
+  inline bool is_strong();
   inline void set_is_extensible(bool value);
   inline bool is_extensible();
   inline void set_is_prototype_map(bool value);
