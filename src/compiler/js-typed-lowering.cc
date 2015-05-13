@@ -439,12 +439,17 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
                                            Signedness left_signedness,
                                            const Operator* shift_op) {
   JSBinopReduction r(this, node);
-  Type* reduce_type = r.IsStrong() ? Type::Number() : Type::Primitive();
-  if (r.BothInputsAre(reduce_type)) {
-    r.ConvertInputsForShift(left_signedness);
-    return r.ChangeToPureOperator(shift_op, Type::Integral32());
+  if (r.IsStrong()) {
+    if (r.BothInputsAre(Type::Number())) {
+      r.ConvertInputsForShift(left_signedness);
+      return r.ChangeToPureOperator(shift_op);
+    }
+    return NoChange();
   }
-  return NoChange();
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  r.ConvertInputsToNumber(frame_state);
+  r.ConvertInputsForShift(left_signedness);
+  return r.ChangeToPureOperator(shift_op);
 }
 
 
