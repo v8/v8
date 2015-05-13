@@ -59,17 +59,14 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
 
     // Misc operations
     case IrOpcode::kJSStackCheck:
-
-    // Properties
-    case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSDeleteProperty:
       return 1;
 
-    // StoreProperty provides a second frame state just before
-    // the operation. This is used to lazy-deoptimize a to-number
-    // conversion for typed arrays.
+    // We record the frame state immediately before and immediately after
+    // every property access.
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreProperty:
       return 2;
 

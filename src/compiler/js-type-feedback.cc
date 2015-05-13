@@ -61,9 +61,6 @@ Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
         // StoreProperty(o, "constant", v) => StoreNamed["constant"](o, v).
         Unique<Name> name = match.Value();
         LanguageMode language_mode = OpParameter<LanguageMode>(node);
-        // StoreProperty has 2 frame state inputs, but StoreNamed only 1.
-        DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
-        node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
         node->set_op(
             jsgraph()->javascript()->StoreNamed(language_mode, name, KEYED));
         node->RemoveInput(1);

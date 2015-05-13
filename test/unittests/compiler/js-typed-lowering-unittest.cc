@@ -659,9 +659,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
-                                context, EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
+                                          base, key, context, EmptyFrameState(),
+                                          EmptyFrameState(), effect, control));
 
     Matcher<Node*> offset_matcher =
         element_size == 1
@@ -700,9 +700,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
-                                context, EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
+                                          base, key, context, EmptyFrameState(),
+                                          EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(

@@ -80,10 +80,13 @@ class JSTypeFeedbackTest : public TypedGraphTest {
 
     Unique<Name> name = Unique<Name>::CreateUninitialized(
         isolate()->factory()->NewStringFromAsciiChecked(string));
-    Node* load = graph()->NewNode(javascript()->LoadNamed(name, feedback),
-                                  global, context);
+    const Operator* op = javascript()->LoadNamed(name, feedback);
+    Node* load = graph()->NewNode(op, global, context);
     if (FLAG_turbo_deoptimization) {
-      load->AppendInput(zone(), EmptyFrameState());
+      for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op);
+           i++) {
+        load->AppendInput(zone(), EmptyFrameState());
+      }
     }
     load->AppendInput(zone(), effect);
     load->AppendInput(zone(), control);
