@@ -2282,6 +2282,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
           break;
         }
       }
+      scope_->RecordThisUsage();
       result = this->ThisExpression(scope_, factory(), beg_pos);
       break;
     }
@@ -3354,6 +3355,7 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
   Consume(Token::THIS);
   int pos = position();
   function_state_->set_this_location(scanner()->location());
+  scope_->RecordThisUsage();
   ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
 
   ExpressionT left = this->EmptyExpression();

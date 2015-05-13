@@ -248,12 +248,6 @@ RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
         JSGlobalObject::cast(context_arg->extension()), isolate);
     return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
                           is_function);
-  } else if (context->IsScriptContext()) {
-    DCHECK(context->global_object()->IsJSGlobalObject());
-    Handle<JSGlobalObject> global(
-        JSGlobalObject::cast(context->global_object()), isolate);
-    return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
-                          is_function);
   }
 
   if (attributes != ABSENT) {
@@ -329,12 +323,8 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
   // meanwhile. If so, re-introduce the variable in the context extension.
   if (attributes == ABSENT) {
     Handle<Context> declaration_context(context_arg->declaration_context());
-    if (declaration_context->IsScriptContext()) {
-      holder = handle(declaration_context->global_object(), isolate);
-    } else {
-      DCHECK(declaration_context->has_extension());
-      holder = handle(declaration_context->extension(), isolate);
-    }
+    DCHECK(declaration_context->has_extension());
+    holder = handle(declaration_context->extension(), isolate);
     CHECK(holder->IsJSObject());
   } else {
     // For JSContextExtensionObjects, the initializer can be run multiple times
@@ -638,12 +628,8 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
       FindNameClash(scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
 
-  // Script contexts have a canonical empty function as their closure, not the
-  // anonymous closure containing the global code.  See
-  // FullCodeGenerator::PushFunctionArgumentForContextAllocation.
-  Handle<JSFunction> closure(native_context->closure());
   Handle<Context> result =
-      isolate->factory()->NewScriptContext(closure, scope_info);
+      isolate->factory()->NewScriptContext(function, scope_info);
 
   DCHECK(function->context() == isolate->context());
   DCHECK(function->context()->global_object() == result->global_object());
