@@ -14,11 +14,11 @@ deps = {
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "b73e5f70d7ac6be98fb2555461f631afc90216ce",
   "v8/testing/gtest":
-    Var("git_url") + "/external/googletest.git" + "@" + "be1868139ffe0ccd0e8e3b37292b84c821d9c8ad",
+    Var("git_url") + "/external/googletest.git" + "@" + "23574bf2333f834ff665f894c97bef8a5b33a0a9",
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "29763965ab52f24565299976b936d1265cb6a271",  # from svn revision 501
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "6e259b4afbbd784a775e47f37379e57f002bf0c2",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "17e168207560f2dfdf95e50c5eb79e6d3ac1eaf6",
 }
 
 deps_os = {
