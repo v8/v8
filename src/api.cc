@@ -379,7 +379,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       i::SnapshotByteSink context_sink;
       i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
       context_ser.Serialize(&raw_context);
-      ser.SerializeWeakReferencesAndDeferred();
+      ser.SerializeWeakReferences();
 
       result = i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
     }
