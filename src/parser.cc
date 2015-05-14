@@ -5708,17 +5708,25 @@ Expression* Parser::SpreadCall(Expression* function,
   } else {
     if (function->IsProperty()) {
       // Method calls
-      Variable* temp =
-          scope_->NewTemporary(ast_value_factory()->empty_string());
-      VariableProxy* obj = factory()->NewVariableProxy(temp);
-      Assignment* assign_obj = factory()->NewAssignment(
-          Token::ASSIGN, obj, function->AsProperty()->obj(),
-          RelocInfo::kNoPosition);
-      function = factory()->NewProperty(
-          assign_obj, function->AsProperty()->key(), RelocInfo::kNoPosition);
-      args->InsertAt(0, function, zone());
-      obj = factory()->NewVariableProxy(temp);
-      args->InsertAt(1, obj, zone());
+      if (function->AsProperty()->IsSuperAccess()) {
+        VariableProxy* original_home =
+            function->AsProperty()->obj()->AsSuperReference()->this_var();
+        VariableProxy* home = factory()->NewVariableProxy(original_home->var());
+        args->InsertAt(0, function, zone());
+        args->InsertAt(1, home, zone());
+      } else {
+        Variable* temp =
+            scope_->NewTemporary(ast_value_factory()->empty_string());
+        VariableProxy* obj = factory()->NewVariableProxy(temp);
+        Assignment* assign_obj = factory()->NewAssignment(
+            Token::ASSIGN, obj, function->AsProperty()->obj(),
+            RelocInfo::kNoPosition);
+        function = factory()->NewProperty(
+            assign_obj, function->AsProperty()->key(), RelocInfo::kNoPosition);
+        args->InsertAt(0, function, zone());
+        obj = factory()->NewVariableProxy(temp);
+        args->InsertAt(1, obj, zone());
+      }
     } else {
       // Non-method calls
       args->InsertAt(0, function, zone());
