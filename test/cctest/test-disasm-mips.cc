@@ -525,21 +525,94 @@ TEST(Type0) {
 }
 
 
-//  Tests only seleqz, selnez, seleqz.fmt and selnez.fmt
 TEST(Type1) {
+  SET_UP();
   if (IsMipsArchVariant(kMips32r6)) {
-    SET_UP();
     COMPARE(seleqz(a0, a1, a2), "00a62035       seleqz    a0, a1, a2");
     COMPARE(selnez(a0, a1, a2), "00a62037       selnez    a0, a1, a2");
 
 
-    COMPARE(seleqz(D, f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
-    COMPARE(selnez(D, f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
+    COMPARE(seleqz_d(f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
+    COMPARE(selnez_d(f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
+    COMPARE(seleqz_s(f3, f4, f5), "460520d4       seleqz.s    f3, f4, f5");
+    COMPARE(selnez_s(f3, f4, f5), "460520d7       selnez.s    f3, f4, f5");
 
     COMPARE(min_d(f3, f4, f5), "462520dc       min.d    f3, f4, f5");
     COMPARE(max_d(f3, f4, f5), "462520de       max.d    f3, f4, f5");
-    COMPARE(rint_d(f8, f6), "4620321a       rint.d    f8, f6");
 
-    VERIFY_RUN();
+    COMPARE(sel_s(f3, f4, f5), "460520d0       sel.s      f3, f4, f5");
+    COMPARE(sel_d(f3, f4, f5), "462520d0       sel.d      f3, f4, f5");
+
+    COMPARE(rint_d(f8, f6), "4620321a       rint.d    f8, f6");
+    COMPARE(rint_s(f8, f6), "4600321a       rint.s    f8, f6");
+
+    COMPARE(min_s(f3, f4, f5), "460520dc       min.s    f3, f4, f5");
+    COMPARE(max_s(f3, f4, f5), "460520de       max.s    f3, f4, f5");
+
+    COMPARE(mina_d(f3, f4, f5), "462520dd       mina.d   f3, f4, f5");
+    COMPARE(mina_s(f3, f4, f5), "460520dd       mina.s   f3, f4, f5");
+
+    COMPARE(maxa_d(f3, f4, f5), "462520df       maxa.d   f3, f4, f5");
+    COMPARE(maxa_s(f3, f4, f5), "460520df       maxa.s   f3, f4, f5");
   }
+
+  COMPARE(trunc_w_d(f8, f6), "4620320d       trunc.w.d f8, f6");
+  COMPARE(trunc_w_s(f8, f6), "4600320d       trunc.w.s f8, f6");
+
+  COMPARE(round_w_s(f8, f6), "4600320c       round.w.s f8, f6");
+  COMPARE(round_w_d(f8, f6), "4620320c       round.w.d f8, f6");
+
+  COMPARE(round_l_s(f8, f6), "46003208       round.l.s f8, f6");
+  COMPARE(round_l_d(f8, f6), "46203208       round.l.d f8, f6");
+
+  COMPARE(floor_w_s(f8, f6), "4600320f       floor.w.s f8, f6");
+  COMPARE(floor_w_d(f8, f6), "4620320f       floor.w.d f8, f6");
+
+  COMPARE(floor_l_s(f8, f6), "4600320b       floor.l.s f8, f6");
+  COMPARE(floor_l_d(f8, f6), "4620320b       floor.l.d f8, f6");
+
+  COMPARE(ceil_w_s(f8, f6), "4600320e       ceil.w.s f8, f6");
+  COMPARE(ceil_w_d(f8, f6), "4620320e       ceil.w.d f8, f6");
+
+  COMPARE(ceil_l_s(f8, f6), "4600320a       ceil.l.s f8, f6");
+  COMPARE(ceil_l_d(f8, f6), "4620320a       ceil.l.d f8, f6");
+
+  COMPARE(sub_s(f10, f8, f6), "46064281       sub.s   f10, f8, f6");
+  COMPARE(sub_d(f10, f8, f6), "46264281       sub.d   f10, f8, f6");
+
+  COMPARE(sqrt_s(f8, f6), "46003204       sqrt.s  f8, f6");
+  COMPARE(sqrt_d(f8, f6), "46203204       sqrt.d  f8, f6");
+
+  COMPARE(neg_s(f8, f6), "46003207       neg.s   f8, f6");
+  COMPARE(neg_d(f8, f6), "46203207       neg.d   f8, f6");
+
+  COMPARE(mul_s(f8, f6, f4), "46043202       mul.s   f8, f6, f4");
+  COMPARE(mul_d(f8, f6, f4), "46243202       mul.d   f8, f6, f4");
+
+  COMPARE(rsqrt_s(f8, f6), "46003216       rsqrt.s  f8, f6");
+  COMPARE(rsqrt_d(f8, f6), "46203216       rsqrt.d  f8, f6");
+
+  COMPARE(recip_s(f8, f6), "46003215       recip.s  f8, f6");
+  COMPARE(recip_d(f8, f6), "46203215       recip.d  f8, f6");
+
+  COMPARE(mov_s(f6, f4), "46002186       mov.s   f6, f4");
+  COMPARE(mov_d(f6, f4), "46202186       mov.d   f6, f4");
+
+  if (IsMipsArchVariant(kMips32r2)) {
+    COMPARE(trunc_l_d(f8, f6), "46203209       trunc.l.d f8, f6");
+    COMPARE(trunc_l_s(f8, f6), "46003209       trunc.l.s f8, f6");
+
+    COMPARE(movz_s(f6, f4, t0), "46082192       movz.s    f6, f4, t0");
+    COMPARE(movz_d(f6, f4, t0), "46282192       movz.d    f6, f4, t0");
+
+    COMPARE(movt_s(f6, f4, 4), "46112191       movt.s    f6, f4, cc(1)");
+    COMPARE(movt_d(f6, f4, 4), "46312191       movt.d    f6, f4, cc(1)");
+
+    COMPARE(movf_s(f6, f4, 4), "46102191       movf.s    f6, f4, cc(1)");
+    COMPARE(movf_d(f6, f4, 4), "46302191       movf.d    f6, f4, cc(1)");
+
+    COMPARE(movn_s(f6, f4, t0), "46082193       movn.s    f6, f4, t0");
+    COMPARE(movn_d(f6, f4, t0), "46282193       movn.d    f6, f4, t0");
+  }
+  VERIFY_RUN();
 }

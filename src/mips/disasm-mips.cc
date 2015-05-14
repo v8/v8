@@ -511,6 +511,19 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case SELNEZ_C:
       Format(instr, "selnez.'t    'fd, 'fs, 'ft");
       break;
+    case MOVZ_C:
+      Format(instr, "movz.'t    'fd, 'fs, 'rt");
+      break;
+    case MOVN_C:
+      Format(instr, "movn.'t    'fd, 'fs, 'rt");
+      break;
+    case MOVF:
+      if (instr->Bit(16)) {
+        Format(instr, "movt.'t    'fd, 'fs, 'Cc");
+      } else {
+        Format(instr, "movf.'t    'fd, 'fs, 'Cc");
+      }
+      break;
     case ADD_D:
       Format(instr, "add.'t   'fd, 'fs, 'ft");
       break;
@@ -535,6 +548,12 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case SQRT_D:
       Format(instr, "sqrt.'t  'fd, 'fs");
       break;
+    case RECIP_D:
+      Format(instr, "recip.'t  'fd, 'fs");
+      break;
+    case RSQRT_D:
+      Format(instr, "rsqrt.'t  'fd, 'fs");
+      break;
     case CVT_W_D:
       Format(instr, "cvt.w.'t 'fd, 'fs");
       break;
@@ -550,11 +569,20 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case ROUND_W_D:
       Format(instr, "round.w.'t 'fd, 'fs");
       break;
+    case ROUND_L_D:
+      Format(instr, "round.l.'t 'fd, 'fs");
+      break;
     case FLOOR_W_D:
       Format(instr, "floor.w.'t 'fd, 'fs");
       break;
+    case FLOOR_L_D:
+      Format(instr, "floor.l.'t 'fd, 'fs");
+      break;
     case CEIL_W_D:
       Format(instr, "ceil.w.'t 'fd, 'fs");
+      break;
+    case CEIL_L_D:
+      Format(instr, "ceil.l.'t 'fd, 'fs");
       break;
     case CVT_S_D:
       Format(instr, "cvt.s.'t 'fd, 'fs");

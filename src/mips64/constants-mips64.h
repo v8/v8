@@ -470,6 +470,14 @@ enum SecondaryField {
   L = ((2 << 3) + 5) << 21,
   PS = ((2 << 3) + 6) << 21,
   // COP1 Encoding of Function Field When rs=S.
+  ADD_S = ((0 << 3) + 0),
+  SUB_S = ((0 << 3) + 1),
+  MUL_S = ((0 << 3) + 2),
+  DIV_S = ((0 << 3) + 3),
+  ABS_S = ((0 << 3) + 5),
+  SQRT_S = ((0 << 3) + 4),
+  MOV_S = ((0 << 3) + 6),
+  NEG_S = ((0 << 3) + 7),
   ROUND_L_S = ((1 << 3) + 0),
   TRUNC_L_S = ((1 << 3) + 1),
   CEIL_L_S = ((1 << 3) + 2),
@@ -478,6 +486,8 @@ enum SecondaryField {
   TRUNC_W_S = ((1 << 3) + 5),
   CEIL_W_S = ((1 << 3) + 6),
   FLOOR_W_S = ((1 << 3) + 7),
+  RECIP_S = ((2 << 3) + 5),
+  RSQRT_S = ((2 << 3) + 6),
   CVT_D_S = ((4 << 3) + 1),
   CVT_W_S = ((4 << 3) + 4),
   CVT_L_S = ((4 << 3) + 5),
@@ -499,10 +509,8 @@ enum SecondaryField {
   TRUNC_W_D = ((1 << 3) + 5),
   CEIL_W_D = ((1 << 3) + 6),
   FLOOR_W_D = ((1 << 3) + 7),
-  MIN = ((3 << 3) + 4),
-  MINA = ((3 << 3) + 5),
-  MAX = ((3 << 3) + 6),
-  MAXA = ((3 << 3) + 7),
+  RECIP_D = ((2 << 3) + 5),
+  RSQRT_D = ((2 << 3) + 6),
   CVT_S_D = ((4 << 3) + 0),
   CVT_W_D = ((4 << 3) + 4),
   CVT_L_D = ((4 << 3) + 5),
@@ -556,7 +564,14 @@ enum SecondaryField {
   CMP_SUGT = ((3 << 3) + 6),  // Reserved, not implemented.
   CMP_SOGT = ((3 << 3) + 7),  // Reserved, not implemented.
 
+  MIN = ((3 << 3) + 4),
+  MINA = ((3 << 3) + 5),
+  MAX = ((3 << 3) + 6),
+  MAXA = ((3 << 3) + 7),
   SEL = ((2 << 3) + 0),
+  MOVF = ((2 << 3) + 1),      // Function field for MOVT.fmt and MOVF.fmt
+  MOVZ_C = ((2 << 3) + 2),    // COP1 on FPR registers.
+  MOVN_C = ((2 << 3) + 3),    // COP1 on FPR registers.
   SELEQZ_C = ((2 << 3) + 4),  // COP1 on FPR registers.
   SELNEZ_C = ((2 << 3) + 7),  // COP1 on FPR registers.
 
