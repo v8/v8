@@ -2140,6 +2140,33 @@ void Assembler::maxa_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 
+void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                    FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  DCHECK((fmt == D) || (fmt == S));
+
+  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
+                fs.code() << kFsShift | fd.code() << kFdShift | SEL;
+  emit(instr);
+}
+
+
+void Assembler::max(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                    FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, MAX);
+}
+
+
+void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                    FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, MIN);
+}
+
+
 // GPR.
 void Assembler::seleqz(Register rd, Register rs, Register rt) {
   DCHECK(kArchVariant == kMips64r6);
@@ -2147,10 +2174,27 @@ void Assembler::seleqz(Register rd, Register rs, Register rt) {
 }
 
 
+// FPR.
+void Assembler::seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, SELEQZ_C);
+}
+
+
 // GPR.
 void Assembler::selnez(Register rd, Register rs, Register rt) {
   DCHECK(kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELNEZ_S);
+}
+
+
+// FPR.
+void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  DCHECK((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, SELNEZ_C);
 }
 
 
@@ -2289,134 +2333,6 @@ void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
 }
 
 
-void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                    FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-
-  GenInstrRegister(COP1, fmt, ft, fs, fd, SEL);
-}
-
-
-void Assembler::sel_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  sel(S, fd, fs, ft);
-}
-
-
-void Assembler::sel_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  sel(D, fd, fs, ft);
-}
-
-
-void Assembler::max(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                    FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, MAX);
-}
-
-
-void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                    FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, MIN);
-}
-
-
-// FPR.
-void Assembler::seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                       FPURegister ft) {
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, SELEQZ_C);
-}
-
-
-void Assembler::seleqz_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  seleqz(D, fd, fs, ft);
-}
-
-
-void Assembler::seleqz_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  seleqz(S, fd, fs, ft);
-}
-
-
-void Assembler::selnez_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  selnez(D, fd, fs, ft);
-}
-
-
-void Assembler::selnez_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  selnez(S, fd, fs, ft);
-}
-
-
-void Assembler::movz_s(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1, S, rt, fs, fd, MOVZ_C);
-}
-
-
-void Assembler::movz_d(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1, D, rt, fs, fd, MOVZ_C);
-}
-
-
-void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(kArchVariant == kMips64r2);
-  FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 1;
-  GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
-}
-
-
-void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(kArchVariant == kMips64r2);
-  FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 1;
-  GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
-}
-
-
-void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(kArchVariant == kMips64r2);
-  FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 0;
-  GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
-}
-
-
-void Assembler::movf_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(kArchVariant == kMips64r2);
-  FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 0;
-  GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
-}
-
-
-void Assembler::movn_s(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1, S, rt, fs, fd, MOVN_C);
-}
-
-
-void Assembler::movn_d(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(kArchVariant == kMips64r2);
-  GenInstrRegister(COP1, D, rt, fs, fd, MOVN_C);
-}
-
-
-// FPR.
-void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                       FPURegister ft) {
-  DCHECK(kArchVariant == kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, SELNEZ_C);
-}
-
-
 // Arithmetic.
 
 void Assembler::add_s(FPURegister fd, FPURegister fs, FPURegister ft) {
@@ -2480,11 +2396,6 @@ void Assembler::mov_d(FPURegister fd, FPURegister fs) {
 }
 
 
-void Assembler::mov_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, MOV_D);
-}
-
-
 void Assembler::neg_s(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, S, f0, fs, fd, NEG_D);
 }
@@ -2505,27 +2416,8 @@ void Assembler::sqrt_d(FPURegister fd, FPURegister fs) {
 }
 
 
-void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, RSQRT_S);
-}
-
-
-void Assembler::rsqrt_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, RSQRT_D);
-}
-
-
-void Assembler::recip_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, RECIP_D);
-}
-
-
-void Assembler::recip_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, RECIP_S);
-}
-
-
 // Conversions.
+
 void Assembler::cvt_w_s(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, S, f0, fs, fd, CVT_W_S);
 }
@@ -2584,18 +2476,18 @@ void Assembler::rint_d(FPURegister fd, FPURegister fs) { rint(D, fd, fs); }
 
 void Assembler::rint(SecondaryField fmt, FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, fmt, f0, fs, fd, RINT);
+  GenInstrRegister(COP1, D, f0, fs, fd, RINT);
 }
 
 
 void Assembler::cvt_l_s(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, S, f0, fs, fd, CVT_L_S);
 }
 
 
 void Assembler::cvt_l_d(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, D, f0, fs, fd, CVT_L_D);
 }
 
@@ -2642,16 +2534,16 @@ void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
 }
 
 
-void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                     FPURegister ft) {
+void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister ft,
+                     FPURegister fs) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, MINA);
 }
 
 
-void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                     FPURegister ft) {
+void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister ft,
+                     FPURegister fs) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK((fmt == D) || (fmt == S));
   GenInstrRegister(COP1, fmt, ft, fs, fd, MAXA);
@@ -2664,7 +2556,7 @@ void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, L, f0, fs, fd, CVT_S_L);
 }
 
@@ -2680,7 +2572,7 @@ void Assembler::cvt_d_w(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::cvt_d_l(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, L, f0, fs, fd, CVT_D_L);
 }
 
@@ -2720,7 +2612,6 @@ void Assembler::c(FPUCondition cond, SecondaryField fmt,
     FPURegister fs, FPURegister ft, uint16_t cc) {
   DCHECK(kArchVariant != kMips64r6);
   DCHECK(is_uint3(cc));
-  DCHECK(fmt == S || fmt == D);
   DCHECK((fmt & ~(31 << kRsShift)) == 0);
   Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift
       | cc << 8 | 3 << 4 | cond;

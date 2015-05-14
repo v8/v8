@@ -520,27 +520,11 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case RINT:
       Format(instr, "rint.'t    'fd, 'fs");
       break;
-    case SEL:
-      Format(instr, "sel.'t      'fd, 'fs, 'ft");
-      break;
     case SELEQZ_C:
       Format(instr, "seleqz.'t    'fd, 'fs, 'ft");
       break;
     case SELNEZ_C:
       Format(instr, "selnez.'t    'fd, 'fs, 'ft");
-      break;
-    case MOVZ_C:
-      Format(instr, "movz.'t    'fd, 'fs, 'rt");
-      break;
-    case MOVN_C:
-      Format(instr, "movn.'t    'fd, 'fs, 'rt");
-      break;
-    case MOVF:
-      if (instr->Bit(16)) {
-        Format(instr, "movt.'t    'fd, 'fs, 'Cc");
-      } else {
-        Format(instr, "movf.'t    'fd, 'fs, 'Cc");
-      }
       break;
     case MIN:
       Format(instr, "min.'t    'fd, 'fs, 'ft");
@@ -577,12 +561,6 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
       break;
     case SQRT_D:
       Format(instr, "sqrt.'t  'fd, 'fs");
-      break;
-    case RECIP_D:
-      Format(instr, "recip.'t  'fd, 'fs");
-      break;
-    case RSQRT_D:
-      Format(instr, "rsqrt.'t  'fd, 'fs");
       break;
     case CVT_W_D:
       Format(instr, "cvt.w.'t 'fd, 'fs");

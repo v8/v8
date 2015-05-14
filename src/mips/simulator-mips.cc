@@ -1282,6 +1282,8 @@ unsigned int Simulator::get_fcsr_rounding_mode() {
 }
 
 
+// Sets the rounding error codes in FCSR based on the result of the rounding.
+// Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
   bool ret = false;
   double max_int32 = std::numeric_limits<int32_t>::max();
@@ -1301,101 +1303,7 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
     ret = true;
   }
 
-  if (rounded >= max_int32 || rounded <= min_int32) {
-    set_fcsr_bit(kFCSROverflowFlagBit, true);
-    // The reference is not really clear but it seems this is required:
-    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
-    ret = true;
-  }
-
-  return ret;
-}
-
-
-// Sets the rounding error codes in FCSR based on the result of the rounding.
-// Returns true if the operation was invalid.
-bool Simulator::set_fcsr_round64_error(double original, double rounded) {
-  bool ret = false;
-  double max_int64 = std::numeric_limits<int64_t>::max();
-  double min_int64 = std::numeric_limits<int64_t>::min();
-
-  if (!std::isfinite(original) || !std::isfinite(rounded)) {
-    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
-    ret = true;
-  }
-
-  if (original != rounded) {
-    set_fcsr_bit(kFCSRInexactFlagBit, true);
-  }
-
-  if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
-    set_fcsr_bit(kFCSRUnderflowFlagBit, true);
-    ret = true;
-  }
-
-  if (rounded >= max_int64 || rounded <= min_int64) {
-    set_fcsr_bit(kFCSROverflowFlagBit, true);
-    // The reference is not really clear but it seems this is required:
-    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
-    ret = true;
-  }
-
-  return ret;
-}
-
-
-bool Simulator::set_fcsr_round_error(float original, float rounded) {
-  bool ret = false;
-  double max_int32 = std::numeric_limits<int32_t>::max();
-  double min_int32 = std::numeric_limits<int32_t>::min();
-
-  if (!std::isfinite(original) || !std::isfinite(rounded)) {
-    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
-    ret = true;
-  }
-
-  if (original != rounded) {
-    set_fcsr_bit(kFCSRInexactFlagBit, true);
-  }
-
-  if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
-    set_fcsr_bit(kFCSRUnderflowFlagBit, true);
-    ret = true;
-  }
-
-  if (rounded >= max_int32 || rounded <= min_int32) {
-    set_fcsr_bit(kFCSROverflowFlagBit, true);
-    // The reference is not really clear but it seems this is required:
-    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
-    ret = true;
-  }
-
-  return ret;
-}
-
-
-// Sets the rounding error codes in FCSR based on the result of the rounding.
-// Returns true if the operation was invalid.
-bool Simulator::set_fcsr_round64_error(float original, float rounded) {
-  bool ret = false;
-  double max_int64 = std::numeric_limits<int64_t>::max();
-  double min_int64 = std::numeric_limits<int64_t>::min();
-
-  if (!std::isfinite(original) || !std::isfinite(rounded)) {
-    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
-    ret = true;
-  }
-
-  if (original != rounded) {
-    set_fcsr_bit(kFCSRInexactFlagBit, true);
-  }
-
-  if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
-    set_fcsr_bit(kFCSRUnderflowFlagBit, true);
-    ret = true;
-  }
-
-  if (rounded >= max_int64 || rounded <= min_int64) {
+  if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
@@ -2283,10 +2191,7 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
   uint32_t cc, fcsr_cc;
   int64_t i64;
   fs = get_fpu_register_double(fs_reg);
-  if (instr->FunctionFieldRaw() != MOVF) {
-    ft = get_fpu_register_double(ft_reg);
-  }
-  fd = get_fpu_register_double(fd_reg);
+  ft = get_fpu_register_double(ft_reg);
   int64_t ft_int = bit_cast<int64_t>(ft);
   int64_t fd_int = bit_cast<int64_t>(fd);
   cc = instr->FCccValue();
@@ -2341,37 +2246,6 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
       DCHECK(IsMipsArchVariant(kMips32r6));
       set_fpu_register_double(fd_reg, (ft_int & 0x1) != 0 ? fs : 0.0);
       break;
-    case MOVZ_C: {
-      DCHECK(IsMipsArchVariant(kMips32r2));
-      int32_t rt_reg = instr->RtValue();
-      int32_t rt = get_register(rt_reg);
-      if (rt == 0) {
-        set_fpu_register_double(fd_reg, fs);
-      }
-      break;
-    }
-    case MOVN_C: {
-      DCHECK(IsMipsArchVariant(kMips32r2));
-      int32_t rt_reg = instr->RtValue();
-      int32_t rt = get_register(rt_reg);
-      if (rt != 0) {
-        set_fpu_register_double(fd_reg, fs);
-      }
-      break;
-    }
-    case MOVF: {
-      // Same function field for MOVT.D and MOVF.D
-      uint32_t ft_cc = (ft_reg >> 2) & 0x7;
-      ft_cc = get_fcsr_condition_bit(ft_cc);
-      if (instr->Bit(16)) {  // Read Tf bit.
-        // MOVT.D
-        if (test_fcsr_bit(ft_cc)) set_fpu_register_double(fd_reg, fs);
-      } else {
-        // MOVF.D
-        if (!test_fcsr_bit(ft_cc)) set_fpu_register_double(fd_reg, fs);
-      }
-      break;
-    }
     case MIN:
       DCHECK(IsMipsArchVariant(kMips32r6));
       fs = get_fpu_register_double(fs_reg);
@@ -2383,48 +2257,6 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
         set_fpu_register_double(fd_reg, fs);
       } else {
         set_fpu_register_double(fd_reg, (fs >= ft) ? ft : fs);
-      }
-      break;
-    case MINA:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      fs = get_fpu_register_double(fs_reg);
-      if (std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_double(fd_reg, fs);
-      } else if (std::isnan(fs) && !std::isnan(ft)) {
-        set_fpu_register_double(fd_reg, ft);
-      } else if (!std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_double(fd_reg, fs);
-      } else {
-        double result;
-        if (fabs(fs) > fabs(ft)) {
-          result = ft;
-        } else if (fabs(fs) < fabs(ft)) {
-          result = fs;
-        } else {
-          result = (fs > ft ? fs : ft);
-        }
-        set_fpu_register_double(fd_reg, result);
-      }
-      break;
-    case MAXA:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      fs = get_fpu_register_double(fs_reg);
-      if (std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_double(fd_reg, fs);
-      } else if (std::isnan(fs) && !std::isnan(ft)) {
-        set_fpu_register_double(fd_reg, ft);
-      } else if (!std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_double(fd_reg, fs);
-      } else {
-        double result;
-        if (fabs(fs) < fabs(ft)) {
-          result = ft;
-        } else if (fabs(fs) > fabs(ft)) {
-          result = fs;
-        } else {
-          result = (fs > ft ? fs : ft);
-        }
-        set_fpu_register_double(fd_reg, result);
       }
       break;
     case MAX:
@@ -2465,16 +2297,6 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
     case SQRT_D:
       set_fpu_register_double(fd_reg, fast_sqrt(fs));
       break;
-    case RSQRT_D: {
-      double result = 1.0 / fast_sqrt(fs);
-      set_fpu_register_double(fd_reg, result);
-      break;
-    }
-    case RECIP_D: {
-      double result = 1.0 / fs;
-      set_fpu_register_double(fd_reg, result);
-      break;
-    }
     case C_UN_D:
       set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));
       break;
@@ -2555,72 +2377,51 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg, i64);
       } else {
-        UNSUPPORTED();
+        set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+        set_fpu_register_word(fd_reg + 1, i64 >> 32);
       }
       break;
     }
     case TRUNC_L_D: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
       double rounded = trunc(fs);
       i64 = static_cast<int64_t>(rounded);
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
       } else {
-        UNSUPPORTED();
+        set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+        set_fpu_register_word(fd_reg + 1, i64 >> 32);
       }
       break;
     }
     case ROUND_L_D: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      double rounded = std::floor(fs + 0.5);
-      int64_t result = static_cast<int64_t>(rounded);
-      if ((result & 1) != 0 && result - fs == 0.5) {
-        // If the number is halfway between two integers,
-        // round to the even one.
-        result--;
-      }
-      int64_t i64 = static_cast<int64_t>(result);
+      double rounded = fs > 0 ? std::floor(fs + 0.5) : std::ceil(fs - 0.5);
+      i64 = static_cast<int64_t>(rounded);
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
       } else {
-        UNSUPPORTED();
+        set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+        set_fpu_register_word(fd_reg + 1, i64 >> 32);
       }
       break;
     }
-    case FLOOR_L_D: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      double rounded = std::floor(fs);
-      int64_t i64 = static_cast<int64_t>(rounded);
+    case FLOOR_L_D:  // Mips32r2 instruction.
+      i64 = static_cast<int64_t>(std::floor(fs));
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
       } else {
-        UNSUPPORTED();
+        set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+        set_fpu_register_word(fd_reg + 1, i64 >> 32);
       }
       break;
-    }
-    case CEIL_L_D: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      double rounded = std::ceil(fs);
-      int64_t i64 = static_cast<int64_t>(rounded);
+    case CEIL_L_D:  // Mips32r2 instruction.
+      i64 = static_cast<int64_t>(std::ceil(fs));
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
       } else {
-        UNSUPPORTED();
+        set_fpu_register_word(fd_reg, i64 & 0xffffffff);
+        set_fpu_register_word(fd_reg + 1, i64 >> 32);
       }
       break;
-    }
     case C_F_D:
       UNIMPLEMENTED_MIPS();
       break;
@@ -2652,88 +2453,38 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
                                           const int32_t& ft_reg,
                                           const int32_t& fs_reg,
                                           const int32_t& fd_reg) {
-  float fs, ft, fd;
+  float fs, ft;
   fs = get_fpu_register_float(fs_reg);
   ft = get_fpu_register_float(ft_reg);
-  fd = get_fpu_register_float(fd_reg);
-  int32_t ft_int = bit_cast<int32_t>(ft);
-  int32_t fd_int = bit_cast<int32_t>(fd);
+  int64_t ft_int = static_cast<int64_t>(get_fpu_register_double(ft_reg));
   uint32_t cc, fcsr_cc;
   cc = instr->FCccValue();
   fcsr_cc = get_fcsr_condition_bit(cc);
   switch (instr->FunctionFieldRaw()) {
-    case RINT: {
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      float result, temp_result;
-      double temp;
-      float upper = std::ceil(fs);
-      float lower = std::floor(fs);
-      switch (get_fcsr_rounding_mode()) {
-        case kRoundToNearest:
-          if (upper - fs < fs - lower) {
-            result = upper;
-          } else if (upper - fs > fs - lower) {
-            result = lower;
-          } else {
-            temp_result = upper / 2;
-            float reminder = modf(temp_result, &temp);
-            if (reminder == 0) {
-              result = upper;
-            } else {
-              result = lower;
-            }
-          }
-          break;
-        case kRoundToZero:
-          result = (fs > 0 ? lower : upper);
-          break;
-        case kRoundToPlusInf:
-          result = upper;
-          break;
-        case kRoundToMinusInf:
-          result = lower;
-          break;
-      }
-      set_fpu_register_float(fd_reg, result);
-      if (result != fs) {
-        set_fcsr_bit(kFCSRInexactFlagBit, true);
-      }
-      break;
-    }
-    case ADD_S:
+    case ADD_D:
       set_fpu_register_float(fd_reg, fs + ft);
       break;
-    case SUB_S:
+    case SUB_D:
       set_fpu_register_float(fd_reg, fs - ft);
       break;
-    case MUL_S:
+    case MUL_D:
       set_fpu_register_float(fd_reg, fs * ft);
       break;
-    case DIV_S:
+    case DIV_D:
       set_fpu_register_float(fd_reg, fs / ft);
       break;
-    case ABS_S:
+    case ABS_D:
       set_fpu_register_float(fd_reg, fabs(fs));
       break;
-    case MOV_S:
+    case MOV_D:
       set_fpu_register_float(fd_reg, fs);
       break;
-    case NEG_S:
+    case NEG_D:
       set_fpu_register_float(fd_reg, -fs);
       break;
-    case SQRT_S:
+    case SQRT_D:
       set_fpu_register_float(fd_reg, fast_sqrt(fs));
       break;
-    case RSQRT_S: {
-      float result = 1.0 / fast_sqrt(fs);
-      set_fpu_register_float(fd_reg, result);
-      break;
-    }
-    case RECIP_S: {
-      float result = 1.0 / fs;
-      set_fpu_register_float(fd_reg, result);
-      break;
-    }
     case C_UN_D:
       set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));
       break;
@@ -2758,224 +2509,18 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
     case CVT_D_S:
       set_fpu_register_double(fd_reg, static_cast<double>(fs));
       break;
-    case SEL:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      set_fpu_register_float(fd_reg, (fd_int & 0x1) == 0 ? fs : ft);
-      break;
     case SELEQZ_C:
       DCHECK(IsMipsArchVariant(kMips32r6));
-      set_fpu_register_float(
-          fd_reg, (ft_int & 0x1) == 0 ? get_fpu_register_float(fs_reg) : 0.0);
+      set_fpu_register_double(
+          fd_reg, (ft_int & 0x1) == 0 ? get_fpu_register_double(fs_reg) : 0.0);
       break;
     case SELNEZ_C:
       DCHECK(IsMipsArchVariant(kMips32r6));
-      set_fpu_register_float(
-          fd_reg, (ft_int & 0x1) != 0 ? get_fpu_register_float(fs_reg) : 0.0);
-      break;
-    case MOVZ_C: {
-      DCHECK(IsMipsArchVariant(kMips32r2));
-      int32_t rt_reg = instr->RtValue();
-      int32_t rt = get_register(rt_reg);
-      if (rt == 0) {
-        set_fpu_register_float(fd_reg, fs);
-      }
-      break;
-    }
-    case MOVN_C: {
-      DCHECK(IsMipsArchVariant(kMips32r2));
-      int32_t rt_reg = instr->RtValue();
-      int32_t rt = get_register(rt_reg);
-      if (rt != 0) {
-        set_fpu_register_float(fd_reg, fs);
-      }
-      break;
-    }
-    case MOVF: {
-      // Same function field for MOVT.D and MOVF.D
-      uint32_t ft_cc = (ft_reg >> 2) & 0x7;
-      ft_cc = get_fcsr_condition_bit(ft_cc);
-
-      if (instr->Bit(16)) {  // Read Tf bit.
-        // MOVT.D
-        if (test_fcsr_bit(ft_cc)) set_fpu_register_float(fd_reg, fs);
-      } else {
-        // MOVF.D
-        if (!test_fcsr_bit(ft_cc)) set_fpu_register_float(fd_reg, fs);
-      }
-      break;
-    }
-    case TRUNC_W_S: {  // Truncate single to word (round towards 0).
-      float rounded = trunc(fs);
-      int32_t result = static_cast<int32_t>(rounded);
-      set_fpu_register_word(fd_reg, result);
-      if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg, kFPUInvalidResult);
-      }
-    } break;
-    case TRUNC_L_S: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      float rounded = trunc(fs);
-      int64_t i64 = static_cast<int64_t>(rounded);
-      if (IsFp64Mode()) {
-        set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
-      } else {
-        UNSUPPORTED();
-      }
-      break;
-    }
-    case FLOOR_W_S:  // Round double to word towards negative infinity.
-    {
-      float rounded = std::floor(fs);
-      int32_t result = static_cast<int32_t>(rounded);
-      set_fpu_register_word(fd_reg, result);
-      if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg, kFPUInvalidResult);
-      }
-    } break;
-    case FLOOR_L_S: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      float rounded = std::floor(fs);
-      int64_t i64 = static_cast<int64_t>(rounded);
-      if (IsFp64Mode()) {
-        set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
-      } else {
-        UNSUPPORTED();
-      }
-      break;
-    }
-    case ROUND_W_S: {
-      float rounded = std::floor(fs + 0.5);
-      int32_t result = static_cast<int32_t>(rounded);
-      if ((result & 1) != 0 && result - fs == 0.5) {
-        // If the number is halfway between two integers,
-        // round to the even one.
-        result--;
-      }
-      set_fpu_register_word(fd_reg, result);
-      if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg, kFPUInvalidResult);
-      }
-      break;
-    }
-    case ROUND_L_S: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      float rounded = std::floor(fs + 0.5);
-      int64_t result = static_cast<int64_t>(rounded);
-      if ((result & 1) != 0 && result - fs == 0.5) {
-        // If the number is halfway between two integers,
-        // round to the even one.
-        result--;
-      }
-      int64_t i64 = static_cast<int64_t>(result);
-      if (IsFp64Mode()) {
-        set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
-      } else {
-        UNSUPPORTED();
-      }
-      break;
-    }
-    case CEIL_W_S:  // Round double to word towards positive infinity.
-    {
-      float rounded = std::ceil(fs);
-      int32_t result = static_cast<int32_t>(rounded);
-      set_fpu_register_word(fd_reg, result);
-      if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg, kFPUInvalidResult);
-      }
-    } break;
-    case CEIL_L_S: {  // Mips32r2 instruction.
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      float rounded = std::ceil(fs);
-      int64_t i64 = static_cast<int64_t>(rounded);
-      if (IsFp64Mode()) {
-        set_fpu_register(fd_reg, i64);
-        if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg, kFPU64InvalidResult);
-        }
-      } else {
-        UNSUPPORTED();
-      }
-      break;
-    }
-    case MIN:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      fs = get_fpu_register_float(fs_reg);
-      if (std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else if (std::isnan(fs) && !std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, ft);
-      } else if (!std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else {
-        set_fpu_register_float(fd_reg, (fs >= ft) ? ft : fs);
-      }
-      break;
-    case MAX:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      fs = get_fpu_register_float(fs_reg);
-      if (std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else if (std::isnan(fs) && !std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, ft);
-      } else if (!std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else {
-        set_fpu_register_float(fd_reg, (fs <= ft) ? ft : fs);
-      }
-      break;
-    case MINA:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      fs = get_fpu_register_float(fs_reg);
-      if (std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else if (std::isnan(fs) && !std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, ft);
-      } else if (!std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else {
-        float result;
-        if (fabs(fs) > fabs(ft)) {
-          result = ft;
-        } else if (fabs(fs) < fabs(ft)) {
-          result = fs;
-        } else {
-          result = (fs > ft ? fs : ft);
-        }
-        set_fpu_register_float(fd_reg, result);
-      }
-      break;
-    case MAXA:
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      fs = get_fpu_register_float(fs_reg);
-      if (std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else if (std::isnan(fs) && !std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, ft);
-      } else if (!std::isnan(fs) && std::isnan(ft)) {
-        set_fpu_register_float(fd_reg, fs);
-      } else {
-        float result;
-        if (fabs(fs) < fabs(ft)) {
-          result = ft;
-        } else if (fabs(fs) > fabs(ft)) {
-          result = fs;
-        } else {
-          result = (fs > ft ? fs : ft);
-        }
-        set_fpu_register_float(fd_reg, result);
-      }
+      set_fpu_register_double(
+          fd_reg, (ft_int & 0x1) != 0 ? get_fpu_register_double(fs_reg) : 0.0);
       break;
     default:
-      // CVT_W_S CVT_L_S  ROUND_W_S ROUND_L_S FLOOR_W_S FLOOR_L_S
+      // CVT_W_S CVT_L_S TRUNC_W_S ROUND_W_S ROUND_L_S FLOOR_W_S FLOOR_L_S
       // CEIL_W_S CEIL_L_S CVT_PS_S are unimplemented.
       UNREACHABLE();
   }
