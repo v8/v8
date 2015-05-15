@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
@@ -912,11 +913,9 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   bool success = false;
   JSRegExp::Flags flags = RegExpFlagsFromString(flags_string, &success);
   if (!success) {
-    Handle<FixedArray> element = factory->NewFixedArray(1);
-    element->set(0, *flags_string);
-    Handle<JSArray> args = factory->NewJSArrayWithElements(element);
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewSyntaxError("invalid_regexp_flags", args));
+        isolate,
+        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
 
   Handle<String> escaped_source;

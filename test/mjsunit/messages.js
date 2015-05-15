@@ -353,15 +353,47 @@ test(function() {
 }, "Reflect.construct: Arguments list has wrong type", TypeError);
 
 
-//=== SyntaxError ===
+// === SyntaxError ===
 
+// kInvalidRegExpFlags
+test(function() {
+  /a/x.test("a");
+}, "Invalid flags supplied to RegExp constructor 'x'", SyntaxError);
+
+// kMalformedRegExp
+test(function() {
+  /(/.test("a");
+}, "Invalid regular expression: /(/: Unterminated group", SyntaxError);
+
+// kParenthesisInArgString
 test(function() {
   new Function(")", "");
 }, "Function arg string contains parenthesis", SyntaxError);
 
+// kUnexpectedEOS
+test(function() {
+  JSON.parse("{")
+}, "Unexpected end of input", SyntaxError);
+
+// kUnexpectedToken
+test(function() {
+  JSON.parse("/")
+}, "Unexpected token /", SyntaxError);
+
+// kUnexpectedTokenNumber
+test(function() {
+  JSON.parse("{ 1")
+}, "Unexpected number", SyntaxError);
+
+// kUnexpectedTokenString
+test(function() {
+  JSON.parse('"""')
+}, "Unexpected string", SyntaxError);
+
 
 // === ReferenceError ===
 
+// kNotDefined
 test(function() {
   "use strict";
   o;

@@ -744,16 +744,9 @@ static inline AccessCheckInfo* GetAccessCheckInfo(Isolate* isolate,
 }
 
 
-static void ThrowAccessCheckError(Isolate* isolate) {
-  Handle<String> message =
-      isolate->factory()->InternalizeUtf8String("no access");
-  isolate->ScheduleThrow(*isolate->factory()->NewTypeError(message));
-}
-
-
 void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
-    return ThrowAccessCheckError(this);
+    return ScheduleThrow(*factory()->NewTypeError(MessageTemplate::kNoAccess));
   }
 
   DCHECK(receiver->IsAccessCheckNeeded());
@@ -766,7 +759,8 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
     AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
     if (!access_check_info) {
       AllowHeapAllocation doesnt_matter_anymore;
-      return ThrowAccessCheckError(this);
+      return ScheduleThrow(
+          *factory()->NewTypeError(MessageTemplate::kNoAccess));
     }
     data = handle(access_check_info->data(), this);
   }

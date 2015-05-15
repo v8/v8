@@ -52,9 +52,7 @@ function WeakMapSet(key, value) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'WeakMap.prototype.set', this);
   }
-  if (!IS_SPEC_OBJECT(key)) {
-    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
-  }
+  if (!IS_SPEC_OBJECT(key)) throw MakeTypeError(kInvalidWeakMapKey);
   return %WeakCollectionSet(this, key, value);
 }
 
@@ -124,9 +122,7 @@ function WeakSetAdd(value) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'WeakSet.prototype.add', this);
   }
-  if (!IS_SPEC_OBJECT(value)) {
-    throw %MakeTypeError('invalid_weakset_value', [this, value]);
-  }
+  if (!IS_SPEC_OBJECT(value)) throw MakeTypeError(kInvalidWeakSetValue);
   return %WeakCollectionSet(this, value, true);
 }
 

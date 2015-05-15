@@ -62,7 +62,7 @@ function SymbolFor(key) {
 
 
 function SymbolKeyFor(symbol) {
-  if (!IS_SYMBOL(symbol)) throw MakeTypeError("not_a_symbol", [symbol]);
+  if (!IS_SYMBOL(symbol)) throw MakeTypeError(kSymbolKeyFor, symbol);
   return %SymbolRegistry().keyFor[symbol];
 }
 

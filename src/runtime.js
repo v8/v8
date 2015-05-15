@@ -210,7 +210,7 @@ COMPARE_STRONG = function COMPARE_STRONG(x, ncr) {
   if (IS_STRING(this) && IS_STRING(x)) return %_StringCompare(this, x);
   if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberCompare(this, x, ncr);
 
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitCast);
 }
 
 

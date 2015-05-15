@@ -170,6 +170,7 @@ class CallSite {
   T(MethodInvokedOnNullOrUndefined,                                            \
     "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
+  T(NoAccess, "no access")                                                     \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectPropertyLoad, "Cannot read property '%' of %")                    \
   T(NonObjectPropertyStore, "Cannot set property '%' of %")                    \
@@ -228,6 +229,8 @@ class CallSite {
   T(RedefineExternalArray,                                                     \
     "Cannot redefine a property of an object with external array elements")    \
   T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
+  T(RegExpFlags,                                                               \
+    "Cannot supply flags when constructing one RegExp from another")           \
   T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
   T(ResolvedOptionsCalledOnNonObject,                                          \
     "resolvedOptions method called on a non-object or on a object that is "    \
@@ -246,6 +249,7 @@ class CallSite {
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
   T(StrongImplicitCast, "In strong mode, implicit conversions are deprecated") \
+  T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToPrimitive,                                                         \
     "Cannot convert a Symbol wrapper object to a primitive value")             \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
@@ -275,6 +279,8 @@ class CallSite {
   T(InvalidDataViewLength, "Invalid data view length")                         \
   T(InvalidDataViewOffset, "Start offset is outside the bounds of the buffer") \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
+  T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
+  T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
   T(InvalidStringLength, "Invalid string length")                              \
   T(InvalidTimeValue, "Invalid time value")                                    \
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
@@ -292,7 +298,13 @@ class CallSite {
   T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
+  T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
+  T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
+  T(UnexpectedEOS, "Unexpected end of input")                                  \
+  T(UnexpectedToken, "Unexpected token %")                                     \
+  T(UnexpectedTokenNumber, "Unexpected number")                                \
+  T(UnexpectedTokenString, "Unexpected string")                                \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \

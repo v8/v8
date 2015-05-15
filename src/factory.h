@@ -540,26 +540,12 @@ class Factory final {
   Handle<Object> NewError(const char* maker, const char* message,
                           Handle<JSArray> args);
   Handle<String> EmergencyNewError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewError(const char* maker, const char* message,
-                          Vector<Handle<Object> > args);
-  Handle<Object> NewError(const char* message, Vector<Handle<Object> > args);
 
-  Handle<Object> NewError(Handle<String> message);
   Handle<Object> NewError(const char* constructor, Handle<String> message);
-
-  Handle<Object> NewTypeError(Handle<String> message);
-
-  Handle<Object> NewRangeError(Handle<String> message);
 
   Handle<Object> NewInvalidStringLengthError() {
     return NewRangeError(MessageTemplate::kInvalidStringLength);
   }
-
-  Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewSyntaxError(Handle<String> message);
-
-  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewReferenceError(Handle<String> message);
 
   Handle<Object> NewError(const char* maker,
                           MessageTemplate::Template template_index,
@@ -575,6 +561,11 @@ class Factory final {
                               Handle<Object> arg0 = Handle<Object>(),
                               Handle<Object> arg1 = Handle<Object>(),
                               Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewSyntaxError(MessageTemplate::Template template_index,
+                                Handle<Object> arg0 = Handle<Object>(),
+                                Handle<Object> arg1 = Handle<Object>(),
+                                Handle<Object> arg2 = Handle<Object>());
 
   Handle<Object> NewReferenceError(MessageTemplate::Template template_index,
                                    Handle<Object> arg0 = Handle<Object>(),

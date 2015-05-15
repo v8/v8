@@ -48,9 +48,7 @@ $regexpLastMatchInfoOverride = null;
 function DoConstructRegExp(object, pattern, flags) {
   // RegExp : Called as constructor; see ECMA-262, section 15.10.4.
   if (IS_REGEXP(pattern)) {
-    if (!IS_UNDEFINED(flags)) {
-      throw MakeTypeError('regexp_flags', []);
-    }
+    if (!IS_UNDEFINED(flags)) throw MakeTypeError(kRegExpFlags);
     flags = (pattern.global ? 'g' : '')
         + (pattern.ignoreCase ? 'i' : '')
         + (pattern.multiline ? 'm' : '');

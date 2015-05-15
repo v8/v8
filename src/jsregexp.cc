@@ -12,6 +12,7 @@
 #include "src/factory.h"
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
+#include "src/messages.h"
 #include "src/ostreams.h"
 #include "src/parser.h"
 #include "src/regexp-macro-assembler.h"
@@ -62,18 +63,17 @@ MaybeHandle<Object> RegExpImpl::CreateRegExpLiteral(
 
 MUST_USE_RESULT
 static inline MaybeHandle<Object> ThrowRegExpException(
-    Handle<JSRegExp> re,
-    Handle<String> pattern,
-    Handle<String> error_text,
-    const char* message) {
+    Handle<JSRegExp> re, Handle<String> pattern, Handle<String> error_text) {
   Isolate* isolate = re->GetIsolate();
-  Factory* factory = isolate->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(2);
-  elements->set(0, *pattern);
-  elements->set(1, *error_text);
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> regexp_err;
-  THROW_NEW_ERROR(isolate, NewSyntaxError(message, array), Object);
+  THROW_NEW_ERROR(isolate, NewSyntaxError(MessageTemplate::kMalformedRegExp,
+                                          pattern, error_text),
+                  Object);
+}
+
+
+inline void ThrowRegExpException(Handle<JSRegExp> re,
+                                 Handle<String> error_text) {
+  USE(ThrowRegExpException(re, Handle<String>(re->Pattern()), error_text));
 }
 
 
@@ -159,10 +159,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                  flags.is_multiline(), flags.is_unicode(),
                                  &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
-    return ThrowRegExpException(re,
-                                pattern,
-                                parse_result.error,
-                                "malformed_regexp");
+    return ThrowRegExpException(re, pattern, parse_result.error);
   }
 
   bool has_been_compiled = false;
@@ -352,19 +349,6 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re,
 }
 
 
-static void CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
-                                            Handle<String> error_message,
-                                            Isolate* isolate) {
-  Factory* factory = isolate->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(2);
-  elements->set(0, re->Pattern());
-  elements->set(1, *error_message);
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> error = factory->NewSyntaxError("malformed_regexp", array);
-  isolate->Throw(*error);
-}
-
-
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  Handle<String> sample_subject,
                                  bool is_one_byte) {
@@ -391,7 +375,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
     Object* error_string = re->DataAt(JSRegExp::saved_code_index(is_one_byte));
     DCHECK(error_string->IsString());
     Handle<String> error_message(String::cast(error_string));
-    CreateRegExpErrorObjectAndThrow(re, error_message, isolate);
+    ThrowRegExpException(re, error_message);
     return false;
   }
 
@@ -405,10 +389,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  flags.is_unicode(), &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
-    USE(ThrowRegExpException(re,
-                             pattern,
-                             compile_data.error,
-                             "malformed_regexp"));
+    USE(ThrowRegExpException(re, pattern, compile_data.error));
     return false;
   }
   RegExpEngine::CompilationResult result = RegExpEngine::Compile(
@@ -419,7 +400,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
     // Unable to compile regexp.
     Handle<String> error_message = isolate->factory()->NewStringFromUtf8(
         CStrVector(result.error_message)).ToHandleChecked();
-    CreateRegExpErrorObjectAndThrow(re, error_message, isolate);
+    ThrowRegExpException(re, error_message);
     return false;
   }
 

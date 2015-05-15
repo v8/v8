@@ -1076,52 +1076,6 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
-Handle<Object> Factory::NewTypeError(Handle<String> message) {
-  return NewError("$TypeError", message);
-}
-
-
-Handle<Object> Factory::NewRangeError(Handle<String> message) {
-  return NewError("$RangeError", message);
-}
-
-
-Handle<Object> Factory::NewSyntaxError(const char* message,
-                                       Handle<JSArray> args) {
-  return NewError("MakeSyntaxError", message, args);
-}
-
-
-Handle<Object> Factory::NewSyntaxError(Handle<String> message) {
-  return NewError("$SyntaxError", message);
-}
-
-
-Handle<Object> Factory::NewReferenceError(const char* message,
-                                          Handle<JSArray> args) {
-  return NewError("MakeReferenceError", message, args);
-}
-
-
-Handle<Object> Factory::NewReferenceError(Handle<String> message) {
-  return NewError("$ReferenceError", message);
-}
-
-
-Handle<Object> Factory::NewError(const char* maker, const char* message,
-                                 Vector<Handle<Object> > args) {
-  // Instantiate a closeable HandleScope for EscapeFrom.
-  v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
-  Handle<FixedArray> array = NewFixedArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
-    array->set(i, *args[i]);
-  }
-  Handle<JSArray> object = NewJSArrayWithElements(array);
-  Handle<Object> result = NewError(maker, message, object);
-  return result.EscapeFrom(&scope);
-}
-
-
 Handle<Object> Factory::NewError(const char* maker,
                                  MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,
@@ -1166,6 +1120,13 @@ Handle<Object> Factory::NewTypeError(MessageTemplate::Template template_index,
                                      Handle<Object> arg0, Handle<Object> arg1,
                                      Handle<Object> arg2) {
   return NewError("MakeTypeError", template_index, arg0, arg1, arg2);
+}
+
+
+Handle<Object> Factory::NewSyntaxError(MessageTemplate::Template template_index,
+                                       Handle<Object> arg0, Handle<Object> arg1,
+                                       Handle<Object> arg2) {
+  return NewError("MakeSyntaxError", template_index, arg0, arg1, arg2);
 }
 
 
@@ -1254,11 +1215,6 @@ Handle<Object> Factory::NewError(const char* maker, const char* message,
     return undefined_value();
   }
   return result;
-}
-
-
-Handle<Object> Factory::NewError(Handle<String> message) {
-  return NewError("$Error", message);
 }
 
 

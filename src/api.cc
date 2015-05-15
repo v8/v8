@@ -7221,19 +7221,19 @@ String::Value::~Value() {
 }
 
 
-#define DEFINE_ERROR(NAME)                                                    \
-  Local<Value> Exception::NAME(v8::Handle<v8::String> raw_message) {          \
-    i::Isolate* isolate = i::Isolate::Current();                              \
-    LOG_API(isolate, #NAME);                                                  \
-    ENTER_V8(isolate);                                                        \
-    i::Object* error;                                                         \
-    {                                                                         \
-      i::HandleScope scope(isolate);                                          \
-      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);         \
-      error = *isolate->factory()->New##NAME(message);                        \
-    }                                                                         \
-    i::Handle<i::Object> result(error, isolate);                              \
-    return Utils::ToLocal(result);                                            \
+#define DEFINE_ERROR(NAME)                                            \
+  Local<Value> Exception::NAME(v8::Handle<v8::String> raw_message) {  \
+    i::Isolate* isolate = i::Isolate::Current();                      \
+    LOG_API(isolate, #NAME);                                          \
+    ENTER_V8(isolate);                                                \
+    i::Object* error;                                                 \
+    {                                                                 \
+      i::HandleScope scope(isolate);                                  \
+      i::Handle<i::String> message = Utils::OpenHandle(*raw_message); \
+      error = *isolate->factory()->NewError("$" #NAME, message);      \
+    }                                                                 \
+    i::Handle<i::Object> result(error, isolate);                      \
+    return Utils::ToLocal(result);                                    \
   }
 
 DEFINE_ERROR(RangeError)

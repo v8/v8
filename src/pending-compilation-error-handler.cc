@@ -36,10 +36,10 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
 
   switch (error_type_) {
     case kReferenceError:
-      error = factory->NewReferenceError(message_, array);
+      error = factory->NewError("MakeReferenceError", message_, array);
       break;
     case kSyntaxError:
-      error = factory->NewSyntaxError(message_, array);
+      error = factory->NewError("MakeSyntaxError", message_, array);
       break;
   }
 
