@@ -278,7 +278,7 @@ void VisitAddSub(InstructionSelector* selector, Node* node, ArchOpcode opcode,
       g.CanBeImmediate(-m.right().Value(), kArithmeticImm)) {
     selector->Emit(negate_opcode, g.DefineAsRegister(node),
                    g.UseRegister(m.left().node()),
-                   g.TempImmediate(-m.right().Value()));
+                   g.TempImmediate(static_cast<int32_t>(-m.right().Value())));
   } else {
     VisitBinop<Matcher>(selector, node, opcode, kArithmeticImm);
   }
@@ -595,7 +595,8 @@ void InstructionSelector::VisitWord64And(Node* node) {
 
         Emit(kArm64Ubfx, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()),
-             g.UseImmediate(mleft.right().node()), g.TempImmediate(mask_width));
+             g.UseImmediate(mleft.right().node()),
+             g.TempImmediate(static_cast<int32_t>(mask_width)));
         return;
       }
       // Other cases fall through to the normal And operation.
@@ -731,8 +732,9 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
       if ((mask_msb + mask_width + lsb) == 64) {
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros64(mask));
         Emit(kArm64Ubfx, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
-             g.TempImmediate(mask_width));
+             g.UseRegister(mleft.left().node()),
+             g.TempImmediate(static_cast<int32_t>(lsb)),
+             g.TempImmediate(static_cast<int32_t>(mask_width)));
         return;
       }
     }
@@ -1229,8 +1231,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
   if (descriptor->NeedsFrameState()) {
-    frame_state_descriptor =
-        GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
+    frame_state_descriptor = GetFrameStateDescriptor(
+        node->InputAt(static_cast<int>(descriptor->InputCount())));
   }
 
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
@@ -1242,8 +1244,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   InitializeCallBuffer(node, &buffer, true, false);
 
   // Push the arguments to the stack.
-  bool pushed_count_uneven = buffer.pushed_nodes.size() & 1;
-  int aligned_push_count = buffer.pushed_nodes.size();
+  int aligned_push_count = static_cast<int>(buffer.pushed_nodes.size());
+  bool pushed_count_uneven = aligned_push_count & 1;
   // TODO(dcarney): claim and poke probably take small immediates,
   //                loop here or whatever.
   // Bump the stack pointer(s).
@@ -1254,7 +1256,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   }
   // Move arguments to the stack.
   {
-    int slot = buffer.pushed_nodes.size() - 1;
+    int slot = aligned_push_count - 1;
     // Emit the uneven pushes.
     if (pushed_count_uneven) {
       Node* input = buffer.pushed_nodes[slot];
@@ -1344,8 +1346,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
   } else {
     FrameStateDescriptor* frame_state_descriptor = nullptr;
     if (descriptor->NeedsFrameState()) {
-      frame_state_descriptor =
-          GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
+      frame_state_descriptor = GetFrameStateDescriptor(
+          node->InputAt(static_cast<int>(descriptor->InputCount())));
     }
 
     CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
@@ -1357,8 +1359,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
     InitializeCallBuffer(node, &buffer, true, false);
 
     // Push the arguments to the stack.
-    bool pushed_count_uneven = buffer.pushed_nodes.size() & 1;
-    int aligned_push_count = buffer.pushed_nodes.size();
+    int aligned_push_count = static_cast<int>(buffer.pushed_nodes.size());
+    bool pushed_count_uneven = aligned_push_count & 1;
     // TODO(dcarney): claim and poke probably take small immediates,
     //                loop here or whatever.
     // Bump the stack pointer(s).
@@ -1369,7 +1371,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
     }
     // Move arguments to the stack.
     {
-      int slot = buffer.pushed_nodes.size() - 1;
+      int slot = aligned_push_count - 1;
       // Emit the uneven pushes.
       if (pushed_count_uneven) {
         Node* input = buffer.pushed_nodes[slot];

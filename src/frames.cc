@@ -1458,7 +1458,7 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
 // -------------------------------------------------------------------------
 
 
-int NumRegs(RegList reglist) { return base::bits::CountPopulation32(reglist); }
+int NumRegs(RegList reglist) { return base::bits::CountPopulation(reglist); }
 
 
 struct JSCallerSavedCodeData {

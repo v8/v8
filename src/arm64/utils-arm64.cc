@@ -74,7 +74,7 @@ int CountSetBits(uint64_t value, int width) {
   value = ((value >> 16) & 0x0000ffff0000ffff) + (value & 0x0000ffff0000ffff);
   value = ((value >> 32) & 0x00000000ffffffff) + (value & 0x00000000ffffffff);
 
-  return value;
+  return static_cast<int>(value);
 }
 
 

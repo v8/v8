@@ -47,7 +47,7 @@ Node* BuildConstant(InstructionSelectorTest::StreamBuilder& m, MachineType type,
                     int64_t value) {
   switch (type) {
     case kMachInt32:
-      return m.Int32Constant(value);
+      return m.Int32Constant(static_cast<int32_t>(value));
       break;
 
     case kMachInt64:

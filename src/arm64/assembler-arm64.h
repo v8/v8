@@ -764,7 +764,7 @@ class ConstPool {
         shared_entries_count(0) {}
   void RecordEntry(intptr_t data, RelocInfo::Mode mode);
   int EntryCount() const {
-    return shared_entries_count + unique_entries_.size();
+    return shared_entries_count + static_cast<int>(unique_entries_.size());
   }
   bool IsEmpty() const {
     return shared_entries_.empty() && unique_entries_.empty();
@@ -951,7 +951,7 @@ class Assembler : public AssemblerBase {
 
   // Return the number of instructions generated from label to the
   // current position.
-  int InstructionsGeneratedSince(const Label* label) {
+  uint64_t InstructionsGeneratedSince(const Label* label) {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
@@ -1774,7 +1774,7 @@ class Assembler : public AssemblerBase {
 
   Instruction* pc() const { return Instruction::Cast(pc_); }
 
-  Instruction* InstructionAt(int offset) const {
+  Instruction* InstructionAt(ptrdiff_t offset) const {
     return reinterpret_cast<Instruction*>(buffer_ + offset);
   }
 
@@ -1841,7 +1841,7 @@ class Assembler : public AssemblerBase {
 
   // Data Processing encoding.
   inline static Instr SF(Register rd);
-  inline static Instr ImmAddSub(int64_t imm);
+  inline static Instr ImmAddSub(int imm);
   inline static Instr ImmS(unsigned imms, unsigned reg_size);
   inline static Instr ImmR(unsigned immr, unsigned reg_size);
   inline static Instr ImmSetBits(unsigned imms, unsigned reg_size);
@@ -1876,10 +1876,11 @@ class Assembler : public AssemblerBase {
 
   static bool IsImmLSUnscaled(int64_t offset);
   static bool IsImmLSScaled(int64_t offset, LSDataSize size);
+  static bool IsImmLLiteral(int64_t offset);
 
   // Move immediates encoding.
-  inline static Instr ImmMoveWide(uint64_t imm);
-  inline static Instr ShiftMoveWide(int64_t shift);
+  inline static Instr ImmMoveWide(int imm);
+  inline static Instr ShiftMoveWide(int shift);
 
   // FP Immediates.
   static Instr ImmFP32(float imm);

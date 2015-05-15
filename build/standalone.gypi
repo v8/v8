@@ -390,9 +390,7 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          # TODO(arm64): It'd be nice to enable this for arm64 as well,
-          # but the Assembler requires some serious fixing first.
-          [ 'clang==1 and v8_target_arch=="x64"', {
+          [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64")', {
             'cflags': [ '-Wshorten-64-to-32' ],
           }],
           [ 'host_arch=="ppc64" and OS!="aix"', {

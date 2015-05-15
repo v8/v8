@@ -44,6 +44,17 @@ inline unsigned CountPopulation64(uint64_t value) {
 }
 
 
+// Overloaded versions of CountPopulation32/64.
+inline unsigned CountPopulation(uint32_t value) {
+  return CountPopulation32(value);
+}
+
+
+inline unsigned CountPopulation(uint64_t value) {
+  return CountPopulation64(value);
+}
+
+
 // CountLeadingZeros32(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns 32.
 inline unsigned CountLeadingZeros32(uint32_t value) {

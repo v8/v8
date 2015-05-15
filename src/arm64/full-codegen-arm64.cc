@@ -230,8 +230,8 @@ void FullCodeGenerator::Generate() {
 
         // Update the write barrier.
         if (need_write_barrier) {
-          __ RecordWriteContextSlot(
-              cp, target.offset(), x10, x11, kLRHasBeenSaved, kDontSaveFPRegs);
+          __ RecordWriteContextSlot(cp, static_cast<int>(target.offset()), x10,
+                                    x11, kLRHasBeenSaved, kDontSaveFPRegs);
         } else if (FLAG_debug_code) {
           Label done;
           __ JumpIfInNewSpace(cp, &done);
@@ -404,7 +404,8 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   // we add kCodeSizeMultiplier/2 to the distance (equivalent to adding 0.5 to
   // the result).
   int distance =
-    masm_->SizeOfCodeGeneratedSince(back_edge_target) + kCodeSizeMultiplier / 2;
+      static_cast<int>(masm_->SizeOfCodeGeneratedSince(back_edge_target) +
+                       kCodeSizeMultiplier / 2);
   int weight = Min(kMaxBackEdgeWeight,
                    Max(1, distance / kCodeSizeMultiplier));
   EmitProfilingCounterDecrement(weight);
@@ -790,12 +791,8 @@ void FullCodeGenerator::SetVar(Variable* var,
   // Emit the write barrier code if the location is in the heap.
   if (var->IsContextSlot()) {
     // scratch0 contains the correct context.
-    __ RecordWriteContextSlot(scratch0,
-                              location.offset(),
-                              src,
-                              scratch1,
-                              kLRHasBeenSaved,
-                              kDontSaveFPRegs);
+    __ RecordWriteContextSlot(scratch0, static_cast<int>(location.offset()),
+                              src, scratch1, kLRHasBeenSaved, kDontSaveFPRegs);
   }
 }
 

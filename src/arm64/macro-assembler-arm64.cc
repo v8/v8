@@ -926,8 +926,8 @@ void MacroAssembler::PushPopQueue::PushQueued(
     masm_->PushPreamble(size_);
   }
 
-  int count = queued_.size();
-  int index = 0;
+  size_t count = queued_.size();
+  size_t index = 0;
   while (index < count) {
     // PushHelper can only handle registers with the same size and type, and it
     // can handle only four at a time. Batch them up accordingly.
@@ -949,8 +949,8 @@ void MacroAssembler::PushPopQueue::PushQueued(
 void MacroAssembler::PushPopQueue::PopQueued() {
   if (queued_.empty()) return;
 
-  int count = queued_.size();
-  int index = 0;
+  size_t count = queued_.size();
+  size_t index = 0;
   while (index < count) {
     // PopHelper can only handle registers with the same size and type, and it
     // can handle only four at a time. Batch them up accordingly.
@@ -1263,7 +1263,7 @@ void MacroAssembler::PushCalleeSavedRegisters() {
   // system stack pointer (csp).
   DCHECK(csp.Is(StackPointer()));
 
-  MemOperand tos(csp, -2 * kXRegSize, PreIndex);
+  MemOperand tos(csp, -2 * static_cast<int>(kXRegSize), PreIndex);
 
   stp(d14, d15, tos);
   stp(d12, d13, tos);
@@ -4693,7 +4693,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
 
   // Check that the function's map is the same as the expected cached map.
   Ldr(scratch1, ContextMemOperand(scratch1, Context::JS_ARRAY_MAPS_INDEX));
-  size_t offset = (expected_kind * kPointerSize) + FixedArrayBase::kHeaderSize;
+  int offset = (expected_kind * kPointerSize) + FixedArrayBase::kHeaderSize;
   Ldr(scratch2, FieldMemOperand(scratch1, offset));
   Cmp(map_in_out, scratch2);
   B(ne, no_map_match);
@@ -5115,7 +5115,8 @@ void InlineSmiCheckInfo::Emit(MacroAssembler* masm, const Register& reg,
     // 'check' in the other bits. The possible offset is limited in that we
     // use BitField to pack the data, and the underlying data type is a
     // uint32_t.
-    uint32_t delta = __ InstructionsGeneratedSince(smi_check);
+    uint32_t delta =
+        static_cast<uint32_t>(__ InstructionsGeneratedSince(smi_check));
     __ InlineData(RegisterBits::encode(reg.code()) | DeltaBits::encode(delta));
   } else {
     DCHECK(!smi_check->is_bound());
@@ -5136,9 +5137,10 @@ InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
     // 32-bit values.
     DCHECK(is_uint32(payload));
     if (payload != 0) {
-      int reg_code = RegisterBits::decode(payload);
+      uint32_t payload32 = static_cast<uint32_t>(payload);
+      int reg_code = RegisterBits::decode(payload32);
       reg_ = Register::XRegFromCode(reg_code);
-      uint64_t smi_check_delta = DeltaBits::decode(payload);
+      int smi_check_delta = DeltaBits::decode(payload32);
       DCHECK(smi_check_delta != 0);
       smi_check_ = inline_data->preceding(smi_check_delta);
     }

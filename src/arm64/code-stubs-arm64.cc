@@ -5442,7 +5442,7 @@ static const int kCallApiFunctionSpillSpace = 4;
 
 
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
-  return ref0.address() - ref1.address();
+  return static_cast<int>(ref0.address() - ref1.address());
 }
 
 

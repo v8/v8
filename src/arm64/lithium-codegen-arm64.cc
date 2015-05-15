@@ -743,8 +743,9 @@ bool LCodeGen::GeneratePrologue() {
         __ Str(value, target);
         // Update the write barrier. This clobbers value and scratch.
         if (need_write_barrier) {
-          __ RecordWriteContextSlot(cp, target.offset(), value, scratch,
-                                    GetLinkRegisterState(), kSaveFPRegs);
+          __ RecordWriteContextSlot(cp, static_cast<int>(target.offset()),
+                                    value, scratch, GetLinkRegisterState(),
+                                    kSaveFPRegs);
         } else if (FLAG_debug_code) {
           Label done;
           __ JumpIfInNewSpace(cp, &done);
@@ -5138,14 +5139,9 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
     SmiCheck check_needed =
         instr->hydrogen()->value()->type().IsHeapObject()
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-    __ RecordWriteContextSlot(context,
-                              target.offset(),
-                              value,
-                              scratch,
-                              GetLinkRegisterState(),
-                              kSaveFPRegs,
-                              EMIT_REMEMBERED_SET,
-                              check_needed);
+    __ RecordWriteContextSlot(context, static_cast<int>(target.offset()), value,
+                              scratch, GetLinkRegisterState(), kSaveFPRegs,
+                              EMIT_REMEMBERED_SET, check_needed);
   }
   __ Bind(&skip_assignment);
 }
