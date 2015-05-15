@@ -26,16 +26,6 @@ var Intl = {};
 
 %AddNamedProperty(global, "Intl", Intl, DONT_ENUM);
 
-var AVAILABLE_SERVICES = ['collator',
-                          'numberformat',
-                          'dateformat',
-                          'breakiterator'];
-
-var NORMALIZATION_FORMS = ['NFC',
-                           'NFD',
-                           'NFKC',
-                           'NFKD'];
-
 /**
  * Caches available locales for each service.
  */
@@ -149,69 +139,6 @@ function GetTimezoneNameCheckRE() {
   }
   return TIMEZONE_NAME_CHECK_RE;
 }
-
-/**
- * Maps ICU calendar names into LDML type.
- */
-var ICU_CALENDAR_MAP = {
-  'gregorian': 'gregory',
-  'japanese': 'japanese',
-  'buddhist': 'buddhist',
-  'roc': 'roc',
-  'persian': 'persian',
-  'islamic-civil': 'islamicc',
-  'islamic': 'islamic',
-  'hebrew': 'hebrew',
-  'chinese': 'chinese',
-  'indian': 'indian',
-  'coptic': 'coptic',
-  'ethiopic': 'ethiopic',
-  'ethiopic-amete-alem': 'ethioaa'
-};
-
-/**
- * Map of Unicode extensions to option properties, and their values and types,
- * for a collator.
- */
-var COLLATOR_KEY_MAP = {
-  'kn': {'property': 'numeric', 'type': 'boolean'},
-  'kf': {'property': 'caseFirst', 'type': 'string',
-         'values': ['false', 'lower', 'upper']}
-};
-
-/**
- * Map of Unicode extensions to option properties, and their values and types,
- * for a number format.
- */
-var NUMBER_FORMAT_KEY_MAP = {
-  'nu': {'property': undefined, 'type': 'string'}
-};
-
-/**
- * Map of Unicode extensions to option properties, and their values and types,
- * for a date/time format.
- */
-var DATETIME_FORMAT_KEY_MAP = {
-  'ca': {'property': undefined, 'type': 'string'},
-  'nu': {'property': undefined, 'type': 'string'}
-};
-
-/**
- * Allowed -u-co- values. List taken from:
- * http://unicode.org/repos/cldr/trunk/common/bcp47/collation.xml
- */
-var ALLOWED_CO_VALUES = [
-  'big5han', 'dict', 'direct', 'ducet', 'gb2312', 'phonebk', 'phonetic',
-  'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
-];
-
-/**
- * Error message for when function object is created with new and it's not
- * a constructor.
- */
-var ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR =
-  'Function object that\'s not a constructor was created with new';
-
 
 /**
  * Adds bound method to the prototype of the given object.
@@ -894,12 +821,33 @@ function initializeCollator(collator, locales, options) {
   // One exception is -co- which has to be part of the extension, but only for
   // usage: sort, and its value can't be 'standard' or 'search'.
   var extensionMap = parseExtension(locale.extension);
+
+  /**
+   * Map of Unicode extensions to option properties, and their values and types,
+   * for a collator.
+   */
+  var COLLATOR_KEY_MAP = {
+    'kn': {'property': 'numeric', 'type': 'boolean'},
+    'kf': {'property': 'caseFirst', 'type': 'string',
+           'values': ['false', 'lower', 'upper']}
+  };
+
   setOptions(
       options, extensionMap, COLLATOR_KEY_MAP, getOption, internalOptions);
 
   var collation = 'default';
   var extension = '';
   if (extensionMap.hasOwnProperty('co') && internalOptions.usage === 'sort') {
+
+    /**
+     * Allowed -u-co- values. List taken from:
+     * http://unicode.org/repos/cldr/trunk/common/bcp47/collation.xml
+     */
+    var ALLOWED_CO_VALUES = [
+      'big5han', 'dict', 'direct', 'ducet', 'gb2312', 'phonebk', 'phonetic',
+      'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
+    ];
+
     if (ALLOWED_CO_VALUES.indexOf(extensionMap.co) !== -1) {
       extension = '-u-co-' + extensionMap.co;
       // ICU can't tell us what the collation is, so save user's input.
@@ -1126,6 +1074,15 @@ function initializeNumberFormat(numberFormat, locales, options) {
   // ICU prefers options to be passed using -u- extension key/values for
   // number format, so we need to build that.
   var extensionMap = parseExtension(locale.extension);
+
+  /**
+   * Map of Unicode extensions to option properties, and their values and types,
+   * for a number format.
+   */
+  var NUMBER_FORMAT_KEY_MAP = {
+    'nu': {'property': undefined, 'type': 'string'}
+  };
+
   var extension = setOptions(options, extensionMap, NUMBER_FORMAT_KEY_MAP,
                              getOption, internalOptions);
 
@@ -1520,6 +1477,16 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   // we need to build that.
   var internalOptions = {};
   var extensionMap = parseExtension(locale.extension);
+
+  /**
+   * Map of Unicode extensions to option properties, and their values and types,
+   * for a date/time format.
+   */
+  var DATETIME_FORMAT_KEY_MAP = {
+    'ca': {'property': undefined, 'type': 'string'},
+    'nu': {'property': undefined, 'type': 'string'}
+  };
+
   var extension = setOptions(options, extensionMap, DATETIME_FORMAT_KEY_MAP,
                              getOption, internalOptions);
 
@@ -1590,6 +1557,25 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
       throw MakeTypeError(kResolvedOptionsCalledOnNonObject, "DateTimeFormat");
     }
+
+    /**
+     * Maps ICU calendar names into LDML type.
+     */
+    var ICU_CALENDAR_MAP = {
+      'gregorian': 'gregory',
+      'japanese': 'japanese',
+      'buddhist': 'buddhist',
+      'roc': 'roc',
+      'persian': 'persian',
+      'islamic-civil': 'islamicc',
+      'islamic': 'islamic',
+      'hebrew': 'hebrew',
+      'chinese': 'chinese',
+      'indian': 'indian',
+      'coptic': 'coptic',
+      'ethiopic': 'ethiopic',
+      'ethiopic-amete-alem': 'ethioaa'
+    };
 
     var format = this;
     var fromPattern = fromLDMLString(format.resolved.pattern);
@@ -1952,6 +1938,8 @@ $overrideFunction(GlobalString.prototype, 'normalize', function(that) {
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
     var form = GlobalString(%_Arguments(0) || 'NFC');
+
+    var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
     var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
     if (normalizationForm === -1) {

@@ -170,9 +170,6 @@ function StringMatchJS(regexp) {
 }
 
 
-var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-
-
 // ECMA-262 v6, section 21.1.3.12
 //
 // For now we do nothing, as proper normalization requires big tables.
@@ -182,6 +179,9 @@ function StringNormalizeJS(form) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
+
+  var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
+
   var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
   if (normalizationForm === -1) {
     throw MakeRangeError(kNormalizationForm, NORMALIZATION_FORMS.join(', '));
@@ -410,7 +410,7 @@ function CaptureString(string, lastCaptureInfo, index) {
 // TODO(lrn): This array will survive indefinitely if replace is never
 // called again. However, it will be empty, since the contents are cleared
 // in the finally block.
-var reusableReplaceArray = new InternalArray(16);
+var reusableReplaceArray = new InternalArray(4);
 
 // Helper function for replacing regular expressions with the result of a
 // function application in String.prototype.replace.
