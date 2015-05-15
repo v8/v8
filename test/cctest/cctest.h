@@ -504,8 +504,8 @@ static inline void ExpectUndefined(const char* code) {
 
 // Helper function that simulates a full new-space in the heap.
 static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
-  v8::internal::AllocationResult allocation =
-      space->AllocateRaw(v8::internal::Page::kMaxRegularHeapObjectSize);
+  v8::internal::AllocationResult allocation = space->AllocateRawUnaligned(
+      v8::internal::Page::kMaxRegularHeapObjectSize);
   if (allocation.IsRetry()) return false;
   v8::internal::HeapObject* free_space = NULL;
   CHECK(allocation.To(&free_space));
@@ -524,7 +524,7 @@ static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
   v8::internal::AllocationResult allocation =
-      space->AllocateRaw(new_linear_size);
+      space->AllocateRawUnaligned(new_linear_size);
   v8::internal::HeapObject* free_space = NULL;
   CHECK(allocation.To(&free_space));
   space->heap()->CreateFillerObjectAt(free_space->address(), new_linear_size);

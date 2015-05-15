@@ -3946,8 +3946,9 @@ TEST(Regress169928) {
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
   HeapObject* obj = NULL;
-  AllocationResult allocation = CcTest::heap()->new_space()->AllocateRaw(
-      AllocationMemento::kSize + kPointerSize);
+  AllocationResult allocation =
+      CcTest::heap()->new_space()->AllocateRawUnaligned(
+          AllocationMemento::kSize + kPointerSize);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj->address();
   CcTest::heap()->CreateFillerObjectAt(

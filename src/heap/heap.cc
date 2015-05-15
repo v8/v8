@@ -1036,9 +1036,9 @@ bool Heap::ReserveSpace(Reservation* reservations) {
           DCHECK_LE(size, MemoryAllocator::PageAreaSize(
                               static_cast<AllocationSpace>(space)));
           if (space == NEW_SPACE) {
-            allocation = new_space()->AllocateRaw(size);
+            allocation = new_space()->AllocateRawUnaligned(size);
           } else {
-            allocation = paged_space(space)->AllocateRaw(size);
+            allocation = paged_space(space)->AllocateRawUnaligned(size);
           }
           HeapObject* free_space;
           if (allocation.To(&free_space)) {
@@ -2146,17 +2146,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
 
     DCHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
-    AllocationResult allocation;
-#ifdef V8_HOST_ARCH_32_BIT
-    if (alignment == kDoubleAlignment) {
-      allocation =
-          heap->new_space()->AllocateRawAligned(object_size, kDoubleAligned);
-    } else {
-      allocation = heap->new_space()->AllocateRaw(object_size);
-    }
-#else
-    allocation = heap->new_space()->AllocateRaw(object_size);
-#endif
+    AllocationAlignment align =
+        alignment == kDoubleAlignment ? kDoubleAligned : kWordAligned;
+    AllocationResult allocation =
+        heap->new_space()->AllocateRaw(object_size, align);
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
@@ -2183,17 +2176,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    HeapObject* object, int object_size) {
     Heap* heap = map->GetHeap();
 
-    AllocationResult allocation;
-#ifdef V8_HOST_ARCH_32_BIT
-    if (alignment == kDoubleAlignment) {
-      allocation =
-          heap->old_space()->AllocateRawAligned(object_size, kDoubleAligned);
-    } else {
-      allocation = heap->old_space()->AllocateRaw(object_size);
-    }
-#else
-    allocation = heap->old_space()->AllocateRaw(object_size);
-#endif
+    AllocationAlignment align =
+        alignment == kDoubleAlignment ? kDoubleAligned : kWordAligned;
+    AllocationResult allocation =
+        heap->old_space()->AllocateRaw(object_size, align);
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {

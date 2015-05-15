@@ -1478,7 +1478,7 @@ AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes,
       return AllocateRawAligned(size_in_bytes, kDoubleAligned);
     else if (alignment == kDoubleUnaligned)
       return AllocateRawAligned(size_in_bytes, kDoubleUnaligned);
-    return AllocateRaw(size_in_bytes);
+    return AllocateRawUnaligned(size_in_bytes);
   } else if (AddFreshPage()) {
     // Switched to new page. Try allocating again.
     int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
@@ -1489,7 +1489,7 @@ AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes,
       return AllocateRawAligned(size_in_bytes, kDoubleAligned);
     else if (alignment == kDoubleUnaligned)
       return AllocateRawAligned(size_in_bytes, kDoubleUnaligned);
-    return AllocateRaw(size_in_bytes);
+    return AllocateRawUnaligned(size_in_bytes);
   } else {
     return AllocationResult::Retry();
   }

@@ -1941,16 +1941,10 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
         continue;
       }
 
-      AllocationResult allocation;
-#ifdef V8_HOST_ARCH_32_BIT
-      if (object->NeedsToEnsureDoubleAlignment()) {
-        allocation = new_space->AllocateRawAligned(size, kDoubleAligned);
-      } else {
-        allocation = new_space->AllocateRaw(size);
-      }
-#else
-      allocation = new_space->AllocateRaw(size);
-#endif
+      AllocationAlignment alignment = object->NeedsToEnsureDoubleAlignment()
+                                          ? kDoubleAligned
+                                          : kWordAligned;
+      AllocationResult allocation = new_space->AllocateRaw(size, alignment);
       if (allocation.IsRetry()) {
         if (!new_space->AddFreshPage()) {
           // Shouldn't happen. We are sweeping linearly, and to-space
@@ -1958,15 +1952,7 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
           // always room.
           UNREACHABLE();
         }
-#ifdef V8_HOST_ARCH_32_BIT
-        if (object->NeedsToEnsureDoubleAlignment()) {
-          allocation = new_space->AllocateRawAligned(size, kDoubleAligned);
-        } else {
-          allocation = new_space->AllocateRaw(size);
-        }
-#else
-        allocation = new_space->AllocateRaw(size);
-#endif
+        allocation = new_space->AllocateRaw(size, alignment);
         DCHECK(!allocation.IsRetry());
       }
       Object* target = allocation.ToObjectChecked();
@@ -3119,16 +3105,9 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   OldSpace* old_space = heap()->old_space();
 
   HeapObject* target;
-  AllocationResult allocation;
-#ifdef V8_HOST_ARCH_32_BIT
-  if (object->NeedsToEnsureDoubleAlignment()) {
-    allocation = old_space->AllocateRawAligned(object_size, kDoubleAligned);
-  } else {
-    allocation = old_space->AllocateRaw(object_size);
-  }
-#else
-  allocation = old_space->AllocateRaw(object_size);
-#endif
+  AllocationAlignment alignment =
+      object->NeedsToEnsureDoubleAlignment() ? kDoubleAligned : kWordAligned;
+  AllocationResult allocation = old_space->AllocateRaw(object_size, alignment);
   if (allocation.To(&target)) {
     MigrateObject(target, object, object_size, old_space->identity());
     heap()->IncrementPromotedObjectsSize(object_size);
@@ -3352,13 +3331,16 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       int size = object->Size();
 
+      AllocationAlignment alignment = object->NeedsToEnsureDoubleAlignment()
+                                          ? kDoubleAligned
+                                          : kWordAligned;
       HeapObject* target_object;
-      AllocationResult allocation = space->AllocateRaw(size);
+      AllocationResult allocation = space->AllocateRaw(size, alignment);
       if (!allocation.To(&target_object)) {
         // If allocation failed, use emergency memory and re-try allocation.
         CHECK(space->HasEmergencyMemory());
         space->UseEmergencyMemory();
-        allocation = space->AllocateRaw(size);
+        allocation = space->AllocateRaw(size, alignment);
       }
       if (!allocation.To(&target_object)) {
         // OS refused to give us memory.

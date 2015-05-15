@@ -358,8 +358,9 @@ TEST(NewSpace) {
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
-    Object* obj = new_space.AllocateRaw(
-        Page::kMaxRegularHeapObjectSize).ToObjectChecked();
+    Object* obj =
+        new_space.AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize)
+            .ToObjectChecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
 
@@ -384,7 +385,7 @@ TEST(OldSpace) {
   CHECK(s->SetUp());
 
   while (s->Available() > 0) {
-    s->AllocateRaw(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
+    s->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
   }
 
   s->TearDown();
@@ -485,7 +486,8 @@ UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
       // Try to allocate out of the new space. A new page should be added and
       // the
       // allocation should succeed.
-      v8::internal::AllocationResult allocation = new_space->AllocateRaw(80);
+      v8::internal::AllocationResult allocation =
+          new_space->AllocateRawUnaligned(80);
       CHECK(!allocation.IsRetry());
       CHECK(new_space->CommittedMemory() == 2 * Page::kPageSize);
 

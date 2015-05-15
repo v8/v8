@@ -277,7 +277,7 @@ HeapObject* PagedSpace::AllocateLinearlyAligned(int size_in_bytes,
 
 
 // Raw allocation.
-AllocationResult PagedSpace::AllocateRaw(int size_in_bytes) {
+AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
 
   if (object == NULL) {
@@ -325,6 +325,18 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 }
 
 
+AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
+                                         AllocationAlignment alignment) {
+#ifdef V8_HOST_ARCH_32_BIT
+  return alignment == kDoubleAligned
+             ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
+             : AllocateRawUnaligned(size_in_bytes);
+#else
+  return AllocateRawUnaligned(size_in_bytes);
+#endif
+}
+
+
 // -----------------------------------------------------------------------------
 // NewSpace
 
@@ -368,7 +380,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
 }
 
 
-AllocationResult NewSpace::AllocateRaw(int size_in_bytes) {
+AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes) {
   Address old_top = allocation_info_.top();
 
   if (allocation_info_.limit() - old_top < size_in_bytes) {
@@ -383,6 +395,18 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes) {
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
 
   return obj;
+}
+
+
+AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
+                                       AllocationAlignment alignment) {
+#ifdef V8_HOST_ARCH_32_BIT
+  return alignment == kDoubleAligned
+             ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
+             : AllocateRawUnaligned(size_in_bytes);
+#else
+  return AllocateRawUnaligned(size_in_bytes);
+#endif
 }
 
 

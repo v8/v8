@@ -173,15 +173,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   HeapObject* object;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
-#ifndef V8_HOST_ARCH_64_BIT
-    if (alignment == kWordAligned) {
-      allocation = new_space_.AllocateRaw(size_in_bytes);
-    } else {
-      allocation = new_space_.AllocateRawAligned(size_in_bytes, alignment);
-    }
-#else
-    allocation = new_space_.AllocateRaw(size_in_bytes);
-#endif
+    allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
     if (always_allocate() && allocation.IsRetry() && retry_space != NEW_SPACE) {
       space = retry_space;
     } else {
@@ -193,18 +185,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
 
   if (OLD_SPACE == space) {
-#ifndef V8_HOST_ARCH_64_BIT
-    if (alignment == kWordAligned) {
-      allocation = old_space_->AllocateRaw(size_in_bytes);
-    } else {
-      allocation = old_space_->AllocateRawAligned(size_in_bytes, alignment);
-    }
-#else
-    allocation = old_space_->AllocateRaw(size_in_bytes);
-#endif
+    allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
   } else if (CODE_SPACE == space) {
     if (size_in_bytes <= code_space()->AreaSize()) {
-      allocation = code_space_->AllocateRaw(size_in_bytes);
+      allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
       // Large code objects are allocated in large object space.
       allocation = lo_space_->AllocateRaw(size_in_bytes, EXECUTABLE);
@@ -213,7 +197,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else {
     DCHECK(MAP_SPACE == space);
-    allocation = map_space_->AllocateRaw(size_in_bytes);
+    allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   }
   if (allocation.To(&object)) {
     OnAllocationEvent(object, size_in_bytes);

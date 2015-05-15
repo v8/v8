@@ -1764,11 +1764,17 @@ class PagedSpace : public Space {
 
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
-  MUST_USE_RESULT inline AllocationResult AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
+      int size_in_bytes);
 
   // Allocate the requested number of bytes in the space double aligned if
   // possible, return a failure object if not.
   MUST_USE_RESULT inline AllocationResult AllocateRawAligned(
+      int size_in_bytes, AllocationAlignment alignment);
+
+  // Allocate the requested number of bytes in the space and consider allocation
+  // alignment if needed.
+  MUST_USE_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationAlignment alignment);
 
   // Give a block of memory to the space's free list.  It might be added to
@@ -2501,7 +2507,11 @@ class NewSpace : public Space {
   MUST_USE_RESULT INLINE(AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment));
 
-  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(int size_in_bytes));
+  MUST_USE_RESULT INLINE(
+      AllocationResult AllocateRawUnaligned(int size_in_bytes));
+
+  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(
+      int size_in_bytes, AllocationAlignment alignment));
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
