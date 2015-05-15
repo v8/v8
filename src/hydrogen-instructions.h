@@ -156,7 +156,6 @@ class LChunkBuilder;
   V(StringCharFromCode)                       \
   V(StringCompareAndBranch)                   \
   V(Sub)                                      \
-  V(TailCallThroughMegamorphicCache)          \
   V(ThisFunction)                             \
   V(ToFastProperties)                         \
   V(TransitionElementsKind)                   \
@@ -5353,44 +5352,6 @@ class HCallStub final : public HUnaryCall {
 };
 
 
-class HTailCallThroughMegamorphicCache final : public HInstruction {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HTailCallThroughMegamorphicCache,
-                                              HValue*, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  virtual int OperandCount() const final override { return 3; }
-  virtual HValue* OperandAt(int i) const final override { return inputs_[i]; }
-
-  HValue* context() const { return OperandAt(0); }
-  HValue* receiver() const { return OperandAt(1); }
-  HValue* name() const { return OperandAt(2); }
-  Code::Flags flags() const;
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache)
-
- protected:
-  virtual void InternalSetOperandAt(int i, HValue* value) final override {
-    inputs_[i] = value;
-  }
-
- private:
-  HTailCallThroughMegamorphicCache(HValue* context, HValue* receiver,
-                                   HValue* name) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, receiver);
-    SetOperandAt(2, name);
-  }
-
-  EmbeddedContainer<HValue*, 3> inputs_;
-};
-
-
 class HUnknownOSRValue final : public HTemplateInstruction<0> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(HUnknownOSRValue, HEnvironment*, int);
@@ -5440,10 +5401,9 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
-  bool HasVectorAndSlot() const { return FLAG_vector_ics; }
+  bool HasVectorAndSlot() const { return true; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
-    DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6448,10 +6408,9 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
-  bool HasVectorAndSlot() const { return FLAG_vector_ics; }
+  bool HasVectorAndSlot() const { return true; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
-    DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6731,13 +6690,11 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
     return feedback_vector_;
   }
   bool HasVectorAndSlot() const {
-    DCHECK(!FLAG_vector_ics || initialization_state_ == MEGAMORPHIC ||
-           !feedback_vector_.is_null());
+    DCHECK(initialization_state_ == MEGAMORPHIC || !feedback_vector_.is_null());
     return !feedback_vector_.is_null();
   }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorICSlot slot) {
-    DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
   }

@@ -1592,7 +1592,7 @@ class VariableProxy final : public Expression {
   void BindTo(Variable* var);
 
   bool UsesVariableFeedbackSlot() const {
-    return FLAG_vector_ics && (var()->IsUnallocated() || var()->IsLookupSlot());
+    return var()->IsUnallocated() || var()->IsLookupSlot();
   }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
@@ -1691,7 +1691,7 @@ class Property final : public Expression {
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
+    return FeedbackVectorRequirements(0, 1);
   }
   void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                               ICSlotCache* cache) override {
@@ -1702,7 +1702,7 @@ class Property final : public Expression {
   }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
-    DCHECK(!FLAG_vector_ics || !property_feedback_slot_.IsInvalid());
+    DCHECK(!property_feedback_slot_.IsInvalid());
     return property_feedback_slot_;
   }
 
@@ -1939,9 +1939,7 @@ class CallRuntime final : public Expression {
   bool is_jsruntime() const { return function_ == NULL; }
 
   // Type feedback information.
-  bool HasCallRuntimeFeedbackSlot() const {
-    return FLAG_vector_ics && is_jsruntime();
-  }
+  bool HasCallRuntimeFeedbackSlot() const { return is_jsruntime(); }
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate, const ICSlotCache* cache) override {
     return FeedbackVectorRequirements(0, HasCallRuntimeFeedbackSlot() ? 1 : 0);
@@ -2331,9 +2329,7 @@ class Yield final : public Expression {
   }
 
   // Type feedback information.
-  bool HasFeedbackSlots() const {
-    return FLAG_vector_ics && (yield_kind() == kDelegating);
-  }
+  bool HasFeedbackSlots() const { return yield_kind() == kDelegating; }
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate, const ICSlotCache* cache) override {
     return FeedbackVectorRequirements(0, HasFeedbackSlots() ? 3 : 0);
@@ -2691,7 +2687,7 @@ class SuperReference final : public Expression {
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(0, FLAG_vector_ics ? 1 : 0);
+    return FeedbackVectorRequirements(0, 1);
   }
   void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                               ICSlotCache* cache) override {
@@ -2700,7 +2696,7 @@ class SuperReference final : public Expression {
   Code::Kind FeedbackICSlotKind(int index) override { return Code::LOAD_IC; }
 
   FeedbackVectorICSlot HomeObjectFeedbackSlot() {
-    DCHECK(!FLAG_vector_ics || !homeobject_feedback_slot_.IsInvalid());
+    DCHECK(!homeobject_feedback_slot_.IsInvalid());
     return homeobject_feedback_slot_;
   }
 

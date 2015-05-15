@@ -32,8 +32,6 @@ class Callable final BASE_EMBEDDED {
 class CodeFactory final {
  public:
   // Initial states for ICs.
-  static Callable LoadGlobalIC(Isolate* isolate, Handle<GlobalObject> global,
-                               Handle<String> name);
   static Callable LoadIC(Isolate* isolate, ContextualMode mode);
   static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode,
                                         InlineCacheState initialization_state);

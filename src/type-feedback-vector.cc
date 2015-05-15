@@ -50,11 +50,6 @@ Code::Kind TypeFeedbackVector::FromVectorICKind(VectorICKind kind) {
 
 
 Code::Kind TypeFeedbackVector::GetKind(FeedbackVectorICSlot slot) const {
-  if (!FLAG_vector_ics) {
-    // We only have CALL_ICs
-    return Code::CALL_IC;
-  }
-
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
   VectorICKind b = VectorICComputer::decode(data, slot.ToInt());
@@ -63,11 +58,6 @@ Code::Kind TypeFeedbackVector::GetKind(FeedbackVectorICSlot slot) const {
 
 
 void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot, Code::Kind kind) {
-  if (!FLAG_vector_ics) {
-    // Nothing to do if we only have CALL_ICs
-    return;
-  }
-
   VectorICKind b = FromCodeKind(kind);
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
@@ -88,8 +78,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
                                                         const Spec* spec) {
   const int slot_count = spec->slots();
   const int ic_slot_count = spec->ic_slots();
-  const int index_count =
-      FLAG_vector_ics ? VectorICComputer::word_count(ic_slot_count) : 0;
+  const int index_count = VectorICComputer::word_count(ic_slot_count);
   const int length = slot_count + (ic_slot_count * elements_per_ic_slot()) +
                      index_count + kReservedIndexCount;
   if (length == kReservedIndexCount) {
@@ -119,10 +108,8 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
   }
 
   Handle<TypeFeedbackVector> vector = Handle<TypeFeedbackVector>::cast(array);
-  if (FLAG_vector_ics) {
-    for (int i = 0; i < ic_slot_count; i++) {
-      vector->SetKind(FeedbackVectorICSlot(i), spec->GetKind(i));
-    }
+  for (int i = 0; i < ic_slot_count; i++) {
+    vector->SetKind(FeedbackVectorICSlot(i), spec->GetKind(i));
   }
   return vector;
 }
@@ -140,8 +127,6 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 
 bool TypeFeedbackVector::SpecDiffersFrom(
     const ZoneFeedbackVectorSpec* other_spec) const {
-  if (!FLAG_vector_ics) return false;
-
   if (other_spec->slots() != Slots() || other_spec->ic_slots() != ICSlots()) {
     return true;
   }
@@ -312,8 +297,7 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
 InlineCacheState CallICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
-  DCHECK(!FLAG_vector_ics ||
-         GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate) ||
+  DCHECK(GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate) ||
          GetFeedbackExtra() == Smi::FromInt(kHasReturnedMinusZeroSentinel));
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {

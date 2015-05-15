@@ -1309,11 +1309,6 @@ static void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
-  KeyedLoadIC::GeneratePreMonomorphic(masm);
-}
-
-
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }

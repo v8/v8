@@ -3472,23 +3472,15 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
               CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, MONOMORPHIC);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_before->ic_state() == MONOMORPHIC);
-  }
+  CheckVectorIC(f, 0, MONOMORPHIC);
+  CHECK(ic_before->ic_state() == DEFAULT);
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, MONOMORPHIC);
-    CHECK(ic_after->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_after->ic_state() == MONOMORPHIC);
-  }
+  CheckVectorIC(f, 0, MONOMORPHIC);
+  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3512,12 +3504,8 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, MONOMORPHIC);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_before->ic_state() == MONOMORPHIC);
-  }
+  CheckVectorIC(f, 0, MONOMORPHIC);
+  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
@@ -3525,12 +3513,8 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorICCleared(f, 0);
-    CHECK(ic_after->ic_state() == DEFAULT);
-  } else {
-    CHECK(IC::IsCleared(ic_after));
-  }
+  CheckVectorICCleared(f, 0);
+  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3561,24 +3545,16 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, POLYMORPHIC);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_before->ic_state() == POLYMORPHIC);
-  }
+  CheckVectorIC(f, 0, POLYMORPHIC);
+  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, POLYMORPHIC);
-    CHECK(ic_after->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_after->ic_state() == POLYMORPHIC);
-  }
+  CheckVectorIC(f, 0, POLYMORPHIC);
+  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3609,25 +3585,16 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorIC(f, 0, POLYMORPHIC);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(ic_before->ic_state() == POLYMORPHIC);
-  }
+  CheckVectorIC(f, 0, POLYMORPHIC);
+  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  if (FLAG_vector_ics) {
-    CheckVectorICCleared(f, 0);
-    CHECK(ic_before->ic_state() == DEFAULT);
-  } else {
-    CHECK(IC::IsCleared(ic_after));
-  }
+  CheckVectorICCleared(f, 0);
+  CHECK(ic_before->ic_state() == DEFAULT);
 }
 
 
@@ -4730,9 +4697,8 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 void CheckIC(Code* code, Code::Kind kind, SharedFunctionInfo* shared,
              int ic_slot, InlineCacheState state) {
-  if (FLAG_vector_ics &&
-      (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-       kind == Code::CALL_IC)) {
+  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
+      kind == Code::CALL_IC) {
     TypeFeedbackVector* vector = shared->feedback_vector();
     FeedbackVectorICSlot slot(ic_slot);
     if (kind == Code::LOAD_IC) {

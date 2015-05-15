@@ -1489,8 +1489,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   // Ensure that the vector and slot registers won't be clobbered before
   // calling the miss handler.
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(r4, r5, VectorLoadICDescriptor::VectorRegister(),
+  DCHECK(!AreAliased(r4, r5, VectorLoadICDescriptor::VectorRegister(),
                      VectorLoadICDescriptor::SlotRegister()));
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r4,
@@ -1510,9 +1509,8 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   Register scratch = r5;
   Register result = r0;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  DCHECK(!FLAG_vector_ics ||
-         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
-          result.is(VectorLoadICDescriptor::SlotRegister())));
+  DCHECK(!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+         result.is(VectorLoadICDescriptor::SlotRegister()));
 
   // StringCharAtGenerator doesn't use the result register until it's passed
   // the different miss possibilities. If it did, we would have a conflict
@@ -2953,7 +2951,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ Push(VectorLoadICDescriptor::VectorRegister(),
             VectorLoadICDescriptor::SlotRegister(), object_, index_);
   } else {
@@ -2970,7 +2968,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
   __ Move(index_, r0);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ Pop(VectorLoadICDescriptor::VectorRegister(),
            VectorLoadICDescriptor::SlotRegister(), object_);
   } else {

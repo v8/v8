@@ -343,11 +343,8 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   const LoadPropertyParameters& p = LoadPropertyParametersOf(node->op());
   Callable callable =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
-  if (FLAG_vector_ics) {
-    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-    node->InsertInput(zone(), 3,
-                      jsgraph()->HeapConstant(p.feedback().vector()));
-  }
+  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }
@@ -362,11 +359,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
                                                UNINITIALIZED)
           : CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  if (FLAG_vector_ics) {
-    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-    node->InsertInput(zone(), 3,
-                      jsgraph()->HeapConstant(p.feedback().vector()));
-  }
+  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }

@@ -55,11 +55,9 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   Register receiver() const { return registers_[0]; }
   Register name() const { return registers_[1]; }
   Register slot() const {
-    DCHECK(FLAG_vector_ics);
     return VectorLoadICDescriptor::SlotRegister();
   }
   Register vector() const {
-    DCHECK(FLAG_vector_ics);
     return VectorLoadICDescriptor::VectorRegister();
   }
   Register scratch1() const { return registers_[2]; }

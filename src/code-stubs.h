@@ -76,7 +76,6 @@ namespace internal {
   V(KeyedLoadGeneric)                       \
   V(LoadScriptContextField)                 \
   V(LoadDictionaryElement)                  \
-  V(MegamorphicLoad)                        \
   V(NameDictionaryLookup)                   \
   V(NumberToString)                         \
   V(Typeof)                                 \
@@ -987,10 +986,7 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   // translated to a hydrogen code stub, a new CallInterfaceDescriptor
   // should be created that just uses that register for more efficient code.
   CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
-    if (FLAG_vector_ics) {
-      return VectorLoadICDescriptor(isolate());
-    }
-    return LoadDescriptor(isolate());
+    return VectorLoadICDescriptor(isolate());
   }
 
   DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
@@ -2081,10 +2077,7 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
       : HydrogenCodeStub(isolate) {}
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
-    if (FLAG_vector_ics) {
-      return VectorLoadICDescriptor(isolate());
-    }
-    return LoadDescriptor(isolate());
+    return VectorLoadICDescriptor(isolate());
   }
 
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
@@ -2175,32 +2168,6 @@ class CallIC_ArrayTrampolineStub : public CallICTrampolineStub {
 
  private:
   DEFINE_PLATFORM_CODE_STUB(CallIC_ArrayTrampoline, CallICTrampolineStub);
-};
-
-
-class MegamorphicLoadStub : public HydrogenCodeStub {
- public:
-  MegamorphicLoadStub(Isolate* isolate, const LoadICState& state)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(state.GetExtraICState());
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  InlineCacheState GetICState() const final { return MEGAMORPHIC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(sub_minor_key());
-  }
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
-    if (FLAG_vector_ics) {
-      return VectorLoadICDescriptor(isolate());
-    }
-    return LoadDescriptor(isolate());
-  }
-
-  DEFINE_HYDROGEN_CODE_STUB(MegamorphicLoad, HydrogenCodeStub);
 };
 
 

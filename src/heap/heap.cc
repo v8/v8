@@ -3135,17 +3135,13 @@ void Heap::CreateInitialObjects() {
   // Number of queued microtasks stored in Isolate::pending_microtask_count().
   set_microtask_queue(empty_fixed_array());
 
-  if (FLAG_vector_ics) {
-    FeedbackVectorSpec spec(0, Code::KEYED_LOAD_IC);
-    Handle<TypeFeedbackVector> dummy_vector =
-        factory->NewTypeFeedbackVector(&spec);
-    dummy_vector->Set(FeedbackVectorICSlot(0),
-                      *TypeFeedbackVector::MegamorphicSentinel(isolate()),
-                      SKIP_WRITE_BARRIER);
-    set_keyed_load_dummy_vector(*dummy_vector);
-  } else {
-    set_keyed_load_dummy_vector(empty_fixed_array());
-  }
+  FeedbackVectorSpec spec(0, Code::KEYED_LOAD_IC);
+  Handle<TypeFeedbackVector> dummy_vector =
+      factory->NewTypeFeedbackVector(&spec);
+  dummy_vector->Set(FeedbackVectorICSlot(0),
+                    *TypeFeedbackVector::MegamorphicSentinel(isolate()),
+                    SKIP_WRITE_BARRIER);
+  set_keyed_load_dummy_vector(*dummy_vector);
 
   set_detached_contexts(empty_fixed_array());
   set_retained_maps(ArrayList::cast(empty_fixed_array()));

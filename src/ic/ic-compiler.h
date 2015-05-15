@@ -18,8 +18,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                   ExtraICState extra_ic_state);
 
   // Named
-  static Handle<Code> ComputeLoad(Isolate* isolate, InlineCacheState ic_state,
-                                  ExtraICState extra_state);
   static Handle<Code> ComputeStore(Isolate* isolate, InlineCacheState ic_state,
                                    ExtraICState extra_state);
 
@@ -35,7 +33,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   // Keyed
   static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
       Handle<Map> receiver_map);
-  static Handle<Code> ComputeKeyedLoadMonomorphic(Handle<Map> receiver_map);
 
   static Handle<Code> ComputeKeyedStoreMonomorphic(
       Handle<Map> receiver_map, LanguageMode language_mode,
@@ -69,8 +66,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                            CacheHolderFlag cache_holder = kCacheOnReceiver);
 
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
-  Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
-  Handle<Code> CompileLoadMegamorphic(Code::Flags flags);
   Handle<Code> CompileStoreInitialize(Code::Flags flags);
   Handle<Code> CompileStorePreMonomorphic(Code::Flags flags);
   Handle<Code> CompileStoreGeneric(Code::Flags flags);

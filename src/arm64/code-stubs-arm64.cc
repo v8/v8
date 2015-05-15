@@ -1449,8 +1449,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   // Ensure that the vector and slot registers won't be clobbered before
   // calling the miss handler.
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(x10, x11, VectorLoadICDescriptor::VectorRegister(),
+  DCHECK(!AreAliased(x10, x11, VectorLoadICDescriptor::VectorRegister(),
                      VectorLoadICDescriptor::SlotRegister()));
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10,
@@ -1471,9 +1470,8 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   Register result = x0;
   Register scratch = x10;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  DCHECK(!FLAG_vector_ics ||
-         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
-          result.is(VectorLoadICDescriptor::SlotRegister())));
+  DCHECK(!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+         result.is(VectorLoadICDescriptor::SlotRegister()));
 
   // StringCharAtGenerator doesn't use the result register until it's passed
   // the different miss possibilities. If it did, we would have a conflict
@@ -3354,7 +3352,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // If index is a heap number, try converting it to an integer.
   __ JumpIfNotHeapNumber(index_, index_not_number_);
   call_helper.BeforeCall(masm);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ Push(VectorLoadICDescriptor::VectorRegister(),
             VectorLoadICDescriptor::SlotRegister(), object_, index_);
   } else {
@@ -3371,7 +3369,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
   __ Mov(index_, x0);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ Pop(object_, VectorLoadICDescriptor::SlotRegister(),
            VectorLoadICDescriptor::VectorRegister());
   } else {

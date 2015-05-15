@@ -399,26 +399,21 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
          Immediate(isolate->factory()->hash_table_map()));
   __ j(equal, &probe_dictionary);
 
-  if (FLAG_vector_ics) {
-    // When vector ics are in use, the handlers in the stub cache expect a
-    // vector and slot. Since we won't change the IC from any downstream
-    // misses, a dummy vector can be used.
-    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-        isolate->factory()->keyed_load_dummy_vector());
-    int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
-    __ push(Immediate(Smi::FromInt(slot)));
-    __ push(Immediate(dummy_vector));
-  }
+  // The handlers in the stub cache expect a vector and slot. Since we won't
+  // change the IC from any downstream misses, a dummy vector can be used.
+  Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+      isolate->factory()->keyed_load_dummy_vector());
+  int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+  __ push(Immediate(Smi::FromInt(slot)));
+  __ push(Immediate(dummy_vector));
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
                                                false, receiver, key, ebx, edi);
 
-  if (FLAG_vector_ics) {
-    __ pop(VectorLoadICDescriptor::VectorRegister());
-    __ pop(VectorLoadICDescriptor::SlotRegister());
-  }
+  __ pop(VectorLoadICDescriptor::VectorRegister());
+  __ pop(VectorLoadICDescriptor::SlotRegister());
 
   // Cache miss.
   GenerateMiss(masm);
@@ -733,26 +728,18 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 static void LoadIC_PushArgs(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  if (FLAG_vector_ics) {
-    Register slot = VectorLoadICDescriptor::SlotRegister();
-    Register vector = VectorLoadICDescriptor::VectorRegister();
-    DCHECK(!edi.is(receiver) && !edi.is(name) && !edi.is(slot) &&
-           !edi.is(vector));
 
-    __ pop(edi);
-    __ push(receiver);
-    __ push(name);
-    __ push(slot);
-    __ push(vector);
-    __ push(edi);
-  } else {
-    DCHECK(!ebx.is(receiver) && !ebx.is(name));
+  Register slot = VectorLoadICDescriptor::SlotRegister();
+  Register vector = VectorLoadICDescriptor::VectorRegister();
+  DCHECK(!edi.is(receiver) && !edi.is(name) && !edi.is(slot) &&
+         !edi.is(vector));
 
-    __ pop(ebx);
-    __ push(receiver);
-    __ push(name);
-    __ push(ebx);
-  }
+  __ pop(edi);
+  __ push(receiver);
+  __ push(name);
+  __ push(slot);
+  __ push(vector);
+  __ push(edi);
 }
 
 
@@ -764,7 +751,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kLoadIC_Miss), masm->isolate());
-  int arg_count = FLAG_vector_ics ? 4 : 2;
+  int arg_count = 4;
   __ TailCallExternalReference(ref, arg_count, 1);
 }
 
@@ -794,7 +781,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
-  int arg_count = FLAG_vector_ics ? 4 : 2;
+  int arg_count = 4;
   __ TailCallExternalReference(ref, arg_count, 1);
 }
 

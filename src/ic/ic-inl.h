@@ -98,7 +98,7 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
 
   // Don't use this for load_ics when --vector-ics is turned on.
-  DCHECK(!(FLAG_vector_ics && target->is_inline_cache_stub()) ||
+  DCHECK(!target->is_inline_cache_stub() ||
          (target->kind() != Code::LOAD_IC &&
           target->kind() != Code::KEYED_LOAD_IC));
 

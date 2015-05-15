@@ -362,7 +362,7 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
   // Now a feedback vector is allocated.
   CHECK(f->shared()->is_compiled());
   int expected_slots = 0;
-  int expected_ic_slots = FLAG_vector_ics ? 2 : 1;
+  int expected_ic_slots = 2;
   CHECK_EQ(expected_slots, f->shared()->feedback_vector()->Slots());
   CHECK_EQ(expected_ic_slots, f->shared()->feedback_vector()->ICSlots());
 }

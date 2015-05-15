@@ -2205,29 +2205,4 @@ Handle<Code> KeyedLoadGenericStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-Handle<Code> MegamorphicLoadStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<MegamorphicLoadStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* name = GetParameter(LoadDescriptor::kNameIndex);
-
-  // We shouldn't generate this when FLAG_vector_ics is true because the
-  // megamorphic case is handled as part of the default stub.
-  DCHECK(!FLAG_vector_ics);
-
-  // This stub tail calls, and an erected frame presents complications we don't
-  // need.
-  info()->MarkMustNotHaveEagerFrame();
-
-  // Probe the stub cache.
-  Add<HTailCallThroughMegamorphicCache>(receiver, name);
-
-  // We never continue.
-  return graph()->GetConstant0();
-}
 } }  // namespace v8::internal

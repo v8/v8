@@ -29,7 +29,7 @@ class FeedbackVectorSpec {
   int ic_slots() const { return has_ic_slot_ ? 1 : 0; }
 
   Code::Kind GetKind(int ic_slot) const {
-    DCHECK(FLAG_vector_ics && has_ic_slot_ && ic_slot == 0);
+    DCHECK(has_ic_slot_ && ic_slot == 0);
     return ic_kind_;
   }
 
@@ -46,9 +46,7 @@ class ZoneFeedbackVectorSpec {
       : slots_(0), ic_slots_(0), ic_slot_kinds_(zone) {}
 
   ZoneFeedbackVectorSpec(Zone* zone, int slots, int ic_slots)
-      : slots_(slots),
-        ic_slots_(ic_slots),
-        ic_slot_kinds_(FLAG_vector_ics ? ic_slots : 0, zone) {}
+      : slots_(slots), ic_slots_(ic_slots), ic_slot_kinds_(ic_slots, zone) {}
 
   int slots() const { return slots_; }
   void increase_slots(int count) { slots_ += count; }
@@ -56,16 +54,14 @@ class ZoneFeedbackVectorSpec {
   int ic_slots() const { return ic_slots_; }
   void increase_ic_slots(int count) {
     ic_slots_ += count;
-    if (FLAG_vector_ics) ic_slot_kinds_.resize(ic_slots_);
+    ic_slot_kinds_.resize(ic_slots_);
   }
 
   void SetKind(int ic_slot, Code::Kind kind) {
-    DCHECK(FLAG_vector_ics);
     ic_slot_kinds_[ic_slot] = kind;
   }
 
   Code::Kind GetKind(int ic_slot) const {
-    DCHECK(FLAG_vector_ics);
     return static_cast<Code::Kind>(ic_slot_kinds_.at(ic_slot));
   }
 
@@ -100,7 +96,7 @@ class TypeFeedbackVector : public FixedArray {
   static const int kWithTypesIndex = 1;
   static const int kGenericCountIndex = 2;
 
-  static int elements_per_ic_slot() { return FLAG_vector_ics ? 2 : 1; }
+  static int elements_per_ic_slot() { return 2; }
 
   int first_ic_slot_index() const {
     DCHECK(length() >= kReservedIndexCount);

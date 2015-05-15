@@ -207,10 +207,8 @@ void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-arm.cc).
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  RegList regs = receiver.Bit() | name.Bit();
-  if (FLAG_vector_ics) {
-    regs |= VectorLoadICTrampolineDescriptor::SlotRegister().Bit();
-  }
+  RegList regs = receiver.Bit() | name.Bit() |
+                 VectorLoadICTrampolineDescriptor::SlotRegister().Bit();
   Generate_DebugBreakCallHelper(masm, regs, 0, x10);
 }
 

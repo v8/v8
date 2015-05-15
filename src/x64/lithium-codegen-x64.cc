@@ -2889,7 +2889,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
-  DCHECK(FLAG_vector_ics);
   Register vector_register = ToRegister(instr->temp_vector());
   Register slot_register = VectorLoadICDescriptor::SlotRegister();
   DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
@@ -2912,9 +2911,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   DCHECK(ToRegister(instr->result()).is(rax));
 
   __ Move(LoadDescriptor::NameRegister(), instr->name());
-  if (FLAG_vector_ics) {
-    EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
-  }
+  EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
   Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode,
                                                        PREMONOMORPHIC).code();
@@ -3031,9 +3028,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   DCHECK(ToRegister(instr->result()).is(rax));
 
   __ Move(LoadDescriptor::NameRegister(), instr->name());
-  if (FLAG_vector_ics) {
-    EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
-  }
+  EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
                         isolate(), NOT_CONTEXTUAL,
                         instr->hydrogen()->initialization_state()).code();
@@ -3560,24 +3555,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     ParameterCount expected(formal_parameter_count);
     __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
   }
-}
-
-
-void LCodeGen::DoTailCallThroughMegamorphicCache(
-    LTailCallThroughMegamorphicCache* instr) {
-  Register receiver = ToRegister(instr->receiver());
-  Register name = ToRegister(instr->name());
-  DCHECK(receiver.is(LoadDescriptor::ReceiverRegister()));
-  DCHECK(name.is(LoadDescriptor::NameRegister()));
-  Register scratch = rdi;
-  DCHECK(!scratch.is(receiver) && !scratch.is(name));
-
-  // The probe will tail call to a handler if found.
-  isolate()->stub_cache()->GenerateProbe(masm(), Code::LOAD_IC,
-                                         instr->hydrogen()->flags(), false,
-                                         receiver, name, scratch, no_reg);
-
-  LoadIC::GenerateMiss(masm());
 }
 
 

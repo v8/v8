@@ -368,22 +368,17 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   ASM_LOCATION("LoadIC::GenerateMiss");
 
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(x4, x5, VectorLoadICDescriptor::SlotRegister(),
+  DCHECK(!AreAliased(x4, x5, VectorLoadICDescriptor::SlotRegister(),
                      VectorLoadICDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->load_miss(), 1, x4, x5);
 
   // Perform tail call to the entry.
-  if (FLAG_vector_ics) {
-    __ Push(VectorLoadICDescriptor::ReceiverRegister(),
-            VectorLoadICDescriptor::NameRegister(),
-            VectorLoadICDescriptor::SlotRegister(),
-            VectorLoadICDescriptor::VectorRegister());
-  } else {
-    __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
-  }
+  __ Push(VectorLoadICDescriptor::ReceiverRegister(),
+          VectorLoadICDescriptor::NameRegister(),
+          VectorLoadICDescriptor::SlotRegister(),
+          VectorLoadICDescriptor::VectorRegister());
   ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
-  int arg_count = FLAG_vector_ics ? 4 : 2;
+  int arg_count = 4;
   __ TailCallExternalReference(ref, arg_count, 1);
 }
 
@@ -445,24 +440,19 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in lr.
   Isolate* isolate = masm->isolate();
 
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(x10, x11, VectorLoadICDescriptor::SlotRegister(),
+  DCHECK(!AreAliased(x10, x11, VectorLoadICDescriptor::SlotRegister(),
                      VectorLoadICDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, x10, x11);
 
-  if (FLAG_vector_ics) {
-    __ Push(VectorLoadICDescriptor::ReceiverRegister(),
-            VectorLoadICDescriptor::NameRegister(),
-            VectorLoadICDescriptor::SlotRegister(),
-            VectorLoadICDescriptor::VectorRegister());
-  } else {
-    __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
-  }
+  __ Push(VectorLoadICDescriptor::ReceiverRegister(),
+          VectorLoadICDescriptor::NameRegister(),
+          VectorLoadICDescriptor::SlotRegister(),
+          VectorLoadICDescriptor::VectorRegister());
 
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
-  int arg_count = FLAG_vector_ics ? 4 : 2;
+  int arg_count = 4;
   __ TailCallExternalReference(ref, arg_count, 1);
 }
 
@@ -533,19 +523,16 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm, Register key,
   __ Ldr(scratch3, FieldMemOperand(scratch2, HeapObject::kMapOffset));
   __ JumpIfRoot(scratch3, Heap::kHashTableMapRootIndex, &probe_dictionary);
 
-  if (FLAG_vector_ics) {
-    // When vector ics are in use, the handlers in the stub cache expect a
-    // vector and slot. Since we won't change the IC from any downstream
-    // misses, a dummy vector can be used.
-    Register vector = VectorLoadICDescriptor::VectorRegister();
-    Register slot = VectorLoadICDescriptor::SlotRegister();
-    DCHECK(!AreAliased(vector, slot, scratch1, scratch2, scratch3, scratch4));
-    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-        masm->isolate()->factory()->keyed_load_dummy_vector());
-    int int_slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
-    __ LoadRoot(vector, Heap::kKeyedLoadDummyVectorRootIndex);
-    __ Mov(slot, Operand(Smi::FromInt(int_slot)));
-  }
+  // The handlers in the stub cache expect a vector and slot. Since we won't
+  // change the IC from any downstream misses, a dummy vector can be used.
+  Register vector = VectorLoadICDescriptor::VectorRegister();
+  Register slot = VectorLoadICDescriptor::SlotRegister();
+  DCHECK(!AreAliased(vector, slot, scratch1, scratch2, scratch3, scratch4));
+  Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+      masm->isolate()->factory()->keyed_load_dummy_vector());
+  int int_slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+  __ LoadRoot(vector, Heap::kKeyedLoadDummyVectorRootIndex);
+  __ Mov(slot, Operand(Smi::FromInt(int_slot)));
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));

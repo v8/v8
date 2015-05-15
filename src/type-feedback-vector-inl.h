@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 int TypeFeedbackVector::ic_metadata_length() const {
-  return FLAG_vector_ics ? VectorICComputer::word_count(ICSlots()) : 0;
+  return VectorICComputer::word_count(ICSlots());
 }
 
 

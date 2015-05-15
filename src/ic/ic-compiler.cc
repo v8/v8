@@ -87,26 +87,6 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
-    Handle<Map> receiver_map) {
-  Isolate* isolate = receiver_map->GetIsolate();
-  DCHECK(KeyedLoadIC::GetKeyType(kNoExtraICState) == ELEMENT);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC);
-  Handle<Name> name = isolate->factory()->KeyedLoadMonomorphic_string();
-
-  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  Handle<Code> stub = ComputeKeyedLoadMonomorphicHandler(receiver_map);
-  PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
-  Handle<Code> code = compiler.CompileMonomorphic(
-      receiver_map, stub, isolate->factory()->empty_string(), ELEMENT);
-
-  Map::UpdateCodeCache(receiver_map, name, code);
-  return code;
-}
-
-
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
     Handle<Map> receiver_map) {
   Isolate* isolate = receiver_map->GetIsolate();
@@ -186,31 +166,6 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
   Handle<UnseededNumberDictionary> dictionary = UnseededNumberDictionary::Set(
       isolate->factory()->non_monomorphic_cache(), code->flags(), code);
   isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
-}
-
-
-Handle<Code> PropertyICCompiler::ComputeLoad(Isolate* isolate,
-                                             InlineCacheState ic_state,
-                                             ExtraICState extra_state) {
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, ic_state, extra_state);
-  Handle<UnseededNumberDictionary> cache =
-      isolate->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate, flags);
-  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
-
-  PropertyICCompiler compiler(isolate, Code::LOAD_IC);
-  Handle<Code> code;
-  if (ic_state == UNINITIALIZED) {
-    code = compiler.CompileLoadInitialize(flags);
-  } else if (ic_state == PREMONOMORPHIC) {
-    code = compiler.CompileLoadPreMonomorphic(flags);
-  } else if (ic_state == MEGAMORPHIC) {
-    code = compiler.CompileLoadMegamorphic(flags);
-  } else {
-    UNREACHABLE();
-  }
-  FillCache(isolate, code);
-  return code;
 }
 
 
@@ -330,23 +285,6 @@ Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
   LoadIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
   PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
-  return code;
-}
-
-
-Handle<Code> PropertyICCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
-  LoadIC::GeneratePreMonomorphic(masm());
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadPreMonomorphic");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::LOAD_PREMONOMORPHIC_TAG, *code, 0));
-  return code;
-}
-
-
-Handle<Code> PropertyICCompiler::CompileLoadMegamorphic(Code::Flags flags) {
-  MegamorphicLoadStub stub(isolate(), LoadICState(extra_ic_state_));
-  auto code = stub.GetCode();
-  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
   return code;
 }
 

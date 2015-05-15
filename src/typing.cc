@@ -492,35 +492,20 @@ void AstTyper::VisitThrow(Throw* expr) {
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
   FeedbackVectorICSlot slot(FeedbackVectorICSlot::Invalid());
-  TypeFeedbackId id(TypeFeedbackId::None());
-  if (FLAG_vector_ics) {
-    slot = expr->PropertyFeedbackSlot();
-    expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
-  } else {
-    id = expr->PropertyFeedbackId();
-    expr->set_inline_cache_state(oracle()->LoadInlineCacheState(id));
-  }
+  slot = expr->PropertyFeedbackSlot();
+  expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
 
   if (!expr->IsUninitialized()) {
     if (expr->key()->IsPropertyName()) {
       Literal* lit_key = expr->key()->AsLiteral();
       DCHECK(lit_key != NULL && lit_key->value()->IsString());
       Handle<String> name = Handle<String>::cast(lit_key->value());
-      if (FLAG_vector_ics) {
-        oracle()->PropertyReceiverTypes(slot, name, expr->GetReceiverTypes());
-      } else {
-        oracle()->PropertyReceiverTypes(id, name, expr->GetReceiverTypes());
-      }
+      oracle()->PropertyReceiverTypes(slot, name, expr->GetReceiverTypes());
     } else {
       bool is_string;
       IcCheckType key_type;
-      if (FLAG_vector_ics) {
-        oracle()->KeyedPropertyReceiverTypes(slot, expr->GetReceiverTypes(),
-                                             &is_string, &key_type);
-      } else {
-        oracle()->KeyedPropertyReceiverTypes(id, expr->GetReceiverTypes(),
-                                             &is_string, &key_type);
-      }
+      oracle()->KeyedPropertyReceiverTypes(slot, expr->GetReceiverTypes(),
+                                           &is_string, &key_type);
       expr->set_is_string_access(is_string);
       expr->set_key_type(key_type);
     }

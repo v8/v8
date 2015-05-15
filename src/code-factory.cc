@@ -11,14 +11,6 @@
 namespace v8 {
 namespace internal {
 
-// static
-Callable CodeFactory::LoadGlobalIC(Isolate* isolate,
-                                   Handle<GlobalObject> global,
-                                   Handle<String> name) {
-  return Callable(LoadIC::load_global(isolate, global, name),
-                  LoadDescriptor(isolate));
-}
-
 
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode) {
@@ -34,10 +26,7 @@ Callable CodeFactory::LoadICInOptimizedCode(
     InlineCacheState initialization_state) {
   auto code = LoadIC::initialize_stub_in_optimized_code(
       isolate, LoadICState(mode).GetExtraICState(), initialization_state);
-  if (FLAG_vector_ics) {
-    return Callable(code, VectorLoadICDescriptor(isolate));
-  }
-  return Callable(code, LoadDescriptor(isolate));
+  return Callable(code, VectorLoadICDescriptor(isolate));
 }
 
 
@@ -53,7 +42,7 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
     Isolate* isolate, InlineCacheState initialization_state) {
   auto code = KeyedLoadIC::initialize_stub_in_optimized_code(
       isolate, initialization_state);
-  if (FLAG_vector_ics && initialization_state != MEGAMORPHIC) {
+  if (initialization_state != MEGAMORPHIC) {
     return Callable(code, VectorLoadICDescriptor(isolate));
   }
   return Callable(code, LoadDescriptor(isolate));

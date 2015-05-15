@@ -1386,8 +1386,7 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   Register scratch = t1;
   Register result = v0;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  DCHECK(!FLAG_vector_ics ||
-         !scratch.is(VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(!scratch.is(VectorLoadICDescriptor::VectorRegister()));
 
   StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
@@ -1611,8 +1610,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   // Ensure that the vector and slot registers won't be clobbered before
   // calling the miss handler.
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(t0, t1, VectorLoadICDescriptor::VectorRegister(),
+  DCHECK(!AreAliased(t0, t1, VectorLoadICDescriptor::VectorRegister(),
                      VectorLoadICDescriptor::SlotRegister()));
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, t0,
@@ -3092,7 +3090,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   // Consumed by runtime conversion function:
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ Push(VectorLoadICDescriptor::VectorRegister(),
             VectorLoadICDescriptor::SlotRegister(), object_, index_);
   } else {
@@ -3109,7 +3107,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
   __ Move(index_, v0);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ Pop(VectorLoadICDescriptor::VectorRegister(),
            VectorLoadICDescriptor::SlotRegister(), object_);
   } else {

@@ -15332,9 +15332,6 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
 
 
 TEST(ExternalInternalizedStringCollectedAtGC) {
-  // TODO(mvstanton): vector ics need weak support.
-  if (i::FLAG_vector_ics) return;
-
   int destroyed = 0;
   { LocalContext env;
     v8::HandleScope handle_scope(env->GetIsolate());

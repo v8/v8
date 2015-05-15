@@ -5491,10 +5491,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
             New<HLoadGlobalGeneric>(global_object,
                                     variable->name(),
                                     ast_context()->is_for_typeof());
-        if (FLAG_vector_ics) {
-          instr->SetVectorAndSlot(handle(current_feedback_vector(), isolate()),
-                                  expr->VariableFeedbackSlot());
-        }
+        instr->SetVectorAndSlot(handle(current_feedback_vector(), isolate()),
+                                expr->VariableFeedbackSlot());
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
     }
@@ -7018,29 +7016,26 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
         Deoptimizer::SOFT);
   }
   if (access_type == LOAD) {
-    if (FLAG_vector_ics) {
-      Handle<TypeFeedbackVector> vector =
-          handle(current_feedback_vector(), isolate());
-      FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
+    Handle<TypeFeedbackVector> vector =
+        handle(current_feedback_vector(), isolate());
+    FeedbackVectorICSlot slot = expr->AsProperty()->PropertyFeedbackSlot();
 
-      if (!expr->AsProperty()->key()->IsPropertyName()) {
-        // It's possible that a keyed load of a constant string was converted
-        // to a named load. Here, at the last minute, we need to make sure to
-        // use a generic Keyed Load if we are using the type vector, because
-        // it has to share information with full code.
-        HConstant* key = Add<HConstant>(name);
-        HLoadKeyedGeneric* result =
-            New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
-        result->SetVectorAndSlot(vector, slot);
-        return result;
-      }
-
-      HLoadNamedGeneric* result =
-          New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
+    if (!expr->AsProperty()->key()->IsPropertyName()) {
+      // It's possible that a keyed load of a constant string was converted
+      // to a named load. Here, at the last minute, we need to make sure to
+      // use a generic Keyed Load if we are using the type vector, because
+      // it has to share information with full code.
+      HConstant* key = Add<HConstant>(name);
+      HLoadKeyedGeneric* result =
+          New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
       result->SetVectorAndSlot(vector, slot);
       return result;
     }
-    return New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
+
+    HLoadNamedGeneric* result =
+        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
+    result->SetVectorAndSlot(vector, slot);
+    return result;
   } else {
     return New<HStoreNamedGeneric>(object, name, value,
                                    function_language_mode(), PREMONOMORPHIC);
@@ -7056,14 +7051,12 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     HValue* key,
     HValue* value) {
   if (access_type == LOAD) {
-    InlineCacheState initial_state =
-        FLAG_vector_ics ? expr->AsProperty()->GetInlineCacheState()
-                        : PREMONOMORPHIC;
+    InlineCacheState initial_state = expr->AsProperty()->GetInlineCacheState();
     HLoadKeyedGeneric* result =
         New<HLoadKeyedGeneric>(object, key, initial_state);
     // HLoadKeyedGeneric with vector ics benefits from being encoded as
     // MEGAMORPHIC because the vector/slot combo becomes unnecessary.
-    if (FLAG_vector_ics && initial_state != MEGAMORPHIC) {
+    if (initial_state != MEGAMORPHIC) {
       // We need to pass vector information.
       Handle<TypeFeedbackVector> vector =
           handle(current_feedback_vector(), isolate());

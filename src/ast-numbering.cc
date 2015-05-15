@@ -18,7 +18,7 @@ class AstNumberingVisitor final : public AstVisitor {
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
         properties_(zone),
-        ic_slot_cache_(FLAG_vector_ics ? 4 : 0),
+        ic_slot_cache_(4),
         dont_optimize_reason_(kNoReason) {
     InitializeAstVisitor(isolate, zone);
   }
@@ -71,10 +71,8 @@ class AstNumberingVisitor final : public AstVisitor {
       node->SetFirstFeedbackICSlot(FeedbackVectorICSlot(ic_slots),
                                    &ic_slot_cache_);
       properties_.increase_ic_slots(reqs.ic_slots());
-      if (FLAG_vector_ics) {
-        for (int i = 0; i < reqs.ic_slots(); i++) {
-          properties_.SetKind(ic_slots + i, node->FeedbackICSlotKind(i));
-        }
+      for (int i = 0; i < reqs.ic_slots(); i++) {
+        properties_.SetKind(ic_slots + i, node->FeedbackICSlotKind(i));
       }
     }
   }
@@ -83,8 +81,7 @@ class AstNumberingVisitor final : public AstVisitor {
 
   int next_id_;
   AstProperties properties_;
-  // The slot cache allows us to reuse certain vector IC slots. It's only used
-  // if FLAG_vector_ics is true.
+  // The slot cache allows us to reuse certain vector IC slots.
   ICSlotCache ic_slot_cache_;
   BailoutReason dont_optimize_reason_;
 
