@@ -2253,9 +2253,6 @@ class SemiSpace : public Space {
 
   friend class SemiSpaceIterator;
   friend class NewSpacePageIterator;
-
- public:
-  TRACK_MEMORY("SemiSpace")
 };
 
 
@@ -2625,9 +2622,6 @@ class NewSpace : public Space {
   SlowAllocateRaw(int size_in_bytes, AllocationAlignment alignment);
 
   friend class SemiSpaceIterator;
-
- public:
-  TRACK_MEMORY("NewSpace")
 };
 
 
@@ -2641,9 +2635,6 @@ class OldSpace : public PagedSpace {
   OldSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id,
            Executability executable)
       : PagedSpace(heap, max_capacity, id, executable) {}
-
- public:
-  TRACK_MEMORY("OldSpace")
 };
 
 
@@ -2689,9 +2680,6 @@ class MapSpace : public PagedSpace {
   }
 
   const int max_map_space_pages_;
-
- public:
-  TRACK_MEMORY("MapSpace")
 };
 
 
@@ -2785,9 +2773,6 @@ class LargeObjectSpace : public Space {
   HashMap chunk_map_;
 
   friend class LargeObjectIterator;
-
- public:
-  TRACK_MEMORY("LargeObjectSpace")
 };
 
 

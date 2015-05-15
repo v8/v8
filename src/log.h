@@ -188,11 +188,6 @@ class Logger {
   void NewEvent(const char* name, void* object, size_t size);
   void DeleteEvent(const char* name, void* object);
 
-  // Static versions of the above, operate on current isolate's logger.
-  // Used in TRACK_MEMORY(TypeName) defined in globals.h
-  static void NewEventStatic(const char* name, void* object, size_t size);
-  static void DeleteEventStatic(const char* name, void* object);
-
   // Emits an event with a tag, and some resource usage information.
   // -> (name, tag, <rusage information>).
   // Currently, the resource usage information is a process time stamp
