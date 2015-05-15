@@ -36,4 +36,12 @@ for (var constructor of typedArrayConstructors) {
   assertThrows('constructor.prototype.fill.call(null)', TypeError);
   assertThrows('constructor.prototype.fill.call(undefined)', TypeError);
   assertThrows('constructor.prototype.fill.call([])', TypeError);
+
+  // Shadowing length doesn't affect fill, unlike Array.prototype.fill
+  var a = new constructor([2, 2]);
+  Object.defineProperty(a, 'length', {value: 1});
+  a.fill(3);
+  assertArrayEquals([a[0], a[1]], [3, 3]);
+  Array.prototype.fill.call(a, 4);
+  assertArrayEquals([a[0], a[1]], [4, 3]);
 }

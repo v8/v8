@@ -176,4 +176,14 @@ assertThrows('new constructor([]).find({})', TypeError);
 assertThrows('new constructor([]).find([])', TypeError);
 assertThrows('new constructor([]).find(/\d+/)', TypeError);
 
+// Shadowing length doesn't affect find, unlike Array.prototype.find
+a = new constructor([1, 2]);
+Object.defineProperty(a, 'length', {value: 1});
+var x = 0;
+assertEquals(a.find(function(elt) { x += elt; return false; }), undefined);
+assertEquals(x, 3);
+assertEquals(Array.prototype.find.call(a,
+    function(elt) { x += elt; return false; }), undefined);
+assertEquals(x, 4);
+
 }

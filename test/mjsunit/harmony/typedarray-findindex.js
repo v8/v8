@@ -176,4 +176,14 @@ assertThrows('new constructor([]).findIndex({})', TypeError);
 assertThrows('new constructor([]).findIndex([])', TypeError);
 assertThrows('new constructor([]).findIndex(/\d+/)', TypeError);
 
+// Shadowing length doesn't affect findIndex, unlike Array.prototype.findIndex
+a = new constructor([1, 2]);
+Object.defineProperty(a, 'length', {value: 1});
+var x = 0;
+assertEquals(a.findIndex(function(elt) { x += elt; return false; }), -1);
+assertEquals(x, 3);
+assertEquals(Array.prototype.findIndex.call(a,
+    function(elt) { x += elt; return false; }), -1);
+assertEquals(x, 4);
+
 }

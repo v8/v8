@@ -138,6 +138,16 @@ function TestTypedArrayForEach(constructor) {
     constructor.prototype.forEach.call(a, function (x) { count++ });
     assertEquals(a.length, count);
   }
+
+  // Shadowing length doesn't affect forEach, unlike Array.prototype.forEach
+  a = new constructor([1, 2]);
+  Object.defineProperty(a, 'length', {value: 1});
+  var x = 0;
+  assertEquals(a.forEach(function(elt) { x += elt; }), undefined);
+  assertEquals(x, 3);
+  assertEquals(Array.prototype.forEach.call(a,
+      function(elt) { x += elt; }), undefined);
+  assertEquals(x, 4);
 }
 
 for (i = 0; i < typedArrayConstructors.length; i++) {
