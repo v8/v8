@@ -306,6 +306,10 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
+  static bool CanBeDeferred(HeapObject* o) {
+    return !o->IsString() && !o->IsScript();
+  }
+
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:
@@ -373,6 +377,8 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNop = 0x3d;
   // Move to next reserved chunk.
   static const int kNextChunk = 0x3e;
+  // Deferring object content.
+  static const int kDeferred = 0x3f;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
@@ -553,22 +559,22 @@ class Deserializer: public SerializerDeserializer {
     memcpy(dest, src, sizeof(*src));
   }
 
-  // Allocation sites are present in the snapshot, and must be linked into
-  // a list at deserialization time.
-  void RelinkAllocationSite(AllocationSite* site);
+  void DeserializeDeferredObjects();
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or NULL if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
-  // the heap.
-  void ReadData(Object** start, Object** end, int space,
+  // the heap. Return false if the object content has been deferred.
+  bool ReadData(Object** start, Object** end, int space,
                 Address object_address);
   void ReadObject(int space_number, Object** write_back);
   Address Allocate(int space_index, int size);
 
   // Special handling for serialized code like hooking up internalized strings.
-  HeapObject* ProcessNewObjectFromSerializedCode(HeapObject* obj);
+  HeapObject* PostProcessNewObject(HeapObject* obj);
+
+  void RelinkAllocationSite(AllocationSite* obj);
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
@@ -612,6 +618,8 @@ class Serializer : public SerializerDeserializer {
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
 
+  void SerializeDeferredObjects();
+
   Isolate* isolate() const { return isolate_; }
 
   BackReferenceMap* back_reference_map() { return &back_reference_map_; }
@@ -634,6 +642,7 @@ class Serializer : public SerializerDeserializer {
           is_code_object_(o->IsCode()),
           code_has_been_output_(false) {}
     void Serialize();
+    void SerializeDeferred();
     void VisitPointers(Object** start, Object** end);
     void VisitEmbeddedPointer(RelocInfo* target);
     void VisitExternalReference(Address* p);
@@ -675,11 +684,28 @@ class Serializer : public SerializerDeserializer {
     bool code_has_been_output_;
   };
 
+  class RecursionScope {
+   public:
+    explicit RecursionScope(Serializer* serializer) : serializer_(serializer) {
+      serializer_->recursion_depth_++;
+    }
+    ~RecursionScope() { serializer_->recursion_depth_--; }
+    bool ExceedsMaximum() {
+      return serializer_->recursion_depth_ >= kMaxRecursionDepth;
+    }
+
+   private:
+    static const int kMaxRecursionDepth = 32;
+    Serializer* serializer_;
+  };
+
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
+
+  void PutBackReference(HeapObject* object, BackReference reference);
 
   // Returns true if the object was successfully serialized.
   bool SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
@@ -722,6 +748,11 @@ class Serializer : public SerializerDeserializer {
 
   SnapshotByteSink* sink() const { return sink_; }
 
+  void QueueDeferredObject(HeapObject* obj) {
+    DCHECK(back_reference_map_.Lookup(obj).is_valid());
+    deferred_objects_.Add(obj);
+  }
+
   void OutputStatistics(const char* name);
 
   Isolate* isolate_;
@@ -732,8 +763,11 @@ class Serializer : public SerializerDeserializer {
   BackReferenceMap back_reference_map_;
   RootIndexMap root_index_map_;
 
+  int recursion_depth_;
+
   friend class Deserializer;
   friend class ObjectSerializer;
+  friend class RecursionScope;
   friend class SnapshotData;
 
  private:
@@ -751,6 +785,9 @@ class Serializer : public SerializerDeserializer {
   uint32_t seen_large_objects_index_;
 
   List<byte> code_buffer_;
+
+  // To handle stack overflow.
+  List<HeapObject*> deferred_objects_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = 256;
@@ -797,7 +834,7 @@ class PartialSerializer : public Serializer {
   void SerializeOutdatedContextsAsFixedArray();
 
   Serializer* startup_serializer_;
-  List<BackReference> outdated_contexts_;
+  List<Context*> outdated_contexts_;
   Object* global_object_;
   PartialCacheIndexMap partial_cache_index_map_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
@@ -829,11 +866,10 @@ class StartupSerializer : public Serializer {
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) override;
-  void SerializeWeakReferences();
+  void SerializeWeakReferencesAndDeferred();
   void Serialize() {
     SerializeStrongReferences();
-    SerializeWeakReferences();
-    Pad();
+    SerializeWeakReferencesAndDeferred();
   }
 
  private:

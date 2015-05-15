@@ -560,6 +560,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
   isolate_->heap()->RepairFreeListsAfterDeserialization();
   isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
+  DeserializeDeferredObjects();
 
   isolate_->heap()->set_native_contexts_list(
       isolate_->heap()->undefined_value());
@@ -609,6 +610,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   Object* outdated_contexts;
   VisitPointer(&root);
   VisitPointer(&outdated_contexts);
+  DeserializeDeferredObjects();
 
   // There's no code deserialized here. If this assert fires
   // then that's changed and logging should be added to notify
@@ -631,6 +633,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
     DisallowHeapAllocation no_gc;
     Object* root;
     VisitPointer(&root);
+    DeserializeDeferredObjects();
     return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
   }
 }
@@ -652,13 +655,22 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-void Deserializer::RelinkAllocationSite(AllocationSite* site) {
-  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
-    site->set_weak_next(isolate_->heap()->undefined_value());
-  } else {
-    site->set_weak_next(isolate_->heap()->allocation_sites_list());
+void Deserializer::DeserializeDeferredObjects() {
+  for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
+    int space = code & kSpaceMask;
+    DCHECK(space <= kNumberOfSpaces);
+    DCHECK(code - space == kNewObject);
+    HeapObject* object = GetBackReferencedObject(space);
+    int size = source_.GetInt() << kPointerSizeLog2;
+    Address obj_address = object->address();
+    Object** start = reinterpret_cast<Object**>(obj_address + kPointerSize);
+    Object** end = reinterpret_cast<Object**>(obj_address + size);
+    bool filled = ReadData(start, end, space, obj_address);
+    CHECK(filled);
+    if (object->IsAllocationSite()) {
+      RelinkAllocationSite(AllocationSite::cast(object));
+    }
   }
-  isolate_->heap()->set_allocation_sites_list(site);
 }
 
 
@@ -693,7 +705,8 @@ class StringTableInsertionKey : public HashTableKey {
 };
 
 
-HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
+HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj) {
+  DCHECK(deserializing_user_code());
   if (obj->IsString()) {
     String* string = String::cast(obj);
     // Uninitialize hash field as the hash seed may have changed.
@@ -708,8 +721,27 @@ HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
     }
   } else if (obj->IsScript()) {
     Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
+  } else {
+    DCHECK(CanBeDeferred(obj));
   }
   return obj;
+}
+
+
+void Deserializer::RelinkAllocationSite(AllocationSite* obj) {
+  DCHECK(obj->IsAllocationSite());
+  // Allocation sites are present in the snapshot, and must be linked into
+  // a list at deserialization time.
+  AllocationSite* site = AllocationSite::cast(obj);
+  // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
+  // as a (weak) root. If this root is relocated correctly,
+  // RelinkAllocationSite() isn't necessary.
+  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+    site->set_weak_next(isolate_->heap()->undefined_value());
+  } else {
+    site->set_weak_next(isolate_->heap()->allocation_sites_list());
+  }
+  isolate_->heap()->set_allocation_sites_list(site);
 }
 
 
@@ -768,24 +800,21 @@ void Deserializer::ReadObject(int space_number, Object** write_back) {
   if (FLAG_log_snapshot_positions) {
     LOG(isolate_, SnapshotPositionEvent(address, source_.position()));
   }
-  ReadData(current, limit, space_number, address);
 
-  // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
-  // as a (weak) root. If this root is relocated correctly,
-  // RelinkAllocationSite() isn't necessary.
-  if (obj->IsAllocationSite()) RelinkAllocationSite(AllocationSite::cast(obj));
+  if (ReadData(current, limit, space_number, address)) {
+    // Only post process if object content has not been deferred.
+    if (obj->IsAllocationSite()) {
+      RelinkAllocationSite(AllocationSite::cast(obj));
+    }
 
-  // Fix up strings from serialized user code.
-  if (deserializing_user_code()) obj = ProcessNewObjectFromSerializedCode(obj);
+    if (deserializing_user_code()) obj = PostProcessNewObject(obj);
+  }
 
   Object* write_back_obj = obj;
   UnalignedCopy(write_back, &write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
     DCHECK(space_number == CODE_SPACE || space_number == LO_SPACE);
-#ifdef VERIFY_HEAP
-    obj->ObjectVerify();
-#endif  // VERIFY_HEAP
   } else {
     DCHECK(space_number != CODE_SPACE);
   }
@@ -829,7 +858,7 @@ Address Deserializer::Allocate(int space_index, int size) {
 }
 
 
-void Deserializer::ReadData(Object** current, Object** limit, int source_space,
+bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
                             Address current_object_address) {
   Isolate* const isolate = isolate_;
   // Write barrier support costs around 1% in startup time.  In fact there
@@ -1086,6 +1115,18 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         break;
       }
 
+      case kDeferred: {
+        // Deferred can only occur right after the heap object header.
+        DCHECK(current == reinterpret_cast<Object**>(current_object_address +
+                                                     kPointerSize));
+        HeapObject* obj = HeapObject::FromAddress(current_object_address);
+        // If the deferred object is a map, its instance type may be used
+        // during deserialization. Initialize it with a temporary value.
+        if (obj->IsMap()) Map::cast(obj)->set_instance_type(FILLER_TYPE);
+        current = limit;
+        return false;
+      }
+
       case kSynchronize:
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
@@ -1192,6 +1233,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
     }
   }
   CHECK_EQ(limit, current);
+  return true;
 }
 
 
@@ -1200,6 +1242,7 @@ Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
       sink_(sink),
       external_reference_encoder_(isolate),
       root_index_map_(isolate),
+      recursion_depth_(0),
       code_address_map_(NULL),
       large_objects_total_size_(0),
       seen_large_objects_index_(0) {
@@ -1275,6 +1318,16 @@ void Serializer::OutputStatistics(const char* name) {
 }
 
 
+void Serializer::SerializeDeferredObjects() {
+  while (deferred_objects_.length() > 0) {
+    HeapObject* obj = deferred_objects_.RemoveLast();
+    ObjectSerializer obj_serializer(this, obj, sink_, kPlain, kStartOfObject);
+    obj_serializer.SerializeDeferred();
+  }
+  sink_->Put(kSynchronize, "Finished with deferred objects");
+}
+
+
 void StartupSerializer::SerializeStrongReferences() {
   Isolate* isolate = this->isolate();
   // No active threads.
@@ -1319,6 +1372,7 @@ void PartialSerializer::Serialize(Object** o) {
   }
   VisitPointer(o);
   SerializeOutdatedContextsAsFixedArray();
+  SerializeDeferredObjects();
   Pad();
 }
 
@@ -1342,10 +1396,10 @@ void PartialSerializer::SerializeOutdatedContextsAsFixedArray() {
       sink_->Put(reinterpret_cast<byte*>(&length_smi)[i], "Byte");
     }
     for (int i = 0; i < length; i++) {
-      BackReference back_ref = outdated_contexts_[i];
-      DCHECK(BackReferenceIsAlreadyAllocated(back_ref));
-      sink_->Put(kBackref + back_ref.space(), "BackRef");
-      sink_->PutInt(back_ref.reference(), "BackRefValue");
+      Context* context = outdated_contexts_[i];
+      BackReference back_reference = back_reference_map_.Lookup(context);
+      sink_->Put(kBackref + back_reference.space(), "BackRef");
+      PutBackReference(context, back_reference);
     }
   }
 }
@@ -1508,10 +1562,7 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                    "BackRefWithSkip");
         sink_->PutInt(skip, "BackRefSkipDistance");
       }
-      DCHECK(BackReferenceIsAlreadyAllocated(back_reference));
-      sink_->PutInt(back_reference.reference(), "BackRefValue");
-
-      hot_objects_.Add(obj);
+      PutBackReference(obj, back_reference);
     }
     return true;
   }
@@ -1547,7 +1598,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 }
 
 
-void StartupSerializer::SerializeWeakReferences() {
+void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // This phase comes right after the serialization (of the snapshot).
   // After we have done the partial serialization the partial snapshot cache
   // will contain some references needed to decode the partial snapshot.  We
@@ -1556,6 +1607,7 @@ void StartupSerializer::SerializeWeakReferences() {
   Object* undefined = isolate()->heap()->undefined_value();
   VisitPointer(&undefined);
   isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
+  SerializeDeferredObjects();
   Pad();
 }
 
@@ -1585,6 +1637,13 @@ void Serializer::PutRoot(int root_index,
     sink_->Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
     sink_->PutInt(root_index, "root_index");
   }
+}
+
+
+void Serializer::PutBackReference(HeapObject* object, BackReference reference) {
+  DCHECK(BackReferenceIsAlreadyAllocated(reference));
+  sink_->PutInt(reference.reference(), "BackRefValue");
+  hot_objects_.Add(object);
 }
 
 
@@ -1641,9 +1700,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       Context::cast(obj)->global_object() == global_object_) {
     // Context refers to the current global object. This reference will
     // become outdated after deserialization.
-    BackReference back_reference = back_reference_map_.Lookup(obj);
-    DCHECK(back_reference.is_valid());
-    outdated_contexts_.Add(back_reference);
+    outdated_contexts_.Add(Context::cast(obj));
   }
 }
 
@@ -1773,6 +1830,9 @@ void Serializer::ObjectSerializer::Serialize() {
   // We cannot serialize typed array objects correctly.
   DCHECK(!object_->IsJSTypedArray());
 
+  // We don't expect fillers.
+  DCHECK(!object_->IsFiller());
+
   if (object_->IsPrototypeInfo()) {
     Object* prototype_users = PrototypeInfo::cast(object_)->prototype_users();
     if (prototype_users->IsWeakFixedArray()) {
@@ -1809,6 +1869,39 @@ void Serializer::ObjectSerializer::Serialize() {
   // Serialize the rest of the object.
   CHECK_EQ(0, bytes_processed_so_far_);
   bytes_processed_so_far_ = kPointerSize;
+
+  RecursionScope recursion(serializer_);
+  // Objects that are immediately post processed during deserialization
+  // cannot be deferred, since post processing requires the object content.
+  if (recursion.ExceedsMaximum() && CanBeDeferred(object_)) {
+    serializer_->QueueDeferredObject(object_);
+    sink_->Put(kDeferred, "Deferring object content");
+    return;
+  }
+
+  object_->IterateBody(map->instance_type(), size, this);
+  OutputRawData(object_->address() + size);
+}
+
+
+void Serializer::ObjectSerializer::SerializeDeferred() {
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding deferred heap object: ");
+    object_->ShortPrint();
+    PrintF("\n");
+  }
+
+  int size = object_->Size();
+  Map* map = object_->map();
+  BackReference reference = serializer_->back_reference_map()->Lookup(object_);
+
+  // Serialize the rest of the object.
+  CHECK_EQ(0, bytes_processed_so_far_);
+  bytes_processed_so_far_ = kPointerSize;
+
+  sink_->Put(kNewObject + reference.space(), "deferred object");
+  serializer_->PutBackReference(object_, reference);
+  sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
 
   object_->IterateBody(map->instance_type(), size, this);
   OutputRawData(object_->address() + size);
@@ -2134,6 +2227,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
+  cs.SerializeDeferredObjects();
   cs.Pad();
 
   SerializedCodeData data(sink.data(), cs);
