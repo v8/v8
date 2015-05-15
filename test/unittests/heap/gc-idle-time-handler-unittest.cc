@@ -269,6 +269,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -283,6 +284,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -291,7 +293,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
-  heap_state.contexts_disposal_rate = 1.0;
+  heap_state.contexts_disposal_rate =
+      GCIdleTimeHandler::kHighContextDisposalRate;
   heap_state.incremental_marking_stopped = true;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
   double idle_time_ms =
@@ -299,6 +302,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -307,13 +311,15 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
-  heap_state.contexts_disposal_rate = 1.0;
+  heap_state.contexts_disposal_rate =
+      GCIdleTimeHandler::kHighContextDisposalRate;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
   double idle_time_ms =
       static_cast<double>(heap_state.size_of_objects / speed - 1);
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }

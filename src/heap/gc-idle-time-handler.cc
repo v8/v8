@@ -243,15 +243,20 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
 // (1) If we don't have any idle time, do nothing, unless a context was
 // disposed, incremental marking is stopped, and the heap is small. Then do
 // a full GC.
-// (2) If the new space is almost full and we can afford a Scavenge or if the
+// (2) If the context disposal rate is high and we cannot perform a full GC,
+// we do nothing until the context disposal rate becomes lower.
+// (3) If the new space is almost full and we can affort a Scavenge or if the
 // next Scavenge will very likely take long, then a Scavenge is performed.
-// (3) If incremental marking is done, we perform a full garbage collection
+// (4) If there is currently no MarkCompact idle round going on, we start a
+// new idle round if enough garbage was created. Otherwise we do not perform
+// garbage collection to keep system utilization low.
+// (5) If incremental marking is done, we perform a full garbage collection
 // if  we are allowed to still do full garbage collections during this idle
 // round or if we are not allowed to start incremental marking. Otherwise we
 // do not perform garbage collection to keep system utilization low.
-// (4) If sweeping is in progress and we received a large enough idle time
+// (6) If sweeping is in progress and we received a large enough idle time
 // request, we finalize sweeping here.
-// (5) If incremental marking is in progress, we perform a marking step. Note,
+// (7) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
                                            const HeapState& heap_state,
@@ -264,6 +269,13 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
         return GCIdleTimeAction::FullGC(false);
       }
     }
+    return GCIdleTimeAction::Nothing();
+  }
+
+  // We are in a context disposal GC scenario. Don't do anything if we do not
+  // get the right idle signal.
+  if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
+                                         heap_state.contexts_disposal_rate)) {
     return GCIdleTimeAction::Nothing();
   }
 
