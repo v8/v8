@@ -210,8 +210,7 @@ class MarkingDeque {
   // heap.
   INLINE(void PushBlack(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
-    // TODO(jochen): Remove again before we branch for 4.2.
-    CHECK(object->IsHeapObject() && object->map()->IsMap());
+    DCHECK(object->map()->IsMap());
     if (IsFull()) {
       Marking::BlackToGrey(object);
       MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
@@ -224,8 +223,7 @@ class MarkingDeque {
 
   INLINE(void PushGrey(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
-    // TODO(jochen): Remove again before we branch for 4.2.
-    CHECK(object->IsHeapObject() && object->map()->IsMap());
+    DCHECK(object->map()->IsMap());
     if (IsFull()) {
       SetOverflowed();
     } else {
