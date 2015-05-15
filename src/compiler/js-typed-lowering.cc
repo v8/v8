@@ -289,7 +289,8 @@ class JSBinopReduction final {
 
     return graph()->NewNode(op, frame_state->InputAt(0),
                             frame_state->InputAt(1), frame_state->InputAt(2),
-                            frame_state->InputAt(3), frame_state->InputAt(4));
+                            frame_state->InputAt(3), frame_state->InputAt(4),
+                            frame_state->InputAt(5));
   }
 
   Node* CreateFrameStateForRightInput(Node* frame_state, Node* converted_left) {
@@ -326,7 +327,8 @@ class JSBinopReduction final {
 
     return graph()->NewNode(op, frame_state->InputAt(0),
                             frame_state->InputAt(1), new_stack,
-                            frame_state->InputAt(3), frame_state->InputAt(4));
+                            frame_state->InputAt(3), frame_state->InputAt(4),
+                            frame_state->InputAt(5));
   }
 
   Node* ConvertPlainPrimitiveToNumber(Node* node) {

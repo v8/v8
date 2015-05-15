@@ -191,7 +191,7 @@ Node* JSGraph::EmptyFrameState() {
         common()->FrameState(JS_FRAME, BailoutId::None(),
                              OutputFrameStateCombine::Ignore()),
         state_values, state_values, state_values, NoContextConstant(),
-        UndefinedConstant());
+        UndefinedConstant(), UndefinedConstant());
     cached_nodes_[kEmptyFrameState] = empty_frame_state;
   }
   return empty_frame_state;

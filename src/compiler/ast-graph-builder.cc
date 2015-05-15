@@ -814,6 +814,7 @@ Node* AstGraphBuilder::Environment::Checkpoint(
 
   Node* result = graph()->NewNode(op, parameters_node_, locals_node_,
                                   stack_node_, builder()->current_context(),
+                                  builder()->GetFunctionClosure(),
                                   builder()->jsgraph()->UndefinedConstant());
   if (FLAG_analyze_environment_liveness) {
     liveness_block()->Checkpoint(result);

@@ -264,22 +264,11 @@ Reduction JSInliner::InlineCall(Node* call, Inlinee& inlinee) {
 }
 
 
-void JSInliner::AddClosureToFrameState(Node* frame_state,
-                                       Handle<JSFunction> jsfunction) {
-  FrameStateCallInfo call_info = OpParameter<FrameStateCallInfo>(frame_state);
-  const Operator* op = jsgraph_->common()->FrameState(
-      FrameStateType::JS_FRAME, call_info.bailout_id(),
-      call_info.state_combine(), jsfunction);
-  frame_state->set_op(op);
-}
-
-
 Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
-                                                  Handle<JSFunction> jsfunction,
                                                   Zone* temp_zone) {
   const Operator* op = jsgraph_->common()->FrameState(
       FrameStateType::ARGUMENTS_ADAPTOR, BailoutId(-1),
-      OutputFrameStateCombine::Ignore(), jsfunction);
+      OutputFrameStateCombine::Ignore());
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
   NodeVector params(temp_zone);
@@ -293,7 +282,7 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
       op_param, static_cast<int>(params.size()), &params.front());
   return jsgraph_->graph()->NewNode(op, params_node, node0, node0,
                                     jsgraph_->UndefinedConstant(),
-                                    call->frame_state());
+                                    call->jsfunction(), call->frame_state());
 }
 
 
@@ -359,14 +348,12 @@ Reduction JSInliner::Reduce(Node* node) {
         call.formal_arguments() < inlinee.formal_parameters()) {
       return NoChange();
     }
-    outer_frame_state =
-        CreateArgumentsAdaptorFrameState(&call, function, info.zone());
+    outer_frame_state = CreateArgumentsAdaptorFrameState(&call, info.zone());
   }
 
   for (Node* node : visitor.copies()) {
     if (node && node->opcode() == IrOpcode::kFrameState) {
       DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-      AddClosureToFrameState(node, function);
       NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
     }
   }

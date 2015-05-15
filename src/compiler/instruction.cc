@@ -662,22 +662,23 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 
 
 FrameStateDescriptor::FrameStateDescriptor(
-    Zone* zone, const FrameStateCallInfo& state_info, size_t parameters_count,
+    Zone* zone, FrameStateType type, BailoutId bailout_id,
+    OutputFrameStateCombine state_combine, size_t parameters_count,
     size_t locals_count, size_t stack_count, FrameStateDescriptor* outer_state)
-    : type_(state_info.type()),
-      bailout_id_(state_info.bailout_id()),
-      frame_state_combine_(state_info.state_combine()),
+    : type_(type),
+      bailout_id_(bailout_id),
+      frame_state_combine_(state_combine),
       parameters_count_(parameters_count),
       locals_count_(locals_count),
       stack_count_(stack_count),
       types_(zone),
-      outer_state_(outer_state),
-      jsfunction_(state_info.jsfunction()) {
+      outer_state_(outer_state) {
   types_.resize(GetSize(), kMachNone);
 }
 
+
 size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
-  size_t size = parameters_count() + locals_count() + stack_count() +
+  size_t size = 1 + parameters_count() + locals_count() + stack_count() +
                 (HasContext() ? 1 : 0);
   switch (combine.kind()) {
     case OutputFrameStateCombine::kPushOutput:

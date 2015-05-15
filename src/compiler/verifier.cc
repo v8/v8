@@ -421,6 +421,10 @@ void Verifier::Visitor::Check(Node* node) {
     }
     case IrOpcode::kFrameState:
       // TODO(jarin): what are the constraints on these?
+      CHECK_EQ(5, value_count);
+      CHECK_EQ(0, control_count);
+      CHECK_EQ(0, effect_count);
+      CHECK_EQ(6, input_count);
       break;
     case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:

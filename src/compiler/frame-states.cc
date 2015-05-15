@@ -48,6 +48,7 @@ std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
   return os << info.type() << ", " << info.bailout_id() << ", "
             << info.state_combine();
 }
-}
-}
-}
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

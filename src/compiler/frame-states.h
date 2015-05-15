@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_FRAME_STATES_H_
 #define V8_COMPILER_FRAME_STATES_H_
 
-#include "src/handles-inl.h"  // TODO(everyone): Fix our inl.h crap
-#include "src/objects-inl.h"  // TODO(everyone): Fix our inl.h crap
 #include "src/utils.h"
 
 namespace v8 {
@@ -80,25 +78,20 @@ enum FrameStateType {
 
 class FrameStateCallInfo final {
  public:
-  FrameStateCallInfo(
-      FrameStateType type, BailoutId bailout_id,
-      OutputFrameStateCombine state_combine,
-      MaybeHandle<JSFunction> jsfunction = MaybeHandle<JSFunction>())
+  FrameStateCallInfo(FrameStateType type, BailoutId bailout_id,
+                     OutputFrameStateCombine state_combine)
       : type_(type),
         bailout_id_(bailout_id),
-        frame_state_combine_(state_combine),
-        jsfunction_(jsfunction) {}
+        frame_state_combine_(state_combine) {}
 
   FrameStateType type() const { return type_; }
   BailoutId bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
-  MaybeHandle<JSFunction> jsfunction() const { return jsfunction_; }
 
  private:
-  FrameStateType type_;
-  BailoutId bailout_id_;
-  OutputFrameStateCombine frame_state_combine_;
-  MaybeHandle<JSFunction> jsfunction_;
+  FrameStateType const type_;
+  BailoutId const bailout_id_;
+  OutputFrameStateCombine const frame_state_combine_;
 };
 
 bool operator==(FrameStateCallInfo const&, FrameStateCallInfo const&);

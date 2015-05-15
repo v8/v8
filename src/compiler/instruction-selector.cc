@@ -1028,7 +1028,7 @@ void InstructionSelector::VisitThrow(Node* value) {
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->opcode() == IrOpcode::kFrameState);
-  DCHECK_EQ(5, state->InputCount());
+  DCHECK_EQ(6, state->InputCount());
   DCHECK_EQ(IrOpcode::kTypedStateValues, state->InputAt(0)->opcode());
   DCHECK_EQ(IrOpcode::kTypedStateValues, state->InputAt(1)->opcode());
   DCHECK_EQ(IrOpcode::kTypedStateValues, state->InputAt(2)->opcode());
@@ -1040,13 +1040,14 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
   int stack = static_cast<int>(StateValuesAccess(state->InputAt(2)).size());
 
   FrameStateDescriptor* outer_state = NULL;
-  Node* outer_node = state->InputAt(4);
+  Node* outer_node = state->InputAt(5);
   if (outer_node->opcode() == IrOpcode::kFrameState) {
     outer_state = GetFrameStateDescriptor(outer_node);
   }
 
   return new (instruction_zone()) FrameStateDescriptor(
-      instruction_zone(), state_info, parameters, locals, stack, outer_state);
+      instruction_zone(), state_info.type(), state_info.bailout_id(),
+      state_info.state_combine(), parameters, locals, stack, outer_state);
 }
 
 
@@ -1068,14 +1069,15 @@ void InstructionSelector::AddFrameStateInputs(
     FrameStateDescriptor* descriptor) {
   DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
 
-  if (descriptor->outer_state() != NULL) {
-    AddFrameStateInputs(state->InputAt(4), inputs, descriptor->outer_state());
+  if (descriptor->outer_state()) {
+    AddFrameStateInputs(state->InputAt(5), inputs, descriptor->outer_state());
   }
 
   Node* parameters = state->InputAt(0);
   Node* locals = state->InputAt(1);
   Node* stack = state->InputAt(2);
   Node* context = state->InputAt(3);
+  Node* function = state->InputAt(4);
 
   DCHECK_EQ(IrOpcode::kTypedStateValues, parameters->op()->opcode());
   DCHECK_EQ(IrOpcode::kTypedStateValues, locals->op()->opcode());
@@ -1091,6 +1093,8 @@ void InstructionSelector::AddFrameStateInputs(
 
   OperandGenerator g(this);
   size_t value_index = 0;
+  inputs->push_back(SlotOrImmediate(&g, function));
+  descriptor->SetType(value_index++, kMachAnyTagged);
   for (StateValuesAccess::TypedNode input_node :
        StateValuesAccess(parameters)) {
     inputs->push_back(SlotOrImmediate(&g, input_node.node));
