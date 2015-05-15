@@ -1720,6 +1720,7 @@
           '../../src/regexp.js',
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
+          '../../src/iterator-prototype.js',
           '../../src/generator.js',
           '../../src/object-observe.js',
           '../../src/collection.js',

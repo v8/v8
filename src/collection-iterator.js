@@ -14,7 +14,6 @@ var $setValues;
 %CheckIsBootstrapping();
 
 var GlobalMap = global.Map;
-var GlobalObject = global.Object;
 var GlobalSet = global.Set;
 
 // -------------------------------------------------------------------
@@ -49,11 +48,6 @@ function SetIteratorNextJS() {
 }
 
 
-function SetIteratorSymbolIterator() {
-  return this;
-}
-
-
 function SetEntries() {
   if (!IS_SET(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
@@ -74,15 +68,12 @@ function SetValues() {
 // -------------------------------------------------------------------
 
 %SetCode(SetIterator, SetIteratorConstructor);
-%FunctionSetPrototype(SetIterator, new GlobalObject());
+%FunctionSetPrototype(SetIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
 $installFunctions(SetIterator.prototype, DONT_ENUM, [
   'next', SetIteratorNextJS
 ]);
 
-$setFunctionName(SetIteratorSymbolIterator, symbolIterator);
-%AddNamedProperty(SetIterator.prototype, symbolIterator,
-    SetIteratorSymbolIterator, DONT_ENUM);
 %AddNamedProperty(SetIterator.prototype, symbolToStringTag,
     "Set Iterator", READ_ONLY | DONT_ENUM);
 
@@ -101,11 +92,6 @@ $setValues = SetValues;
 
 function MapIteratorConstructor(map, kind) {
   %MapIteratorInitialize(this, map, kind);
-}
-
-
-function MapIteratorSymbolIterator() {
-  return this;
 }
 
 
@@ -164,15 +150,12 @@ function MapValues() {
 // -------------------------------------------------------------------
 
 %SetCode(MapIterator, MapIteratorConstructor);
-%FunctionSetPrototype(MapIterator, new GlobalObject());
+%FunctionSetPrototype(MapIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
 $installFunctions(MapIterator.prototype, DONT_ENUM, [
   'next', MapIteratorNextJS
 ]);
 
-$setFunctionName(MapIteratorSymbolIterator, symbolIterator);
-%AddNamedProperty(MapIterator.prototype, symbolIterator,
-    MapIteratorSymbolIterator, DONT_ENUM);
 %AddNamedProperty(MapIterator.prototype, symbolToStringTag,
     "Map Iterator", READ_ONLY | DONT_ENUM);
 

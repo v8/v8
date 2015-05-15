@@ -35,6 +35,7 @@ function* g() { yield 1; }
 var GeneratorFunctionPrototype = Object.getPrototypeOf(g);
 var GeneratorFunction = GeneratorFunctionPrototype.constructor;
 var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
+var IteratorPrototype = Object.getPrototypeOf(GeneratorObjectPrototype);
 
 // A generator function should have the same set of properties as any
 // other function.
@@ -100,7 +101,7 @@ TestGeneratorFunctionPrototype();
 // Functions that we associate with generator objects are actually defined by
 // a common prototype.
 function TestGeneratorObjectPrototype() {
-  assertSame(Object.prototype,
+  assertSame(IteratorPrototype,
              Object.getPrototypeOf(GeneratorObjectPrototype));
   assertSame(GeneratorObjectPrototype,
              Object.getPrototypeOf((function*(){yield 1}).prototype));
@@ -134,16 +135,6 @@ function TestGeneratorObjectPrototype() {
   assertTrue(throw_desc.writable);
   assertFalse(throw_desc.enumerable);
   assertTrue(throw_desc.configurable);
-
-  var iterator_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
-      Symbol.iterator);
-  assertTrue(iterator_desc !== undefined);
-  assertFalse(iterator_desc.writable);
-  assertFalse(iterator_desc.enumerable);
-  assertFalse(iterator_desc.configurable);
-
-  // The generator object's "iterator" function is just the identity.
-  assertSame(iterator_desc.value.call(42), 42);
 }
 TestGeneratorObjectPrototype();
 

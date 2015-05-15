@@ -66,11 +66,6 @@ function GeneratorObjectThrow(exn) {
 }
 
 
-function GeneratorObjectIterator() {
-  return this;
-}
-
-
 function GeneratorFunctionConstructor(arg1) {  // length == 1
   var source = $newFunctionString(arguments, 'function*');
   var global_proxy = %GlobalProxy(GeneratorFunctionConstructor);
@@ -95,9 +90,6 @@ $installFunctions(GeneratorObjectPrototype,
                  ["next", GeneratorObjectNext,
                   "throw", GeneratorObjectThrow]);
 
-$setFunctionName(GeneratorObjectIterator, symbolIterator);
-%AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
-    GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
 %AddNamedProperty(GeneratorObjectPrototype, "constructor",
     GeneratorFunctionPrototype, DONT_ENUM | READ_ONLY);
 %AddNamedProperty(GeneratorObjectPrototype,

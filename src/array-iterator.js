@@ -12,7 +12,6 @@ var $arrayValues;
 %CheckIsBootstrapping();
 
 var GlobalArray = global.Array;
-var GlobalObject = global.Object;
 
 macro TYPED_ARRAYS(FUNCTION)
   FUNCTION(Uint8Array)
@@ -122,7 +121,7 @@ function ArrayKeys() {
 }
 
 
-%FunctionSetPrototype(ArrayIterator, new GlobalObject());
+%FunctionSetPrototype(ArrayIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
 
 $installFunctions(ArrayIterator.prototype, DONT_ENUM, [

@@ -2129,10 +2129,17 @@ bool Genesis::InstallNatives() {
   {
     // Create generator meta-objects and install them on the builtins object.
     Handle<JSObject> builtins(native_context()->builtins());
+    Handle<JSObject> iterator_prototype =
+        factory()->NewJSObject(isolate()->object_function(), TENURED);
     Handle<JSObject> generator_object_prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
     Handle<JSObject> generator_function_prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
+    SetObjectPrototype(generator_object_prototype, iterator_prototype);
+    JSObject::AddProperty(
+        builtins, factory()->InternalizeUtf8String("$iteratorPrototype"),
+        iterator_prototype,
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
     JSObject::AddProperty(
         builtins,
         factory()->InternalizeUtf8String("GeneratorFunctionPrototype"),

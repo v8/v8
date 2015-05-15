@@ -8,7 +8,6 @@
 
 %CheckIsBootstrapping();
 
-var GlobalObject = global.Object;
 var GlobalString = global.String;
 
 //-------------------------------------------------------------------
@@ -28,12 +27,6 @@ function CreateStringIterator(string) {
   SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol, s);
   SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, 0);
   return iterator;
-}
-
-
-// 21.1.5.2.2 %StringIteratorPrototype%[@@iterator]
-function StringIteratorIterator() {
-  return this;
 }
 
 
@@ -85,15 +78,12 @@ function StringPrototypeIterator() {
 
 //-------------------------------------------------------------------
 
-%FunctionSetPrototype(StringIterator, new GlobalObject());
+%FunctionSetPrototype(StringIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
 $installFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
-$setFunctionName(StringIteratorIterator, symbolIterator);
-%AddNamedProperty(StringIterator.prototype, symbolIterator,
-                  StringIteratorIterator, DONT_ENUM);
 %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
