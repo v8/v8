@@ -2534,7 +2534,8 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
                                             AllocationSpace space) {
   HeapObject* obj;
   {
-    AllocationResult allocation = AllocateRaw(size, space, space);
+    AllocationAlignment align = double_align ? kDoubleAligned : kWordAligned;
+    AllocationResult allocation = AllocateRaw(size, space, space, align);
     if (!allocation.To(&obj)) return allocation;
   }
 #ifdef DEBUG
