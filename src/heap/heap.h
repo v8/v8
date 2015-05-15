@@ -2101,11 +2101,9 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void ReduceNewSpaceSize(bool is_long_idle_notification);
-
   bool TryFinalizeIdleIncrementalMarking(
-      bool is_long_idle_notification, double idle_time_in_ms,
-      size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms);
+      double idle_time_in_ms, size_t size_of_objects,
+      size_t mark_compact_speed_in_bytes_per_ms);
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 

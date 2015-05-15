@@ -4574,18 +4574,8 @@ void Heap::MakeHeapIterable() {
   DCHECK(IsHeapIterable());
 }
 
-
-void Heap::ReduceNewSpaceSize(bool is_long_idle_notification) {
-  if (is_long_idle_notification) {
-    new_space_.Shrink();
-    UncommitFromSpace();
-  }
-}
-
-
 bool Heap::TryFinalizeIdleIncrementalMarking(
-    bool is_long_idle_notification, double idle_time_in_ms,
-    size_t size_of_objects,
+    double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (FLAG_overapproximate_weak_closure &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
@@ -4603,7 +4593,6 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
     gc_idle_time_handler_.NotifyIdleMarkCompact();
-    ReduceNewSpaceSize(is_long_idle_notification);
     return true;
   }
   return false;
@@ -4710,8 +4699,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
                !mark_compact_collector_.marking_deque()->IsEmpty());
       if (remaining_idle_time_in_ms > 0.0) {
         action.additional_work = TryFinalizeIdleIncrementalMarking(
-            is_long_idle_notification, remaining_idle_time_in_ms,
-            heap_state.size_of_objects,
+            remaining_idle_time_in_ms, heap_state.size_of_objects,
             heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms);
       }
       break;
@@ -4728,19 +4716,22 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
                           "idle notification: finalize idle round");
       }
       gc_count_at_last_idle_gc_ = gc_count_;
-      ReduceNewSpaceSize(is_long_idle_notification);
       gc_idle_time_handler_.NotifyIdleMarkCompact();
       break;
     }
     case DO_SCAVENGE:
       CollectGarbage(NEW_SPACE, "idle notification: scavenge");
-      ReduceNewSpaceSize(is_long_idle_notification);
       break;
     case DO_FINALIZE_SWEEPING:
       mark_compact_collector()->EnsureSweepingCompleted();
       break;
     case DO_NOTHING:
       break;
+  }
+
+  if (action.reduce_memory) {
+    new_space_.Shrink();
+    UncommitFromSpace();
   }
 
   double current_time = MonotonicallyIncreasingTimeInMs();
