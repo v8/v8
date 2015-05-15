@@ -136,6 +136,9 @@ class GCIdleTimeHandler {
   // lower bound for the scavenger speed.
   static const size_t kInitialConservativeScavengeSpeed = 100 * KB;
 
+  // The minimum size of allocated new space objects to trigger a scavenge.
+  static const size_t kMinimumNewSpaceSizeToPerformScavenge = MB / 2;
+
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
 

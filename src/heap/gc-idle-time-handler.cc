@@ -122,8 +122,8 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     new_space_allocation_limit = new_space_size;
   }
 
-  // We do not know the allocation throughput before the first Scavenge.
-  // TODO(hpayer): Estimate allocation throughput before the first Scavenge.
+  // We do not know the allocation throughput before the first scavenge.
+  // TODO(hpayer): Estimate allocation throughput before the first scavenge.
   if (new_space_allocation_throughput_in_bytes_per_ms == 0) {
     new_space_allocation_limit =
         static_cast<size_t>(new_space_size * kConservativeTimeRatio);
@@ -131,10 +131,17 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     // We have to trigger scavenge before we reach the end of new space.
     size_t adjust_limit = new_space_allocation_throughput_in_bytes_per_ms *
                           kTimeUntilNextIdleEvent;
-    if (adjust_limit > new_space_allocation_limit)
+    if (adjust_limit > new_space_allocation_limit) {
       new_space_allocation_limit = 0;
-    else
+    } else {
       new_space_allocation_limit -= adjust_limit;
+    }
+  }
+
+  // The allocated new space limit to trigger a scavange has to be at least
+  // kMinimumNewSpaceSizeToPerformScavenge.
+  if (new_space_allocation_limit < kMinimumNewSpaceSizeToPerformScavenge) {
+    new_space_allocation_limit = kMinimumNewSpaceSizeToPerformScavenge;
   }
 
   if (scavenge_speed_in_bytes_per_ms == 0) {
@@ -245,8 +252,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
 // a full GC.
 // (2) If the context disposal rate is high and we cannot perform a full GC,
 // we do nothing until the context disposal rate becomes lower.
-// (3) If the new space is almost full and we can affort a Scavenge or if the
-// next Scavenge will very likely take long, then a Scavenge is performed.
+// (3) If the new space is almost full and we can affort a scavenge or if the
+// next scavenge will very likely take long, then a scavenge is performed.
 // (4) If there is currently no MarkCompact idle round going on, we start a
 // new idle round if enough garbage was created. Otherwise we do not perform
 // garbage collection to keep system utilization low.
