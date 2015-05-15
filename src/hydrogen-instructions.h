@@ -6843,7 +6843,7 @@ class HStoreNamedField final : public HTemplateInstruction<3> {
   Handle<Map> transition_map() const {
     if (has_transition()) {
       return Handle<Map>::cast(
-          HConstant::cast(transition())->handle(Isolate::Current()));
+          HConstant::cast(transition())->handle(isolate()));
     } else {
       return Handle<Map>();
     }

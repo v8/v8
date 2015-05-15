@@ -2976,7 +2976,7 @@ std::ostream& HConstant::PrintDataTo(std::ostream& os) const {  // NOLINT
     os << reinterpret_cast<void*>(external_reference_value_.address()) << " ";
   } else {
     // The handle() method is silently and lazily mutating the object.
-    Handle<Object> h = const_cast<HConstant*>(this)->handle(Isolate::Current());
+    Handle<Object> h = const_cast<HConstant*>(this)->handle(isolate());
     os << Brief(*h) << " ";
     if (HasStableMapValue()) os << "[stable-map] ";
     if (HasObjectMap()) os << "[map " << *ObjectMap().handle() << "] ";
