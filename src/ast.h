@@ -3352,6 +3352,7 @@ class AstNodeFactory final BASE_EMBEDDED {
                                   Variable::Kind variable_kind,
                                   int start_position = RelocInfo::kNoPosition,
                                   int end_position = RelocInfo::kNoPosition) {
+    DCHECK_NOT_NULL(name);
     return new (zone_)
         VariableProxy(zone_, name, variable_kind, start_position, end_position);
   }

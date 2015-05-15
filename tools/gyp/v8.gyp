@@ -799,7 +799,6 @@
         '../../src/ostreams.cc',
         '../../src/ostreams.h',
         '../../src/pattern-rewriter.cc',
-        '../../src/pattern-rewriter.h',
         '../../src/parser.cc',
         '../../src/parser.h',
         '../../src/pending-compilation-error-handler.cc',

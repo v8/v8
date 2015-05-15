@@ -871,7 +871,6 @@ class Parser : public ParserBase<ParserTraits> {
 
  private:
   friend class ParserTraits;
-  class PatternRewriter;
 
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
@@ -940,12 +939,91 @@ class Parser : public ParserBase<ParserTraits> {
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);
-  Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                   int* num_decl,
-                                   ZoneList<const AstRawString*>* names,
-                                   const AstRawString** out,
-                                   Scanner::Location* first_initializer_loc,
-                                   Scanner::Location* bindings_loc, bool* ok);
+
+  struct DeclarationDescriptor {
+    Parser* parser;
+    Scope* declaration_scope;
+    Scope* scope;
+    VariableMode mode;
+    bool is_const;
+    bool needs_init;
+    int pos;
+    Token::Value init_op;
+  };
+
+  struct DeclarationParsingResult {
+    struct Declaration {
+      Declaration(Expression* pattern, int initializer_position,
+                  Expression* initializer)
+          : pattern(pattern),
+            initializer_position(initializer_position),
+            initializer(initializer) {}
+
+      Expression* pattern;
+      int initializer_position;
+      Expression* initializer;
+    };
+
+    DeclarationParsingResult()
+        : declarations(4),
+          first_initializer_loc(Scanner::Location::invalid()),
+          bindings_loc(Scanner::Location::invalid()) {}
+
+    Block* BuildInitializationBlock(ZoneList<const AstRawString*>* names,
+                                    bool* ok);
+    const AstRawString* SingleName() const;
+
+    DeclarationDescriptor descriptor;
+    List<Declaration> declarations;
+    Scanner::Location first_initializer_loc;
+    Scanner::Location bindings_loc;
+  };
+
+  class PatternRewriter : private AstVisitor {
+   public:
+    static void DeclareAndInitializeVariables(
+        Block* block, const DeclarationDescriptor* declaration_descriptor,
+        const DeclarationParsingResult::Declaration* declaration,
+        ZoneList<const AstRawString*>* names, bool* ok);
+
+    void set_initializer_position(int pos) { initializer_position_ = pos; }
+
+   private:
+    PatternRewriter() {}
+
+#define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node) override;
+    // Visiting functions for AST nodes make this an AstVisitor.
+    AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+    virtual void Visit(AstNode* node) override;
+
+    void RecurseIntoSubpattern(AstNode* pattern, Expression* value) {
+      Expression* old_value = current_value_;
+      current_value_ = value;
+      pattern->Accept(this);
+      current_value_ = old_value;
+    }
+
+    AstNodeFactory* factory() const { return descriptor_->parser->factory(); }
+    AstValueFactory* ast_value_factory() const {
+      return descriptor_->parser->ast_value_factory();
+    }
+    bool inside_with() const { return descriptor_->parser->inside_with(); }
+    Zone* zone() const { return descriptor_->parser->zone(); }
+
+    Expression* pattern_;
+    int initializer_position_;
+    Block* block_;
+    const DeclarationDescriptor* descriptor_;
+    ZoneList<const AstRawString*>* names_;
+    Expression* current_value_;
+    bool* ok_;
+  };
+
+
+  void ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                 DeclarationParsingResult* parsing_result,
+                                 bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* labels, bool* ok);
   IfStatement* ParseIfStatement(ZoneList<const AstRawString*>* labels,

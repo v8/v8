@@ -4,38 +4,32 @@
 
 #include "src/ast.h"
 #include "src/parser.h"
-#include "src/pattern-rewriter.h"
 
 namespace v8 {
 
 namespace internal {
 
 
-bool Parser::PatternRewriter::IsSingleVariableBinding() const {
-  return pattern_->IsVariableProxy();
-}
+void Parser::PatternRewriter::DeclareAndInitializeVariables(
+    Block* block, const DeclarationDescriptor* declaration_descriptor,
+    const DeclarationParsingResult::Declaration* declaration,
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  PatternRewriter rewriter;
 
+  rewriter.pattern_ = declaration->pattern;
+  rewriter.initializer_position_ = declaration->initializer_position;
+  rewriter.block_ = block;
+  rewriter.descriptor_ = declaration_descriptor;
+  rewriter.names_ = names;
+  rewriter.ok_ = ok;
 
-const AstRawString* Parser::PatternRewriter::SingleName() const {
-  DCHECK(IsSingleVariableBinding());
-  return pattern_->AsVariableProxy()->raw_name();
-}
-
-
-void Parser::PatternRewriter::DeclareAndInitializeVariables(Expression* value,
-                                                            int* nvars,
-                                                            bool* ok) {
-  ok_ = ok;
-  nvars_ = nvars;
-  RecurseIntoSubpattern(pattern_, value);
-  ok_ = nullptr;
-  nvars_ = nullptr;
+  rewriter.RecurseIntoSubpattern(rewriter.pattern_, declaration->initializer);
 }
 
 
 void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   Expression* value = current_value_;
-  decl_->scope->RemoveUnresolved(pattern->AsVariableProxy());
+  descriptor_->scope->RemoveUnresolved(pattern->AsVariableProxy());
 
   // Declare variable.
   // Note that we *always* must treat the initial value via a separate init
@@ -52,24 +46,27 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // For let/const declarations in harmony mode, we can also immediately
   // pre-resolve the proxy because it resides in the same scope as the
   // declaration.
-  Parser* parser = decl_->parser;
+  Parser* parser = descriptor_->parser;
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = parser->NewUnresolved(name, decl_->mode);
+  VariableProxy* proxy = parser->NewUnresolved(name, descriptor_->mode);
   Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, decl_->mode, decl_->scope, decl_->pos);
-  Variable* var = parser->Declare(declaration, decl_->mode != VAR, ok_);
+      proxy, descriptor_->mode, descriptor_->scope, descriptor_->pos);
+  Variable* var = parser->Declare(declaration, descriptor_->mode != VAR, ok_);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
   DCHECK(!proxy->is_resolved() || proxy->var() == var);
-  var->set_initializer_position(decl_->initializer_position);
-  (*nvars_)++;
-  if (decl_->declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
+  var->set_initializer_position(initializer_position_);
+
+  DCHECK(initializer_position_ != RelocInfo::kNoPosition);
+
+  if (descriptor_->declaration_scope->num_var_or_const() >
+      kMaxNumFunctionLocals) {
     parser->ReportMessage("too_many_variables");
     *ok_ = false;
     return;
   }
-  if (decl_->names) {
-    decl_->names->Add(name, zone());
+  if (names_) {
+    names_->Add(name, zone());
   }
 
   // Initialize variables if needed. A
@@ -98,8 +95,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // The "variable" c initialized to x is the same as the declared
   // one - there is no re-lookup (see the last parameter of the
   // Declare() call above).
-  Scope* initialization_scope =
-      decl_->is_const ? decl_->declaration_scope : decl_->scope;
+  Scope* initialization_scope = descriptor_->is_const
+                                    ? descriptor_->declaration_scope
+                                    : descriptor_->scope;
 
 
   // Global variable declarations must be compiled in a specific
@@ -121,16 +119,16 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // browsers where the global object (window) has lots of
   // properties defined in prototype objects.
   if (initialization_scope->is_script_scope() &&
-      !IsLexicalVariableMode(decl_->mode)) {
+      !IsLexicalVariableMode(descriptor_->mode)) {
     // Compute the arguments for the runtime
     // call.test-parsing/InitializedDeclarationsInStrictForOfError
     ZoneList<Expression*>* arguments =
         new (zone()) ZoneList<Expression*>(3, zone());
     // We have at least 1 parameter.
-    arguments->Add(factory()->NewStringLiteral(name, decl_->pos), zone());
+    arguments->Add(factory()->NewStringLiteral(name, descriptor_->pos), zone());
     CallRuntime* initialize;
 
-    if (decl_->is_const) {
+    if (descriptor_->is_const) {
       arguments->Add(value, zone());
       value = NULL;  // zap the value to avoid the unnecessary assignment
 
@@ -141,13 +139,13 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       initialize = factory()->NewCallRuntime(
           ast_value_factory()->initialize_const_global_string(),
           Runtime::FunctionForId(Runtime::kInitializeConstGlobal), arguments,
-          decl_->pos);
+          descriptor_->pos);
     } else {
       // Add language mode.
       // We may want to pass singleton to avoid Literal allocations.
       LanguageMode language_mode = initialization_scope->language_mode();
-      arguments->Add(factory()->NewNumberLiteral(language_mode, decl_->pos),
-                     zone());
+      arguments->Add(
+          factory()->NewNumberLiteral(language_mode, descriptor_->pos), zone());
 
       // Be careful not to assign a value to the global variable if
       // we're in a with. The initialization value should not
@@ -161,18 +159,19 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
         initialize = factory()->NewCallRuntime(
             ast_value_factory()->initialize_var_global_string(),
             Runtime::FunctionForId(Runtime::kInitializeVarGlobal), arguments,
-            decl_->pos);
+            descriptor_->pos);
       } else {
         initialize = NULL;
       }
     }
 
     if (initialize != NULL) {
-      decl_->block->AddStatement(
+      block_->AddStatement(
           factory()->NewExpressionStatement(initialize, RelocInfo::kNoPosition),
           zone());
     }
-  } else if (decl_->needs_init) {
+  } else if (value != nullptr && (descriptor_->needs_init ||
+                                  IsLexicalVariableMode(descriptor_->mode))) {
     // Constant initializations always assign to the declared constant which
     // is always at the function scope level. This is only relevant for
     // dynamically looked-up variables and constants (the
@@ -183,9 +182,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     DCHECK_NOT_NULL(proxy);
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
-    Assignment* assignment =
-        factory()->NewAssignment(decl_->init_op, proxy, value, decl_->pos);
-    decl_->block->AddStatement(
+    Assignment* assignment = factory()->NewAssignment(
+        descriptor_->init_op, proxy, value, descriptor_->pos);
+    block_->AddStatement(
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
         zone());
     value = NULL;
@@ -194,14 +193,14 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // Add an assignment node to the initialization statement block if we still
   // have a pending initialization value.
   if (value != NULL) {
-    DCHECK(decl_->mode == VAR);
+    DCHECK(descriptor_->mode == VAR);
     // 'var' initializations are simply assignments (with all the consequences
     // if they are inside a 'with' statement - they may change a 'with' object
     // property).
     VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
-    Assignment* assignment =
-        factory()->NewAssignment(decl_->init_op, proxy, value, decl_->pos);
-    decl_->block->AddStatement(
+    Assignment* assignment = factory()->NewAssignment(
+        descriptor_->init_op, proxy, value, descriptor_->pos);
+    block_->AddStatement(
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
         zone());
   }
@@ -209,12 +208,12 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
 
 void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern) {
-  auto temp = decl_->declaration_scope->NewTemporary(
+  auto temp = descriptor_->declaration_scope->NewTemporary(
       ast_value_factory()->empty_string());
   auto assignment =
       factory()->NewAssignment(Token::ASSIGN, factory()->NewVariableProxy(temp),
                                current_value_, RelocInfo::kNoPosition);
-  decl_->block->AddStatement(
+  block_->AddStatement(
       factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
       zone());
   for (ObjectLiteralProperty* property : *pattern->properties()) {
