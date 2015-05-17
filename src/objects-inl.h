@@ -7055,16 +7055,6 @@ void AccessorInfo::set_all_can_write(bool value) {
 }
 
 
-bool AccessorInfo::is_special_data_property() {
-  return BooleanBit::get(flag(), kSpecialDataProperty);
-}
-
-
-void AccessorInfo::set_is_special_data_property(bool value) {
-  set_flag(BooleanBit::set(flag(), kSpecialDataProperty, value));
-}
-
-
 PropertyAttributes AccessorInfo::property_attributes() {
   return AttributesField::decode(static_cast<uint32_t>(flag()->value()));
 }

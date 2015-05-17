@@ -119,9 +119,3 @@ for (var i = 0; i < 7; i++) {
   t = a.length = 7;
   assertEquals(7, t);
 }
-
-(function () {
-  "use strict";
-  var frozen_object = Object.freeze({__proto__:[]});
-  assertThrows(function () { frozen_object.length = 10 });
-})();
