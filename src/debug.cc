@@ -897,11 +897,6 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
   Handle<FixedArray> break_points_hit;
   int break_points_hit_count = 0;
   DCHECK(!break_point_objects->IsUndefined());
-
-  // Break points are checked by calling into Javascript. This could change
-  // the stepping state we are currently in.
-  PreserveDebugState state(this);
-
   if (break_point_objects->IsFixedArray()) {
     Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
     break_points_hit = factory->NewFixedArray(array->length());

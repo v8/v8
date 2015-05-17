@@ -732,27 +732,6 @@ class Debug {
     Object** restarter_frame_function_pointer_;
   };
 
-
-  class PreserveDebugState {
-   public:
-    explicit PreserveDebugState(Debug* debug) : debug_(debug) {
-      size_t size = sizeof(debug_->thread_local_);
-      storage_ = NewArray<char>(size);
-      MemCopy(storage_, &debug_->thread_local_, size);
-    }
-
-    ~PreserveDebugState() {
-      size_t size = sizeof(debug_->thread_local_);
-      MemCopy(&debug_->thread_local_, storage_, size);
-      DeleteArray(storage_);
-    }
-
-   private:
-    Debug* debug_;
-    char* storage_;
-  };
-
-
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;
 
