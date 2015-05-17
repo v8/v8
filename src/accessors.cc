@@ -32,7 +32,6 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_property_attributes(attributes);
   info->set_all_can_read(false);
   info->set_all_can_write(false);
-  info->set_is_special_data_property(true);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
   Handle<Object> set = v8::FromCData(isolate, setter);
@@ -127,6 +126,31 @@ bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
 }
 
 
+bool SetPropertyOnInstanceIfInherited(
+    Isolate* isolate, const v8::PropertyCallbackInfo<void>& info,
+    v8::Local<v8::Name> name, Handle<Object> value) {
+  Handle<Object> holder = Utils::OpenHandle(*info.Holder());
+  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  if (*holder == *receiver) return false;
+  if (receiver->IsJSObject()) {
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    // This behaves sloppy since we lost the actual strict-mode.
+    // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
+    // properties.
+    if (object->IsJSGlobalProxy()) {
+      PrototypeIterator iter(isolate, object);
+      if (iter.IsAtEnd()) return true;
+      DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+      object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    }
+    if (!object->map()->is_extensible()) return true;
+    JSObject::SetOwnPropertyIgnoreAttributes(object, Utils::OpenHandle(*name),
+                                             value, NONE).Check();
+  }
+  return true;
+}
+
+
 //
 // Accessors::ArgumentsIterator
 //
@@ -149,6 +173,8 @@ void Accessors::ArgumentsIteratorSetter(
   HandleScope scope(isolate);
   Handle<JSObject> object = Utils::OpenHandle(*info.This());
   Handle<Object> value = Utils::OpenHandle(*val);
+
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
 
   LookupIterator it(object, Utils::OpenHandle(*name));
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
@@ -208,6 +234,9 @@ void Accessors::ArrayLengthSetter(
   HandleScope scope(isolate);
   Handle<JSObject> object = Utils::OpenHandle(*info.This());
   Handle<Object> value = Utils::OpenHandle(*val);
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
+    return;
+  }
 
   value = FlattenNumber(isolate, value);
 
@@ -941,6 +970,9 @@ void Accessors::FunctionPrototypeSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Handle<Object> value = Utils::OpenHandle(*val);
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
+    return;
+  }
   Handle<JSFunction> object =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   if (SetFunctionPrototype(isolate, object, value).is_null()) {
@@ -1029,6 +1061,8 @@ void Accessors::FunctionLengthSetter(
   HandleScope scope(isolate);
   Handle<Object> value = Utils::OpenHandle(*val);
 
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
+
   Handle<JSFunction> object =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   if (SetFunctionLength(isolate, object, value).is_null()) {
@@ -1085,6 +1119,8 @@ void Accessors::FunctionNameSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Handle<Object> value = Utils::OpenHandle(*val);
+
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
 
   Handle<JSFunction> object =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
