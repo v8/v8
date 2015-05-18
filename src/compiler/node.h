@@ -386,9 +386,7 @@ Node::Inputs::const_iterator Node::Inputs::end() const {
 }
 
 
-// A forward iterator to visit the uses edges of a node. The edges are returned
-// in
-// the order in which they were added as inputs.
+// A forward iterator to visit the uses edges of a node.
 class Node::UseEdges::iterator final {
  public:
   iterator(const iterator& other)
@@ -433,8 +431,7 @@ Node::UseEdges::iterator Node::UseEdges::end() const {
 }
 
 
-// A forward iterator to visit the uses of a node. The uses are returned in
-// the order in which they were added as inputs.
+// A forward iterator to visit the uses of a node.
 class Node::Uses::const_iterator final {
  public:
   typedef std::forward_iterator_tag iterator_category;

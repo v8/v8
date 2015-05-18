@@ -100,7 +100,9 @@ void Node::TrimInputCount(int new_input_count) {
   for (int index = new_input_count; index < input_count(); ++index) {
     ReplaceInput(index, nullptr);
   }
-  if (!has_appendable_inputs()) {
+  if (has_appendable_inputs()) {
+    inputs_.appendable_->resize(new_input_count);
+  } else {
     set_reserved_input_count(std::min<int>(
         ReservedInputCountField::kMax,
         reserved_input_count() + (input_count() - new_input_count)));

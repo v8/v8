@@ -166,6 +166,73 @@ TEST_F(NodeTest, AppendInput) {
   EXPECT_THAT(node->inputs(), ElementsAre(n0, n1, n0, n0, n1));
 }
 
+
+TEST_F(NodeTest, TrimThenAppend) {
+  Node* n0 = Node::New(zone(), 0, &kOp0, 0, nullptr, false);
+  Node* n1 = Node::New(zone(), 1, &kOp0, 0, nullptr, false);
+  Node* n2 = Node::New(zone(), 2, &kOp0, 0, nullptr, false);
+  Node* n3 = Node::New(zone(), 3, &kOp0, 0, nullptr, false);
+  Node* n4 = Node::New(zone(), 4, &kOp0, 0, nullptr, false);
+  Node* n5 = Node::New(zone(), 5, &kOp0, 0, nullptr, false);
+  Node* n6 = Node::New(zone(), 6, &kOp0, 0, nullptr, false);
+  Node* n7 = Node::New(zone(), 7, &kOp0, 0, nullptr, false);
+  Node* n8 = Node::New(zone(), 8, &kOp0, 0, nullptr, false);
+  Node* n9 = Node::New(zone(), 9, &kOp0, 0, nullptr, false);
+  Node* node = Node::New(zone(), 12345, &kOp0, 0, nullptr, true);
+
+  EXPECT_TRUE(node->inputs().empty());
+
+  node->AppendInput(zone(), n0);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n0));
+
+  node->TrimInputCount(0);
+  EXPECT_TRUE(node->inputs().empty());
+
+  node->AppendInput(zone(), n1);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1));
+
+  node->AppendInput(zone(), n2);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n2));
+
+  node->TrimInputCount(1);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1));
+
+  node->AppendInput(zone(), n3);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3));
+
+  node->AppendInput(zone(), n4);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4));
+
+  node->AppendInput(zone(), n5);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5));
+
+  node->AppendInput(zone(), n6);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5, n6));
+
+  node->AppendInput(zone(), n7);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5, n6, n7));
+
+  node->TrimInputCount(4);
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5));
+
+  node->AppendInput(zone(), n8);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5, n8));
+
+  node->AppendInput(zone(), n9);
+  EXPECT_FALSE(node->inputs().empty());
+  EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5, n8, n9));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
