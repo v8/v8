@@ -6738,17 +6738,11 @@ class Script: public Struct {
   inline CompilationState compilation_state();
   inline void set_compilation_state(CompilationState state);
 
-  // [is_embedder_debug_script]: An opaque boolean set by the embedder via
-  // ScriptOrigin, and used by the embedder to make decisions about the
-  // script's origin. V8 just passes this through. Encoded in
-  // the 'flags' field.
-  DECL_BOOLEAN_ACCESSORS(is_embedder_debug_script)
-
-  // [is_shared_cross_origin]: An opaque boolean set by the embedder via
-  // ScriptOrigin, and used by the embedder to make decisions about the
-  // script's level of privilege. V8 just passes this through. Encoded in
-  // the 'flags' field.
-  DECL_BOOLEAN_ACCESSORS(is_shared_cross_origin)
+  // [origin_options]: optional attributes set by the embedder via ScriptOrigin,
+  // and used by the embedder to make decisions about the script. V8 just passes
+  // this through. Encoded in the 'flags' field.
+  inline v8::ScriptOriginOptions origin_options();
+  inline void set_origin_options(ScriptOriginOptions origin_options);
 
   DECLARE_CAST(Script)
 
@@ -6800,8 +6794,10 @@ class Script: public Struct {
   // Bit positions in the flags field.
   static const int kCompilationTypeBit = 0;
   static const int kCompilationStateBit = 1;
-  static const int kIsEmbedderDebugScriptBit = 2;
-  static const int kIsSharedCrossOriginBit = 3;
+  static const int kOriginOptionsShift = 2;
+  static const int kOriginOptionsSize = 3;
+  static const int kOriginOptionsMask = ((1 << kOriginOptionsSize) - 1)
+                                        << kOriginOptionsShift;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
 };
