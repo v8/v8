@@ -677,9 +677,8 @@ void Accessors::ScriptIsEmbedderDebugScriptGetter(
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
   Object* object = *Utils::OpenHandle(*info.This());
-  bool is_embedder_debug_script = Script::cast(JSValue::cast(object)->value())
-                                      ->origin_options()
-                                      .IsEmbedderDebugScript();
+  bool is_embedder_debug_script =
+      Script::cast(JSValue::cast(object)->value())->is_embedder_debug_script();
   Object* res = *isolate->factory()->ToBoolean(is_embedder_debug_script);
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }

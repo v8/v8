@@ -5551,6 +5551,9 @@ ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
 ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
+BOOL_ACCESSORS(Script, flags, is_embedder_debug_script,
+               kIsEmbedderDebugScriptBit)
+BOOL_ACCESSORS(Script, flags, is_shared_cross_origin, kIsSharedCrossOriginBit)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 
@@ -5569,15 +5572,6 @@ Script::CompilationState Script::compilation_state() {
 void Script::set_compilation_state(CompilationState state) {
   set_flags(BooleanBit::set(flags(), kCompilationStateBit,
       state == COMPILATION_STATE_COMPILED));
-}
-ScriptOriginOptions Script::origin_options() {
-  return ScriptOriginOptions((flags()->value() & kOriginOptionsMask) >>
-                             kOriginOptionsShift);
-}
-void Script::set_origin_options(ScriptOriginOptions origin_options) {
-  DCHECK(!(origin_options.Flags() & ~((1 << kOriginOptionsSize) - 1)));
-  set_flags(Smi::FromInt((flags()->value() & ~kOriginOptionsMask) |
-                         (origin_options.Flags() << kOriginOptionsShift)));
 }
 
 

@@ -188,16 +188,14 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
   v8::Isolate* v8_isolate =
       reinterpret_cast<v8::Isolate*>(script->GetIsolate());
-  ScriptOriginOptions options(script->origin_options());
   v8::ScriptOrigin origin(
       Utils::ToLocal(scriptName),
       v8::Integer::New(v8_isolate, script->line_offset()->value()),
       v8::Integer::New(v8_isolate, script->column_offset()->value()),
-      v8::Boolean::New(v8_isolate, options.IsSharedCrossOrigin()),
+      v8::Boolean::New(v8_isolate, script->is_shared_cross_origin()),
       v8::Integer::New(v8_isolate, script->id()->value()),
-      v8::Boolean::New(v8_isolate, options.IsEmbedderDebugScript()),
-      Utils::ToLocal(source_map_url),
-      v8::Boolean::New(v8_isolate, options.IsOpaque()));
+      v8::Boolean::New(v8_isolate, script->is_embedder_debug_script()),
+      Utils::ToLocal(source_map_url));
   return origin;
 }
 
@@ -1718,6 +1716,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     i::Handle<i::Object> source_map_url;
     int line_offset = 0;
     int column_offset = 0;
+    bool is_embedder_debug_script = false;
+    bool is_shared_cross_origin = false;
     if (!source->resource_name.IsEmpty()) {
       name_obj = Utils::OpenHandle(*(source->resource_name));
     }
@@ -1728,13 +1728,21 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       column_offset =
           static_cast<int>(source->resource_column_offset->Value());
     }
+    if (!source->resource_is_shared_cross_origin.IsEmpty()) {
+      is_shared_cross_origin =
+          source->resource_is_shared_cross_origin->IsTrue();
+    }
+    if (!source->resource_is_embedder_debug_script.IsEmpty()) {
+      is_embedder_debug_script =
+          source->resource_is_embedder_debug_script->IsTrue();
+    }
     if (!source->source_map_url.IsEmpty()) {
       source_map_url = Utils::OpenHandle(*(source->source_map_url));
     }
     result = i::Compiler::CompileScript(
-        str, name_obj, line_offset, column_offset, source->resource_options,
-        source_map_url, isolate->native_context(), NULL, &script_data, options,
-        i::NOT_NATIVES_CODE, is_module);
+        str, name_obj, line_offset, column_offset, is_embedder_debug_script,
+        is_shared_cross_origin, source_map_url, isolate->native_context(), NULL,
+        &script_data, options, i::NOT_NATIVES_CODE, is_module);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -1968,7 +1976,14 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
     script->set_column_offset(i::Smi::FromInt(
         static_cast<int>(origin.ResourceColumnOffset()->Value())));
   }
-  script->set_origin_options(origin.Options());
+  if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
+    script->set_is_shared_cross_origin(
+        origin.ResourceIsSharedCrossOrigin()->IsTrue());
+  }
+  if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
+    script->set_is_embedder_debug_script(
+        origin.ResourceIsEmbedderDebugScript()->IsTrue());
+  }
   if (!origin.SourceMapUrl().IsEmpty()) {
     script->set_source_mapping_url(
         *Utils::OpenHandle(*(origin.SourceMapUrl())));
@@ -2347,18 +2362,7 @@ bool Message::IsSharedCrossOrigin() const {
   auto self = Utils::OpenHandle(this);
   auto script = i::Handle<i::JSValue>::cast(
       i::Handle<i::Object>(self->script(), isolate));
-  return i::Script::cast(script->value())
-      ->origin_options()
-      .IsSharedCrossOrigin();
-}
-
-bool Message::IsOpaque() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  auto self = Utils::OpenHandle(this);
-  auto script = i::Handle<i::JSValue>::cast(
-      i::Handle<i::Object>(self->script(), isolate));
-  return i::Script::cast(script->value())->origin_options().IsOpaque();
+  return i::Script::cast(script->value())->is_shared_cross_origin();
 }
 
 
