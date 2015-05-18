@@ -5588,11 +5588,12 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
     args->Add(factory()->NewArrayLiteral(
                   const_cast<ZoneList<Expression*>*>(cooked_strings),
-                  cooked_idx, pos),
+                  cooked_idx, is_strong(language_mode()), pos),
               zone());
     args->Add(
         factory()->NewArrayLiteral(
-            const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
+            const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx,
+            is_strong(language_mode()), pos),
         zone());
 
     // Ensure hash is suitable as a Smi value
@@ -5683,6 +5684,7 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
         }
         int literal_index = function_state_->NextMaterializedLiteralIndex();
         args->Add(factory()->NewArrayLiteral(unspread, literal_index,
+                                             is_strong(language_mode()),
                                              RelocInfo::kNoPosition),
                   zone());
 
