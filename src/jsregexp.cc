@@ -1091,7 +1091,10 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) node->Emit(this, &new_trace);
   }
-  if (reg_exp_too_big_) return IrregexpRegExpTooBig(isolate_);
+  if (reg_exp_too_big_) {
+    macro_assembler_->AbortedCodeGeneration();
+    return IrregexpRegExpTooBig(isolate_);
+  }
 
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
   heap->IncreaseTotalRegexpCodeGenerated(code->Size());
