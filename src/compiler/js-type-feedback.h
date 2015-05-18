@@ -47,14 +47,15 @@ class JSTypeFeedbackTable : public ZoneObject {
 
 // Specializes a graph to the type feedback recorded in the
 // {js_type_feedback} provided to the constructor.
-class JSTypeFeedbackSpecializer : public Reducer {
+class JSTypeFeedbackSpecializer : public AdvancedReducer {
  public:
-  JSTypeFeedbackSpecializer(JSGraph* jsgraph,
+  JSTypeFeedbackSpecializer(Editor* editor, JSGraph* jsgraph,
                             JSTypeFeedbackTable* js_type_feedback,
                             TypeFeedbackOracle* oracle,
                             Handle<GlobalObject> global_object,
                             CompilationDependencies* dependencies)
-      : jsgraph_(jsgraph),
+      : AdvancedReducer(editor),
+        jsgraph_(jsgraph),
         simplified_(jsgraph->graph()->zone()),
         js_type_feedback_(js_type_feedback),
         oracle_(oracle),

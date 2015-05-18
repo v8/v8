@@ -545,8 +545,8 @@ struct JSTypeFeedbackPhase {
     // TODO(titzer): introduce a specialization mode/flags enum to control
     // specializing to the global object here.
     JSTypeFeedbackSpecializer specializer(
-        data->jsgraph(), data->js_type_feedback(), &oracle, global_object,
-        data->info()->dependencies());
+        &graph_reducer, data->jsgraph(), data->js_type_feedback(), &oracle,
+        global_object, data->info()->dependencies());
     AddReducer(data, &graph_reducer, &specializer);
     graph_reducer.ReduceGraph();
   }

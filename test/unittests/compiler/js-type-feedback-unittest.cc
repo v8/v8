@@ -41,8 +41,10 @@ class JSTypeFeedbackTest : public TypedGraphTest {
     MachineOperatorBuilder machine(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     JSTypeFeedbackTable table(zone());
-    JSTypeFeedbackSpecializer reducer(&jsgraph, &table, nullptr, global_object,
-                                      &dependencies_);
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(graph(), zone());
+    JSTypeFeedbackSpecializer reducer(&graph_reducer, &jsgraph, &table, nullptr,
+                                      global_object, &dependencies_);
     return reducer.Reduce(node);
   }
 

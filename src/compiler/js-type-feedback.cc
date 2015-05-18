@@ -196,7 +196,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   Node* deopt = graph()->NewNode(common()->Deoptimize(), frame_state_before,
                                  effect, check_failed);
   NodeProperties::MergeControlToEnd(graph(), common(), deopt);
-  NodeProperties::ReplaceWithValue(node, load, load, check_success);
+  ReplaceWithValue(node, load, load, check_success);
   return Replace(load);
 }
 
@@ -211,7 +211,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamedForGlobalVariable(
   if (!constant_value.is_null()) {
     // Always optimize global constants.
     Node* constant = jsgraph()->Constant(constant_value);
-    NodeProperties::ReplaceWithValue(node, constant);
+    ReplaceWithValue(node, constant);
     return Replace(constant);
   }
 
@@ -247,7 +247,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamedForGlobalVariable(
               String::Flatten(Handle<String>::cast(constant_value));
         }
         Node* constant = jsgraph()->Constant(constant_value);
-        NodeProperties::ReplaceWithValue(node, constant);
+        ReplaceWithValue(node, constant);
         return Replace(constant);
       } else {
         // Load directly from the property cell.
@@ -256,7 +256,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamedForGlobalVariable(
         Node* load_field = graph()->NewNode(
             simplified()->LoadField(access), jsgraph()->Constant(cell),
             NodeProperties::GetEffectInput(node), control);
-        NodeProperties::ReplaceWithValue(node, load_field, load_field, control);
+        ReplaceWithValue(node, load_field, load_field, control);
         return Replace(load_field);
       }
     }
@@ -313,7 +313,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   Node* deopt = graph()->NewNode(common()->Deoptimize(), frame_state_before,
                                  effect, check_failed);
   NodeProperties::MergeControlToEnd(graph(), common(), deopt);
-  NodeProperties::ReplaceWithValue(node, store, store, check_success);
+  ReplaceWithValue(node, store, store, check_success);
   return Replace(store);
 }
 
