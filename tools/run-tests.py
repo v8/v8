@@ -206,6 +206,9 @@ def BuildOptions():
                     default="")
   result.add_option("--download-data", help="Download missing test suite data",
                     default=False, action="store_true")
+  result.add_option("--download-data-only",
+                    help="Download missing test suite data and exit",
+                    default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
@@ -485,9 +488,12 @@ def Main():
     if suite:
       suites.append(suite)
 
-  if options.download_data:
+  if options.download_data or options.download_data_only:
     for s in suites:
       s.DownloadData()
+
+  if options.download_data_only:
+    return exit_code
 
   for (arch, mode) in options.arch_and_mode:
     try:
