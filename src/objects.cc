@@ -660,11 +660,7 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
                                                    Handle<Object> object,
                                                    Handle<Object> receiver,
                                                    uint32_t index) {
-  if (object->IsUndefined()) {
-    // TODO(verwaest): Why is this check here?
-    UNREACHABLE();
-    return isolate->factory()->undefined_value();
-  }
+  DCHECK(!object->IsUndefined());
 
   // Iterate up the prototype chain until an element is found or the null
   // prototype is encountered.
