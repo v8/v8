@@ -148,6 +148,7 @@ class CallSite {
     "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
   T(NoAccess, "no access")                                                     \
+  T(NonCoercible, "Cannot match against 'undefined' or 'null'.")               \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectPropertyLoad, "Cannot read property '%' of %")                    \
   T(NonObjectPropertyStore, "Cannot set property '%' of %")                    \

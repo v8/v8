@@ -6378,6 +6378,7 @@ TEST(DestructuringPositiveTests) {
     "{42e-2 : x}",
     "{'hi' : x}",
     "{var: x}",
+    "{}",
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};

@@ -4143,6 +4143,32 @@ void Parser::AddAssertIsConstruct(ZoneList<Statement*>* body, int pos) {
 }
 
 
+Statement* Parser::BuildAssertIsCoercible(Variable* var) {
+  // if (var === null || var === undefined)
+  //     throw /* type error kNonCoercible) */;
+
+  Expression* condition = factory()->NewBinaryOperation(
+      Token::OR, factory()->NewCompareOperation(
+                     Token::EQ_STRICT, factory()->NewVariableProxy(var),
+                     factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
+                     RelocInfo::kNoPosition),
+      factory()->NewCompareOperation(
+          Token::EQ_STRICT, factory()->NewVariableProxy(var),
+          factory()->NewNullLiteral(RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition),
+      RelocInfo::kNoPosition);
+  Expression* throw_type_error = this->NewThrowTypeError(
+      MessageTemplate::kNonCoercible, ast_value_factory()->empty_string(),
+      RelocInfo::kNoPosition);
+  IfStatement* if_statement = factory()->NewIfStatement(
+      condition, factory()->NewExpressionStatement(throw_type_error,
+                                                   RelocInfo::kNoPosition),
+      factory()->NewEmptyStatement(RelocInfo::kNoPosition),
+      RelocInfo::kNoPosition);
+  return if_statement;
+}
+
+
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos, Variable* fvar,
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {

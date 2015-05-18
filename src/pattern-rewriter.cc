@@ -209,14 +209,21 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
 
 void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern) {
-  auto temp = descriptor_->declaration_scope->NewTemporary(
+  auto temp = TemporaryDeclarationScope()->NewTemporary(
       ast_value_factory()->empty_string());
   auto assignment =
       factory()->NewAssignment(Token::ASSIGN, factory()->NewVariableProxy(temp),
                                current_value_, RelocInfo::kNoPosition);
+
   block_->AddStatement(
       factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
       zone());
+
+  if (pattern->properties()->length() == 0) {
+    block_->AddStatement(descriptor_->parser->BuildAssertIsCoercible(temp),
+                         zone());
+  }
+
   for (ObjectLiteralProperty* property : *pattern->properties()) {
     // TODO(dslomov): computed property names.
     RecurseIntoSubpattern(

@@ -1013,6 +1013,9 @@ class Parser : public ParserBase<ParserTraits> {
     }
     bool inside_with() const { return descriptor_->parser->inside_with(); }
     Zone* zone() const { return descriptor_->parser->zone(); }
+    Scope* TemporaryDeclarationScope() const {
+      return descriptor_->parser->scope_->DeclarationScope();
+    }
 
     Expression* pattern_;
     int initializer_position_;
@@ -1101,6 +1104,7 @@ class Parser : public ParserBase<ParserTraits> {
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
   void AddAssertIsConstruct(ZoneList<Statement*>* body, int pos);
+  Statement* BuildAssertIsCoercible(Variable* var);
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(bool call_super, Scope* scope, int pos,
