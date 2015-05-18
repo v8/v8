@@ -1013,7 +1013,7 @@ TEST(MIPS11) {
   CHECK_EQ(static_cast<int32_t>(0xccdd3344), t.swr_2);
   CHECK_EQ(static_cast<int32_t>(0xdd223344), t.swr_3);
 #elif __BYTE_ORDER == __BIG_ENDIAN
-  11223344, t.lwl_0);
+  CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwl_0);
   CHECK_EQ(static_cast<int32_t>(0x223344dd), t.lwl_1);
   CHECK_EQ(static_cast<int32_t>(0x3344ccdd), t.lwl_2);
   CHECK_EQ(static_cast<int32_t>(0x44bbccdd), t.lwl_3);
