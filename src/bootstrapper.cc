@@ -1495,6 +1495,7 @@ bool Genesis::CompileNative(Isolate* isolate, Vector<const char> name,
   Handle<SharedFunctionInfo> function_info = Compiler::CompileScript(
       source, script_name, 0, 0, false, false, Handle<Object>(), context, NULL,
       NULL, ScriptCompiler::kNoCompileOptions, NATIVES_CODE, false);
+  if (function_info.is_null()) return false;
 
   DCHECK(context->IsNativeContext());
 
