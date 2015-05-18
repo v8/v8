@@ -26,6 +26,7 @@ var GlobalNAME = global.NAME;
 endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
+DECLARE_GLOBALS(Array)
 
 // -------------------------------------------------------------------
 
@@ -34,7 +35,7 @@ function TypedArrayCopyWithin(target, start, end) {
 
   var length = %_TypedArrayGetLength(this);
 
-  // TODO(dehrenberg): Replace with a memcpy for better performance
+  // TODO(littledan): Replace with a memcpy for better performance
   return $innerArrayCopyWithin(target, start, end, this, length);
 }
 %FunctionSetLength(TypedArrayCopyWithin, 2);
@@ -100,9 +101,35 @@ function TypedArrayOf() {
   return array;
 }
 
+function ConstructTypedArray(constructor, array) {
+  // TODO(littledan): This is an approximation of the spec, which requires
+  // that only real TypedArray classes should be accepted (22.2.2.1.1)
+  if (!IS_SPEC_OBJECT(constructor) || IS_UNDEFINED(constructor.prototype) ||
+      !%HasOwnProperty(constructor.prototype, "BYTES_PER_ELEMENT")) {
+    throw MakeTypeError(kNotTypedArray);
+  }
+
+  // TODO(littledan): The spec requires that, rather than directly calling
+  // the constructor, a TypedArray is created with the proper proto and
+  // underlying size and element size, and elements are put in one by one.
+  // By contrast, this would allow subclasses to make a radically different
+  // constructor with different semantics.
+  return new constructor(array);
+}
+
+function TypedArrayFrom(source, mapfn, thisArg) {
+  // TODO(littledan): Investigate if there is a receiver which could be
+  // faster to accumulate on than Array, e.g., a TypedVector.
+  var array = %_CallFunction(GlobalArray, source, mapfn, thisArg, $arrayFrom);
+  return ConstructTypedArray(this, array);
+}
+%FunctionSetLength(TypedArrayFrom, 1);
+
+// TODO(littledan): Fix the TypedArray proto chain (bug v8:4085).
 macro EXTEND_TYPED_ARRAY(NAME)
   // Set up non-enumerable functions on the object.
   $installFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+    "from", TypedArrayFrom,
     "of", TypedArrayOf
   ]);
 

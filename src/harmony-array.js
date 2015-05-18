@@ -6,6 +6,7 @@ var $innerArrayCopyWithin;
 var $innerArrayFill;
 var $innerArrayFind;
 var $innerArrayFindIndex;
+var $arrayFrom;
 
 (function(global, exports) {
 
@@ -254,6 +255,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     return result;
   }
 }
+$arrayFrom = ArrayFrom;
 
 // ES6, draft 05-22-14, section 22.1.2.3
 function ArrayOf() {
