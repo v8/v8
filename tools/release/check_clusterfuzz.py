@@ -60,6 +60,24 @@ BUG_SPECS = [
     },
     "crash_state": ANY_RE,
   },
+  {
+    "args": {
+      "job_type": "linux_asan_d8_v8_arm64_dbg",
+      "reproducible": "True",
+      "open": "True",
+      "bug_information": "",
+    },
+    "crash_state": ANY_RE,
+  },
+  {
+    "args": {
+      "job_type": "linux_asan_d8_v8_mipsel_dbg",
+      "reproducible": "True",
+      "open": "True",
+      "bug_information": "",
+    },
+    "crash_state": ANY_RE,
+  },
 ]
 
 
