@@ -3892,8 +3892,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
-    CheckArityRestrictions(num_parameters, arity_restriction, start_position,
-                           formals_end_position, CHECK_OK);
+    CheckArityRestrictions(num_parameters, arity_restriction, has_rest,
+                           start_position, formals_end_position, CHECK_OK);
 
     Expect(Token::LBRACE, CHECK_OK);
 

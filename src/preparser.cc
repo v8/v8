@@ -1034,21 +1034,21 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
                                &factory);
   ExpressionClassifier formals_classifier;
 
-  bool is_rest = false;
+  bool has_rest = false;
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   int num_parameters;
   {
     DuplicateFinder duplicate_finder(scanner()->unicode_cache());
-    num_parameters = ParseFormalParameterList(&duplicate_finder, &is_rest,
+    num_parameters = ParseFormalParameterList(&duplicate_finder, &has_rest,
                                               &formals_classifier, CHECK_OK);
   }
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
-  CheckArityRestrictions(num_parameters, arity_restriction, start_position,
-                         formals_end_position, CHECK_OK);
+  CheckArityRestrictions(num_parameters, arity_restriction, has_rest,
+                         start_position, formals_end_position, CHECK_OK);
 
   // See Parser::ParseFunctionLiteral for more information about lazy parsing
   // and lazy compilation.
@@ -1068,7 +1068,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // function, since the function can declare itself strict.
   CheckFunctionName(language_mode(), kind, function_name,
                     name_is_strict_reserved, function_name_location, CHECK_OK);
-  const bool strict_formal_parameters = is_rest || IsConciseMethod(kind);
+  const bool strict_formal_parameters = has_rest || IsConciseMethod(kind);
   const bool allow_duplicate_parameters =
       is_sloppy(language_mode()) && !strict_formal_parameters;
   ValidateFormalParameters(&formals_classifier, language_mode(),

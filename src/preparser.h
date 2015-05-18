@@ -893,7 +893,7 @@ class ParserBase : public Traits {
                                ExpressionClassifier* classifier, bool* ok);
   void CheckArityRestrictions(
       int param_count, FunctionLiteral::ArityRestriction arity_restriction,
-      int formals_start_pos, int formals_end_pos, bool* ok);
+      bool has_rest, int formals_start_pos, int formals_end_pos, bool* ok);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -3657,7 +3657,7 @@ int ParserBase<Traits>::ParseFormalParameterList(
 template <class Traits>
 void ParserBase<Traits>::CheckArityRestrictions(
     int param_count, FunctionLiteral::ArityRestriction arity_restriction,
-    int formals_start_pos, int formals_end_pos, bool* ok) {
+    bool has_rest, int formals_start_pos, int formals_end_pos, bool* ok) {
   switch (arity_restriction) {
     case FunctionLiteral::GETTER_ARITY:
       if (param_count != 0) {
@@ -3670,6 +3670,11 @@ void ParserBase<Traits>::CheckArityRestrictions(
       if (param_count != 1) {
         ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
                         MessageTemplate::kBadSetterArity);
+        *ok = false;
+      }
+      if (has_rest) {
+        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
+                        MessageTemplate::kBadSetterRestParameter);
         *ok = false;
       }
       break;

@@ -320,6 +320,8 @@ class CallSite {
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
   T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
+  T(BadSetterRestParameter,                                                    \
+    "Setter function argument must not be a rest parameter")                   \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
   T(SingleFunctionLiteral, "Single function literal required")                 \
   T(SloppyLexical,                                                             \

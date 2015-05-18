@@ -5109,6 +5109,24 @@ TEST(ParseRestParametersErrors) {
 }
 
 
+TEST(RestParameterInSetterMethodError) {
+  const char* context_data[][2] = {
+      {"'use strict';({ set prop(", ") {} }).prop = 1;"},
+      {"'use strict';(class { static set prop(", ") {} }).prop = 1;"},
+      {"'use strict';(new (class { set prop(", ") {} })).prop = 1;"},
+      {"({ set prop(", ") {} }).prop = 1;"},
+      {"(class { static set prop(", ") {} }).prop = 1;"},
+      {"(new (class { set prop(", ") {} })).prop = 1;"},
+      {nullptr, nullptr}};
+  const char* data[] = {"...a", "...arguments", "...eval", nullptr};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyRestParameters, kAllowHarmonyClasses, kAllowHarmonySloppy};
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(RestParametersEvalArguments) {
   const char* strict_context_data[][2] =
       {{"'use strict';(function(",
