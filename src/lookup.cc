@@ -142,7 +142,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
     Handle<Object> value, PropertyAttributes attributes,
     Object::StoreFromKeyed store_mode) {
   if (state_ == TRANSITION) return;
-  DCHECK_NE(LookupIterator::ACCESSOR, state_);
+  DCHECK(state_ != LookupIterator::ACCESSOR ||
+         (GetAccessors()->IsAccessorInfo() &&
+          AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
   DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
   // Can only be called when the receiver is a JSObject. JSProxy has to be
