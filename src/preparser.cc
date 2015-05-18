@@ -21,14 +21,16 @@ namespace v8 {
 namespace internal {
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
-                                      const char* message, const char* arg,
+                                      MessageTemplate::Template message,
+                                      const char* arg,
                                       ParseErrorType error_type) {
   ReportMessageAt(location.beg_pos, location.end_pos, message, arg, error_type);
 }
 
 
 void PreParserTraits::ReportMessageAt(int start_pos, int end_pos,
-                                      const char* message, const char* arg,
+                                      MessageTemplate::Template message,
+                                      const char* arg,
                                       ParseErrorType error_type) {
   pre_parser_->log_->LogMessage(start_pos, end_pos, message, arg, error_type);
 }
@@ -132,7 +134,8 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
       if (is_strong(scope_->language_mode()) && IsSubclassConstructor(kind)) {
         if (!function_state.super_location().IsValid()) {
           ReportMessageAt(Scanner::Location(start_position, start_position + 1),
-                          "strong_super_call_missing", kReferenceError);
+                          MessageTemplate::kStrongSuperCallMissing,
+                          kReferenceError);
           return kPreParseSuccess;
         }
       }
@@ -229,13 +232,13 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
       Scanner::Location super_loc = function_state_->super_location();
       if (this_loc.beg_pos != old_this_loc.beg_pos &&
           this_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(this_loc, "strong_constructor_this");
+        ReportMessageAt(this_loc, MessageTemplate::kStrongConstructorThis);
         *ok = false;
         return;
       }
       if (super_loc.beg_pos != old_super_loc.beg_pos &&
           super_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(super_loc, "strong_constructor_super");
+        ReportMessageAt(super_loc, MessageTemplate::kStrongConstructorSuper);
         *ok = false;
         return;
       }
@@ -323,7 +326,7 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
     case Token::SEMICOLON:
       if (is_strong(language_mode())) {
         PreParserTraits::ReportMessageAt(scanner()->peek_location(),
-                                         "strong_empty");
+                                         MessageTemplate::kStrongEmpty);
         *ok = false;
         return Statement::Default();
       }
@@ -370,7 +373,7 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
       if (is_strict(language_mode())) {
         PreParserTraits::ReportMessageAt(start_location.beg_pos,
                                          end_location.end_pos,
-                                         "strict_function");
+                                         MessageTemplate::kStrictFunction);
         *ok = false;
         return Statement::Default();
       } else {
@@ -423,7 +426,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
 PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   Expect(Token::CLASS, CHECK_OK);
   if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
-    ReportMessage("sloppy_lexical");
+    ReportMessage(MessageTemplate::kSloppyLexical);
     *ok = false;
     return Statement::Default();
   }
@@ -499,7 +502,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
-      ReportMessageAt(location, "strong_var");
+      ReportMessageAt(location, MessageTemplate::kStrongVar);
       *ok = false;
       return Statement::Default();
     }
@@ -617,8 +620,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
           default:
             if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
               ReportMessageAt(function_state_->this_location(),
-                              is_this ? "strong_constructor_this"
-                                      : "strong_constructor_super");
+                              is_this
+                                  ? MessageTemplate::kStrongConstructorThis
+                                  : MessageTemplate::kStrongConstructorSuper);
               *ok = false;
               return Statement::Default();
             }
@@ -659,7 +663,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   // Detect attempts at 'let' declarations in sloppy mode.
   if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
       expr.IsIdentifier() && expr.AsIdentifier().IsLet()) {
-    ReportMessage("sloppy_lexical", NULL);
+    ReportMessage(MessageTemplate::kSloppyLexical, NULL);
     *ok = false;
     return Statement::Default();
   }
@@ -749,7 +753,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
         i::IsConstructor(function_state_->kind())) {
       int pos = peek_position();
       ReportMessageAt(Scanner::Location(pos, pos + 1),
-                      "strong_constructor_return_value");
+                      MessageTemplate::kStrongConstructorReturnValue);
       *ok = false;
       return Statement::Default();
     }
@@ -765,7 +769,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   //   'with' '(' Expression ')' Statement
   Expect(Token::WITH, CHECK_OK);
   if (is_strict(language_mode())) {
-    ReportMessageAt(scanner()->location(), "strict_mode_with");
+    ReportMessageAt(scanner()->location(), MessageTemplate::kStrictWith);
     *ok = false;
     return Statement::Default();
   }
@@ -809,7 +813,8 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
     }
     if (is_strong(language_mode()) && !statement.IsJumpStatement() &&
         token != Token::RBRACE) {
-      ReportMessageAt(scanner()->location(), "strong_switch_fallthrough");
+      ReportMessageAt(scanner()->location(),
+                      MessageTemplate::kStrongSwitchFallthrough);
       *ok = false;
       return Statement::Default();
     }
@@ -872,17 +877,20 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
           const char* loop_type =
               mode == ForEachStatement::ITERATE ? "for-of" : "for-in";
           PreParserTraits::ReportMessageAt(
-              bindings_loc, "for_inof_loop_multi_bindings", loop_type);
+              bindings_loc, MessageTemplate::kForInOfLoopMultiBindings,
+              loop_type);
           *ok = false;
           return Statement::Default();
         }
         if (first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE)) {
           if (mode == ForEachStatement::ITERATE) {
-            ReportMessageAt(first_initializer_loc, "for_of_loop_initializer");
+            ReportMessageAt(first_initializer_loc,
+                            MessageTemplate::kForOfLoopInitializer);
           } else {
             // TODO(caitp): This should be an error in sloppy mode, too.
-            ReportMessageAt(first_initializer_loc, "for_in_loop_initializer");
+            ReportMessageAt(first_initializer_loc,
+                            MessageTemplate::kForInLoopInitializer);
           }
           *ok = false;
           return Statement::Default();
@@ -910,7 +918,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // Detect attempts at 'let' declarations in sloppy mode.
   if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
       is_let_identifier_expression) {
-    ReportMessage("sloppy_lexical", NULL);
+    ReportMessage(MessageTemplate::kSloppyLexical, NULL);
     *ok = false;
     return Statement::Default();
   }
@@ -937,7 +945,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
 
   Expect(Token::THROW, CHECK_OK);
   if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    ReportMessageAt(scanner()->location(), "newline_after_throw");
+    ReportMessageAt(scanner()->location(), MessageTemplate::kNewlineAfterThrow);
     *ok = false;
     return Statement::Default();
   }
@@ -965,7 +973,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
 
   Token::Value tok = peek();
   if (tok != Token::CATCH && tok != Token::FINALLY) {
-    ReportMessageAt(scanner()->location(), "no_catch_or_finally");
+    ReportMessageAt(scanner()->location(), MessageTemplate::kNoCatchOrFinally);
     *ok = false;
     return Statement::Default();
   }
@@ -1073,7 +1081,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   if (is_strong(language_mode()) && IsSubclassConstructor(kind)) {
     if (!function_state.super_location().IsValid()) {
-      ReportMessageAt(function_name_location, "strong_super_call_missing",
+      ReportMessageAt(function_name_location,
+                      MessageTemplate::kStrongSuperCallMissing,
                       kReferenceError);
       *ok = false;
       return Expression::Default();
@@ -1106,18 +1115,19 @@ PreParserExpression PreParser::ParseClassLiteral(
     bool name_is_strict_reserved, int pos, bool* ok) {
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (name_is_strict_reserved) {
-    ReportMessageAt(class_name_location, "unexpected_strict_reserved");
+    ReportMessageAt(class_name_location,
+                    MessageTemplate::kUnexpectedStrictReserved);
     *ok = false;
     return EmptyExpression();
   }
   if (IsEvalOrArguments(name)) {
-    ReportMessageAt(class_name_location, "strict_eval_arguments");
+    ReportMessageAt(class_name_location, MessageTemplate::kStrictEvalArguments);
     *ok = false;
     return EmptyExpression();
   }
   LanguageMode class_language_mode = language_mode();
   if (is_strong(class_language_mode) && IsUndefined(name)) {
-    ReportMessageAt(class_name_location, "strong_undefined");
+    ReportMessageAt(class_name_location, MessageTemplate::kStrongUndefined);
     *ok = false;
     return EmptyExpression();
   }

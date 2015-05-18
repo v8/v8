@@ -659,33 +659,36 @@ class ParserTraits {
                                    int pos, AstNodeFactory* factory);
 
   // Generate AST node that throws a ReferenceError with the given type.
-  Expression* NewThrowReferenceError(const char* type, int pos);
+  Expression* NewThrowReferenceError(MessageTemplate::Template message,
+                                     int pos);
 
   // Generate AST node that throws a SyntaxError with the given
   // type. The first argument may be null (in the handle sense) in
   // which case no arguments are passed to the constructor.
-  Expression* NewThrowSyntaxError(
-      const char* type, const AstRawString* arg, int pos);
+  Expression* NewThrowSyntaxError(MessageTemplate::Template message,
+                                  const AstRawString* arg, int pos);
 
   // Generate AST node that throws a TypeError with the given
   // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(const char* type, const AstRawString* arg,
-                                int pos);
+  Expression* NewThrowTypeError(MessageTemplate::Template message,
+                                const AstRawString* arg, int pos);
 
   // Generic AST generator for throwing errors from compiled code.
-  Expression* NewThrowError(
-      const AstRawString* constructor, const char* type,
-      const AstRawString* arg, int pos);
+  Expression* NewThrowError(const AstRawString* constructor,
+                            MessageTemplate::Template message,
+                            const AstRawString* arg, int pos);
 
   // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location, const char* message,
+  void ReportMessageAt(Scanner::Location source_location,
+                       MessageTemplate::Template message,
                        const char* arg = NULL,
                        ParseErrorType error_type = kSyntaxError);
-  void ReportMessage(const char* message, const char* arg = NULL,
+  void ReportMessage(MessageTemplate::Template message, const char* arg = NULL,
                      ParseErrorType error_type = kSyntaxError);
-  void ReportMessage(const char* message, const AstRawString* arg,
+  void ReportMessage(MessageTemplate::Template message, const AstRawString* arg,
                      ParseErrorType error_type = kSyntaxError);
-  void ReportMessageAt(Scanner::Location source_location, const char* message,
+  void ReportMessageAt(Scanner::Location source_location,
+                       MessageTemplate::Template message,
                        const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError);
 

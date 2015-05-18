@@ -5,11 +5,11 @@
 // -------------------------------------------------------------------
 
 var $errorToString;
-var $formatMessage;
 var $getStackTraceLine;
 var $messageGetPositionInLine;
 var $messageGetLineNumber;
 var $messageGetSourceLine;
+var $noSideEffectToString;
 var $stackOverflowBoilerplate;
 var $stackTraceSymbol;
 var $toDetailString;
@@ -50,127 +50,6 @@ var GlobalURIError;
 var GlobalSyntaxError;
 var GlobalReferenceError;
 var GlobalEvalError;
-
-var kMessages = {
-  // Error
-  constructor_is_generator:      ["Class constructor may not be a generator"],
-  constructor_is_accessor:       ["Class constructor may not be an accessor"],
-  // TypeError
-  unexpected_token:              ["Unexpected token ", "%0"],
-  unexpected_token_number:       ["Unexpected number"],
-  unexpected_token_string:       ["Unexpected string"],
-  unexpected_token_identifier:   ["Unexpected identifier"],
-  unexpected_reserved:           ["Unexpected reserved word"],
-  unexpected_strict_reserved:    ["Unexpected strict mode reserved word"],
-  unexpected_eos:                ["Unexpected end of input"],
-  unexpected_template_string:    ["Unexpected template string"],
-  malformed_regexp_flags:        ["Invalid regular expression flags"],
-  unterminated_regexp:           ["Invalid regular expression: missing /"],
-  unterminated_template:         ["Unterminated template literal"],
-  unterminated_template_expr:    ["Missing } in template expression"],
-  unterminated_arg_list:         ["missing ) after argument list"],
-  multiple_defaults_in_switch:   ["More than one default clause in switch statement"],
-  newline_after_throw:           ["Illegal newline after throw"],
-  label_redeclaration:           ["Label '", "%0", "' has already been declared"],
-  var_redeclaration:             ["Identifier '", "%0", "' has already been declared"],
-  no_catch_or_finally:           ["Missing catch or finally after try"],
-  unknown_label:                 ["Undefined label '", "%0", "'"],
-  uncaught_exception:            ["Uncaught ", "%0"],
-  undefined_method:              ["Object ", "%1", " has no method '", "%0", "'"],
-  non_object_property_store:     ["Cannot set property '", "%0", "' of ", "%1"],
-  value_and_accessor:            ["Invalid property.  A property cannot both have accessors and be writable or have a value, ", "%0"],
-  proto_object_or_null:          ["Object prototype may only be an Object or null: ", "%0"],
-  // ReferenceError
-  invalid_lhs_in_assignment:     ["Invalid left-hand side in assignment"],
-  invalid_lhs_in_for:            ["Invalid left-hand side in for-loop"],
-  invalid_lhs_in_postfix_op:     ["Invalid left-hand side expression in postfix operation"],
-  invalid_lhs_in_prefix_op:      ["Invalid left-hand side expression in prefix operation"],
-  // SyntaxError
-  not_isvar:                     ["builtin %IS_VAR: not a variable"],
-  single_function_literal:       ["Single function literal required"],
-  illegal_break:                 ["Illegal break statement"],
-  illegal_continue:              ["Illegal continue statement"],
-  illegal_return:                ["Illegal return statement"],
-  error_loading_debugger:        ["Error loading debugger"],
-  array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
-  illegal_access:                ["Illegal access"],
-  static_prototype:              ["Classes may not have static property named prototype"],
-  strict_mode_with:              ["Strict mode code may not include a with statement"],
-  strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
-  too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],
-  too_many_parameters:           ["Too many parameters in function definition (only 65535 allowed)"],
-  too_many_variables:            ["Too many variables declared (only 4194303 allowed)"],
-  strict_param_dupe:             ["Strict mode function may not have duplicate parameter names"],
-  strict_octal_literal:          ["Octal literals are not allowed in strict mode."],
-  template_octal_literal:        ["Octal literals are not allowed in template strings."],
-  strict_delete:                 ["Delete of an unqualified identifier in strict mode."],
-  strict_function:               ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
-  strict_caller:                 ["Illegal access to a strict mode caller function."],
-  strong_ellision:               ["In strong mode, arrays with holes are deprecated, use maps instead"],
-  strong_arguments:              ["In strong mode, 'arguments' is deprecated, use '...args' instead"],
-  strong_undefined:              ["In strong mode, binding or assigning to 'undefined' is deprecated"],
-  strong_direct_eval:            ["In strong mode, direct calls to eval are deprecated"],
-  strong_switch_fallthrough :    ["In strong mode, switch fall-through is deprecated, terminate each case with 'break', 'continue', 'return' or 'throw'"],
-  strong_equal:                  ["In strong mode, '==' and '!=' are deprecated, use '===' and '!==' instead"],
-  strong_delete:                 ["In strong mode, 'delete' is deprecated, use maps or sets instead"],
-  strong_var:                    ["In strong mode, 'var' is deprecated, use 'let' or 'const' instead"],
-  strong_for_in:                 ["In strong mode, 'for'-'in' loops are deprecated, use 'for'-'of' instead"],
-  strong_empty:                  ["In strong mode, empty sub-statements are deprecated, make them explicit with '{}' instead"],
-  strong_use_before_declaration: ["In strong mode, declaring variable '", "%0", "' before its use is required"],
-  strong_unbound_global:         ["In strong mode, using an undeclared global variable '", "%0", "' is not allowed"],
-  strong_super_call_missing:     ["In strong mode, invoking the super constructor in a subclass is required"],
-  strong_super_call_duplicate:   ["In strong mode, invoking the super constructor multiple times is deprecated"],
-  strong_super_call_misplaced:   ["In strong mode, the super constructor must be invoked before any assignment to 'this'"],
-  strong_constructor_super:      ["In strong mode, 'super' can only be used to invoke the super constructor, and cannot be nested inside another statement or expression"],
-  strong_constructor_this:       ["In strong mode, 'this' can only be used to initialize properties, and cannot be nested inside another statement or expression"],
-  strong_constructor_return_value: ["In strong mode, returning a value from a constructor is deprecated"],
-  strong_constructor_return_misplaced: ["In strong mode, returning from a constructor before its super constructor invocation or all assignments to 'this' is deprecated"],
-  sloppy_lexical:                ["Block-scoped declarations (let, const, function, class) not yet supported outside strict mode"],
-  malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
-  module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
-  duplicate_export:              ["Duplicate export of '", "%0", "'"],
-  unexpected_super:              ["'super' keyword unexpected here"],
-  duplicate_constructor:         ["A class may only have one constructor"],
-  super_constructor_call:        ["A 'super' constructor call may only appear as the first statement of a function, and its arguments may not access 'this'. Other forms are not yet supported."],
-  duplicate_proto:               ["Duplicate __proto__ fields are not allowed in object literals"],
-  param_after_rest:              ["Rest parameter must be last formal parameter"],
-  derived_constructor_return:    ["Derived constructors may only return object or undefined"],
-  for_in_loop_initializer:       ["for-in loop variable declaration may not have an initializer."],
-  for_of_loop_initializer:       ["for-of loop variable declaration may not have an initializer."],
-  for_inof_loop_multi_bindings:  ["Invalid left-hand side in ", "%0", " loop: Must have a single binding."],
-  bad_getter_arity:              ["Getter must not have any formal parameters."],
-  bad_setter_arity:              ["Setter must have exactly one formal parameter."],
-  this_formal_parameter:         ["'this' is not a valid formal parameter name"],
-  duplicate_arrow_function_formal_parameter: ["Arrow function may not have duplicate parameter names"]
-};
-
-
-function FormatString(format, args) {
-  var result = "";
-  var arg_num = 0;
-  for (var i = 0; i < format.length; i++) {
-    var str = format[i];
-    if (str.length == 2 && %_StringCharCodeAt(str, 0) == 0x25) {
-      // Two-char string starts with "%".
-      var arg_num = (%_StringCharCodeAt(str, 1) - 0x30) >>> 0;
-      if (arg_num < 4) {
-        // str is one of %0, %1, %2 or %3.
-        try {
-          str = NoSideEffectToString(args[arg_num]);
-        } catch (e) {
-          if (%IsJSModule(args[arg_num]))
-            str = "module";
-          else if (IS_SPEC_OBJECT(args[arg_num]))
-            str = "object";
-          else
-            str = "#<error>";
-        }
-      }
-    }
-    result += str;
-  }
-  return result;
-}
 
 
 function NoSideEffectsObjectToString() {
@@ -281,20 +160,14 @@ function MakeGenericError(constructor, type, arg0, arg1, arg2) {
 
 // Helper functions; called from the runtime system.
 function FormatMessage(type, arg0, arg1, arg2) {
-  if (IS_NUMBER(type)) {
-    var arg0 = NoSideEffectToString(arg0);
-    var arg1 = NoSideEffectToString(arg1);
-    var arg2 = NoSideEffectToString(arg2);
-    try {
-      return %FormatMessageString(type, arg0, arg1, arg2);
-    } catch (e) {
-      return "";
-    }
+  var arg0 = NoSideEffectToString(arg0);
+  var arg1 = NoSideEffectToString(arg1);
+  var arg2 = NoSideEffectToString(arg2);
+  try {
+    return %FormatMessageString(type, arg0, arg1, arg2);
+  } catch (e) {
+    return "<error>";
   }
-  // TODO(yangguo): remove this code path once we migrated all messages.
-  var format = kMessages[type];
-  if (!format) return "<unknown message " + type + ">";
-  return FormatString(format, arg0);
 }
 
 
@@ -1151,11 +1024,11 @@ $installFunctions(GlobalError.prototype, DONT_ENUM,
                   ['toString', ErrorToString]);
 
 $errorToString = ErrorToString;
-$formatMessage = FormatMessage;
 $getStackTraceLine = GetStackTraceLine;
 $messageGetPositionInLine = GetPositionInLine;
 $messageGetLineNumber = GetLineNumber;
 $messageGetSourceLine = GetSourceLine;
+$noSideEffectToString = NoSideEffectToString;
 $toDetailString = ToDetailString;
 
 $Error = GlobalError;
@@ -1192,20 +1065,6 @@ MakeTypeError = function(type, arg0, arg1, arg2) {
 
 MakeURIError = function() {
   return MakeGenericError(GlobalURIError, kURIMalformed);
-}
-
-// The embedded versions are called from unoptimized code, with embedded
-// arguments. Those arguments cannot be arrays, which are context-dependent.
-MakeSyntaxErrorEmbedded = function(type, arg) {
-  return MakeGenericError(GlobalSyntaxError, type, [arg]);
-}
-
-MakeReferenceErrorEmbedded = function(type, arg) {
-  return MakeGenericError(GlobalReferenceError, type, [arg]);
-}
-
-MakeTypeErrorEmbedded = function(type, arg) {
-  return MakeGenericError(GlobalTypeError, type, [arg]);
 }
 
 //Boilerplate for exceptions for stack overflows. Used from

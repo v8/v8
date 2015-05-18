@@ -35,20 +35,9 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 
 
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
-    Isolate* isolate,
-    const char* type,
-    MessageLocation* loc,
-    Vector< Handle<Object> > args,
-    Handle<JSArray> stack_frames) {
+    Isolate* isolate, MessageTemplate::Template message, MessageLocation* loc,
+    Handle<Object> argument, Handle<JSArray> stack_frames) {
   Factory* factory = isolate->factory();
-  Handle<String> type_handle = factory->InternalizeUtf8String(type);
-  Handle<FixedArray> arguments_elements =
-      factory->NewFixedArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
-    arguments_elements->set(i, *args[i]);
-  }
-  Handle<JSArray> arguments_handle =
-      factory->NewJSArrayWithElements(arguments_elements);
 
   int start = 0;
   int end = 0;
@@ -63,15 +52,10 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
       ? Handle<Object>::cast(factory->undefined_value())
       : Handle<Object>::cast(stack_frames);
 
-  Handle<JSMessageObject> message =
-      factory->NewJSMessageObject(type_handle,
-                                  arguments_handle,
-                                  start,
-                                  end,
-                                  script_handle,
-                                  stack_frames_handle);
+  Handle<JSMessageObject> message_obj = factory->NewJSMessageObject(
+      message, argument, start, end, script_handle, stack_frames_handle);
 
-  return message;
+  return message_obj;
 }
 
 
@@ -129,29 +113,9 @@ void MessageHandler::ReportMessage(Isolate* isolate,
 
 Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
-  Factory* factory = isolate->factory();
-  Handle<String> fmt_str =
-      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("$formatMessage"));
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
-          isolate->js_builtins_object(), fmt_str).ToHandleChecked());
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
-  Handle<Object> argv[] = { Handle<Object>(message->type(), isolate),
-                            Handle<Object>(message->arguments(), isolate) };
-
-  MaybeHandle<Object> maybe_result = Execution::TryCall(
-      fun, isolate->js_builtins_object(), arraysize(argv), argv);
-  Handle<Object> result;
-  if (!maybe_result.ToHandle(&result) || !result->IsString()) {
-    return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
-  }
-  Handle<String> result_string = Handle<String>::cast(result);
-  // A string that has been obtained from JS code in this way is
-  // likely to be a complicated ConsString of some sort.  We flatten it
-  // here to improve the efficiency of converting it to a C string and
-  // other operations that are likely to take place (see GetLocalizedMessage
-  // for example).
-  result_string = String::Flatten(result_string);
-  return result_string;
+  Handle<Object> arg = Handle<Object>(message->argument(), isolate);
+  return MessageTemplate::FormatMessage(isolate, message->type(), arg);
 }
 
 
@@ -312,6 +276,38 @@ bool CallSite::IsConstructor(Isolate* isolate) {
 }
 
 
+Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
+                                              int template_index,
+                                              Handle<Object> arg) {
+  Factory* factory = isolate->factory();
+  Handle<String> fmt_str = factory->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("$noSideEffectToString"));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      Object::GetProperty(isolate->js_builtins_object(), fmt_str)
+          .ToHandleChecked());
+
+  MaybeHandle<Object> maybe_result =
+      Execution::TryCall(fun, isolate->js_builtins_object(), 1, &arg);
+  Handle<Object> result;
+  if (!maybe_result.ToHandle(&result) || !result->IsString()) {
+    return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
+  }
+  MaybeHandle<String> maybe_result_string = MessageTemplate::FormatMessage(
+      template_index, Handle<String>::cast(result), factory->empty_string(),
+      factory->empty_string());
+  Handle<String> result_string;
+  if (!maybe_result_string.ToHandle(&result_string)) {
+    return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
+  }
+  // A string that has been obtained from JS code in this way is
+  // likely to be a complicated ConsString of some sort.  We flatten it
+  // here to improve the efficiency of converting it to a C string and
+  // other operations that are likely to take place (see GetLocalizedMessage
+  // for example).
+  return String::Flatten(result_string);
+}
+
+
 MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
                                                    Handle<String> arg0,
                                                    Handle<String> arg1,
@@ -338,8 +334,14 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
   Handle<String> args[] = {arg0, arg1, arg2};
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
-      DCHECK(i < arraysize(args));
-      builder.AppendString(args[i++]);
+      // %% results in verbatim %.
+      if (*(c + 1) == '%') {
+        c++;
+        builder.AppendCharacter('%');
+      } else {
+        DCHECK(i < arraysize(args));
+        builder.AppendString(args[i++]);
+      }
     } else {
       builder.AppendCharacter(*c);
     }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast.h"
+#include "src/messages.h"
 #include "src/parser.h"
 
 namespace v8 {
@@ -61,7 +62,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
   if (descriptor_->declaration_scope->num_var_or_const() >
       kMaxNumFunctionLocals) {
-    parser->ReportMessage("too_many_variables");
+    parser->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
     return;
   }

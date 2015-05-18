@@ -795,7 +795,8 @@ void Scope::GetNestedScopeChain(Isolate* isolate,
 
 
 void Scope::ReportMessage(int start_position, int end_position,
-                          const char* message, const AstRawString* arg) {
+                          MessageTemplate::Template message,
+                          const AstRawString* arg) {
   // Propagate the error to the topmost scope targeted by this scope analysis
   // phase.
   Scope* top = this;
@@ -1219,7 +1220,8 @@ bool Scope::CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var) {
       eval_for_use == eval_for_declaration) {
     DCHECK(proxy->end_position() != RelocInfo::kNoPosition);
     ReportMessage(proxy->position(), proxy->end_position(),
-                  "strong_use_before_declaration", proxy->raw_name());
+                  MessageTemplate::kStrongUseBeforeDeclaration,
+                  proxy->raw_name());
     return false;
   }
   return true;

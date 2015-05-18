@@ -1560,7 +1560,8 @@ Local<Script> UnboundScript::BindToCurrentContext() {
         pending_error_handler_.ReportMessageAt(
             scope_info->StrongModeFreeVariableStartPosition(i),
             scope_info->StrongModeFreeVariableEndPosition(i),
-            "strong_unbound_global", name_string, i::kReferenceError);
+            i::MessageTemplate::kStrongUnboundGlobal, name_string,
+            i::kReferenceError);
         i::Handle<i::Script> script(i::Script::cast(function_info->script()));
         pending_error_handler_.ThrowPendingError(isolate, script);
         isolate->ReportPendingMessages();

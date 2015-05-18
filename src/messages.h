@@ -62,32 +62,6 @@ class MessageLocation {
 };
 
 
-// A message handler is a convenience interface for accessing the list
-// of message listeners registered in an environment
-class MessageHandler {
- public:
-  // Returns a message object for the API to use.
-  static Handle<JSMessageObject> MakeMessageObject(
-      Isolate* isolate,
-      const char* type,
-      MessageLocation* loc,
-      Vector< Handle<Object> > args,
-      Handle<JSArray> stack_frames);
-
-  // Report a formatted message (needs JS allocation).
-  static void ReportMessage(Isolate* isolate,
-                            MessageLocation* loc,
-                            Handle<Object> message);
-
-  static void DefaultMessageReport(Isolate* isolate,
-                                   const MessageLocation* loc,
-                                   Handle<Object> message_obj);
-  static Handle<String> GetMessage(Isolate* isolate, Handle<Object> data);
-  static SmartArrayPointer<char> GetLocalizedMessage(Isolate* isolate,
-                                                     Handle<Object> data);
-};
-
-
 class CallSite {
  public:
   CallSite(Handle<Object> receiver, Handle<JSFunction> fun, int pos)
@@ -115,8 +89,11 @@ class CallSite {
 
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
+  T(None, "")                                                                  \
   T(CyclicProto, "Cyclic __proto__ value")                                     \
+  T(DebuggerLoading, "Error loading debugger")                                 \
   T(DefaultOptionsMissing, "Internal % error. Default options are missing.")   \
+  T(UncaughtException, "Uncaught %")                                           \
   T(Unsupported, "Not supported")                                              \
   T(WrongServiceType, "Internal error, wrong service type: %")                 \
   T(WrongValueType, "Internal error. Wrong value type.")                       \
@@ -264,6 +241,11 @@ class CallSite {
   /* ReferenceError */                                                         \
   T(NonMethod, "'super' is referenced from non-method")                        \
   T(NotDefined, "% is not defined")                                            \
+  T(StrongSuperCallMissing,                                                    \
+    "In strong mode, invoking the super constructor in a subclass is "         \
+    "required")                                                                \
+  T(StrongUnboundGlobal,                                                       \
+    "In strong mode, using an undeclared global variable '%' is not allowed")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(ArrayLengthOutOfRange, "defineProperty() array length out of range")       \
@@ -298,13 +280,124 @@ class CallSite {
   T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
+  T(BadGetterArity, "Getter must not have any formal parameters.")             \
+  T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
+  T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
+  T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
+  T(DerivedConstructorReturn,                                                  \
+    "Derived constructors may only return object or undefined")                \
+  T(DuplicateArrawFunFormalParam,                                              \
+    "Arrow function may not have duplicate parameter names")                   \
+  T(DuplicateConstructor, "A class may only have one constructor")             \
+  T(DuplicateExport, "Duplicate export of '%'")                                \
+  T(DuplicateProto,                                                            \
+    "Duplicate __proto__ fields are not allowed in object literals")           \
+  T(ForInLoopInitializer,                                                      \
+    "for-in loop variable declaration may not have an initializer.")           \
+  T(ForInOfLoopMultiBindings,                                                  \
+    "Invalid left-hand side in % loop: Must have a single binding.")           \
+  T(ForOfLoopInitializer,                                                      \
+    "for-of loop variable declaration may not have an initializer.")           \
+  T(IllegalAccess, "Illegal access")                                           \
+  T(IllegalBreak, "Illegal break statement")                                   \
+  T(IllegalContinue, "Illegal continue statement")                             \
+  T(IllegalReturn, "Illegal return statement")                                 \
+  T(InvalidLhsInAssignment, "Invalid left-hand side in assignment")            \
+  T(InvalidLhsInFor, "Invalid left-hand side in for-loop")                     \
+  T(InvalidLhsInPostfixOp,                                                     \
+    "Invalid left-hand side expression in postfix operation")                  \
+  T(InvalidLhsInPrefixOp,                                                      \
+    "Invalid left-hand side expression in prefix operation")                   \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
+  T(LabelRedeclaration, "Label '%' has already been declared")                 \
+  T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
   T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
+  T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
+  T(ModuleExportUndefined, "Export '%' is not defined in module")              \
+  T(MultipleDefaultsInSwitch,                                                  \
+    "More than one default clause in switch statement")                        \
+  T(NewlineAfterThrow, "Illegal newline after throw")                          \
+  T(NoCatchOrFinally, "Missing catch or finally after try")                    \
+  T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
+  T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
+  T(SingleFunctionLiteral, "Single function literal required")                 \
+  T(SloppyLexical,                                                             \
+    "Block-scoped declarations (let, const, function, class) not yet "         \
+    "supported outside strict mode")                                           \
+  T(StrictDelete, "Delete of an unqualified identifier in strict mode.")       \
+  T(StrictEvalArguments, "Unexpected eval or arguments in strict mode")        \
+  T(StrictFunction,                                                            \
+    "In strict mode code, functions can only be declared at top level or "     \
+    "immediately within another function.")                                    \
+  T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
+  T(StrictParamDupe,                                                           \
+    "Strict mode function may not have duplicate parameter names")             \
+  T(StrictWith, "Strict mode code may not include a with statement")           \
+  T(StrongArguments,                                                           \
+    "In strong mode, 'arguments' is deprecated, use '...args' instead")        \
+  T(StrongConstructorReturnMisplaced,                                          \
+    "In strong mode, returning from a constructor before its super "           \
+    "constructor invocation or all assignments to 'this' is deprecated")       \
+  T(StrongConstructorReturnValue,                                              \
+    "In strong mode, returning a value from a constructor is deprecated")      \
+  T(StrongConstructorSuper,                                                    \
+    "In strong mode, 'super' can only be used to invoke the super "            \
+    "constructor, and cannot be nested inside another statement or "           \
+    "expression")                                                              \
+  T(StrongConstructorThis,                                                     \
+    "In strong mode, 'this' can only be used to initialize properties, and "   \
+    "cannot be nested inside another statement or expression")                 \
+  T(StrongDelete,                                                              \
+    "In strong mode, 'delete' is deprecated, use maps or sets instead")        \
+  T(StrongDirectEval, "In strong mode, direct calls to eval are deprecated")   \
+  T(StrongEllision,                                                            \
+    "In strong mode, arrays with holes are deprecated, use maps instead")      \
+  T(StrongEmpty,                                                               \
+    "In strong mode, empty sub-statements are deprecated, make them explicit " \
+    "with '{}' instead")                                                       \
+  T(StrongEqual,                                                               \
+    "In strong mode, '==' and '!=' are deprecated, use '===' and '!==' "       \
+    "instead")                                                                 \
+  T(StrongForIn,                                                               \
+    "In strong mode, 'for'-'in' loops are deprecated, use 'for'-'of' instead") \
+  T(StrongSuperCallDuplicate,                                                  \
+    "In strong mode, invoking the super constructor multiple times is "        \
+    "deprecated")                                                              \
+  T(StrongSuperCallMisplaced,                                                  \
+    "In strong mode, the super constructor must be invoked before any "        \
+    "assignment to 'this'")                                                    \
+  T(StrongSwitchFallthrough,                                                   \
+    "In strong mode, switch fall-through is deprecated, terminate each case "  \
+    "with 'break', 'continue', 'return' or 'throw'")                           \
+  T(StrongUndefined,                                                           \
+    "In strong mode, binding or assigning to 'undefined' is deprecated")       \
+  T(StrongUseBeforeDeclaration,                                                \
+    "In strong mode, declaring variable '%' before its use is required")       \
+  T(StrongVar,                                                                 \
+    "In strong mode, 'var' is deprecated, use 'let' or 'const' instead")       \
+  T(TemplateOctalLiteral,                                                      \
+    "Octal literals are not allowed in template strings.")                     \
+  T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
+  T(TooManyArguments,                                                          \
+    "Too many arguments in function call (only 65535 allowed)")                \
+  T(TooManyParameters,                                                         \
+    "Too many parameters in function definition (only 65535 allowed)")         \
+  T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
   T(UnexpectedEOS, "Unexpected end of input")                                  \
+  T(UnexpectedReserved, "Unexpected reserved word")                            \
+  T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
+  T(UnexpectedSuper, "'super' keyword unexpected here")                        \
+  T(UnexpectedTemplateString, "Unexpected template string")                    \
   T(UnexpectedToken, "Unexpected token %")                                     \
+  T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \
   T(UnexpectedTokenNumber, "Unexpected number")                                \
   T(UnexpectedTokenString, "Unexpected string")                                \
+  T(UnknownLabel, "Undefined label '%'")                                       \
+  T(UnterminatedArgList, "missing ) after argument list")                      \
+  T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
+  T(UnterminatedTemplate, "Unterminated template literal")                     \
+  T(UnterminatedTemplateExpr, "Missing } in template expression")              \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \
@@ -323,6 +416,30 @@ class MessageTemplate {
                                            Handle<String> arg0,
                                            Handle<String> arg1,
                                            Handle<String> arg2);
+
+  static Handle<String> FormatMessage(Isolate* isolate, int template_index,
+                                      Handle<Object> arg);
+};
+
+
+// A message handler is a convenience interface for accessing the list
+// of message listeners registered in an environment
+class MessageHandler {
+ public:
+  // Returns a message object for the API to use.
+  static Handle<JSMessageObject> MakeMessageObject(
+      Isolate* isolate, MessageTemplate::Template type, MessageLocation* loc,
+      Handle<Object> argument, Handle<JSArray> stack_frames);
+
+  // Report a formatted message (needs JS allocation).
+  static void ReportMessage(Isolate* isolate, MessageLocation* loc,
+                            Handle<Object> message);
+
+  static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
+                                   Handle<Object> message_obj);
+  static Handle<String> GetMessage(Isolate* isolate, Handle<Object> data);
+  static SmartArrayPointer<char> GetLocalizedMessage(Isolate* isolate,
+                                                     Handle<Object> data);
 };
 } }  // namespace v8::internal
 

@@ -549,8 +549,9 @@ class Factory final {
 
   Handle<Object> NewError(const char* maker,
                           MessageTemplate::Template template_index,
-                          Handle<Object> arg0, Handle<Object> arg1,
-                          Handle<Object> arg2);
+                          Handle<Object> arg0 = Handle<Object>(),
+                          Handle<Object> arg1 = Handle<Object>(),
+                          Handle<Object> arg2 = Handle<Object>());
 
   Handle<Object> NewError(MessageTemplate::Template template_index,
                           Handle<Object> arg0 = Handle<Object>(),
@@ -656,13 +657,12 @@ class Factory final {
   Handle<TypeFeedbackVector> NewTypeFeedbackVector(const Spec* spec);
 
   // Allocates a new JSMessageObject object.
-  Handle<JSMessageObject> NewJSMessageObject(
-      Handle<String> type,
-      Handle<JSArray> arguments,
-      int start_position,
-      int end_position,
-      Handle<Object> script,
-      Handle<Object> stack_frames);
+  Handle<JSMessageObject> NewJSMessageObject(MessageTemplate::Template message,
+                                             Handle<Object> argument,
+                                             int start_position,
+                                             int end_position,
+                                             Handle<Object> script,
+                                             Handle<Object> stack_frames);
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 

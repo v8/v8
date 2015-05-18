@@ -503,7 +503,8 @@ class Scope: public ZoneObject {
   }
 
   // Error handling.
-  void ReportMessage(int start_position, int end_position, const char* message,
+  void ReportMessage(int start_position, int end_position,
+                     MessageTemplate::Template message,
                      const AstRawString* arg);
 
   // ---------------------------------------------------------------------------

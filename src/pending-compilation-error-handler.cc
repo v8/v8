@@ -17,29 +17,27 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
   if (!has_pending_error_) return;
   MessageLocation location(script, start_position_, end_position_);
   Factory* factory = isolate->factory();
-  bool has_arg = arg_ != NULL || char_arg_ != NULL || !handle_arg_.is_null();
-  Handle<FixedArray> elements = factory->NewFixedArray(has_arg ? 1 : 0);
+  Handle<String> argument;
   if (arg_ != NULL) {
-    Handle<String> arg_string = arg_->string();
-    elements->set(0, *arg_string);
+    argument = arg_->string();
   } else if (char_arg_ != NULL) {
-    Handle<String> arg_string =
+    argument =
         factory->NewStringFromUtf8(CStrVector(char_arg_)).ToHandleChecked();
-    elements->set(0, *arg_string);
   } else if (!handle_arg_.is_null()) {
-    elements->set(0, *handle_arg_);
+    argument = handle_arg_;
   }
   isolate->debug()->OnCompileError(script);
 
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
   Handle<Object> error;
-
   switch (error_type_) {
     case kReferenceError:
-      error = factory->NewError("MakeReferenceError", message_, array);
+      error = factory->NewError("MakeReferenceError", message_, argument);
       break;
     case kSyntaxError:
-      error = factory->NewError("MakeSyntaxError", message_, array);
+      error = factory->NewError("MakeSyntaxError", message_, argument);
+      break;
+    default:
+      UNREACHABLE();
       break;
   }
 

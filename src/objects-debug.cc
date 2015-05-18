@@ -493,8 +493,6 @@ void JSDate::JSDateVerify() {
 
 void JSMessageObject::JSMessageObjectVerify() {
   CHECK(IsJSMessageObject());
-  CHECK(type()->IsString());
-  CHECK(arguments()->IsJSArray());
   VerifyObjectField(kStartPositionOffset);
   VerifyObjectField(kEndPositionOffset);
   VerifyObjectField(kArgumentsOffset);

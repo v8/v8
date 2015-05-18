@@ -1381,9 +1381,9 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
           factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("exception"));
     }
   }
-  return MessageHandler::MakeMessageObject(this, "uncaught_exception", location,
-                                           HandleVector<Object>(&exception, 1),
-                                           stack_trace_object);
+  return MessageHandler::MakeMessageObject(
+      this, MessageTemplate::kUncaughtException, location, exception,
+      stack_trace_object);
 }
 
 

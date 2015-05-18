@@ -1333,40 +1333,24 @@ const char* ReadString(unsigned* start) {
 
 i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
   i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  const char* message =
-      ReadString(&data[i::PreparseDataConstants::kMessageTextPos]);
-  i::Handle<i::String> format = v8::Utils::OpenHandle(
-      *v8::String::NewFromUtf8(CcTest::isolate(), message));
+  int message = data[i::PreparseDataConstants::kMessageTemplatePos];
   int arg_count = data[i::PreparseDataConstants::kMessageArgCountPos];
-  const char* arg = NULL;
-  i::Handle<i::JSArray> args_array;
+  i::Handle<i::Object> arg_object;
   if (arg_count == 1) {
     // Position after text found by skipping past length field and
     // length field content words.
-    int pos = i::PreparseDataConstants::kMessageTextPos + 1 +
-              data[i::PreparseDataConstants::kMessageTextPos];
-    arg = ReadString(&data[pos]);
-    args_array = factory->NewJSArray(1);
-    i::JSArray::SetElement(args_array, 0, v8::Utils::OpenHandle(*v8_str(arg)),
-                           NONE, i::SLOPPY).Check();
+    const char* arg =
+        ReadString(&data[i::PreparseDataConstants::kMessageArgPos]);
+    arg_object =
+        v8::Utils::OpenHandle(*v8::String::NewFromUtf8(CcTest::isolate(), arg));
+    i::DeleteArray(arg);
   } else {
     CHECK_EQ(0, arg_count);
-    args_array = factory->NewJSArray(0);
+    arg_object = isolate->factory()->undefined_value();
   }
 
-  i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
-  i::Handle<i::Object> format_fun =
-      i::Object::GetProperty(isolate, builtins, "$formatMessage")
-          .ToHandleChecked();
-  i::Handle<i::Object> arg_handles[] = { format, args_array };
-  i::Handle<i::Object> result = i::Execution::Call(
-      isolate, format_fun, builtins, 2, arg_handles).ToHandleChecked();
-  CHECK(result->IsString());
-  i::DeleteArray(message);
-  i::DeleteArray(arg);
   data.Dispose();
-  return i::Handle<i::String>::cast(result);
+  return i::MessageTemplate::FormatMessage(isolate, message, arg_object);
 }
 
 

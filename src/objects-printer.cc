@@ -547,8 +547,8 @@ void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
 
 void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSMessageObject");
-  os << " - type: " << Brief(type());
-  os << "\n - arguments: " << Brief(arguments());
+  os << " - type: " << type();
+  os << "\n - arguments: " << Brief(argument());
   os << "\n - start_position: " << start_position();
   os << "\n - end_position: " << end_position();
   os << "\n - script: " << Brief(script());

@@ -669,8 +669,8 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
     MessageLocation computed_location;
     isolate->ComputeLocation(&computed_location);
     Handle<Object> message = MessageHandler::MakeMessageObject(
-        isolate, "error_loading_debugger", &computed_location,
-        Vector<Handle<Object> >::empty(), Handle<JSArray>());
+        isolate, MessageTemplate::kDebuggerLoading, &computed_location,
+        isolate->factory()->undefined_value(), Handle<JSArray>());
     DCHECK(!isolate->has_pending_exception());
     Handle<Object> exception;
     if (maybe_exception.ToHandle(&exception)) {

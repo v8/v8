@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/hashmap.h"
+#include "src/messages.h"
 #include "src/preparse-data-format.h"
 
 namespace v8 {
@@ -58,7 +59,7 @@ class ParserRecorder {
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start, int end, const char* message,
+  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
                           const char* argument_opt,
                           ParseErrorType error_type) = 0;
 
@@ -90,7 +91,7 @@ class SingletonLogger : public ParserRecorder {
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start, int end, const char* message,
+  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
                           const char* argument_opt, ParseErrorType error_type) {
     if (has_error_) return;
     has_error_ = true;
@@ -125,7 +126,7 @@ class SingletonLogger : public ParserRecorder {
     DCHECK(has_error_);
     return error_type_;
   }
-  const char* message() {
+  MessageTemplate::Template message() {
     DCHECK(has_error_);
     return message_;
   }
@@ -144,7 +145,7 @@ class SingletonLogger : public ParserRecorder {
   LanguageMode language_mode_;
   bool scope_uses_super_property_;
   // For error messages.
-  const char* message_;
+  MessageTemplate::Template message_;
   const char* argument_opt_;
   ParseErrorType error_type_;
 };
@@ -174,7 +175,7 @@ class CompleteParserRecorder : public ParserRecorder {
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start, int end, const char* message,
+  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
                           const char* argument_opt, ParseErrorType error_type);
   ScriptData* GetScriptData();
 
@@ -188,9 +189,6 @@ class CompleteParserRecorder : public ParserRecorder {
 
  private:
   void WriteString(Vector<const char> str);
-
-  // Write a non-negative number to the symbol store.
-  void WriteNumber(int number);
 
   Collector<unsigned> function_store_;
   unsigned preamble_[PreparseDataConstants::kHeaderSize];

@@ -6323,8 +6323,8 @@ ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 
-ACCESSORS(JSMessageObject, type, String, kTypeOffset)
-ACCESSORS(JSMessageObject, arguments, JSArray, kArgumentsOffset)
+SMI_ACCESSORS(JSMessageObject, type, kTypeOffset)
+ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)

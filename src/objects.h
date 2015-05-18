@@ -8002,10 +8002,11 @@ class JSDate: public JSObject {
 class JSMessageObject: public JSObject {
  public:
   // [type]: the type of error message.
-  DECL_ACCESSORS(type, String)
+  inline int type() const;
+  inline void set_type(int value);
 
   // [arguments]: the arguments for formatting the error message.
-  DECL_ACCESSORS(arguments, JSArray)
+  DECL_ACCESSORS(argument, Object)
 
   // [script]: the script from which the error message originated.
   DECL_ACCESSORS(script, Object)
@@ -10548,7 +10549,7 @@ class AccessorInfo: public Struct {
   // Bit positions in flag.
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
-  class AttributesField: public BitField<PropertyAttributes, 2, 3> {};
+  class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };
