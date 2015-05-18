@@ -36,34 +36,34 @@ function generateSpread(n) {
 
 
 (function FunctionCall() {
-  for (let parameter_count = 0; parameter_count < 3; parameter_count++) {
+  for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
     let defs = [
-      `'use strong'; function f(${generateParams(parameter_count)}) {}`,
-      `'use strong'; function* f(${generateParams(parameter_count)}) {}`,
-      `'use strong'; let f = (${generateParams(parameter_count)}) => {}`,
-      `function f(${generateParams(parameter_count)}) { 'use strong'; }`,
-      `function* f(${generateParams(parameter_count)}) { 'use strong'; }`,
-      `let f = (${generateParams(parameter_count)}) => { 'use strong'; }`,
+      `'use strong'; function f(${generateParams(parameterCount)}) {}`,
+      `'use strong'; function* f(${generateParams(parameterCount)}) {}`,
+      `'use strong'; let f = (${generateParams(parameterCount)}) => {}`,
+      `function f(${generateParams(parameterCount)}) { 'use strong'; }`,
+      `function* f(${generateParams(parameterCount)}) { 'use strong'; }`,
+      `let f = (${generateParams(parameterCount)}) => { 'use strong'; }`,
     ];
     for (let def of defs) {
-      for (let argument_count = 0; argument_count < 3; argument_count++) {
+      for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
         let calls = [
-          `f(${generateArguments(argument_count)})`,
-          `f(${generateSpread(argument_count)})`,
-          `f.call(${generateArguments(argument_count, 'undefined')})`,
-          `f.call(undefined, ${generateSpread(argument_count)})`,
-          `f.apply(undefined, [${generateArguments(argument_count)}])`,
-          `f.bind(undefined)(${generateArguments(argument_count)})`,
-          `%_CallFunction(${generateArguments(argument_count, 'undefined')},
+          `f(${generateArguments(argumentCount)})`,
+          `f(${generateSpread(argumentCount)})`,
+          `f.call(${generateArguments(argumentCount, 'undefined')})`,
+          `f.call(undefined, ${generateSpread(argumentCount)})`,
+          `f.apply(undefined, [${generateArguments(argumentCount)}])`,
+          `f.bind(undefined)(${generateArguments(argumentCount)})`,
+          `%_CallFunction(${generateArguments(argumentCount, 'undefined')},
                           f)`,
-          `%Call(${generateArguments(argument_count, 'undefined')}, f)`,
-          `%Apply(f, undefined, [${generateArguments(argument_count)}], 0,
-                  ${argument_count})`,
+          `%Call(${generateArguments(argumentCount, 'undefined')}, f)`,
+          `%Apply(f, undefined, [${generateArguments(argumentCount)}], 0,
+                  ${argumentCount})`,
         ];
 
         for (let call of calls) {
           let code = `'use strict'; ${def}; ${call};`;
-          if (argument_count < parameter_count) {
+          if (argumentCount < parameterCount) {
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
@@ -78,7 +78,7 @@ function generateSpread(n) {
       ];
       for (let call of calls) {
         let code = `'use strict'; ${def}; ${call};`;
-        if (parameter_count > 0) {
+        if (parameterCount > 0) {
           assertThrows(code, TypeError);
         } else {
           assertDoesNotThrow(code);
@@ -90,41 +90,41 @@ function generateSpread(n) {
 
 
 (function MethodCall() {
-  for (let parameter_count = 0; parameter_count < 3; parameter_count++) {
+  for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
     let defs = [
       `let o = new class {
-        m(${generateParams(parameter_count)}) { 'use strong'; }
+        m(${generateParams(parameterCount)}) { 'use strong'; }
       }`,
       `let o = new class {
-        *m(${generateParams(parameter_count)}) { 'use strong'; }
+        *m(${generateParams(parameterCount)}) { 'use strong'; }
       }`,
-      `let o = { m(${generateParams(parameter_count)}) { 'use strong'; } }`,
-      `let o = { *m(${generateParams(parameter_count)}) { 'use strong'; } }`,
+      `let o = { m(${generateParams(parameterCount)}) { 'use strong'; } }`,
+      `let o = { *m(${generateParams(parameterCount)}) { 'use strong'; } }`,
       `'use strong';
-      let o = new class { m(${generateParams(parameter_count)}) {} }`,
+      let o = new class { m(${generateParams(parameterCount)}) {} }`,
       `'use strong';
-      let o = new class { *m(${generateParams(parameter_count)}) {} }`,
-      `'use strong'; let o = { m(${generateParams(parameter_count)}) {} }`,
-      `'use strong'; let o = { *m(${generateParams(parameter_count)}) {} }`,
+      let o = new class { *m(${generateParams(parameterCount)}) {} }`,
+      `'use strong'; let o = { m(${generateParams(parameterCount)}) {} }`,
+      `'use strong'; let o = { *m(${generateParams(parameterCount)}) {} }`,
     ];
     for (let def of defs) {
-      for (let argument_count = 0; argument_count < 3; argument_count++) {
+      for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
         let calls = [
-          `o.m(${generateArguments(argument_count)})`,
-          `o.m(${generateSpread(argument_count)})`,
-          `o.m.call(${generateArguments(argument_count, 'o')})`,
-          `o.m.call(o, ${generateSpread(argument_count)})`,
-          `o.m.apply(o, [${generateArguments(argument_count)}])`,
-          `o.m.bind(o)(${generateArguments(argument_count)})`,
-          `%_CallFunction(${generateArguments(argument_count, 'o')}, o.m)`,
-          `%Call(${generateArguments(argument_count, 'o')}, o.m)`,
-          `%Apply(o.m, o, [${generateArguments(argument_count)}], 0,
-                  ${argument_count})`,
+          `o.m(${generateArguments(argumentCount)})`,
+          `o.m(${generateSpread(argumentCount)})`,
+          `o.m.call(${generateArguments(argumentCount, 'o')})`,
+          `o.m.call(o, ${generateSpread(argumentCount)})`,
+          `o.m.apply(o, [${generateArguments(argumentCount)}])`,
+          `o.m.bind(o)(${generateArguments(argumentCount)})`,
+          `%_CallFunction(${generateArguments(argumentCount, 'o')}, o.m)`,
+          `%Call(${generateArguments(argumentCount, 'o')}, o.m)`,
+          `%Apply(o.m, o, [${generateArguments(argumentCount)}], 0,
+                  ${argumentCount})`,
         ];
 
         for (let call of calls) {
           let code = `'use strict'; ${def}; ${call};`;
-          if (argument_count < parameter_count) {
+          if (argumentCount < parameterCount) {
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
@@ -139,7 +139,7 @@ function generateSpread(n) {
       ];
       for (let call of calls) {
         let code = `'use strict'; ${def}; ${call};`;
-        if (parameter_count > 0) {
+        if (parameterCount > 0) {
           assertThrows(code, TypeError);
         } else {
           assertDoesNotThrow(code);
@@ -151,25 +151,25 @@ function generateSpread(n) {
 
 
 (function Constructor() {
-  for (let argument_count = 0; argument_count < 3; argument_count++) {
-    for (let parameter_count = 0; parameter_count < 3; parameter_count++) {
+  for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+    for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
       let defs = [
         `'use strong';
-        class C { constructor(${generateParams(parameter_count)}) {} }`,
+        class C { constructor(${generateParams(parameterCount)}) {} }`,
         `'use strict';
         class C {
-          constructor(${generateParams(parameter_count)}) { 'use strong'; }
+          constructor(${generateParams(parameterCount)}) { 'use strong'; }
         }`,
       ];
       for (let def of defs) {
         let calls = [
-          `new C(${generateArguments(argument_count)})`,
-          `new C(${generateSpread(argument_count)})`,
-          `Reflect.construct(C, [${generateArguments(argument_count)}])`,
+          `new C(${generateArguments(argumentCount)})`,
+          `new C(${generateSpread(argumentCount)})`,
+          `Reflect.construct(C, [${generateArguments(argumentCount)}])`,
         ];
         for (let call of calls) {
           let code = `${def}; ${call};`;
-          if (argument_count < parameter_count) {
+          if (argumentCount < parameterCount) {
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
@@ -183,31 +183,31 @@ function generateSpread(n) {
 
 (function DerivedConstructor() {
   for (let genArgs of [generateArguments, generateSpread]) {
-    for (let argument_count = 0; argument_count < 3; argument_count++) {
-      for (let parameter_count = 0; parameter_count < 3; parameter_count++) {
+    for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+      for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
         let defs = [
           `'use strong';
           class B {
-            constructor(${generateParams(parameter_count)}) {}
+            constructor(${generateParams(parameterCount)}) {}
           }
           class C extends B {
             constructor() {
-              super(${genArgs(argument_count)});
+              super(${genArgs(argumentCount)});
             }
           }`,
           `'use strict';
           class B {
-            constructor(${generateParams(parameter_count)}) { 'use strong'; }
+            constructor(${generateParams(parameterCount)}) { 'use strong'; }
           }
           class C extends B {
             constructor() {
-              super(${genArgs(argument_count)});
+              super(${genArgs(argumentCount)});
             }
           }`,
         ];
         for (let def of defs) {
           let code = `${def}; new C();`;
-          if (argument_count < parameter_count) {
+          if (argumentCount < parameterCount) {
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
@@ -221,23 +221,23 @@ function generateSpread(n) {
 
 (function DerivedConstructorDefaultConstructorInDerivedClass() {
   for (let genArgs of [generateArguments, generateSpread]) {
-    for (let argument_count = 0; argument_count < 3; argument_count++) {
-      for (let parameter_count = 0; parameter_count < 3; parameter_count++) {
+    for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+      for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
         let defs = [
           `'use strong';
           class B {
-            constructor(${generateParams(parameter_count)}) {}
+            constructor(${generateParams(parameterCount)}) {}
           }
           class C extends B {}`,
           `'use strict';
           class B {
-            constructor(${generateParams(parameter_count)}) { 'use strong'; }
+            constructor(${generateParams(parameterCount)}) { 'use strong'; }
           }
           class C extends B {}`,
         ];
         for (let def of defs) {
-          let code = `${def}; new C(${genArgs(argument_count)})`;
-          if (argument_count < parameter_count) {
+          let code = `${def}; new C(${genArgs(argumentCount)})`;
+          if (argumentCount < parameterCount) {
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
@@ -303,79 +303,33 @@ function generateSpread(n) {
 })();
 
 
-// https://code.google.com/p/v8/issues/detail?id=4077
-// (function NoParametersSuper() {
-//   'use strong';
-//
-//   class B {
-//     m() {}
-//   }
-//   class D extends B {
-//     m0() { super.m(); }
-//     m1() { super.m(1); }
-//     s0() { super.m(); }
-//     s1() { super.m(1); }
-//   }
-//
-//   new D().m0();
-//   new D().m1();
-//
-//   new D().s0();
-//   new D().s1();
-// })();
-
-
-// https://code.google.com/p/v8/issues/detail?id=4077
-// (function OneParamentSuper() {
-//   'use strong';
-//
-//   class B {
-//     m(x) {}
-//   }
-//   class D extends B {
-//     m0() { super.m(); }
-//     m1() { super.m(1); }
-//     m2() { super.m(1, 2); }
-//     s0() { super.m(...[]); }
-//     s1() { super.m(...[1]); }
-//     s2() { super.m(...[1, 2]); }
-//   }
-//
-//   assertThrows(function() { new D().m0(); }, TypeError);
-//   new D().m1();
-//   new D().m2();
-//
-//   assertThrows(function() { new D().s0(); }, TypeError);
-//   new D().s1();
-//   new D().s2();
-// })();
-
-
-// https://code.google.com/p/v8/issues/detail?id=4077
-// (function TwoParametersSuper() {
-//   'use strong';
-//
-//   class B {
-//     m(x, y) {}
-//   }
-//   class D extends B {
-//     m0() { super.m(); }
-//     m1() { super.m(1); }
-//     m2() { super.m(1, 2); }
-//     m3() { super.m(1, 2, 3); }
-//     s0() { super.m(...[]); }
-//     s1() { super.m(...[1]); }
-//     s2() { super.m(...[1, 2]); }
-//     s3() { super.m(...[1, 2, 3]); }
-//   }
-//
-//   assertThrows(function() { new D().m0(); }, TypeError);
-//   assertThrows(function() { new D().m1(); }, TypeError);
-//   new D().m2();
-//   new D().m3();
-//
-//   assertThrows(function() { new D().s0(); }, TypeError);
-//   assertThrows(function() { new D().s1(); }, TypeError);
-//   new D().s2();
-//   new D().s3();
-// })();
+(function ParametersSuper() {
+  for (let genArgs of [generateArguments, generateSpread]) {
+    for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+      for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
+        let defs = [
+          `'use strict';
+          class B {
+            m(${generateParams(parameterCount)} ){ 'use strong' }
+          }`,
+          `'use strong'; class B { m(${generateParams(parameterCount)}) {} }`,
+        ];
+        for (let def of defs) {
+          let code = `${def};
+              class D extends B {
+                m() {
+                  super.m(${genArgs(argumentCount)});
+                }
+              }
+              new D().m()`;
+          print('\n\n' + code);
+          if (argumentCount < parameterCount) {
+            assertThrows(code, TypeError);
+          } else {
+            assertDoesNotThrow(code);
+          }
+        }
+      }
+    }
+  }
+})();
