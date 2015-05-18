@@ -464,6 +464,10 @@ def FlattenRunnables(node, node_cb):
 
 
 class Platform(object):
+  def __init__(self, options):
+    self.shell_dir = options.shell_dir
+    self.extra_flags = options.extra_flags.split()
+
   @staticmethod
   def GetPlatform(options):
     if options.arch.startswith("android"):
@@ -474,8 +478,7 @@ class Platform(object):
 
 class DesktopPlatform(Platform):
   def __init__(self, options):
-    self.shell_dir = options.shell_dir
-    self.extra_flags = options.extra_flags.split()
+    super(DesktopPlatform, self).__init__(options)
 
   def PreExecution(self):
     pass
@@ -512,8 +515,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
   DEVICE_DIR = "/data/local/tmp/v8/"
 
   def __init__(self, options):
-    self.shell_dir = options.shell_dir
-    self.extra_flags = options.extra_flags.split()
+    super(AndroidPlatform, self).__init__(options)
     LoadAndroidBuildTools(options.android_build_tools)
 
     if not options.device:
