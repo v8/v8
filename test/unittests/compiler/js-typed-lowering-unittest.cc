@@ -80,7 +80,9 @@ class JSTypedLoweringTest : public TypedGraphTest {
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
-    JSTypedLowering reducer(&jsgraph, zone());
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(graph(), zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
     return reducer.Reduce(node);
   }
 

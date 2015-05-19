@@ -21,25 +21,8 @@ namespace compiler {
 // - relax effects from generic but not-side-effecting operations
 
 
-// Relax the effects of {node} by immediately replacing effect and control uses
-// of {node} with the effect and control input to {node}.
-// TODO(turbofan): replace the effect input to {node} with {graph->start()}.
-// TODO(titzer): move into a GraphEditor?
-static void RelaxEffectsAndControls(Node* node) {
-  NodeProperties::ReplaceWithValue(node, node, NULL);
-}
-
-
-// Relax the control uses of {node} by immediately replacing them with the
-// control input to {node}.
-// TODO(titzer): move into a GraphEditor?
-static void RelaxControls(Node* node) {
-  NodeProperties::ReplaceWithValue(node, node, node);
-}
-
-
-JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
-    : jsgraph_(jsgraph), simplified_(graph()->zone()) {
+JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone)
+    : AdvancedReducer(editor), jsgraph_(jsgraph), simplified_(graph()->zone()) {
   zero_range_ = Type::Range(0.0, 0.0, graph()->zone());
   one_range_ = Type::Range(1.0, 1.0, graph()->zone());
   zero_thirtyone_range_ = Type::Range(0.0, 31.0, graph()->zone());
@@ -48,12 +31,6 @@ JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
     double max = kMaxInt / (1 << k);
     shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
   }
-}
-
-
-Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
-  NodeProperties::ReplaceWithValue(old, node, node);
-  return Changed(node);
 }
 
 
@@ -189,7 +166,7 @@ class JSBinopReduction final {
 
     // Remove the effects from the node, and update its effect/control usages.
     if (node_->op()->EffectInputCount() > 0) {
-      RelaxEffectsAndControls(node_);
+      lowering_->RelaxEffectsAndControls(node_);
     }
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
@@ -550,14 +527,18 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
     if (!r.left_type()->Maybe(Type::NaN())) {
-      return ReplaceEagerly(node, jsgraph()->BooleanConstant(!invert));
+      Node* replacement = jsgraph()->BooleanConstant(!invert);
+      Replace(node, replacement);
+      return Replace(replacement);
     }
   }
   if (r.OneInputCannotBe(Type::NumberOrString())) {
     // For values with canonical representation (i.e. not string nor number) an
     // empty type intersection means the values cannot be strictly equal.
     if (!r.left_type()->Maybe(r.right_type())) {
-      return ReplaceEagerly(node, jsgraph()->BooleanConstant(invert));
+      Node* replacement = jsgraph()->BooleanConstant(invert);
+      Replace(node, replacement);
+      return Replace(replacement);
     }
   }
   if (r.OneInputIs(Type::Undefined())) {
@@ -615,7 +596,7 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     node->set_op(simplified()->NumberEqual());
     node->ReplaceInput(0, length);
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    NodeProperties::ReplaceWithValue(node, node, length);
+    ReplaceWithValue(node, node, length);
     DCHECK_EQ(2, node->InputCount());
     return Changed(node);
   }
@@ -688,7 +669,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   Node* const input = node->InputAt(0);
   Reduction reduction = ReduceJSToNumberInput(input);
   if (reduction.Changed()) {
-    NodeProperties::ReplaceWithValue(node, reduction.replacement());
+    ReplaceWithValue(node, reduction.replacement());
     return reduction;
   }
   Type* const input_type = NodeProperties::GetBounds(input).upper;
@@ -741,7 +722,7 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
   Node* const input = node->InputAt(0);
   Reduction reduction = ReduceJSToStringInput(input);
   if (reduction.Changed()) {
-    NodeProperties::ReplaceWithValue(node, reduction.replacement());
+    ReplaceWithValue(node, reduction.replacement());
     return reduction;
   }
   return NoChange();
@@ -757,7 +738,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
     Handle<Object> constant_value = factory()->GlobalConstantFor(name);
     if (!constant_value.is_null()) {
       Node* constant = jsgraph()->Constant(constant_value);
-      NodeProperties::ReplaceWithValue(node, constant);
+      ReplaceWithValue(node, constant);
       return Replace(constant);
     }
   }
@@ -795,13 +776,15 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
               simplified()->LoadElement(
                   AccessBuilder::ForTypedArrayElement(array->type(), true)),
               buffer, key, effect, control);
-          return ReplaceEagerly(node, load);
+          ReplaceWithValue(node, load, load);
+          return Replace(load);
         }
         // Compute byte offset.
         Node* offset = Word32Shl(key, static_cast<int>(k));
         Node* load = graph()->NewNode(simplified()->LoadBuffer(access), buffer,
                                       offset, length, effect, control);
-        return ReplaceEagerly(node, load);
+        ReplaceWithValue(node, load, load);
+        return Replace(load);
       }
     }
   }
@@ -1039,7 +1022,7 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
     // TODO(mstarzinger): We could mutate {node} into the allocation instead.
     NodeProperties::SetBounds(a.allocation(), NodeProperties::GetBounds(node));
-    NodeProperties::ReplaceWithValue(node, node, a.effect());
+    ReplaceWithValue(node, node, a.effect());
     node->ReplaceInput(0, a.allocation());
     node->ReplaceInput(1, a.effect());
     node->set_op(common()->Finish(1));
@@ -1078,7 +1061,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
     }
     // TODO(mstarzinger): We could mutate {node} into the allocation instead.
     NodeProperties::SetBounds(a.allocation(), NodeProperties::GetBounds(node));
-    NodeProperties::ReplaceWithValue(node, node, a.effect());
+    ReplaceWithValue(node, node, a.effect());
     node->ReplaceInput(0, a.allocation());
     node->ReplaceInput(1, a.effect());
     node->set_op(common()->Finish(1));
@@ -1097,27 +1080,27 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     Type* upper = NodeProperties::GetBounds(node).upper;
     if (upper->IsConstant()) {
       Node* replacement = jsgraph()->Constant(upper->AsConstant()->Value());
-      NodeProperties::ReplaceWithValue(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Changed(replacement);
     } else if (upper->Is(Type::MinusZero())) {
       Node* replacement = jsgraph()->Constant(factory()->minus_zero_value());
-      NodeProperties::ReplaceWithValue(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Changed(replacement);
     } else if (upper->Is(Type::NaN())) {
       Node* replacement = jsgraph()->NaNConstant();
-      NodeProperties::ReplaceWithValue(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Changed(replacement);
     } else if (upper->Is(Type::Null())) {
       Node* replacement = jsgraph()->NullConstant();
-      NodeProperties::ReplaceWithValue(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Changed(replacement);
     } else if (upper->Is(Type::PlainNumber()) && upper->Min() == upper->Max()) {
       Node* replacement = jsgraph()->Constant(upper->Min());
-      NodeProperties::ReplaceWithValue(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Changed(replacement);
     } else if (upper->Is(Type::Undefined())) {
       Node* replacement = jsgraph()->UndefinedConstant();
-      NodeProperties::ReplaceWithValue(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Changed(replacement);
     }
   }

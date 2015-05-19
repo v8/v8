@@ -103,6 +103,21 @@ class AdvancedReducer : public Reducer {
     editor_->ReplaceWithValue(node, value, effect, control);
   }
 
+  // Relax the effects of {node} by immediately replacing effect and control
+  // uses of {node} with the effect and control input to {node}.
+  // TODO(turbofan): replace the effect input to {node} with {graph->start()}.
+  void RelaxEffectsAndControls(Node* node) {
+    DCHECK_NOT_NULL(editor_);
+    editor_->ReplaceWithValue(node, node, nullptr, nullptr);
+  }
+
+  // Relax the control uses of {node} by immediately replacing them with the
+  // control input to {node}.
+  void RelaxControls(Node* node) {
+    DCHECK_NOT_NULL(editor_);
+    editor_->ReplaceWithValue(node, node, node, nullptr);
+  }
+
  private:
   Editor* const editor_;
 };

@@ -89,7 +89,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* reduce(Node* node) {
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &machine);
-    JSTypedLowering reducer(&jsgraph, main_zone());
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(&graph, main_zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
