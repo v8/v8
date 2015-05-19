@@ -2447,8 +2447,6 @@ static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
     result = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
 
-  // Clear the oneshot breakpoints so that the debugger does not step further.
-  isolate->debug()->ClearStepping();
   return result;
 }
 
