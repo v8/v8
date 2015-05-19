@@ -512,21 +512,15 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-  Node* patched_receiver = nullptr;
-  if (scope->has_this_declaration()) {
-    Node* original_receiver = NewNode(common()->Parameter(0), graph()->start());
-    patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
-    if (scope->receiver()->IsStackAllocated()) {
-      env.Bind(scope->receiver(), patched_receiver);
-    }
-  }
+  Node* original_receiver = env.Lookup(scope->receiver());
+  Node* patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
+  env.Bind(scope->receiver(), patched_receiver);
 
   // Build function context only if there are context allocated variables.
   int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     // Push a new inner context scope for the function.
-    Node* inner_context =
-        BuildLocalFunctionContext(function_context_.get(), patched_receiver);
+    Node* inner_context = BuildLocalFunctionContext(function_context_.get());
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody(stack_check);
   } else {
@@ -2257,23 +2251,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     // Create node to ask for help resolving potential eval call. This will
     // provide a fully resolved callee and the corresponding receiver.
     Node* function = GetFunctionClosure();
-    // TODO(wingo): ResolvePossibleDirectEval doesn't really need a receiver,
-    // now that eval scopes don't have "this" declarations.  Remove this hack
-    // once ResolvePossibleDirectEval changes.
-    Node* receiver;
-    {
-      Variable* variable = info()->scope()->LookupThis();
-      if (variable->IsStackAllocated()) {
-        receiver = environment()->Lookup(variable);
-      } else {
-        DCHECK(variable->IsContextSlot());
-        int depth = current_scope()->ContextChainLength(variable->scope());
-        bool immutable = variable->maybe_assigned() == kNotAssigned;
-        const Operator* op =
-            javascript()->LoadContext(depth, variable->index(), immutable);
-        receiver = NewNode(op, current_context());
-      }
-    }
+    Node* receiver = environment()->Lookup(info()->scope()->receiver());
     Node* language = jsgraph()->Constant(language_mode());
     Node* position = jsgraph()->Constant(info()->scope()->start_position());
     const Operator* op =
@@ -2753,7 +2731,9 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   // object). Otherwise there is nothing left to do here.
   if (is_strict(language_mode()) || info()->is_native()) return receiver;
 
-  // There is no need to perform patching if the receiver will never be used.
+  // There is no need to perform patching if the receiver is never used. Note
+  // that scope predicates are purely syntactical, a call to eval might still
+  // inspect the receiver value.
   if (!info()->MayUseThis()) return receiver;
 
   IfBuilder receiver_check(this);
@@ -2770,36 +2750,25 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
 }
 
 
-Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context,
-                                                 Node* patched_receiver) {
-  Scope* scope = info()->scope();
+Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context) {
   Node* closure = GetFunctionClosure();
 
   // Allocate a new local context.
   Node* local_context =
-      scope->is_script_scope()
-          ? BuildLocalScriptContext(scope)
+      info()->scope()->is_script_scope()
+          ? BuildLocalScriptContext(info()->scope())
           : NewNode(javascript()->CreateFunctionContext(), closure);
 
-  if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
-    DCHECK_NOT_NULL(patched_receiver);
-    // Context variable (at bottom of the context chain).
-    Variable* variable = scope->receiver();
-    DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
-    const Operator* op = javascript()->StoreContext(0, variable->index());
-    NewNode(op, local_context, patched_receiver);
-  }
-
   // Copy parameters into context if necessary.
-  int num_parameters = scope->num_parameters();
+  int num_parameters = info()->scope()->num_parameters();
   for (int i = 0; i < num_parameters; i++) {
-    Variable* variable = scope->parameter(i);
+    Variable* variable = info()->scope()->parameter(i);
     if (!variable->IsContextSlot()) continue;
     // Temporary parameter node. The parameter indices are shifted by 1
     // (receiver is parameter index -1 but environment index 0).
     Node* parameter = NewNode(common()->Parameter(i + 1), graph()->start());
     // Context variable (at bottom of the context chain).
-    DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
+    DCHECK_EQ(0, info()->scope()->ContextChainLength(variable->scope()));
     const Operator* op = javascript()->StoreContext(0, variable->index());
     NewNode(op, local_context, parameter);
   }

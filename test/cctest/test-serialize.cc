@@ -628,7 +628,7 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
       root =
           deserializer.DeserializePartial(isolate, global_proxy,
                                           &outdated_contexts).ToHandleChecked();
-      CHECK_EQ(3, outdated_contexts->length());
+      CHECK_EQ(2, outdated_contexts->length());
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);
       CHECK(context->global_proxy() == *global_proxy);

@@ -317,8 +317,7 @@ bool ScopeInfo::LocalIsSynthetic(int var) {
   // with user declarations, the current temporaries like .generator_object and
   // .result start with a dot, so we can use that as a flag. It's a hack!
   Handle<String> name(LocalName(var));
-  return (name->length() > 0 && name->Get(0) == '.') ||
-         name->Equals(*GetIsolate()->factory()->this_string());
+  return name->length() > 0 && name->Get(0) == '.';
 }
 
 

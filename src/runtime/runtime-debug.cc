@@ -859,46 +859,6 @@ static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
 }
 
 
-MUST_USE_RESULT
-static MaybeHandle<Context> MaterializeReceiver(
-    Isolate* isolate, Handle<Context> target, Handle<JSFunction> function,
-    JavaScriptFrame* frame) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  Handle<Object> receiver;
-  switch (scope_info->scope_type()) {
-  case FUNCTION_SCOPE: {
-    VariableMode variable_mode;
-    InitializationFlag init_flag;
-    MaybeAssignedFlag maybe_assigned_flag;
-
-    // Don't bother creating a fake context node if "this" is in the context
-    // already.
-    if (ScopeInfo::ContextSlotIndex(scope_info,
-            isolate->factory()->this_string(), &variable_mode, &init_flag,
-            &maybe_assigned_flag) >= 0) {
-      return target;
-    }
-    receiver = Handle<Object>(frame->receiver(), isolate);
-    break;
-  }
-  case MODULE_SCOPE:
-    receiver = isolate->factory()->undefined_value();
-    break;
-  case SCRIPT_SCOPE:
-    receiver = Handle<Object>(function->global_proxy(), isolate);
-    break;
-  default:
-    // For eval code, arrow functions, and the like, there's no "this" binding
-    // to materialize.
-    return target;
-  }
-
-  return isolate->factory()->NewCatchContext(function, target,
-      isolate->factory()->this_string(), receiver);
-}
-
-
 // Create a plain JSObject which materializes the local scope for the specified
 // frame.
 MUST_USE_RESULT
@@ -1515,21 +1475,16 @@ class ScopeIterator {
       context_ = Handle<Context>();
       return;
     }
-    if (scope_type == ScopeTypeScript) {
-      seen_script_scope_ = true;
-      if (context_->IsScriptContext()) {
+    if (scope_type == ScopeTypeScript) seen_script_scope_ = true;
+    if (nested_scope_chain_.is_empty()) {
+      if (scope_type == ScopeTypeScript) {
+        if (context_->IsScriptContext()) {
+          context_ = Handle<Context>(context_->previous(), isolate_);
+        }
+        CHECK(context_->IsNativeContext());
+      } else {
         context_ = Handle<Context>(context_->previous(), isolate_);
       }
-      if (!nested_scope_chain_.is_empty()) {
-        DCHECK_EQ(nested_scope_chain_.last()->scope_type(), SCRIPT_SCOPE);
-        nested_scope_chain_.RemoveLast();
-        DCHECK(nested_scope_chain_.is_empty());
-      }
-      CHECK(context_->IsNativeContext());
-      return;
-    }
-    if (nested_scope_chain_.is_empty()) {
-      context_ = Handle<Context>(context_->previous(), isolate_);
     } else {
       if (nested_scope_chain_.last()->HasContext()) {
         DCHECK(context_->previous() != NULL);
@@ -2495,12 +2450,6 @@ class EvaluationContextBuilder {
     Handle<Context> outer_context = handle(function->context(), isolate);
     outer_info_ = handle(function->shared());
     Handle<Context> inner_context;
-
-    // The "this" binding, if any, can't be bound via "with".  If we need to,
-    // add another node onto the outer context to bind "this".
-    if (!MaterializeReceiver(isolate, outer_context, function, frame)
-             .ToHandle(&outer_context))
-      return;
 
     bool stop = false;
     for (ScopeIterator it(isolate, frame, inlined_jsframe_index);
