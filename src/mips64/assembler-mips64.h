@@ -881,12 +881,27 @@ class Assembler : public AssemblerBase {
   void movf(Register rd, Register rs, uint16_t cc = 0);
 
   void sel(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
+  void sel_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void sel_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void seleqz(Register rd, Register rs, Register rt);
   void seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
               FPURegister ft);
   void selnez(Register rs, Register rt, Register rd);
   void selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
               FPURegister ft);
+  void seleqz_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void seleqz_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void selnez_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void selnez_s(FPURegister fd, FPURegister fs, FPURegister ft);
+
+  void movz_s(FPURegister fd, FPURegister fs, Register rt);
+  void movz_d(FPURegister fd, FPURegister fs, Register rt);
+  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movn_s(FPURegister fd, FPURegister fs, Register rt);
+  void movn_d(FPURegister fd, FPURegister fs, Register rt);
   // Bit twiddling.
   void clz(Register rd, Register rs);
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -926,10 +941,15 @@ class Assembler : public AssemblerBase {
   void abs_s(FPURegister fd, FPURegister fs);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
+  void mov_s(FPURegister fd, FPURegister fs);
   void neg_s(FPURegister fd, FPURegister fs);
   void neg_d(FPURegister fd, FPURegister fs);
   void sqrt_s(FPURegister fd, FPURegister fs);
   void sqrt_d(FPURegister fd, FPURegister fs);
+  void rsqrt_s(FPURegister fd, FPURegister fs);
+  void rsqrt_d(FPURegister fd, FPURegister fs);
+  void recip_d(FPURegister fd, FPURegister fs);
+  void recip_s(FPURegister fd, FPURegister fs);
 
   // Conversion.
   void cvt_w_s(FPURegister fd, FPURegister fs);
