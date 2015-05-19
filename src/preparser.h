@@ -2555,8 +2555,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       if (allow_harmony_computed_property_names_) {
         *is_computed_name = true;
         Consume(Token::LBRACK);
-        ExpressionT expression =
-            ParseAssignmentExpression(true, classifier, CHECK_OK);
+        ExpressionClassifier computed_name_classifier;
+        ExpressionT expression = ParseAssignmentExpression(
+            true, &computed_name_classifier, CHECK_OK);
+        classifier->AccumulateReclassifyingAsPattern(computed_name_classifier);
         Expect(Token::RBRACK, CHECK_OK);
         return expression;
       }

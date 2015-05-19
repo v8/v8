@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-destructuring
+// Flags: --harmony-destructuring --harmony-computed-property-names
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y } = { x : 1, y : 2 };
@@ -279,6 +279,100 @@
     'use strict';
     let {x = (function() { x = 2; }())} = {x:1};
     assertSame(1, x);
+  }());
+}());
+
+
+(function TestComputedNames() {
+  var x = 1;
+  var {[x]:y} = {1:2};
+  assertSame(2, y);
+
+  (function(){
+    'use strict';
+    let {[x]:y} = {1:2};
+    assertSame(2, y);
+  }());
+
+  var callCount = 0;
+  function foo(v) { callCount++; return v; }
+
+  (function() {
+    callCount = 0;
+    var {[foo("abc")]:x} = {abc:42};
+    assertSame(42, x);
+    assertEquals(1, callCount);
+  }());
+
+  (function() {
+    'use strict';
+    callCount = 0;
+    let {[foo("abc")]:x} = {abc:42};
+    assertSame(42, x);
+    assertEquals(1, callCount);
+  }());
+
+  (function() {
+    callCount = 0;
+    var {[foo("abc")]:x} = {};
+    assertSame(undefined, x);
+    assertEquals(1, callCount);
+  }());
+
+  (function() {
+    'use strict';
+    callCount = 0;
+    let {[foo("abc")]:x} = {};
+    assertSame(undefined, x);
+    assertEquals(1, callCount);
+  }());
+
+  for (val of [null, undefined]) {
+    callCount = 0;
+    assertThrows(function() {
+      var {[foo()]:x} = val;
+    }, TypeError);
+    assertEquals(0, callCount);
+
+    callCount = 0;
+    assertThrows(function() {
+      'use strict';
+      let {[foo()]:x} = val;
+    }, TypeError);
+    assertEquals(0, callCount);
+  }
+
+  var log = [];
+  var o = {
+    get x() { log.push("get x"); return 1; },
+    get y() { log.push("get y"); return 2; }
+  }
+  function f(v) { log.push("f " + v); return v; }
+
+  (function() {
+    log = [];
+    var { [f('x')]:x, [f('y')]:y } = o;
+    assertSame(1, x);
+    assertSame(2, y);
+    assertArrayEquals(["f x", "get x", "f y", "get y"], log);
+  }());
+
+  (function() {
+    'use strict';
+    log = [];
+    let { [f('x')]:x, [f('y')]:y } = o;
+    assertSame(1, x);
+    assertSame(2, y);
+    assertArrayEquals(["f x", "get x", "f y", "get y"], log);
+  }());
+
+  (function() {
+    'use strict';
+    log = [];
+    const { [f('x')]:x, [f('y')]:y } = o;
+    assertSame(1, x);
+    assertSame(2, y);
+    assertArrayEquals(["f x", "get x", "f y", "get y"], log);
   }());
 }());
 

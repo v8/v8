@@ -224,13 +224,11 @@ Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
 
 void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern) {
   auto temp = CreateTempVar(current_value_);
-  if (pattern->properties()->length() == 0) {
-    block_->AddStatement(descriptor_->parser->BuildAssertIsCoercible(temp),
-                         zone());
-  }
+
+  block_->AddStatement(descriptor_->parser->BuildAssertIsCoercible(temp),
+                       zone());
 
   for (ObjectLiteralProperty* property : *pattern->properties()) {
-    // TODO(dslomov): computed property names.
     RecurseIntoSubpattern(
         property->value(),
         factory()->NewProperty(factory()->NewVariableProxy(temp),

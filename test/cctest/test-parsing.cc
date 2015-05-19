@@ -6356,6 +6356,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
 
 TEST(DestructuringPositiveTests) {
   i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_computed_property_names = true;
 
   const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
                                    {"var ", " = {};"},
@@ -6390,10 +6391,14 @@ TEST(DestructuringPositiveTests) {
     "{'hi' : x = 42}",
     "{var: x}",
     "{var: x = 42}",
+    "{[x] : z}",
+    "{[1+1] : z}",
+    "{[foo()] : z}",
     "{}",
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
+                                            kAllowHarmonyComputedPropertyNames,
                                             kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
@@ -6402,7 +6407,9 @@ TEST(DestructuringPositiveTests) {
 
 TEST(DestructuringNegativeTests) {
   i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_computed_property_names = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
+                                            kAllowHarmonyComputedPropertyNames,
                                             kAllowHarmonyDestructuring};
 
   {  // All modes.
@@ -6459,6 +6466,7 @@ TEST(DestructuringNegativeTests) {
         "{x : x = (a+)}",
         "{x : x += a}",
         "{m() {} = 0}",
+        "{[1+1]}",
         NULL};
     // clang-format on
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
