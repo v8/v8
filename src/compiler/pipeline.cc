@@ -561,7 +561,7 @@ struct TypedLoweringPhase {
     LoadElimination load_elimination;
     JSBuiltinReducer builtin_reducer(data->jsgraph());
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
-    JSIntrinsicLowering intrinsic_lowering(data->jsgraph());
+    JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(data->jsgraph());
     AddReducer(data, &graph_reducer, &builtin_reducer);

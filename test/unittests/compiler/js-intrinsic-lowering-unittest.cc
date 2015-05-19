@@ -33,7 +33,9 @@ class JSIntrinsicLoweringTest : public GraphTest {
                                    MachineOperatorBuilder::kNoFlags) {
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
-    JSIntrinsicLowering reducer(&jsgraph);
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(graph(), zone());
+    JSIntrinsicLowering reducer(&graph_reducer, &jsgraph);
     return reducer.Reduce(node);
   }
 

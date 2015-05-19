@@ -16,8 +16,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-JSIntrinsicLowering::JSIntrinsicLowering(JSGraph* jsgraph)
-    : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
+JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph)
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      simplified_(jsgraph->zone()) {}
 
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
@@ -95,7 +97,7 @@ Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
                        graph()->NewNode(machine()->Float64InsertLowWord32(),
                                         jsgraph()->Constant(0), low),
                        high);
-  NodeProperties::ReplaceWithValue(node, value);
+  ReplaceWithValue(node, value);
   return Replace(value);
 }
 
@@ -118,8 +120,7 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
   // False branch - the original continuation.
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  NodeProperties::ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect,
-                                   if_false);
+  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect, if_false);
 
   // True branch: deopt.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -209,7 +210,7 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
 
   // Replace all effect uses of {node} with the {ephi}.
   Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
-  NodeProperties::ReplaceWithValue(node, node, ephi);
+  ReplaceWithValue(node, node, ephi);
 
   // Turn the {node} into a Phi.
   return Change(node, common()->Phi(type, 2), vtrue, vfalse, merge);
@@ -270,7 +271,7 @@ Reduction JSIntrinsicLowering::ReduceSeqStringGetChar(
   node->ReplaceInput(2, effect);
   node->ReplaceInput(3, control);
   node->TrimInputCount(4);
-  NodeProperties::ReplaceWithValue(node, node, node);
+  RelaxControls(node);
   return Changed(node);
 }
 
@@ -292,7 +293,7 @@ Reduction JSIntrinsicLowering::ReduceSeqStringSetChar(
   node->ReplaceInput(4, control);
   node->TrimInputCount(5);
   NodeProperties::RemoveBounds(node);
-  NodeProperties::ReplaceWithValue(node, string, node);
+  ReplaceWithValue(node, string, node);
   return Changed(node);
 }
 
@@ -325,7 +326,7 @@ Reduction JSIntrinsicLowering::ReduceUnLikely(Node* node, BranchHint hint) {
   }
   // Apart from adding hints to branchs nodes, this is the identity function.
   Node* value = NodeProperties::GetValueInput(node, 0);
-  NodeProperties::ReplaceWithValue(node, value);
+  ReplaceWithValue(node, value);
   return Changed(value);
 }
 
@@ -386,7 +387,7 @@ Reduction JSIntrinsicLowering::ReduceValueOf(Node* node) {
 
   // Replace all effect uses of {node} with the {ephi0}.
   Node* ephi0 = graph()->NewNode(ephi_op, etrue0, efalse0, merge0);
-  NodeProperties::ReplaceWithValue(node, node, ephi0);
+  ReplaceWithValue(node, node, ephi0);
 
   // Turn the {node} into a Phi.
   return Change(node, phi_op, vtrue0, vfalse0, merge0);
@@ -395,7 +396,7 @@ Reduction JSIntrinsicLowering::ReduceValueOf(Node* node) {
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   // Replace all effect uses of {node} with the effect dependency.
-  NodeProperties::ReplaceWithValue(node, node);
+  RelaxEffectsAndControls(node);
   // Remove the inputs corresponding to context, effect and control.
   NodeProperties::RemoveNonValueInputs(node);
   // Finally update the operator to the new one.
@@ -419,7 +420,7 @@ Reduction JSIntrinsicLowering::ReduceIsMinusZero(Node* node) {
       machine()->Word32Equal(), double_hi,
       jsgraph()->Int32Constant(static_cast<int32_t>(0x80000000)));
 
-  NodeProperties::ReplaceWithValue(node, node, effect);
+  ReplaceWithValue(node, node, effect);
 
   Node* and_result = graph()->NewNode(machine()->Word32And(), check1, check2);
 
@@ -437,7 +438,7 @@ Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
   Node* store = (graph()->NewNode(
       simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()), base,
       index, value, effect, control));
-  NodeProperties::ReplaceWithValue(node, value, store);
+  ReplaceWithValue(node, value, store);
   return Changed(store);
 }
 
@@ -460,7 +461,7 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->TrimInputCount(2);
-  NodeProperties::ReplaceWithValue(node, node, node);
+  RelaxControls(node);
   return Changed(node);
 }
 
@@ -472,14 +473,13 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->TrimInputCount(3);
-  NodeProperties::ReplaceWithValue(node, node, node);
+  RelaxControls(node);
   return Changed(node);
 }
 
 
 Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
-  NodeProperties::ReplaceWithValue(node, jsgraph()->UndefinedConstant(),
-                                   effect);
+  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect);
   return Changed(node);
 }
 
