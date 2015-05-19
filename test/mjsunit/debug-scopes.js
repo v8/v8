@@ -167,6 +167,10 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('arguments').isUndefined()) {
     scope_size--;
   }
+  // Ditto for 'this'.
+  if (!scope.scopeObject().property('this').isUndefined()) {
+    scope_size--;
+  }
   // Skip property with empty name.
   if (!scope.scopeObject().property('').isUndefined()) {
     scope_size--;

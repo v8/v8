@@ -135,7 +135,7 @@ void FullCodeGenerator::Generate() {
   // global proxy when called as functions (without an explicit receiver
   // object).
   if (is_sloppy(info->language_mode()) && !info->is_native() &&
-      info->MayUseThis()) {
+      info->MayUseThis() && info->scope()->has_this_declaration()) {
     Label ok;
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ ld(at, MemOperand(sp, receiver_offset));
@@ -222,8 +222,9 @@ void FullCodeGenerator::Generate() {
     __ sd(v0, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Copy any necessary parameters into the context.
     int num_parameters = info->scope()->num_parameters();
-    for (int i = 0; i < num_parameters; i++) {
-      Variable* var = scope()->parameter(i);
+    int first_parameter = info->scope()->has_this_declaration() ? -1 : 0;
+    for (int i = first_parameter; i < num_parameters; i++) {
+      Variable* var = (i == -1) ? scope()->receiver() : scope()->parameter(i);
       if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
                                  (num_parameters - 1 - i) * kPointerSize;
@@ -3018,8 +3019,9 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ ld(a6, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
 
   // a5: the receiver of the enclosing function.
-  int receiver_offset = 2 + info_->scope()->num_parameters();
-  __ ld(a5, MemOperand(fp, receiver_offset * kPointerSize));
+  Variable* this_var = scope()->LookupThis();
+  DCHECK_NOT_NULL(this_var);
+  __ ld(a5, VarOperand(this_var, a5));
 
   // a4: the language mode.
   __ li(a4, Operand(Smi::FromInt(language_mode())));

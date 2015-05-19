@@ -32,8 +32,24 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   bool simple_parameter_list =
       scope->is_function_scope() ? scope->is_simple_parameter_list() : true;
 
+  // Determine use and location of the "this" binding if it is present.
+  VariableAllocationInfo receiver_info;
+  if (scope->has_this_declaration()) {
+    Variable* var = scope->receiver();
+    if (!var->is_used()) {
+      receiver_info = UNUSED;
+    } else if (var->IsContextSlot()) {
+      receiver_info = CONTEXT;
+    } else {
+      DCHECK(var->IsParameter());
+      receiver_info = STACK;
+    }
+  } else {
+    receiver_info = NONE;
+  }
+
   // Determine use and location of the function variable if it is present.
-  FunctionVariableInfo function_name_info;
+  VariableAllocationInfo function_name_info;
   VariableMode function_variable_mode;
   if (scope->is_function_scope() && scope->function() != NULL) {
     Variable* var = scope->function()->proxy()->var();
@@ -52,11 +68,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   }
 
   const bool has_function_name = function_name_info != NONE;
+  const bool has_receiver = receiver_info == STACK || receiver_info == CONTEXT;
   const int parameter_count = scope->num_parameters();
   const int length = kVariablePartIndex + parameter_count +
                      (1 + stack_local_count) + 2 * context_local_count +
                      3 * strong_mode_free_variable_count +
-                     (has_function_name ? 2 : 0);
+                     (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
@@ -65,6 +82,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   int flags = ScopeTypeField::encode(scope->scope_type()) |
               CallsEvalField::encode(scope->calls_eval()) |
               LanguageModeField::encode(scope->language_mode()) |
+              ReceiverVariableField::encode(receiver_info) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
@@ -146,6 +164,15 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     scope_info->set(index++, *end_position);
   }
 
+  // If the receiver is allocated, add its index.
+  DCHECK(index == scope_info->ReceiverEntryIndex());
+  if (has_receiver) {
+    int var_index = scope->receiver()->index();
+    scope_info->set(index++, Smi::FromInt(var_index));
+    // ?? DCHECK(receiver_info != CONTEXT || var_index ==
+    // scope_info->ContextLength() - 1);
+  }
+
   // If present, add the function variable name and its index.
   DCHECK(index == scope_info->FunctionNameEntryIndex());
   if (has_function_name) {
@@ -217,6 +244,25 @@ int ScopeInfo::ContextLength() {
     }
   }
   return 0;
+}
+
+
+bool ScopeInfo::HasReceiver() {
+  if (length() > 0) {
+    return NONE != ReceiverVariableField::decode(Flags());
+  } else {
+    return false;
+  }
+}
+
+
+bool ScopeInfo::HasAllocatedReceiver() {
+  if (length() > 0) {
+    VariableAllocationInfo allocation = ReceiverVariableField::decode(Flags());
+    return allocation == STACK || allocation == CONTEXT;
+  } else {
+    return false;
+  }
 }
 
 
@@ -317,7 +363,8 @@ bool ScopeInfo::LocalIsSynthetic(int var) {
   // with user declarations, the current temporaries like .generator_object and
   // .result start with a dot, so we can use that as a flag. It's a hack!
   Handle<String> name(LocalName(var));
-  return name->length() > 0 && name->Get(0) == '.';
+  return (name->length() > 0 && name->Get(0) == '.') ||
+         name->Equals(*GetIsolate()->factory()->this_string());
 }
 
 
@@ -427,6 +474,13 @@ int ScopeInfo::ParameterIndex(String* name) {
 }
 
 
+int ScopeInfo::ReceiverContextSlotIndex() {
+  if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT)
+    return Smi::cast(get(ReceiverEntryIndex()))->value();
+  return -1;
+}
+
+
 int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
   DCHECK(name->IsInternalizedString());
   DCHECK(mode != NULL);
@@ -514,9 +568,14 @@ int ScopeInfo::StrongModeFreeVariablePositionEntriesIndex() {
 }
 
 
-int ScopeInfo::FunctionNameEntryIndex() {
+int ScopeInfo::ReceiverEntryIndex() {
   return StrongModeFreeVariablePositionEntriesIndex() +
          2 * StrongModeFreeVariableCount();
+}
+
+
+int ScopeInfo::FunctionNameEntryIndex() {
+  return ReceiverEntryIndex() + (HasAllocatedReceiver() ? 1 : 0);
 }
 
 
