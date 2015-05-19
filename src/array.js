@@ -12,11 +12,6 @@ var $arraySplice;
 var $arrayUnshift;
 var $innerArrayForEach;
 var $innerArrayEvery;
-var $innerArrayFilter;
-var $innerArrayMap;
-var $innerArrayReduce;
-var $innerArrayReduceRight;
-var $innerArraySome;
 
 (function(global, shared, exports) {
 
@@ -1155,7 +1150,14 @@ function ArraySort(comparefn) {
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
-function InnerArrayFilter(f, receiver, array, length) {
+function ArrayFilter(f, receiver) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.filter");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = $toUint32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
@@ -1182,17 +1184,6 @@ function InnerArrayFilter(f, receiver, array, length) {
   }
   %MoveArrayContents(accumulator, result);
   return result;
-}
-
-function ArrayFilter(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.filter");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = $toObject(this);
-  var length = $toUint32(array.length);
-
-  return InnerArrayFilter(f, receiver, array, length);
 }
 
 function InnerArrayForEach(f, receiver, array, length) {
@@ -1228,7 +1219,16 @@ function ArrayForEach(f, receiver) {
 }
 
 
-function InnerArraySome(f, receiver, array, length) {
+// Executes the function once for each element present in the
+// array until it finds one where callback returns true.
+function ArraySome(f, receiver) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.some");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = TO_UINT32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
@@ -1249,19 +1249,6 @@ function InnerArraySome(f, receiver, array, length) {
     }
   }
   return false;
-}
-
-
-// Executes the function once for each element present in the
-// array until it finds one where callback returns true.
-function ArraySome(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.some");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = $toObject(this);
-  var length = TO_UINT32(array.length);
-  return InnerArraySome(f, receiver, array, length);
 }
 
 
@@ -1299,7 +1286,14 @@ function ArrayEvery(f, receiver) {
 }
 
 
-function InnerArrayMap(f, receiver, array, length) {
+function ArrayMap(f, receiver) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.map");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = TO_UINT32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
@@ -1323,17 +1317,6 @@ function InnerArrayMap(f, receiver, array, length) {
   }
   %MoveArrayContents(accumulator, result);
   return result;
-}
-
-
-function ArrayMap(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.map");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = $toObject(this);
-  var length = TO_UINT32(array.length);
-  return InnerArrayMap(f, receiver, array, length);
 }
 
 
@@ -1447,14 +1430,21 @@ function ArrayLastIndexOf(element, index) {
 }
 
 
-function InnerArrayReduce(callback, current, array, length, argumentsLength) {
+function ArrayReduce(callback, current) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduce");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = $toUint32(array.length);
+
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
   }
 
   var is_array = IS_ARRAY(array);
   var i = 0;
-  find_initial: if (argumentsLength < 2) {
+  find_initial: if (%_ArgumentsLength() < 2) {
     for (; i < length; i++) {
       if (HAS_INDEX(array, i, is_array)) {
         current = array[i++];
@@ -1477,27 +1467,21 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
 }
 
 
-function ArrayReduce(callback, current) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduce");
+function ArrayReduceRight(callback, current) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduceRight");
 
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
+  // Pull out the length so that side effects are visible before the
+  // callback function is checked.
   var array = $toObject(this);
   var length = $toUint32(array.length);
-  return InnerArrayReduce(callback, current, array, length,
-                          %_ArgumentsLength());
-}
 
-
-function InnerArrayReduceRight(callback, current, array, length,
-                               argumentsLength) {
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
   }
 
   var is_array = IS_ARRAY(array);
   var i = length - 1;
-  find_initial: if (argumentsLength < 2) {
+  find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {
       if (HAS_INDEX(array, i, is_array)) {
         current = array[i--];
@@ -1517,18 +1501,6 @@ function InnerArrayReduceRight(callback, current, array, length,
     }
   }
   return current;
-}
-
-
-function ArrayReduceRight(callback, current) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduceRight");
-
-  // Pull out the length so that side effects are visible before the
-  // callback function is checked.
-  var array = $toObject(this);
-  var length = $toUint32(array.length);
-  return InnerArrayReduceRight(callback, current, array, length,
-                               %_ArgumentsLength());
 }
 
 // ES5, 15.4.3.2
@@ -1635,12 +1607,7 @@ $arraySlice = ArraySlice;
 $arraySplice = ArraySplice;
 $arrayUnshift = ArrayUnshift;
 
-$innerArrayEvery = InnerArrayEvery;
-$innerArrayFilter = InnerArrayFilter;
 $innerArrayForEach = InnerArrayForEach;
-$innerArrayMap = InnerArrayMap;
-$innerArrayReduce = InnerArrayReduce;
-$innerArrayReduceRight = InnerArrayReduceRight;
-$innerArraySome = InnerArraySome;
+$innerArrayEvery = InnerArrayEvery;
 
 });
