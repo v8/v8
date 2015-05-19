@@ -333,20 +333,15 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadDescriptor::ReceiverRegister();
+  // With careful management, we won't have to save slot and vector on
+  // the stack. Simply handle the possibly missing case first.
+  // TODO(mvstanton): this code can be more efficient.
+  __ cmp(FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset),
+         Immediate(isolate()->factory()->the_hole_value()));
+  __ j(equal, &miss);
+  __ TryGetFunctionPrototype(receiver, eax, ebx, &miss);
+  __ ret(0);
 
-  if (FLAG_vector_ics) {
-    // With careful management, we won't have to save slot and vector on
-    // the stack. Simply handle the possibly missing case first.
-    // TODO(mvstanton): this code can be more efficient.
-    __ cmp(FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset),
-           Immediate(isolate()->factory()->the_hole_value()));
-    __ j(equal, &miss);
-    __ TryGetFunctionPrototype(receiver, eax, ebx, &miss);
-    __ ret(0);
-  } else {
-    NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
-                                                            ebx, &miss);
-  }
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
@@ -393,9 +388,8 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
   Register result = eax;
   DCHECK(!result.is(scratch));
-  DCHECK(!FLAG_vector_ics ||
-         (!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
-          result.is(VectorLoadICDescriptor::SlotRegister())));
+  DCHECK(!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
+         result.is(VectorLoadICDescriptor::SlotRegister()));
 
   // StringCharAtGenerator doesn't use the result register until it's passed
   // the different miss possibilities. If it did, we would have a conflict
@@ -2664,7 +2658,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ push(VectorLoadICDescriptor::VectorRegister());
     __ push(VectorLoadICDescriptor::SlotRegister());
   }
@@ -2683,7 +2677,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
     __ mov(index_, eax);
   }
   __ pop(object_);
-  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+  if (embed_mode == PART_OF_IC_HANDLER) {
     __ pop(VectorLoadICDescriptor::SlotRegister());
     __ pop(VectorLoadICDescriptor::VectorRegister());
   }
