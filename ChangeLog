@@ -1,7 +1,19 @@
-2015-05-17: Sentinel
+2015-05-19: Version 4.5.5
 
-        The ChangeLog file is no longer maintained on bleeding_edge. This
-        sentinel should stay on top of this list.
+        ARM64: Propagate notification about aborted compilation from
+        RegExpEngine to MacroAssembler (Chromium issue 489290).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-18: Version 4.5.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-18: Version 4.5.3
+
+        Performance and stability improvements on all platforms.
 
 
 2015-05-17: Version 4.5.2
