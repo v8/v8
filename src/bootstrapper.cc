@@ -1493,8 +1493,9 @@ bool Genesis::CompileNative(Isolate* isolate, Vector<const char> name,
   Handle<String> script_name =
       isolate->factory()->NewStringFromUtf8(name).ToHandleChecked();
   Handle<SharedFunctionInfo> function_info = Compiler::CompileScript(
-      source, script_name, 0, 0, false, false, Handle<Object>(), context, NULL,
-      NULL, ScriptCompiler::kNoCompileOptions, NATIVES_CODE, false);
+      source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
+      context, NULL, NULL, ScriptCompiler::kNoCompileOptions, NATIVES_CODE,
+      false);
   if (function_info.is_null()) return false;
 
   DCHECK(context->IsNativeContext());
@@ -1538,9 +1539,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     Handle<String> script_name =
         factory->NewStringFromUtf8(name).ToHandleChecked();
     function_info = Compiler::CompileScript(
-        source, script_name, 0, 0, false, false, Handle<Object>(), context,
-        extension, NULL, ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE,
-        false);
+        source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
+        context, extension, NULL, ScriptCompiler::kNoCompileOptions,
+        NOT_NATIVES_CODE, false);
     if (function_info.is_null()) return false;
     cache->Add(name, function_info);
   }
