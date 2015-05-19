@@ -6367,21 +6367,35 @@ TEST(DestructuringPositiveTests) {
   const char* data[] = {
     "a",
     "{ x : y }",
+    "{ x : y = 1 }",
     "[a]",
+    "[a = 1]",
     "[a,b,c]",
+    "[a, b = 42, c]",
     "{ x : x, y : y }",
+    "{ x : x = 1, y : y }",
+    "{ x : x, y : y = 42 }",
     "[]",
     "{}",
     "[{x:x, y:y}, [a,b,c]]",
+    "[{x:x = 1, y:y = 2}, [a = 3, b = 4, c = 5]]",
+    "{x}",
+    "{x, y}",
+    "{x = 42, y = 15}",
     "[a,,b]",
     "{42 : x}",
+    "{42 : x = 42}",
     "{42e-2 : x}",
+    "{42e-2 : x = 42}",
     "{'hi' : x}",
+    "{'hi' : x = 42}",
     "{var: x}",
+    "{var: x = 42}",
     "{}",
     NULL};
   // clang-format on
-  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
+                                            kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -6389,7 +6403,8 @@ TEST(DestructuringPositiveTests) {
 
 TEST(DestructuringNegativeTests) {
   i::FLAG_harmony_destructuring = true;
-  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
+                                            kAllowHarmonyDestructuring};
 
   {  // All modes.
     const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
@@ -6441,6 +6456,10 @@ TEST(DestructuringNegativeTests) {
         "var",
         "[var]",
         "{x : {y : var}}",
+        "{x : x = a+}",
+        "{x : x = (a+)}",
+        "{x : x += a}",
+        "{m() {} = 0}",
         NULL};
     // clang-format on
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,

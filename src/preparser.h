@@ -691,8 +691,10 @@ class ParserBase : public Traits {
       ArrowFormalParametersProduction = 1 << 4,
       StandardProductions = (ExpressionProduction | BindingPatternProduction |
                              AssignmentPatternProduction),
+      PatternProductions =
+          BindingPatternProduction | AssignmentPatternProduction,
       AllProductions = (StandardProductions | FormalParametersProduction |
-                        ArrowFormalParametersProduction)
+                        ArrowFormalParametersProduction),
     };
 
     void Accumulate(const ExpressionClassifier& inner,
@@ -727,6 +729,18 @@ class ParserBase : public Traits {
         // The result continues to be a valid arrow formal parameters if the
         // inner expression is a valid binding pattern.
         arrow_formal_parameters_error_ = inner.binding_pattern_error_;
+      }
+    }
+
+    void AccumulateReclassifyingAsPattern(const ExpressionClassifier& inner) {
+      Accumulate(inner, AllProductions & ~PatternProductions);
+      if (!inner.is_valid_expression()) {
+        if (is_valid_binding_pattern()) {
+          binding_pattern_error_ = inner.expression_error();
+        }
+        if (is_valid_assignment_pattern()) {
+          assignment_pattern_error_ = inner.expression_error();
+        }
       }
     }
 
@@ -801,6 +815,12 @@ class ParserBase : public Traits {
       ReportClassifierError(classifier->arrow_formal_parameters_error());
       *ok = false;
     }
+  }
+
+  void ExpressionUnexpectedToken(ExpressionClassifier* classifier) {
+    classifier->RecordExpressionError(scanner()->peek_location(),
+                                      MessageTemplate::kUnexpectedToken,
+                                      Token::String(peek()));
   }
 
   void BindingPatternUnexpectedToken(ExpressionClassifier* classifier) {
@@ -2673,8 +2693,21 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                  this->is_generator())) {
     DCHECK(!*is_computed_name);
     DCHECK(!is_static);
-    value = this->ExpressionFromIdentifier(name, next_beg_pos, next_end_pos,
-                                           scope_, factory());
+
+    ExpressionT lhs = this->ExpressionFromIdentifier(
+        name, next_beg_pos, next_end_pos, scope_, factory());
+    if (peek() == Token::ASSIGN) {
+      this->ExpressionUnexpectedToken(classifier);
+      Consume(Token::ASSIGN);
+      ExpressionClassifier rhs_classifier;
+      ExpressionT rhs = this->ParseAssignmentExpression(
+          true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      classifier->AccumulateReclassifyingAsPattern(rhs_classifier);
+      value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
+                                       RelocInfo::kNoPosition);
+    } else {
+      value = lhs;
+    }
     return factory()->NewObjectLiteralProperty(
         name_expression, value, ObjectLiteralProperty::COMPUTED, false, false);
 
@@ -2895,9 +2928,17 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   expression = this->MarkExpressionAsAssigned(expression);
 
   Token::Value op = Next();  // Get assignment operator.
+  if (op != Token::ASSIGN) {
+    classifier->RecordBindingPatternError(scanner()->location(),
+                                          MessageTemplate::kUnexpectedToken,
+                                          Token::String(op));
+  }
   int pos = position();
+
+  ExpressionClassifier rhs_classifier;
   ExpressionT right =
-      this->ParseAssignmentExpression(accept_IN, classifier, CHECK_OK);
+      this->ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
+  classifier->AccumulateReclassifyingAsPattern(rhs_classifier);
 
   // TODO(1231235): We try to estimate the set of properties set by
   // constructors. We define a new property whenever there is an

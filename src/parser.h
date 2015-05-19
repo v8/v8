@@ -1007,15 +1007,14 @@ class Parser : public ParserBase<ParserTraits> {
       current_value_ = old_value;
     }
 
+    Variable* CreateTempVar(Expression* value);
+
     AstNodeFactory* factory() const { return descriptor_->parser->factory(); }
     AstValueFactory* ast_value_factory() const {
       return descriptor_->parser->ast_value_factory();
     }
     bool inside_with() const { return descriptor_->parser->inside_with(); }
     Zone* zone() const { return descriptor_->parser->zone(); }
-    Scope* TemporaryDeclarationScope() const {
-      return descriptor_->parser->scope_->DeclarationScope();
-    }
 
     Expression* pattern_;
     int initializer_position_;
