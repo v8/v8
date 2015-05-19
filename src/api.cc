@@ -6078,8 +6078,9 @@ MaybeLocal<Object> Array::CloneElementAt(Local<Context> context,
   if (!paragon->IsJSObject()) return Local<Object>();
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   Local<Object> result;
-  has_pending_exception = ToLocal<Object>(
-      isolate->factory()->CopyJSObject(paragon_handle), &result);
+  has_pending_exception =
+      !ToLocal<Object>(isolate->factory()->CopyJSObject(paragon_handle),
+                       &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
