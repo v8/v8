@@ -351,10 +351,15 @@ Reduction JSInliner::Reduce(Node* node) {
     outer_frame_state = CreateArgumentsAdaptorFrameState(&call, info.zone());
   }
 
-  for (Node* node : visitor.copies()) {
-    if (node && node->opcode() == IrOpcode::kFrameState) {
+  // Fix up all outer frame states from the inlinee.
+  for (Node* const node : visitor.copies()) {
+    if (node->opcode() == IrOpcode::kFrameState) {
       DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-      NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
+      // Don't touch this frame state, if it already has an "outer frame state".
+      if (NodeProperties::GetFrameStateInput(node, 0)->opcode() !=
+          IrOpcode::kFrameState) {
+        NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
+      }
     }
   }
 
