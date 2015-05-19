@@ -27,20 +27,33 @@ class JSTypeFeedbackTable : public ZoneObject {
  public:
   explicit JSTypeFeedbackTable(Zone* zone);
 
-  // TODO(titzer): support recording the feedback vector slot.
-
   void Record(Node* node, TypeFeedbackId id);
+  void Record(Node* node, FeedbackVectorICSlot slot);
 
  private:
   friend class JSTypeFeedbackSpecializer;
   typedef std::map<NodeId, TypeFeedbackId, std::less<NodeId>,
                    zone_allocator<TypeFeedbackId> > TypeFeedbackIdMap;
+  typedef std::map<NodeId, FeedbackVectorICSlot, std::less<NodeId>,
+                   zone_allocator<FeedbackVectorICSlot> >
+      FeedbackVectorICSlotMap;
 
-  TypeFeedbackIdMap map_;
+  TypeFeedbackIdMap type_feedback_id_map_;
+  FeedbackVectorICSlotMap feedback_vector_ic_slot_map_;
 
-  TypeFeedbackId find(Node* node) {
-    TypeFeedbackIdMap::const_iterator it = map_.find(node->id());
-    return it == map_.end() ? TypeFeedbackId::None() : it->second;
+  TypeFeedbackId FindTypeFeedbackId(Node* node) {
+    TypeFeedbackIdMap::const_iterator it =
+        type_feedback_id_map_.find(node->id());
+    return it == type_feedback_id_map_.end() ? TypeFeedbackId::None()
+                                             : it->second;
+  }
+
+  FeedbackVectorICSlot FindFeedbackVectorICSlot(Node* node) {
+    FeedbackVectorICSlotMap::const_iterator it =
+        feedback_vector_ic_slot_map_.find(node->id());
+    return it == feedback_vector_ic_slot_map_.end()
+               ? FeedbackVectorICSlot::Invalid()
+               : it->second;
   }
 };
 
@@ -89,9 +102,6 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
 
   void BuildMapCheck(Node* receiver, Handle<Map> map, bool smi_check,
                      Node* effect, Node* control, Node** success, Node** fail);
-
-  void GatherReceiverTypes(Node* receiver, Node* effect, TypeFeedbackId id,
-                           Handle<Name> property, SmallMapList* maps);
 
   Node* GetFrameStateBefore(Node* node);
 };

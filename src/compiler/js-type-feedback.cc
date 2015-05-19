@@ -25,13 +25,24 @@ namespace compiler {
 
 enum LoadOrStore { LOAD, STORE };
 
+// TODO(turbofan): fix deoptimization problems
+#define ENABLE_FAST_PROPERTY_LOADS false
+#define ENABLE_FAST_PROPERTY_STORES false
+
 JSTypeFeedbackTable::JSTypeFeedbackTable(Zone* zone)
-    : map_(TypeFeedbackIdMap::key_compare(),
-           TypeFeedbackIdMap::allocator_type(zone)) {}
+    : type_feedback_id_map_(TypeFeedbackIdMap::key_compare(),
+                            TypeFeedbackIdMap::allocator_type(zone)),
+      feedback_vector_ic_slot_map_(TypeFeedbackIdMap::key_compare(),
+                                   TypeFeedbackIdMap::allocator_type(zone)) {}
 
 
 void JSTypeFeedbackTable::Record(Node* node, TypeFeedbackId id) {
-  map_.insert(std::make_pair(node->id(), id));
+  type_feedback_id_map_.insert(std::make_pair(node->id(), id));
+}
+
+
+void JSTypeFeedbackTable::Record(Node* node, FeedbackVectorICSlot slot) {
+  feedback_vector_ic_slot_map_.insert(std::make_pair(node->id(), slot));
 }
 
 
@@ -136,6 +147,10 @@ static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
   FieldIndex field_index = FieldIndex::ForPropertyIndex(*map, index, is_double);
 
   if (field_index.is_inobject()) {
+    if (is_double && !map->IsUnboxedDoubleField(field_index)) {
+      // TODO(turbofan): support for out-of-line (MutableHeapNumber) loads.
+      return false;
+    }
     access->offset = field_index.offset();
     return true;
   }
@@ -162,19 +177,29 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
 
-  // TODO(turbofan): handle vector-based type feedback.
-  TypeFeedbackId id = js_type_feedback_->find(node);
-  if (id.IsNone() || oracle()->LoadInlineCacheState(id) == UNINITIALIZED) {
+  const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
+  Handle<Name> name = p.name().handle();
+  SmallMapList maps;
+
+  FeedbackVectorICSlot slot = js_type_feedback_->FindFeedbackVectorICSlot(node);
+  if (slot.IsInvalid() ||
+      oracle()->LoadInlineCacheState(slot) == UNINITIALIZED) {
+    // No type feedback ids or the load is uninitialized.
     return NoChange();
   }
+  if (p.load_ic() == NAMED) {
+    oracle()->PropertyReceiverTypes(slot, name, &maps);
+  } else {
+    // The load named was originally a load property.
+    bool is_string;        // Unused.
+    IcCheckType key_type;  // Unused.
+    oracle()->KeyedPropertyReceiverTypes(slot, &maps, &is_string, &key_type);
+  }
 
-  const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
-  SmallMapList maps;
-  Handle<Name> name = p.name().handle();
   Node* effect = NodeProperties::GetEffectInput(node);
-  GatherReceiverTypes(receiver, effect, id, name, &maps);
 
   if (maps.length() != 1) return NoChange();  // TODO(turbofan): polymorphism
+  if (!ENABLE_FAST_PROPERTY_LOADS) return NoChange();
 
   Handle<Map> map = maps.first();
   FieldAccess field_access;
@@ -276,21 +301,34 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadProperty(Node* node) {
 
 Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
-  if (true) return NoChange();  // TODO(titzer): storenamed is broken
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
 
-  TypeFeedbackId id = js_type_feedback_->find(node);
-  if (id.IsNone() || oracle()->StoreIsUninitialized(id)) return NoChange();
-
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
-  SmallMapList maps;
   Handle<Name> name = p.name().handle();
+  SmallMapList maps;
+  TypeFeedbackId id = js_type_feedback_->FindTypeFeedbackId(node);
+  if (id.IsNone() || oracle()->StoreIsUninitialized(id) == UNINITIALIZED) {
+    // No type feedback ids or the store is uninitialized.
+    // TODO(titzer): no feedback from vector ICs from stores.
+    return NoChange();
+  } else {
+    if (p.store_ic() == NAMED) {
+      oracle()->PropertyReceiverTypes(id, name, &maps);
+    } else {
+      // The named store was originally a store property.
+      bool is_string;        // Unused.
+      IcCheckType key_type;  // Unused.
+      oracle()->KeyedPropertyReceiverTypes(id, &maps, &is_string, &key_type);
+    }
+  }
+
   Node* receiver = node->InputAt(0);
   Node* effect = NodeProperties::GetEffectInput(node);
-  GatherReceiverTypes(receiver, effect, id, name, &maps);
 
   if (maps.length() != 1) return NoChange();  // TODO(turbofan): polymorphism
+
+  if (!ENABLE_FAST_PROPERTY_STORES) return NoChange();
 
   Handle<Map> map = maps.first();
   FieldAccess field_access;
@@ -350,18 +388,6 @@ void JSTypeFeedbackSpecializer::BuildMapCheck(Node* receiver, Handle<Map> map,
   if (if_smi) {
     *fail = graph()->NewNode(common()->Merge(2), *fail, if_smi);
   }
-}
-
-
-void JSTypeFeedbackSpecializer::GatherReceiverTypes(Node* receiver,
-                                                    Node* effect,
-                                                    TypeFeedbackId id,
-                                                    Handle<Name> name,
-                                                    SmallMapList* maps) {
-  // TODO(turbofan): filter maps by initial receiver map if known
-  // TODO(turbofan): filter maps by native context (if specializing)
-  // TODO(turbofan): filter maps by effect chain
-  oracle()->PropertyReceiverTypes(id, name, maps);
 }
 
 

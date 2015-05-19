@@ -3132,8 +3132,11 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 
 
 static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
-                           TypeFeedbackId id) {
-  if (js_type_feedback) js_type_feedback->Record(node, id);
+                           TypeFeedbackId id, FeedbackVectorICSlot slot) {
+  if (js_type_feedback) {
+    js_type_feedback->Record(node, id);
+    js_type_feedback->Record(node, slot);
+  }
   return node;
 }
 
@@ -3142,7 +3145,8 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
                                       const VectorSlotPair& feedback,
                                       TypeFeedbackId id) {
   const Operator* op = javascript()->LoadProperty(feedback);
-  return Record(js_type_feedback_, NewNode(op, object, key), id);
+  return Record(js_type_feedback_, NewNode(op, object, key), id,
+                feedback.slot());
 }
 
 
@@ -3151,14 +3155,15 @@ Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       TypeFeedbackId id, ContextualMode mode) {
   const Operator* op =
       javascript()->LoadNamed(MakeUnique(name), feedback, mode);
-  return Record(js_type_feedback_, NewNode(op, object), id);
+  return Record(js_type_feedback_, NewNode(op, object), id, feedback.slot());
 }
 
 
 Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
                                        TypeFeedbackId id) {
   const Operator* op = javascript()->StoreProperty(language_mode());
-  return Record(js_type_feedback_, NewNode(op, object, key, value), id);
+  return Record(js_type_feedback_, NewNode(op, object, key, value), id,
+                FeedbackVectorICSlot::Invalid());
 }
 
 
@@ -3166,7 +3171,8 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        Node* value, TypeFeedbackId id) {
   const Operator* op =
       javascript()->StoreNamed(language_mode(), MakeUnique(name));
-  return Record(js_type_feedback_, NewNode(op, object, value), id);
+  return Record(js_type_feedback_, NewNode(op, object, value), id,
+                FeedbackVectorICSlot::Invalid());
 }
 
 
