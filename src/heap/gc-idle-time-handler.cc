@@ -192,6 +192,17 @@ bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
 }
 
 
+GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
+  if (idle_times_which_made_no_progress_per_mode_ >=
+      kMaxNoProgressIdleTimesPerMode) {
+    return GCIdleTimeAction::Done();
+  } else {
+    idle_times_which_made_no_progress_per_mode_++;
+    return GCIdleTimeAction::Nothing();
+  }
+}
+
+
 // The idle time handler has three modes and transitions between them
 // as shown in the diagram:
 //
@@ -283,7 +294,7 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
   // get the right idle signal.
   if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
                                          heap_state.contexts_disposal_rate)) {
-    return GCIdleTimeAction::Nothing();
+    return NothingOrDone();
   }
 
   if (ShouldDoScavenge(
@@ -306,13 +317,13 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
     if (heap_state.sweeping_completed) {
       return GCIdleTimeAction::FinalizeSweeping();
     } else {
-      return GCIdleTimeAction::Nothing();
+      return NothingOrDone();
     }
   }
 
   if (heap_state.incremental_marking_stopped &&
       !heap_state.can_start_incremental_marking && !reduce_memory) {
-    return GCIdleTimeAction::Nothing();
+    return NothingOrDone();
   }
 
   size_t step_size = EstimateMarkingStepSize(
@@ -324,19 +335,19 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
 
 void GCIdleTimeHandler::UpdateCounters(double idle_time_in_ms) {
   if (mode_ == kReduceLatency) {
-    int mutator_gcs = scavenges_ + mark_compacts_ - idle_mark_compacts_;
-    if (mutator_gcs > 0) {
-      // There was a mutator GC since the last notification.
+    int gcs = scavenges_ + mark_compacts_;
+    if (gcs > 0) {
+      // There was a GC since the last notification.
       long_idle_notifications_ = 0;
+      background_idle_notifications_ = 0;
     }
     idle_mark_compacts_ = 0;
     mark_compacts_ = 0;
     scavenges_ = 0;
-    if (idle_time_in_ms >= kMinLongIdleTime) {
-      long_idle_notifications_ +=
-          (idle_time_in_ms >= kLargeLongIdleTime)
-              ? kLongIdleNotificationsBeforeMutatorIsIdle
-              : 1;
+    if (idle_time_in_ms >= kMinBackgroundIdleTime) {
+      background_idle_notifications_++;
+    } else if (idle_time_in_ms >= kMinLongIdleTime) {
+      long_idle_notifications_++;
     }
   }
 }
@@ -344,20 +355,29 @@ void GCIdleTimeHandler::UpdateCounters(double idle_time_in_ms) {
 
 void GCIdleTimeHandler::ResetCounters() {
   long_idle_notifications_ = 0;
+  background_idle_notifications_ = 0;
   idle_mark_compacts_ = 0;
   mark_compacts_ = 0;
   scavenges_ = 0;
+  idle_times_which_made_no_progress_per_mode_ = 0;
 }
 
 
-bool GCIdleTimeHandler::IsMutatorActive(int contexts_disposed, int gcs) {
-  return contexts_disposed > 0 || gcs >= kGCsBeforeMutatorIsActive;
+bool GCIdleTimeHandler::IsMutatorActive(int contexts_disposed,
+                                        int mark_compacts) {
+  return contexts_disposed > 0 ||
+         mark_compacts >= kMarkCompactsBeforeMutatorIsActive;
 }
 
 
-bool GCIdleTimeHandler::IsMutatorIdle(int long_idle_notifications, int gcs) {
-  return gcs == 0 &&
-         long_idle_notifications >= kLongIdleNotificationsBeforeMutatorIsIdle;
+bool GCIdleTimeHandler::IsMutatorIdle(int long_idle_notifications,
+                                      int background_idle_notifications,
+                                      int mutator_gcs) {
+  return mutator_gcs == 0 &&
+         (long_idle_notifications >=
+              kLongIdleNotificationsBeforeMutatorIsIdle ||
+          background_idle_notifications >=
+              kBackgroundIdleNotificationsBeforeMutatorIsIdle);
 }
 
 
@@ -368,12 +388,13 @@ GCIdleTimeHandler::Mode GCIdleTimeHandler::NextMode(
   switch (mode_) {
     case kDone:
       DCHECK(idle_mark_compacts_ == 0);
-      if (IsMutatorActive(heap_state.contexts_disposed, mutator_gcs)) {
+      if (IsMutatorActive(heap_state.contexts_disposed, mark_compacts_)) {
         return kReduceLatency;
       }
       break;
     case kReduceLatency:
-      if (IsMutatorIdle(long_idle_notifications_, mutator_gcs)) {
+      if (IsMutatorIdle(long_idle_notifications_,
+                        background_idle_notifications_, mutator_gcs)) {
         return kReduceMemory;
       }
       break;

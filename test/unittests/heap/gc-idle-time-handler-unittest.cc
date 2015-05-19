@@ -48,7 +48,11 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
                        heap_state.can_start_incremental_marking;
     for (int i = 0; i < limit; i++) {
       GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-      EXPECT_EQ(incremental ? DO_INCREMENTAL_MARKING : DO_NOTHING, action.type);
+      if (incremental) {
+        EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+      } else {
+        EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
+      }
     }
     handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(GCIdleTimeHandler::kReduceMemory, handler()->mode());
@@ -73,16 +77,12 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
   void TransitionToReduceLatencyMode(
       const GCIdleTimeHandler::HeapState& heap_state) {
     EXPECT_EQ(GCIdleTimeHandler::kDone, handler()->mode());
-    int limit = GCIdleTimeHandler::kGCsBeforeMutatorIsActive;
+    int limit = GCIdleTimeHandler::kMarkCompactsBeforeMutatorIsActive;
     double idle_time_ms = GCIdleTimeHandler::kMinLongIdleTime;
     for (int i = 0; i < limit; i++) {
       GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
       EXPECT_EQ(DONE, action.type);
-      if (i % 2 == 0) {
-        handler()->NotifyScavenge();
-      } else {
-        handler()->NotifyMarkCompact();
-      }
+      handler()->NotifyMarkCompact();
     }
     handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
@@ -550,7 +550,7 @@ TEST_F(GCIdleTimeHandlerTest, SmallIdleTimeNothingToDo) {
   heap_state.can_start_incremental_marking = false;
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(10, heap_state);
-    EXPECT_EQ(DO_NOTHING, action.type);
+    EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
   }
 }
 
@@ -563,7 +563,7 @@ TEST_F(GCIdleTimeHandlerTest, StayInReduceLatencyModeBecauseOfScavenges) {
   int limit = GCIdleTimeHandler::kLongIdleNotificationsBeforeMutatorIsIdle;
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-    EXPECT_EQ(DO_NOTHING, action.type);
+    EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
     if ((i + 1) % limit == 0) handler()->NotifyScavenge();
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
   }
@@ -578,7 +578,7 @@ TEST_F(GCIdleTimeHandlerTest, StayInReduceLatencyModeBecauseOfMarkCompacts) {
   int limit = GCIdleTimeHandler::kLongIdleNotificationsBeforeMutatorIsIdle;
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-    EXPECT_EQ(DO_NOTHING, action.type);
+    EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
     if ((i + 1) % limit == 0) handler()->NotifyMarkCompact();
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
   }
@@ -642,6 +642,61 @@ TEST_F(GCIdleTimeHandlerTest, ReduceMemoryToDone) {
   EXPECT_EQ(DONE, action.type);
 }
 
+
+TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnSweeping) {
+  // Regression test for crbug.com/489323.
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+
+  // Simulate sweeping being in-progress but not complete.
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  heap_state.sweeping_in_progress = true;
+  heap_state.sweeping_completed = false;
+  double idle_time_ms = 10.0;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxNoProgressIdleTimesPerMode; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_NOTHING, action.type);
+  }
+  // We should return DONE after not making progress for some time.
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DONE, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnIncrementalMarking) {
+  // Regression test for crbug.com/489323.
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+
+  // Simulate incremental marking stopped and not eligible to start.
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  double idle_time_ms = 10.0;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxNoProgressIdleTimesPerMode; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_NOTHING, action.type);
+  }
+  // We should return DONE after not making progress for some time.
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DONE, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, BackgroundReduceLatencyToReduceMemory) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = false;
+  heap_state.can_start_incremental_marking = true;
+  double idle_time_ms = GCIdleTimeHandler::kMinBackgroundIdleTime;
+  handler()->NotifyScavenge();
+  EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
+  int limit =
+      GCIdleTimeHandler::kBackgroundIdleNotificationsBeforeMutatorIsIdle;
+  for (int i = 0; i < limit; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  }
+  handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(GCIdleTimeHandler::kReduceMemory, handler()->mode());
+}
 
 }  // namespace internal
 }  // namespace v8
