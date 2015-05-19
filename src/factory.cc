@@ -2339,18 +2339,14 @@ Handle<JSWeakMap> Factory::NewJSWeakMap() {
 
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                                                int number_of_properties,
-                                               bool is_strong,
                                                bool* is_result_from_cache) {
   const int kMapCacheSize = 128;
 
   // We do not cache maps for too many properties or when running builtin code.
-  // TODO(rossberg): cache strong maps properly
-  if (number_of_properties > kMapCacheSize || is_strong ||
+  if (number_of_properties > kMapCacheSize ||
       isolate()->bootstrapper()->IsActive()) {
     *is_result_from_cache = false;
-    Handle<Map> map = Map::Create(isolate(), number_of_properties);
-    if (is_strong) map->set_is_strong(true);
-    return map;
+    return Map::Create(isolate(), number_of_properties);
   }
   *is_result_from_cache = true;
   if (number_of_properties == 0) {

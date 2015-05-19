@@ -5790,8 +5790,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate(), raw_boilerplate,
         Runtime::CreateArrayLiteralBoilerplate(
-            isolate(), literals, expr->constant_elements(),
-            is_strong(function_language_mode())),
+            isolate(), literals, expr->constant_elements()),
         Bailout(kArrayBoilerplateCreationFailed));
 
     boilerplate_object = Handle<JSObject>::cast(raw_boilerplate);

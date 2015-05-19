@@ -3804,9 +3804,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
 
   Isolate* isolate = map->GetIsolate();
   Context* native_context = isolate->context()->native_context();
-  Object* maybe_array_maps = map->is_strong()
-      ? native_context->js_array_strong_maps()
-      : native_context->js_array_maps();
+  Object* maybe_array_maps = native_context->js_array_maps();
   if (maybe_array_maps->IsFixedArray()) {
     DisallowHeapAllocation no_gc;
     FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
@@ -10320,10 +10318,7 @@ Handle<Object> CacheInitialJSArrayMaps(
     maps->set(next_kind, *new_map);
     current_map = new_map;
   }
-  if (initial_map->is_strong())
-    native_context->set_js_array_strong_maps(*maps);
-  else
-    native_context->set_js_array_maps(*maps);
+  native_context->set_js_array_maps(*maps);
   return initial_map;
 }
 
@@ -10358,18 +10353,13 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
       JSFunction::SetInitialMap(function, new_map, value);
 
       // If the function is used as the global Array function, cache the
-      // updated initial maps (and transitioned versions) in the native context.
+      // initial map (and transitioned versions) in the native context.
       Context* native_context = function->context()->native_context();
       Object* array_function =
           native_context->get(Context::ARRAY_FUNCTION_INDEX);
       if (array_function->IsJSFunction() &&
           *function == JSFunction::cast(array_function)) {
         CacheInitialJSArrayMaps(handle(native_context, isolate), new_map);
-        Handle<Map> new_strong_map =
-            Map::Copy(initial_map, "SetInstancePrototype");
-        new_strong_map->set_is_strong(true);
-        CacheInitialJSArrayMaps(handle(native_context, isolate),
-                                new_strong_map);
       }
     }
 

@@ -670,7 +670,6 @@ class Factory final {
   // native context.
   Handle<Map> ObjectLiteralMapFromCache(Handle<Context> context,
                                         int number_of_properties,
-                                        bool is_strong,
                                         bool* is_result_from_cache);
 
   // Creates a new FixedArray that holds the data associated with the

@@ -1016,11 +1016,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     ArrayConstructorStub array_constructor_stub(isolate);
     Handle<Code> code = array_constructor_stub.GetCode();
     array_function->shared()->set_construct_stub(*code);
-
-    Handle<Map> initial_strong_map =
-        Map::Copy(initial_map, "SetInstancePrototype");
-    initial_strong_map->set_is_strong(true);
-    CacheInitialJSArrayMaps(native_context(), initial_strong_map);
   }
 
   {  // --- N u m b e r ---

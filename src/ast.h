@@ -1295,14 +1295,11 @@ class MaterializedLiteral : public Expression {
     return depth_;
   }
 
-  bool is_strong() const { return is_strong_; }
-
  protected:
-  MaterializedLiteral(Zone* zone, int literal_index, bool is_strong, int pos)
+  MaterializedLiteral(Zone* zone, int literal_index, int pos)
       : Expression(zone, pos),
         literal_index_(literal_index),
         is_simple_(false),
-        is_strong_(is_strong),
         depth_(0) {}
 
   // A materialized literal is simple if the values consist of only
@@ -1331,7 +1328,6 @@ class MaterializedLiteral : public Expression {
  private:
   int literal_index_;
   bool is_simple_;
-  bool is_strong_;
   int depth_;
 };
 
@@ -1426,9 +1422,6 @@ class ObjectLiteral final : public MaterializedLiteral {
     if (disable_mementos) {
       flags |= kDisableMementos;
     }
-    if (is_strong()) {
-      flags |= kIsStrong;
-    }
     return flags;
   }
 
@@ -1437,8 +1430,7 @@ class ObjectLiteral final : public MaterializedLiteral {
     kFastElements = 1,
     kHasFunction = 1 << 1,
     kShallowProperties = 1 << 2,
-    kDisableMementos = 1 << 3,
-    kIsStrong = 1 << 4
+    kDisableMementos = 1 << 3
   };
 
   struct Accessors: public ZoneObject {
@@ -1458,9 +1450,8 @@ class ObjectLiteral final : public MaterializedLiteral {
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
-                int boilerplate_properties, bool has_function,
-                bool is_strong, int pos)
-      : MaterializedLiteral(zone, literal_index, is_strong, pos),
+                int boilerplate_properties, bool has_function, int pos)
+      : MaterializedLiteral(zone, literal_index, pos),
         properties_(properties),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
@@ -1491,9 +1482,8 @@ class RegExpLiteral final : public MaterializedLiteral {
 
  protected:
   RegExpLiteral(Zone* zone, const AstRawString* pattern,
-                const AstRawString* flags, int literal_index, bool is_strong,
-                int pos)
-      : MaterializedLiteral(zone, literal_index, is_strong, pos),
+                const AstRawString* flags, int literal_index, int pos)
+      : MaterializedLiteral(zone, literal_index, pos),
         pattern_(pattern),
         flags_(flags) {
     set_depth(1);
@@ -1538,24 +1528,19 @@ class ArrayLiteral final : public MaterializedLiteral {
     if (disable_mementos) {
       flags |= kDisableMementos;
     }
-    if (is_strong()) {
-      flags |= kIsStrong;
-    }
     return flags;
   }
 
   enum Flags {
     kNoFlags = 0,
     kShallowElements = 1,
-    kDisableMementos = 1 << 1,
-    kIsStrong = 1 << 2
+    kDisableMementos = 1 << 1
   };
 
  protected:
   ArrayLiteral(Zone* zone, ZoneList<Expression*>* values, int literal_index,
-               bool is_strong, int pos)
-      : MaterializedLiteral(zone, literal_index, is_strong, pos),
-        values_(values) {}
+               int pos)
+      : MaterializedLiteral(zone, literal_index, pos), values_(values) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
 
  private:
@@ -3320,11 +3305,9 @@ class AstNodeFactory final BASE_EMBEDDED {
       int literal_index,
       int boilerplate_properties,
       bool has_function,
-      bool is_strong,
       int pos) {
     return new (zone_) ObjectLiteral(zone_, properties, literal_index,
-                                     boilerplate_properties, has_function,
-                                     is_strong, pos);
+                                     boilerplate_properties, has_function, pos);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3345,18 +3328,14 @@ class AstNodeFactory final BASE_EMBEDDED {
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern,
                                   const AstRawString* flags,
                                   int literal_index,
-                                  bool is_strong,
                                   int pos) {
-    return new (zone_) RegExpLiteral(zone_, pattern, flags, literal_index,
-                                     is_strong, pos);
+    return new (zone_) RegExpLiteral(zone_, pattern, flags, literal_index, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int literal_index,
-                                bool is_strong,
                                 int pos) {
-    return new (zone_) ArrayLiteral(zone_, values, literal_index, is_strong,
-                                    pos);
+    return new (zone_) ArrayLiteral(zone_, values, literal_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,

@@ -1352,13 +1352,11 @@ class PreParserFactory {
   PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
                                        PreParserIdentifier js_flags,
                                        int literal_index,
-                                       bool is_strong,
                                        int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
                                       int literal_index,
-                                      bool is_strong,
                                       int pos) {
     return PreParserExpression::Default();
   }
@@ -1379,7 +1377,6 @@ class PreParserFactory {
                                        int literal_index,
                                        int boilerplate_properties,
                                        bool has_function,
-                                       bool is_strong,
                                        int pos) {
     return PreParserExpression::Default();
   }
@@ -2233,8 +2230,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   }
   IdentifierT js_flags = this->GetNextSymbol(scanner());
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index,
-                                     is_strong(language_mode()), pos);
+  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
 
 
@@ -2499,8 +2495,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
   // Update the scope information before the pre-parsing bailout.
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  return factory()->NewArrayLiteral(values, literal_index,
-                                    is_strong(language_mode()), pos);
+  return factory()->NewArrayLiteral(values, literal_index, pos);
 }
 
 
@@ -2756,7 +2751,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
                                      literal_index,
                                      number_of_boilerplate_properties,
                                      has_function,
-                                     is_strong(language_mode()),
                                      pos);
 }
 

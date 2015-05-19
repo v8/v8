@@ -848,7 +848,7 @@ class Runtime : public AllStatic {
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate, Handle<FixedArray> literals,
-      Handle<FixedArray> elements, bool is_strong);
+      Handle<FixedArray> elements);
 
   static void WeakCollectionInitialize(
       Isolate* isolate, Handle<JSWeakCollection> weak_collection);

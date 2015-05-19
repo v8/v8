@@ -85,7 +85,6 @@ enum BindingFlags {
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
   V(JS_ARRAY_MAPS_INDEX, Object, js_array_maps)                                \
-  V(JS_ARRAY_STRONG_MAPS_INDEX, Object, js_array_strong_maps)                  \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
   V(JSON_OBJECT_INDEX, JSObject, json_object)                                  \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -342,7 +341,6 @@ class Context: public FixedArray {
     INTERNAL_ARRAY_FUNCTION_INDEX,
     ARRAY_FUNCTION_INDEX,
     JS_ARRAY_MAPS_INDEX,
-    JS_ARRAY_STRONG_MAPS_INDEX,
     DATE_FUNCTION_INDEX,
     JSON_OBJECT_INDEX,
     REGEXP_FUNCTION_INDEX,
