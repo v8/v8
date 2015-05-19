@@ -1740,14 +1740,21 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Register scratch1 = x13, scratch2 = x14;
 
     // If the function is strong we need to throw an error.
-    Label weak_function;
+    Label no_strong_error;
     __ Ldr(scratch1,
            FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ Ldr(scratch2.W(),
            FieldMemOperand(scratch1, SharedFunctionInfo::kCompilerHintsOffset));
     __ TestAndBranchIfAllClear(scratch2.W(),
                                (1 << SharedFunctionInfo::kStrongModeFunction),
-                               &weak_function);
+                               &no_strong_error);
+
+    // What we really care about is the required number of arguments.
+    DCHECK_EQ(kPointerSize, kInt64Size);
+    __ Ldr(scratch2.W(),
+           FieldMemOperand(scratch1, SharedFunctionInfo::kLengthOffset));
+    __ Cmp(argc_actual, Operand(scratch2, LSR, 1));
+    __ B(ge, &no_strong_error);
 
     {
       FrameScope frame(masm, StackFrame::MANUAL);
@@ -1755,7 +1762,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
     }
 
-    __ bind(&weak_function);
+    __ Bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
     __ Lsl(argc_expected, argc_expected, kPointerSizeLog2);

@@ -1724,12 +1724,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&too_few);
 
     // If the function is strong we need to throw an error.
-    Label weak_function;
+    Label no_strong_error;
     __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kCompilerHintsOffset));
-    __ tst(r4, Operand(1 << (SharedFunctionInfo::kStrongModeFunction +
+    __ ldr(r5, FieldMemOperand(r4, SharedFunctionInfo::kCompilerHintsOffset));
+    __ tst(r5, Operand(1 << (SharedFunctionInfo::kStrongModeFunction +
                              kSmiTagSize)));
-    __ b(eq, &weak_function);
+    __ b(eq, &no_strong_error);
+
+    // What we really care about is the required number of arguments.
+    __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kLengthOffset));
+    __ cmp(r0, Operand::SmiUntag(r4));
+    __ b(ge, &no_strong_error);
 
     {
       FrameScope frame(masm, StackFrame::MANUAL);
@@ -1737,7 +1742,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
     }
 
-    __ bind(&weak_function);
+    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
     // Calculate copy start address into r0 and copy end address is fp.

@@ -1644,13 +1644,31 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&too_few);
 
     // If the function is strong we need to throw an error.
-    Label weak_function;
+    Label no_strong_error;
     __ movp(kScratchRegister,
             FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testb(FieldOperand(kScratchRegister,
                           SharedFunctionInfo::kStrongModeByteOffset),
              Immediate(1 << SharedFunctionInfo::kStrongModeBitWithinByte));
-    __ j(equal, &weak_function, Label::kNear);
+    __ j(equal, &no_strong_error, Label::kNear);
+
+    // What we really care about is the required number of arguments.
+
+    if (kPointerSize == kInt32Size) {
+      __ movp(
+          kScratchRegister,
+          FieldOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset));
+      __ SmiToInteger32(kScratchRegister, kScratchRegister);
+    } else {
+      // See comment near kLengthOffset in src/objects.h
+      __ movsxlq(
+          kScratchRegister,
+          FieldOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset));
+      __ shrq(kScratchRegister, Immediate(1));
+    }
+
+    __ cmpp(rax, kScratchRegister);
+    __ j(greater_equal, &no_strong_error, Label::kNear);
 
     {
       FrameScope frame(masm, StackFrame::MANUAL);
@@ -1658,7 +1676,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
     }
 
-    __ bind(&weak_function);
+    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
     // Copy receiver and all actual arguments.

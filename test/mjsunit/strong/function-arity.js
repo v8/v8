@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode --harmony-arrow-functions --harmony-reflect
-// Flags: --harmony-spreadcalls --allow-natives-syntax
+// Flags: --harmony-spreadcalls --harmony-rest-parameters --allow-natives-syntax
 
 'use strict';
 
@@ -29,6 +29,16 @@ function generateParams(n) {
   return a.join(', ');
 }
 
+function generateParamsWithRest(n) {
+  let a = [];
+  let i = 0;
+  for (; i < n; i++) {
+    a[i] = `p${i}`;
+  }
+  a.push(`...p${i}`)
+  return a.join(', ');
+}
+
 
 function generateSpread(n) {
   return `...[${generateArguments(n)}]`;
@@ -39,7 +49,9 @@ function generateSpread(n) {
   for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
     let defs = [
       `'use strong'; function f(${generateParams(parameterCount)}) {}`,
+      `'use strong'; function f(${generateParamsWithRest(parameterCount)}) {}`,
       `'use strong'; function* f(${generateParams(parameterCount)}) {}`,
+      `'use strong'; function* f(${generateParamsWithRest(parameterCount)}) {}`,
       `'use strong'; let f = (${generateParams(parameterCount)}) => {}`,
       `function f(${generateParams(parameterCount)}) { 'use strong'; }`,
       `function* f(${generateParams(parameterCount)}) { 'use strong'; }`,
@@ -90,59 +102,61 @@ function generateSpread(n) {
 
 
 (function MethodCall() {
-  for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
-    let defs = [
-      `let o = new class {
-        m(${generateParams(parameterCount)}) { 'use strong'; }
-      }`,
-      `let o = new class {
-        *m(${generateParams(parameterCount)}) { 'use strong'; }
-      }`,
-      `let o = { m(${generateParams(parameterCount)}) { 'use strong'; } }`,
-      `let o = { *m(${generateParams(parameterCount)}) { 'use strong'; } }`,
-      `'use strong';
-      let o = new class { m(${generateParams(parameterCount)}) {} }`,
-      `'use strong';
-      let o = new class { *m(${generateParams(parameterCount)}) {} }`,
-      `'use strong'; let o = { m(${generateParams(parameterCount)}) {} }`,
-      `'use strong'; let o = { *m(${generateParams(parameterCount)}) {} }`,
-    ];
-    for (let def of defs) {
-      for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
-        let calls = [
-          `o.m(${generateArguments(argumentCount)})`,
-          `o.m(${generateSpread(argumentCount)})`,
-          `o.m.call(${generateArguments(argumentCount, 'o')})`,
-          `o.m.call(o, ${generateSpread(argumentCount)})`,
-          `o.m.apply(o, [${generateArguments(argumentCount)}])`,
-          `o.m.bind(o)(${generateArguments(argumentCount)})`,
-          `%_CallFunction(${generateArguments(argumentCount, 'o')}, o.m)`,
-          `%Call(${generateArguments(argumentCount, 'o')}, o.m)`,
-          `%Apply(o.m, o, [${generateArguments(argumentCount)}], 0,
-                  ${argumentCount})`,
-        ];
+  for (let genParams of [generateParams, generateParamsWithRest]) {
+    for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
+      let defs = [
+        `let o = new class {
+          m(${genParams(parameterCount)}) { 'use strong'; }
+        }`,
+        `let o = new class {
+          *m(${genParams(parameterCount)}) { 'use strong'; }
+        }`,
+        `let o = { m(${genParams(parameterCount)}) { 'use strong'; } }`,
+        `let o = { *m(${genParams(parameterCount)}) { 'use strong'; } }`,
+        `'use strong';
+        let o = new class { m(${genParams(parameterCount)}) {} }`,
+        `'use strong';
+        let o = new class { *m(${genParams(parameterCount)}) {} }`,
+        `'use strong'; let o = { m(${genParams(parameterCount)}) {} }`,
+        `'use strong'; let o = { *m(${genParams(parameterCount)}) {} }`,
+      ];
+      for (let def of defs) {
+        for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+          let calls = [
+            `o.m(${generateArguments(argumentCount)})`,
+            `o.m(${generateSpread(argumentCount)})`,
+            `o.m.call(${generateArguments(argumentCount, 'o')})`,
+            `o.m.call(o, ${generateSpread(argumentCount)})`,
+            `o.m.apply(o, [${generateArguments(argumentCount)}])`,
+            `o.m.bind(o)(${generateArguments(argumentCount)})`,
+            `%_CallFunction(${generateArguments(argumentCount, 'o')}, o.m)`,
+            `%Call(${generateArguments(argumentCount, 'o')}, o.m)`,
+            `%Apply(o.m, o, [${generateArguments(argumentCount)}], 0,
+                    ${argumentCount})`,
+          ];
 
+          for (let call of calls) {
+            let code = `'use strict'; ${def}; ${call};`;
+            if (argumentCount < parameterCount) {
+              assertThrows(code, TypeError);
+            } else {
+              assertDoesNotThrow(code);
+            }
+          }
+        }
+
+        let calls = [
+          `o.m.call()`,
+          `o.m.apply()`,
+          `o.m.apply(o)`,
+        ];
         for (let call of calls) {
           let code = `'use strict'; ${def}; ${call};`;
-          if (argumentCount < parameterCount) {
+          if (parameterCount > 0) {
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
           }
-        }
-      }
-
-      let calls = [
-        `o.m.call()`,
-        `o.m.apply()`,
-        `o.m.apply(o)`,
-      ];
-      for (let call of calls) {
-        let code = `'use strict'; ${def}; ${call};`;
-        if (parameterCount > 0) {
-          assertThrows(code, TypeError);
-        } else {
-          assertDoesNotThrow(code);
         }
       }
     }
@@ -151,28 +165,30 @@ function generateSpread(n) {
 
 
 (function Constructor() {
-  for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
-    for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
-      let defs = [
-        `'use strong';
-        class C { constructor(${generateParams(parameterCount)}) {} }`,
-        `'use strict';
-        class C {
-          constructor(${generateParams(parameterCount)}) { 'use strong'; }
-        }`,
-      ];
-      for (let def of defs) {
-        let calls = [
-          `new C(${generateArguments(argumentCount)})`,
-          `new C(${generateSpread(argumentCount)})`,
-          `Reflect.construct(C, [${generateArguments(argumentCount)}])`,
+  for (let genParams of [generateParams, generateParamsWithRest]) {
+    for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+      for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
+        let defs = [
+          `'use strong';
+          class C { constructor(${genParams(parameterCount)}) {} }`,
+          `'use strict';
+          class C {
+            constructor(${genParams(parameterCount)}) { 'use strong'; }
+          }`,
         ];
-        for (let call of calls) {
-          let code = `${def}; ${call};`;
-          if (argumentCount < parameterCount) {
-            assertThrows(code, TypeError);
-          } else {
-            assertDoesNotThrow(code);
+        for (let def of defs) {
+          let calls = [
+            `new C(${generateArguments(argumentCount)})`,
+            `new C(${generateSpread(argumentCount)})`,
+            `Reflect.construct(C, [${generateArguments(argumentCount)}])`,
+          ];
+          for (let call of calls) {
+            let code = `${def}; ${call};`;
+            if (argumentCount < parameterCount) {
+              assertThrows(code, TypeError);
+            } else {
+              assertDoesNotThrow(code);
+            }
           }
         }
       }
@@ -182,35 +198,37 @@ function generateSpread(n) {
 
 
 (function DerivedConstructor() {
-  for (let genArgs of [generateArguments, generateSpread]) {
-    for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
-      for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
-        let defs = [
-          `'use strong';
-          class B {
-            constructor(${generateParams(parameterCount)}) {}
-          }
-          class C extends B {
-            constructor() {
-              super(${genArgs(argumentCount)});
+  for (let genParams of [generateParams, generateParamsWithRest]) {
+    for (let genArgs of [generateArguments, generateSpread]) {
+      for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+        for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
+          let defs = [
+            `'use strong';
+            class B {
+              constructor(${genParams(parameterCount)}) {}
             }
-          }`,
-          `'use strict';
-          class B {
-            constructor(${generateParams(parameterCount)}) { 'use strong'; }
-          }
-          class C extends B {
-            constructor() {
-              super(${genArgs(argumentCount)});
+            class C extends B {
+              constructor() {
+                super(${genArgs(argumentCount)});
+              }
+            }`,
+            `'use strict';
+            class B {
+              constructor(${genParams(parameterCount)}) { 'use strong'; }
             }
-          }`,
-        ];
-        for (let def of defs) {
-          let code = `${def}; new C();`;
-          if (argumentCount < parameterCount) {
-            assertThrows(code, TypeError);
-          } else {
-            assertDoesNotThrow(code);
+            class C extends B {
+              constructor() {
+                super(${genArgs(argumentCount)});
+              }
+            }`,
+          ];
+          for (let def of defs) {
+            let code = `${def}; new C();`;
+            if (argumentCount < parameterCount) {
+              assertThrows(code, TypeError);
+            } else {
+              assertDoesNotThrow(code);
+            }
           }
         }
       }
@@ -220,27 +238,29 @@ function generateSpread(n) {
 
 
 (function DerivedConstructorDefaultConstructorInDerivedClass() {
-  for (let genArgs of [generateArguments, generateSpread]) {
-    for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
-      for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
-        let defs = [
-          `'use strong';
-          class B {
-            constructor(${generateParams(parameterCount)}) {}
-          }
-          class C extends B {}`,
-          `'use strict';
-          class B {
-            constructor(${generateParams(parameterCount)}) { 'use strong'; }
-          }
-          class C extends B {}`,
-        ];
-        for (let def of defs) {
-          let code = `${def}; new C(${genArgs(argumentCount)})`;
-          if (argumentCount < parameterCount) {
-            assertThrows(code, TypeError);
-          } else {
-            assertDoesNotThrow(code);
+  for (let genParams of [generateParams, generateParamsWithRest]) {
+    for (let genArgs of [generateArguments, generateSpread]) {
+      for (let argumentCount = 0; argumentCount < 3; argumentCount++) {
+        for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
+          let defs = [
+            `'use strong';
+            class B {
+              constructor(${genParams(parameterCount)}) {}
+            }
+            class C extends B {}`,
+            `'use strict';
+            class B {
+              constructor(${genParams(parameterCount)}) { 'use strong'; }
+            }
+            class C extends B {}`,
+          ];
+          for (let def of defs) {
+            let code = `${def}; new C(${genArgs(argumentCount)})`;
+            if (argumentCount < parameterCount) {
+              assertThrows(code, TypeError);
+            } else {
+              assertDoesNotThrow(code);
+            }
           }
         }
       }
