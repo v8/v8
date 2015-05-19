@@ -6508,5 +6508,43 @@ void Heap::UnregisterStrongRoots(Object** start) {
     list = next;
   }
 }
+
+
+bool Heap::GetObjectTypeName(size_t index, const char** object_type,
+                             const char** object_sub_type) {
+  if (index >= OBJECT_STATS_COUNT) return false;
+
+  switch (static_cast<int>(index)) {
+#define COMPARE_AND_RETURN_NAME(name) \
+  case name:                          \
+    *object_type = #name;             \
+    *object_sub_type = "";            \
+    return true;
+    INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
+#undef COMPARE_AND_RETURN_NAME
+#define COMPARE_AND_RETURN_NAME(name)         \
+  case FIRST_CODE_KIND_SUB_TYPE + Code::name: \
+    *object_type = "CODE_TYPE";               \
+    *object_sub_type = "CODE_KIND/" #name;    \
+    return true;
+    CODE_KIND_LIST(COMPARE_AND_RETURN_NAME)
+#undef COMPARE_AND_RETURN_NAME
+#define COMPARE_AND_RETURN_NAME(name)     \
+  case FIRST_FIXED_ARRAY_SUB_TYPE + name: \
+    *object_type = "FIXED_ARRAY_TYPE";    \
+    *object_sub_type = #name;             \
+    return true;
+    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
+#undef COMPARE_AND_RETURN_NAME
+#define COMPARE_AND_RETURN_NAME(name)                                          \
+  case FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge: \
+    *object_type = "CODE_TYPE";                                                \
+    *object_sub_type = "CODE_AGE/" #name;                                      \
+    return true;
+    CODE_AGE_LIST_COMPLETE(COMPARE_AND_RETURN_NAME)
+#undef COMPARE_AND_RETURN_NAME
+  }
+  return false;
+}
 }
 }  // namespace v8::internal

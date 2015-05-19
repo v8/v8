@@ -5346,6 +5346,12 @@ HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
                                             physical_space_size_(0) { }
 
 
+HeapObjectStatistics::HeapObjectStatistics()
+    : object_type_(nullptr),
+      object_sub_type_(nullptr),
+      object_count_(0),
+      object_size_(0) {}
+
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
 }
@@ -6906,6 +6912,38 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   space_statistics->space_used_size_ = space->SizeOfObjects();
   space_statistics->space_available_size_ = space->Available();
   space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+  return true;
+}
+
+
+size_t Isolate::NumberOfTrackedHeapObjectTypes() {
+  return i::Heap::OBJECT_STATS_COUNT;
+}
+
+
+bool Isolate::GetHeapObjectStatisticsAtLastGC(
+    HeapObjectStatistics* object_statistics, size_t type_index) {
+  if (!object_statistics) return false;
+  if (type_index >= i::Heap::OBJECT_STATS_COUNT) return false;
+  if (!i::FLAG_track_gc_object_stats) return false;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  const char* object_type;
+  const char* object_sub_type;
+  size_t object_count = heap->object_count_last_gc(type_index);
+  size_t object_size = heap->object_size_last_gc(type_index);
+  if (!heap->GetObjectTypeName(type_index, &object_type, &object_sub_type)) {
+    // There should be no objects counted when the type is unknown.
+    DCHECK_EQ(object_count, 0);
+    DCHECK_EQ(object_size, 0);
+    return false;
+  }
+
+  object_statistics->object_type_ = object_type;
+  object_statistics->object_sub_type_ = object_sub_type;
+  object_statistics->object_count_ = object_count;
+  object_statistics->object_size_ = object_size;
   return true;
 }
 

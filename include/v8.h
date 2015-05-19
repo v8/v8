@@ -4839,6 +4839,24 @@ class V8_EXPORT HeapSpaceStatistics {
 };
 
 
+class V8_EXPORT HeapObjectStatistics {
+ public:
+  HeapObjectStatistics();
+  const char* object_type() { return object_type_; }
+  const char* object_sub_type() { return object_sub_type_; }
+  size_t object_count() { return object_count_; }
+  size_t object_size() { return object_size_; }
+
+ private:
+  const char* object_type_;
+  const char* object_sub_type_;
+  size_t object_count_;
+  size_t object_size_;
+
+  friend class Isolate;
+};
+
+
 class RetainedObjectInfo;
 
 
@@ -5226,6 +5244,23 @@ class V8_EXPORT Isolate {
    */
   bool GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
                               size_t index);
+
+  /**
+   * Returns the number of types of objects tracked in the heap at GC.
+   */
+  size_t NumberOfTrackedHeapObjectTypes();
+
+  /**
+   * Get statistics about objects in the heap.
+   *
+   * \param object_statistics The HeapObjectStatistics object to fill in
+   *   statistics of objects of given type, which were live in the previous GC.
+   * \param type_index The index of the type of object to fill details about,
+   *   which ranges from 0 to NumberOfTrackedHeapObjectTypes() - 1.
+   * \returns true on success.
+   */
+  bool GetHeapObjectStatisticsAtLastGC(HeapObjectStatistics* object_statistics,
+                                       size_t type_index);
 
   /**
    * Get a call stack sample from the isolate.
