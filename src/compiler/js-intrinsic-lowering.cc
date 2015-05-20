@@ -16,9 +16,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph)
+JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
+                                         DeoptimizationMode mode)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
+      mode_(mode),
       simplified_(jsgraph->zone()) {}
 
 
@@ -103,9 +105,7 @@ Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
-  // TODO(jarin): This should not depend on the global flag.
-  if (!FLAG_turbo_deoptimization) return NoChange();
-
+  if (mode() != kDeoptimizationEnabled) return NoChange();
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
   DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
 

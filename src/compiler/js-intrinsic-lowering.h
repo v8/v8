@@ -22,7 +22,10 @@ class MachineOperatorBuilder;
 // Lowers certain JS-level runtime calls.
 class JSIntrinsicLowering final : public AdvancedReducer {
  public:
-  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph);
+  enum DeoptimizationMode { kDeoptimizationEnabled, kDeoptimizationDisabled };
+
+  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
+                      DeoptimizationMode mode);
   ~JSIntrinsicLowering() final {}
 
   Reduction Reduce(Node* node) final;
@@ -60,9 +63,11 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
+  DeoptimizationMode mode() const { return mode_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
+  DeoptimizationMode const mode_;
   SimplifiedOperatorBuilder simplified_;
 };
 
