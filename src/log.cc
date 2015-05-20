@@ -48,12 +48,14 @@ for (int i = 0; i < listeners_.length(); ++i) { \
     }                                                     \
   } while (false);
 
-// ComputeMarker must only be used when SharedFunctionInfo is known.
-static const char* ComputeMarker(Code* code) {
+static const char* ComputeMarker(SharedFunctionInfo* shared, Code* code) {
   switch (code->kind()) {
-    case Code::FUNCTION: return code->optimizable() ? "~" : "";
-    case Code::OPTIMIZED_FUNCTION: return "*";
-    default: return "";
+    case Code::FUNCTION:
+      return shared->optimization_disabled() ? "" : "~";
+    case Code::OPTIMIZED_FUNCTION:
+      return "*";
+    default:
+      return "";
   }
 }
 
@@ -183,7 +185,7 @@ void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                       CompilationInfo* info,
                                       Name* name) {
   name_buffer_->Init(tag);
-  name_buffer_->AppendBytes(ComputeMarker(code));
+  name_buffer_->AppendBytes(ComputeMarker(shared, code));
   name_buffer_->AppendName(name);
   LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
@@ -195,7 +197,7 @@ void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                       CompilationInfo* info,
                                       Name* source, int line, int column) {
   name_buffer_->Init(tag);
-  name_buffer_->AppendBytes(ComputeMarker(code));
+  name_buffer_->AppendBytes(ComputeMarker(shared, code));
   name_buffer_->AppendString(shared->DebugName());
   name_buffer_->AppendByte(' ');
   if (source->IsString()) {
@@ -1199,7 +1201,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   msg.Append(',');
   msg.AppendAddress(shared->address());
-  msg.Append(",%s", ComputeMarker(code));
+  msg.Append(",%s", ComputeMarker(shared, code));
   msg.WriteToLogFile();
 }
 
@@ -1233,7 +1235,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   msg.Append(":%d:%d\",", line, column);
   msg.AppendAddress(shared->address());
-  msg.Append(",%s", ComputeMarker(code));
+  msg.Append(",%s", ComputeMarker(shared, code));
   msg.WriteToLogFile();
 }
 

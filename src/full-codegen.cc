@@ -310,9 +310,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
-  code->set_optimizable(info->IsOptimizable() &&
-                        !info->function()->dont_optimize() &&
-                        info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());

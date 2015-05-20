@@ -674,7 +674,6 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
 
   // Update the code and feedback vector for the shared function info.
   shared->ReplaceCode(*info->code());
-  if (shared->optimization_disabled()) info->code()->set_optimizable(false);
   shared->set_feedback_vector(*info->feedback_vector());
 
   return info->code();

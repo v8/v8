@@ -5341,10 +5341,6 @@ class Code: public HeapObject {
   inline bool can_have_weak_objects();
   inline void set_can_have_weak_objects(bool value);
 
-  // [optimizable]: For FUNCTION kind, tells if it is optimizable.
-  inline bool optimizable();
-  inline void set_optimizable(bool value);
-
   // [has_deoptimization_support]: For FUNCTION kind, tells if it has
   // deoptimization support.
   inline bool has_deoptimization_support();
@@ -5650,9 +5646,7 @@ class Code: public HeapObject {
   STATIC_ASSERT((kConstantPoolOffset & kPointerAlignmentMask) == 0);
 
   // Byte offsets within kKindSpecificFlags1Offset.
-  static const int kOptimizableOffset = kKindSpecificFlags1Offset;
-
-  static const int kFullCodeFlags = kOptimizableOffset + 1;
+  static const int kFullCodeFlags = kKindSpecificFlags1Offset;
   class FullCodeFlagsHasDeoptimizationSupportField:
       public BitField<bool, 0, 1> {};  // NOLINT
   class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};

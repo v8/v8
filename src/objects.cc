@@ -9807,7 +9807,7 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 void JSFunction::MarkForOptimization() {
   Isolate* isolate = GetIsolate();
   DCHECK(!IsOptimized());
-  DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
+  DCHECK(shared()->allows_lazy_compilation() || IsOptimizable());
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
@@ -9831,7 +9831,7 @@ void JSFunction::AttemptConcurrentOptimization() {
   }
   DCHECK(!IsInOptimizationQueue());
   DCHECK(!IsOptimized());
-  DCHECK(shared()->allows_lazy_compilation() || code()->optimizable());
+  DCHECK(shared()->allows_lazy_compilation() || IsOptimizable());
   DCHECK(isolate->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
@@ -10729,10 +10729,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCode() {
 bool SharedFunctionInfo::IsInlineable() {
   // Check that the function has a script associated with it.
   if (!script()->IsScript()) return false;
-  if (optimization_disabled()) return false;
-  // If we never ran this (unlikely) then lets try to optimize it.
-  if (code()->kind() != Code::FUNCTION) return true;
-  return code()->optimizable();
+  return !optimization_disabled();
 }
 
 
@@ -10834,12 +10831,8 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK(reason != kNoReason);
   set_optimization_disabled(true);
   set_disable_optimization_reason(reason);
-  // Code should be the lazy compilation stub or else unoptimized.  If the
-  // latter, disable optimization for the code too.
+  // Code should be the lazy compilation stub or else unoptimized.
   DCHECK(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);
-  if (code()->kind() == Code::FUNCTION) {
-    code()->set_optimizable(false);
-  }
   PROFILE(GetIsolate(), CodeDisableOptEvent(code(), this));
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
@@ -10921,7 +10914,6 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
         opt_count() >= FLAG_max_opt_count) {
       // Re-enable optimizations if they were disabled due to opt_count limit.
       set_optimization_disabled(false);
-      code()->set_optimizable(true);
     }
     set_opt_count(0);
     set_deopt_count(0);

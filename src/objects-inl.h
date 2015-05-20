@@ -4918,18 +4918,6 @@ inline void Code::set_can_have_weak_objects(bool value) {
 }
 
 
-bool Code::optimizable() {
-  DCHECK_EQ(FUNCTION, kind());
-  return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
-}
-
-
-void Code::set_optimizable(bool value) {
-  DCHECK_EQ(FUNCTION, kind());
-  WRITE_BYTE_FIELD(this, kOptimizableOffset, value ? 1 : 0);
-}
-
-
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
@@ -5741,11 +5729,6 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kOptimizationDisabled,
                                      disable));
-  // If disabling optimizations we reflect that in the code object so
-  // it will not be counted as optimizable code.
-  if ((code()->kind() == Code::FUNCTION) && disable) {
-    code()->set_optimizable(false);
-  }
 }
 
 
@@ -5986,7 +5969,6 @@ void SharedFunctionInfo::TryReenableOptimization() {
     set_optimization_disabled(false);
     set_opt_count(0);
     set_deopt_count(0);
-    code()->set_optimizable(true);
   }
 }
 
@@ -6024,7 +6006,7 @@ bool JSFunction::IsOptimized() {
 
 
 bool JSFunction::IsOptimizable() {
-  return code()->kind() == Code::FUNCTION && code()->optimizable();
+  return code()->kind() == Code::FUNCTION && !shared()->optimization_disabled();
 }
 
 

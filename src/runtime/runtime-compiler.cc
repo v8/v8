@@ -168,10 +168,9 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
 
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
-                                            Handle<JSFunction> function,
-                                            Handle<Code> current_code) {
+                                            Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!current_code->optimizable()) return false;
+  if (function->shared()->optimization_disabled()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -253,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
     result = Compiler::GetConcurrentlyOptimizedCode(job);
-  } else if (IsSuitableForOnStackReplacement(isolate, function, caller_code)) {
+  } else if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
       function->PrintName();
