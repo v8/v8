@@ -1472,7 +1472,7 @@ bool Genesis::CompileExtraBuiltin(Isolate* isolate, int index) {
   Handle<String> source_code =
       isolate->bootstrapper()->SourceLookup<ExtraNatives>(index);
   Handle<Object> global = isolate->global_object();
-  Handle<Object> exports = isolate->builtin_exports_object();
+  Handle<Object> exports = isolate->extras_exports_object();
   Handle<Object> args[] = {global, exports};
   return CompileNative(isolate, name, source_code, arraysize(args), args);
 }
@@ -1925,11 +1925,18 @@ bool Genesis::InstallNatives() {
       factory()->NewJSObject(isolate()->object_function());
   JSObject::NormalizeProperties(shared, CLEAR_INOBJECT_PROPERTIES, 16,
                                 "container to share between native scripts");
+
   Handle<JSObject> builtin_exports =
       factory()->NewJSObject(isolate()->object_function());
   JSObject::NormalizeProperties(builtin_exports, CLEAR_INOBJECT_PROPERTIES, 16,
                                 "container to export to experimental natives");
   native_context()->set_builtin_exports_object(*builtin_exports);
+
+  Handle<JSObject> extras_exports =
+      factory()->NewJSObject(isolate()->object_function());
+  JSObject::NormalizeProperties(extras_exports, CLEAR_INOBJECT_PROPERTIES, 2,
+                                "container to export to extra natives");
+  native_context()->set_extras_exports_object(*extras_exports);
 
   if (FLAG_expose_natives_as != NULL) {
     Handle<String> shared_key = factory()->NewStringFromAsciiChecked("shared");

@@ -100,6 +100,9 @@
     'msan%': '<(msan)',
     'tsan%': '<(tsan)',
 
+    # Add a simple extra solely for the purpose of the cctests
+    'v8_extra_library_files': ['../test/cctest/test-extra.js'],
+
     # .gyp files or targets should set v8_code to 1 if they build V8 specific
     # code, as opposed to external code.  This variable is used to control such
     # things as the set of warnings to enable, and whether warnings are treated
