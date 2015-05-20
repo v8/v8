@@ -6936,8 +6936,8 @@ bool Isolate::GetHeapObjectStatisticsAtLastGC(
   size_t object_size = heap->object_size_last_gc(type_index);
   if (!heap->GetObjectTypeName(type_index, &object_type, &object_sub_type)) {
     // There should be no objects counted when the type is unknown.
-    DCHECK_EQ(object_count, 0);
-    DCHECK_EQ(object_size, 0);
+    DCHECK_EQ(object_count, 0U);
+    DCHECK_EQ(object_size, 0U);
     return false;
   }
 
