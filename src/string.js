@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, utils) {
+var $stringCharAt;
+var $stringIndexOf;
+var $stringSubstring;
+
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
@@ -11,16 +15,8 @@
 
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var InternalArray = utils.InternalArray;
-var InternalPackedArray = utils.InternalPackedArray;
-
-var MathMax;
-var MathMin;
-
-utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
-});
+var InternalArray = shared.InternalArray;
+var InternalPackedArray = shared.InternalPackedArray;
 
 //-------------------------------------------------------------------
 
@@ -972,7 +968,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
+  var start = $min($max(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -1002,7 +998,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  var end = MathMin(MathMax(pos, 0), s_len);
+  var end = $min($max(pos, 0), s_len);
   var ss_len = ss.length;
   var start = end - ss_len;
   if (start < 0) {
@@ -1031,7 +1027,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
+  var start = $min($max(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -1176,13 +1172,8 @@ $installFunctions(GlobalString.prototype, DONT_ENUM, [
   "sup", StringSup
 ]);
 
-// -------------------------------------------------------------------
-// Exports
-
-utils.Export(function(to) {
-  to.StringCharAt = StringCharAtJS;
-  to.StringIndexOf = StringIndexOfJS;
-  to.StringSubstring = StringSubstring;
-});
+$stringCharAt = StringCharAtJS;
+$stringIndexOf = StringIndexOfJS;
+$stringSubstring = StringSubstring;
 
 })

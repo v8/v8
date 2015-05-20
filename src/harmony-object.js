@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 
-(function(global, utils) {
+(function(global, exports) {
 
 "use strict";
 

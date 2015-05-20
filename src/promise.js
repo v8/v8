@@ -12,7 +12,7 @@ var $promiseHasUserDefinedRejectHandler;
 var $promiseStatus;
 var $promiseValue;
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -21,7 +21,7 @@ var $promiseValue;
 // -------------------------------------------------------------------
 // Imports
 
-var InternalArray = utils.InternalArray;
+var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 

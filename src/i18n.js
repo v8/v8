@@ -8,14 +8,11 @@
  * Intl object is a single object that has some named properties,
  * all of which are constructors.
  */
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
 %CheckIsBootstrapping();
-
-// -------------------------------------------------------------------
-// Imports
 
 var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
@@ -23,13 +20,7 @@ var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 
-var MathFloor;
-
-utils.Import(function(from) {
-  MathFloor = from.MathFloor;
-});
-
-// -------------------------------------------------------------------
+var undefined = global.undefined;
 
 var Intl = {};
 
@@ -39,24 +30,24 @@ var Intl = {};
  * Caches available locales for each service.
  */
 var AVAILABLE_LOCALES = {
-  'collator': UNDEFINED,
-  'numberformat': UNDEFINED,
-  'dateformat': UNDEFINED,
-  'breakiterator': UNDEFINED
+  'collator': undefined,
+  'numberformat': undefined,
+  'dateformat': undefined,
+  'breakiterator': undefined
 };
 
 /**
  * Caches default ICU locale.
  */
-var DEFAULT_ICU_LOCALE = UNDEFINED;
+var DEFAULT_ICU_LOCALE = undefined;
 
 /**
  * Unicode extension regular expression.
  */
-var UNICODE_EXTENSION_RE = UNDEFINED;
+var UNICODE_EXTENSION_RE = undefined;
 
 function GetUnicodeExtensionRE() {
-  if (IS_UNDEFINED(UNDEFINED)) {
+  if (UNICODE_EXTENSION_RE === undefined) {
     UNICODE_EXTENSION_RE = new GlobalRegExp('-u(-[a-z0-9]{2,8})+', 'g');
   }
   return UNICODE_EXTENSION_RE;
@@ -65,10 +56,10 @@ function GetUnicodeExtensionRE() {
 /**
  * Matches any Unicode extension.
  */
-var ANY_EXTENSION_RE = UNDEFINED;
+var ANY_EXTENSION_RE = undefined;
 
 function GetAnyExtensionRE() {
-  if (IS_UNDEFINED(ANY_EXTENSION_RE)) {
+  if (ANY_EXTENSION_RE === undefined) {
     ANY_EXTENSION_RE = new GlobalRegExp('-[a-z0-9]{1}-.*', 'g');
   }
   return ANY_EXTENSION_RE;
@@ -77,10 +68,10 @@ function GetAnyExtensionRE() {
 /**
  * Replace quoted text (single quote, anything but the quote and quote again).
  */
-var QUOTED_STRING_RE = UNDEFINED;
+var QUOTED_STRING_RE = undefined;
 
 function GetQuotedStringRE() {
-  if (IS_UNDEFINED(QUOTED_STRING_RE)) {
+  if (QUOTED_STRING_RE === undefined) {
     QUOTED_STRING_RE = new GlobalRegExp("'[^']+'", 'g');
   }
   return QUOTED_STRING_RE;
@@ -89,10 +80,10 @@ function GetQuotedStringRE() {
 /**
  * Matches valid service name.
  */
-var SERVICE_RE = UNDEFINED;
+var SERVICE_RE = undefined;
 
 function GetServiceRE() {
-  if (IS_UNDEFINED(SERVICE_RE)) {
+  if (SERVICE_RE === undefined) {
     SERVICE_RE =
         new GlobalRegExp('^(collator|numberformat|dateformat|breakiterator)$');
   }
@@ -103,10 +94,10 @@ function GetServiceRE() {
  * Validates a language tag against bcp47 spec.
  * Actual value is assigned on first run.
  */
-var LANGUAGE_TAG_RE = UNDEFINED;
+var LANGUAGE_TAG_RE = undefined;
 
 function GetLanguageTagRE() {
-  if (IS_UNDEFINED(LANGUAGE_TAG_RE)) {
+  if (LANGUAGE_TAG_RE === undefined) {
     BuildLanguageTagREs();
   }
   return LANGUAGE_TAG_RE;
@@ -115,10 +106,10 @@ function GetLanguageTagRE() {
 /**
  * Helps find duplicate variants in the language tag.
  */
-var LANGUAGE_VARIANT_RE = UNDEFINED;
+var LANGUAGE_VARIANT_RE = undefined;
 
 function GetLanguageVariantRE() {
-  if (IS_UNDEFINED(LANGUAGE_VARIANT_RE)) {
+  if (LANGUAGE_VARIANT_RE === undefined) {
     BuildLanguageTagREs();
   }
   return LANGUAGE_VARIANT_RE;
@@ -127,10 +118,10 @@ function GetLanguageVariantRE() {
 /**
  * Helps find duplicate singletons in the language tag.
  */
-var LANGUAGE_SINGLETON_RE = UNDEFINED;
+var LANGUAGE_SINGLETON_RE = undefined;
 
 function GetLanguageSingletonRE() {
-  if (IS_UNDEFINED(LANGUAGE_SINGLETON_RE)) {
+  if (LANGUAGE_SINGLETON_RE === undefined) {
     BuildLanguageTagREs();
   }
   return LANGUAGE_SINGLETON_RE;
@@ -139,10 +130,10 @@ function GetLanguageSingletonRE() {
 /**
  * Matches valid IANA time zone names.
  */
-var TIMEZONE_NAME_CHECK_RE = UNDEFINED;
+var TIMEZONE_NAME_CHECK_RE = undefined;
 
 function GetTimezoneNameCheckRE() {
-  if (IS_UNDEFINED(TIMEZONE_NAME_CHECK_RE)) {
+  if (TIMEZONE_NAME_CHECK_RE === undefined) {
     TIMEZONE_NAME_CHECK_RE =
         new GlobalRegExp('^([A-Za-z]+)/([A-Za-z]+)(?:_([A-Za-z]+))*$');
   }
@@ -158,10 +149,10 @@ function addBoundMethod(obj, methodName, implementation, length) {
       throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
     }
     var internalName = '__bound' + methodName + '__';
-    if (IS_UNDEFINED(this[internalName])) {
+    if (this[internalName] === undefined) {
       var that = this;
       var boundMethod;
-      if (IS_UNDEFINED(length) || length === 2) {
+      if (length === undefined || length === 2) {
         boundMethod = function(x, y) {
           if (%_IsConstructCall()) {
             throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
@@ -220,14 +211,14 @@ function supportedLocalesOf(service, locales, options) {
   }
 
   // Provide defaults if matcher was not specified.
-  if (IS_UNDEFINED(options)) {
+  if (options === undefined) {
     options = {};
   } else {
     options = $toObject(options);
   }
 
   var matcher = options.localeMatcher;
-  if (!IS_UNDEFINED(matcher)) {
+  if (matcher !== undefined) {
     matcher = GlobalString(matcher);
     if (matcher !== 'lookup' && matcher !== 'best fit') {
       throw MakeRangeError(kLocaleMatcher, matcher);
@@ -239,7 +230,7 @@ function supportedLocalesOf(service, locales, options) {
   var requestedLocales = initializeLocaleList(locales);
 
   // Cache these, they don't ever change per service.
-  if (IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
+  if (AVAILABLE_LOCALES[service] === undefined) {
     AVAILABLE_LOCALES[service] = getAvailableLocalesOf(service);
   }
 
@@ -265,7 +256,7 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
     // Remove -u- extension.
     var locale = requestedLocales[i].replace(GetUnicodeExtensionRE(), '');
     do {
-      if (!IS_UNDEFINED(availableLocales[locale])) {
+      if (availableLocales[locale] !== undefined) {
         // Push requested locale not the resolved one.
         matchedLocales.push(requestedLocales[i]);
         break;
@@ -301,10 +292,10 @@ function bestFitSupportedLocalesOf(requestedLocales, availableLocales) {
  * is out of range for that property it throws RangeError.
  */
 function getGetOption(options, caller) {
-  if (IS_UNDEFINED(options)) throw MakeError(kDefaultOptionsMissing, caller);
+  if (options === undefined) throw MakeError(kDefaultOptionsMissing, caller);
 
   var getOption = function getOption(property, type, values, defaultValue) {
-    if (!IS_UNDEFINED(options[property])) {
+    if (options[property] !== undefined) {
       var value = options[property];
       switch (type) {
         case 'boolean':
@@ -319,7 +310,7 @@ function getGetOption(options, caller) {
         default:
           throw MakeError(kWrongValueType);
       }
-      if (!IS_UNDEFINED(values) && values.indexOf(value) === -1) {
+      if (values !== undefined && values.indexOf(value) === -1) {
         throw MakeRangeError(kValueOutOfRange, value, caller, property);
       }
 
@@ -373,7 +364,7 @@ function lookupMatcher(service, requestedLocales) {
   }
 
   // Cache these, they don't ever change per service.
-  if (IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
+  if (AVAILABLE_LOCALES[service] === undefined) {
     AVAILABLE_LOCALES[service] = getAvailableLocalesOf(service);
   }
 
@@ -381,7 +372,7 @@ function lookupMatcher(service, requestedLocales) {
     // Remove all extensions.
     var locale = requestedLocales[i].replace(GetAnyExtensionRE(), '');
     do {
-      if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
+      if (AVAILABLE_LOCALES[service][locale] !== undefined) {
         // Return the resolved locale and extension.
         var extensionMatch = requestedLocales[i].match(GetUnicodeExtensionRE());
         var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
@@ -397,7 +388,7 @@ function lookupMatcher(service, requestedLocales) {
   }
 
   // Didn't find a match, return default.
-  if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
+  if (DEFAULT_ICU_LOCALE === undefined) {
     DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
   }
 
@@ -432,16 +423,16 @@ function parseExtension(extension) {
   // Key is {2}alphanum, value is {3,8}alphanum.
   // Some keys may not have explicit values (booleans).
   var extensionMap = {};
-  var previousKey = UNDEFINED;
+  var previousKey = undefined;
   for (var i = 2; i < extensionSplit.length; ++i) {
     var length = extensionSplit[i].length;
     var element = extensionSplit[i];
     if (length === 2) {
-      extensionMap[element] = UNDEFINED;
+      extensionMap[element] = undefined;
       previousKey = element;
-    } else if (length >= 3 && length <=8 && !IS_UNDEFINED(previousKey)) {
+    } else if (length >= 3 && length <=8 && previousKey !== undefined) {
       extensionMap[previousKey] = element;
-      previousKey = UNDEFINED;
+      previousKey = undefined;
     } else {
       // There is a value that's too long, or that doesn't have a key.
       return {};
@@ -474,21 +465,21 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
       value = (value === 'true') ? true : false;
     }
 
-    if (!IS_UNDEFINED(property)) {
+    if (property !== undefined) {
       defineWEProperty(outOptions, property, value);
     }
   }
 
   for (var key in keyValues) {
     if (keyValues.hasOwnProperty(key)) {
-      var value = UNDEFINED;
+      var value = undefined;
       var map = keyValues[key];
-      if (!IS_UNDEFINED(map.property)) {
+      if (map.property !== undefined) {
         // This may return true if user specifies numeric: 'false', since
         // Boolean('nonempty') === true.
         value = getOption(map.property, map.type, map.values);
       }
-      if (!IS_UNDEFINED(value)) {
+      if (value !== undefined) {
         updateProperty(map.property, map.type, value);
         extension += updateExtension(key, value);
         continue;
@@ -498,7 +489,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
       // values (not a user error).
       if (extensionMap.hasOwnProperty(key)) {
         value = extensionMap[key];
-        if (!IS_UNDEFINED(value)) {
+        if (value !== undefined) {
           updateProperty(map.property, map.type, value);
           extension += updateExtension(key, value);
         } else if (map.type === 'boolean') {
@@ -599,7 +590,7 @@ function defineWEProperty(object, property, value) {
  * Sets configurable descriptor to false.
  */
 function addWEPropertyIfDefined(object, property, value) {
-  if (!IS_UNDEFINED(value)) {
+  if (value !== undefined) {
     defineWEProperty(object, property, value);
   }
 }
@@ -621,7 +612,7 @@ function defineWECProperty(object, property, value) {
  * Sets all descriptors to true.
  */
 function addWECPropertyIfDefined(object, property, value) {
-  if (!IS_UNDEFINED(value)) {
+  if (value !== undefined) {
     defineWECProperty(object, property, value);
   }
 }
@@ -669,7 +660,7 @@ function canonicalizeLanguageTag(localeID) {
  */
 function initializeLocaleList(locales) {
   var seen = [];
-  if (IS_UNDEFINED(locales)) {
+  if (locales === undefined) {
     // Constructor is called without arguments.
     seen = [];
   } else {
@@ -802,7 +793,7 @@ function initializeCollator(collator, locales, options) {
     throw MakeTypeError(kReinitializeIntl, "Collator");
   }
 
-  if (IS_UNDEFINED(options)) {
+  if (options === undefined) {
     options = {};
   }
 
@@ -815,13 +806,13 @@ function initializeCollator(collator, locales, options) {
 
   var sensitivity = getOption('sensitivity', 'string',
                               ['base', 'accent', 'case', 'variant']);
-  if (IS_UNDEFINED(sensitivity) && internalOptions.usage === 'sort') {
+  if (sensitivity === undefined && internalOptions.usage === 'sort') {
     sensitivity = 'variant';
   }
   defineWEProperty(internalOptions, 'sensitivity', sensitivity);
 
   defineWEProperty(internalOptions, 'ignorePunctuation', getOption(
-    'ignorePunctuation', 'boolean', UNDEFINED, false));
+    'ignorePunctuation', 'boolean', undefined, false));
 
   var locale = resolveLocale('collator', locales, options);
 
@@ -1007,12 +998,12 @@ function isWellFormedCurrencyCode(currency) {
  */
 function getNumberOption(options, property, min, max, fallback) {
   var value = options[property];
-  if (!IS_UNDEFINED(value)) {
+  if (value !== undefined) {
     value = GlobalNumber(value);
     if ($isNaN(value) || value < min || value > max) {
       throw MakeRangeError(kPropertyValueOutOfRange, property);
     }
-    return MathFloor(value);
+    return $floor(value);
   }
 
   return fallback;
@@ -1028,7 +1019,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
     throw MakeTypeError(kReinitializeIntl, "NumberFormat");
   }
 
-  if (IS_UNDEFINED(options)) {
+  if (options === undefined) {
     options = {};
   }
 
@@ -1041,11 +1032,11 @@ function initializeNumberFormat(numberFormat, locales, options) {
     'style', 'string', ['decimal', 'percent', 'currency'], 'decimal'));
 
   var currency = getOption('currency', 'string');
-  if (!IS_UNDEFINED(currency) && !isWellFormedCurrencyCode(currency)) {
+  if (currency !== undefined && !isWellFormedCurrencyCode(currency)) {
     throw MakeRangeError(kInvalidCurrencyCode, currency);
   }
 
-  if (internalOptions.style === 'currency' && IS_UNDEFINED(currency)) {
+  if (internalOptions.style === 'currency' && currency === undefined) {
     throw MakeTypeError(kCurrencyCode);
   }
 
@@ -1068,7 +1059,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
 
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
-  if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
+  if (mnsd !== undefined || mxsd !== undefined) {
     mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 0);
     defineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
 
@@ -1078,7 +1069,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
 
   // Grouping.
   defineWEProperty(internalOptions, 'useGrouping', getOption(
-    'useGrouping', 'boolean', UNDEFINED, true));
+    'useGrouping', 'boolean', undefined, true));
 
   // ICU prefers options to be passed using -u- extension key/values for
   // number format, so we need to build that.
@@ -1089,7 +1080,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
    * for a number format.
    */
   var NUMBER_FORMAT_KEY_MAP = {
-    'nu': {'property': UNDEFINED, 'type': 'string'}
+    'nu': {'property': undefined, 'type': 'string'}
   };
 
   var extension = setOptions(options, extensionMap, NUMBER_FORMAT_KEY_MAP,
@@ -1109,10 +1100,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
     useGrouping: {writable: true}
   });
   if (internalOptions.hasOwnProperty('minimumSignificantDigits')) {
-    defineWEProperty(resolved, 'minimumSignificantDigits', UNDEFINED);
+    defineWEProperty(resolved, 'minimumSignificantDigits', undefined);
   }
   if (internalOptions.hasOwnProperty('maximumSignificantDigits')) {
-    defineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
+    defineWEProperty(resolved, 'maximumSignificantDigits', undefined);
   }
   var formatter = %CreateNumberFormat(requestedLocale,
                                       internalOptions,
@@ -1281,7 +1272,7 @@ function toLDMLString(options) {
 
   var hr12 = getOption('hour12', 'boolean');
   option = getOption('hour', 'string', ['2-digit', 'numeric']);
-  if (IS_UNDEFINED(hr12)) {
+  if (hr12 === undefined) {
     ldmlString += appendToLDMLString(option, {'2-digit': 'jj', 'numeric': 'j'});
   } else if (hr12 === true) {
     ldmlString += appendToLDMLString(option, {'2-digit': 'hh', 'numeric': 'h'});
@@ -1306,7 +1297,7 @@ function toLDMLString(options) {
  * Returns either LDML equivalent of the current option or empty string.
  */
 function appendToLDMLString(option, pairs) {
-  if (!IS_UNDEFINED(option)) {
+  if (option !== undefined) {
     return pairs[option];
   } else {
     return '';
@@ -1380,7 +1371,7 @@ function fromLDMLString(ldmlString) {
 function appendToDateTimeObject(options, option, match, pairs) {
   if (IS_NULL(match)) {
     if (!options.hasOwnProperty(option)) {
-      defineWEProperty(options, option, UNDEFINED);
+      defineWEProperty(options, option, undefined);
     }
     return options;
   }
@@ -1396,7 +1387,7 @@ function appendToDateTimeObject(options, option, match, pairs) {
  * Returns options with at least default values in it.
  */
 function toDateTimeOptions(options, required, defaults) {
-  if (IS_UNDEFINED(options)) {
+  if (options === undefined) {
     options = {};
   } else {
     options = TO_OBJECT_INLINE(options);
@@ -1404,14 +1395,14 @@ function toDateTimeOptions(options, required, defaults) {
 
   var needsDefault = true;
   if ((required === 'date' || required === 'any') &&
-      (!IS_UNDEFINED(options.weekday) || !IS_UNDEFINED(options.year) ||
-       !IS_UNDEFINED(options.month) || !IS_UNDEFINED(options.day))) {
+      (options.weekday !== undefined || options.year !== undefined ||
+       options.month !== undefined || options.day !== undefined)) {
     needsDefault = false;
   }
 
   if ((required === 'time' || required === 'any') &&
-      (!IS_UNDEFINED(options.hour) || !IS_UNDEFINED(options.minute) ||
-       !IS_UNDEFINED(options.second))) {
+      (options.hour !== undefined || options.minute !== undefined ||
+       options.second !== undefined)) {
     needsDefault = false;
   }
 
@@ -1459,7 +1450,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     throw MakeTypeError(kReinitializeIntl, "DateTimeFormat");
   }
 
-  if (IS_UNDEFINED(options)) {
+  if (options === undefined) {
     options = {};
   }
 
@@ -1492,8 +1483,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
    * for a date/time format.
    */
   var DATETIME_FORMAT_KEY_MAP = {
-    'ca': {'property': UNDEFINED, 'type': 'string'},
-    'nu': {'property': UNDEFINED, 'type': 'string'}
+    'ca': {'property': undefined, 'type': 'string'},
+    'nu': {'property': undefined, 'type': 'string'}
   };
 
   var extension = setOptions(options, extensionMap, DATETIME_FORMAT_KEY_MAP,
@@ -1523,7 +1514,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   var formatter = %CreateDateTimeFormat(
     requestedLocale, {skeleton: ldmlString, timeZone: tz}, resolved);
 
-  if (!IS_UNDEFINED(tz) && tz !== resolved.timeZone) {
+  if (tz !== undefined && tz !== resolved.timeZone) {
     throw MakeRangeError(kUnsupportedTimeZone, tz);
   }
 
@@ -1589,7 +1580,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     var format = this;
     var fromPattern = fromLDMLString(format.resolved.pattern);
     var userCalendar = ICU_CALENDAR_MAP[format.resolved.calendar];
-    if (IS_UNDEFINED(userCalendar)) {
+    if (userCalendar === undefined) {
       // Use ICU name if we don't have a match. It shouldn't happen, but
       // it would be too strict to throw for this.
       userCalendar = format.resolved.calendar;
@@ -1653,7 +1644,7 @@ $setFunctionName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
  */
 function formatDate(formatter, dateValue) {
   var dateMs;
-  if (IS_UNDEFINED(dateValue)) {
+  if (dateValue === undefined) {
     dateMs = GlobalDate.now();
   } else {
     dateMs = $toNumber(dateValue);
@@ -1689,7 +1680,7 @@ addBoundMethod(Intl.DateTimeFormat, 'v8Parse', parseDate, 1);
  */
 function canonicalizeTimeZoneID(tzID) {
   // Skip undefined zones.
-  if (IS_UNDEFINED(tzID)) {
+  if (tzID === undefined) {
     return tzID;
   }
 
@@ -1707,7 +1698,7 @@ function canonicalizeTimeZoneID(tzID) {
 
   var result = toTitleCaseWord(match[1]) + '/' + toTitleCaseWord(match[2]);
   var i = 3;
-  while (!IS_UNDEFINED(match[i]) && i < match.length) {
+  while (match[i] !== undefined && i < match.length) {
     result = result + '_' + toTitleCaseWord(match[i]);
     i++;
   }
@@ -1724,7 +1715,7 @@ function initializeBreakIterator(iterator, locales, options) {
     throw MakeTypeError(kReinitializeIntl, "v8BreakIterator");
   }
 
-  if (IS_UNDEFINED(options)) {
+  if (options === undefined) {
     options = {};
   }
 
@@ -1887,11 +1878,11 @@ var savedObjects = {
 // Default (created with undefined locales and options parameters) collator,
 // number and date format instances. They'll be created as needed.
 var defaultObjects = {
-  'collator': UNDEFINED,
-  'numberformat': UNDEFINED,
-  'dateformatall': UNDEFINED,
-  'dateformatdate': UNDEFINED,
-  'dateformattime': UNDEFINED,
+  'collator': undefined,
+  'numberformat': undefined,
+  'dateformatall': undefined,
+  'dateformatdate': undefined,
+  'dateformattime': undefined,
 };
 
 
@@ -1900,9 +1891,9 @@ var defaultObjects = {
  * We cache only default instances (where no locales or options are provided).
  */
 function cachedOrNewService(service, locales, options, defaults) {
-  var useOptions = (IS_UNDEFINED(defaults)) ? options : defaults;
-  if (IS_UNDEFINED(locales) && IS_UNDEFINED(options)) {
-    if (IS_UNDEFINED(defaultObjects[service])) {
+  var useOptions = (defaults === undefined) ? options : defaults;
+  if (locales === undefined && options === undefined) {
+    if (defaultObjects[service] === undefined) {
       defaultObjects[service] = new savedObjects[service](locales, useOptions);
     }
     return defaultObjects[service];

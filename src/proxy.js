@@ -10,7 +10,7 @@ var $proxyDerivedKeysTrap;
 var $proxyDerivedSetTrap;
 var $proxyEnumerate;
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 

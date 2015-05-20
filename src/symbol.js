@@ -12,7 +12,7 @@
 
 var $symbolToString;
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 

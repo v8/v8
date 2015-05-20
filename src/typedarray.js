@@ -2,30 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
-
-var MathMax;
-var MathMin;
-
-utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
-});
-
-// -------------------------------------------------------------------
-
 
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
@@ -179,16 +165,16 @@ function NAMESubArray(begin, end) {
 
   var srcLength = %_TypedArrayGetLength(this);
   if (beginInt < 0) {
-    beginInt = MathMax(0, srcLength + beginInt);
+    beginInt = $max(0, srcLength + beginInt);
   } else {
-    beginInt = MathMin(srcLength, beginInt);
+    beginInt = $min(srcLength, beginInt);
   }
 
   var endInt = IS_UNDEFINED(end) ? srcLength : end;
   if (endInt < 0) {
-    endInt = MathMax(0, srcLength + endInt);
+    endInt = $max(0, srcLength + endInt);
   } else {
-    endInt = MathMin(endInt, srcLength);
+    endInt = $min(endInt, srcLength);
   }
   if (endInt < beginInt) {
     endInt = beginInt;

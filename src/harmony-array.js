@@ -8,25 +8,14 @@ var $innerArrayFind;
 var $innerArrayFindIndex;
 var $arrayFrom;
 
-(function(global, utils) {
+(function(global, exports) {
 
 'use strict';
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalArray = global.Array;
 var GlobalSymbol = global.Symbol;
-
-var MathMax;
-var MathMin;
-
-utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
-});
 
 // -------------------------------------------------------------------
 
@@ -34,28 +23,28 @@ function InnerArrayCopyWithin(target, start, end, array, length) {
   target = TO_INTEGER(target);
   var to;
   if (target < 0) {
-    to = MathMax(length + target, 0);
+    to = $max(length + target, 0);
   } else {
-    to = MathMin(target, length);
+    to = $min(target, length);
   }
 
   start = TO_INTEGER(start);
   var from;
   if (start < 0) {
-    from = MathMax(length + start, 0);
+    from = $max(length + start, 0);
   } else {
-    from = MathMin(start, length);
+    from = $min(start, length);
   }
 
   end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
   var final;
   if (end < 0) {
-    final = MathMax(length + end, 0);
+    final = $max(length + end, 0);
   } else {
-    final = MathMin(end, length);
+    final = $min(end, length);
   }
 
-  var count = MathMin(final - from, length - to);
+  var count = $min(final - from, length - to);
   var direction = 1;
   if (from < to && to < (from + count)) {
     direction = -1;

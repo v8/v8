@@ -5,7 +5,7 @@
 // This file contains support for URI manipulations written in
 // JavaScript.
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -16,7 +16,7 @@
 
 var GlobalObject = global.Object;
 var GlobalArray = global.Array;
-var InternalArray = utils.InternalArray;
+var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 // Define internal helper functions.

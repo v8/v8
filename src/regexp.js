@@ -9,7 +9,7 @@ var $regexpLastMatchInfoOverride;
 var harmony_regexps = false;
 var harmony_unicode_regexps = false;
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
@@ -17,7 +17,7 @@ var harmony_unicode_regexps = false;
 // Imports
 
 var GlobalRegExp = global.RegExp;
-var InternalPackedArray = utils.InternalPackedArray;
+var InternalPackedArray = shared.InternalPackedArray;
 
 // -------------------------------------------------------------------
 

@@ -10,7 +10,7 @@ var $observeNativeObjectObserve;
 var $observeNativeObjectGetNotifier;
 var $observeNativeObjectNotifierPerformChange;
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -21,7 +21,7 @@ var $observeNativeObjectNotifierPerformChange;
 
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
+var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 

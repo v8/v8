@@ -10,7 +10,7 @@ var $createDate;
 
 // -------------------------------------------------------------------
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -20,15 +20,7 @@ var $createDate;
 // Imports
 
 var GlobalDate = global.Date;
-var InternalArray = utils.InternalArray;
-
-var MathAbs;
-var MathFloor;
-
-utils.Import(function(from) {
-  MathAbs = from.MathAbs;
-  MathFloor = from.MathFloor;
-});
+var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 
@@ -109,7 +101,7 @@ function MakeDate(day, time) {
   // is no way that the time can be within range even after UTC
   // conversion we return NaN immediately instead of relying on
   // TimeClip to do it.
-  if (MathAbs(time) > MAX_TIME_BEFORE_UTC) return NAN;
+  if ($abs(time) > MAX_TIME_BEFORE_UTC) return NAN;
   return time;
 }
 
@@ -117,7 +109,7 @@ function MakeDate(day, time) {
 // ECMA 262 - 15.9.1.14
 function TimeClip(time) {
   if (!$isFinite(time)) return NAN;
-  if (MathAbs(time) > MAX_TIME_MS) return NAN;
+  if ($abs(time) > MAX_TIME_MS) return NAN;
   return TO_INTEGER(time);
 }
 
@@ -244,8 +236,8 @@ function LocalTimezoneString(date) {
 
   var timezoneOffset = -TIMEZONE_OFFSET(date);
   var sign = (timezoneOffset >= 0) ? 1 : -1;
-  var hours = MathFloor((sign * timezoneOffset)/60);
-  var min   = MathFloor((sign * timezoneOffset)%60);
+  var hours = $floor((sign * timezoneOffset)/60);
+  var min   = $floor((sign * timezoneOffset)%60);
   var gmt = ' GMT' + ((sign == 1) ? '+' : '-') +
       TwoDigitString(hours) + TwoDigitString(min);
   return gmt + ' (' +  timezone + ')';

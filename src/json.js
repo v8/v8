@@ -4,7 +4,7 @@
 
 var $jsonSerializeAdapter;
 
-(function(global, utils) {
+(function(global, shared, exports) {
 
 "use strict";
 
@@ -14,15 +14,7 @@ var $jsonSerializeAdapter;
 // Imports
 
 var GlobalJSON = global.JSON;
-var InternalArray = utils.InternalArray;
-
-var MathMax;
-var MathMin;
-
-utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
-});
+var InternalArray = shared.InternalArray;
 
 // -------------------------------------------------------------------
 
@@ -191,7 +183,7 @@ function JSONStringify(value, replacer, space) {
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = MathMax(0, MathMin($toInteger(space), 10));
+    space = $max(0, $min($toInteger(space), 10));
     gap = %_SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {
