@@ -62,10 +62,13 @@ class JSTypeFeedbackTable : public ZoneObject {
 // {js_type_feedback} provided to the constructor.
 class JSTypeFeedbackSpecializer : public AdvancedReducer {
  public:
+  enum DeoptimizationMode { kDeoptimizationEnabled, kDeoptimizationDisabled };
+
   JSTypeFeedbackSpecializer(Editor* editor, JSGraph* jsgraph,
                             JSTypeFeedbackTable* js_type_feedback,
                             TypeFeedbackOracle* oracle,
                             Handle<GlobalObject> global_object,
+                            DeoptimizationMode mode,
                             CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
@@ -73,8 +76,9 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
         js_type_feedback_(js_type_feedback),
         oracle_(oracle),
         global_object_(global_object),
+        mode_(mode),
         dependencies_(dependencies) {
-    CHECK(js_type_feedback);
+    CHECK_NOT_NULL(js_type_feedback);
   }
 
   Reduction Reduce(Node* node) override;
@@ -92,12 +96,14 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
   JSTypeFeedbackTable* js_type_feedback_;
   TypeFeedbackOracle* oracle_;
   Handle<GlobalObject> global_object_;
+  DeoptimizationMode const mode_;
   CompilationDependencies* dependencies_;
 
   TypeFeedbackOracle* oracle() { return oracle_; }
   Graph* graph() { return jsgraph_->graph(); }
   JSGraph* jsgraph() { return jsgraph_; }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
+  DeoptimizationMode mode() const { return mode_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
   void BuildMapCheck(Node* receiver, Handle<Map> map, bool smi_check,

@@ -546,7 +546,10 @@ struct JSTypeFeedbackPhase {
     // specializing to the global object here.
     JSTypeFeedbackSpecializer specializer(
         &graph_reducer, data->jsgraph(), data->js_type_feedback(), &oracle,
-        global_object, data->info()->dependencies());
+        global_object, data->info()->is_deoptimization_enabled()
+                           ? JSTypeFeedbackSpecializer::kDeoptimizationEnabled
+                           : JSTypeFeedbackSpecializer::kDeoptimizationDisabled,
+        data->info()->dependencies());
     AddReducer(data, &graph_reducer, &specializer);
     graph_reducer.ReduceGraph();
   }
@@ -1048,9 +1051,7 @@ Handle<Code> Pipeline::GenerateCode() {
       RunPrintAndVerify("OSR deconstruction");
     }
 
-    // TODO(turbofan): Type feedback currently requires deoptimization.
-    if (info()->is_deoptimization_enabled() &&
-        info()->is_type_feedback_enabled()) {
+    if (info()->is_type_feedback_enabled()) {
       Run<JSTypeFeedbackPhase>();
       RunPrintAndVerify("JSType feedback");
     }

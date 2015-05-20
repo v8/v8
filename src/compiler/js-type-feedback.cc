@@ -173,7 +173,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
     return ReduceJSLoadNamedForGlobalVariable(node);
   }
 
-  if (!FLAG_turbo_deoptimization) return NoChange();
+  if (mode() != kDeoptimizationEnabled) return NoChange();
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
 
@@ -245,7 +245,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamedForGlobalVariable(
     return NoChange();
   }
 
-  if (FLAG_turbo_deoptimization) {
+  if (mode() == kDeoptimizationEnabled) {
     // Handle lookups in the script context.
     {
       Handle<ScriptContextTable> script_contexts(
