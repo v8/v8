@@ -460,5 +460,5 @@ RUNTIME_FUNCTION(Runtime_CallSuperWithSpread) {
   UNIMPLEMENTED();
   return nullptr;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

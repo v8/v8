@@ -718,5 +718,5 @@ DATA_VIEW_SETTER(Float32, float)
 DATA_VIEW_SETTER(Float64, double)
 
 #undef DATA_VIEW_SETTER
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

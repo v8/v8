@@ -1566,5 +1566,5 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
                                setter, attrs));
   return isolate->heap()->undefined_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

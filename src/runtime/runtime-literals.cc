@@ -435,5 +435,5 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
   }
   return *object;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

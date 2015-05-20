@@ -3212,5 +3212,5 @@ RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

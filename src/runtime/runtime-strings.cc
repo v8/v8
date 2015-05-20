@@ -1349,5 +1349,5 @@ RUNTIME_FUNCTION(Runtime_StringGetLength) {
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return Smi::FromInt(s->length());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

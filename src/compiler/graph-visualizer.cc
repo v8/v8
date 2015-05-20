@@ -826,6 +826,6 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   }
   return os;
 }
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

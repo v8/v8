@@ -416,5 +416,5 @@ RUNTIME_FUNCTION(Runtime_GetTypeFeedbackVector) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   return function->shared()->feedback_vector();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

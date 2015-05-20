@@ -1418,5 +1418,5 @@ RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
   // to a slow path.
   return isolate->heap()->undefined_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

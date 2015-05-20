@@ -1185,5 +1185,5 @@ RUNTIME_FUNCTION(Runtime_IsRegExp) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSRegExp());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

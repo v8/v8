@@ -1135,5 +1135,5 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_GetArgumentsProperty(args, isolate);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

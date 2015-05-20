@@ -441,5 +441,5 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
   return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
                            args.at<Object>(3), language_mode, args.smi_at(5));
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -292,6 +292,6 @@ int LoopAssignmentAnalysis::GetAssignmentCountForTesting(Scope* scope,
   }
   return count;
 }
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

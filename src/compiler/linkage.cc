@@ -203,6 +203,6 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   return NULL;
 }
 #endif  // !V8_TURBOFAN_BACKEND
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

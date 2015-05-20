@@ -420,5 +420,5 @@ RUNTIME_FUNCTION(Runtime_ObservationWeakMapCreate) {
   Runtime::WeakCollectionInitialize(isolate, weakmap);
   return *weakmap;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

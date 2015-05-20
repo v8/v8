@@ -226,5 +226,5 @@ RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

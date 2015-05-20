@@ -157,5 +157,5 @@ RUNTIME_FUNCTION(Runtime_GetObjectContextNotifierPerformChange) {
   Handle<Context> context(object_info->GetCreationContext(), isolate);
   return context->native_object_notifier_perform_change();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

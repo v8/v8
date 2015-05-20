@@ -1104,6 +1104,6 @@ void ScheduleVerifier::Run(Schedule* schedule) {
     }
   }
 }
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

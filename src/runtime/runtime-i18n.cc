@@ -745,7 +745,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
     return *isolate->factory()->NewStringFromStaticChars("unknown");
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_I18N_SUPPORT

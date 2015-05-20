@@ -96,5 +96,5 @@ RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
   return isolate->heap()->ToBoolean(symbol->is_private());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

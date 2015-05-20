@@ -186,5 +186,5 @@ RUNTIME_FUNCTION(Runtime_DateField) {
   if (index == 0) return date->value();
   return JSDate::GetField(date, Smi::FromInt(index));
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

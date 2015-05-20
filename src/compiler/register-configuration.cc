@@ -46,7 +46,7 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 static base::LazyInstance<ArchDefaultRegisterConfiguration>::type
     kDefaultRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
 
-}  // namepace
+}  // namespace
 
 
 const RegisterConfiguration* RegisterConfiguration::ArchDefault() {
