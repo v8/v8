@@ -618,7 +618,7 @@ void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 
 CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() {
   if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
-    return VectorLoadICDescriptor(isolate());
+    return LoadWithVectorDescriptor(isolate());
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());
     return StoreDescriptor(isolate());

@@ -1322,7 +1322,7 @@ void FullCodeGenerator::EmitLoadHomeObject(SuperReference* expr) {
   Handle<Symbol> home_object_symbol(isolate()->heap()->home_object_symbol());
   __ li(LoadDescriptor::NameRegister(), home_object_symbol);
 
-  __ li(VectorLoadICDescriptor::SlotRegister(),
+  __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(expr->HomeObjectFeedbackSlot())));
   CallLoadIC(NOT_CONTEXTUAL);
 
@@ -1393,7 +1393,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
 
   __ lw(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
   __ li(LoadDescriptor::NameRegister(), Operand(proxy->var()->name()));
-  __ li(VectorLoadICDescriptor::SlotRegister(),
+  __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
 
   ContextualMode mode = (typeof_state == INSIDE_TYPEOF)
@@ -1481,7 +1481,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, "[ Global variable");
       __ lw(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
       __ li(LoadDescriptor::NameRegister(), Operand(var->name()));
-      __ li(VectorLoadICDescriptor::SlotRegister(),
+      __ li(LoadDescriptor::SlotRegister(),
             Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
       CallGlobalLoadIC(var->name());
       context()->Plug(v0);
@@ -2179,7 +2179,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_call);
       __ lw(load_receiver, MemOperand(sp, kPointerSize));
       __ lw(load_name, MemOperand(sp, 2 * kPointerSize));
-      __ li(VectorLoadICDescriptor::SlotRegister(),
+      __ li(LoadDescriptor::SlotRegister(),
             Operand(SmiFromSlot(expr->KeyedLoadFeedbackSlot())));
       Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
       CallIC(ic, TypeFeedbackId::None());
@@ -2197,7 +2197,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       __ push(load_receiver);                               // save result
       __ LoadRoot(load_name, Heap::kdone_stringRootIndex);  // "done"
-      __ li(VectorLoadICDescriptor::SlotRegister(),
+      __ li(LoadDescriptor::SlotRegister(),
             Operand(SmiFromSlot(expr->DoneFeedbackSlot())));
       CallLoadIC(NOT_CONTEXTUAL);                           // v0=result.done
       __ mov(a0, v0);
@@ -2208,7 +2208,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // result.value
       __ pop(load_receiver);                                 // result
       __ LoadRoot(load_name, Heap::kvalue_stringRootIndex);  // "value"
-      __ li(VectorLoadICDescriptor::SlotRegister(),
+      __ li(LoadDescriptor::SlotRegister(),
             Operand(SmiFromSlot(expr->ValueFeedbackSlot())));
       CallLoadIC(NOT_CONTEXTUAL);                            // v0=result.value
       context()->DropAndPlug(2, v0);                         // drop iter and g
@@ -2350,7 +2350,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   DCHECK(!prop->IsSuperAccess());
 
   __ li(LoadDescriptor::NameRegister(), Operand(key->value()));
-  __ li(VectorLoadICDescriptor::SlotRegister(),
+  __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
   CallLoadIC(NOT_CONTEXTUAL);
 }
@@ -2371,7 +2371,7 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
-  __ li(VectorLoadICDescriptor::SlotRegister(),
+  __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
   CallIC(ic);
 }
@@ -4614,7 +4614,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
 
   // Load the function from the receiver.
   __ li(LoadDescriptor::NameRegister(), Operand(expr->name()));
-  __ li(VectorLoadICDescriptor::SlotRegister(),
+  __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(expr->CallRuntimeFeedbackSlot())));
   CallLoadIC(NOT_CONTEXTUAL);
 }
@@ -5051,7 +5051,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     Comment cmnt(masm_, "[ Global variable");
     __ lw(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
     __ li(LoadDescriptor::NameRegister(), Operand(proxy->name()));
-    __ li(VectorLoadICDescriptor::SlotRegister(),
+    __ li(LoadDescriptor::SlotRegister(),
           Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
     // Use a regular load, not a contextual load, to avoid a reference
     // error.

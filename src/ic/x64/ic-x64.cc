@@ -335,8 +335,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   Register megamorphic_scratch = rdi;
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Register vector = VectorLoadICDescriptor::VectorRegister();
-  Register slot = VectorLoadICDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
+  Register slot = LoadDescriptor::SlotRegister();
   DCHECK(!AreAliased(megamorphic_scratch, vector, slot));
   Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
       masm->isolate()->factory()->keyed_load_dummy_vector());
@@ -734,8 +734,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 static void LoadIC_PushArgs(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  Register slot = VectorLoadICDescriptor::SlotRegister();
-  Register vector = VectorLoadICDescriptor::VectorRegister();
+  Register slot = LoadDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
   DCHECK(!rdi.is(receiver) && !rdi.is(name) && !rdi.is(slot) &&
          !rdi.is(vector));
 

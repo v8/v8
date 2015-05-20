@@ -61,8 +61,8 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     if (IC::ICUseVector(ic_kind)) {
       // The vector and slot were pushed onto the stack before starting the
       // probe, and need to be dropped before calling the handler.
-      __ pop(VectorLoadICDescriptor::VectorRegister());
-      __ pop(VectorLoadICDescriptor::SlotRegister());
+      __ pop(LoadWithVectorDescriptor::VectorRegister());
+      __ pop(LoadDescriptor::SlotRegister());
     }
 
     if (leave_frame) __ leave();
@@ -112,8 +112,8 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     if (IC::ICUseVector(ic_kind)) {
       // The vector and slot were pushed onto the stack before starting the
       // probe, and need to be dropped before calling the handler.
-      Register vector = VectorLoadICDescriptor::VectorRegister();
-      Register slot = VectorLoadICDescriptor::SlotRegister();
+      Register vector = LoadWithVectorDescriptor::VectorRegister();
+      Register slot = LoadDescriptor::SlotRegister();
       DCHECK(!offset.is(vector) && !offset.is(slot));
 
       __ pop(vector);

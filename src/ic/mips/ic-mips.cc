@@ -296,8 +296,8 @@ static const Register LoadIC_TempRegister() { return a3; }
 static void LoadIC_PushArgs(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  Register slot = VectorLoadICDescriptor::SlotRegister();
-  Register vector = VectorLoadICDescriptor::VectorRegister();
+  Register slot = LoadDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
 
   __ Push(receiver, name, slot, vector);
 }
@@ -307,8 +307,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in ra.
   Isolate* isolate = masm->isolate();
 
-  DCHECK(!AreAliased(t0, t1, VectorLoadICDescriptor::SlotRegister(),
-                     VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(!AreAliased(t0, t1, LoadWithVectorDescriptor::SlotRegister(),
+                     LoadWithVectorDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->load_miss(), 1, t0, t1);
 
   LoadIC_PushArgs(masm);
@@ -445,8 +445,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in ra.
   Isolate* isolate = masm->isolate();
 
-  DCHECK(!AreAliased(t0, t1, VectorLoadICDescriptor::SlotRegister(),
-                     VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(!AreAliased(t0, t1, LoadWithVectorDescriptor::SlotRegister(),
+                     LoadWithVectorDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, t0, t1);
 
   LoadIC_PushArgs(masm);
@@ -532,8 +532,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Register vector = VectorLoadICDescriptor::VectorRegister();
-  Register slot = VectorLoadICDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
+  Register slot = LoadWithVectorDescriptor::SlotRegister();
   DCHECK(!AreAliased(vector, slot, t0, t1, t2, t5));
   Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
       masm->isolate()->factory()->keyed_load_dummy_vector());

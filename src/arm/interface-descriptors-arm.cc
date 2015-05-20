@@ -16,12 +16,10 @@ const Register CallInterfaceDescriptor::ContextRegister() { return cp; }
 
 const Register LoadDescriptor::ReceiverRegister() { return r1; }
 const Register LoadDescriptor::NameRegister() { return r2; }
+const Register LoadDescriptor::SlotRegister() { return r0; }
 
 
-const Register VectorLoadICTrampolineDescriptor::SlotRegister() { return r0; }
-
-
-const Register VectorLoadICDescriptor::VectorRegister() { return r3; }
+const Register LoadWithVectorDescriptor::VectorRegister() { return r3; }
 
 
 const Register StoreDescriptor::ReceiverRegister() { return r1; }

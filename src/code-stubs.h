@@ -85,8 +85,8 @@ namespace internal {
   V(StringAdd)                              \
   V(ToBoolean)                              \
   V(TransitionElementsKind)                 \
-  V(VectorRawKeyedLoad)                     \
-  V(VectorRawLoad)                          \
+  V(KeyedLoadIC)                            \
+  V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
   V(StringLengthTF)                         \
   V(MathFloor)                              \
@@ -627,8 +627,8 @@ class MathFloorStub : public TurboFanCodeStub {
 
 
 class StringLengthTFStub : public TurboFanCodeStub {
-  DEFINE_TURBOFAN_CODE_STUB(StringLengthTF, TurboFanCodeStub, LoadDescriptor,
-                            0);
+  DEFINE_TURBOFAN_CODE_STUB(StringLengthTF, TurboFanCodeStub,
+                            LoadWithVectorDescriptor, 0);
 
  public:
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
@@ -986,7 +986,7 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   // translated to a hydrogen code stub, a new CallInterfaceDescriptor
   // should be created that just uses that register for more efficient code.
   CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
-    return VectorLoadICDescriptor(isolate());
+    return LoadWithVectorDescriptor(isolate());
   }
 
   DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
@@ -2077,7 +2077,7 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
       : HydrogenCodeStub(isolate) {}
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
-    return VectorLoadICDescriptor(isolate());
+    return LoadWithVectorDescriptor(isolate());
   }
 
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
@@ -2091,9 +2091,6 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
   InlineCacheState GetICState() const override { return GENERIC; }
 
-  // Since KeyedLoadGeneric stub doesn't miss (simply calls runtime), it
-  // doesn't need to use the VectorLoadICDescriptor for the case when
-  // flag --vector-ics is true.
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
 
   DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
@@ -2120,7 +2117,7 @@ class LoadICTrampolineStub : public PlatformCodeStub {
     return LoadICState(static_cast<ExtraICState>(minor_key_));
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadICTrampoline);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(LoadICTrampoline, PlatformCodeStub);
 };
 
@@ -2171,9 +2168,9 @@ class CallIC_ArrayTrampolineStub : public CallICTrampolineStub {
 };
 
 
-class VectorRawLoadStub : public PlatformCodeStub {
+class LoadICStub : public PlatformCodeStub {
  public:
-  explicit VectorRawLoadStub(Isolate* isolate, const LoadICState& state)
+  explicit LoadICStub(Isolate* isolate, const LoadICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2188,18 +2185,17 @@ class VectorRawLoadStub : public PlatformCodeStub {
     return static_cast<ExtraICState>(minor_key_);
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
-  DEFINE_PLATFORM_CODE_STUB(VectorRawLoad, PlatformCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
+  DEFINE_PLATFORM_CODE_STUB(LoadIC, PlatformCodeStub);
 
  protected:
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 
-class VectorRawKeyedLoadStub : public PlatformCodeStub {
+class KeyedLoadICStub : public PlatformCodeStub {
  public:
-  explicit VectorRawKeyedLoadStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
+  explicit KeyedLoadICStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   void GenerateForTrampoline(MacroAssembler* masm);
 
@@ -2209,8 +2205,8 @@ class VectorRawKeyedLoadStub : public PlatformCodeStub {
 
   virtual InlineCacheState GetICState() const final override { return DEFAULT; }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
-  DEFINE_PLATFORM_CODE_STUB(VectorRawKeyedLoad, PlatformCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
+  DEFINE_PLATFORM_CODE_STUB(KeyedLoadIC, PlatformCodeStub);
 
  protected:
   void GenerateImpl(MacroAssembler* masm, bool in_frame);

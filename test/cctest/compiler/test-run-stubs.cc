@@ -75,16 +75,19 @@ TEST(RunStringLengthTFStub) {
   // Create a function to call the code using the descriptor.
   Graph graph(zone);
   CommonOperatorBuilder common(zone);
-  // FunctionTester (ab)uses a 2-argument function
-  Node* start = graph.NewNode(common.Start(2));
+  // FunctionTester (ab)uses a 4-argument function
+  Node* start = graph.NewNode(common.Start(4));
   // Parameter 0 is the receiver
   Node* receiverParam = graph.NewNode(common.Parameter(1), start);
   Node* nameParam = graph.NewNode(common.Parameter(2), start);
+  Node* slotParam = graph.NewNode(common.Parameter(3), start);
+  Node* vectorParam = graph.NewNode(common.Parameter(4), start);
   Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
   Node* theCode = graph.NewNode(common.HeapConstant(u));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
-  Node* call = graph.NewNode(common.Call(descriptor), theCode, receiverParam,
-                             nameParam, dummyContext, start, start);
+  Node* call =
+      graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
+                    slotParam, vectorParam, dummyContext, start, start);
   Node* ret = graph.NewNode(common.Return(), call, call, start);
   Node* end = graph.NewNode(common.End(), ret);
   graph.SetStart(start);
@@ -96,7 +99,10 @@ TEST(RunStringLengthTFStub) {
   Handle<JSReceiver> receiverArg =
       Object::ToObject(isolate, ft.Val(testString)).ToHandleChecked();
   Handle<String> nameArg = ft.Val("length");
-  Handle<Object> result = ft.Call(receiverArg, nameArg).ToHandleChecked();
+  Handle<Object> slot = ft.Val(0.0);
+  Handle<Object> vector = ft.Val(0.0);
+  Handle<Object> result =
+      ft.Call(receiverArg, nameArg, slot, vector).ToHandleChecked();
   CHECK_EQ(static_cast<int>(strlen(testString)), Smi::cast(*result)->value());
 }
 

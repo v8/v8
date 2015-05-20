@@ -61,9 +61,12 @@ const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
 
 
 void LoadDescriptor::Initialize(CallInterfaceDescriptorData* data) {
-  Register registers[] = {ContextRegister(), ReceiverRegister(),
-                          NameRegister()};
-  data->Initialize(arraysize(registers), registers, NULL);
+  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
+                          SlotRegister()};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Tagged(), Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
 }
 
 
@@ -107,15 +110,7 @@ void MathPowIntegerDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
-void VectorLoadICTrampolineDescriptor::Initialize(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
-                          SlotRegister()};
-  data->Initialize(arraysize(registers), registers, NULL);
-}
-
-
-void VectorLoadICDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+void LoadWithVectorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
                           SlotRegister(), VectorRegister()};
   Representation representations[] = {

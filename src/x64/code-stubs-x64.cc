@@ -527,8 +527,8 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   // Ensure that the vector and slot registers won't be clobbered before
   // calling the miss handler.
-  DCHECK(!AreAliased(r8, r9, VectorLoadICDescriptor::VectorRegister(),
-                     VectorLoadICDescriptor::SlotRegister()));
+  DCHECK(!AreAliased(r8, r9, LoadWithVectorDescriptor::VectorRegister(),
+                     LoadDescriptor::SlotRegister()));
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8,
                                                           r9, &miss);
@@ -912,8 +912,8 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   Register scratch = rdi;
   Register result = rax;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  DCHECK(!scratch.is(VectorLoadICDescriptor::VectorRegister()) &&
-         result.is(VectorLoadICDescriptor::SlotRegister()));
+  DCHECK(!scratch.is(LoadWithVectorDescriptor::VectorRegister()) &&
+         result.is(LoadDescriptor::SlotRegister()));
 
   // StringCharAtGenerator doesn't use the result register until it's passed
   // the different miss possibilities. If it did, we would have a conflict
@@ -2940,8 +2940,8 @@ void StringCharCodeAtGenerator::GenerateSlow(
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   if (embed_mode == PART_OF_IC_HANDLER) {
-    __ Push(VectorLoadICDescriptor::VectorRegister());
-    __ Push(VectorLoadICDescriptor::SlotRegister());
+    __ Push(LoadWithVectorDescriptor::VectorRegister());
+    __ Push(LoadDescriptor::SlotRegister());
   }
   __ Push(object_);
   __ Push(index_);  // Consumed by runtime conversion function.
@@ -2959,8 +2959,8 @@ void StringCharCodeAtGenerator::GenerateSlow(
   }
   __ Pop(object_);
   if (embed_mode == PART_OF_IC_HANDLER) {
-    __ Pop(VectorLoadICDescriptor::SlotRegister());
-    __ Pop(VectorLoadICDescriptor::VectorRegister());
+    __ Pop(LoadDescriptor::SlotRegister());
+    __ Pop(LoadWithVectorDescriptor::VectorRegister());
   }
   // Reload the instance type.
   __ movp(result_, FieldOperand(object_, HeapObject::kMapOffset));
@@ -4365,15 +4365,15 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
-  VectorRawLoadStub stub(isolate(), state());
+  EmitLoadTypeFeedbackVector(masm, LoadWithVectorDescriptor::VectorRegister());
+  LoadICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
 
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
-  VectorRawKeyedLoadStub stub(isolate());
+  EmitLoadTypeFeedbackVector(masm, LoadWithVectorDescriptor::VectorRegister());
+  KeyedLoadICStub stub(isolate());
   stub.GenerateForTrampoline(masm);
 }
 
@@ -4452,21 +4452,19 @@ static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
 }
 
 
-void VectorRawLoadStub::Generate(MacroAssembler* masm) {
-  GenerateImpl(masm, false);
-}
+void LoadICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
 
 
-void VectorRawLoadStub::GenerateForTrampoline(MacroAssembler* masm) {
+void LoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
 
-void VectorRawLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorLoadICDescriptor::ReceiverRegister();  // rdx
-  Register name = VectorLoadICDescriptor::NameRegister();          // rcx
-  Register vector = VectorLoadICDescriptor::VectorRegister();      // rbx
-  Register slot = VectorLoadICDescriptor::SlotRegister();          // rax
+void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = LoadWithVectorDescriptor::ReceiverRegister();  // rdx
+  Register name = LoadWithVectorDescriptor::NameRegister();          // rcx
+  Register vector = LoadWithVectorDescriptor::VectorRegister();      // rbx
+  Register slot = LoadWithVectorDescriptor::SlotRegister();          // rax
   Register feedback = rdi;
   Register integer_slot = r8;
   Register receiver_map = r9;
@@ -4507,21 +4505,21 @@ void VectorRawLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 }
 
 
-void VectorRawKeyedLoadStub::Generate(MacroAssembler* masm) {
+void KeyedLoadICStub::Generate(MacroAssembler* masm) {
   GenerateImpl(masm, false);
 }
 
 
-void VectorRawKeyedLoadStub::GenerateForTrampoline(MacroAssembler* masm) {
+void KeyedLoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
 
-void VectorRawKeyedLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorLoadICDescriptor::ReceiverRegister();  // rdx
-  Register key = VectorLoadICDescriptor::NameRegister();           // rcx
-  Register vector = VectorLoadICDescriptor::VectorRegister();      // rbx
-  Register slot = VectorLoadICDescriptor::SlotRegister();          // rax
+void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = LoadWithVectorDescriptor::ReceiverRegister();  // rdx
+  Register key = LoadWithVectorDescriptor::NameRegister();           // rcx
+  Register vector = LoadWithVectorDescriptor::VectorRegister();      // rbx
+  Register slot = LoadWithVectorDescriptor::SlotRegister();          // rax
   Register feedback = rdi;
   Register integer_slot = r8;
   Register receiver_map = r9;

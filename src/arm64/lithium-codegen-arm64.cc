@@ -3342,8 +3342,8 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   Register vector_register = ToRegister(instr->temp_vector());
-  Register slot_register = VectorLoadICDescriptor::SlotRegister();
-  DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
+  Register slot_register = LoadWithVectorDescriptor::SlotRegister();
+  DCHECK(vector_register.is(LoadWithVectorDescriptor::VectorRegister()));
   DCHECK(slot_register.is(x0));
 
   AllowDeferredHandleDereference vector_structure_check;

@@ -368,15 +368,15 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   ASM_LOCATION("LoadIC::GenerateMiss");
 
-  DCHECK(!AreAliased(x4, x5, VectorLoadICDescriptor::SlotRegister(),
-                     VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(!AreAliased(x4, x5, LoadWithVectorDescriptor::SlotRegister(),
+                     LoadWithVectorDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->load_miss(), 1, x4, x5);
 
   // Perform tail call to the entry.
-  __ Push(VectorLoadICDescriptor::ReceiverRegister(),
-          VectorLoadICDescriptor::NameRegister(),
-          VectorLoadICDescriptor::SlotRegister(),
-          VectorLoadICDescriptor::VectorRegister());
+  __ Push(LoadWithVectorDescriptor::ReceiverRegister(),
+          LoadWithVectorDescriptor::NameRegister(),
+          LoadWithVectorDescriptor::SlotRegister(),
+          LoadWithVectorDescriptor::VectorRegister());
   ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
   int arg_count = 4;
   __ TailCallExternalReference(ref, arg_count, 1);
@@ -440,14 +440,14 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in lr.
   Isolate* isolate = masm->isolate();
 
-  DCHECK(!AreAliased(x10, x11, VectorLoadICDescriptor::SlotRegister(),
-                     VectorLoadICDescriptor::VectorRegister()));
+  DCHECK(!AreAliased(x10, x11, LoadWithVectorDescriptor::SlotRegister(),
+                     LoadWithVectorDescriptor::VectorRegister()));
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, x10, x11);
 
-  __ Push(VectorLoadICDescriptor::ReceiverRegister(),
-          VectorLoadICDescriptor::NameRegister(),
-          VectorLoadICDescriptor::SlotRegister(),
-          VectorLoadICDescriptor::VectorRegister());
+  __ Push(LoadWithVectorDescriptor::ReceiverRegister(),
+          LoadWithVectorDescriptor::NameRegister(),
+          LoadWithVectorDescriptor::SlotRegister(),
+          LoadWithVectorDescriptor::VectorRegister());
 
   // Perform tail call to the entry.
   ExternalReference ref =
@@ -525,8 +525,8 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm, Register key,
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Register vector = VectorLoadICDescriptor::VectorRegister();
-  Register slot = VectorLoadICDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
+  Register slot = LoadWithVectorDescriptor::SlotRegister();
   DCHECK(!AreAliased(vector, slot, scratch1, scratch2, scratch3, scratch4));
   Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
       masm->isolate()->factory()->keyed_load_dummy_vector());

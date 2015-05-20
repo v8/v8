@@ -26,7 +26,7 @@ Callable CodeFactory::LoadICInOptimizedCode(
     InlineCacheState initialization_state) {
   auto code = LoadIC::initialize_stub_in_optimized_code(
       isolate, LoadICState(mode).GetExtraICState(), initialization_state);
-  return Callable(code, VectorLoadICDescriptor(isolate));
+  return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
 
@@ -43,7 +43,7 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
   auto code = KeyedLoadIC::initialize_stub_in_optimized_code(
       isolate, initialization_state);
   if (initialization_state != MEGAMORPHIC) {
-    return Callable(code, VectorLoadICDescriptor(isolate));
+    return Callable(code, LoadWithVectorDescriptor(isolate));
   }
   return Callable(code, LoadDescriptor(isolate));
 }

@@ -760,7 +760,9 @@ TO_NAME = function TO_NAME() {
    -----------------------------------------------
 */
 
-StringLengthTF_STUB = function StringLengthTF_STUB(receiver, name) {
+StringLengthTF_STUB = function StringLengthTF_STUB(receiver, name, i, v) {
+  // i and v are dummy parameters mandated by the InterfaceDescriptor,
+  // (LoadWithVectorDescriptor).
   return %_StringGetLength(%_JSValueGetValue(receiver));
 }
 

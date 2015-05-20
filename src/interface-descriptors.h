@@ -19,8 +19,7 @@ class PlatformInterfaceDescriptor;
   V(StoreTransition)                          \
   V(ElementTransitionAndStore)                \
   V(Instanceof)                               \
-  V(VectorLoadICTrampoline)                   \
-  V(VectorLoadIC)                             \
+  V(LoadWithVector)                           \
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
   V(ToNumber)                                 \
@@ -200,9 +199,10 @@ class LoadDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(LoadDescriptor, CallInterfaceDescriptor)
 
-  enum ParameterIndices { kReceiverIndex, kNameIndex };
+  enum ParameterIndices { kReceiverIndex, kNameIndex, kSlotIndex };
   static const Register ReceiverRegister();
   static const Register NameRegister();
+  static const Register SlotRegister();
 };
 
 
@@ -256,19 +256,9 @@ class InstanceofDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class VectorLoadICTrampolineDescriptor : public LoadDescriptor {
+class LoadWithVectorDescriptor : public LoadDescriptor {
  public:
-  DECLARE_DESCRIPTOR(VectorLoadICTrampolineDescriptor, LoadDescriptor)
-
-  enum ParameterIndices { kReceiverIndex, kNameIndex, kSlotIndex };
-
-  static const Register SlotRegister();
-};
-
-
-class VectorLoadICDescriptor : public VectorLoadICTrampolineDescriptor {
- public:
-  DECLARE_DESCRIPTOR(VectorLoadICDescriptor, VectorLoadICTrampolineDescriptor)
+  DECLARE_DESCRIPTOR(LoadWithVectorDescriptor, LoadDescriptor)
 
   enum ParameterIndices {
     kReceiverIndex,
