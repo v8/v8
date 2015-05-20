@@ -13,6 +13,7 @@ var $arrayUnshift;
 var $innerArrayForEach;
 var $innerArrayEvery;
 var $innerArrayReverse;
+var $innerArraySort;
 
 (function(global, shared, exports) {
 
@@ -867,9 +868,7 @@ function ArraySplice(start, delete_count) {
 }
 
 
-function ArraySort(comparefn) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.sort");
-
+function InnerArraySort(length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
@@ -1114,7 +1113,6 @@ function ArraySort(comparefn) {
     return first_undefined;
   };
 
-  var length = TO_UINT32(this.length);
   if (length < 2) return this;
 
   var is_array = IS_ARRAY(this);
@@ -1150,6 +1148,14 @@ function ArraySort(comparefn) {
   }
 
   return this;
+}
+
+
+function ArraySort(comparefn) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.sort");
+
+  var length = TO_UINT32(this.length);
+  return %_CallFunction(this, length, comparefn, InnerArraySort);
 }
 
 
@@ -1616,5 +1622,6 @@ $arrayUnshift = ArrayUnshift;
 $innerArrayForEach = InnerArrayForEach;
 $innerArrayEvery = InnerArrayEvery;
 $innerArrayReverse = InnerArrayReverse;
+$innerArraySort = InnerArraySort;
 
 });

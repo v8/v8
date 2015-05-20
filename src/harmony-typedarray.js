@@ -100,6 +100,40 @@ function TypedArrayReverse() {
 }
 
 
+function TypedArrayComparefn(x, y) {
+  if ($isNaN(x) && $isNaN(y)) {
+    return $isNaN(y) ? 0 : 1;
+  }
+  if ($isNaN(x)) {
+    return 1;
+  }
+  if (x === 0 && x === y) {
+    if (%_IsMinusZero(x)) {
+      if (!%_IsMinusZero(y)) {
+        return -1;
+      }
+    } else if (%_IsMinusZero(y)) {
+      return 1;
+    }
+  }
+  return x - y;
+}
+
+
+// ES6 draft 05-18-15, section 22.2.3.25
+function TypedArraySort(comparefn) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  if (IS_UNDEFINED(comparefn)) {
+    comparefn = TypedArrayComparefn;
+  }
+
+  return %_CallFunction(this, length, comparefn, $innerArraySort);
+}
+
+
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = %_ArgumentsLength();
@@ -150,7 +184,8 @@ macro EXTEND_TYPED_ARRAY(NAME)
     "find", TypedArrayFind,
     "findIndex", TypedArrayFindIndex,
     "fill", TypedArrayFill,
-    "reverse", TypedArrayReverse
+    "reverse", TypedArrayReverse,
+    "sort", TypedArraySort
   ]);
 endmacro
 
