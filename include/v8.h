@@ -835,8 +835,11 @@ class Global : public PersistentBase<T> {
   typedef void MoveOnlyTypeForCPP03;
 
  private:
+  template <class F>
+  friend class ReturnValue;
   Global(Global&) = delete;
   void operator=(Global&) = delete;
+  V8_INLINE T* operator*() const { return this->val_; }
 };
 
 
@@ -2973,8 +2976,13 @@ class ReturnValue {
     TYPE_CHECK(T, S);
   }
   // Handle setters
-  template <typename S> V8_INLINE void Set(const Persistent<S>& handle);
-  template <typename S> V8_INLINE void Set(const Handle<S> handle);
+  template <typename S>
+  V8_INLINE V8_DEPRECATE_SOON("Use Global<> instead",
+                              void Set(const Persistent<S>& handle));
+  template <typename S>
+  V8_INLINE void Set(const Global<S>& handle);
+  template <typename S>
+  V8_INLINE void Set(const Local<S> handle);
   // Fast primitive setters
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
@@ -7130,9 +7138,20 @@ void ReturnValue<T>::Set(const Persistent<S>& handle) {
   }
 }
 
-template<typename T>
-template<typename S>
-void ReturnValue<T>::Set(const Handle<S> handle) {
+template <typename T>
+template <typename S>
+void ReturnValue<T>::Set(const Global<S>& handle) {
+  TYPE_CHECK(T, S);
+  if (V8_UNLIKELY(handle.IsEmpty())) {
+    *value_ = GetDefaultValue();
+  } else {
+    *value_ = *reinterpret_cast<internal::Object**>(*handle);
+  }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::Set(const Local<S> handle) {
   TYPE_CHECK(T, S);
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
