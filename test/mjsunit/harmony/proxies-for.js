@@ -165,4 +165,13 @@ TestForInThrow(Proxy.create({
   get: function(pr, pk) {
     return function() { throw "myexn" }
   }
-}))
+}));
+
+(function() {
+  var p = Proxy.create({enumerate:function() { return [0]; }});
+  var o = [0];
+  o.__proto__ = p;
+  var keys = [];
+  for (var k in o) { keys.push(k); };
+  assertEquals(["0"], keys);
+})();

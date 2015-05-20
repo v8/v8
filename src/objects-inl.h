@@ -275,6 +275,24 @@ bool Object::HasValidElements() {
 }
 
 
+bool Object::KeyEquals(Object* second) {
+  Object* first = this;
+  if (second->IsNumber()) {
+    if (first->IsNumber()) return first->Number() == second->Number();
+    Object* temp = first;
+    first = second;
+    second = temp;
+  }
+  if (first->IsNumber()) {
+    DCHECK_LE(0, first->Number());
+    uint32_t expected = static_cast<uint32_t>(first->Number());
+    uint32_t index;
+    return Name::cast(second)->AsArrayIndex(&index) && index == expected;
+  }
+  return Name::cast(first)->Equals(Name::cast(second));
+}
+
+
 Handle<Object> Object::NewStorageFor(Isolate* isolate,
                                      Handle<Object> object,
                                      Representation representation) {

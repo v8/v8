@@ -8203,8 +8203,7 @@ MaybeHandle<FixedArray> FixedArray::AddKeysFromArrayLike(
   Handle<FixedArray> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       array->GetIsolate(), result,
-      accessor->AddElementsToFixedArray(array, array, content, filter),
-      FixedArray);
+      accessor->AddElementsToFixedArray(array, content, filter), FixedArray);
 
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
@@ -8221,25 +8220,27 @@ MaybeHandle<FixedArray> FixedArray::AddKeysFromArrayLike(
 
 MaybeHandle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
                                                 Handle<FixedArray> second) {
-  ElementsAccessor* accessor = ElementsAccessor::ForArray(second);
-  Handle<FixedArray> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      first->GetIsolate(), result,
-      accessor->AddElementsToFixedArray(
-          Handle<Object>::null(),    // receiver
-          Handle<JSObject>::null(),  // holder
-          first, Handle<FixedArrayBase>::cast(second), ALL_KEYS),
-      FixedArray);
-
-#ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
-    DisallowHeapAllocation no_allocation;
-    for (int i = 0; i < result->length(); i++) {
-      Object* current = result->get(i);
-      DCHECK(current->IsNumber() || current->IsName());
+  if (second->length() == 0) return first;
+  if (first->length() == 0) return second;
+  Isolate* isolate = first->GetIsolate();
+  Handle<FixedArray> result =
+      isolate->factory()->NewFixedArray(first->length() + second->length());
+  for (int i = 0; i < first->length(); i++) {
+    result->set(i, first->get(i));
+  }
+  int pos = first->length();
+  for (int j = 0; j < second->length(); j++) {
+    Object* current = second->get(j);
+    int i;
+    for (i = 0; i < first->length(); i++) {
+      if (current->KeyEquals(first->get(i))) break;
+    }
+    if (i == first->length()) {
+      result->set(pos++, current);
     }
   }
-#endif
+
+  result->Shrink(pos);
   return result;
 }
 

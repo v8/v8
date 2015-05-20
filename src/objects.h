@@ -1107,6 +1107,11 @@ class Object {
     return true;
   }
 
+  // Checks whether two valid primitive encodings of a property name resolve to
+  // the same logical property. E.g., the smi 1, the string "1" and the double
+  // 1 all refer to the same property, so this helper will return true.
+  inline bool KeyEquals(Object* other);
+
   Handle<HeapType> OptimalType(Isolate* isolate, Representation representation);
 
   inline static Handle<Object> NewStorageFor(Isolate* isolate,

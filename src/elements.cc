@@ -130,11 +130,7 @@ static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
   int len0 = array->length();
   for (int i = 0; i < len0; i++) {
     Object* element = array->get(i);
-    if (element->IsSmi() && element == key) return true;
-    if (element->IsString() &&
-        key->IsString() && String::cast(element)->Equals(String::cast(key))) {
-      return true;
-    }
+    if (key->KeyEquals(element)) return true;
   }
   return false;
 }
@@ -738,8 +734,10 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
-      Handle<Object> receiver, Handle<JSObject> holder, Handle<FixedArray> to,
-      Handle<FixedArrayBase> from, FixedArray::KeyFilter filter) final {
+      Handle<JSObject> receiver, Handle<FixedArray> to,
+      FixedArray::KeyFilter filter) final {
+    Handle<FixedArrayBase> from(receiver->elements());
+
     int len0 = to->length();
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
@@ -751,7 +749,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // Optimize if 'other' is empty.
     // We cannot optimize if 'this' is empty, as other may have holes.
-    uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(holder, from);
+    uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(receiver, from);
     if (len1 == 0) return to;
 
     Isolate* isolate = from->GetIsolate();
@@ -760,11 +758,11 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t extra = 0;
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key = ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
-      if (ElementsAccessorSubclass::HasElementImpl(holder, key, from)) {
+      if (ElementsAccessorSubclass::HasElementImpl(receiver, key, from)) {
         Handle<Object> value;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value,
-            ElementsAccessorSubclass::GetImpl(receiver, holder, key, from),
+            ElementsAccessorSubclass::GetImpl(receiver, receiver, key, from),
             FixedArray);
 
         DCHECK(!value->IsTheHole());
@@ -797,11 +795,11 @@ class ElementsAccessorBase : public ElementsAccessor {
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key =
           ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
-      if (ElementsAccessorSubclass::HasElementImpl(holder, key, from)) {
+      if (ElementsAccessorSubclass::HasElementImpl(receiver, key, from)) {
         Handle<Object> value;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value,
-            ElementsAccessorSubclass::GetImpl(receiver, holder, key, from),
+            ElementsAccessorSubclass::GetImpl(receiver, receiver, key, from),
             FixedArray);
         if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
           continue;
