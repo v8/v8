@@ -295,7 +295,7 @@ Reduction JSInliner::Reduce(Node* node) {
 
   Handle<JSFunction> function = match.Value().handle();
   if (!function->IsJSFunction()) return NoChange();
-  if (mode_ == kBuiltinsInlining && !function->shared()->inline_builtin()) {
+  if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
     return NoChange();
   }
 

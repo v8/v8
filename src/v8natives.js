@@ -1753,7 +1753,7 @@ InstallFunctions(GlobalNumber, DONT_ENUM, [
   "parseFloat", GlobalParseFloat
 ]);
 
-%SetInlineBuiltinFlag(NumberIsNaN);
+%SetForceInlineFlag(NumberIsNaN);
 
 
 // ----------------------------------------------------------------------------

@@ -5785,8 +5785,7 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_super_property,
                kUsesSuperProperty)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
-               kInlineBuiltin)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,
                kNameShouldPrintAsAnonymous)

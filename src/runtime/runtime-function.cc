@@ -311,14 +311,14 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetInlineBuiltinFlag) {
+RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(*object);
-    func->shared()->set_inline_builtin(true);
+    func->shared()->set_force_inline(true);
   }
   return isolate->heap()->undefined_value();
 }

@@ -344,18 +344,18 @@ $installFunctions(Math, DONT_ENUM, [
   "cbrt", MathCbrt
 ]);
 
-%SetInlineBuiltinFlag(MathAbs);
-%SetInlineBuiltinFlag(MathAcosJS);
-%SetInlineBuiltinFlag(MathAsinJS);
-%SetInlineBuiltinFlag(MathAtanJS);
-%SetInlineBuiltinFlag(MathAtan2JS);
-%SetInlineBuiltinFlag(MathCeil);
-%SetInlineBuiltinFlag(MathClz32JS);
-%SetInlineBuiltinFlag(MathFloorJS);
-%SetInlineBuiltinFlag(MathRandom);
-%SetInlineBuiltinFlag(MathSign);
-%SetInlineBuiltinFlag(MathSqrtJS);
-%SetInlineBuiltinFlag(MathTrunc);
+%SetForceInlineFlag(MathAbs);
+%SetForceInlineFlag(MathAcosJS);
+%SetForceInlineFlag(MathAsinJS);
+%SetForceInlineFlag(MathAtanJS);
+%SetForceInlineFlag(MathAtan2JS);
+%SetForceInlineFlag(MathCeil);
+%SetForceInlineFlag(MathClz32JS);
+%SetForceInlineFlag(MathFloorJS);
+%SetForceInlineFlag(MathRandom);
+%SetForceInlineFlag(MathSign);
+%SetForceInlineFlag(MathSqrtJS);
+%SetForceInlineFlag(MathTrunc);
 
 // Expose to the global scope.
 $abs = MathAbs;

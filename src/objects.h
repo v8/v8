@@ -7093,8 +7093,8 @@ class SharedFunctionInfo: public HeapObject {
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
 
-  // Indicate that this builtin needs to be inlined in crankshaft.
-  DECL_BOOLEAN_ACCESSORS(inline_builtin)
+  // Indicate that this function should always be inlined in optimized code.
+  DECL_BOOLEAN_ACCESSORS(force_inline)
 
   // Indicates that the function was created by the Function function.
   // Though it's anonymous, toString should treat it as if it had the name
@@ -7372,7 +7372,7 @@ class SharedFunctionInfo: public HeapObject {
     kUsesSuperProperty,
     kHasDuplicateParameters,
     kNative,
-    kInlineBuiltin,
+    kForceInline,
     kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,

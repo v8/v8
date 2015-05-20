@@ -17,7 +17,7 @@ struct Inlinee;
 
 class JSInliner final : public AdvancedReducer {
  public:
-  enum Mode { kBuiltinsInlining, kGeneralInlining };
+  enum Mode { kRestrictedInlining, kGeneralInlining };
 
   JSInliner(Editor* editor, Mode mode, Zone* local_zone, CompilationInfo* info,
             JSGraph* jsgraph)

@@ -125,10 +125,9 @@ class CompilationInfo {
     kTypingEnabled = 1 << 11,
     kDisableFutureOptimization = 1 << 12,
     kSplittingEnabled = 1 << 13,
-    kBuiltinInliningEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15,
-    kDeoptimizationEnabled = 1 << 16,
-    kSourcePositionsEnabled = 1 << 17
+    kTypeFeedbackEnabled = 1 << 14,
+    kDeoptimizationEnabled = 1 << 15,
+    kSourcePositionsEnabled = 1 << 16
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -237,12 +236,6 @@ class CompilationInfo {
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
 
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
-
-  void MarkAsBuiltinInliningEnabled() { SetFlag(kBuiltinInliningEnabled); }
-
-  bool is_builtin_inlining_enabled() const {
-    return GetFlag(kBuiltinInliningEnabled);
-  }
 
   void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
 

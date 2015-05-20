@@ -1024,7 +1024,7 @@ $installFunctions(GlobalMath, DONT_ENUM, [
   "expm1", MathExpm1
 ]);
 
-%SetInlineBuiltinFlag(MathSin);
-%SetInlineBuiltinFlag(MathCos);
+%SetForceInlineFlag(MathSin);
+%SetForceInlineFlag(MathCos);
 
 })

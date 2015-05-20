@@ -503,7 +503,7 @@ struct InliningPhase {
     GraphReducer graph_reducer(data->graph(), temp_zone);
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
                                           ? JSInliner::kGeneralInlining
-                                          : JSInliner::kBuiltinsInlining,
+                                          : JSInliner::kRestrictedInlining,
                       temp_zone, data->info(), data->jsgraph());
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
@@ -1010,10 +1010,8 @@ Handle<Code> Pipeline::GenerateCode() {
     RunPrintAndVerify("Context specialized", true);
   }
 
-  if (info()->is_builtin_inlining_enabled() || info()->is_inlining_enabled()) {
-    Run<InliningPhase>();
-    RunPrintAndVerify("Inlined", true);
-  }
+  Run<InliningPhase>();
+  RunPrintAndVerify("Inlined", true);
 
   if (FLAG_print_turbo_replay) {
     // Print a replay of the initial graph.

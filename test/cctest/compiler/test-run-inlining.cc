@@ -40,9 +40,8 @@ void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
 }
 
 
-const uint32_t kBuiltinInlineFlags = CompilationInfo::kBuiltinInliningEnabled |
-                                     CompilationInfo::kContextSpecializing |
-                                     CompilationInfo::kTypingEnabled;
+const uint32_t kRestrictedInliningFlags =
+    CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled;
 
 const uint32_t kInlineFlags = CompilationInfo::kInliningEnabled |
                               CompilationInfo::kContextSpecializing |
@@ -499,10 +498,10 @@ TEST(InlineBuiltin) {
       "(function () {"
       "  function foo(s,t,u) { AssertInlineCount(2); return true; }"
       "  function bar() { return foo(); };"
-      "  %SetInlineBuiltinFlag(foo);"
+      "  %SetForceInlineFlag(foo);"
       "  return bar;"
       "})();",
-      kBuiltinInlineFlags);
+      kRestrictedInliningFlags);
 
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.true_value());
@@ -516,11 +515,11 @@ TEST(InlineNestedBuiltin) {
       "  function foo(s,t,u) { AssertInlineCount(3); return true; }"
       "  function baz(s,t,u) { return foo(s,t,u); }"
       "  function bar() { return baz(); };"
-      "  %SetInlineBuiltinFlag(foo);"
-      "  %SetInlineBuiltinFlag(baz);"
+      "  %SetForceInlineFlag(foo);"
+      "  %SetForceInlineFlag(baz);"
       "  return bar;"
       "})();",
-      kBuiltinInlineFlags);
+      kRestrictedInliningFlags);
 
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.true_value());
