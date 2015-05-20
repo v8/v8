@@ -343,6 +343,8 @@ def ProcessOptions(options):
     # Buildbots run presubmit tests as a separate step.
     options.no_presubmit = True
     options.no_network = True
+  if options.download_data_only:
+    options.no_presubmit = True
   if options.command_prefix:
     print("Specifying --command-prefix disables network distribution, "
           "running tests locally.")
