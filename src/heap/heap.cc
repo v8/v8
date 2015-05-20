@@ -725,6 +725,7 @@ void Heap::GarbageCollectionEpilogue() {
   // Remember the last top pointer so that we can later find out
   // whether we allocated in new space since the last GC.
   new_space_top_after_last_gc_ = new_space()->top();
+  last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 }
 
 
@@ -4612,6 +4613,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       static_cast<size_t>(idle_time_in_ms) >
       GCIdleTimeHandler::kMaxFrameRenderingIdleTime;
 
+  static const double kLastGCTimeTreshold = 1000;
+
   GCIdleTimeHandler::HeapState heap_state;
   heap_state.contexts_disposed = contexts_disposed_;
   heap_state.contexts_disposal_rate =
@@ -4620,7 +4623,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
   intptr_t limit = old_generation_allocation_limit_;
-  if (is_long_idle_notification) {
+  if (is_long_idle_notification &&
+      (start_ms - last_gc_time_ > kLastGCTimeTreshold)) {
     limit = idle_old_generation_allocation_limit_;
   }
 

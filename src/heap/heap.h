@@ -2142,14 +2142,17 @@ class Heap {
   // Minimal interval between two subsequent collections.
   double min_in_mutator_;
 
-  // Cumulative GC time spent in marking
+  // Cumulative GC time spent in marking.
   double marking_time_;
 
-  // Cumulative GC time spent in sweeping
+  // Cumulative GC time spent in sweeping.
   double sweeping_time_;
 
-  // Last time an idle notification happened
+  // Last time an idle notification happened.
   double last_idle_notification_time_;
+
+  // Last time a garbage collection happened.
+  double last_gc_time_;
 
   MarkCompactCollector mark_compact_collector_;
 
