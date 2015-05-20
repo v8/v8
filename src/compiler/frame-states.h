@@ -101,6 +101,13 @@ size_t hash_value(FrameStateCallInfo const&);
 
 std::ostream& operator<<(std::ostream&, FrameStateCallInfo const&);
 
+static const int kFrameStateParametersInput = 0;
+static const int kFrameStateLocalsInput = 1;
+static const int kFrameStateStackInput = 2;
+static const int kFrameStateContextInput = 3;
+static const int kFrameStateFunctionInput = 4;
+static const int kFrameStateOuterStateInput = 5;
+static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
 
 }  // namespace compiler
 }  // namespace internal

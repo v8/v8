@@ -264,10 +264,13 @@ class JSBinopReduction final {
         state_info.type(), state_info.bailout_id(),
         OutputFrameStateCombine::PokeAt(1));
 
-    return graph()->NewNode(op, frame_state->InputAt(0),
-                            frame_state->InputAt(1), frame_state->InputAt(2),
-                            frame_state->InputAt(3), frame_state->InputAt(4),
-                            frame_state->InputAt(5));
+    return graph()->NewNode(op,
+                            frame_state->InputAt(kFrameStateParametersInput),
+                            frame_state->InputAt(kFrameStateLocalsInput),
+                            frame_state->InputAt(kFrameStateStackInput),
+                            frame_state->InputAt(kFrameStateContextInput),
+                            frame_state->InputAt(kFrameStateFunctionInput),
+                            frame_state->InputAt(kFrameStateOuterStateInput));
   }
 
   Node* CreateFrameStateForRightInput(Node* frame_state, Node* converted_left) {
@@ -302,10 +305,12 @@ class JSBinopReduction final {
     Node* new_stack =
         graph()->NewNode(stack->op(), stack->InputCount(), &new_values.front());
 
-    return graph()->NewNode(op, frame_state->InputAt(0),
-                            frame_state->InputAt(1), new_stack,
-                            frame_state->InputAt(3), frame_state->InputAt(4),
-                            frame_state->InputAt(5));
+    return graph()->NewNode(
+        op, frame_state->InputAt(kFrameStateParametersInput),
+        frame_state->InputAt(kFrameStateLocalsInput), new_stack,
+        frame_state->InputAt(kFrameStateContextInput),
+        frame_state->InputAt(kFrameStateFunctionInput),
+        frame_state->InputAt(kFrameStateOuterStateInput));
   }
 
   Node* ConvertPlainPrimitiveToNumber(Node* node) {
