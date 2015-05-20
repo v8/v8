@@ -891,12 +891,12 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions
   // will never be emitted by the JIT, so checking for the first one is enough:
   // 0: ldr xzr, #<size of pool>
-  bool result = instr->IsLdrLiteralX() && (instr->Rt() == xzr.code());
+  bool result = instr->IsLdrLiteralX() && (instr->Rt() == kZeroRegCode);
 
   // It is still worth asserting the marker is complete.
   // 4: blr xzr
   DCHECK(!result || (instr->following()->IsBranchAndLinkToRegister() &&
-                     instr->following()->Rn() == xzr.code()));
+                     instr->following()->Rn() == kZeroRegCode));
 
   return result;
 }

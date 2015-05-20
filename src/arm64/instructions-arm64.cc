@@ -319,7 +319,7 @@ void Instruction::SetImmLLiteral(Instruction* source) {
 bool InstructionSequence::IsInlineData() const {
   // Inline data is encoded as a single movz instruction which writes to xzr
   // (x31).
-  return IsMovz() && SixtyFourBits() && (Rd() == xzr.code());
+  return IsMovz() && SixtyFourBits() && (Rd() == kZeroRegCode);
   // TODO(all): If we extend ::InlineData() to support bigger data, we need
   // to update this method too.
 }

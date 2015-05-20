@@ -867,8 +867,8 @@ bool RelocInfo::IsPatchedReturnSequence() {
   // See arm64/debug-arm64.cc BreakLocation::SetDebugBreakAtReturn().
   Instruction* i1 = reinterpret_cast<Instruction*>(pc_);
   Instruction* i2 = i1->following();
-  return i1->IsLdrLiteralX() && (i1->Rt() == ip0.code()) &&
-         i2->IsBranchAndLinkToRegister() && (i2->Rn() == ip0.code());
+  return i1->IsLdrLiteralX() && (i1->Rt() == kIp0Code) &&
+         i2->IsBranchAndLinkToRegister() && (i2->Rn() == kIp0Code);
 }
 
 
