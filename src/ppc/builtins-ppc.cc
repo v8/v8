@@ -1778,7 +1778,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ beq(&no_strong_error, cr0);
 
     // What we really care about is the required number of arguments.
-    __ lwa(r7, FieldMemOperand(r7, SharedFunctionInfo::kLengthOffset));
+    __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kLengthOffset));
 #if V8_TARGET_ARCH_PPC64
     // See commment near kLenghtOffset in src/objects.h
     __ srawi(r7, r7, kSmiTagSize);
