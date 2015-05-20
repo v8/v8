@@ -134,6 +134,29 @@ function TypedArraySort(comparefn) {
 }
 
 
+// ES6 section 22.2.3.13
+function TypedArrayIndexOf(element, index) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  return %_CallFunction(this, element, index, length, $innerArrayIndexOf);
+}
+%FunctionSetLength(TypedArrayIndexOf, 1);
+
+
+// ES6 section 22.2.3.16
+function TypedArrayLastIndexOf(element, index) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  return %_CallFunction(this, element, index, length,
+                        %_ArgumentsLength(), $innerArrayLastIndexOf);
+}
+%FunctionSetLength(TypedArrayLastIndexOf, 1);
+
+
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = %_ArgumentsLength();
@@ -184,6 +207,8 @@ macro EXTEND_TYPED_ARRAY(NAME)
     "find", TypedArrayFind,
     "findIndex", TypedArrayFindIndex,
     "fill", TypedArrayFill,
+    "indexOf", TypedArrayIndexOf,
+    "lastIndexOf", TypedArrayLastIndexOf,
     "reverse", TypedArrayReverse,
     "sort", TypedArraySort
   ]);

@@ -12,6 +12,8 @@ var $arraySplice;
 var $arrayUnshift;
 var $innerArrayForEach;
 var $innerArrayEvery;
+var $innerArrayIndexOf;
+var $innerArrayLastIndexOf;
 var $innerArrayReverse;
 var $innerArraySort;
 
@@ -1332,10 +1334,11 @@ function ArrayMap(f, receiver) {
 }
 
 
-function ArrayIndexOf(element, index) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.indexOf");
-
-  var length = TO_UINT32(this.length);
+// For .indexOf, we don't need to pass in the number of arguments
+// at the callsite since ToInteger(undefined) == 0; however, for
+// .lastIndexOf, we need to pass it, since the behavior for passing
+// undefined is 0 but for not including the argument is length-1.
+function InnerArrayIndexOf(element, index, length) {
   if (length == 0) return -1;
   if (IS_UNDEFINED(index)) {
     index = 0;
@@ -1389,12 +1392,17 @@ function ArrayIndexOf(element, index) {
 }
 
 
-function ArrayLastIndexOf(element, index) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
+function ArrayIndexOf(element, index) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.indexOf");
 
   var length = TO_UINT32(this.length);
+  return %_CallFunction(this, element, index, length, InnerArrayIndexOf);
+}
+
+
+function InnerArrayLastIndexOf(element, index, length, argumentsLength) {
   if (length == 0) return -1;
-  if (%_ArgumentsLength() < 2) {
+  if (argumentsLength < 2) {
     index = length - 1;
   } else {
     index = TO_INTEGER(index);
@@ -1439,6 +1447,15 @@ function ArrayLastIndexOf(element, index) {
     }
   }
   return -1;
+}
+
+
+function ArrayLastIndexOf(element, index) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
+
+  var length = TO_UINT32(this.length);
+  return %_CallFunction(this, element, index, length,
+                        %_ArgumentsLength(), InnerArrayLastIndexOf);
 }
 
 
@@ -1621,6 +1638,8 @@ $arrayUnshift = ArrayUnshift;
 
 $innerArrayForEach = InnerArrayForEach;
 $innerArrayEvery = InnerArrayEvery;
+$innerArrayIndexOf = InnerArrayIndexOf;
+$innerArrayLastIndexOf = InnerArrayLastIndexOf;
 $innerArrayReverse = InnerArrayReverse;
 $innerArraySort = InnerArraySort;
 
