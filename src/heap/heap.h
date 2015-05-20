@@ -1093,7 +1093,10 @@ class Heap {
 
   inline intptr_t PromotedTotalSize() {
     int64_t total = PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
-    if (total > kMaxInt) return static_cast<intptr_t>(kMaxInt);
+    if (total > std::numeric_limits<intptr_t>::max()) {
+      // TODO(erikcorry): Use uintptr_t everywhere we do heap size calculations.
+      return std::numeric_limits<intptr_t>::max();
+    }
     if (total < 0) return 0;
     return static_cast<intptr_t>(total);
   }
