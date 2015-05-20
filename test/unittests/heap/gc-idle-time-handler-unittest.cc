@@ -67,7 +67,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
       GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
       EXPECT_EQ(expected, action.type);
       EXPECT_TRUE(action.reduce_memory);
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
       handler()->NotifyIdleMarkCompact();
     }
     handler()->Compute(idle_time_ms, heap_state);
@@ -82,7 +82,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     for (int i = 0; i < limit; i++) {
       GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
       EXPECT_EQ(DONE, action.type);
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
     }
     handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
@@ -462,7 +462,7 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
   for (int i = 0; i < kMaxNotifications && !stopped; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     if (action.type == DO_INCREMENTAL_MARKING || action.type == DO_FULL_GC) {
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
       handler()->NotifyIdleMarkCompact();
     }
     if (action.type == DONE) stopped = true;
@@ -579,7 +579,7 @@ TEST_F(GCIdleTimeHandlerTest, StayInReduceLatencyModeBecauseOfMarkCompacts) {
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
-    if ((i + 1) % limit == 0) handler()->NotifyMarkCompact();
+    if ((i + 1) % limit == 0) handler()->NotifyMarkCompact(true);
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
   }
 }
@@ -604,7 +604,7 @@ TEST_F(GCIdleTimeHandlerTest, ReduceMemoryToReduceLatency) {
       // ReduceMemory mode should tolerate one mutator GC per idle GC.
       handler()->NotifyScavenge();
       // Notify idle GC.
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
       handler()->NotifyIdleMarkCompact();
     }
     // Transition to ReduceLatency mode after doing |idle_gc| idle GCs.
@@ -635,7 +635,7 @@ TEST_F(GCIdleTimeHandlerTest, ReduceMemoryToDone) {
     // ReduceMemory mode should tolerate one mutator GC per idle GC.
     handler()->NotifyScavenge();
     // Notify idle GC.
-    handler()->NotifyMarkCompact();
+    handler()->NotifyMarkCompact(true);
     handler()->NotifyIdleMarkCompact();
   }
   action = handler()->Compute(idle_time_ms, heap_state);
@@ -696,6 +696,22 @@ TEST_F(GCIdleTimeHandlerTest, BackgroundReduceLatencyToReduceMemory) {
   }
   handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(GCIdleTimeHandler::kReduceMemory, handler()->mode());
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, SkipUselessGCs) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = false;
+  heap_state.can_start_incremental_marking = true;
+  TransitionToReduceMemoryMode(heap_state);
+  EXPECT_EQ(GCIdleTimeHandler::kReduceMemory, handler()->mode());
+  double idle_time_ms = GCIdleTimeHandler::kMinLongIdleTime;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  handler()->NotifyMarkCompact(false);
+  handler()->NotifyIdleMarkCompact();
+  action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DONE, action.type);
 }
 
 }  // namespace internal

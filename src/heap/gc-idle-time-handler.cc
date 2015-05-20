@@ -399,7 +399,8 @@ GCIdleTimeHandler::Mode GCIdleTimeHandler::NextMode(
       }
       break;
     case kReduceMemory:
-      if (idle_mark_compacts_ >= kMaxIdleMarkCompacts) {
+      if (idle_mark_compacts_ >= kMaxIdleMarkCompacts ||
+          (idle_mark_compacts_ > 0 && !next_gc_likely_to_collect_more_)) {
         return kDone;
       }
       if (mutator_gcs > idle_mark_compacts_) {

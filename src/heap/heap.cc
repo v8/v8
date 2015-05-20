@@ -932,7 +932,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     }
 
     if (collector == MARK_COMPACTOR) {
-      gc_idle_time_handler_.NotifyMarkCompact();
+      gc_idle_time_handler_.NotifyMarkCompact(next_gc_likely_to_collect_more);
     } else {
       gc_idle_time_handler_.NotifyScavenge();
     }

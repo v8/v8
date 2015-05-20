@@ -197,13 +197,17 @@ class GCIdleTimeHandler {
         long_idle_notifications_(0),
         background_idle_notifications_(0),
         idle_times_which_made_no_progress_per_mode_(0),
+        next_gc_likely_to_collect_more_(false),
         mode_(kReduceLatency) {}
 
   GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
 
   void NotifyIdleMarkCompact() { ++idle_mark_compacts_; }
 
-  void NotifyMarkCompact() { ++mark_compacts_; }
+  void NotifyMarkCompact(bool next_gc_likely_to_collect_more) {
+    next_gc_likely_to_collect_more_ = next_gc_likely_to_collect_more;
+    ++mark_compacts_;
+  }
 
   void NotifyScavenge() { ++scavenges_; }
 
@@ -260,6 +264,8 @@ class GCIdleTimeHandler {
   int background_idle_notifications_;
   // Idle notifications with no progress in the current mode.
   int idle_times_which_made_no_progress_per_mode_;
+
+  bool next_gc_likely_to_collect_more_;
 
   Mode mode_;
 
