@@ -1625,7 +1625,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   // This is currently guaranteed by checks in StoreIC::Store.
   Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-  DCHECK(!receiver->IsAccessCheckNeeded());
+  DCHECK(!receiver->IsAccessCheckNeeded() ||
+         isolate()->IsInternallyUsedPropertyName(lookup->name()));
 
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
