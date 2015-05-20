@@ -1007,7 +1007,7 @@ class Parser : public ParserBase<ParserTraits> {
       current_value_ = old_value;
     }
 
-    Variable* CreateTempVar(Expression* value);
+    Variable* CreateTempVar(Expression* value = nullptr);
 
     AstNodeFactory* factory() const { return descriptor_->parser->factory(); }
     AstValueFactory* ast_value_factory() const {
@@ -1054,6 +1054,12 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneList<const AstRawString*>* labels, bool* ok);
+
+  // !%_IsSpecObject(result = iterator.next()) &&
+  //     %ThrowIteratorResultNotAnObject(result)
+  Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
+                                      int pos);
+
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,

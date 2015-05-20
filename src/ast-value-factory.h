@@ -169,6 +169,8 @@ class AstValue : public ZoneObject {
 
   bool BooleanValue() const;
 
+  bool IsTheHole() const { return type_ == THE_HOLE; }
+
   void Internalize(Isolate* isolate);
 
   // Can be called after Internalize has been called.

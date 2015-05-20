@@ -388,3 +388,183 @@
                  TypeError);
   }
 }());
+
+
+(function TestArrayLiteral() {
+  var [a, b, c] = [1, 2, 3];
+  assertSame(1, a);
+  assertSame(2, b);
+  assertSame(3, c);
+}());
+
+(function TestIterators() {
+  var log = [];
+  function* f() {
+    log.push("1");
+    yield 1;
+    log.push("2");
+    yield 2;
+    log.push("3");
+    yield 3;
+    log.push("done");
+  };
+
+  (function() {
+    log = [];
+    var [a, b, c] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertArrayEquals(["1", "2", "3"], log);
+  }());
+
+  (function() {
+    log = [];
+    var [a, b, c, d] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertSame(undefined, d);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    var [a, , c] = f();
+    assertSame(1, a);
+    assertSame(3, c);
+    assertArrayEquals(["1", "2", "3"], log);
+  }());
+
+  (function() {
+    log = [];
+    var [a, , c, d] = f();
+    assertSame(1, a);
+    assertSame(3, c);
+    assertSame(undefined, d);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    // last comma is not an elision.
+    var [a, b,] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertArrayEquals(["1", "2"], log);
+  }());
+
+  (function() {
+    log = [];
+    // last comma is not an elision, but the comma before the last is.
+    var [a, b, ,] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertArrayEquals(["1", "2", "3"], log);
+  }());
+
+}());
+
+
+(function TestIteratorsLexical() {
+  'use strict';
+  var log = [];
+  function* f() {
+    log.push("1");
+    yield 1;
+    log.push("2");
+    yield 2;
+    log.push("3");
+    yield 3;
+    log.push("done");
+  };
+
+  (function() {
+    log = [];
+    let [a, b, c] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertArrayEquals(["1", "2", "3"], log);
+  }());
+
+  (function() {
+    log = [];
+    let [a, b, c, d] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertSame(undefined, d);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    let [a, , c] = f();
+    assertSame(1, a);
+    assertSame(3, c);
+    assertArrayEquals(["1", "2", "3"], log);
+  }());
+
+  (function() {
+    log = [];
+    let [a, , c, d] = f();
+    assertSame(1, a);
+    assertSame(3, c);
+    assertSame(undefined, d);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    // last comma is not an elision.
+    let [a, b,] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertArrayEquals(["1", "2"], log);
+  }());
+
+  (function() {
+    log = [];
+    // last comma is not an elision, but the comma before the last is.
+    let [a, b, ,] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertArrayEquals(["1", "2", "3"], log);
+  }());
+
+}());
+
+(function TestIteratorsRecursive() {
+
+  var log = [];
+  function* f() {
+    log.push("1");
+    yield {x : 1, y : 2};
+    log.push("2");
+    yield [42, 27, 30];
+    log.push("3");
+    yield "abc";
+    log.push("done");
+  };
+
+  (function() {
+    var [{x, y}, [a, b]] = f();
+    assertSame(1, x);
+    assertSame(2, y);
+    assertSame(42, a);
+    assertSame(27, b);
+    assertArrayEquals(["1", "2"], log);
+  }());
+
+  (function() {
+    'use strict';
+    log = [];
+    let [{x, y}, [a, b]] = f();
+    assertSame(1, x);
+    assertSame(2, y);
+    assertSame(42, a);
+    assertSame(27, b);
+    assertArrayEquals(["1", "2"], log);
+  }());
+}());
