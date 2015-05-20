@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_OPCODES_H_
 #define V8_COMPILER_OPCODES_H_
 
+#include <iosfwd>
+
 // Opcodes for control operators.
 #define CONTROL_OP_LIST(V) \
   V(Start)                 \
@@ -347,6 +349,8 @@ class IrOpcode {
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
   }
 };
+
+std::ostream& operator<<(std::ostream&, IrOpcode::Value);
 
 }  // namespace compiler
 }  // namespace internal
