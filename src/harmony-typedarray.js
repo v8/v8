@@ -90,6 +90,15 @@ function TypedArrayFindIndex(predicate, thisArg) {
 }
 %FunctionSetLength(TypedArrayFindIndex, 1);
 
+// ES6 draft 05-18-15, section 22.2.3.21
+function TypedArrayReverse() {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  return $innerArrayReverse(this, length);
+}
+
 
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
@@ -140,7 +149,8 @@ macro EXTEND_TYPED_ARRAY(NAME)
     "forEach", TypedArrayForEach,
     "find", TypedArrayFind,
     "findIndex", TypedArrayFindIndex,
-    "fill", TypedArrayFill
+    "fill", TypedArrayFill,
+    "reverse", TypedArrayReverse
   ]);
 endmacro
 

@@ -12,6 +12,7 @@ var $arraySplice;
 var $arrayUnshift;
 var $innerArrayForEach;
 var $innerArrayEvery;
+var $innerArrayReverse;
 
 (function(global, shared, exports) {
 
@@ -564,18 +565,7 @@ function SparseReverse(array, len) {
 }
 
 
-function ArrayReverse() {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
-
-  var array = TO_OBJECT_INLINE(this);
-  var len = TO_UINT32(array.length);
-
-  if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
-    %NormalizeElements(array);
-    SparseReverse(array, len);
-    return array;
-  }
-
+function InnerArrayReverse(array, len) {
   var j = len - 1;
   for (var i = 0; i < j; i++, j--) {
     var current_i = array[i];
@@ -597,6 +587,22 @@ function ArrayReverse() {
     }
   }
   return array;
+}
+
+
+function ArrayReverse() {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
+
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
+
+  if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
+    %NormalizeElements(array);
+    SparseReverse(array, len);
+    return array;
+  }
+
+  return InnerArrayReverse(array, len);
 }
 
 
@@ -1609,5 +1615,6 @@ $arrayUnshift = ArrayUnshift;
 
 $innerArrayForEach = InnerArrayForEach;
 $innerArrayEvery = InnerArrayEvery;
+$innerArrayReverse = InnerArrayReverse;
 
 });
