@@ -307,13 +307,14 @@ class Genesis BASE_EMBEDDED {
                                            FunctionMode function_mode);
   void SetStrongFunctionInstanceDescriptor(Handle<Map> map);
 
-  static bool CompileBuiltin(Isolate* isolate, int index,
-                             Handle<JSObject> shared);
+  static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
   static bool CompileNative(Isolate* isolate, Vector<const char> name,
                             Handle<String> source, int argc,
                             Handle<Object> argv[]);
+
+  static bool CallUtilsFunction(Isolate* isolate, const char* name);
 
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
@@ -1442,14 +1443,13 @@ void Genesis::InitializeExperimentalGlobal() {
 }
 
 
-bool Genesis::CompileBuiltin(Isolate* isolate, int index,
-                             Handle<JSObject> shared) {
+bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
       isolate->bootstrapper()->SourceLookup<Natives>(index);
   Handle<Object> global = isolate->global_object();
-  Handle<Object> exports = isolate->builtin_exports_object();
-  Handle<Object> args[] = {global, shared, exports};
+  Handle<Object> utils = isolate->natives_utils_object();
+  Handle<Object> args[] = {global, utils};
   return CompileNative(isolate, name, source_code, arraysize(args), args);
 }
 
@@ -1460,8 +1460,8 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Handle<String> source_code =
       isolate->bootstrapper()->SourceLookup<ExperimentalNatives>(index);
   Handle<Object> global = isolate->global_object();
-  Handle<Object> exports = isolate->builtin_exports_object();
-  Handle<Object> args[] = {global, exports};
+  Handle<Object> utils = isolate->natives_utils_object();
+  Handle<Object> args[] = {global, utils};
   return CompileNative(isolate, name, source_code, arraysize(args), args);
 }
 
@@ -1514,6 +1514,17 @@ bool Genesis::CompileNative(Isolate* isolate, Vector<const char> name,
   // Then run the function wrapper.
   return !Execution::Call(isolate, Handle<JSFunction>::cast(wrapper), receiver,
                           argc, argv).is_null();
+}
+
+
+bool Genesis::CallUtilsFunction(Isolate* isolate, const char* name) {
+  Handle<JSObject> utils =
+      Handle<JSObject>::cast(isolate->natives_utils_object());
+  Handle<String> name_string =
+      isolate->factory()->NewStringFromAsciiChecked(name);
+  Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  return !Execution::Call(isolate, fun, receiver, 0, NULL).is_null();
 }
 
 
@@ -1918,19 +1929,11 @@ bool Genesis::InstallNatives() {
 
   native_context()->set_runtime_context(*context);
 
-  // Set up shared object to set up cross references between native scripts.
-  // "shared" is used for cross references between native scripts that are part
-  // of the snapshot. "builtin_exports" is used for experimental natives.
-  Handle<JSObject> shared =
-      factory()->NewJSObject(isolate()->object_function());
-  JSObject::NormalizeProperties(shared, CLEAR_INOBJECT_PROPERTIES, 16,
-                                "container to share between native scripts");
-
-  Handle<JSObject> builtin_exports =
-      factory()->NewJSObject(isolate()->object_function());
-  JSObject::NormalizeProperties(builtin_exports, CLEAR_INOBJECT_PROPERTIES, 16,
-                                "container to export to experimental natives");
-  native_context()->set_builtin_exports_object(*builtin_exports);
+  // Set up the utils object as shared container between native scripts.
+  Handle<JSObject> utils = factory()->NewJSObject(isolate()->object_function());
+  JSObject::NormalizeProperties(utils, CLEAR_INOBJECT_PROPERTIES, 16,
+                                "utils container for native scripts");
+  native_context()->set_natives_utils_object(*utils);
 
   Handle<JSObject> extras_exports =
       factory()->NewJSObject(isolate()->object_function());
@@ -1939,8 +1942,8 @@ bool Genesis::InstallNatives() {
   native_context()->set_extras_exports_object(*extras_exports);
 
   if (FLAG_expose_natives_as != NULL) {
-    Handle<String> shared_key = factory()->NewStringFromAsciiChecked("shared");
-    JSObject::AddProperty(builtins, shared_key, shared, NONE);
+    Handle<String> utils_key = factory()->NewStringFromAsciiChecked("utils");
+    JSObject::AddProperty(builtins, utils_key, utils, NONE);
   }
 
   {  // -- S c r i p t
@@ -2116,12 +2119,12 @@ bool Genesis::InstallNatives() {
   // transition easy to trap. Moreover, they rarely are smi-only.
   {
     HandleScope scope(isolate());
-    Handle<JSObject> builtin_exports =
-        Handle<JSObject>::cast(isolate()->builtin_exports_object());
-    Handle<JSFunction> array_function = InstallInternalArray(
-        builtin_exports, "InternalArray", FAST_HOLEY_ELEMENTS);
+    Handle<JSObject> utils =
+        Handle<JSObject>::cast(isolate()->natives_utils_object());
+    Handle<JSFunction> array_function =
+        InstallInternalArray(utils, "InternalArray", FAST_HOLEY_ELEMENTS);
     native_context()->set_internal_array_function(*array_function);
-    InstallInternalArray(builtin_exports, "InternalPackedArray", FAST_ELEMENTS);
+    InstallInternalArray(utils, "InternalPackedArray", FAST_ELEMENTS);
   }
 
   {  // -- S e t I t e r a t o r
@@ -2221,16 +2224,15 @@ bool Genesis::InstallNatives() {
 #undef INSTALL_PUBLIC_SYMBOL
   }
 
-  // Install natives. Everything exported to experimental natives is also
-  // shared to regular natives.
-  TransferNamedProperties(builtin_exports, shared);
   int i = Natives::GetDebuggerCount();
-  if (!CompileBuiltin(isolate(), i, shared)) return false;
+  if (!CompileBuiltin(isolate(), i)) return false;
   if (!InstallJSBuiltins(builtins)) return false;
 
   for (++i; i < Natives::GetBuiltinsCount(); ++i) {
-    if (!CompileBuiltin(isolate(), i, shared)) return false;
+    if (!CompileBuiltin(isolate(), i)) return false;
   }
+
+  if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
 
   InstallNativeFunctions();
 
@@ -2544,9 +2546,8 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
 
-  Handle<Object> builtin_exports(native_context->builtin_exports_object(),
-                                 isolate);
-  native_context->set_builtin_exports_object(Smi::FromInt(0));
+  // By now the utils object is useless and can be removed.
+  native_context->set_natives_utils_object(*factory->undefined_value());
 
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
@@ -2556,9 +2557,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     if (natives_key->AsArrayIndex(&dummy_index)) return true;
     Handle<JSBuiltinsObject> natives(global->builtins());
     JSObject::AddProperty(global, natives_key, natives, DONT_ENUM);
-    Handle<String> builtin_exports_key =
-        factory->NewStringFromAsciiChecked("builtin_exports");
-    JSObject::AddProperty(natives, builtin_exports_key, builtin_exports, NONE);
   }
 
   // Expose the stack trace symbol to native JS.

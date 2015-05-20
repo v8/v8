@@ -4,13 +4,7 @@
 
 var rngstate;  // Initialized to a Uint32Array during genesis.
 
-var $abs;
-var $exp;
-var $floor;
-var $max;
-var $min;
-
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
@@ -20,7 +14,7 @@ var $min;
 // Imports
 
 var GlobalObject = global.Object;
-var InternalArray = shared.InternalArray;
+var InternalArray = utils.InternalArray;
 
 //-------------------------------------------------------------------
 
@@ -357,11 +351,15 @@ $installFunctions(Math, DONT_ENUM, [
 %SetForceInlineFlag(MathSqrtJS);
 %SetForceInlineFlag(MathTrunc);
 
-// Expose to the global scope.
-$abs = MathAbs;
-$exp = MathExp;
-$floor = MathFloorJS;
-$max = MathMax;
-$min = MathMin;
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.MathAbs = MathAbs;
+  to.MathExp = MathExp;
+  to.MathFloor = MathFloorJS;
+  to.MathMax = MathMax;
+  to.MathMin = MathMin;
+});
 
 })

@@ -7,7 +7,7 @@ var $mapIteratorNext;
 var $setIteratorNext;
 var $setValues;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 

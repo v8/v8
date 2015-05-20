@@ -6,7 +6,7 @@
 
 var $getTemplateCallSite;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
@@ -16,7 +16,7 @@ var $getTemplateCallSite;
 // Imports
 
 var GlobalMap = global.Map;
-var InternalArray = shared.InternalArray;
+var InternalArray = utils.InternalArray;
 
 // -------------------------------------------------------------------
 

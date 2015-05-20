@@ -188,7 +188,7 @@ enum BindingFlags {
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
-  V(BUILTIN_EXPORTS_OBJECT_INDEX, Object, builtin_exports_object)              \
+  V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
   V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_exports_object)
 
 
@@ -428,7 +428,7 @@ class Context: public FixedArray {
     SCRIPT_CONTEXT_TABLE_INDEX,
     MAP_CACHE_INDEX,
     TO_LENGTH_FUN_INDEX,
-    BUILTIN_EXPORTS_OBJECT_INDEX,
+    NATIVES_UTILS_OBJECT_INDEX,
     EXTRAS_EXPORTS_OBJECT_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
