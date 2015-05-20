@@ -2497,6 +2497,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
       this->NewExpressionList(4, zone_);
   Expect(Token::LBRACK, CHECK_OK);
   while (peek() != Token::RBRACK) {
+    bool seen_spread = false;
     ExpressionT elem = this->EmptyExpression();
     if (peek() == Token::COMMA) {
       if (is_strong(language_mode())) {
@@ -2506,11 +2507,23 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
         return this->EmptyExpression();
       }
       elem = this->GetLiteralTheHole(peek_position(), factory());
+    } else if (peek() == Token::ELLIPSIS) {
+      ExpressionUnexpectedToken(classifier);
+      int start_pos = peek_position();
+      Consume(Token::ELLIPSIS);
+      ExpressionT argument =
+          this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+
+      elem = factory()->NewSpread(argument, start_pos);
+      seen_spread = true;
     } else {
       elem = this->ParseAssignmentExpression(true, classifier, CHECK_OK);
     }
     values->Add(elem, zone_);
     if (peek() != Token::RBRACK) {
+      if (seen_spread) {
+        BindingPatternUnexpectedToken(classifier);
+      }
       Expect(Token::COMMA, CHECK_OK);
     }
   }

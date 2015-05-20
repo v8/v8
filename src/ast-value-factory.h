@@ -234,6 +234,7 @@ class AstValue : public ZoneObject {
 #define STRING_CONSTANTS(F)                                                \
   F(anonymous_function, "(anonymous function)")                            \
   F(arguments, "arguments")                                                \
+  F(concat_iterable_to_array, "$concatIterableToArray")                    \
   F(constructor, "constructor")                                            \
   F(default, "default")                                                    \
   F(done, "done")                                                          \

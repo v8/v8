@@ -932,6 +932,14 @@ function SameValueZero(x, y) {
   return x === y;
 }
 
+function ConcatIterableToArray(target, iterable) {
+   var index = target.length;
+   for (var element of iterable) {
+     %AddElement(target, index++, element, NONE);
+   }
+   return target;
+}
+
 
 /* ---------------------------------
    - - -   U t i l i t i e s   - - -
@@ -1010,6 +1018,7 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 
 //----------------------------------------------------------------------------
 
+$concatIterableToArray = ConcatIterableToArray;
 $defaultNumber = DefaultNumber;
 $defaultString = DefaultString;
 $NaN = %GetRootNaN();

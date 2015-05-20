@@ -463,6 +463,34 @@
     assertArrayEquals(["1", "2", "3"], log);
   }());
 
+  (function() {
+    log = [];
+    var [a, ...rest] = f();
+    assertSame(1, a);
+    assertArrayEquals([2,3], rest);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    var [a, b, c, ...rest] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertArrayEquals([], rest);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    var [a, b, c, d, ...rest] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertSame(undefined, d);
+    assertArrayEquals([], rest);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
 }());
 
 
@@ -533,10 +561,37 @@
     assertArrayEquals(["1", "2", "3"], log);
   }());
 
+  (function() {
+    log = [];
+    let [a, ...rest] = f();
+    assertSame(1, a);
+    assertArrayEquals([2,3], rest);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    let [a, b, c, ...rest] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertArrayEquals([], rest);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
+
+  (function() {
+    log = [];
+    let [a, b, c, d, ...rest] = f();
+    assertSame(1, a);
+    assertSame(2, b);
+    assertSame(3, c);
+    assertSame(undefined, d);
+    assertArrayEquals([], rest);
+    assertArrayEquals(["1", "2", "3", "done"], log);
+  }());
 }());
 
 (function TestIteratorsRecursive() {
-
   var log = [];
   function* f() {
     log.push("1");

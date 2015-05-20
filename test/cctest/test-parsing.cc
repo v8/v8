@@ -6395,6 +6395,9 @@ TEST(DestructuringPositiveTests) {
     "{[1+1] : z}",
     "{[foo()] : z}",
     "{}",
+    "[...rest]",
+    "[a,b,...rest]",
+    "[a,,...rest]",
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
@@ -6467,6 +6470,15 @@ TEST(DestructuringNegativeTests) {
         "{x : x += a}",
         "{m() {} = 0}",
         "{[1+1]}",
+        "[...rest, x]",
+        "[a,b,...rest, x]",
+        "[a,,...rest, x]",
+        "[...rest,]",
+        "[a,b,...rest,]",
+        "[a,,...rest,]",
+        "[...rest,...rest1]",
+        "[a,b,...rest,...rest1]",
+        "[a,,..rest,...rest1]",
         NULL};
     // clang-format on
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
