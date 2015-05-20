@@ -163,6 +163,8 @@ class Simulator : public DecoderVisitor {
 
   static void Initialize(Isolate* isolate);
 
+  static void TearDown(HashMap* i_cache, Redirection* first);
+
   static Simulator* current(v8::internal::Isolate* isolate);
 
   class CallArgument;

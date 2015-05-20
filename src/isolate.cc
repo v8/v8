@@ -2001,6 +2001,12 @@ Isolate::~Isolate() {
 
   delete debug_;
   debug_ = NULL;
+
+#if USE_SIMULATOR
+  Simulator::TearDown(simulator_i_cache_, simulator_redirection_);
+  simulator_i_cache_ = nullptr;
+  simulator_redirection_ = nullptr;
+#endif
 }
 
 
