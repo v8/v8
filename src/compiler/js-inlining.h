@@ -13,7 +13,6 @@ namespace internal {
 namespace compiler {
 
 class JSCallFunctionAccessor;
-struct Inlinee;
 
 class JSInliner final : public AdvancedReducer {
  public:
@@ -38,7 +37,7 @@ class JSInliner final : public AdvancedReducer {
   Node* CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
                                          Zone* temp_zone);
 
-  Reduction InlineCall(Node* call, Inlinee& inlinee);
+  Reduction InlineCall(Node* call, Node* start, Node* end);
 };
 
 }  // namespace compiler
