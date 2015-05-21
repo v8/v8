@@ -561,7 +561,7 @@ static inline void SimulateIncrementalMarking(i::Heap* heap) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    marking->Start();
+    marking->Start(i::Heap::kNoGCFlags);
   }
   CHECK(marking->IsMarking());
   while (!marking->IsComplete()) {

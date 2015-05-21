@@ -467,7 +467,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 }
 
 
-void IncrementalMarking::Start() {
+void IncrementalMarking::Start(int mark_compact_flags) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start\n");
   }
@@ -482,7 +482,9 @@ void IncrementalMarking::Start() {
   was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
+    heap_->mark_compact_collector()->SetFlags(mark_compact_flags);
     StartMarking();
+    heap_->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
   } else {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Start sweeping.\n");
@@ -831,7 +833,7 @@ void IncrementalMarking::Epilogue() {
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
   if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
-    Start();
+    Start(Heap::kNoGCFlags);
   } else {
     Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
   }
