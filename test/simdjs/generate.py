@@ -29,10 +29,10 @@ output = {
   'name': 'SIMDJS',
   'run_count': 5,
   'run_count_arm': 3,
-  'run_count_android_arm': 3,
+  'run_count_android_arm': 1,
   'run_count_android_arm64': 3,
   'timeout_arm': 120,
-  'timeout_android_arm': 120,
+  'timeout_android_arm': 180,
   'timeout_android_arm64': 120,
   'units': 'ms',
   'resources': [
@@ -52,8 +52,6 @@ output = {
       'tests': [
         {'name': 'SIMD'},
         {'name': 'Non-SIMD'},
-        {'name': 'Speedup', 'units': 'score'},
-        {'name': 'Iterations', 'units': 'count'}
       ]
     }
   for test in tests],
