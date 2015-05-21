@@ -374,7 +374,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->shared_info()->has_deoptimization_support());
 
   // Check the enabling conditions for TurboFan.
+  bool dont_crankshaft = info()->shared_info()->dont_crankshaft();
   if (((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
+       (dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0) ||
        info()->closure()->PassesFilter(FLAG_turbo_filter)) &&
       (FLAG_turbo_osr || !info()->is_osr())) {
     // Use TurboFan for the compilation.
@@ -405,7 +407,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     }
   }
 
-  if (!isolate()->use_crankshaft()) {
+  if (!isolate()->use_crankshaft() || dont_crankshaft) {
     // Crankshaft is entirely disabled.
     return SetLastStatus(FAILED);
   }
@@ -741,6 +743,7 @@ static bool Renumber(ParseInfo* parse_info) {
     FunctionLiteral* lit = parse_info->function();
     shared_info->set_ast_node_count(lit->ast_node_count());
     MaybeDisableOptimization(shared_info, lit->dont_optimize_reason());
+    shared_info->set_dont_crankshaft(lit->flags()->Contains(kDontCrankshaft));
     shared_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   }
   return true;

@@ -10869,6 +10869,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (lit->dont_optimize_reason() != kNoReason) {
     shared_info->DisableOptimization(lit->dont_optimize_reason());
   }
+  shared_info->set_dont_crankshaft(
+      lit->flags()->Contains(AstPropertiesFlag::kDontCrankshaft));
   shared_info->set_dont_cache(
       lit->flags()->Contains(AstPropertiesFlag::kDontCache));
   shared_info->set_kind(lit->kind());
