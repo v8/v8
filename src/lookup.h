@@ -188,6 +188,7 @@ class LookupIterator final BASE_EMBEDDED {
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
+  Handle<InterceptorInfo> GetInterceptor() const;
   Handle<Object> GetDataValue() const;
   // Usually returns the value that was passed in, but may perform
   // non-observable modifications on it, such as internalize strings.

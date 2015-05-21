@@ -355,7 +355,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 
 
 bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
-  DCHECK(ExoticIndexState::kNotExotic != exotic_index_state_);
+  DCHECK(exotic_index_state_ != ExoticIndexState::kNotExotic);
   // Currently typed arrays are the only such objects.
   if (!holder->IsJSTypedArray()) return false;
   if (exotic_index_state_ == ExoticIndexState::kExotic) return true;
@@ -383,6 +383,14 @@ void LookupIterator::InternalizeName() {
 bool LookupIterator::HasInterceptor(Map* map) const {
   if (IsElement()) return map->has_indexed_interceptor();
   return map->has_named_interceptor();
+}
+
+
+Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
+  DCHECK_EQ(INTERCEPTOR, state_);
+  Handle<JSObject> js_holder = Handle<JSObject>::cast(holder_);
+  if (IsElement()) return handle(js_holder->GetIndexedInterceptor(), isolate_);
+  return handle(js_holder->GetNamedInterceptor(), isolate_);
 }
 
 

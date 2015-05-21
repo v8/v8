@@ -136,8 +136,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
         return JSProxy::GetPropertyWithHandler(it->GetHolder<JSProxy>(),
                                                it->GetReceiver(), it->name());
       case LookupIterator::INTERCEPTOR: {
-        MaybeHandle<Object> maybe_result = JSObject::GetPropertyWithInterceptor(
-            it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
+        MaybeHandle<Object> maybe_result =
+            JSObject::GetPropertyWithInterceptor(it);
         if (!maybe_result.is_null()) return maybe_result;
         if (it->isolate()->has_pending_exception()) return maybe_result;
         break;
@@ -146,9 +146,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
         if (it->HasAccess()) break;
         return JSObject::GetPropertyWithFailedAccessCheck(it);
       case LookupIterator::ACCESSOR:
-        return GetPropertyWithAccessor(it->GetReceiver(), it->name(),
-                                       it->GetHolder<JSObject>(),
-                                       it->GetAccessors());
+        return GetPropertyWithAccessor(it);
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return it->factory()->undefined_value();
       case LookupIterator::DATA:
@@ -303,14 +301,16 @@ MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
 }
 
 
-MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
-                                                    Handle<Name> name,
-                                                    Handle<JSObject> holder,
-                                                    Handle<Object> structure) {
-  Isolate* isolate = name->GetIsolate();
+MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
+  Isolate* isolate = it->isolate();
+  Handle<Object> structure = it->GetAccessors();
+  Handle<Object> receiver = it->GetReceiver();
+
   DCHECK(!structure->IsForeign());
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
+    Handle<JSObject> holder = it->GetHolder<JSObject>();
+    Handle<Name> name = it->name();
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       THROW_NEW_ERROR(isolate,
@@ -491,14 +491,10 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   while (FindAllCanReadHolder(it)) {
     if (it->state() == LookupIterator::ACCESSOR) {
-      return GetPropertyWithAccessor(it->GetReceiver(), it->name(),
-                                     it->GetHolder<JSObject>(),
-                                     it->GetAccessors());
+      return GetPropertyWithAccessor(it);
     }
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
-    auto receiver = Handle<JSObject>::cast(it->GetReceiver());
-    auto result = GetPropertyWithInterceptor(it->GetHolder<JSObject>(),
-                                             receiver, it->name());
+    auto result = GetPropertyWithInterceptor(it);
     if (it->isolate()->has_scheduled_exception()) break;
     if (!result.is_null()) return result;
   }
@@ -12764,8 +12760,7 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
         v8::ToCData<v8::AccessorNameGetterCallback>(fun_obj);
     if (call_fun == NULL) return isolate->factory()->undefined_value();
     Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
-    Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<String> key = isolate->factory()->NumberToString(number);
+    Handle<String> key = isolate->factory()->Uint32ToString(index);
     LOG(isolate, ApiNamedPropertyAccess("load", *holder_handle, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *receiver, *holder_handle);
@@ -12813,8 +12808,7 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(
     v8::AccessorNameSetterCallback call_fun =
         v8::ToCData<v8::AccessorNameSetterCallback>(call_obj);
     if (call_fun == NULL) return value;
-    Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<String> key(isolate->factory()->NumberToString(number));
+    Handle<String> key(isolate->factory()->Uint32ToString(index));
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *object, *holder);
@@ -14030,14 +14024,14 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 }
 
 
-MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
-    Handle<JSObject> holder,
-    Handle<Object> receiver,
-    Handle<Name> name) {
-  Isolate* isolate = holder->GetIsolate();
-
-  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
+MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it) {
+  DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
+  Isolate* isolate = it->isolate();
+  Handle<InterceptorInfo> interceptor = it->GetInterceptor();
   if (interceptor->getter()->IsUndefined()) return MaybeHandle<Object>();
+
+  Handle<Name> name = it->name();
+  Handle<JSObject> holder = it->GetHolder<JSObject>();
 
   if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
     return MaybeHandle<Object>();
@@ -14048,8 +14042,8 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
           interceptor->getter());
   LOG(isolate,
       ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
-  PropertyCallbackArguments
-      args(isolate, interceptor->data(), *receiver, *holder);
+  PropertyCallbackArguments args(isolate, interceptor->data(),
+                                 *it->GetReceiver(), *holder);
   v8::Handle<v8::Value> result = args.Call(getter, v8::Utils::ToLocal(name));
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   if (result.IsEmpty()) return MaybeHandle<Object>();

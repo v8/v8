@@ -80,9 +80,8 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
         if (!accessors->IsAccessorInfo()) {
           return it->isolate()->factory()->undefined_value();
         }
-        MaybeHandle<Object> maybe_result = JSObject::GetPropertyWithAccessor(
-            it->GetReceiver(), it->name(), it->GetHolder<JSObject>(),
-            accessors);
+        MaybeHandle<Object> maybe_result =
+            JSObject::GetPropertyWithAccessor(it);
         Handle<Object> result;
         if (!maybe_result.ToHandle(&result)) {
           result = handle(it->isolate()->pending_exception(), it->isolate());

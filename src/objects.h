@@ -1187,10 +1187,7 @@ class Object {
       Handle<Name> key);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
-      Handle<Object> receiver,
-      Handle<Name> name,
-      Handle<JSObject> holder,
-      Handle<Object> structure);
+      LookupIterator* it);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithAccessor(
       Handle<Object> receiver, Handle<Name> name, Handle<Object> value,
       Handle<JSObject> holder, Handle<Object> structure,
@@ -1895,9 +1892,7 @@ class JSObject: public JSReceiver {
       Handle<AccessorInfo> info);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
-      Handle<JSObject> object,
-      Handle<Object> receiver,
-      Handle<Name> name);
+      LookupIterator* it);
 
   // Accessors for hidden properties object.
   //
