@@ -114,7 +114,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
 
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
-  if (FLAG_turbo_deoptimization) MarkAsDeoptimizationEnabled();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
@@ -393,6 +392,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       info()->MarkAsTypeFeedbackEnabled();
       info()->EnsureFeedbackVector();
     }
+    if (!info()->shared_info()->asm_function() ||
+        FLAG_turbo_asm_deoptimization) {
+      info()->MarkAsDeoptimizationEnabled();
+    }
 
     Timer t(this, &time_taken_to_create_graph_);
     compiler::Pipeline pipeline(info());
@@ -502,7 +505,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
   // TODO(turbofan): Currently everything is done in the first phase.
   if (!info()->code().is_null()) {
     info()->dependencies()->Commit(info()->code());
-    if (FLAG_turbo_deoptimization) {
+    if (info()->is_deoptimization_enabled()) {
       info()->parse_info()->context()->native_context()->AddOptimizedCode(
           *info()->code());
     }
@@ -848,7 +851,7 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   // If the debugger is active, do not compile with turbofan unless we can
   // deopt from turbofan code.
   if (FLAG_turbo_asm && function->shared()->asm_function() &&
-      (FLAG_turbo_deoptimization || !isolate->debug()->is_active()) &&
+      (FLAG_turbo_asm_deoptimization || !isolate->debug()->is_active()) &&
       !FLAG_turbo_osr) {
     CompilationInfoWithZone info(function);
 

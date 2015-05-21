@@ -342,9 +342,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     StackFrame::Type type = it.frame()->type();
     if (type == StackFrame::OPTIMIZED) {
       Code* code = it.frame()->LookupCode();
+      JSFunction* function =
+          static_cast<OptimizedFrame*>(it.frame())->function();
       if (FLAG_trace_deopt) {
-        JSFunction* function =
-            static_cast<OptimizedFrame*>(it.frame())->function();
         CodeTracer::Scope scope(isolate->GetCodeTracer());
         PrintF(scope.file(), "[deoptimizer found activation of function: ");
         function->PrintName(scope.file());
@@ -354,7 +354,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool turbofanned = code->is_turbofanned() && !FLAG_turbo_deoptimization;
+      bool turbofanned = code->is_turbofanned() &&
+                         function->shared()->asm_function() &&
+                         !FLAG_turbo_asm_deoptimization;
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
       CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned);
@@ -380,7 +382,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     Object* next = code->next_code_link();
 
     if (code->marked_for_deoptimization()) {
-      DCHECK(!code->is_turbofanned() || FLAG_turbo_deoptimization);
       // Put the code into the list for later patching.
       codes.Add(code, &zone);
 
@@ -423,14 +424,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     shared->EvictFromOptimizedCodeMap(codes[i], "deoptimized code");
 
     // Do platform-specific patching to force any activations to lazy deopt.
-    if (!codes[i]->is_turbofanned() || FLAG_turbo_deoptimization) {
-      PatchCodeForDeoptimization(isolate, codes[i]);
+    PatchCodeForDeoptimization(isolate, codes[i]);
 
-      // We might be in the middle of incremental marking with compaction.
-      // Tell collector to treat this code object in a special way and
-      // ignore all slots that might have been recorded on it.
-      isolate->heap()->mark_compact_collector()->InvalidateCode(codes[i]);
-    }
+    // We might be in the middle of incremental marking with compaction.
+    // Tell collector to treat this code object in a special way and
+    // ignore all slots that might have been recorded on it.
+    isolate->heap()->mark_compact_collector()->InvalidateCode(codes[i]);
   }
 }
 

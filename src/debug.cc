@@ -1882,7 +1882,8 @@ void Debug::PrepareForBreakPoints() {
           if (kind == Code::OPTIMIZED_FUNCTION) {
             // Optimized code can only get here if DeoptimizeAll did not
             // deoptimize turbo fan code.
-            DCHECK(!FLAG_turbo_deoptimization);
+            DCHECK(!FLAG_turbo_asm_deoptimization);
+            DCHECK(function->shared()->asm_function());
             DCHECK(function->code()->is_turbofanned());
             function->ReplaceCode(fallback);
           }

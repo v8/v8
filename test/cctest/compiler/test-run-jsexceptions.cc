@@ -229,7 +229,6 @@ TEST(FinallyBreak) {
 
 TEST(DeoptTry) {
   i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -247,7 +246,6 @@ TEST(DeoptTry) {
 
 TEST(DeoptCatch) {
   i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -265,7 +263,6 @@ TEST(DeoptCatch) {
 
 TEST(DeoptFinallyReturn) {
   i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -283,7 +280,6 @@ TEST(DeoptFinallyReturn) {
 
 TEST(DeoptFinallyReThrow) {
   i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
   const char* src =
       "(function f(a) {"
       "  try {"

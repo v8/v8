@@ -12505,8 +12505,7 @@ bool DependentCode::MarkCodeForDeoptimization(
       WeakCell* cell = WeakCell::cast(obj);
       if (cell->cleared()) continue;
       Code* code = Code::cast(cell->value());
-      if (!code->marked_for_deoptimization() &&
-          (!code->is_turbofanned() || FLAG_turbo_deoptimization)) {
+      if (!code->marked_for_deoptimization()) {
         SetMarkedForDeoptimization(code, group);
         if (invalidate_embedded_objects) {
           code->InvalidateEmbeddedObjects();

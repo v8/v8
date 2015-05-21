@@ -29,7 +29,6 @@ static void InstallIsOptimizedHelper(v8::Isolate* isolate) {
 
 TEST(TurboSimpleDeopt) {
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_deoptimization = true;
 
   FunctionTester T(
       "(function f(a) {"
@@ -46,7 +45,6 @@ TEST(TurboSimpleDeopt) {
 
 TEST(TurboSimpleDeoptInExpr) {
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_deoptimization = true;
 
   FunctionTester T(
       "(function f(a) {"
@@ -65,7 +63,6 @@ TEST(TurboSimpleDeoptInExpr) {
 
 TEST(TurboTrivialDeopt) {
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_deoptimization = true;
 
   FunctionTester T(
       "(function foo() {"

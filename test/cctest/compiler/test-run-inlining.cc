@@ -51,7 +51,6 @@ const uint32_t kInlineFlags = CompilationInfo::kInliningEnabled |
 
 
 TEST(SimpleInlining) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function(){"
       "  function foo(s) { AssertInlineCount(2); return s; };"
@@ -66,7 +65,6 @@ TEST(SimpleInlining) {
 
 
 TEST(SimpleInliningDeopt) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function(){"
       "  function foo(s) { %DeoptimizeFunction(bar); return s; };"
@@ -81,7 +79,6 @@ TEST(SimpleInliningDeopt) {
 
 
 TEST(SimpleInliningContext) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) { AssertInlineCount(2); var x = 12; return s + x; };"
@@ -96,7 +93,6 @@ TEST(SimpleInliningContext) {
 
 
 TEST(SimpleInliningContextDeopt) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) {"
@@ -114,7 +110,6 @@ TEST(SimpleInliningContextDeopt) {
 
 
 TEST(CaptureContext) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "var f = (function () {"
       "  var x = 42;"
@@ -132,7 +127,6 @@ TEST(CaptureContext) {
 // TODO(sigurds) For now we do not inline any native functions. If we do at
 // some point, change this test.
 TEST(DontInlineEval) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "var x = 42;"
       "(function () {"
@@ -147,7 +141,6 @@ TEST(DontInlineEval) {
 
 
 TEST(InlineOmitArguments) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 42;"
@@ -162,7 +155,6 @@ TEST(InlineOmitArguments) {
 
 
 TEST(InlineOmitArgumentsDeopt) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s,t,u,v) { AssertInlineCount(2);"
@@ -180,7 +172,6 @@ TEST(InlineOmitArgumentsDeopt) {
 
 
 TEST(InlineSurplusArguments) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 42;"
@@ -196,7 +187,6 @@ TEST(InlineSurplusArguments) {
 
 
 TEST(InlineSurplusArgumentsDeopt) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) { AssertInlineCount(2); %DeoptimizeFunction(bar);"
@@ -216,7 +206,6 @@ TEST(InlineSurplusArgumentsDeopt) {
 
 
 TEST(InlineTwice) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 42;"
@@ -231,7 +220,6 @@ TEST(InlineTwice) {
 
 
 TEST(InlineTwiceDependent) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 42;"
@@ -247,7 +235,6 @@ TEST(InlineTwiceDependent) {
 
 
 TEST(InlineTwiceDependentDiamond) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 41;"
@@ -264,7 +251,6 @@ TEST(InlineTwiceDependentDiamond) {
 
 
 TEST(InlineTwiceDependentDiamondDifferent) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 41;"
@@ -281,7 +267,6 @@ TEST(InlineTwiceDependentDiamondDifferent) {
 
 
 TEST(InlineLoopGuardedEmpty) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) { AssertInlineCount(2); if (s) while (s); return s; };"
@@ -296,7 +281,6 @@ TEST(InlineLoopGuardedEmpty) {
 
 
 TEST(InlineLoopGuardedOnce) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s,t) { AssertInlineCount(2); if (t > 0) while (s > 0) {"
@@ -312,7 +296,6 @@ TEST(InlineLoopGuardedOnce) {
 
 
 TEST(InlineLoopGuardedTwice) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s,t) { AssertInlineCount(2); if (t > 0) while (s > 0) {"
@@ -328,7 +311,6 @@ TEST(InlineLoopGuardedTwice) {
 
 
 TEST(InlineLoopUnguardedEmpty) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) { AssertInlineCount(2); while (s); return s; };"
@@ -343,7 +325,6 @@ TEST(InlineLoopUnguardedEmpty) {
 
 
 TEST(InlineLoopUnguardedOnce) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) { AssertInlineCount(2); while (s) {"
@@ -359,7 +340,6 @@ TEST(InlineLoopUnguardedOnce) {
 
 
 TEST(InlineLoopUnguardedTwice) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s) { AssertInlineCount(2); while (s > 0) {"
@@ -375,7 +355,6 @@ TEST(InlineLoopUnguardedTwice) {
 
 
 TEST(InlineStrictIntoNonStrict) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = Object.create({}, { y: { value:42, writable:false } });"
@@ -392,7 +371,6 @@ TEST(InlineStrictIntoNonStrict) {
 
 
 TEST(InlineNonStrictIntoStrict) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = Object.create({}, { y: { value:42, writable:false } });"
@@ -408,7 +386,6 @@ TEST(InlineNonStrictIntoStrict) {
 
 
 TEST(InlineIntrinsicIsSmi) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 42;"
@@ -423,7 +400,6 @@ TEST(InlineIntrinsicIsSmi) {
 
 
 TEST(InlineIntrinsicIsNonNegativeSmi) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = 42;"
@@ -438,7 +414,6 @@ TEST(InlineIntrinsicIsNonNegativeSmi) {
 
 
 TEST(InlineIntrinsicIsArray) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  var x = [1,2,3];"
@@ -473,7 +448,6 @@ TEST(InlineIntrinsicIsArray) {
 
 
 TEST(InlineWithArguments) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s,t,u) { AssertInlineCount(2);"
@@ -493,7 +467,6 @@ TEST(InlineWithArguments) {
 
 
 TEST(InlineBuiltin) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s,t,u) { AssertInlineCount(2); return true; }"
@@ -509,7 +482,6 @@ TEST(InlineBuiltin) {
 
 
 TEST(InlineNestedBuiltin) {
-  FLAG_turbo_deoptimization = true;
   FunctionTester T(
       "(function () {"
       "  function foo(s,t,u) { AssertInlineCount(3); return true; }"
@@ -527,7 +499,6 @@ TEST(InlineNestedBuiltin) {
 
 
 TEST(StrongModeArity) {
-  FLAG_turbo_deoptimization = true;
   FLAG_strong_mode = true;
   FunctionTester T(
       "(function () {"
@@ -541,7 +512,6 @@ TEST(StrongModeArity) {
 
 
 TEST(StrongModeArityOuter) {
-  FLAG_turbo_deoptimization = true;
   FLAG_strong_mode = true;
   FunctionTester T(
       "(function () {"
@@ -553,4 +523,5 @@ TEST(StrongModeArityOuter) {
       kInlineFlags);
   T.CheckThrows(T.undefined(), T.undefined());
 }
+
 #endif  // V8_TURBOFAN_TARGET

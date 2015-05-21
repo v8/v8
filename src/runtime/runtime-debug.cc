@@ -476,7 +476,9 @@ class FrameInspector {
     // Calculate the deoptimized frame.
     if (frame->is_optimized()) {
       // TODO(turbofan): Revisit once we support deoptimization.
-      if (frame->LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+      if (frame->LookupCode()->is_turbofanned() &&
+          frame->function()->shared()->asm_function() &&
+          !FLAG_turbo_asm_deoptimization) {
         is_optimized_ = false;
         return;
       }
@@ -508,7 +510,9 @@ class FrameInspector {
   }
   Object* GetExpression(int index) {
     // TODO(turbofan): Revisit once we support deoptimization.
-    if (frame_->LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+    if (frame_->LookupCode()->is_turbofanned() &&
+        frame_->function()->shared()->asm_function() &&
+        !FLAG_turbo_asm_deoptimization) {
       return isolate_->heap()->undefined_value();
     }
     return is_optimized_ ? deoptimized_frame_->GetExpression(index)

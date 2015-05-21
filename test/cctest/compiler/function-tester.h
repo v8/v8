@@ -160,6 +160,7 @@ class FunctionTester : public InitializedHandleScope {
     Zone zone;
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);
+    info.MarkAsDeoptimizationEnabled();
 
     CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
@@ -177,11 +178,8 @@ class FunctionTester : public InitializedHandleScope {
 
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
-    if (FLAG_turbo_deoptimization) {
-      info.context()->native_context()->AddOptimizedCode(*code);
-    }
-
     CHECK(!code.is_null());
+    info.context()->native_context()->AddOptimizedCode(*code);
     function->ReplaceCode(*code);
 #elif USE_CRANKSHAFT
     Handle<Code> unoptimized = Handle<Code>(function->code());

@@ -169,7 +169,6 @@ TEST(TurboTrivialDeoptCodegen) {
   InitializedHandleScope handles;
 
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_deoptimization = true;
 
   TrivialDeoptCodegenTester t(&scope);
   t.GenerateCode();
@@ -190,7 +189,6 @@ TEST(TurboTrivialDeoptCodegenAndRun) {
   InitializedHandleScope handles;
 
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_deoptimization = true;
 
   TrivialDeoptCodegenTester t(&scope);
   t.GenerateCode();
@@ -282,7 +280,6 @@ TEST(TurboTrivialRuntimeDeoptCodegenAndRun) {
   InitializedHandleScope handles;
 
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_deoptimization = true;
 
   TrivialRuntimeDeoptCodegenTester t(&scope);
   t.GenerateCode();

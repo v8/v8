@@ -302,6 +302,7 @@ Reduction JSInliner::Reduce(Node* node) {
   Zone zone;
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);
+  if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) return NoChange();
   if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();
