@@ -412,8 +412,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
                                                false, receiver, key, ebx, edi);
 
-  __ pop(VectorLoadICDescriptor::VectorRegister());
-  __ pop(VectorLoadICDescriptor::SlotRegister());
+  __ pop(LoadWithVectorDescriptor::VectorRegister());
+  __ pop(LoadDescriptor::SlotRegister());
 
   // Cache miss.
   GenerateMiss(masm);
@@ -729,8 +729,8 @@ static void LoadIC_PushArgs(MacroAssembler* masm) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
 
-  Register slot = VectorLoadICDescriptor::SlotRegister();
-  Register vector = VectorLoadICDescriptor::VectorRegister();
+  Register slot = LoadDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
   DCHECK(!edi.is(receiver) && !edi.is(name) && !edi.is(slot) &&
          !edi.is(vector));
 

@@ -2125,7 +2125,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
       UseFixed(instr->global_object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = NULL;
   if (instr->HasVectorAndSlot()) {
-    vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
+    vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
   }
 
   LLoadGlobalGeneric* result =
@@ -2179,7 +2179,7 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
       UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = NULL;
   if (instr->HasVectorAndSlot()) {
-    vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
+    vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
   }
   LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(
       context, object, vector);
@@ -2251,7 +2251,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* key = UseFixed(instr->key(), LoadDescriptor::NameRegister());
   LOperand* vector = NULL;
   if (instr->HasVectorAndSlot()) {
-    vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
+    vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
   }
   LLoadKeyedGeneric* result =
       new(zone()) LLoadKeyedGeneric(context, object, key, vector);
