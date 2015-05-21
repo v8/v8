@@ -2295,8 +2295,8 @@ const AstRawString* Parser::DeclarationParsingResult::SingleName() const {
 
 Block* Parser::DeclarationParsingResult::BuildInitializationBlock(
     ZoneList<const AstRawString*>* names, bool* ok) {
-  Block* result =
-      descriptor.parser->factory()->NewBlock(NULL, 1, true, descriptor.pos);
+  Block* result = descriptor.parser->factory()->NewBlock(
+      NULL, 1, true, descriptor.declaration_pos);
   for (auto declaration : declarations) {
     PatternRewriter::DeclareAndInitializeVariables(
         result, &descriptor, &declaration, names, CHECK_OK);
@@ -2350,7 +2350,8 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   //   BindingPattern '=' AssignmentExpression
 
   parsing_result->descriptor.parser = this;
-  parsing_result->descriptor.pos = peek_position();
+  parsing_result->descriptor.declaration_pos = peek_position();
+  parsing_result->descriptor.initialization_pos = peek_position();
   parsing_result->descriptor.mode = VAR;
   // True if the binding needs initialization. 'let' and 'const' declared
   // bindings are created uninitialized by their declaration nodes and
@@ -3417,11 +3418,10 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   bool is_let_identifier_expression = false;
   DeclarationParsingResult parsing_result;
   if (peek() != Token::SEMICOLON) {
-    if (peek() == Token::VAR ||
-        (peek() == Token::CONST && is_sloppy(language_mode()))) {
+    if (peek() == Token::VAR || peek() == Token::CONST ||
+        (peek() == Token::LET && is_strict(language_mode()))) {
       ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
-      Block* variable_statement =
-          parsing_result.BuildInitializationBlock(nullptr, CHECK_OK);
+      is_const = parsing_result.descriptor.mode == CONST;
 
       int num_decl = parsing_result.declarations.length();
       bool accept_IN = num_decl >= 1;
@@ -3454,124 +3454,100 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           *ok = false;
           return nullptr;
         }
-        ForEachStatement* loop =
-            factory()->NewForEachStatement(mode, labels, stmt_pos);
-        Target target(&this->target_stack_, loop);
 
-        Expression* enumerable = ParseExpression(true, CHECK_OK);
-        Expect(Token::RPAREN, CHECK_OK);
+        DCHECK(parsing_result.declarations.length() == 1);
+        Block* init_block = nullptr;
 
-        VariableProxy* each =
-            scope_->NewUnresolved(factory(), parsing_result.SingleName(),
-                                  Variable::NORMAL, each_beg_pos, each_end_pos);
-        Statement* body = ParseSubStatement(NULL, CHECK_OK);
-        InitializeForEachStatement(loop, each, enumerable, body);
-        Block* result =
-            factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
-        result->AddStatement(variable_statement, zone());
-        result->AddStatement(loop, zone());
-        scope_ = saved_scope;
-        for_scope->set_end_position(scanner()->location().end_pos);
-        for_scope = for_scope->FinalizeBlockScope();
-        DCHECK(for_scope == NULL);
-        // Parsed for-in loop w/ variable/const declaration.
-        return result;
-      } else {
-        init = variable_statement;
-      }
-    } else if ((peek() == Token::LET || peek() == Token::CONST) &&
-               is_strict(language_mode())) {
-      is_const = peek() == Token::CONST;
-      ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
-      DCHECK(parsing_result.descriptor.pos != RelocInfo::kNoPosition);
-
-      int num_decl = parsing_result.declarations.length();
-      bool accept_IN = num_decl >= 1;
-      bool accept_OF = true;
-      ForEachStatement::VisitMode mode;
-      int each_beg_pos = scanner()->location().beg_pos;
-      int each_end_pos = scanner()->location().end_pos;
-
-      if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
-        if (!*ok) return nullptr;
-        if (num_decl != 1) {
-          const char* loop_type =
-              mode == ForEachStatement::ITERATE ? "for-of" : "for-in";
-          ParserTraits::ReportMessageAt(
-              parsing_result.bindings_loc,
-              MessageTemplate::kForInOfLoopMultiBindings, loop_type);
-          *ok = false;
-          return nullptr;
+        // special case for legacy for (var/const x =.... in)
+        if (is_sloppy(language_mode()) &&
+            !IsLexicalVariableMode(parsing_result.descriptor.mode) &&
+            parsing_result.declarations[0].initializer != nullptr) {
+          VariableProxy* single_var = scope_->NewUnresolved(
+              factory(), parsing_result.SingleName(), Variable::NORMAL,
+              each_beg_pos, each_end_pos);
+          init_block = factory()->NewBlock(
+              nullptr, 2, true, parsing_result.descriptor.declaration_pos);
+          init_block->AddStatement(
+              factory()->NewExpressionStatement(
+                  factory()->NewAssignment(
+                      Token::ASSIGN, single_var,
+                      parsing_result.declarations[0].initializer,
+                      RelocInfo::kNoPosition),
+                  RelocInfo::kNoPosition),
+              zone());
         }
-        if (parsing_result.first_initializer_loc.IsValid() &&
-            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE)) {
-          if (mode == ForEachStatement::ITERATE) {
-            ReportMessageAt(parsing_result.first_initializer_loc,
-                            MessageTemplate::kForOfLoopInitializer);
-          } else {
-            ReportMessageAt(parsing_result.first_initializer_loc,
-                            MessageTemplate::kForInLoopInitializer);
-          }
-          *ok = false;
-          return nullptr;
-        }
-        // Rewrite a for-in statement of the form
+
+        // Rewrite a for-in/of statement of the form
         //
-        //   for (let/const x in e) b
+        //   for (let/const/var x in/of e) b
         //
         // into
         //
         //   <let x' be a temporary variable>
-        //   for (x' in e) {
-        //     let/const x;
+        //   for (x' in/of e) {
+        //     let/const/var x;
         //     x = x';
         //     b;
         //   }
 
-        // TODO(keuchel): Move the temporary variable to the block scope, after
-        // implementing stack allocated block scoped variables.
         Variable* temp = scope_->DeclarationScope()->NewTemporary(
             ast_value_factory()->dot_for_string());
-        VariableProxy* temp_proxy =
-            factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
-        // The expression does not see the loop variable.
+        // The expression does not see the lexical loop variables.
         scope_ = saved_scope;
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
+
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
 
-        auto each_initialization_block = factory()->NewBlock(
-            nullptr, 1, true, parsing_result.descriptor.pos);
+        auto each_initialization_block =
+            factory()->NewBlock(nullptr, 1, true, RelocInfo::kNoPosition);
         {
           DCHECK(parsing_result.declarations.length() == 1);
           DeclarationParsingResult::Declaration decl =
               parsing_result.declarations[0];
-          decl.initializer = temp_proxy;
+          auto descriptor = parsing_result.descriptor;
+          descriptor.declaration_pos = RelocInfo::kNoPosition;
+          decl.initializer = factory()->NewVariableProxy(temp);
+
           PatternRewriter::DeclareAndInitializeVariables(
-              each_initialization_block, &parsing_result.descriptor, &decl,
-              &lexical_bindings, CHECK_OK);
+              each_initialization_block, &descriptor, &decl,
+              IsLexicalVariableMode(descriptor.mode) ? &lexical_bindings
+                                                     : nullptr,
+              CHECK_OK);
         }
 
         body_block->AddStatement(each_initialization_block, zone());
         body_block->AddStatement(body, zone());
+        VariableProxy* temp_proxy =
+            factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
         InitializeForEachStatement(loop, temp_proxy, enumerable, body_block);
         scope_ = saved_scope;
         for_scope->set_end_position(scanner()->location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
-        body_block->set_scope(for_scope);
-        // Parsed for-in loop w/ let declaration.
-        return loop;
+        if (for_scope != nullptr) {
+          body_block->set_scope(for_scope);
+        }
+        // Parsed for-in loop w/ variable declarations.
+        if (init_block != nullptr) {
+          init_block->AddStatement(loop, zone());
+          return init_block;
+        } else {
+          return loop;
+        }
       } else {
-        init = parsing_result.BuildInitializationBlock(&lexical_bindings,
-                                                       CHECK_OK);
+        init = parsing_result.BuildInitializationBlock(
+            IsLexicalVariableMode(parsing_result.descriptor.mode)
+                ? &lexical_bindings
+                : nullptr,
+            CHECK_OK);
       }
     } else {
       Scanner::Location lhs_location = scanner()->peek_location();
@@ -3579,9 +3555,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       ForEachStatement::VisitMode mode;
       bool accept_OF = expression->IsVariableProxy();
       is_let_identifier_expression =
-        expression->IsVariableProxy() &&
-        expression->AsVariableProxy()->raw_name() ==
-            ast_value_factory()->let_string();
+          expression->IsVariableProxy() &&
+          expression->AsVariableProxy()->raw_name() ==
+              ast_value_factory()->let_string();
 
       if (CheckInOrOf(accept_OF, &mode, ok)) {
         if (!*ok) return nullptr;

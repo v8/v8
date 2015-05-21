@@ -51,7 +51,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   const AstRawString* name = pattern->raw_name();
   VariableProxy* proxy = parser->NewUnresolved(name, descriptor_->mode);
   Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, descriptor_->mode, descriptor_->scope, descriptor_->pos);
+      proxy, descriptor_->mode, descriptor_->scope,
+      descriptor_->declaration_pos);
   Variable* var = parser->Declare(declaration, descriptor_->mode != VAR, ok_);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
@@ -126,7 +127,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     ZoneList<Expression*>* arguments =
         new (zone()) ZoneList<Expression*>(3, zone());
     // We have at least 1 parameter.
-    arguments->Add(factory()->NewStringLiteral(name, descriptor_->pos), zone());
+    arguments->Add(
+        factory()->NewStringLiteral(name, descriptor_->declaration_pos),
+        zone());
     CallRuntime* initialize;
 
     if (descriptor_->is_const) {
@@ -140,13 +143,14 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       initialize = factory()->NewCallRuntime(
           ast_value_factory()->initialize_const_global_string(),
           Runtime::FunctionForId(Runtime::kInitializeConstGlobal), arguments,
-          descriptor_->pos);
+          descriptor_->initialization_pos);
     } else {
       // Add language mode.
       // We may want to pass singleton to avoid Literal allocations.
       LanguageMode language_mode = initialization_scope->language_mode();
-      arguments->Add(
-          factory()->NewNumberLiteral(language_mode, descriptor_->pos), zone());
+      arguments->Add(factory()->NewNumberLiteral(language_mode,
+                                                 descriptor_->declaration_pos),
+                     zone());
 
       // Be careful not to assign a value to the global variable if
       // we're in a with. The initialization value should not
@@ -160,7 +164,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
         initialize = factory()->NewCallRuntime(
             ast_value_factory()->initialize_var_global_string(),
             Runtime::FunctionForId(Runtime::kInitializeVarGlobal), arguments,
-            descriptor_->pos);
+            descriptor_->declaration_pos);
       } else {
         initialize = NULL;
       }
@@ -184,7 +188,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
     Assignment* assignment = factory()->NewAssignment(
-        descriptor_->init_op, proxy, value, descriptor_->pos);
+        descriptor_->init_op, proxy, value, descriptor_->initialization_pos);
     block_->AddStatement(
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
         zone());
@@ -200,7 +204,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // property).
     VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
     Assignment* assignment = factory()->NewAssignment(
-        descriptor_->init_op, proxy, value, descriptor_->pos);
+        descriptor_->init_op, proxy, value, descriptor_->initialization_pos);
     block_->AddStatement(
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
         zone());

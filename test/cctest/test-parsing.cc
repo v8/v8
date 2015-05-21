@@ -6525,6 +6525,32 @@ TEST(DestructuringNegativeTests) {
 }
 
 
+TEST(DestructuringDisallowPatternsInForVarIn) {
+  i::FLAG_harmony_destructuring = true;
+  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
+  const char* context_data[][2] = {
+      {"", ""}, {"function f() {", "}"}, {NULL, NULL}};
+  // clang-format off
+  const char* error_data[] = {
+    "for (var {x} = {} in null);",
+    "for (var {x} = {} of null);",
+    "for (let x = {} in null);",
+    "for (let x = {} of null);",
+    NULL};
+  // clang-format on
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+
+  // clang-format off
+  const char* success_data[] = {
+    "for (var x = {} in null);",
+    NULL};
+  // clang-format on
+  RunParserSyncTest(context_data, success_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(SpreadArray) {
   i::FLAG_harmony_spread_arrays = true;
 

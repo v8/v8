@@ -950,7 +950,8 @@ class Parser : public ParserBase<ParserTraits> {
     VariableMode mode;
     bool is_const;
     bool needs_init;
-    int pos;
+    int declaration_pos;
+    int initialization_pos;
     Token::Value init_op;
   };
 

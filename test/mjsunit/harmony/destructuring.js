@@ -645,11 +645,41 @@
     assertSame(-(i+1), fy());
   }
 
-  var o = { 'a1':1, 'b2':2 };
-  o.__proto__ = null;
+  var o = { __proto__:null, 'a1':1, 'b2':2 };
   let sx = '';
   let sy = '';
   for (let [x,y] in o) {
+    sx += x;
+    sy += y;
+  }
+  assertEquals('ab', sx);
+  assertEquals('12', sy);
+}());
+
+
+(function TestForEachVars() {
+  var a = [{x:1, y:-1}, {x:2,y:-2}, {x:3,y:-3}];
+  var sumX = 0;
+  var sumY = 0;
+  var fs = [];
+  for (var {x,y} of a) {
+    sumX += x;
+    sumY += y;
+    fs.push({fx : function() { return x; }, fy : function() { return y }});
+  }
+  assertSame(6, sumX);
+  assertSame(-6, sumY);
+  assertSame(3, fs.length);
+  for (var i = 0; i < fs.length; i++) {
+    var {fx,fy} = fs[i];
+    assertSame(3, fx());
+    assertSame(-3, fy());
+  }
+
+  var o = { __proto__:null, 'a1':1, 'b2':2 };
+  var sx = '';
+  var sy = '';
+  for (var [x,y] in o) {
     sx += x;
     sy += y;
   }
