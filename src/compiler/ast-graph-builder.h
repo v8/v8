@@ -459,6 +459,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Mark this environment as being unreachable.
   void MarkAsUnreachable() {
     UpdateControlDependency(builder()->jsgraph()->DeadControl());
+    liveness_block_ = nullptr;
   }
   bool IsMarkedAsUnreachable() {
     return GetControlDependency()->opcode() == IrOpcode::kDead;
@@ -468,20 +469,13 @@ class AstGraphBuilder::Environment : public ZoneObject {
   void Merge(Environment* other);
 
   // Copies this environment at a control-flow split point.
-  Environment* CopyForConditional() { return Copy(); }
+  Environment* CopyForConditional();
 
   // Copies this environment to a potentially unreachable control-flow point.
-  Environment* CopyAsUnreachable() {
-    Environment* env = Copy();
-    env->MarkAsUnreachable();
-    return env;
-  }
+  Environment* CopyAsUnreachable();
 
   // Copies this environment at a loop header control-flow point.
-  Environment* CopyForLoop(BitVector* assigned, bool is_osr = false) {
-    PrepareForLoop(assigned, is_osr);
-    return CopyAndShareLiveness();
-  }
+  Environment* CopyForLoop(BitVector* assigned, bool is_osr = false);
 
  private:
   AstGraphBuilder* builder_;
@@ -496,8 +490,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
   Node* locals_node_;
   Node* stack_node_;
 
-  explicit Environment(Environment* copy);
-  Environment* Copy() { return new (zone()) Environment(this); }
+  explicit Environment(Environment* copy,
+                       LivenessAnalyzerBlock* liveness_block);
   Environment* CopyAndShareLiveness();
   void UpdateStateValues(Node** state_values, int offset, int count);
   void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
@@ -508,6 +502,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
   NodeVector* values() { return &values_; }
   NodeVector* contexts() { return &contexts_; }
   LivenessAnalyzerBlock* liveness_block() { return liveness_block_; }
+  bool IsLivenessAnalysisEnabled();
+  bool IsLivenessBlockConsistent();
 
   // Prepare environment to be used as loop header.
   void PrepareForLoop(BitVector* assigned, bool is_osr = false);
