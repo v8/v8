@@ -133,8 +133,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        return JSProxy::GetPropertyWithHandler(it->GetHolder<JSProxy>(),
-                                               it->GetReceiver(), it->name());
+        return JSProxy::GetPropertyWithHandler(
+            it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName());
       case LookupIterator::INTERCEPTOR: {
         MaybeHandle<Object> maybe_result =
             JSObject::GetPropertyWithInterceptor(it);
@@ -310,7 +310,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
     Handle<JSObject> holder = it->GetHolder<JSObject>();
-    Handle<Name> name = it->name();
+    Handle<Name> name = it->GetName();
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       THROW_NEW_ERROR(isolate,
@@ -511,8 +511,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
       return Just(it->property_details().attributes());
     }
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
-    auto result = GetPropertyAttributesWithInterceptor(
-        it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
+    auto result = GetPropertyAttributesWithInterceptor(it);
     if (it->isolate()->has_scheduled_exception()) break;
     if (result.IsJust() && result.FromJust() != ABSENT) return result;
   }
@@ -540,7 +539,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
     LookupIterator* it, Handle<Object> value, LanguageMode language_mode) {
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   if (FindAllCanWriteHolder(it)) {
-    return SetPropertyWithAccessor(it->GetReceiver(), it->name(), value,
+    return SetPropertyWithAccessor(it->GetReceiver(), it->GetName(), value,
                                    it->GetHolder<JSObject>(),
                                    it->GetAccessors(), language_mode);
   }
@@ -3173,15 +3172,15 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
 
       case LookupIterator::JSPROXY:
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          return JSProxy::SetPropertyWithHandler(it->GetHolder<JSProxy>(),
-                                                 it->GetReceiver(), it->name(),
-                                                 value, language_mode);
+          return JSProxy::SetPropertyWithHandler(
+              it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName(), value,
+              language_mode);
         } else {
           // TODO(verwaest): Use the MaybeHandle to indicate result.
           bool has_result = false;
           MaybeHandle<Object> maybe_result =
               JSProxy::SetPropertyViaPrototypesWithHandler(
-                  it->GetHolder<JSProxy>(), it->GetReceiver(), it->name(),
+                  it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName(),
                   value, language_mode, &has_result);
           if (has_result) return maybe_result;
           done = true;
@@ -3196,8 +3195,7 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
           if (it->isolate()->has_pending_exception()) return maybe_result;
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
-              JSObject::GetPropertyAttributesWithInterceptor(
-                  it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
+              JSObject::GetPropertyAttributesWithInterceptor(it);
           if (!maybe_attributes.IsJust()) return MaybeHandle<Object>();
           done = maybe_attributes.FromJust() != ABSENT;
           if (done && (maybe_attributes.FromJust() & READ_ONLY) != 0) {
@@ -3217,7 +3215,7 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
           done = true;
           break;
         }
-        return SetPropertyWithAccessor(it->GetReceiver(), it->name(), value,
+        return SetPropertyWithAccessor(it->GetReceiver(), it->GetName(), value,
                                        it->GetHolder<JSObject>(), accessors,
                                        language_mode);
       }
@@ -4359,40 +4357,63 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
 
 Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
-    Handle<JSObject> holder,
-    Handle<Object> receiver,
-    Handle<Name> name) {
-  Isolate* isolate = holder->GetIsolate();
-  HandleScope scope(isolate);
-
+    LookupIterator* it) {
+  Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
+  HandleScope scope(isolate);
 
-  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor());
-  if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
+  Handle<JSObject> holder = it->GetHolder<JSObject>();
+  Handle<InterceptorInfo> interceptor(it->GetInterceptor());
+  if (!it->IsElement() && it->name()->IsSymbol() &&
+      !interceptor->can_intercept_symbols()) {
     return Just(ABSENT);
   }
-  PropertyCallbackArguments args(
-      isolate, interceptor->data(), *receiver, *holder);
+  PropertyCallbackArguments args(isolate, interceptor->data(),
+                                 *it->GetReceiver(), *holder);
   if (!interceptor->query()->IsUndefined()) {
-    v8::GenericNamedPropertyQueryCallback query =
-        v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
-            interceptor->query());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-has", *holder, *name));
-    v8::Handle<v8::Integer> result = args.Call(query, v8::Utils::ToLocal(name));
+    v8::Handle<v8::Integer> result;
+    if (it->IsElement()) {
+      uint32_t index = it->index();
+      v8::IndexedPropertyQueryCallback query =
+          v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query());
+      LOG(isolate,
+          ApiIndexedPropertyAccess("interceptor-indexed-has", *holder, index));
+      result = args.Call(query, index);
+    } else {
+      Handle<Name> name = it->name();
+      v8::GenericNamedPropertyQueryCallback query =
+          v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
+              interceptor->query());
+      LOG(isolate,
+          ApiNamedPropertyAccess("interceptor-named-has", *holder, *name));
+      result = args.Call(query, v8::Utils::ToLocal(name));
+    }
     if (!result.IsEmpty()) {
       DCHECK(result->IsInt32());
       return Just(static_cast<PropertyAttributes>(result->Int32Value()));
     }
   } else if (!interceptor->getter()->IsUndefined()) {
-    v8::GenericNamedPropertyGetterCallback getter =
-        v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
-            interceptor->getter());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-get-has", *holder, *name));
-    v8::Handle<v8::Value> result = args.Call(getter, v8::Utils::ToLocal(name));
+    // TODO(verwaest): Use GetPropertyWithInterceptor?
+    v8::Handle<v8::Value> result;
+    if (it->IsElement()) {
+      uint32_t index = it->index();
+      v8::IndexedPropertyGetterCallback getter =
+          v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
+      LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-get-has",
+                                            *holder, index));
+      result = args.Call(getter, index);
+    } else {
+      Handle<Name> name = it->name();
+
+      v8::GenericNamedPropertyGetterCallback getter =
+          v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+              interceptor->getter());
+      LOG(isolate,
+          ApiNamedPropertyAccess("interceptor-named-get-has", *holder, *name));
+      result = args.Call(getter, v8::Utils::ToLocal(name));
+    }
     if (!result.IsEmpty()) return Just(DONT_ENUM);
   }
 
@@ -4422,11 +4443,10 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyAttributesWithHandler(
-            it->GetHolder<JSProxy>(), it->GetReceiver(), it->name());
+            it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName());
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
-            JSObject::GetPropertyAttributesWithInterceptor(
-                it->GetHolder<JSObject>(), it->GetReceiver(), it->name());
+            JSObject::GetPropertyAttributesWithInterceptor(it);
         if (!result.IsJust()) return result;
         if (result.FromJust() != ABSENT) return result;
         break;
@@ -14024,29 +14044,44 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 
 MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it) {
-  DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   Isolate* isolate = it->isolate();
+  // Make sure that the top context does not change when doing callbacks or
+  // interceptor calls.
+  AssertNoContextChange ncc(isolate);
+
+  DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   Handle<InterceptorInfo> interceptor = it->GetInterceptor();
   if (interceptor->getter()->IsUndefined()) return MaybeHandle<Object>();
 
-  Handle<Name> name = it->name();
   Handle<JSObject> holder = it->GetHolder<JSObject>();
-
-  if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
-    return MaybeHandle<Object>();
-  }
-
-  v8::GenericNamedPropertyGetterCallback getter =
-      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
-          interceptor->getter());
-  LOG(isolate,
-      ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
+  v8::Handle<v8::Value> result;
   PropertyCallbackArguments args(isolate, interceptor->data(),
                                  *it->GetReceiver(), *holder);
-  v8::Handle<v8::Value> result = args.Call(getter, v8::Utils::ToLocal(name));
+
+  if (it->IsElement()) {
+    uint32_t index = it->index();
+    v8::IndexedPropertyGetterCallback getter =
+        v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
+    LOG(isolate,
+        ApiIndexedPropertyAccess("interceptor-indexed-get", *holder, index));
+    result = args.Call(getter, index);
+  } else {
+    Handle<Name> name = it->name();
+
+    if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
+      return MaybeHandle<Object>();
+    }
+
+    v8::GenericNamedPropertyGetterCallback getter =
+        v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+            interceptor->getter());
+    LOG(isolate,
+        ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
+    result = args.Call(getter, v8::Utils::ToLocal(name));
+  }
+
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   if (result.IsEmpty()) return MaybeHandle<Object>();
-
   Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
   result_internal->VerifyApiCallResultType();
   // Rebox handle before return
