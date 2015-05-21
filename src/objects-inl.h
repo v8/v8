@@ -891,6 +891,9 @@ bool Object::IsWeakHashTable() const {
 }
 
 
+bool Object::IsWeakValueHashTable() const { return IsHashTable(); }
+
+
 bool Object::IsDictionary() const {
   return IsHashTable() &&
       this != HeapObject::cast(this)->GetHeap()->string_table();
@@ -3436,6 +3439,7 @@ CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
+CAST_ACCESSOR(WeakValueHashTable)
 
 
 // static

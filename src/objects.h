@@ -1012,6 +1012,7 @@ template <class C> inline bool Is(Object* obj);
   V(WeakCell)                      \
   V(ObjectHashTable)               \
   V(WeakHashTable)                 \
+  V(WeakValueHashTable)            \
   V(OrderedHashTable)
 
 // Object is the abstract superclass for all classes in the
@@ -3958,7 +3959,7 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
                                         Handle<Object> key,
                                         bool* was_present);
 
- private:
+ protected:
   friend class MarkCompactCollector;
 
   void AddEntry(int entry, Object* key, Object* value);
@@ -4185,6 +4186,8 @@ class WeakHashTable: public HashTable<WeakHashTable,
                                                    Handle<HeapObject> key,
                                                    Handle<HeapObject> value);
 
+  static Handle<FixedArray> GetValues(Handle<WeakHashTable> table);
+
  private:
   friend class MarkCompactCollector;
 
@@ -4197,6 +4200,26 @@ class WeakHashTable: public HashTable<WeakHashTable,
 };
 
 
+class WeakValueHashTable : public ObjectHashTable {
+ public:
+  DECLARE_CAST(WeakValueHashTable)
+
+#ifdef DEBUG
+  // Looks up the value associated with the given key. The hole value is
+  // returned in case the key is not present.
+  Object* LookupWeak(Handle<Object> key);
+#endif  // DEBUG
+
+  // Adds (or overwrites) the value associated with the given key. Mapping a
+  // key to the hole value causes removal of the whole entry.
+  MUST_USE_RESULT static Handle<WeakValueHashTable> PutWeak(
+      Handle<WeakValueHashTable> table, Handle<Object> key,
+      Handle<HeapObject> value);
+
+  static Handle<FixedArray> GetWeakValues(Handle<WeakValueHashTable> table);
+};
+
+
 // JSFunctionResultCache caches results of some JSFunction invocation.
 // It is a fixed array with fixed structure:
 //   [0]: factory function
@@ -4204,7 +4227,7 @@ class WeakHashTable: public HashTable<WeakHashTable,
 //   [2]: current cache size
 //   [3]: dummy field.
 // The rest of array are key/value pairs.
-class JSFunctionResultCache: public FixedArray {
+class JSFunctionResultCache : public FixedArray {
  public:
   static const int kFactoryIndex = 0;
   static const int kFingerIndex = kFactoryIndex + 1;

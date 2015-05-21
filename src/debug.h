@@ -228,31 +228,22 @@ class BreakLocation {
 // to it is created and that weak handle is stored in the cache. The weak handle
 // callback takes care of removing the script from the cache. The key used in
 // the cache is the script id.
-class ScriptCache : private HashMap {
+class ScriptCache {
  public:
   explicit ScriptCache(Isolate* isolate);
-  virtual ~ScriptCache() { Clear(); }
+  ~ScriptCache();
 
   // Add script to the cache.
   void Add(Handle<Script> script);
 
   // Return the scripts in the cache.
-  Handle<FixedArray> GetScripts();
-
- private:
-  // Calculate the hash value from the key (script id).
-  static uint32_t Hash(int key) {
-    return ComputeIntegerHash(key, v8::internal::kZeroHashSeed);
+  Handle<FixedArray> GetScripts() {
+    return WeakValueHashTable::GetWeakValues(table_);
   }
 
-  // Clear the cache releasing all the weak handles.
-  void Clear();
-
-  // Weak handle callback for scripts in the cache.
-  static void HandleWeakScript(
-      const v8::WeakCallbackData<v8::Value, void>& data);
-
+ private:
   Isolate* isolate_;
+  Handle<WeakValueHashTable> table_;
 };
 
 

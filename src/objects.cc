@@ -16411,6 +16411,49 @@ void WeakHashTable::AddEntry(int entry, Handle<WeakCell> key_cell,
 }
 
 
+#ifdef DEBUG
+Object* WeakValueHashTable::LookupWeak(Handle<Object> key) {
+  Object* value = Lookup(key);
+  if (value->IsWeakCell() && !WeakCell::cast(value)->cleared()) {
+    value = WeakCell::cast(value)->value();
+  }
+  return value;
+}
+#endif  // DEBUG
+
+
+Handle<WeakValueHashTable> WeakValueHashTable::PutWeak(
+    Handle<WeakValueHashTable> table, Handle<Object> key,
+    Handle<HeapObject> value) {
+  Handle<WeakCell> cell = value->GetIsolate()->factory()->NewWeakCell(value);
+  return Handle<WeakValueHashTable>::cast(
+      Put(Handle<ObjectHashTable>::cast(table), key, cell));
+}
+
+
+Handle<FixedArray> WeakValueHashTable::GetWeakValues(
+    Handle<WeakValueHashTable> table) {
+  Isolate* isolate = table->GetIsolate();
+  uint32_t capacity = table->Capacity();
+  Handle<FixedArray> results = isolate->factory()->NewFixedArray(capacity);
+  int length = 0;
+  for (uint32_t i = 0; i < capacity; i++) {
+    uint32_t key_index = table->EntryToIndex(i);
+    Object* key = table->get(key_index);
+    if (!table->IsKey(key)) continue;
+    uint32_t value_index = table->EntryToValueIndex(i);
+    WeakCell* value_cell = WeakCell::cast(table->get(value_index));
+    if (value_cell->cleared()) {
+      table->RemoveEntry(i);
+    } else {
+      results->set(length++, value_cell->value());
+    }
+  }
+  results->Shrink(length);
+  return results;
+}
+
+
 template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure) {

@@ -493,8 +493,7 @@ int Debug::ArchiveSpacePerThread() {
 }
 
 
-ScriptCache::ScriptCache(Isolate* isolate) : HashMap(HashMap::PointersMatch),
-                                             isolate_(isolate) {
+ScriptCache::ScriptCache(Isolate* isolate) : isolate_(isolate) {
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
 
@@ -502,92 +501,53 @@ ScriptCache::ScriptCache(Isolate* isolate) : HashMap(HashMap::PointersMatch),
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "ScriptCache");
 
   // Scan heap for Script objects.
-  HeapIterator iterator(heap);
-  DisallowHeapAllocation no_allocation;
-
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {
-      Add(Handle<Script>(Script::cast(obj)));
+  List<Handle<Script> > scripts;
+  {
+    HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
+    DisallowHeapAllocation no_allocation;
+    for (HeapObject* obj = iterator.next(); obj != NULL;
+         obj = iterator.next()) {
+      if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {
+        scripts.Add(Handle<Script>(Script::cast(obj)));
+      }
     }
   }
+
+  GlobalHandles* global_handles = isolate_->global_handles();
+  table_ = Handle<WeakValueHashTable>::cast(global_handles->Create(
+      Object::cast(*WeakValueHashTable::New(isolate_, scripts.length()))));
+  for (int i = 0; i < scripts.length(); i++) Add(scripts[i]);
 }
 
 
 void ScriptCache::Add(Handle<Script> script) {
-  GlobalHandles* global_handles = isolate_->global_handles();
-  // Create an entry in the hash map for the script.
-  int id = script->id()->value();
-  HashMap::Entry* entry =
-      HashMap::LookupOrInsert(reinterpret_cast<void*>(id), Hash(id));
-  if (entry->value != NULL) {
+  HandleScope scope(isolate_);
+  Handle<Smi> id(script->id(), isolate_);
+
 #ifdef DEBUG
-    // The code deserializer may introduce duplicate Script objects.
-    // Assert that the Script objects with the same id have the same name.
-    Handle<Script> found(reinterpret_cast<Script**>(entry->value));
+  Handle<Object> lookup(table_->LookupWeak(id), isolate_);
+  if (!lookup->IsTheHole()) {
+    Handle<Script> found = Handle<Script>::cast(lookup);
     DCHECK(script->id() == found->id());
     DCHECK(!script->name()->IsString() ||
            String::cast(script->name())->Equals(String::cast(found->name())));
+  }
 #endif
-    return;
-  }
-  // Globalize the script object, make it weak and use the location of the
-  // global handle as the value in the hash map.
-  Handle<Script> script_ =
-      Handle<Script>::cast(global_handles->Create(*script));
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
-                          this,
-                          ScriptCache::HandleWeakScript);
-  entry->value = script_.location();
+
+  Handle<WeakValueHashTable> new_table =
+      WeakValueHashTable::PutWeak(table_, id, script);
+
+  if (new_table.is_identical_to(table_)) return;
+  GlobalHandles* global_handles = isolate_->global_handles();
+  global_handles->Destroy(Handle<Object>::cast(table_).location());
+  table_ = Handle<WeakValueHashTable>::cast(
+      global_handles->Create(Object::cast(*new_table)));
 }
 
 
-Handle<FixedArray> ScriptCache::GetScripts() {
-  Factory* factory = isolate_->factory();
-  Handle<FixedArray> instances = factory->NewFixedArray(occupancy());
-  int count = 0;
-  for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
-    DCHECK(entry->value != NULL);
-    if (entry->value != NULL) {
-      instances->set(count, *reinterpret_cast<Script**>(entry->value));
-      count++;
-    }
-  }
-  return instances;
-}
-
-
-void ScriptCache::Clear() {
-  // Iterate the script cache to get rid of all the weak handles.
-  for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
-    DCHECK(entry != NULL);
-    Object** location = reinterpret_cast<Object**>(entry->value);
-    DCHECK((*location)->IsScript());
-    GlobalHandles::ClearWeakness(location);
-    GlobalHandles::Destroy(location);
-  }
-  // Clear the content of the hash map.
-  HashMap::Clear();
-}
-
-
-void ScriptCache::HandleWeakScript(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
-  // Retrieve the script identifier.
-  Handle<Object> object = Utils::OpenHandle(*data.GetValue());
-  int id = Handle<Script>::cast(object)->id()->value();
-  void* key = reinterpret_cast<void*>(id);
-  uint32_t hash = Hash(id);
-
-  // Remove the corresponding entry from the cache.
-  ScriptCache* script_cache =
-      reinterpret_cast<ScriptCache*>(data.GetParameter());
-  HashMap::Entry* entry = script_cache->Lookup(key, hash);
-  DCHECK_NOT_NULL(entry);
-  Object** location = reinterpret_cast<Object**>(entry->value);
-  script_cache->Remove(key, hash);
-
-  // Clear the weak handle.
-  GlobalHandles::Destroy(location);
+ScriptCache::~ScriptCache() {
+  isolate_->global_handles()->Destroy(Handle<Object>::cast(table_).location());
+  table_ = Handle<WeakValueHashTable>();
 }
 
 
