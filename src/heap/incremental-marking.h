@@ -67,7 +67,7 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start(int mark_compact_flags);
+  void Start();
 
   void Stop();
 

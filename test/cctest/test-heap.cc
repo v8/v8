@@ -2129,7 +2129,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Abort();
-  marking->Start(Heap::kNoGCFlags);
+  marking->Start();
 
   Handle<JSFunction> f =
       v8::Utils::OpenHandle(
@@ -2255,7 +2255,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Abort();
-  marking->Start(Heap::kNoGCFlags);
+  marking->Start();
   // The following calls will increment CcTest::heap()->global_ic_age().
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
@@ -2313,7 +2313,7 @@ TEST(IdleNotificationFinishMarking) {
   SimulateFullSpace(CcTest::heap()->old_space());
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Abort();
-  marking->Start(Heap::kNoGCFlags);
+  marking->Start();
 
   CHECK_EQ(CcTest::heap()->gc_count(), 0);
 
@@ -4123,7 +4123,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
              "};"
              "f(10 * 1024 * 1024);");
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  if (marking->IsStopped()) marking->Start(Heap::kNoGCFlags);
+  if (marking->IsStopped()) marking->Start();
   // This big step should be sufficient to mark the whole array.
   marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
   DCHECK(marking->IsComplete() ||
@@ -4851,7 +4851,7 @@ TEST(WeakCellsWithIncrementalMarking) {
     Handle<WeakCell> weak_cell = factory->NewWeakCell(value);
     CHECK(weak_cell->value()->IsFixedArray());
     IncrementalMarking* marking = heap->incremental_marking();
-    if (marking->IsStopped()) marking->Start(Heap::kNoGCFlags);
+    if (marking->IsStopped()) marking->Start();
     marking->Step(128, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
     heap->CollectGarbage(NEW_SPACE);
     CHECK(weak_cell->value()->IsFixedArray());
@@ -5119,7 +5119,7 @@ TEST(Regress388880) {
   // that would cause crash.
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Abort();
-  marking->Start(Heap::kNoGCFlags);
+  marking->Start();
   CHECK(marking->IsMarking());
 
   // Now everything is set up for crashing in JSObject::MigrateFastToFast()
@@ -5145,7 +5145,7 @@ TEST(Regress3631) {
       "}"
       "weak_map");
   if (marking->IsStopped()) {
-    marking->Start(Heap::kNoGCFlags);
+    marking->Start();
   }
   // Incrementally mark the backing store.
   Handle<JSObject> obj =
