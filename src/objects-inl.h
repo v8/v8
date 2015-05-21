@@ -6022,6 +6022,11 @@ bool JSFunction::IsOptimized() {
 }
 
 
+bool JSFunction::IsOptimizable() {
+  return code()->kind() == Code::FUNCTION && !shared()->optimization_disabled();
+}
+
+
 bool JSFunction::IsMarkedForOptimization() {
   return code() == GetIsolate()->builtins()->builtin(
       Builtins::kCompileOptimized);

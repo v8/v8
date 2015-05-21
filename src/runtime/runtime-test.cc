@@ -87,7 +87,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
-  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation());
+  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
+                 function->IsOptimizable());
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
@@ -130,7 +131,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
-  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation());
+  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
+                 function->IsOptimizable());
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
