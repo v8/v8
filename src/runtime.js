@@ -65,6 +65,7 @@ var TO_STRING;
 var TO_NAME;
 
 var StringLengthTF_STUB;
+var StringAddTF_STUB;
 var MathFloor_STUB;
 
 var $defaultNumber;
@@ -770,6 +771,10 @@ StringLengthTF_STUB = function StringLengthTF_STUB(receiver, name, i, v) {
   // i and v are dummy parameters mandated by the InterfaceDescriptor,
   // (LoadWithVectorDescriptor).
   return %_StringGetLength(%_JSValueGetValue(receiver));
+}
+
+StringAddTF_STUB = function StringAddTF_STUB(left, right) {
+  return %StringAdd(left, right);
 }
 
 MathFloor_STUB = function MathFloor_STUB(f, i, v) {

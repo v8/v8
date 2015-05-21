@@ -240,7 +240,7 @@ enum LanguageMode {
 };
 
 
-inline std::ostream& operator<<(std::ostream& os, LanguageMode mode) {
+inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
     case SLOPPY:
       return os << "sloppy";
@@ -445,6 +445,17 @@ enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 // (allocated in the young generation if the object size and type
 // allows).
 enum PretenureFlag { NOT_TENURED, TENURED };
+
+inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
+  switch (flag) {
+    case NOT_TENURED:
+      return os << "NotTenured";
+    case TENURED:
+      return os << "Tenured";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,

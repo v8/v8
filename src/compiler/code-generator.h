@@ -184,6 +184,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   int osr_pc_offset_;
+  bool needs_frame_;
 };
 
 }  // namespace compiler

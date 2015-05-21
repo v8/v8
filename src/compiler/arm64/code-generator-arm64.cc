@@ -1078,7 +1078,7 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else if (stack_slots > 0) {
+  } else if (needs_frame_) {
     __ SetStackPointer(jssp);
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
@@ -1127,7 +1127,7 @@ void CodeGenerator::AssembleReturn() {
     __ Mov(csp, fp);
     __ Pop(fp, lr);
     __ Ret();
-  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
+  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
     __ Mov(jssp, fp);
     __ Pop(fp, lr);
     int pop_count = descriptor->IsJSFunctionCall()

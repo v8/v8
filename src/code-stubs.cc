@@ -315,18 +315,29 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
 }
 
 
+std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
+  switch (flags) {
+    case STRING_ADD_CHECK_NONE:
+      return os << "CheckNone";
+    case STRING_ADD_CHECK_LEFT:
+      return os << "CheckLeft";
+    case STRING_ADD_CHECK_RIGHT:
+      return os << "CheckRight";
+    case STRING_ADD_CHECK_BOTH:
+      return os << "CheckBoth";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << "StringAddStub";
-  if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
-    os << "_CheckBoth";
-  } else if ((flags() & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    os << "_CheckLeft";
-  } else if ((flags() & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    os << "_CheckRight";
-  }
-  if (pretenure_flag() == TENURED) {
-    os << "_Tenured";
-  }
+  os << "StringAddStub_" << flags() << "_" << pretenure_flag();
+}
+
+
+void StringAddTFStub::PrintBaseName(std::ostream& os) const {  // NOLINT
+  os << "StringAddTFStub_" << flags() << "_" << pretenure_flag();
 }
 
 

@@ -49,7 +49,8 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       last_lazy_deopt_pc_(0),
       jump_tables_(nullptr),
       ools_(nullptr),
-      osr_pc_offset_(-1) {
+      osr_pc_offset_(-1),
+      needs_frame_(frame->GetSpillSlotCount() > 0 || code->ContainsCall()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }

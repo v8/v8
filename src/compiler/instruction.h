@@ -1156,6 +1156,13 @@ class InstructionSequence final : public ZoneObject {
                          SourcePosition* result) const;
   void SetSourcePosition(const Instruction* instr, SourcePosition value);
 
+  bool ContainsCall() const {
+    for (Instruction* instr : instructions_) {
+      if (instr->IsCall()) return true;
+    }
+    return false;
+  }
+
  private:
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrintableInstructionSequence& code);
