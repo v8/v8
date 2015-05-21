@@ -42,25 +42,33 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
     case NOT_FOUND:
       if (map->IsJSProxyMap()) return JSPROXY;
       if (map->is_access_check_needed() &&
-          !isolate_->IsInternallyUsedPropertyName(name_)) {
+          (IsElement() || !isolate_->IsInternallyUsedPropertyName(name_))) {
         return ACCESS_CHECK;
       }
     // Fall through.
     case ACCESS_CHECK:
-      if (exotic_index_state_ != ExoticIndexState::kNoIndex &&
+      if (exotic_index_state_ != ExoticIndexState::kNotExotic &&
           IsIntegerIndexedExotic(holder)) {
         return INTEGER_INDEXED_EXOTIC;
       }
-      if (check_interceptor() && map->has_named_interceptor() &&
+      if (check_interceptor() && HasInterceptor(map) &&
           !SkipInterceptor(JSObject::cast(holder))) {
         return INTERCEPTOR;
       }
     // Fall through.
     case INTERCEPTOR:
-      if (map->is_dictionary_map()) {
+      if (IsElement()) {
+        JSObject* js_object = JSObject::cast(holder);
+        ElementsAccessor* accessor = js_object->GetElementsAccessor();
+        FixedArrayBase* backing_store = js_object->elements();
+        number_ = accessor->GetIndexForKey(backing_store, index_);
+        if (number_ == kMaxUInt32) return NOT_FOUND;
+        property_details_ = accessor->GetDetails(backing_store, number_);
+      } else if (map->is_dictionary_map()) {
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
-        number_ = dict->FindEntry(name_);
-        if (number_ == NameDictionary::kNotFound) return NOT_FOUND;
+        int number = dict->FindEntry(name_);
+        if (number == NameDictionary::kNotFound) return NOT_FOUND;
+        number_ = static_cast<uint32_t>(number);
         if (holder->IsGlobalObject()) {
           DCHECK(dict->ValueAt(number_)->IsPropertyCell());
           PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
@@ -69,8 +77,9 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         property_details_ = dict->DetailsAt(number_);
       } else {
         DescriptorArray* descriptors = map->instance_descriptors();
-        number_ = descriptors->SearchWithCache(*name_, map);
-        if (number_ == DescriptorArray::kNotFound) return NOT_FOUND;
+        int number = descriptors->SearchWithCache(*name_, map);
+        if (number == DescriptorArray::kNotFound) return NOT_FOUND;
+        number_ = static_cast<uint32_t>(number);
         property_details_ = descriptors->GetDetails(number_);
       }
       has_property_ = true;
@@ -97,7 +106,7 @@ LookupIterator::State LookupIterator::LookupNonMaskingInterceptorInHolder(
     Map* const map, JSReceiver* const holder) {
   switch (state_) {
     case NOT_FOUND:
-      if (check_interceptor() && map->has_named_interceptor() &&
+      if (check_interceptor() && HasInterceptor(map) &&
           !SkipInterceptor(JSObject::cast(holder))) {
         return INTERCEPTOR;
       }

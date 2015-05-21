@@ -145,7 +145,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK(state_ != LookupIterator::ACCESSOR ||
          (GetAccessors()->IsAccessorInfo() &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
-  DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, state_);
+  DCHECK_NE(INTEGER_INDEXED_EXOTIC, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
@@ -355,10 +355,10 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 
 
 bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
-  DCHECK(exotic_index_state_ != ExoticIndexState::kNoIndex);
+  DCHECK(ExoticIndexState::kNotExotic != exotic_index_state_);
   // Currently typed arrays are the only such objects.
   if (!holder->IsJSTypedArray()) return false;
-  if (exotic_index_state_ == ExoticIndexState::kIndex) return true;
+  if (exotic_index_state_ == ExoticIndexState::kExotic) return true;
   DCHECK(exotic_index_state_ == ExoticIndexState::kUninitialized);
   bool result = false;
   // Compute and cache result.
@@ -369,7 +369,7 @@ bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
     }
   }
   exotic_index_state_ =
-      result ? ExoticIndexState::kIndex : ExoticIndexState::kNoIndex;
+      result ? ExoticIndexState::kExotic : ExoticIndexState::kNotExotic;
   return result;
 }
 
@@ -377,6 +377,12 @@ bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
 void LookupIterator::InternalizeName() {
   if (name_->IsUniqueName()) return;
   name_ = factory()->InternalizeString(Handle<String>::cast(name_));
+}
+
+
+bool LookupIterator::HasInterceptor(Map* map) const {
+  if (IsElement()) return map->has_indexed_interceptor();
+  return map->has_named_interceptor();
 }
 
 

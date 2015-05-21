@@ -175,9 +175,12 @@ class ElementsAccessor {
 
  protected:
   friend class SloppyArgumentsElementsAccessor;
+  friend class LookupIterator;
 
-  virtual uint32_t GetCapacity(Handle<JSObject> holder,
-                               Handle<FixedArrayBase> backing_store) = 0;
+  static ElementsAccessor* ForArray(FixedArrayBase* array);
+
+  virtual uint32_t GetCapacity(JSObject* holder,
+                               FixedArrayBase* backing_store) = 0;
 
   // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the
@@ -187,8 +190,12 @@ class ElementsAccessor {
   // keys are equivalent to indexes, and GetKeyForIndex returns the same value
   // it is passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps
   // the index to a key using the KeyAt method on the NumberDictionary.
-  virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
+  virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
                                   uint32_t index) = 0;
+  virtual uint32_t GetIndexForKey(FixedArrayBase* backing_store,
+                                  uint32_t key) = 0;
+  virtual PropertyDetails GetDetails(FixedArrayBase* backing_store,
+                                     uint32_t index) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;
