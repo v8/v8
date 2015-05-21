@@ -478,8 +478,7 @@ static bool FindAllCanReadHolder(LookupIterator* it) {
         if (AccessorInfo::cast(*accessors)->all_can_read()) return true;
       }
     } else if (it->state() == LookupIterator::INTERCEPTOR) {
-      auto holder = it->GetHolder<JSObject>();
-      if (holder->GetNamedInterceptor()->all_can_read()) return true;
+      if (it->GetInterceptor()->all_can_read()) return true;
     }
   }
   return false;
