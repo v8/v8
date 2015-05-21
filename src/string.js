@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $stringCharAt;
-var $stringIndexOf;
-var $stringSubstring;
-
-(function(global, shared, exports) {
+(function(global, utils) {
 
 %CheckIsBootstrapping();
 
@@ -15,8 +11,16 @@ var $stringSubstring;
 
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var InternalArray = shared.InternalArray;
-var InternalPackedArray = shared.InternalPackedArray;
+var InternalArray = utils.InternalArray;
+var InternalPackedArray = utils.InternalPackedArray;
+
+var MathMax;
+var MathMin;
+
+utils.Import(function(from) {
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
+});
 
 //-------------------------------------------------------------------
 
@@ -968,7 +972,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = $min($max(pos, 0), s_len);
+  var start = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -998,7 +1002,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  var end = $min($max(pos, 0), s_len);
+  var end = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
   var start = end - ss_len;
   if (start < 0) {
@@ -1027,7 +1031,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = $min($max(pos, 0), s_len);
+  var start = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -1172,8 +1176,13 @@ $installFunctions(GlobalString.prototype, DONT_ENUM, [
   "sup", StringSup
 ]);
 
-$stringCharAt = StringCharAtJS;
-$stringIndexOf = StringIndexOfJS;
-$stringSubstring = StringSubstring;
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.StringCharAt = StringCharAtJS;
+  to.StringIndexOf = StringIndexOfJS;
+  to.StringSubstring = StringSubstring;
+});
 
 })

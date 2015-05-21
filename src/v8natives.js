@@ -32,7 +32,7 @@ var $setUpLockedPrototype;
 var $toCompletePropertyDescriptor;
 var $toNameArray;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 %CheckIsBootstrapping();
 
@@ -44,7 +44,15 @@ var GlobalBoolean = global.Boolean;
 var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
-var InternalArray = shared.InternalArray;
+var InternalArray = utils.InternalArray;
+
+var MathAbs;
+var StringIndexOf;
+
+utils.Import(function(from) {
+  MathAbs = from.MathAbs;
+  StringIndexOf = from.StringIndexOf;
+});
 
 // ----------------------------------------------------------------------------
 
@@ -1697,7 +1705,7 @@ function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
     if (integral == number) {
-      return $abs(integral) <= GlobalNumber.MAX_SAFE_INTEGER;
+      return MathAbs(integral) <= GlobalNumber.MAX_SAFE_INTEGER;
     }
   }
   return false;
@@ -1882,7 +1890,7 @@ function NewFunctionString(args, function_token) {
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
-    if (%_CallFunction(p, ')', $stringIndexOf) != -1) {
+    if (%_CallFunction(p, ')', StringIndexOf) != -1) {
       throw MakeSyntaxError(kParenthesisInArgString);
     }
     // If the formal parameters include an unbalanced block comment, the

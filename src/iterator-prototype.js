@@ -4,7 +4,7 @@
 
 var $iteratorPrototype;
 
-(function(global, shared, exports) {
+(function(global, utils) {
   "use strict";
   %CheckIsBootstrapping();
 

@@ -20,7 +20,7 @@ var $innerArrayReverse;
 var $innerArraySome;
 var $innerArraySort;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
@@ -30,8 +30,14 @@ var $innerArraySort;
 // Imports
 
 var GlobalArray = global.Array;
-var InternalArray = exports.InternalArray;
-var InternalPackedArray = exports.InternalPackedArray;
+var InternalArray = utils.InternalArray;
+var InternalPackedArray = utils.InternalPackedArray;
+
+var MathMin;
+
+utils.Import(function(from) {
+  MathMin = from.MathMin;
+});
 
 // -------------------------------------------------------------------
 
@@ -265,7 +271,7 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
   var new_array = new InternalArray(
       // Clamp array length to 2^32-1 to avoid early RangeError.
-      $min(len - del_count + num_additional_args, 0xffffffff));
+      MathMin(len - del_count + num_additional_args, 0xffffffff));
   var big_indices;
   var indices = %GetArrayKeys(array, len);
   if (IS_NUMBER(indices)) {

@@ -5410,19 +5410,11 @@ TEST(PreprocessStackTrace) {
 }
 
 
-static bool shared_has_been_collected = false;
-static bool builtin_exports_has_been_collected = false;
+static bool utils_has_been_collected = false;
 
-static void SharedHasBeenCollected(
+static void UtilsHasBeenCollected(
     const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
-  shared_has_been_collected = true;
-  data.GetParameter()->Reset();
-}
-
-
-static void BuiltinExportsHasBeenCollected(
-    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
-  builtin_exports_has_been_collected = true;
+  utils_has_been_collected = true;
   data.GetParameter()->Reset();
 }
 
@@ -5434,30 +5426,50 @@ TEST(BootstrappingExports) {
 
   if (Snapshot::HaveASnapshotToStartFrom(CcTest::i_isolate())) return;
 
-  shared_has_been_collected = false;
-  builtin_exports_has_been_collected = false;
+  utils_has_been_collected = false;
 
-  v8::Persistent<v8::Object> shared;
-  v8::Persistent<v8::Object> builtin_exports;
+  v8::Persistent<v8::Object> utils;
 
   {
     v8::HandleScope scope(isolate);
     v8::Handle<v8::Object> natives =
         CcTest::global()->Get(v8_str("natives"))->ToObject(isolate);
-    shared.Reset(isolate, natives->Get(v8_str("shared"))->ToObject(isolate));
-    natives->Delete(v8_str("shared"));
-    builtin_exports.Reset(
-        isolate, natives->Get(v8_str("builtin_exports"))->ToObject(isolate));
-    natives->Delete(v8_str("builtin_exports"));
+    utils.Reset(isolate, natives->Get(v8_str("utils"))->ToObject(isolate));
+    natives->Delete(v8_str("utils"));
   }
 
-  shared.SetWeak(&shared, SharedHasBeenCollected,
-                 v8::WeakCallbackType::kParameter);
-  builtin_exports.SetWeak(&builtin_exports, BuiltinExportsHasBeenCollected,
-                          v8::WeakCallbackType::kParameter);
+  utils.SetWeak(&utils, UtilsHasBeenCollected,
+                v8::WeakCallbackType::kParameter);
 
   CcTest::heap()->CollectAllAvailableGarbage("fire weak callbacks");
 
-  CHECK(shared_has_been_collected);
-  CHECK(builtin_exports_has_been_collected);
+  CHECK(utils_has_been_collected);
+}
+
+
+TEST(Regress1878) {
+  FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Function> constructor =
+      v8::Utils::ToLocal(CcTest::i_isolate()->internal_array_function());
+  CcTest::global()->Set(v8_str("InternalArray"), constructor);
+
+  v8::TryCatch try_catch;
+
+  CompileRun(
+      "var a = Array();"
+      "for (var i = 0; i < 1000; i++) {"
+      "  var ai = new InternalArray(10000);"
+      "  if (%HaveSameMap(ai, a)) throw Error();"
+      "  if (!%HasFastObjectElements(ai)) throw Error();"
+      "}"
+      "for (var i = 0; i < 1000; i++) {"
+      "  var ai = new InternalArray(10000);"
+      "  if (%HaveSameMap(ai, a)) throw Error();"
+      "  if (!%HasFastObjectElements(ai)) throw Error();"
+      "}");
+
+  CHECK(!try_catch.HasCaught());
 }

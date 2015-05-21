@@ -5,13 +5,13 @@
 var $spreadArguments;
 var $spreadIterable;
 
-(function(global, exports) {
+(function(global, utils) {
 
 'use strict';
 
 // -------------------------------------------------------------------
 // Imports
-var InternalArray = exports.InternalArray;
+var InternalArray = utils.InternalArray;
 
 // -------------------------------------------------------------------
 

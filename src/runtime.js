@@ -85,7 +85,7 @@ var $toPrimitive;
 var $toString;
 var $toUint32;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 %CheckIsBootstrapping();
 

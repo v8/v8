@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --expose-gc --send-idle-notification
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-natives-as natives
 // Flags: --noharmony-shipping
 // Note: this test checks that that the number of scripts reported as native
 // by Debug.scripts() is the same as a number of core native scripts.
