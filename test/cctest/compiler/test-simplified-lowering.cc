@@ -1443,8 +1443,8 @@ TEST(LowerLoadField_to_load) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                           Handle<Name>::null(), Type::Any(), kMachineReps[i]};
 
-    Node* load =
-        t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
+    Node* load = t.graph()->NewNode(t.simplified()->LoadField(access), t.p0,
+                                    t.start, t.start);
     Node* use = t.Use(load, kMachineReps[i]);
     t.Return(use);
     t.Lower();
@@ -1624,8 +1624,8 @@ TEST(InsertChangeForLoadField) {
   FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                         Handle<Name>::null(), Type::Any(), kMachFloat64};
 
-  Node* load =
-      t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
+  Node* load = t.graph()->NewNode(t.simplified()->LoadField(access), t.p0,
+                                  t.start, t.start);
   t.Return(load);
   t.Lower();
   CHECK_EQ(IrOpcode::kLoad, load->opcode());
@@ -1679,10 +1679,10 @@ TEST(UpdatePhi) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                           Handle<Name>::null(), kTypes[i], kMachineTypes[i]};
 
-    Node* load0 =
-        t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
-    Node* load1 =
-        t.graph()->NewNode(t.simplified()->LoadField(access), t.p1, t.start);
+    Node* load0 = t.graph()->NewNode(t.simplified()->LoadField(access), t.p0,
+                                     t.start, t.start);
+    Node* load1 = t.graph()->NewNode(t.simplified()->LoadField(access), t.p1,
+                                     t.start, t.start);
     Node* phi = t.graph()->NewNode(t.common()->Phi(kMachAnyTagged, 2), load0,
                                    load1, t.start);
     t.Return(t.Use(phi, kMachineTypes[i]));

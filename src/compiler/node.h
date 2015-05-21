@@ -58,7 +58,15 @@ class Node final {
   NodeId id() const { return id_; }
 
   int InputCount() const { return input_count(); }
-  Node* InputAt(int index) const { return GetInputRecordPtr(index)->to; }
+  Node* InputAt(int index) const {
+#if DEBUG
+    if (index < 0 || index >= InputCount()) {
+      V8_Fatal(__FILE__, __LINE__, "Node #%d:%s->InputAt(%d) out of bounds",
+               id(), op()->mnemonic(), index);
+    }
+#endif
+    return GetInputRecordPtr(index)->to;
+  }
   inline void ReplaceInput(int index, Node* new_to);
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);

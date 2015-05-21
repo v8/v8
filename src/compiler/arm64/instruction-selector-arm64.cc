@@ -1088,7 +1088,7 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   Node* value = node->InputAt(0);
-  if (CanCover(node, value)) {
+  if (CanCover(node, value) && value->InputCount() >= 2) {
     Int64BinopMatcher m(value);
     if ((m.IsWord64Sar() && m.right().HasValue() &&
          (m.right().Value() == 32)) ||

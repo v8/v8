@@ -523,8 +523,8 @@ TEST(Deconstruct_osr_nested3) {
   // middle loop.
   Node* loop1 = T.graph.NewNode(T.common.Loop(2), loop0.if_true, T.self);
   loop1->ReplaceInput(0, loop0.if_true);
-  Node* loop1_phi =
-      T.graph.NewNode(T.common.Phi(kMachAnyTagged, 2), loop0_cntr, loop0_cntr);
+  Node* loop1_phi = T.graph.NewNode(T.common.Phi(kMachAnyTagged, 2), loop0_cntr,
+                                    loop0_cntr, loop1);
 
   // innermost (OSR) loop.
   While loop2(T, T.p0, true, 1);

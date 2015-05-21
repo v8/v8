@@ -657,8 +657,9 @@ TEST_F(SchedulerTest, BuildScheduleIfSplit) {
   Node* p3 = graph()->NewNode(common()->Parameter(2), graph()->start());
   Node* p4 = graph()->NewNode(common()->Parameter(3), graph()->start());
   Node* p5 = graph()->NewNode(common()->Parameter(4), graph()->start());
-  Node* cmp = graph()->NewNode(js()->LessThanOrEqual(LanguageMode::SLOPPY), p1,
-                               p2, p3, p4, graph()->start(), graph()->start());
+  Node* cmp =
+      graph()->NewNode(js()->LessThanOrEqual(LanguageMode::SLOPPY), p1, p2, p3,
+                       p4, p5, graph()->start(), graph()->start());
   Node* branch = graph()->NewNode(common()->Branch(), cmp, graph()->start());
   Node* true_branch = graph()->NewNode(common()->IfTrue(), branch);
   Node* false_branch = graph()->NewNode(common()->IfFalse(), branch);

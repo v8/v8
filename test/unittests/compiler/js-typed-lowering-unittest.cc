@@ -459,10 +459,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
     TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r =
-          Reduce(graph()->NewNode(javascript()->ShiftLeft(language_mode), lhs,
-                                  NumberConstant(rhs), context, effect,
-                                  control));
+      Reduction r = Reduce(graph()->NewNode(
+          javascript()->ShiftLeft(language_mode), lhs, NumberConstant(rhs),
+          context, EmptyFrameState(), EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsWord32Shl(lhs, IsNumberConstant(BitEq(rhs))));
@@ -478,9 +477,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->ShiftLeft(language_mode), lhs,
-                                rhs, context, effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftLeft(language_mode), lhs, rhs, context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsWord32Shl(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
@@ -499,10 +498,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
     TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r =
-          Reduce(graph()->NewNode(javascript()-> ShiftRight(language_mode), lhs,
-                                  NumberConstant(rhs), context, effect,
-                                  control));
+      Reduction r = Reduce(graph()->NewNode(
+          javascript()->ShiftRight(language_mode), lhs, NumberConstant(rhs),
+          context, EmptyFrameState(), EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsWord32Sar(lhs, IsNumberConstant(BitEq(rhs))));
@@ -518,9 +516,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->
-                                          ShiftRight(language_mode), lhs, rhs,
-                                          context, effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftRight(language_mode), lhs, rhs, context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsWord32Sar(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
@@ -540,11 +538,10 @@ TEST_F(JSTypedLoweringTest,
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
     TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r =
-          Reduce(graph()->NewNode(javascript()->
-                                  ShiftRightLogical(language_mode), lhs,
-                                  NumberConstant(rhs), context, effect,
-                                  control));
+      Reduction r = Reduce(
+          graph()->NewNode(javascript()->ShiftRightLogical(language_mode), lhs,
+                           NumberConstant(rhs), context, EmptyFrameState(),
+                           EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsWord32Shr(lhs, IsNumberConstant(BitEq(rhs))));
@@ -561,9 +558,9 @@ TEST_F(JSTypedLoweringTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->
-                                          ShiftRightLogical(language_mode), lhs,
-                                          rhs, context, effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftRightLogical(language_mode), lhs, rhs, context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsWord32Shr(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
@@ -887,9 +884,9 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
 
   for (size_t i = 0; i < arraysize(names); i++) {
     Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->LoadNamed(name, feedback), global,
-                                context, EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->LoadNamed(name, feedback), global, context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), matches[i]);
