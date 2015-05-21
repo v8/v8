@@ -2832,23 +2832,16 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 }
 
 
-bool HeapObject::NeedsToEnsureDoubleAlignment() {
+AllocationAlignment HeapObject::RequiredAlignment() {
 #ifdef V8_HOST_ARCH_32_BIT
-  return (IsFixedFloat64Array() || IsFixedDoubleArray() ||
-          IsConstantPoolArray()) &&
-         FixedArrayBase::cast(this)->length() != 0;
-#else
-  return false;
+  if ((IsFixedFloat64Array() || IsFixedDoubleArray() ||
+       IsConstantPoolArray()) &&
+      FixedArrayBase::cast(this)->length() != 0) {
+    return kDoubleAligned;
+  }
+  if (IsHeapNumber()) return kDoubleUnaligned;
 #endif  // V8_HOST_ARCH_32_BIT
-}
-
-
-bool HeapObject::NeedsToEnsureDoubleUnalignment() {
-#ifdef V8_HOST_ARCH_32_BIT
-  return IsHeapNumber();
-#else
-  return false;
-#endif  // V8_HOST_ARCH_32_BIT
+  return kWordAligned;
 }
 
 

@@ -1729,7 +1729,8 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     back_reference = serializer_->AllocateLargeObject(size);
   } else {
     bool needs_double_align = false;
-    if (object_->NeedsToEnsureDoubleAlignment()) {
+    // TODO(bbudge): Generalize to other alignment constraints.
+    if (object_->RequiredAlignment() == kDoubleAligned) {
       // Add wriggle room for double alignment padding.
       back_reference = serializer_->Allocate(space, size + kPointerSize);
       needs_double_align = true;

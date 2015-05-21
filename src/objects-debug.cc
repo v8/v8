@@ -47,10 +47,6 @@ void HeapObject::HeapObjectVerify() {
     return;
   }
 
-  // TODO(yangguo): Use this check once crbug/436911 has been fixed.
-  //  DCHECK(!NeedsToEnsureDoubleAlignment() ||
-  //         IsAligned(OffsetFrom(address()), kDoubleAlignment));
-
   switch (instance_type) {
     case SYMBOL_TYPE:
       Symbol::cast(this)->SymbolVerify();

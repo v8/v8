@@ -1487,8 +1487,7 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Object* p);
 #endif
 
-  inline bool NeedsToEnsureDoubleAlignment();
-  inline bool NeedsToEnsureDoubleUnalignment();
+  inline AllocationAlignment RequiredAlignment();
 
   // Layout description.
   // First field in a heap object is map.

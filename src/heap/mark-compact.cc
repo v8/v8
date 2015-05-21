@@ -1941,9 +1941,7 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
         continue;
       }
 
-      AllocationAlignment alignment = object->NeedsToEnsureDoubleAlignment()
-                                          ? kDoubleAligned
-                                          : kWordAligned;
+      AllocationAlignment alignment = object->RequiredAlignment();
       AllocationResult allocation = new_space->AllocateRaw(size, alignment);
       if (allocation.IsRetry()) {
         if (!new_space->AddFreshPage()) {
@@ -3105,8 +3103,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   OldSpace* old_space = heap()->old_space();
 
   HeapObject* target;
-  AllocationAlignment alignment =
-      object->NeedsToEnsureDoubleAlignment() ? kDoubleAligned : kWordAligned;
+  AllocationAlignment alignment = object->RequiredAlignment();
   AllocationResult allocation = old_space->AllocateRaw(object_size, alignment);
   if (allocation.To(&target)) {
     MigrateObject(target, object, object_size, old_space->identity());
@@ -3330,10 +3327,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
       DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
 
       int size = object->Size();
-
-      AllocationAlignment alignment = object->NeedsToEnsureDoubleAlignment()
-                                          ? kDoubleAligned
-                                          : kWordAligned;
+      AllocationAlignment alignment = object->RequiredAlignment();
       HeapObject* target_object;
       AllocationResult allocation = space->AllocateRaw(size, alignment);
       if (!allocation.To(&target_object)) {
