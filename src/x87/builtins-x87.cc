@@ -1579,11 +1579,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&too_few);
 
     // If the function is strong we need to throw an error.
-    Label weak_function;
+    Label no_strong_error;
     __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
     __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrongModeByteOffset),
               1 << SharedFunctionInfo::kStrongModeBitWithinByte);
-    __ j(equal, &weak_function, Label::kNear);
+    __ j(equal, &no_strong_error, Label::kNear);
+
+    // What we really care about is the required number of arguments.
+    __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kLengthOffset));
+    __ SmiUntag(ecx);
+    __ cmp(eax, ecx);
+    __ j(greater_equal, &no_strong_error, Label::kNear);
 
     {
       FrameScope frame(masm, StackFrame::MANUAL);
@@ -1591,7 +1597,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
     }
 
-    __ bind(&weak_function);
+    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
     // Copy receiver and all actual arguments.
