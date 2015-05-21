@@ -54,6 +54,7 @@ var CALL_NON_FUNCTION;
 var CALL_NON_FUNCTION_AS_CONSTRUCTOR;
 var CALL_FUNCTION_PROXY;
 var CALL_FUNCTION_PROXY_AS_CONSTRUCTOR;
+var CONCAT_ITERABLE_TO_ARRAY;
 var APPLY_PREPARE;
 var REFLECT_APPLY_PREPARE;
 var REFLECT_CONSTRUCT_PREPARE;
@@ -724,6 +725,11 @@ REFLECT_CONSTRUCT_PREPARE = function REFLECT_CONSTRUCT_PREPARE(
   // stack. It is guaranteed to be a small integer at this point.
   return length;
 }
+
+
+CONCAT_ITERABLE_TO_ARRAY = function CONCAT_ITERABLE_TO_ARRAY(iterable) {
+  return %$concatIterableToArray(this, iterable);
+};
 
 
 STACK_OVERFLOW = function STACK_OVERFLOW(length) {

@@ -1746,6 +1746,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_reflect)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spreadcalls)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_destructuring)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spread_arrays)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1776,6 +1777,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spreadcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spread_arrays)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2401,6 +2403,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_destructuring_natives[] = {nullptr};
   static const char* harmony_object_natives[] = {"native harmony-object.js",
                                                  NULL};
+  static const char* harmony_spread_arrays_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

@@ -1366,6 +1366,7 @@ enum ParserFlag {
   kAllowHarmonyComputedPropertyNames,
   kAllowHarmonySpreadCalls,
   kAllowHarmonyDestructuring,
+  kAllowHarmonySpreadArrays,
   kAllowStrongMode
 };
 
@@ -1397,6 +1398,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyComputedPropertyNames));
   parser->set_allow_harmony_destructuring(
       flags.Contains(kAllowHarmonyDestructuring));
+  parser->set_allow_harmony_spread_arrays(
+      flags.Contains(kAllowHarmonySpreadArrays));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
 }
 
@@ -6519,4 +6522,51 @@ TEST(DestructuringNegativeTests) {
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                       arraysize(always_flags));
   }
+}
+
+
+TEST(SpreadArray) {
+  i::FLAG_harmony_spread_arrays = true;
+
+  const char* context_data[][2] = {
+      {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "[...a]",
+    "[a, ...b]",
+    "[...a,]",
+    "[...a, ,]",
+    "[, ...a]",
+    "[...a, ...b]",
+    "[...a, , ...b]",
+    "[...[...a]]",
+    "[, ...a]",
+    "[, , ...a]",
+    NULL};
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonySpreadArrays};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(SpreadArrayError) {
+  i::FLAG_harmony_spread_arrays = true;
+
+  const char* context_data[][2] = {
+      {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "[...]",
+    "[a, ...]",
+    "[..., ]",
+    "[..., ...]",
+    "[ (...a)]",
+    NULL};
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonySpreadArrays};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }

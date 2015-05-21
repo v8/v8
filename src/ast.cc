@@ -386,8 +386,10 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   bool is_simple = true;
   int depth_acc = 1;
   bool is_holey = false;
-  for (int i = 0, n = values()->length(); i < n; i++) {
-    Expression* element = values()->at(i);
+  int array_index = 0;
+  for (int n = values()->length(); array_index < n; array_index++) {
+    Expression* element = values()->at(array_index);
+    if (element->IsSpread()) break;
     MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
     if (m_literal != NULL) {
       m_literal->BuildConstants(isolate);
@@ -400,18 +402,24 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       is_holey = true;
     } else if (boilerplate_value->IsUninitialized()) {
       is_simple = false;
-      JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate), SLOPPY).Assert();
+      JSObject::SetOwnElement(array, array_index,
+                              handle(Smi::FromInt(0), isolate),
+                              SLOPPY).Assert();
     } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, SLOPPY).Assert();
+      JSObject::SetOwnElement(array, array_index, boilerplate_value, SLOPPY)
+          .Assert();
     }
   }
 
+  if (array_index != values()->length()) {
+    JSArray::SetElementsLength(
+        array, handle(Smi::FromInt(array_index), isolate)).Assert();
+  }
   Handle<FixedArrayBase> element_values(array->elements());
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
-  if (is_simple && depth_acc == 1 && values()->length() > 0 &&
+  if (is_simple && depth_acc == 1 && array_index > 0 &&
       array->HasFastSmiOrObjectElements()) {
     element_values->set_map(isolate->heap()->fixed_cow_array_map());
   }

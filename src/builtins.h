@@ -211,6 +211,7 @@ enum BuiltinExtraArguments {
   V(APPLY_PREPARE, 1)                      \
   V(REFLECT_APPLY_PREPARE, 1)              \
   V(REFLECT_CONSTRUCT_PREPARE, 2)          \
+  V(CONCAT_ITERABLE_TO_ARRAY, 1)           \
   V(STACK_OVERFLOW, 1)
 
 class BuiltinFunctionTable;

@@ -267,7 +267,9 @@ void BreakableStatementChecker::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void BreakableStatementChecker::VisitSpread(Spread* expr) { UNREACHABLE(); }
+void BreakableStatementChecker::VisitSpread(Spread* expr) {
+  Visit(expr->expression());
+}
 
 
 void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {

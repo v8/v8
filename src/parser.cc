@@ -878,6 +878,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_rest_params(FLAG_harmony_rest_parameters);
   set_allow_harmony_spreadcalls(FLAG_harmony_spreadcalls);
   set_allow_harmony_destructuring(FLAG_harmony_destructuring);
+  set_allow_harmony_spread_arrays(FLAG_harmony_spread_arrays);
   set_allow_strong_mode(FLAG_strong_mode);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -4288,6 +4289,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
         allow_harmony_spreadcalls());
     reusable_preparser_->set_allow_harmony_destructuring(
         allow_harmony_destructuring());
+    reusable_preparser_->set_allow_harmony_spread_arrays(
+        allow_harmony_spread_arrays());
     reusable_preparser_->set_allow_strong_mode(allow_strong_mode());
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(

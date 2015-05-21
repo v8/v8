@@ -5861,6 +5861,10 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   for (int i = 0; i < length; i++) {
     Expression* subexpr = subexprs->at(i);
+    if (subexpr->IsSpread()) {
+      return Bailout(kSpread);
+    }
+
     // If the subexpression is a literal or a simple materialized literal it
     // is already set in the cloned array.
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;

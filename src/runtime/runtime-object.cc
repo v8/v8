@@ -721,6 +721,23 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_AppendElement) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+
+  int index = Smi::cast(array->length())->value();
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::SetElement(array, index, value, NONE, SLOPPY,
+                                            false, DEFINE_PROPERTY));
+  return *array;
+}
+
+
 RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);

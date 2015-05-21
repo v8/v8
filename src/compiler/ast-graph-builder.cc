@@ -1927,23 +1927,64 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   // Create nodes to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
-  for (int i = 0; i < expr->values()->length(); i++) {
-    Expression* subexpr = expr->values()->at(i);
+  int array_index = 0;
+  for (; array_index < expr->values()->length(); array_index++) {
+    Expression* subexpr = expr->values()->at(array_index);
+    if (subexpr->IsSpread()) break;
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     VisitForValue(subexpr);
     {
       FrameStateBeforeAndAfter states(this, subexpr->id());
       Node* value = environment()->Pop();
-      Node* index = jsgraph()->Constant(i);
+      Node* index = jsgraph()->Constant(array_index);
       Node* store =
           BuildKeyedStore(literal, index, value, TypeFeedbackId::None());
-      states.AddToNode(store, expr->GetIdForElement(i),
+      states.AddToNode(store, expr->GetIdForElement(array_index),
                        OutputFrameStateCombine::Ignore());
     }
   }
 
-  environment()->Pop();  // Array literal index.
+  // In case the array literal contains spread expressions it has two parts. The
+  // first part is  the "static" array which has a literal index is  handled
+  // above. The second part is the part after the first spread expression
+  // (inclusive) and these elements gets appended to the array. Note that the
+  // number elements an iterable produces is unknown ahead of time.
+  bool has_spread = array_index < expr->values()->length();
+  if (has_spread) {
+    environment()->Pop();  // Array literal index.
+  }
+
+  for (; array_index < expr->values()->length(); array_index++) {
+    Expression* subexpr = expr->values()->at(array_index);
+    Node* array = environment()->Pop();
+    Node* result;
+
+    if (subexpr->IsSpread()) {
+      VisitForValue(subexpr->AsSpread()->expression());
+      Node* iterable = environment()->Pop();
+      Node* builtins = BuildLoadBuiltinsObject();
+      Node* function = BuildLoadObjectField(
+          builtins, JSBuiltinsObject::OffsetOfFunctionWithId(
+                        Builtins::CONCAT_ITERABLE_TO_ARRAY));
+      result = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS,
+                                                  language_mode()),
+                       function, array, iterable);
+    } else {
+      VisitForValue(subexpr);
+      Node* value = environment()->Pop();
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kAppendElement, 2);
+      result = NewNode(op, array, value);
+    }
+
+    PrepareFrameState(result, expr->GetIdForElement(array_index));
+    environment()->Push(result);
+  }
+
+  if (!has_spread) {
+    environment()->Pop();  // Array literal index.
+  }
   ast_context()->ProduceValue(environment()->Pop());
 }
 
