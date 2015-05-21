@@ -313,22 +313,33 @@
 #endif
 
 
-// A macro to mark classes or functions as deprecated.
+// A macro (V8_DEPRECATED) to mark classes or functions as deprecated.
 #if defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
-# define V8_DEPRECATED(message, declarator) \
-declarator __attribute__((deprecated(message)))
+#define V8_DEPRECATED(message, declarator) \
+  declarator __attribute__((deprecated(message)))
 #elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
-# define V8_DEPRECATED(message, declarator) \
-declarator __attribute__((deprecated))
+#define V8_DEPRECATED(message, declarator) \
+  declarator __attribute__((deprecated))
 #elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
-# define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
+#define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
 #else
-# define V8_DEPRECATED(message, declarator) declarator
+#define V8_DEPRECATED(message, declarator) declarator
 #endif
 
 
-// a macro to make it easier to see what will be deprecated.
+// A macro (V8_DEPRECATE_SOON) to make it easier to see what will be deprecated.
+#if defined(V8_IMMINENT_DEPRECATION_WARNINGS) && \
+    V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
+#define V8_DEPRECATE_SOON(message, declarator) \
+  declarator __attribute__((deprecated(message)))
+#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
+#define V8_DEPRECATE_SOON(message, declarator) \
+  declarator __attribute__((deprecated))
+#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
+#define V8_DEPRECATE_SOON(message, declarator) __declspec(deprecated) declarator
+#else
 #define V8_DEPRECATE_SOON(message, declarator) declarator
+#endif
 
 
 // A macro to provide the compiler with branch prediction information.

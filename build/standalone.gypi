@@ -43,6 +43,8 @@
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
     'v8_deprecation_warnings': 1,
+    # TODO(jochen): Turn this on.
+    'v8_imminent_deprecation_warnings': 0,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'release_extra_cflags%': '',

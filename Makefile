@@ -145,9 +145,13 @@ ifeq ($(i18nsupport), off)
   GYPFLAGS += -Dv8_enable_i18n_support=0
   TESTFLAGS += --noi18n
 endif
-# deprecation_warnings=on
+# deprecationwarnings=on
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
+endif
+# imminentdeprecationwarnings=on
+ifeq ($(imminentdeprecationwarnings), on)
+  GYPFLAGS += -Dv8_imminent_deprecation_warnings=1
 endif
 # asan=on
 ifeq ($(asan), on)

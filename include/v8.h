@@ -418,11 +418,11 @@ class WeakCallbackInfo {
   V8_INLINE void* GetInternalField(int index) const;
 
   V8_INLINE V8_DEPRECATE_SOON("use indexed version",
-                              void* GetInternalField1()) const {
+                              void* GetInternalField1() const) {
     return internal_fields_[0];
   }
   V8_INLINE V8_DEPRECATE_SOON("use indexed version",
-                              void* GetInternalField2()) const {
+                              void* GetInternalField2() const) {
     return internal_fields_[1];
   }
 
@@ -3104,8 +3104,8 @@ class V8_EXPORT Function : public Object {
                              int length = 0);
 
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Object> NewInstance(int argc,
-                                              Handle<Value> argv[])) const;
+                    Local<Object> NewInstance(int argc, Handle<Value> argv[])
+                        const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(
       Local<Context> context, int argc, Handle<Value> argv[]) const;
 
