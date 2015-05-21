@@ -141,6 +141,7 @@ Heap::Heap()
       gc_count_at_last_idle_gc_(0),
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
+      new_space_allocation_counter_(0),
       gcs_since_last_deopt_(0),
       allocation_sites_scratchpad_length_(0),
       promotion_queue_(this),
@@ -461,6 +462,7 @@ void Heap::GarbageCollectionPrologue() {
     maximum_size_scavenges_ = 0;
   }
   CheckNewSpaceExpansionCriteria();
+  UpdateNewSpaceAllocationCounter();
 }
 
 
@@ -4620,8 +4622,7 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState(bool reduce_memory) {
   heap_state.used_new_space_size = new_space_.Size();
   heap_state.new_space_capacity = new_space_.Capacity();
   heap_state.new_space_allocation_throughput_in_bytes_per_ms =
-      static_cast<size_t>(
-          tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
+      tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond();
   return heap_state;
 }
 
@@ -4773,6 +4774,10 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       static_cast<size_t>(idle_time_in_ms) >
       GCIdleTimeHandler::kMaxFrameRenderingIdleTime;
   bool has_low_gc_activity = (start_ms - last_gc_time_) > kLastGCTimeTreshold;
+
+  if (is_long_idle_notification) {
+    tracer()->SampleNewSpaceAllocation(start_ms, NewSpaceAllocationCounter());
+  }
 
   GCIdleTimeHandler::HeapState heap_state =
       ComputeHeapState(is_long_idle_notification && has_low_gc_activity);

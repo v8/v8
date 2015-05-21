@@ -2439,6 +2439,25 @@ class NewSpace : public Space {
   // Return the available bytes without growing.
   intptr_t Available() override { return Capacity() - Size(); }
 
+  intptr_t PagesFromStart(Address addr) {
+    return static_cast<intptr_t>(addr - bottom()) / Page::kPageSize;
+  }
+
+  size_t AllocatedSinceLastGC() {
+    intptr_t allocated = top() - to_space_.age_mark();
+    if (allocated < 0) {
+      // Runtime has lowered the top below the age mark.
+      return 0;
+    }
+    // Correctly account for non-allocatable regions at the beginning of
+    // each page from the age_mark() to the top().
+    intptr_t pages =
+        PagesFromStart(top()) - PagesFromStart(to_space_.age_mark());
+    allocated -= pages * (NewSpacePage::kObjectStartOffset);
+    DCHECK(0 <= allocated && allocated <= Size());
+    return static_cast<size_t>(allocated);
+  }
+
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
     DCHECK(to_space_.MaximumTotalCapacity() ==

@@ -5473,3 +5473,89 @@ TEST(Regress1878) {
 
   CHECK(!try_catch.HasCaught());
 }
+
+
+void AllocateInNewSpace(Isolate* isolate, size_t bytes) {
+  CHECK(bytes >= FixedArray::kHeaderSize);
+  CHECK(bytes % kPointerSize == 0);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  AlwaysAllocateScope always_allocate(isolate);
+  int elements =
+      static_cast<int>((bytes - FixedArray::kHeaderSize) / kPointerSize);
+  Handle<FixedArray> array = factory->NewFixedArray(elements, NOT_TENURED);
+  CHECK(isolate->heap()->InNewSpace(*array));
+  CHECK_EQ(bytes, static_cast<size_t>(array->Size()));
+}
+
+
+TEST(NewSpaceAllocationCounter) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  size_t counter1 = heap->NewSpaceAllocationCounter();
+  heap->CollectGarbage(NEW_SPACE);
+  const size_t kSize = 1024;
+  AllocateInNewSpace(isolate, kSize);
+  size_t counter2 = heap->NewSpaceAllocationCounter();
+  CHECK_EQ(kSize, counter2 - counter1);
+  heap->CollectGarbage(NEW_SPACE);
+  size_t counter3 = heap->NewSpaceAllocationCounter();
+  CHECK_EQ(0, counter3 - counter2);
+  // Test counter overflow.
+  size_t max_counter = -1;
+  heap->set_new_space_allocation_counter(max_counter - 10 * kSize);
+  size_t start = heap->NewSpaceAllocationCounter();
+  for (int i = 0; i < 20; i++) {
+    AllocateInNewSpace(isolate, kSize);
+    size_t counter = heap->NewSpaceAllocationCounter();
+    CHECK_EQ(kSize, counter - start);
+    start = counter;
+  }
+}
+
+
+TEST(NewSpaceAllocationThroughput) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  GCTracer* tracer = heap->tracer();
+  int time1 = 100;
+  size_t counter1 = 1000;
+  tracer->SampleNewSpaceAllocation(time1, counter1);
+  int time2 = 200;
+  size_t counter2 = 2000;
+  tracer->SampleNewSpaceAllocation(time2, counter2);
+  size_t throughput =
+      tracer->NewSpaceAllocationThroughputInBytesPerMillisecond();
+  CHECK_EQ((counter2 - counter1) / (time2 - time1), throughput);
+  int time3 = 1000;
+  size_t counter3 = 30000;
+  tracer->SampleNewSpaceAllocation(time3, counter3);
+  throughput = tracer->NewSpaceAllocationThroughputInBytesPerMillisecond();
+  CHECK_EQ((counter3 - counter1) / (time3 - time1), throughput);
+}
+
+
+TEST(NewSpaceAllocationThroughput2) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  GCTracer* tracer = heap->tracer();
+  int time1 = 100;
+  size_t counter1 = 1000;
+  tracer->SampleNewSpaceAllocation(time1, counter1);
+  int time2 = 200;
+  size_t counter2 = 2000;
+  tracer->SampleNewSpaceAllocation(time2, counter2);
+  size_t bytes = tracer->NewSpaceAllocatedBytesInLast(1000);
+  CHECK_EQ(0, bytes);
+  int time3 = 1000;
+  size_t counter3 = 30000;
+  tracer->SampleNewSpaceAllocation(time3, counter3);
+  bytes = tracer->NewSpaceAllocatedBytesInLast(100);
+  CHECK_EQ((counter3 - counter1) * 100 / (time3 - time1), bytes);
+}

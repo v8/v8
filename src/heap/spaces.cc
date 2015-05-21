@@ -1576,7 +1576,7 @@ void SemiSpace::SetUp(Address start, int initial_capacity, int target_capacity,
   address_mask_ = ~(maximum_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTagMask;
   object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
-  age_mark_ = start_;
+  age_mark_ = start_ + NewSpacePage::kObjectStartOffset;
 }
 
 

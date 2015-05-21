@@ -141,15 +141,15 @@ class GCTracer {
     // Default constructor leaves the event uninitialized.
     AllocationEvent() {}
 
-    AllocationEvent(double duration, intptr_t allocation_in_bytes);
+    AllocationEvent(double duration, size_t allocation_in_bytes);
 
-    // Time spent in the mutator during the end of the last garbage collection
-    // to the beginning of the next garbage collection.
+    // Time spent in the mutator during the end of the last sample to the
+    // beginning of the next sample.
     double duration_;
 
-    // Memory allocated in the new space during the end of the last garbage
-    // collection to the beginning of the next garbage collection.
-    intptr_t allocation_in_bytes_;
+    // Memory allocated in the new space during the end of the last sample
+    // to the beginning of the next sample
+    size_t allocation_in_bytes_;
   };
 
 
@@ -295,8 +295,11 @@ class GCTracer {
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
 
-  // Log an allocation throughput event.
-  void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
+  // Sample and accumulate bytes allocated since the last GC.
+  void SampleNewSpaceAllocation(double current_ms, size_t counter_bytes);
+
+  // Log the accumulated new space allocation bytes.
+  void AddNewSpaceAllocation(double current_ms);
 
   void AddContextDisposalTime(double time);
 
@@ -379,8 +382,12 @@ class GCTracer {
   intptr_t FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
   // Allocation throughput in the new space in bytes/millisecond.
-  // Returns 0 if no events have been recorded.
-  intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
+  // Returns 0 if no allocation events have been recorded.
+  size_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
+
+  // Bytes allocated in new space in the specified time.
+  // Returns 0 if no allocation events have been recorded.
+  size_t NewSpaceAllocatedBytesInLast(double time_ms) const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
@@ -485,9 +492,13 @@ class GCTracer {
   // all sweeping operations performed on the main thread.
   double cumulative_sweeping_duration_;
 
-  // Holds the new space top pointer recorded at the end of the last garbage
-  // collection.
-  intptr_t new_space_top_after_gc_;
+  // Timestamp and allocation counter at the last sampled allocation event.
+  double new_space_allocation_time_ms_;
+  size_t new_space_allocation_counter_bytes_;
+
+  // Accumulated duration and allocated bytes since the last GC.
+  double new_space_allocation_duration_since_gc_;
+  size_t new_space_allocation_in_bytes_since_gc_;
 
   // Counts how many tracers were started without stopping.
   int start_counter_;
