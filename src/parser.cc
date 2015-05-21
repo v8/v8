@@ -3484,8 +3484,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       is_const = peek() == Token::CONST;
       ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
       DCHECK(parsing_result.descriptor.pos != RelocInfo::kNoPosition);
-      Block* variable_statement =
-          parsing_result.BuildInitializationBlock(&lexical_bindings, CHECK_OK);
 
       int num_decl = parsing_result.declarations.length();
       bool accept_IN = num_decl >= 1;
@@ -3546,19 +3544,23 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
-        VariableProxy* each =
-            scope_->NewUnresolved(factory(), parsing_result.SingleName(),
-                                  Variable::NORMAL, each_end_pos);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
-        Token::Value init_op = is_const ? Token::INIT_CONST : Token::ASSIGN;
-        Assignment* assignment = factory()->NewAssignment(
-            init_op, each, temp_proxy, RelocInfo::kNoPosition);
-        Statement* assignment_statement = factory()->NewExpressionStatement(
-            assignment, RelocInfo::kNoPosition);
-        body_block->AddStatement(variable_statement, zone());
-        body_block->AddStatement(assignment_statement, zone());
+
+        auto each_initialization_block = factory()->NewBlock(
+            nullptr, 1, true, parsing_result.descriptor.pos);
+        {
+          DCHECK(parsing_result.declarations.length() == 1);
+          DeclarationParsingResult::Declaration decl =
+              parsing_result.declarations[0];
+          decl.initializer = temp_proxy;
+          PatternRewriter::DeclareAndInitializeVariables(
+              each_initialization_block, &parsing_result.descriptor, &decl,
+              &lexical_bindings, CHECK_OK);
+        }
+
+        body_block->AddStatement(each_initialization_block, zone());
         body_block->AddStatement(body, zone());
         InitializeForEachStatement(loop, temp_proxy, enumerable, body_block);
         scope_ = saved_scope;
@@ -3567,9 +3569,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         body_block->set_scope(for_scope);
         // Parsed for-in loop w/ let declaration.
         return loop;
-
       } else {
-        init = variable_statement;
+        init = parsing_result.BuildInitializationBlock(&lexical_bindings,
+                                                       CHECK_OK);
       }
     } else {
       Scanner::Location lhs_location = scanner()->peek_location();

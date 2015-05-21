@@ -623,3 +623,36 @@
     assertArrayEquals(["1", "2"], log);
   }());
 }());
+
+
+(function TestForEachLexical() {
+  'use strict';
+  let a = [{x:1, y:-1}, {x:2,y:-2}, {x:3,y:-3}];
+  let sumX = 0;
+  let sumY = 0;
+  let fs = [];
+  for (let {x,y} of a) {
+    sumX += x;
+    sumY += y;
+    fs.push({fx : function() { return x; }, fy : function() { return y }});
+  }
+  assertSame(6, sumX);
+  assertSame(-6, sumY);
+  assertSame(3, fs.length);
+  for (let i = 0; i < fs.length; i++) {
+    let {fx,fy} = fs[i];
+    assertSame(i+1, fx());
+    assertSame(-(i+1), fy());
+  }
+
+  var o = { 'a1':1, 'b2':2 };
+  o.__proto__ = null;
+  let sx = '';
+  let sy = '';
+  for (let [x,y] in o) {
+    sx += x;
+    sy += y;
+  }
+  assertEquals('ab', sx);
+  assertEquals('12', sy);
+}());
