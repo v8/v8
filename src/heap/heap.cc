@@ -229,8 +229,12 @@ void Heap::UpdateMaximumCommitted() {
 intptr_t Heap::Available() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_.Available() + old_space_->Available() +
-         code_space_->Available() + map_space_->Available();
+  intptr_t total = 0;
+  AllSpaces spaces(this);
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+    total += space->Available();
+  }
+  return total;
 }
 
 
