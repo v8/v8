@@ -4564,6 +4564,18 @@ void Heap::MakeHeapIterable() {
   DCHECK(IsHeapIterable());
 }
 
+
+void Heap::ReduceNewSpaceSize(GCIdleTimeAction action) {
+  if (action.reduce_memory &&
+      (action.type == DO_SCAVENGE || action.type == DO_FULL_GC ||
+       (action.type == DO_INCREMENTAL_MARKING &&
+        incremental_marking()->IsStopped()))) {
+    new_space_.Shrink();
+    UncommitFromSpace();
+  }
+}
+
+
 bool Heap::TryFinalizeIdleIncrementalMarking(
     double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
@@ -4685,10 +4697,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       break;
   }
 
-  if (action.reduce_memory) {
-    new_space_.Shrink();
-    UncommitFromSpace();
-  }
+  ReduceNewSpaceSize(action);
   return result;
 }
 
