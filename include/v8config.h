@@ -199,8 +199,6 @@
 
 #if defined(__GNUC__)  // Clang in gcc mode.
 # define V8_CC_GNU 1
-#elif defined(_MSC_VER)  // Clang in cl mode.
-# define V8_CC_MSVC 1
 #endif
 
 // Clang defines __alignof__ as alias for __alignof
@@ -268,11 +266,10 @@
 #  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_STATIC_ASSERT (V8_GNUC_PREREQ(4, 3, 0))
 # endif
+#endif
 
-#elif defined(_MSC_VER)
-
+#if defined(_MSC_VER)
 # define V8_CC_MSVC 1
-
 # define V8_HAS___ALIGNOF 1
 
 # define V8_HAS_DECLSPEC_ALIGN 1
