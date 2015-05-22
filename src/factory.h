@@ -444,8 +444,7 @@ class Factory final {
 
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
-  Handle<JSArrayBuffer> NewJSArrayBuffer(
-      SharedFlag shared = SharedFlag::kNotShared);
+  Handle<JSArrayBuffer> NewJSArrayBuffer();
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
 

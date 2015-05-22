@@ -276,8 +276,7 @@ action("js2c_experimental") {
     "src/harmony-regexp.js",
     "src/harmony-reflect.js",
     "src/harmony-spread.js",
-    "src/harmony-object.js",
-    "src/harmony-sharedarraybuffer.js"
+    "src/harmony-object.js"
   ]
 
   outputs = [

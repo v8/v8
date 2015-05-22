@@ -28,7 +28,7 @@ utils.Import(function(from) {
 function ArrayBufferConstructor(length) { // length = 1
   if (%_IsConstructCall()) {
     var byteLength = $toPositiveInteger(length, kInvalidArrayBufferLength);
-    %ArrayBufferInitialize(this, byteLength, kNotShared);
+    %ArrayBufferInitialize(this, byteLength);
   } else {
     throw MakeTypeError(kConstructorNotFunction, "ArrayBuffer");
   }

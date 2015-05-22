@@ -1753,7 +1753,6 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spreadcalls)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_destructuring)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spread_arrays)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sharedarraybuffer)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1844,20 +1843,6 @@ void Genesis::InitializeGlobal_harmony_tostring() {
   Runtime::SetObjectProperty(isolate(), builtins,
                              factory()->harmony_tostring_string(), flag,
                              STRICT).Assert();
-}
-
-
-void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
-  if (!FLAG_harmony_sharedarraybuffer) return;
-
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-
-  Handle<JSFunction> shared_array_buffer_fun = InstallFunction(
-      global, "SharedArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-      JSArrayBuffer::kSizeWithInternalFields,
-      isolate()->initial_object_prototype(), Builtins::kIllegal);
-  native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
 }
 
 
@@ -2425,8 +2410,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_object_natives[] = {"native harmony-object.js",
                                                  NULL};
   static const char* harmony_spread_arrays_natives[] = {nullptr};
-  static const char* harmony_sharedarraybuffer_natives[] = {
-      "native harmony-sharedarraybuffer.js", NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

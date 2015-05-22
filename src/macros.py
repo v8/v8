@@ -112,7 +112,6 @@ macro IS_ARGUMENTS(arg)         = (%_ClassOf(arg) === 'Arguments');
 macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
 macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
-macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
 macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
@@ -309,7 +308,3 @@ define NOT_FOUND = -1;
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
 macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));
 macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (DEBUG_IS_STEPPING(function)) %DebugPrepareStepInIfStepping(function);
-
-# SharedFlag equivalents
-define kNotShared = false;
-define kShared = true;

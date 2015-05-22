@@ -1717,11 +1717,9 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 }
 
 
-Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared) {
+Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
   Handle<JSFunction> array_buffer_fun(
-      shared == SharedFlag::kShared
-          ? isolate()->native_context()->shared_array_buffer_fun()
-          : isolate()->native_context()->array_buffer_fun());
+      isolate()->native_context()->array_buffer_fun());
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*array_buffer_fun),
@@ -1936,8 +1934,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
   obj->set_length(*length_object);
 
   Handle<JSArrayBuffer> buffer = isolate()->factory()->NewJSArrayBuffer();
-  Runtime::SetupArrayBuffer(isolate(), buffer, true, NULL, byte_length,
-                            SharedFlag::kNotShared);
+  Runtime::SetupArrayBuffer(isolate(), buffer, true, NULL, byte_length);
   obj->set_buffer(*buffer);
   Handle<FixedTypedArrayBase> elements =
       isolate()->factory()->NewFixedTypedArray(
