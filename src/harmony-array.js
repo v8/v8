@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $innerArrayCopyWithin;
+var $innerArrayFill;
+var $innerArrayFind;
+var $innerArrayFindIndex;
+var $arrayFrom;
+
 (function(global, utils) {
 
 'use strict';
@@ -14,18 +20,12 @@
 var GlobalArray = global.Array;
 var GlobalSymbol = global.Symbol;
 
-var GetIterator;
-var GetMethod;
 var MathMax;
 var MathMin;
-var ObjectIsFrozen;
 
 utils.Import(function(from) {
-  GetIterator = from.GetIterator;
-  GetMethod = from.GetMethod;
   MathMax = from.MathMax;
   MathMin = from.MathMin;
-  ObjectIsFrozen = from.ObjectIsFrozen;
 });
 
 // -------------------------------------------------------------------
@@ -76,6 +76,7 @@ function InnerArrayCopyWithin(target, start, end, array, length) {
 
   return array;
 }
+$innerArrayCopyWithin = InnerArrayCopyWithin;
 
 // ES6 draft 03-17-15, section 22.1.3.3
 function ArrayCopyWithin(target, start, end) {
@@ -111,6 +112,7 @@ function InnerArrayFind(predicate, thisArg, array, length) {
 
   return;
 }
+$innerArrayFind = InnerArrayFind;
 
 // ES6 draft 07-15-13, section 15.4.3.23
 function ArrayFind(predicate, thisArg) {
@@ -146,6 +148,7 @@ function InnerArrayFindIndex(predicate, thisArg, array, length) {
 
   return -1;
 }
+$innerArrayFindIndex = InnerArrayFindIndex;
 
 // ES6 draft 07-15-13, section 15.4.3.24
 function ArrayFindIndex(predicate, thisArg) {
@@ -176,7 +179,7 @@ function InnerArrayFill(value, start, end, array, length) {
     if (end > length) end = length;
   }
 
-  if ((end - i) > 0 && ObjectIsFrozen(array)) {
+  if ((end - i) > 0 && $objectIsFrozen(array)) {
     throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
@@ -184,6 +187,7 @@ function InnerArrayFill(value, start, end, array, length) {
     array[i] = value;
   return array;
 }
+$innerArrayFill = InnerArrayFill;
 
 // ES6, draft 04-05-14, section 22.1.3.6
 function ArrayFill(value, start, end) {
@@ -212,7 +216,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     }
   }
 
-  var iterable = GetMethod(items, symbolIterator);
+  var iterable = $getMethod(items, symbolIterator);
   var k;
   var result;
   var mappedValue;
@@ -221,7 +225,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   if (!IS_UNDEFINED(iterable)) {
     result = %IsConstructor(this) ? new this() : [];
 
-    var iterator = GetIterator(items, iterable);
+    var iterator = $getIterator(items, iterable);
 
     k = 0;
     while (true) {
@@ -262,6 +266,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     return result;
   }
 }
+$arrayFrom = ArrayFrom;
 
 // ES6, draft 05-22-14, section 22.1.2.3
 function ArrayOf() {
@@ -278,7 +283,7 @@ function ArrayOf() {
 
 // -------------------------------------------------------------------
 
-utils.InstallConstants(GlobalSymbol, [
+$installConstants(GlobalSymbol, [
   // TODO(dslomov, caitp): Move to symbol.js when shipping
   "isConcatSpreadable", symbolIsConcatSpreadable
 ]);
@@ -290,28 +295,17 @@ utils.InstallConstants(GlobalSymbol, [
 %FunctionSetLength(ArrayFindIndex, 1);
 
 // Set up non-enumerable functions on the Array object.
-utils.InstallFunctions(GlobalArray, DONT_ENUM, [
+$installFunctions(GlobalArray, DONT_ENUM, [
   "from", ArrayFrom,
   "of", ArrayOf
 ]);
 
 // Set up the non-enumerable functions on the Array prototype object.
-utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
+$installFunctions(GlobalArray.prototype, DONT_ENUM, [
   "copyWithin", ArrayCopyWithin,
   "find", ArrayFind,
   "findIndex", ArrayFindIndex,
   "fill", ArrayFill
 ]);
-
-// -------------------------------------------------------------------
-// Exports
-
-utils.Export(function(to) {
-  to.ArrayFrom = ArrayFrom;
-  to.InnerArrayCopyWithin = InnerArrayCopyWithin;
-  to.InnerArrayFill = InnerArrayFill;
-  to.InnerArrayFind = InnerArrayFind;
-  to.InnerArrayFindIndex = InnerArrayFindIndex;
-});
 
 })

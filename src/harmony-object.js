@@ -9,18 +9,7 @@
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalObject = global.Object;
-
-var OwnPropertyKeys;
-
-utils.Import(function(from) {
-  OwnPropertyKeys = from.OwnPropertyKeys;
-});
-
-// -------------------------------------------------------------------
 
 // ES6, draft 04-03-15, section 19.1.2.1
 function ObjectAssign(target, sources) {
@@ -35,7 +24,7 @@ function ObjectAssign(target, sources) {
     }
 
     var from = TO_OBJECT_INLINE(nextSource);
-    var keys = OwnPropertyKeys(from);
+    var keys = $ownPropertyKeys(from);
     var len = keys.length;
 
     for (var j = 0; j < len; ++j) {
@@ -50,7 +39,7 @@ function ObjectAssign(target, sources) {
 }
 
 // Set up non-enumerable functions on the Object object.
-utils.InstallFunctions(GlobalObject, DONT_ENUM, [
+$installFunctions(GlobalObject, DONT_ENUM, [
   "assign", ObjectAssign
 ]);
 

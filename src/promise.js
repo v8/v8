@@ -371,7 +371,7 @@ function PromiseHasUserDefinedRejectHandler() {
 %AddNamedProperty(GlobalPromise.prototype, symbolToStringTag, "Promise",
                   DONT_ENUM | READ_ONLY);
 
-utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
+$installFunctions(GlobalPromise, DONT_ENUM, [
   "defer", PromiseDeferred,
   "accept", PromiseResolved,
   "reject", PromiseRejected,
@@ -380,7 +380,7 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "resolve", PromiseCast
 ]);
 
-utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
+$installFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "chain", PromiseChain,
   "then", PromiseThen,
   "catch", PromiseCatch

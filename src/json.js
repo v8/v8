@@ -18,12 +18,10 @@ var InternalArray = utils.InternalArray;
 
 var MathMax;
 var MathMin;
-var ObjectHasOwnProperty;
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
-  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 
 // -------------------------------------------------------------------
@@ -39,7 +37,7 @@ function Revive(holder, name, reviver) {
       }
     } else {
       for (var p in val) {
-        if (HAS_OWN_PROPERTY(val, p)) {
+        if (%_CallFunction(val, p, $objectHasOwnProperty)) {
           var newElement = Revive(val, p, reviver);
           if (IS_UNDEFINED(newElement)) {
             delete val[p];
@@ -101,7 +99,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {
-      if (HAS_OWN_PROPERTY(replacer, i)) {
+      if (%_CallFunction(replacer, i, $objectHasOwnProperty)) {
         var p = replacer[i];
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
@@ -114,7 +112,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
     }
   } else {
     for (var p in value) {
-      if (HAS_OWN_PROPERTY(value, p)) {
+      if (%_CallFunction(value, p, $objectHasOwnProperty)) {
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
           var member = %QuoteJSONString(p) + ":";
@@ -234,7 +232,7 @@ function JSONStringify(value, replacer, space) {
 %AddNamedProperty(GlobalJSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
 
 // Set up non-enumerable properties of the JSON object.
-utils.InstallFunctions(GlobalJSON, DONT_ENUM, [
+$installFunctions(GlobalJSON, DONT_ENUM, [
   "parse", JSONParse,
   "stringify", JSONStringify
 ]);

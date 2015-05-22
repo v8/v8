@@ -16,16 +16,10 @@ var InternalPackedArray = utils.InternalPackedArray;
 
 var MathMax;
 var MathMin;
-var RegExpExec;
-var RegExpExecNoTests;
-var RegExpLastMatchInfo;
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
-  RegExpExec = from.RegExpExec;
-  RegExpExecNoTests = from.RegExpExecNoTests;
-  RegExpLastMatchInfo = from.RegExpLastMatchInfo;
 });
 
 //-------------------------------------------------------------------
@@ -168,15 +162,15 @@ function StringMatchJS(regexp) {
     // value is discarded.
     var lastIndex = regexp.lastIndex;
     TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
-    if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
-    var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
+    if (!regexp.global) return $regexpExecNoTests(regexp, subject, 0);
+    var result = %StringMatch(subject, regexp, $regexpLastMatchInfo);
     if (result !== null) $regexpLastMatchInfoOverride = null;
     regexp.lastIndex = 0;
     return result;
   }
   // Non-regexp argument.
   regexp = new GlobalRegExp(regexp);
-  return RegExpExecNoTests(regexp, subject, 0);
+  return $regexpExecNoTests(regexp, subject, 0);
 }
 
 
@@ -201,7 +195,7 @@ function StringNormalizeJS(form) {
 }
 
 
-// This has the same size as the RegExpLastMatchInfo array, and can be used
+// This has the same size as the $regexpLastMatchInfo array, and can be used
 // for functions that expect that structure to be returned.  It is used when
 // the needle is a string rather than a regexp.  In this case we can't update
 // lastMatchArray without erroneously affecting the properties on the global
@@ -243,7 +237,7 @@ function StringReplace(search, replace) {
 
       if (!search.global) {
         // Non-global regexp search, string replace.
-        var match = RegExpExec(search, subject, 0);
+        var match = $regexpExec(search, subject, 0);
         if (match == null) {
           search.lastIndex = 0
           return subject;
@@ -252,7 +246,7 @@ function StringReplace(search, replace) {
           return %_SubString(subject, 0, match[CAPTURE0]) +
                  %_SubString(subject, match[CAPTURE1], subject.length)
         }
-        return ExpandReplacement(replace, subject, RegExpLastMatchInfo,
+        return ExpandReplacement(replace, subject, $regexpLastMatchInfo,
                                  %_SubString(subject, 0, match[CAPTURE0])) +
                %_SubString(subject, match[CAPTURE1], subject.length);
       }
@@ -261,17 +255,17 @@ function StringReplace(search, replace) {
       search.lastIndex = 0;
       if ($regexpLastMatchInfoOverride == null) {
         return %StringReplaceGlobalRegExpWithString(
-            subject, search, replace, RegExpLastMatchInfo);
+            subject, search, replace, $regexpLastMatchInfo);
       } else {
         // We use this hack to detect whether StringReplaceRegExpWithString
         // found at least one hit. In that case we need to remove any
         // override.
-        var saved_subject = RegExpLastMatchInfo[LAST_SUBJECT_INDEX];
-        RegExpLastMatchInfo[LAST_SUBJECT_INDEX] = 0;
+        var saved_subject = $regexpLastMatchInfo[LAST_SUBJECT_INDEX];
+        $regexpLastMatchInfo[LAST_SUBJECT_INDEX] = 0;
         var answer = %StringReplaceGlobalRegExpWithString(
-            subject, search, replace, RegExpLastMatchInfo);
-        if (%_IsSmi(RegExpLastMatchInfo[LAST_SUBJECT_INDEX])) {
-          RegExpLastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
+            subject, search, replace, $regexpLastMatchInfo);
+        if (%_IsSmi($regexpLastMatchInfo[LAST_SUBJECT_INDEX])) {
+          $regexpLastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
         } else {
           $regexpLastMatchInfoOverride = null;
         }
@@ -437,7 +431,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
   }
   var res = %RegExpExecMultiple(regexp,
                                 subject,
-                                RegExpLastMatchInfo,
+                                $regexpLastMatchInfo,
                                 resultArray);
   regexp.lastIndex = 0;
   if (IS_NULL(res)) {
@@ -446,7 +440,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     return subject;
   }
   var len = res.length;
-  if (NUMBER_OF_CAPTURES(RegExpLastMatchInfo) == 2) {
+  if (NUMBER_OF_CAPTURES($regexpLastMatchInfo) == 2) {
     // If the number of captures is two then there are no explicit captures in
     // the regexp, just the implicit capture that captures the whole match.  In
     // this case we can simplify quite a bit and end up with something faster.
@@ -500,7 +494,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
 
 
 function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
-  var matchInfo = RegExpExec(regexp, subject, 0);
+  var matchInfo = $regexpExec(regexp, subject, 0);
   if (IS_NULL(matchInfo)) {
     regexp.lastIndex = 0;
     return subject;
@@ -548,7 +542,7 @@ function StringSearch(re) {
   } else {
     regexp = new GlobalRegExp(re);
   }
-  var match = RegExpExec(regexp, TO_STRING_INLINE(this), 0);
+  var match = $regexpExec(regexp, TO_STRING_INLINE(this), 0);
   if (match) {
     return match[CAPTURE0];
   }
@@ -634,7 +628,7 @@ function StringSplitJS(separator, limit) {
 
 function StringSplitOnRegExp(subject, separator, limit, length) {
   if (length === 0) {
-    if (RegExpExec(separator, subject, 0, 0) != null) {
+    if ($regexpExec(separator, subject, 0, 0) != null) {
       return [];
     }
     return [subject];
@@ -653,7 +647,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       break;
     }
 
-    var matchInfo = RegExpExec(separator, subject, startIndex);
+    var matchInfo = $regexpExec(separator, subject, startIndex);
     if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
       result[result.length] = %_SubString(subject, currentIndex, length);
       break;
@@ -1130,14 +1124,14 @@ function StringRaw(callSite) {
     GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
 
 // Set up the non-enumerable functions on the String object.
-utils.InstallFunctions(GlobalString, DONT_ENUM, [
+$installFunctions(GlobalString, DONT_ENUM, [
   "fromCharCode", StringFromCharCode,
   "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
 ]);
 
 // Set up the non-enumerable functions on the String prototype object.
-utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
+$installFunctions(GlobalString.prototype, DONT_ENUM, [
   "valueOf", StringValueOf,
   "toString", StringToString,
   "charAt", StringCharAtJS,
