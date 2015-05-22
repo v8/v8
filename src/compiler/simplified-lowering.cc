@@ -344,6 +344,8 @@ class RepresentationSelector {
     } else if (upper->Is(Type::Number())) {
       // multiple uses => pick kRepFloat64.
       return kRepFloat64;
+    } else if (upper->Is(Type::Internal())) {
+      return kMachPtr;
     }
     return kRepTagged;
   }
