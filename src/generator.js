@@ -8,16 +8,7 @@
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 var GlobalFunction = global.Function;
-
-var NewFunctionString;
-
-utils.Import(function(from) {
-  NewFunctionString = from.NewFunctionString;
-});
 
 // ----------------------------------------------------------------------------
 
@@ -76,7 +67,7 @@ function GeneratorObjectThrow(exn) {
 
 
 function GeneratorFunctionConstructor(arg1) {  // length == 1
-  var source = NewFunctionString(arguments, 'function*');
+  var source = $newFunctionString(arguments, 'function*');
   var global_proxy = %GlobalProxy(GeneratorFunctionConstructor);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
@@ -94,10 +85,10 @@ function GeneratorFunctionConstructor(arg1) {  // length == 1
 
 // Set up non-enumerable functions on the generator prototype object.
 var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-utils.InstallFunctions(GeneratorObjectPrototype,
-                       DONT_ENUM,
-                      ["next", GeneratorObjectNext,
-                       "throw", GeneratorObjectThrow]);
+$installFunctions(GeneratorObjectPrototype,
+                 DONT_ENUM,
+                 ["next", GeneratorObjectNext,
+                  "throw", GeneratorObjectThrow]);
 
 %AddNamedProperty(GeneratorObjectPrototype, "constructor",
     GeneratorFunctionPrototype, DONT_ENUM | READ_ONLY);

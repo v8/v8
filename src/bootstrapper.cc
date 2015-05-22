@@ -2423,8 +2423,6 @@ bool Genesis::InstallExperimentalNatives() {
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
 
-  CallUtilsFunction(isolate(), "PostExperimentals");
-
   InstallExperimentalNativeFunctions();
   return true;
 }

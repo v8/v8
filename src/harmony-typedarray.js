@@ -8,9 +8,6 @@
 
 %CheckIsBootstrapping();
 
-// -------------------------------------------------------------------
-// Imports
-
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
 FUNCTION(Uint8Array)
@@ -30,40 +27,6 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 DECLARE_GLOBALS(Array)
-
-var ArrayFrom;
-var InnerArrayCopyWithin;
-var InnerArrayEvery;
-var InnerArrayFill;
-var InnerArrayFilter;
-var InnerArrayFind;
-var InnerArrayFindIndex;
-var InnerArrayForEach;
-var InnerArrayIndexOf;
-var InnerArrayLastIndexOf;
-var InnerArrayMap;
-var InnerArrayReverse;
-var InnerArraySome;
-var InnerArraySort;
-var IsNaN;
-
-utils.Import(function(from) {
-  ArrayFrom = from.ArrayFrom;
-  InnerArrayCopyWithin = from.InnerArrayCopyWithin;
-  InnerArrayEvery = from.InnerArrayEvery;
-  InnerArrayFill = from.InnerArrayFill;
-  InnerArrayFilter = from.InnerArrayFilter;
-  InnerArrayFind = from.InnerArrayFind;
-  InnerArrayFindIndex = from.InnerArrayFindIndex;
-  InnerArrayForEach = from.InnerArrayForEach;
-  InnerArrayIndexOf = from.InnerArrayIndexOf;
-  InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
-  InnerArrayMap = from.InnerArrayMap;
-  InnerArrayReverse = from.InnerArrayReverse;
-  InnerArraySome = from.InnerArraySome;
-  InnerArraySort = from.InnerArraySort;
-  IsNaN = from.IsNaN;
-});
 
 // -------------------------------------------------------------------
 
@@ -95,7 +58,7 @@ function TypedArrayCopyWithin(target, start, end) {
   var length = %_TypedArrayGetLength(this);
 
   // TODO(littledan): Replace with a memcpy for better performance
-  return InnerArrayCopyWithin(target, start, end, this, length);
+  return $innerArrayCopyWithin(target, start, end, this, length);
 }
 %FunctionSetLength(TypedArrayCopyWithin, 2);
 
@@ -105,7 +68,7 @@ function TypedArrayEvery(f, receiver) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayEvery(f, receiver, this, length);
+  return $innerArrayEvery(f, receiver, this, length);
 }
 %FunctionSetLength(TypedArrayEvery, 1);
 
@@ -115,7 +78,7 @@ function TypedArrayForEach(f, receiver) {
 
   var length = %_TypedArrayGetLength(this);
 
-  InnerArrayForEach(f, receiver, this, length);
+  $innerArrayForEach(f, receiver, this, length);
 }
 %FunctionSetLength(TypedArrayForEach, 1);
 
@@ -125,7 +88,7 @@ function TypedArrayFill(value, start, end) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayFill(value, start, end, this, length);
+  return $innerArrayFill(value, start, end, this, length);
 }
 %FunctionSetLength(TypedArrayFill, 1);
 
@@ -134,7 +97,7 @@ function TypedArrayFilter(predicate, thisArg) {
   if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  var array = InnerArrayFilter(predicate, thisArg, this, length);
+  var array = $innerArrayFilter(predicate, thisArg, this, length);
   return ConstructTypedArrayLike(this, array);
 }
 %FunctionSetLength(TypedArrayFilter, 1);
@@ -145,7 +108,7 @@ function TypedArrayFind(predicate, thisArg) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayFind(predicate, thisArg, this, length);
+  return $innerArrayFind(predicate, thisArg, this, length);
 }
 %FunctionSetLength(TypedArrayFind, 1);
 
@@ -155,7 +118,7 @@ function TypedArrayFindIndex(predicate, thisArg) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayFindIndex(predicate, thisArg, this, length);
+  return $innerArrayFindIndex(predicate, thisArg, this, length);
 }
 %FunctionSetLength(TypedArrayFindIndex, 1);
 
@@ -165,15 +128,15 @@ function TypedArrayReverse() {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayReverse(this, length);
+  return $innerArrayReverse(this, length);
 }
 
 
 function TypedArrayComparefn(x, y) {
-  if (IsNaN(x) && IsNaN(y)) {
-    return IsNaN(y) ? 0 : 1;
+  if ($isNaN(x) && $isNaN(y)) {
+    return $isNaN(y) ? 0 : 1;
   }
-  if (IsNaN(x)) {
+  if ($isNaN(x)) {
     return 1;
   }
   if (x === 0 && x === y) {
@@ -199,7 +162,7 @@ function TypedArraySort(comparefn) {
     comparefn = TypedArrayComparefn;
   }
 
-  return %_CallFunction(this, length, comparefn, InnerArraySort);
+  return %_CallFunction(this, length, comparefn, $innerArraySort);
 }
 
 
@@ -209,7 +172,7 @@ function TypedArrayIndexOf(element, index) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return %_CallFunction(this, element, index, length, InnerArrayIndexOf);
+  return %_CallFunction(this, element, index, length, $innerArrayIndexOf);
 }
 %FunctionSetLength(TypedArrayIndexOf, 1);
 
@@ -221,7 +184,7 @@ function TypedArrayLastIndexOf(element, index) {
   var length = %_TypedArrayGetLength(this);
 
   return %_CallFunction(this, element, index, length,
-                        %_ArgumentsLength(), InnerArrayLastIndexOf);
+                        %_ArgumentsLength(), $innerArrayLastIndexOf);
 }
 %FunctionSetLength(TypedArrayLastIndexOf, 1);
 
@@ -233,7 +196,7 @@ function TypedArrayMap(predicate, thisArg) {
   // TODO(littledan): Preallocate rather than making an intermediate
   // InternalArray, for better performance.
   var length = %_TypedArrayGetLength(this);
-  var array = InnerArrayMap(predicate, thisArg, this, length);
+  var array = $innerArrayMap(predicate, thisArg, this, length);
   return ConstructTypedArrayLike(this, array);
 }
 %FunctionSetLength(TypedArrayMap, 1);
@@ -245,7 +208,7 @@ function TypedArraySome(f, receiver) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArraySome(f, receiver, this, length);
+  return $innerArraySome(f, receiver, this, length);
 }
 %FunctionSetLength(TypedArraySome, 1);
 
@@ -264,7 +227,7 @@ function TypedArrayOf() {
 function TypedArrayFrom(source, mapfn, thisArg) {
   // TODO(littledan): Investigate if there is a receiver which could be
   // faster to accumulate on than Array, e.g., a TypedVector.
-  var array = %_CallFunction(GlobalArray, source, mapfn, thisArg, ArrayFrom);
+  var array = %_CallFunction(GlobalArray, source, mapfn, thisArg, $arrayFrom);
   return ConstructTypedArray(this, array);
 }
 %FunctionSetLength(TypedArrayFrom, 1);
@@ -272,13 +235,13 @@ function TypedArrayFrom(source, mapfn, thisArg) {
 // TODO(littledan): Fix the TypedArray proto chain (bug v8:4085).
 macro EXTEND_TYPED_ARRAY(NAME)
   // Set up non-enumerable functions on the object.
-  utils.InstallFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+  $installFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
     "from", TypedArrayFrom,
     "of", TypedArrayOf
   ]);
 
   // Set up non-enumerable functions on the prototype object.
-  utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
+  $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
     "copyWithin", TypedArrayCopyWithin,
     "every", TypedArrayEvery,
     "fill", TypedArrayFill,

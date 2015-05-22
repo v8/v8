@@ -292,7 +292,7 @@ var Math = new MathConstructor();
 %AddNamedProperty(Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
-utils.InstallConstants(Math, [
+$installConstants(Math, [
   // ECMA-262, section 15.8.1.1.
   "E", 2.7182818284590452354,
   // ECMA-262, section 15.8.1.2.
@@ -309,7 +309,7 @@ utils.InstallConstants(Math, [
 
 // Set up non-enumerable functions of the Math object and
 // set their names.
-utils.InstallFunctions(Math, DONT_ENUM, [
+$installFunctions(Math, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
   "acos", MathAcosJS,

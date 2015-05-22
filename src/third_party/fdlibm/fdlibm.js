@@ -1023,7 +1023,7 @@ function MathLog2(x) {
 
 //-------------------------------------------------------------------
 
-utils.InstallFunctions(GlobalMath, DONT_ENUM, [
+$installFunctions(GlobalMath, DONT_ENUM, [
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,

@@ -8,6 +8,7 @@
 
 %CheckIsBootstrapping();
 
+
 // -------------------------------------------------------------------
 // Imports
 
@@ -94,13 +95,13 @@ function ArrayBufferIsViewJS(obj) {
 %AddNamedProperty(GlobalArrayBuffer.prototype,
     symbolToStringTag, "ArrayBuffer", DONT_ENUM | READ_ONLY);
 
-utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
+$installGetter(GlobalArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
-utils.InstallFunctions(GlobalArrayBuffer, DONT_ENUM, [
+$installFunctions(GlobalArrayBuffer, DONT_ENUM, [
   "isView", ArrayBufferIsViewJS
 ]);
 
-utils.InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
+$installFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice
 ]);
 

@@ -15,7 +15,7 @@ var $iteratorPrototype;
     return this;
   }
 
-  utils.SetFunctionName(IteratorPrototypeIterator, symbolIterator);
+  $setFunctionName(IteratorPrototypeIterator, symbolIterator);
   %AddNamedProperty($iteratorPrototype, symbolIterator,
       IteratorPrototypeIterator, DONT_ENUM);
 })
