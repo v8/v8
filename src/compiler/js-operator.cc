@@ -372,9 +372,8 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 
 const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
                                              const VectorSlotPair& feedback,
-                                             ContextualMode contextual_mode,
-                                             PropertyICMode load_ic) {
-  LoadNamedParameters parameters(name, feedback, contextual_mode, load_ic);
+                                             ContextualMode contextual_mode) {
+  LoadNamedParameters parameters(name, feedback, contextual_mode);
   return new (zone()) Operator1<LoadNamedParameters>(   // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
@@ -395,9 +394,8 @@ const Operator* JSOperatorBuilder::LoadProperty(
 
 
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
-                                              const Unique<Name>& name,
-                                              PropertyICMode store_ic) {
-  StoreNamedParameters parameters(language_mode, name, store_ic);
+                                              const Unique<Name>& name) {
+  StoreNamedParameters parameters(language_mode, name);
   return new (zone()) Operator1<StoreNamedParameters>(   // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name

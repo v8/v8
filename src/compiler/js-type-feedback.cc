@@ -48,37 +48,14 @@ void JSTypeFeedbackTable::Record(Node* node, FeedbackVectorICSlot slot) {
 
 Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kJSLoadProperty: {
-      HeapObjectMatcher<Name> match(node->InputAt(1));
-      if (match.HasValue() && match.Value().handle()->IsName()) {
-        // LoadProperty(o, "constant") => LoadNamed["constant"](o).
-        Unique<Name> name = match.Value();
-        const VectorSlotPair& feedback =
-            LoadPropertyParametersOf(node->op()).feedback();
-        node->set_op(jsgraph()->javascript()->LoadNamed(name, feedback,
-                                                        NOT_CONTEXTUAL, KEYED));
-        node->RemoveInput(1);
-        return ReduceJSLoadNamed(node);
-      }
+    case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
-    }
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSStoreNamed:
       return ReduceJSStoreNamed(node);
-    case IrOpcode::kJSStoreProperty: {
-      HeapObjectMatcher<Name> match(node->InputAt(1));
-      if (match.HasValue() && match.Value().handle()->IsName()) {
-        // StoreProperty(o, "constant", v) => StoreNamed["constant"](o, v).
-        Unique<Name> name = match.Value();
-        LanguageMode language_mode = OpParameter<LanguageMode>(node);
-        node->set_op(
-            jsgraph()->javascript()->StoreNamed(language_mode, name, KEYED));
-        node->RemoveInput(1);
-        return ReduceJSStoreNamed(node);
-      }
+    case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
-    }
     default:
       break;
   }
@@ -187,14 +164,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
     // No type feedback ids or the load is uninitialized.
     return NoChange();
   }
-  if (p.load_ic() == NAMED) {
-    oracle()->PropertyReceiverTypes(slot, name, &maps);
-  } else {
-    // The load named was originally a load property.
-    bool is_string;        // Unused.
-    IcCheckType key_type;  // Unused.
-    oracle()->KeyedPropertyReceiverTypes(slot, &maps, &is_string, &key_type);
-  }
+  oracle()->PropertyReceiverTypes(slot, name, &maps);
 
   Node* effect = NodeProperties::GetEffectInput(node);
 
@@ -313,14 +283,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
     // TODO(titzer): no feedback from vector ICs from stores.
     return NoChange();
   } else {
-    if (p.store_ic() == NAMED) {
-      oracle()->PropertyReceiverTypes(id, name, &maps);
-    } else {
-      // The named store was originally a store property.
-      bool is_string;        // Unused.
-      IcCheckType key_type;  // Unused.
-      oracle()->KeyedPropertyReceiverTypes(id, &maps, &is_string, &key_type);
-    }
+    oracle()->PropertyReceiverTypes(id, name, &maps);
   }
 
   Node* receiver = node->InputAt(0);

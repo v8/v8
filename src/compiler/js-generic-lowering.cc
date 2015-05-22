@@ -353,11 +353,8 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
-  Callable callable =
-      p.load_ic() == NAMED
-          ? CodeFactory::LoadICInOptimizedCode(isolate(), p.contextual_mode(),
-                                               UNINITIALIZED)
-          : CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
+  Callable callable = CodeFactory::LoadICInOptimizedCode(
+      isolate(), p.contextual_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
@@ -379,10 +376,7 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
-  Callable callable = p.store_ic() == NAMED
-                          ? CodeFactory::StoreIC(isolate(), p.language_mode())
-                          : CodeFactory::KeyedStoreICInOptimizedCode(
-                                isolate(), p.language_mode(), UNINITIALIZED);
+  Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
