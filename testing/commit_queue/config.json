@@ -7,7 +7,7 @@
     "max_commit_burst": 1,
     "remote_branch": "refs/pending/heads/master",
     "rietveld_url": "https://codereview.chromium.org",
-    "rietveld_user": "commit-bot@chromium.org",
+    "rietveld_auth": "oauth2",
     "skip_throttle_users": [
         "commit-bot@chromium.org"
     ],
