@@ -2135,7 +2135,7 @@ class Heap {
       double idle_time_in_ms, size_t size_of_objects,
       size_t mark_compact_speed_in_bytes_per_ms);
 
-  GCIdleTimeHandler::HeapState ComputeHeapState(bool reduce_memory);
+  GCIdleTimeHandler::HeapState ComputeHeapState();
 
   bool PerformIdleTimeAction(GCIdleTimeAction action,
                              GCIdleTimeHandler::HeapState heap_state,
