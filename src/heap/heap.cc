@@ -2151,16 +2151,14 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
   }
 
-  template <int alignment>
+  template <AllocationAlignment alignment>
   static inline bool SemiSpaceCopyObject(Map* map, HeapObject** slot,
                                          HeapObject* object, int object_size) {
     Heap* heap = map->GetHeap();
 
     DCHECK(heap->AllowedToBeMigrated(object, NEW_SPACE));
-    AllocationAlignment align =
-        alignment == kDoubleAlignment ? kDoubleAligned : kWordAligned;
     AllocationResult allocation =
-        heap->new_space()->AllocateRaw(object_size, align);
+        heap->new_space()->AllocateRaw(object_size, alignment);
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
@@ -2182,15 +2180,13 @@ class ScavengingVisitor : public StaticVisitorBase {
   }
 
 
-  template <ObjectContents object_contents, int alignment>
+  template <ObjectContents object_contents, AllocationAlignment alignment>
   static inline bool PromoteObject(Map* map, HeapObject** slot,
                                    HeapObject* object, int object_size) {
     Heap* heap = map->GetHeap();
 
-    AllocationAlignment align =
-        alignment == kDoubleAlignment ? kDoubleAligned : kWordAligned;
     AllocationResult allocation =
-        heap->old_space()->AllocateRaw(object_size, align);
+        heap->old_space()->AllocateRaw(object_size, alignment);
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
@@ -2214,7 +2210,7 @@ class ScavengingVisitor : public StaticVisitorBase {
   }
 
 
-  template <ObjectContents object_contents, int alignment>
+  template <ObjectContents object_contents, AllocationAlignment alignment>
   static inline void EvacuateObject(Map* map, HeapObject** slot,
                                     HeapObject* object, int object_size) {
     SLOW_DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
@@ -2268,8 +2264,8 @@ class ScavengingVisitor : public StaticVisitorBase {
   static inline void EvacuateFixedArray(Map* map, HeapObject** slot,
                                         HeapObject* object) {
     int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
-    EvacuateObject<POINTER_OBJECT, kObjectAlignment>(map, slot, object,
-                                                     object_size);
+    EvacuateObject<POINTER_OBJECT, kWordAligned>(map, slot, object,
+                                                 object_size);
   }
 
 
@@ -2277,32 +2273,28 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     int object_size = FixedDoubleArray::SizeFor(length);
-    EvacuateObject<DATA_OBJECT, kDoubleAlignment>(map, slot, object,
-                                                  object_size);
+    EvacuateObject<DATA_OBJECT, kDoubleAligned>(map, slot, object, object_size);
   }
 
 
   static inline void EvacuateFixedTypedArray(Map* map, HeapObject** slot,
                                              HeapObject* object) {
     int object_size = reinterpret_cast<FixedTypedArrayBase*>(object)->size();
-    EvacuateObject<DATA_OBJECT, kObjectAlignment>(map, slot, object,
-                                                  object_size);
+    EvacuateObject<DATA_OBJECT, kWordAligned>(map, slot, object, object_size);
   }
 
 
   static inline void EvacuateFixedFloat64Array(Map* map, HeapObject** slot,
                                                HeapObject* object) {
     int object_size = reinterpret_cast<FixedFloat64Array*>(object)->size();
-    EvacuateObject<DATA_OBJECT, kDoubleAlignment>(map, slot, object,
-                                                  object_size);
+    EvacuateObject<DATA_OBJECT, kDoubleAligned>(map, slot, object, object_size);
   }
 
 
   static inline void EvacuateByteArray(Map* map, HeapObject** slot,
                                        HeapObject* object) {
     int object_size = reinterpret_cast<ByteArray*>(object)->ByteArraySize();
-    EvacuateObject<DATA_OBJECT, kObjectAlignment>(map, slot, object,
-                                                  object_size);
+    EvacuateObject<DATA_OBJECT, kWordAligned>(map, slot, object, object_size);
   }
 
 
@@ -2310,8 +2302,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int object_size = SeqOneByteString::cast(object)
                           ->SeqOneByteStringSize(map->instance_type());
-    EvacuateObject<DATA_OBJECT, kObjectAlignment>(map, slot, object,
-                                                  object_size);
+    EvacuateObject<DATA_OBJECT, kWordAligned>(map, slot, object, object_size);
   }
 
 
@@ -2319,8 +2310,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int object_size = SeqTwoByteString::cast(object)
                           ->SeqTwoByteStringSize(map->instance_type());
-    EvacuateObject<DATA_OBJECT, kObjectAlignment>(map, slot, object,
-                                                  object_size);
+    EvacuateObject<DATA_OBJECT, kWordAligned>(map, slot, object, object_size);
   }
 
 
@@ -2357,8 +2347,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     int object_size = ConsString::kSize;
-    EvacuateObject<POINTER_OBJECT, kObjectAlignment>(map, slot, object,
-                                                     object_size);
+    EvacuateObject<POINTER_OBJECT, kWordAligned>(map, slot, object,
+                                                 object_size);
   }
 
   template <ObjectContents object_contents>
@@ -2367,14 +2357,14 @@ class ScavengingVisitor : public StaticVisitorBase {
     template <int object_size>
     static inline void VisitSpecialized(Map* map, HeapObject** slot,
                                         HeapObject* object) {
-      EvacuateObject<object_contents, kObjectAlignment>(map, slot, object,
-                                                        object_size);
+      EvacuateObject<object_contents, kWordAligned>(map, slot, object,
+                                                    object_size);
     }
 
     static inline void Visit(Map* map, HeapObject** slot, HeapObject* object) {
       int object_size = map->instance_size();
-      EvacuateObject<object_contents, kObjectAlignment>(map, slot, object,
-                                                        object_size);
+      EvacuateObject<object_contents, kWordAligned>(map, slot, object,
+                                                    object_size);
     }
   };
 
