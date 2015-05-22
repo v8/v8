@@ -27,6 +27,12 @@ const Register StoreDescriptor::NameRegister() { return r2; }
 const Register StoreDescriptor::ValueRegister() { return r0; }
 
 
+const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return r4; }
+
+
+const Register VectorStoreICDescriptor::VectorRegister() { return r3; }
+
+
 const Register StoreTransitionDescriptor::MapRegister() { return r3; }
 
 

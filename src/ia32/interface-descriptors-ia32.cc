@@ -26,6 +26,12 @@ const Register StoreDescriptor::NameRegister() { return ecx; }
 const Register StoreDescriptor::ValueRegister() { return eax; }
 
 
+const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return edi; }
+
+
+const Register VectorStoreICDescriptor::VectorRegister() { return ebx; }
+
+
 const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
 
 

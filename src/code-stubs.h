@@ -54,6 +54,10 @@ namespace internal {
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
   V(ToNumber)                               \
+  V(VectorStoreICTrampoline)                \
+  V(VectorKeyedStoreICTrampoline)           \
+  V(VectorStoreIC)                          \
+  V(VectorKeyedStoreIC)                     \
   /* HydrogenCodeStubs */                   \
   V(AllocateHeapNumber)                     \
   V(ArrayNArgumentsConstructor)             \
@@ -2152,6 +2156,44 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
 };
 
 
+class VectorStoreICTrampolineStub : public PlatformCodeStub {
+ public:
+  VectorStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
+
+  InlineCacheState GetICState() const final { return DEFAULT; }
+
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+ protected:
+  StoreICState state() const {
+    return StoreICState(static_cast<ExtraICState>(minor_key_));
+  }
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreICTrampoline);
+  DEFINE_PLATFORM_CODE_STUB(VectorStoreICTrampoline, PlatformCodeStub);
+};
+
+
+class VectorKeyedStoreICTrampolineStub : public VectorStoreICTrampolineStub {
+ public:
+  VectorKeyedStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
+      : VectorStoreICTrampolineStub(isolate, state) {}
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
+
+  DEFINE_PLATFORM_CODE_STUB(VectorKeyedStoreICTrampoline,
+                            VectorStoreICTrampolineStub);
+};
+
+
 class CallICTrampolineStub : public PlatformCodeStub {
  public:
   CallICTrampolineStub(Isolate* isolate, const CallICState& state)
@@ -2197,10 +2239,8 @@ class LoadICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  InlineCacheState GetICState() const final override { return DEFAULT; }
-
-  ExtraICState GetExtraICState() const final override {
+  InlineCacheState GetICState() const final { return DEFAULT; }
+  ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
 
@@ -2219,11 +2259,53 @@ class KeyedLoadICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  InlineCacheState GetICState() const final override { return DEFAULT; }
+  InlineCacheState GetICState() const final { return DEFAULT; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadIC, PlatformCodeStub);
+
+ protected:
+  void GenerateImpl(MacroAssembler* masm, bool in_frame);
+};
+
+
+class VectorStoreICStub : public PlatformCodeStub {
+ public:
+  VectorStoreICStub(Isolate* isolate, const StoreICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  void GenerateForTrampoline(MacroAssembler* masm);
+
+  Code::Kind GetCodeKind() const final { return Code::STORE_IC; }
+  InlineCacheState GetICState() const final { return DEFAULT; }
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreIC);
+  DEFINE_PLATFORM_CODE_STUB(VectorStoreIC, PlatformCodeStub);
+
+ protected:
+  void GenerateImpl(MacroAssembler* masm, bool in_frame);
+};
+
+
+class VectorKeyedStoreICStub : public PlatformCodeStub {
+ public:
+  VectorKeyedStoreICStub(Isolate* isolate, const StoreICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  void GenerateForTrampoline(MacroAssembler* masm);
+
+  Code::Kind GetCodeKind() const final { return Code::KEYED_STORE_IC; }
+  InlineCacheState GetICState() const final { return DEFAULT; }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreIC);
+  DEFINE_PLATFORM_CODE_STUB(VectorKeyedStoreIC, PlatformCodeStub);
 
  protected:
   void GenerateImpl(MacroAssembler* masm, bool in_frame);

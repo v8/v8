@@ -18,6 +18,8 @@ class PlatformInterfaceDescriptor;
   V(Store)                                    \
   V(StoreTransition)                          \
   V(ElementTransitionAndStore)                \
+  V(VectorStoreICTrampoline)                  \
+  V(VectorStoreIC)                            \
   V(Instanceof)                               \
   V(LoadWithVector)                           \
   V(FastNewClosure)                           \
@@ -253,6 +255,32 @@ class InstanceofDescriptor : public CallInterfaceDescriptor {
   enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
   static const Register left();
   static const Register right();
+};
+
+
+class VectorStoreICTrampolineDescriptor : public StoreDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(VectorStoreICTrampolineDescriptor, StoreDescriptor)
+
+  enum ParameterIndices { kReceiverIndex, kNameIndex, kValueIndex, kSlotIndex };
+
+  static const Register SlotRegister();
+};
+
+
+class VectorStoreICDescriptor : public VectorStoreICTrampolineDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(VectorStoreICDescriptor, VectorStoreICTrampolineDescriptor)
+
+  enum ParameterIndices {
+    kReceiverIndex,
+    kNameIndex,
+    kValueIndex,
+    kSlotIndex,
+    kVectorIndex
+  };
+
+  static const Register VectorRegister();
 };
 
 

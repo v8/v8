@@ -121,6 +121,30 @@ void LoadWithVectorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
+void VectorStoreICDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(),
+                          NameRegister(),    ValueRegister(),
+                          SlotRegister(),    VectorRegister()};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Smi(),    Representation::Tagged()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void VectorStoreICTrampolineDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
+                          ValueRegister(), SlotRegister()};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
 void ApiGetterDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), function_address()};
   Representation representations[] = {Representation::Tagged(),
