@@ -2434,65 +2434,6 @@ THREADED_TEST(SymbolTemplateProperties) {
 }
 
 
-THREADED_TEST(PrivateProperties) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  v8::Local<v8::Private> priv1 = v8::Private::New(isolate);
-  v8::Local<v8::Private> priv2 =
-      v8::Private::New(isolate, v8_str("my-private"));
-
-  CcTest::heap()->CollectAllGarbage();
-
-  CHECK(priv2->Name()->Equals(v8::String::NewFromUtf8(isolate, "my-private")));
-
-  // Make sure delete of a non-existent private symbol property works.
-  CHECK(obj->DeletePrivate(priv1));
-  CHECK(!obj->HasPrivate(priv1));
-
-  CHECK(obj->SetPrivate(priv1, v8::Integer::New(isolate, 1503)));
-  CHECK(obj->HasPrivate(priv1));
-  CHECK_EQ(1503, obj->GetPrivate(priv1)->Int32Value());
-  CHECK(obj->SetPrivate(priv1, v8::Integer::New(isolate, 2002)));
-  CHECK(obj->HasPrivate(priv1));
-  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
-
-  CHECK_EQ(0u, obj->GetOwnPropertyNames()->Length());
-  unsigned num_props = obj->GetPropertyNames()->Length();
-  CHECK(obj->Set(v8::String::NewFromUtf8(isolate, "bla"),
-                 v8::Integer::New(isolate, 20)));
-  CHECK_EQ(1u, obj->GetOwnPropertyNames()->Length());
-  CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
-
-  CcTest::heap()->CollectAllGarbage();
-
-  // Add another property and delete it afterwards to force the object in
-  // slow case.
-  CHECK(obj->SetPrivate(priv2, v8::Integer::New(isolate, 2008)));
-  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
-  CHECK_EQ(2008, obj->GetPrivate(priv2)->Int32Value());
-  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
-  CHECK_EQ(1u, obj->GetOwnPropertyNames()->Length());
-
-  CHECK(obj->HasPrivate(priv1));
-  CHECK(obj->HasPrivate(priv2));
-  CHECK(obj->DeletePrivate(priv2));
-  CHECK(obj->HasPrivate(priv1));
-  CHECK(!obj->HasPrivate(priv2));
-  CHECK_EQ(2002, obj->GetPrivate(priv1)->Int32Value());
-  CHECK_EQ(1u, obj->GetOwnPropertyNames()->Length());
-
-  // Private properties are inherited (for the time being).
-  v8::Local<v8::Object> child = v8::Object::New(isolate);
-  child->SetPrototype(obj);
-  CHECK(child->HasPrivate(priv1));
-  CHECK_EQ(2002, child->GetPrivate(priv1)->Int32Value());
-  CHECK_EQ(0u, child->GetOwnPropertyNames()->Length());
-}
-
-
 THREADED_TEST(GlobalSymbols) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -2538,28 +2479,6 @@ static void CheckWellKnownSymbol(v8::Local<v8::Symbol>(*getter)(v8::Isolate*),
 THREADED_TEST(WellKnownSymbols) {
   CheckWellKnownSymbol(v8::Symbol::GetIterator, "Symbol.iterator");
   CheckWellKnownSymbol(v8::Symbol::GetUnscopables, "Symbol.unscopables");
-}
-
-
-THREADED_TEST(GlobalPrivates) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  v8::Local<String> name = v8_str("my-private");
-  v8::Local<v8::Private> glob = v8::Private::ForApi(isolate, name);
-  v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  CHECK(obj->SetPrivate(glob, v8::Integer::New(isolate, 3)));
-
-  v8::Local<v8::Private> glob2 = v8::Private::ForApi(isolate, name);
-  CHECK(obj->HasPrivate(glob2));
-
-  v8::Local<v8::Private> priv = v8::Private::New(isolate, name);
-  CHECK(!obj->HasPrivate(priv));
-
-  CompileRun("var intern = %CreateGlobalPrivateSymbol('my-private')");
-  v8::Local<Value> intern = env->Global()->Get(v8_str("intern"));
-  CHECK(!obj->Has(intern));
 }
 
 

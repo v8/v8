@@ -3462,12 +3462,6 @@ bool v8::Object::ForceSet(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
-bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
-  return ForceSet(v8::Handle<Value>(reinterpret_cast<Value*>(*key)),
-                  value, DontEnum);
-}
-
-
 namespace {
 
 i::MaybeHandle<i::Object> DeleteObjectProperty(
@@ -3543,11 +3537,6 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
 Local<Value> v8::Object::Get(uint32_t index) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   RETURN_TO_LOCAL_UNCHECKED(Get(context, index), Value);
-}
-
-
-Local<Value> v8::Object::GetPrivate(v8::Handle<Private> key) {
-  return Get(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -3782,11 +3771,6 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
 }
 
 
-bool v8::Object::DeletePrivate(v8::Handle<Private> key) {
-  return Delete(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
-}
-
-
 Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::Get()", bool);
   auto self = Utils::OpenHandle(this);
@@ -3812,13 +3796,6 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
 bool v8::Object::Has(v8::Handle<Value> key) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return Has(context, key).FromMaybe(false);
-}
-
-
-bool v8::Object::HasPrivate(v8::Handle<Private> key) {
-  // TODO(rossberg): this should use HasOwnProperty, but we'd need to
-  // generalise that to a (noy yet existant) Name argument first.
-  return Has(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -5177,11 +5154,6 @@ Local<Value> Symbol::Name() const {
 }
 
 
-Local<Value> Private::Name() const {
-  return reinterpret_cast<const Symbol*>(this)->Name();
-}
-
-
 double Number::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
@@ -6484,38 +6456,6 @@ Local<Symbol> v8::Symbol::GetUnscopables(Isolate* isolate) {
 Local<Symbol> v8::Symbol::GetToStringTag(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return Utils::ToLocal(i_isolate->factory()->to_string_tag_symbol());
-}
-
-
-Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, "Private::New()");
-  ENTER_V8(i_isolate);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
-  if (!name.IsEmpty()) symbol->set_name(*Utils::OpenHandle(*name));
-  Local<Symbol> result = Utils::ToLocal(symbol);
-  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
-}
-
-
-Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
-  i::Handle<i::String> part = i_isolate->factory()->private_api_string();
-  i::Handle<i::JSObject> privates =
-      i::Handle<i::JSObject>::cast(
-          i::Object::GetPropertyOrElement(registry, part).ToHandleChecked());
-  i::Handle<i::Object> symbol =
-      i::Object::GetPropertyOrElement(privates, i_name).ToHandleChecked();
-  if (!symbol->IsSymbol()) {
-    DCHECK(symbol->IsUndefined());
-    symbol = i_isolate->factory()->NewPrivateSymbol();
-    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(privates, i_name, symbol, i::STRICT).Assert();
-  }
-  Local<Symbol> result = Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
-  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
 }
 
 
