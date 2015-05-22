@@ -957,7 +957,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   if (!mark_compact_collector()->abort_incremental_marking() &&
       incremental_marking()->IsStopped() &&
       incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    incremental_marking()->Start();
+    incremental_marking()->Start(kNoGCFlags);
   }
 
   return next_gc_likely_to_collect_more;
@@ -4654,8 +4654,8 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       break;
     case DO_INCREMENTAL_MARKING: {
       if (incremental_marking()->IsStopped()) {
-        // TODO(ulan): take reduce_memory into account.
-        incremental_marking()->Start();
+        incremental_marking()->Start(
+            action.reduce_memory ? kReduceMemoryFootprintMask : kNoGCFlags);
       }
       double remaining_idle_time_in_ms = 0.0;
       do {
