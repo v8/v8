@@ -109,8 +109,8 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   // ICs as language mode. The language mode of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    DCHECK(StoreIC::GetLanguageMode(old_target->extra_ic_state()) ==
-           StoreIC::GetLanguageMode(target->extra_ic_state()));
+    DCHECK(StoreICState::GetLanguageMode(old_target->extra_ic_state()) ==
+           StoreICState::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
   Assembler::set_target_address_at(address, constant_pool,
@@ -141,15 +141,16 @@ void LoadIC::set_target(Code* code) {
 
 void StoreIC::set_target(Code* code) {
   // Language mode must be preserved across IC patching.
-  DCHECK(GetLanguageMode(code->extra_ic_state()) ==
-         GetLanguageMode(target()->extra_ic_state()));
+  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
+         StoreICState::GetLanguageMode(target()->extra_ic_state()));
   IC::set_target(code);
 }
 
 
 void KeyedStoreIC::set_target(Code* code) {
   // Language mode must be preserved across IC patching.
-  DCHECK(GetLanguageMode(code->extra_ic_state()) == language_mode());
+  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
+         language_mode());
   IC::set_target(code);
 }
 

@@ -492,26 +492,16 @@ class KeyedLoadIC : public LoadIC {
 
 class StoreIC : public IC {
  public:
-  STATIC_ASSERT(i::LANGUAGE_END == 3);
-  class LanguageModeState : public BitField<LanguageMode, 1, 2> {};
   static ExtraICState ComputeExtraICState(LanguageMode flag) {
-    return LanguageModeState::encode(flag);
+    return StoreICState(flag).GetExtraICState();
   }
-  static LanguageMode GetLanguageMode(ExtraICState state) {
-    return LanguageModeState::decode(state);
-  }
-
-  // For convenience, a statically declared encoding of strict mode extra
-  // IC state.
-  static const ExtraICState kStrictModeState = STRICT
-                                               << LanguageModeState::kShift;
 
   StoreIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     DCHECK(IsStoreStub());
   }
 
   LanguageMode language_mode() const {
-    return LanguageModeState::decode(extra_ic_state());
+    return StoreICState::GetLanguageMode(extra_ic_state());
   }
 
   // Code generators for stub routines. Only called once at startup.
@@ -587,7 +577,7 @@ class KeyedStoreIC : public StoreIC {
 
   static ExtraICState ComputeExtraICState(LanguageMode flag,
                                           KeyedAccessStoreMode mode) {
-    return LanguageModeState::encode(flag) |
+    return StoreICState(flag).GetExtraICState() |
            ExtraICStateKeyedAccessStoreMode::encode(mode) |
            IcCheckTypeField::encode(ELEMENT);
   }

@@ -561,10 +561,9 @@ void StoreIC::Clear(Isolate* isolate, Address address, Code* target,
 void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
                          ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
-  SetTargetAtAddress(
-      address, *pre_monomorphic_stub(
-                   isolate, StoreIC::GetLanguageMode(target->extra_ic_state())),
-      constant_pool);
+  Handle<Code> code = pre_monomorphic_stub(
+      isolate, StoreICState::GetLanguageMode(target->extra_ic_state()));
+  SetTargetAtAddress(address, *code, constant_pool);
 }
 
 

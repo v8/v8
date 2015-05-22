@@ -308,7 +308,7 @@ Handle<Code> PropertyICCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
 
 Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  LanguageMode language_mode = StoreIC::GetLanguageMode(extra_state);
+  LanguageMode language_mode = StoreICState::GetLanguageMode(extra_state);
   GenerateRuntimeSetProperty(masm(), language_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
   PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
