@@ -159,6 +159,7 @@ class RegisteredExtension {
   V(Float32Array, JSTypedArray)              \
   V(Float64Array, JSTypedArray)              \
   V(DataView, JSDataView)                    \
+  V(SharedArrayBuffer, JSArrayBuffer)        \
   V(Name, Name)                              \
   V(String, String)                          \
   V(Symbol, Symbol)                          \
@@ -229,6 +230,9 @@ class Utils {
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Float64Array> ToLocalFloat64Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
+
+  static inline Local<SharedArrayBuffer> ToLocalShared(
+      v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
 
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
@@ -360,6 +364,7 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
+MAKE_TO_LOCAL(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 

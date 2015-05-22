@@ -1749,7 +1749,8 @@
           '../../src/harmony-regexp.js',
           '../../src/harmony-reflect.js',
           '../../src/harmony-spread.js',
-          '../../src/harmony-object.js'
+          '../../src/harmony-object.js',
+          '../../src/harmony-sharedarraybuffer.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',

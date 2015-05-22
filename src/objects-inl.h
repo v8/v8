@@ -6483,6 +6483,14 @@ void JSArrayBuffer::set_was_neutered(bool value) {
 }
 
 
+bool JSArrayBuffer::is_shared() { return IsShared::decode(bit_field()); }
+
+
+void JSArrayBuffer::set_is_shared(bool value) {
+  set_bit_field(IsShared::update(bit_field(), value));
+}
+
+
 Object* JSArrayBufferView::byte_offset() const {
   if (WasNeutered()) return Smi::FromInt(0);
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));

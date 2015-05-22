@@ -127,7 +127,7 @@ function NAMEConstructByArrayLike(obj, arrayLike) {
 
 function NAMEConstructor(arg1, arg2, arg3) {
   if (%_IsConstructCall()) {
-    if (IS_ARRAYBUFFER(arg1)) {
+    if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
       NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
     } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
                IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
@@ -347,6 +347,7 @@ TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   if (%_IsConstructCall()) {
+    // TODO(binji): support SharedArrayBuffers?
     if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
     if (!IS_UNDEFINED(byteOffset)) {
         byteOffset = $toPositiveInteger(byteOffset, kInvalidDataViewOffset);

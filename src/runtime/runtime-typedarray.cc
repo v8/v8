@@ -16,7 +16,7 @@ namespace internal {
 void Runtime::SetupArrayBuffer(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer,
                                bool is_external, void* data,
-                               size_t allocated_length) {
+                               size_t allocated_length, SharedFlag shared) {
   DCHECK(array_buffer->GetInternalFieldCount() ==
          v8::ArrayBuffer::kInternalFieldCount);
   for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
@@ -25,7 +25,8 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_backing_store(data);
   array_buffer->set_bit_field(0);
   array_buffer->set_is_external(is_external);
-  array_buffer->set_is_neuterable(true);
+  array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
+  array_buffer->set_is_shared(shared == SharedFlag::kShared);
 
   Handle<Object> byte_length =
       isolate->factory()->NewNumberFromSize(allocated_length);
@@ -41,7 +42,8 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
 bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
                                              Handle<JSArrayBuffer> array_buffer,
                                              size_t allocated_length,
-                                             bool initialize) {
+                                             bool initialize,
+                                             SharedFlag shared) {
   void* data;
   CHECK(isolate->array_buffer_allocator() != NULL);
   // Prevent creating array buffers when serializing.
@@ -58,7 +60,8 @@ bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
     data = NULL;
   }
 
-  SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
+  SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length,
+                   shared);
   return true;
 }
 
@@ -70,9 +73,10 @@ void Runtime::NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer) {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, holder, 0);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byteLength, 1);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_shared, 2);
   if (!holder->byte_length()->IsUndefined()) {
     // ArrayBuffer is already initialized; probably a fuzz test.
     return *holder;
@@ -82,8 +86,9 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  if (!Runtime::SetupArrayBufferAllocatingData(isolate, holder,
-                                               allocated_length)) {
+  if (!Runtime::SetupArrayBufferAllocatingData(
+          isolate, holder, allocated_length, true,
+          is_shared ? SharedFlag::kShared : SharedFlag::kNotShared)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
@@ -138,6 +143,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
     CHECK(Smi::FromInt(0) == array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }
+  // Shared array buffers should never be neutered.
+  DCHECK(!array_buffer->is_shared());
   DCHECK(!array_buffer->is_external());
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
@@ -240,7 +247,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     DCHECK(IsExternalArrayElementsKind(holder->map()->elements_kind()));
   } else {
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-    Runtime::SetupArrayBuffer(isolate, buffer, true, NULL, byte_length);
+    Runtime::SetupArrayBuffer(isolate, buffer, true, NULL, byte_length,
+                              SharedFlag::kNotShared);
     holder->set_buffer(*buffer);
     Handle<FixedTypedArrayBase> elements =
         isolate->factory()->NewFixedTypedArray(static_cast<int>(length),
