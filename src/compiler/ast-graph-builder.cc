@@ -1991,15 +1991,11 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   // In case the array literal contains spread expressions it has two parts. The
-  // first part is  the "static" array which has a literal index is  handled
+  // first part is  the "static" array which has a literal index is handled
   // above. The second part is the part after the first spread expression
   // (inclusive) and these elements gets appended to the array. Note that the
   // number elements an iterable produces is unknown ahead of time.
-  bool has_spread = array_index < expr->values()->length();
-  if (has_spread) {
-    environment()->Pop();  // Array literal index.
-  }
-
+  environment()->Pop();  // Array literal index.
   for (; array_index < expr->values()->length(); array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
     Node* array = environment()->Pop();
@@ -2027,9 +2023,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     environment()->Push(result);
   }
 
-  if (!has_spread) {
-    environment()->Pop();  // Array literal index.
-  }
   ast_context()->ProduceValue(environment()->Pop());
 }
 
