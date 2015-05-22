@@ -8,9 +8,18 @@
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalString = global.String;
 
-//-------------------------------------------------------------------
+var ArrayIteratorCreateResultObject;
+
+utils.Import(function(from) {
+  ArrayIteratorCreateResultObject = from.ArrayIteratorCreateResultObject;
+});
+
+// -------------------------------------------------------------------
 
 var stringIteratorIteratedStringSymbol =
     GLOBAL_PRIVATE("StringIterator#iteratedString");
@@ -41,7 +50,7 @@ function StringIteratorNext() {
 
   var s = GET_PRIVATE(iterator, stringIteratorIteratedStringSymbol);
   if (IS_UNDEFINED(s)) {
-    return $iteratorCreateResultObject(UNDEFINED, true);
+    return ArrayIteratorCreateResultObject(UNDEFINED, true);
   }
 
   var position = GET_PRIVATE(iterator, stringIteratorNextIndexSymbol);
@@ -50,7 +59,7 @@ function StringIteratorNext() {
   if (position >= length) {
     SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol,
                 UNDEFINED);
-    return $iteratorCreateResultObject(UNDEFINED, true);
+    return ArrayIteratorCreateResultObject(UNDEFINED, true);
   }
 
   var first = %_StringCharCodeAt(s, position);
@@ -67,7 +76,7 @@ function StringIteratorNext() {
 
   SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, position);
 
-  return $iteratorCreateResultObject(resultString, false);
+  return ArrayIteratorCreateResultObject(resultString, false);
 }
 
 
@@ -81,13 +90,13 @@ function StringPrototypeIterator() {
 %FunctionSetPrototype(StringIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
-$installFunctions(StringIterator.prototype, DONT_ENUM, [
+utils.InstallFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
 %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
-$setFunctionName(StringPrototypeIterator, symbolIterator);
+utils.SetFunctionName(StringPrototypeIterator, symbolIterator);
 %AddNamedProperty(GlobalString.prototype, symbolIterator,
                   StringPrototypeIterator, DONT_ENUM);
 

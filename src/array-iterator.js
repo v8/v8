@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $iteratorCreateResultObject;
 var $arrayValues;
 
 (function(global, utils) {
@@ -124,16 +123,16 @@ function ArrayKeys() {
 %FunctionSetPrototype(ArrayIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
 
-$installFunctions(ArrayIterator.prototype, DONT_ENUM, [
+utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
-$setFunctionName(ArrayIteratorIterator, symbolIterator);
+utils.SetFunctionName(ArrayIteratorIterator, symbolIterator);
 %AddNamedProperty(ArrayIterator.prototype, symbolIterator,
                   ArrayIteratorIterator, DONT_ENUM);
 %AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
-$installFunctions(GlobalArray.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   // No 'values' since it breaks webcompat: http://crbug.com/409858
   'entries', ArrayEntries,
   'keys', ArrayKeys
@@ -152,7 +151,13 @@ endmacro
 
 TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 
-$iteratorCreateResultObject = CreateIteratorResultObject;
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.ArrayIteratorCreateResultObject = CreateIteratorResultObject;
+});
+
 $arrayValues = ArrayValues;
 
 })
