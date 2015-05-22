@@ -10276,6 +10276,10 @@ class JSWeakSet: public JSWeakCollection {
 };
 
 
+// Whether a JSArrayBuffer is a SharedArrayBuffer or not.
+enum class SharedFlag { kNotShared, kShared };
+
+
 class JSArrayBuffer: public JSObject {
  public:
   // [backing_store]: backing memory for this array
@@ -10295,6 +10299,9 @@ class JSArrayBuffer: public JSObject {
 
   inline bool was_neutered();
   inline void set_was_neutered(bool value);
+
+  inline bool is_shared();
+  inline void set_is_shared(bool value);
 
   DECLARE_CAST(JSArrayBuffer)
 
@@ -10320,6 +10327,7 @@ class JSArrayBuffer: public JSObject {
   class IsExternal : public BitField<bool, 1, 1> {};
   class IsNeuterable : public BitField<bool, 2, 1> {};
   class WasNeutered : public BitField<bool, 3, 1> {};
+  class IsShared : public BitField<bool, 4, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);

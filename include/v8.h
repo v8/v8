@@ -1920,6 +1920,13 @@ class V8_EXPORT Value : public Data {
    */
   bool IsDataView() const;
 
+  /**
+   * Returns true if this value is a SharedArrayBuffer.
+   * This is an experimental feature.
+   */
+  bool IsSharedArrayBuffer() const;
+
+
   V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
@@ -3344,7 +3351,7 @@ class V8_EXPORT ArrayBuffer : public Object {
       ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
-   * Returns true if ArrayBuffer is extrenalized, that is, does not
+   * Returns true if ArrayBuffer is externalized, that is, does not
    * own its memory block.
    */
   bool IsExternal() const;
@@ -3626,6 +3633,105 @@ class V8_EXPORT DataView : public ArrayBufferView {
 
  private:
   DataView();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in SharedArrayBuffer constructor.
+ * This API is experimental and may change significantly.
+ */
+class V8_EXPORT SharedArrayBuffer : public Object {
+ public:
+  /**
+   * The contents of an |SharedArrayBuffer|. Externalization of
+   * |SharedArrayBuffer| returns an instance of this class, populated, with a
+   * pointer to data and byte length.
+   *
+   * The Data pointer of SharedArrayBuffer::Contents is always allocated with
+   * |ArrayBuffer::Allocator::Allocate| by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   *
+   * This API is experimental and may change significantly.
+   */
+  class V8_EXPORT Contents {  // NOLINT
+   public:
+    Contents() : data_(NULL), byte_length_(0) {}
+
+    void* Data() const { return data_; }
+    size_t ByteLength() const { return byte_length_; }
+
+   private:
+    void* data_;
+    size_t byte_length_;
+
+    friend class SharedArrayBuffer;
+  };
+
+
+  /**
+   * Data length in bytes.
+   */
+  size_t ByteLength() const;
+
+  /**
+   * Create a new SharedArrayBuffer. Allocate |byte_length| bytes.
+   * Allocated memory will be owned by a created SharedArrayBuffer and
+   * will be deallocated when it is garbage-collected,
+   * unless the object is externalized.
+   */
+  static Local<SharedArrayBuffer> New(Isolate* isolate, size_t byte_length);
+
+  /**
+   * Create a new SharedArrayBuffer over an existing memory block.  The created
+   * array buffer is immediately in externalized state unless otherwise
+   * specified. The memory block will not be reclaimed when a created
+   * SharedArrayBuffer is garbage-collected.
+   */
+  static Local<SharedArrayBuffer> New(
+      Isolate* isolate, void* data, size_t byte_length,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
+
+  /**
+   * Returns true if SharedArrayBuffer is externalized, that is, does not
+   * own its memory block.
+   */
+  bool IsExternal() const;
+
+  /**
+   * Make this SharedArrayBuffer external. The pointer to underlying memory
+   * block and byte length are returned as |Contents| structure. After
+   * SharedArrayBuffer had been etxrenalized, it does no longer owns the memory
+   * block. The caller should take steps to free memory when it is no longer
+   * needed.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   *
+   */
+  Contents Externalize();
+
+  /**
+   * Get a pointer to the ArrayBuffer's underlying memory block without
+   * externalizing it. If the ArrayBuffer is not externalized, this pointer
+   * will become invalid as soon as the ArrayBuffer became garbage collected.
+   *
+   * The embedder should make sure to hold a strong reference to the
+   * ArrayBuffer while accessing this pointer.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   */
+  Contents GetContents();
+
+  V8_INLINE static SharedArrayBuffer* Cast(Value* obj);
+
+  static const int kInternalFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
+
+ private:
+  SharedArrayBuffer();
   static void CheckCast(Value* obj);
 };
 
@@ -7814,6 +7920,14 @@ DataView* DataView::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<DataView*>(value);
+}
+
+
+SharedArrayBuffer* SharedArrayBuffer::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<SharedArrayBuffer*>(value);
 }
 
 

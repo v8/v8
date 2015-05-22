@@ -2679,7 +2679,8 @@ bool Value::IsArray() const {
 
 
 bool Value::IsArrayBuffer() const {
-  return Utils::OpenHandle(this)->IsJSArrayBuffer();
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->IsJSArrayBuffer() && !i::JSArrayBuffer::cast(*obj)->is_shared();
 }
 
 
@@ -2700,6 +2701,7 @@ bool Value::IsTypedArray() const {
            i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array; \
   }
 
+
 TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 
 #undef VALUE_IS_TYPED_ARRAY
@@ -2707,6 +2709,12 @@ TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 
 bool Value::IsDataView() const {
   return Utils::OpenHandle(this)->IsJSDataView();
+}
+
+
+bool Value::IsSharedArrayBuffer() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->IsJSArrayBuffer() && i::JSArrayBuffer::cast(*obj)->is_shared();
 }
 
 
@@ -3086,9 +3094,9 @@ void v8::Promise::Resolver::CheckCast(Value* that) {
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSArrayBuffer(),
-                  "v8::ArrayBuffer::Cast()",
-                  "Could not convert to ArrayBuffer");
+  Utils::ApiCheck(
+      obj->IsJSArrayBuffer() && !i::JSArrayBuffer::cast(*obj)->is_shared(),
+      "v8::ArrayBuffer::Cast()", "Could not convert to ArrayBuffer");
 }
 
 
@@ -3128,6 +3136,15 @@ void v8::DataView::CheckCast(Value* that) {
   Utils::ApiCheck(obj->IsJSDataView(),
                   "v8::DataView::Cast()",
                   "Could not convert to DataView");
+}
+
+
+void v8::SharedArrayBuffer::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(
+      obj->IsJSArrayBuffer() && i::JSArrayBuffer::cast(*obj)->is_shared(),
+      "v8::SharedArrayBuffer::Cast()",
+      "Could not convert to SharedArrayBuffer");
 }
 
 
@@ -6305,7 +6322,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
   LOG_API(i_isolate, "v8::ArrayBuffer::New(size_t)");
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer();
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
   i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length);
   return Utils::ToLocal(obj);
 }
@@ -6318,7 +6335,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
   LOG_API(i_isolate, "v8::ArrayBuffer::New(void*, size_t)");
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer();
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
   i::Runtime::SetupArrayBuffer(i_isolate, obj,
                                mode == ArrayBufferCreationMode::kExternalized,
                                data, byte_length);
@@ -6421,6 +6438,66 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
   i::Handle<i::JSDataView> obj =
       isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
   return Utils::ToLocal(obj);
+}
+
+
+bool v8::SharedArrayBuffer::IsExternal() const {
+  return Utils::OpenHandle(this)->is_external();
+}
+
+
+v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  Utils::ApiCheck(!self->is_external(), "v8::SharedArrayBuffer::Externalize",
+                  "SharedArrayBuffer already externalized");
+  self->set_is_external(true);
+  isolate->heap()->UnregisterArrayBuffer(self->backing_store());
+  return GetContents();
+}
+
+
+v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
+  Contents contents;
+  contents.data_ = self->backing_store();
+  contents.byte_length_ = byte_length;
+  return contents;
+}
+
+
+size_t v8::SharedArrayBuffer::ByteLength() const {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
+                                                    size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "v8::SharedArrayBuffer::New(size_t)");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
+  i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length, true,
+                                             i::SharedFlag::kShared);
+  return Utils::ToLocalShared(obj);
+}
+
+
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
+    Isolate* isolate, void* data, size_t byte_length,
+    ArrayBufferCreationMode mode) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "v8::SharedArrayBuffer::New(void*, size_t)");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
+  i::Runtime::SetupArrayBuffer(i_isolate, obj,
+                               mode == ArrayBufferCreationMode::kExternalized,
+                               data, byte_length, i::SharedFlag::kShared);
+  return Utils::ToLocalShared(obj);
 }
 
 
