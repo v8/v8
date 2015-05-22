@@ -36,16 +36,17 @@ const kFirstSlotExtraTypeFeedbackIndex = 5;
   }
   // Execute the function once to make sure it has a type feedback vector.
   floorFunc(5);
+  var stub = builtins.MathFloorStub("MathFloorStub", 0);
   assertTrue(kExtraTypeFeedbackMinusZeroSentinel !==
              %FixedArrayGet(%GetTypeFeedbackVector(floorFunc),
                             kFirstSlotExtraTypeFeedbackIndex));
-  assertEquals(5.0, builtins.MathFloor_STUB(floorFunc, 4, 5.5));
+  assertEquals(5.0, stub(floorFunc, 4, 5.5));
   assertTrue(kExtraTypeFeedbackMinusZeroSentinel !==
              %FixedArrayGet(%GetTypeFeedbackVector(floorFunc),
                             kFirstSlotExtraTypeFeedbackIndex));
   // Executing floor such that it returns -0 should set the proper sentinel in
   // the feedback vector.
-  assertEquals(-Infinity, 1/builtins.MathFloor_STUB(floorFunc, 4, -0));
+  assertEquals(-Infinity, 1/stub(floorFunc, 4, -0));
   assertEquals(kExtraTypeFeedbackMinusZeroSentinel,
                %FixedArrayGet(%GetTypeFeedbackVector(floorFunc),
                               kFirstSlotExtraTypeFeedbackIndex));

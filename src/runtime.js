@@ -64,9 +64,9 @@ var TO_NUMBER;
 var TO_STRING;
 var TO_NAME;
 
-var StringLengthTF_STUB;
-var StringAddTF_STUB;
-var MathFloor_STUB;
+var StringLengthTFStub;
+var StringAddTFStub;
+var MathFloorStub;
 
 var $defaultNumber;
 var $defaultString;
@@ -767,35 +767,44 @@ TO_NAME = function TO_NAME() {
    -----------------------------------------------
 */
 
-StringLengthTF_STUB = function StringLengthTF_STUB(receiver, name, i, v) {
-  // i and v are dummy parameters mandated by the InterfaceDescriptor,
-  // (LoadWithVectorDescriptor).
-  return %_StringGetLength(%_JSValueGetValue(receiver));
+StringLengthTFStub = function StringLengthTFStub(call_conv, minor_key) {
+  var stub = function(receiver, name, i, v) {
+    // i and v are dummy parameters mandated by the InterfaceDescriptor,
+    // (LoadWithVectorDescriptor).
+    return %_StringGetLength(%_JSValueGetValue(receiver));
+  }
+  return stub;
 }
 
-StringAddTF_STUB = function StringAddTF_STUB(left, right) {
-  return %StringAdd(left, right);
+StringAddTFStub = function StringAddTFStub(call_conv, minor_key) {
+  var stub = function(left, right) {
+    return %StringAdd(left, right);
+  }
+  return stub;
 }
 
-MathFloor_STUB = function MathFloor_STUB(f, i, v) {
-  // |f| is calling function's JSFunction
-  // |i| is TypeFeedbackVector slot # of callee's CallIC for Math.floor call
-  // |v| is the value to floor
-  var r = %_MathFloor(+v);
-  if (%_IsMinusZero(r)) {
-    // Collect type feedback when the result of the floor is -0. This is
-    // accomplished by storing a sentinel in the second, "extra"
-    // TypeFeedbackVector slot corresponding to the Math.floor CallIC call in
-    // the caller's TypeVector.
-    %_FixedArraySet(%_GetTypeFeedbackVector(f), ((i|0)+1)|0, 1);
-    return -0;
+MathFloorStub = function MathFloorStub(call_conv, minor_key) {
+  var stub = function(f, i, v) {
+    // |f| is calling function's JSFunction
+    // |i| is TypeFeedbackVector slot # of callee's CallIC for Math.floor call
+    // |v| is the value to floor
+    var r = %_MathFloor(+v);
+    if (%_IsMinusZero(r)) {
+      // Collect type feedback when the result of the floor is -0. This is
+      // accomplished by storing a sentinel in the second, "extra"
+      // TypeFeedbackVector slot corresponding to the Math.floor CallIC call in
+      // the caller's TypeVector.
+      %_FixedArraySet(%_GetTypeFeedbackVector(f), ((i|0)+1)|0, 1);
+      return -0;
+    }
+    // Return integers in smi range as smis.
+    var trunc = r|0;
+    if (trunc === r) {
+      return trunc;
+    }
+    return r;
   }
-  // Return integers in smi range as smis.
-  var trunc = r|0;
-  if (trunc === r) {
-    return trunc;
-  }
-  return r;
+  return stub;
 }
 
 

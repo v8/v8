@@ -355,11 +355,6 @@ struct FakeStubForTesting : public CodeStub {
   Handle<Code> GenerateCode() override;                               \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                           \
- public:                                                                 \
-  const char* GetFunctionName() const override { return #NAME "_STUB"; } \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
  public:                                      \
   Handle<Code> GenerateCode() override;       \
@@ -533,8 +528,6 @@ class TurboFanCodeStub : public CodeStub {
 
   Code::StubType GetStubType() const override { return Code::FAST; }
 
-  virtual const char* GetFunctionName() const = 0;
-
  protected:
   explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
 
@@ -615,7 +608,7 @@ class MathFloorStub : public TurboFanCodeStub {
   int GetStackParameterCount() const override { return 1; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(MathRoundVariant);
-  DEFINE_TURBOFAN_CODE_STUB(MathFloor, TurboFanCodeStub);
+  DEFINE_CODE_STUB(MathFloor, TurboFanCodeStub);
 };
 
 
@@ -628,7 +621,7 @@ class StringLengthTFStub : public TurboFanCodeStub {
   ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StringLengthTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(StringLengthTF, TurboFanCodeStub);
 };
 
 
@@ -671,7 +664,7 @@ class StringAddTFStub : public TurboFanCodeStub {
   void PrintBaseName(std::ostream& os) const override;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
-  DEFINE_TURBOFAN_CODE_STUB(StringAddTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(StringAddTF, TurboFanCodeStub);
 };
 
 

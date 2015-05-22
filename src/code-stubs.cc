@@ -477,17 +477,31 @@ Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
   Handle<JSFunction> function = Handle<JSFunction>::cast(fun.ToHandleChecked());
   DCHECK(!function->IsUndefined() &&
          "JavaScript implementation of stub not found");
-  // Just to make sure nobody calls this...
-  function->set_code(isolate->builtins()->builtin(Builtins::kIllegal));
   return function;
 }
 }  // namespace
 
 
 Handle<Code> TurboFanCodeStub::GenerateCode() {
+  // Get the outer ("stub generator") function.
+  const char* name = CodeStub::MajorName(MajorKey(), false);
+  Handle<JSFunction> outer = GetFunction(isolate(), name);
+  DCHECK_EQ(2, outer->shared()->length());
+
+  // Invoke the outer function to get the stub itself.
+  Factory* factory = isolate()->factory();
+  Handle<Object> call_conv = factory->InternalizeUtf8String(name);
+  Handle<Object> minor_key = factory->NewNumber(MinorKey());
+  Handle<Object> args[] = {call_conv, minor_key};
+  MaybeHandle<Object> result = Execution::Call(
+      isolate(), outer, factory->undefined_value(), 2, args, false);
+  Handle<JSFunction> inner = Handle<JSFunction>::cast(result.ToHandleChecked());
+  // Just to make sure nobody calls this...
+  inner->set_code(isolate()->builtins()->builtin(Builtins::kIllegal));
+
   Zone zone;
   // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
-  ParseInfo parse_info(&zone, GetFunction(isolate(), GetFunctionName()));
+  ParseInfo parse_info(&zone, inner);
   CompilationInfo info(&parse_info);
   info.SetStub(this);
   return info.GenerateCodeStub();
