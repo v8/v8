@@ -202,7 +202,7 @@
               '-L<(android_stlport_libs)/mips',
             ],
           }],
-          ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64") and component!="shared_library"', {
+          ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64" or target_arch=="ia32") and component!="shared_library"', {
             'cflags': [
               '-fPIE',
             ],
