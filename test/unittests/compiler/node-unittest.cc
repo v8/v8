@@ -233,6 +233,29 @@ TEST_F(NodeTest, TrimThenAppend) {
   EXPECT_THAT(node->inputs(), ElementsAre(n1, n3, n4, n5, n8, n9));
 }
 
+
+TEST_F(NodeTest, BigNodes) {
+  static const int kMaxSize = 512;
+  Node* inputs[kMaxSize];
+
+  Node* n0 = Node::New(zone(), 0, &kOp0, 0, nullptr, false);
+  Node* n1 = Node::New(zone(), 1, &kOp1, 1, &n0, false);
+
+  for (int i = 0; i < kMaxSize; i++) {
+    inputs[i] = i & 1 ? n0 : n1;
+  }
+
+  for (int size = 13; size <= kMaxSize; size += 9) {
+    Node* node = Node::New(zone(), 12345, &kOp0, size, inputs, false);
+    EXPECT_EQ(size, node->InputCount());
+
+    for (int i = 0; i < size; i++) {
+      EXPECT_EQ(inputs[i], node->InputAt(i));
+    }
+  }
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -864,8 +864,8 @@ TEST(CMergeReduce_dead_rm1b) {
   Node* t = R.graph.NewNode(R.common.IfTrue(), R.start);
   Node* f = R.graph.NewNode(R.common.IfTrue(), R.start);
   for (int i = 0; i < 2; i++) {
-    Node* merge = R.graph.NewNode(R.common.Merge(3), R.dead, R.dead, R.dead);
     for (int j = i + 1; j < 3; j++) {
+      Node* merge = R.graph.NewNode(R.common.Merge(3), R.dead, R.dead, R.dead);
       merge->ReplaceInput(i, t);
       merge->ReplaceInput(j, f);
       R.ReduceMerge(merge, merge);
