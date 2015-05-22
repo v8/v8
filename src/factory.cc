@@ -2344,28 +2344,44 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
   const int kMapCacheSize = 128;
 
   // We do not cache maps for too many properties or when running builtin code.
-  // TODO(rossberg): cache strong maps properly
-  if (number_of_properties > kMapCacheSize || is_strong ||
+  if (number_of_properties > kMapCacheSize ||
       isolate()->bootstrapper()->IsActive()) {
     *is_result_from_cache = false;
     Handle<Map> map = Map::Create(isolate(), number_of_properties);
-    if (is_strong) map->set_is_strong(true);
+    if (is_strong) map->set_is_strong();
     return map;
   }
   *is_result_from_cache = true;
   if (number_of_properties == 0) {
     // Reuse the initial map of the Object function if the literal has no
-    // predeclared properties.
-    return handle(context->object_function()->initial_map(), isolate());
+    // predeclared properties, or the strong map if strong.
+    return handle(is_strong
+                      ? context->js_object_strong_map()
+                      : context->object_function()->initial_map(), isolate());
   }
+
+  // Create a new map and add it to the cache.
+  Handle<Map> map = Map::Create(isolate(), number_of_properties);
   int cache_index = number_of_properties - 1;
-  if (context->map_cache()->IsUndefined()) {
-    // Allocate the new map cache for the native context.
-    Handle<FixedArray> new_cache = NewFixedArray(kMapCacheSize, TENURED);
-    context->set_map_cache(*new_cache);
+  Handle<FixedArray> cache;
+  if (is_strong) {
+    map->set_is_strong();
+    if (context->strong_map_cache()->IsUndefined()) {
+      // Allocate the new map cache for the native context.
+      Handle<FixedArray> new_cache = NewFixedArray(kMapCacheSize, TENURED);
+      context->set_strong_map_cache(*new_cache);
+    }
+    // Check to see whether there is a matching element in the cache.
+    cache = handle(FixedArray::cast(context->strong_map_cache()));
+  } else {
+    if (context->map_cache()->IsUndefined()) {
+      // Allocate the new map cache for the native context.
+      Handle<FixedArray> new_cache = NewFixedArray(kMapCacheSize, TENURED);
+      context->set_map_cache(*new_cache);
+    }
+    // Check to see whether there is a matching element in the cache.
+    cache = handle(FixedArray::cast(context->map_cache()));
   }
-  // Check to see whether there is a matching element in the cache.
-  Handle<FixedArray> cache(FixedArray::cast(context->map_cache()));
   {
     Object* result = cache->get(cache_index);
     if (result->IsWeakCell()) {
@@ -2375,8 +2391,6 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
       }
     }
   }
-  // Create a new map and add it to the cache.
-  Handle<Map> map = Map::Create(isolate(), number_of_properties);
   Handle<WeakCell> cell = NewWeakCell(map);
   cache->set(cache_index, *cell);
   return map;

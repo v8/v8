@@ -6013,7 +6013,7 @@ class Map: public HeapObject {
     return ((1 << kIsObserved) & bit_field()) != 0;
   }
 
-  inline void set_is_strong(bool value);
+  inline void set_is_strong();
   inline bool is_strong();
   inline void set_is_extensible(bool value);
   inline bool is_extensible();

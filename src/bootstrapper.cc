@@ -531,6 +531,12 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     native_context()->set_initial_array_prototype(*object_function_prototype);
     Accessors::FunctionSetPrototype(object_fun, object_function_prototype)
         .Assert();
+
+    // Allocate initial strong object map.
+    Handle<Map> strong_object_map =
+        Map::Copy(object_function_map, "EmptyStrongObject");
+    strong_object_map->set_is_strong();
+    native_context()->set_js_object_strong_map(*strong_object_map);
   }
 
   // Allocate the empty function as the prototype for function - ES6 19.2.3
@@ -706,7 +712,7 @@ Handle<Map> Genesis::CreateStrongFunctionMap(
   map->set_function_with_prototype(is_constructor);
   Map::SetPrototype(map, empty_function);
   map->set_is_extensible(is_constructor);
-  map->set_is_strong(true);
+  map->set_is_strong();
   return map;
 }
 
@@ -1020,7 +1026,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     Handle<Map> initial_strong_map =
         Map::Copy(initial_map, "SetInstancePrototype");
-    initial_strong_map->set_is_strong(true);
+    initial_strong_map->set_is_strong();
     CacheInitialJSArrayMaps(native_context(), initial_strong_map);
   }
 

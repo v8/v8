@@ -48,13 +48,13 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   // slow properties mode for now. We don't go in the map cache because
   // maps with constant functions can't be shared if the functions are
   // not the same (which is the common case).
-  // TODO(rossberg): handle strong objects with function literals
   bool is_result_from_cache = false;
   Handle<Map> map = has_function_literal
-                        ? Handle<Map>(context->object_function()->initial_map())
-                        : ComputeObjectLiteralMap(context, constant_properties,
-                                                  is_strong,
-                                                  &is_result_from_cache);
+      ? Handle<Map>(is_strong
+                        ? context->js_object_strong_map()
+                        : context->object_function()->initial_map())
+      : ComputeObjectLiteralMap(context, constant_properties, is_strong,
+                                &is_result_from_cache);
 
   PretenureFlag pretenure_flag =
       isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;

@@ -9749,6 +9749,7 @@ static bool CheckEquivalent(Map* first, Map* second) {
          first->instance_type() == second->instance_type() &&
          first->bit_field() == second->bit_field() &&
          first->is_extensible() == second->is_extensible() &&
+         first->is_strong() == second->is_strong() &&
          first->has_instance_call_handler() ==
              second->has_instance_call_handler();
 }
@@ -10386,7 +10387,7 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
         CacheInitialJSArrayMaps(native_context, new_map);
         Handle<Map> new_strong_map =
             Map::Copy(initial_map, "SetInstancePrototype");
-        new_strong_map->set_is_strong(true);
+        new_strong_map->set_is_strong();
         CacheInitialJSArrayMaps(native_context, new_strong_map);
       }
     }
