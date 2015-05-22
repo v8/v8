@@ -175,3 +175,9 @@ TestForInThrow(Proxy.create({
   for (var k in o) { keys.push(k); };
   assertEquals(["0"], keys);
 })();
+
+(function () {
+  var p = Proxy.create({getOwnPropertyNames:
+    function() { return [1, Symbol(), 2] }});
+  assertEquals(["1","2"], Object.getOwnPropertyNames(p));
+})();

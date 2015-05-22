@@ -955,7 +955,7 @@ function ToNameArray(obj, trap, includeSymbols) {
     if (%HasOwnProperty(names, s)) {
       throw MakeTypeError(kProxyRepeatedPropName, trap, s);
     }
-    array[index] = s;
+    array[realLength] = s;
     ++realLength;
     names[s] = 0;
   }
