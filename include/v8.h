@@ -3063,10 +3063,14 @@ class V8_EXPORT Function : public Object {
    * Create a function in the current execution context
    * for a given FunctionCallback.
    */
-  static Local<Function> New(Isolate* isolate,
-                             FunctionCallback callback,
-                             Local<Value> data = Local<Value>(),
-                             int length = 0);
+  static MaybeLocal<Function> New(Local<Context> context,
+                                  FunctionCallback callback,
+                                  Local<Value> data = Local<Value>(),
+                                  int length = 0);
+  static V8_DEPRECATE_SOON(
+      "Use maybe version",
+      Local<Function> New(Isolate* isolate, FunctionCallback callback,
+                          Local<Value> data = Local<Value>(), int length = 0));
 
   V8_DEPRECATE_SOON("Use maybe version",
                     Local<Object> NewInstance(int argc, Handle<Value> argv[])

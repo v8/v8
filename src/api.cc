@@ -4299,16 +4299,21 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
 }
 
 
-Local<Function> Function::New(Isolate* v8_isolate,
-                              FunctionCallback callback,
-                              Local<Value> data,
-                              int length) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+MaybeLocal<Function> Function::New(Local<Context> context,
+                                   FunctionCallback callback, Local<Value> data,
+                                   int length) {
+  i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
   LOG_API(isolate, "Function::New");
   ENTER_V8(isolate);
-  return FunctionTemplateNew(
-      isolate, callback, data, Local<Signature>(), length, true)->
-      GetFunction();
+  return FunctionTemplateNew(isolate, callback, data, Local<Signature>(),
+                             length, true)->GetFunction(context);
+}
+
+
+Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
+                              Local<Value> data, int length) {
+  return Function::New(v8_isolate->GetCurrentContext(), callback, data, length)
+      .FromMaybe(Local<Function>());
 }
 
 
