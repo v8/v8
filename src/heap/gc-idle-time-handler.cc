@@ -58,8 +58,10 @@ void GCIdleTimeHandler::HeapState::Print() {
   PrintF("scavenge_speed=%" V8_PTR_PREFIX "d ", scavenge_speed_in_bytes_per_ms);
   PrintF("new_space_size=%" V8_PTR_PREFIX "d ", used_new_space_size);
   PrintF("new_space_capacity=%" V8_PTR_PREFIX "d ", new_space_capacity);
-  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d",
+  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          new_space_allocation_throughput_in_bytes_per_ms);
+  PrintF("current_new_space_allocation_throughput=%" V8_PTR_PREFIX "d",
+         current_new_space_allocation_throughput_in_bytes_per_ms);
 }
 
 

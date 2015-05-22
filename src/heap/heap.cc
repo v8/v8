@@ -733,6 +733,9 @@ void Heap::GarbageCollectionEpilogue() {
   // whether we allocated in new space since the last GC.
   new_space_top_after_last_gc_ = new_space()->top();
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
+
+  ReduceNewSpaceSize(
+      tracer()->CurrentNewSpaceAllocationThroughputInBytesPerMillisecond());
 }
 
 
@@ -4569,11 +4572,15 @@ void Heap::MakeHeapIterable() {
 }
 
 
-void Heap::ReduceNewSpaceSize(GCIdleTimeAction action) {
-  if (action.reduce_memory &&
-      (action.type == DO_SCAVENGE || action.type == DO_FULL_GC ||
-       (action.type == DO_INCREMENTAL_MARKING &&
-        incremental_marking()->IsStopped()))) {
+bool Heap::HasLowAllocationRate(size_t allocation_rate) {
+  static const size_t kLowAllocationRate = 1000;
+  if (allocation_rate == 0) return false;
+  return allocation_rate < kLowAllocationRate;
+}
+
+
+void Heap::ReduceNewSpaceSize(size_t allocation_rate) {
+  if (HasLowAllocationRate(allocation_rate)) {
     new_space_.Shrink();
     UncommitFromSpace();
   }
@@ -4639,6 +4646,8 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState(bool reduce_memory) {
   heap_state.new_space_capacity = new_space_.Capacity();
   heap_state.new_space_allocation_throughput_in_bytes_per_ms =
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond();
+  heap_state.current_new_space_allocation_throughput_in_bytes_per_ms =
+      tracer()->CurrentNewSpaceAllocationThroughputInBytesPerMillisecond();
   return heap_state;
 }
 
@@ -4701,7 +4710,6 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       break;
   }
 
-  ReduceNewSpaceSize(action);
   return result;
 }
 
@@ -4966,6 +4974,7 @@ void Heap::Verify() {
 
 
 void Heap::ZapFromSpace() {
+  if (!new_space_.IsFromSpaceCommitted()) return;
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
                           new_space_.FromSpaceEnd());
   while (it.has_next()) {

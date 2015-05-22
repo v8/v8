@@ -2127,7 +2127,9 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void ReduceNewSpaceSize(GCIdleTimeAction action);
+  bool HasLowAllocationRate(size_t allocaion_rate);
+
+  void ReduceNewSpaceSize(size_t allocaion_rate);
 
   bool TryFinalizeIdleIncrementalMarking(
       double idle_time_in_ms, size_t size_of_objects,

@@ -5551,7 +5551,7 @@ TEST(NewSpaceAllocationThroughput2) {
   size_t counter2 = 2000;
   tracer->SampleNewSpaceAllocation(time2, counter2);
   size_t bytes = tracer->NewSpaceAllocatedBytesInLast(1000);
-  CHECK_EQ(0, bytes);
+  CHECK_EQ(10000, bytes);
   int time3 = 1000;
   size_t counter3 = 30000;
   tracer->SampleNewSpaceAllocation(time3, counter3);

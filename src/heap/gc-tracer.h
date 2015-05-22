@@ -389,6 +389,11 @@ class GCTracer {
   // Returns 0 if no allocation events have been recorded.
   size_t NewSpaceAllocatedBytesInLast(double time_ms) const;
 
+  // Allocation throughput in the new space in bytes/milliseconds in
+  // the last five seconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t CurrentNewSpaceAllocationThroughputInBytesPerMillisecond() const;
+
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
   // divides it by the number of recorded events.

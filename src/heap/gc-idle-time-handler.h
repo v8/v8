@@ -188,6 +188,7 @@ class GCIdleTimeHandler {
     size_t used_new_space_size;
     size_t new_space_capacity;
     size_t new_space_allocation_throughput_in_bytes_per_ms;
+    size_t current_new_space_allocation_throughput_in_bytes_per_ms;
   };
 
   GCIdleTimeHandler()

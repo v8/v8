@@ -2607,6 +2607,8 @@ class NewSpace : public Space {
     return from_space_.Uncommit();
   }
 
+  bool IsFromSpaceCommitted() { return from_space_.is_committed(); }
+
   inline intptr_t inline_allocation_limit_step() {
     return inline_allocation_limit_step_;
   }
