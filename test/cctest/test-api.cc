@@ -1590,6 +1590,17 @@ THREADED_TEST(StringObject) {
 }
 
 
+TEST(StringObjectDelete) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  v8::Handle<Value> boxed_string = CompileRun("new String(\"test\")");
+  CHECK(boxed_string->IsStringObject());
+  v8::Handle<v8::Object> str_obj = boxed_string.As<v8::Object>();
+  CHECK(!str_obj->Delete(2));
+  CHECK(!str_obj->Delete(v8_num(2)));
+}
+
+
 THREADED_TEST(NumberObject) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

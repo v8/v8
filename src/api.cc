@@ -3477,7 +3477,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
     // underlying string does nothing with the deletion, we can ignore
     // such deletions.
     if (receiver->IsStringObjectWithCharacterAt(index)) {
-      return isolate->factory()->true_value();
+      return isolate->factory()->false_value();
     }
 
     return i::JSReceiver::DeleteElement(receiver, index, language_mode);
