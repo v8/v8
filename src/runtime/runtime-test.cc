@@ -278,8 +278,9 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
-    os << "fp = " << frame->fp() << ", sp = " << frame->sp()
-       << ", caller_sp = " << frame->caller_sp() << ": ";
+    os << "fp = " << static_cast<void*>(frame->fp())
+       << ", sp = " << static_cast<void*>(frame->sp())
+       << ", caller_sp = " << static_cast<void*>(frame->caller_sp()) << ": ";
   } else {
     os << "DebugPrint: ";
   }
