@@ -268,9 +268,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builders for property loads and stores.
   Node* BuildKeyedLoad(Node* receiver, Node* key,
-                       const VectorSlotPair& feedback, TypeFeedbackId id);
+                       const VectorSlotPair& feedback);
   Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
-                       const VectorSlotPair& feedback, TypeFeedbackId id,
+                       const VectorSlotPair& feedback,
                        ContextualMode mode = NOT_CONTEXTUAL);
   Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
                         TypeFeedbackId id);

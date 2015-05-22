@@ -1663,9 +1663,8 @@ class Property final : public Expression {
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
 
-  static int num_ids() { return parent_num_ids() + 2; }
+  static int num_ids() { return parent_num_ids() + 1; }
   BailoutId LoadId() const { return BailoutId(local_id(0)); }
-  TypeFeedbackId PropertyFeedbackId() { return TypeFeedbackId(local_id(1)); }
 
   bool IsStringAccess() const {
     return IsStringAccessField::decode(bit_field_);
@@ -1972,10 +1971,7 @@ class CallRuntime final : public Expression {
     return callruntime_feedback_slot_;
   }
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  TypeFeedbackId CallRuntimeFeedbackId() const {
-    return TypeFeedbackId(local_id(0));
-  }
+  static int num_ids() { return parent_num_ids(); }
 
  protected:
   CallRuntime(Zone* zone, const AstRawString* name,
@@ -1989,8 +1985,6 @@ class CallRuntime final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   const AstRawString* raw_name_;
   const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
@@ -2697,8 +2691,7 @@ class SuperReference final : public Expression {
 
   VariableProxy* this_var() const { return this_var_; }
 
-  static int num_ids() { return parent_num_ids() + 1; }
-  TypeFeedbackId HomeObjectFeedbackId() { return TypeFeedbackId(local_id(0)); }
+  static int num_ids() { return parent_num_ids(); }
 
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
@@ -2726,8 +2719,6 @@ class SuperReference final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   VariableProxy* this_var_;
   FeedbackVectorICSlot homeobject_feedback_slot_;
 };

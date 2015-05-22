@@ -2129,8 +2129,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         VectorSlotPair pair =
             CreateVectorSlotPair(property->PropertyFeedbackSlot());
         FrameStateBeforeAndAfter states(this, property->obj()->id());
-        old_value =
-            BuildNamedLoad(object, name, pair, property->PropertyFeedbackId());
+        old_value = BuildNamedLoad(object, name, pair);
         states.AddToNode(old_value, property->LoadId(),
                          OutputFrameStateCombine::Push());
         break;
@@ -2141,8 +2140,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         VectorSlotPair pair =
             CreateVectorSlotPair(property->PropertyFeedbackSlot());
         FrameStateBeforeAndAfter states(this, property->key()->id());
-        old_value =
-            BuildKeyedLoad(object, key, pair, property->PropertyFeedbackId());
+        old_value = BuildKeyedLoad(object, key, pair);
         states.AddToNode(old_value, property->LoadId(),
                          OutputFrameStateCombine::Push());
         break;
@@ -2227,7 +2225,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
     FrameStateBeforeAndAfter states(this, expr->obj()->id());
     Node* object = environment()->Pop();
     Handle<Name> name = expr->key()->AsLiteral()->AsPropertyName();
-    value = BuildNamedLoad(object, name, pair, expr->PropertyFeedbackId());
+    value = BuildNamedLoad(object, name, pair);
     states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
   } else {
     VisitForValue(expr->obj());
@@ -2235,7 +2233,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
     FrameStateBeforeAndAfter states(this, expr->key()->id());
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
-    value = BuildKeyedLoad(object, key, pair, expr->PropertyFeedbackId());
+    value = BuildKeyedLoad(object, key, pair);
     states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
   }
   ast_context()->ProduceValue(value);
@@ -2286,16 +2284,14 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       if (property->key()->IsPropertyName()) {
         FrameStateBeforeAndAfter states(this, property->obj()->id());
         Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-        callee_value =
-            BuildNamedLoad(object, name, pair, property->PropertyFeedbackId());
+        callee_value = BuildNamedLoad(object, name, pair);
         states.AddToNode(callee_value, property->LoadId(),
                          OutputFrameStateCombine::Push());
       } else {
         VisitForValue(property->key());
         FrameStateBeforeAndAfter states(this, property->key()->id());
         Node* key = environment()->Pop();
-        callee_value =
-            BuildKeyedLoad(object, key, pair, property->PropertyFeedbackId());
+        callee_value = BuildKeyedLoad(object, key, pair);
         states.AddToNode(callee_value, property->LoadId(),
                          OutputFrameStateCombine::Push());
       }
@@ -2410,8 +2406,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VectorSlotPair pair = CreateVectorSlotPair(expr->CallRuntimeFeedbackSlot());
   // TODO(jarin): bailout ids for runtime calls.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  Node* callee_value =
-      BuildNamedLoad(receiver_value, name, pair, expr->CallRuntimeFeedbackId());
+  Node* callee_value = BuildNamedLoad(receiver_value, name, pair);
   states.AddToNode(callee_value, BailoutId::None(),
                    OutputFrameStateCombine::Push());
   environment()->Push(callee_value);
@@ -2501,8 +2496,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       VectorSlotPair pair =
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      old_value =
-          BuildNamedLoad(object, name, pair, property->PropertyFeedbackId());
+      old_value = BuildNamedLoad(object, name, pair);
       states.AddToNode(old_value, property->LoadId(),
                        OutputFrameStateCombine::Push());
       stack_depth = 1;
@@ -2516,8 +2510,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Peek(1);
       VectorSlotPair pair =
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      old_value =
-          BuildKeyedLoad(object, key, pair, property->PropertyFeedbackId());
+      old_value = BuildKeyedLoad(object, key, pair);
       states.AddToNode(old_value, property->LoadId(),
                        OutputFrameStateCombine::Push());
       stack_depth = 2;
@@ -3012,8 +3005,7 @@ Node* AstGraphBuilder::BuildVariableLoad(FrameStateBeforeAndAfter& states,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
-      Node* node = BuildNamedLoad(global, name, feedback,
-                                  TypeFeedbackId::None(), contextual_mode);
+      Node* node = BuildNamedLoad(global, name, feedback, contextual_mode);
       states.AddToNode(node, bailout_id, combine);
       return node;
     }
@@ -3218,38 +3210,43 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 
 
 static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
-                           TypeFeedbackId id, FeedbackVectorICSlot slot) {
+                           FeedbackVectorICSlot slot) {
   if (js_type_feedback) {
-    js_type_feedback->Record(node, id);
     js_type_feedback->Record(node, slot);
   }
   return node;
 }
 
 
+static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
+                           TypeFeedbackId id) {
+  if (js_type_feedback) {
+    js_type_feedback->Record(node, id);
+  }
+  return node;
+}
+
+
 Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
-                                      const VectorSlotPair& feedback,
-                                      TypeFeedbackId id) {
+                                      const VectorSlotPair& feedback) {
   const Operator* op = javascript()->LoadProperty(feedback);
-  return Record(js_type_feedback_, NewNode(op, object, key), id,
-                feedback.slot());
+  return Record(js_type_feedback_, NewNode(op, object, key), feedback.slot());
 }
 
 
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const VectorSlotPair& feedback,
-                                      TypeFeedbackId id, ContextualMode mode) {
+                                      ContextualMode mode) {
   const Operator* op =
       javascript()->LoadNamed(MakeUnique(name), feedback, mode);
-  return Record(js_type_feedback_, NewNode(op, object), id, feedback.slot());
+  return Record(js_type_feedback_, NewNode(op, object), feedback.slot());
 }
 
 
 Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
                                        TypeFeedbackId id) {
   const Operator* op = javascript()->StoreProperty(language_mode());
-  return Record(js_type_feedback_, NewNode(op, object, key, value), id,
-                FeedbackVectorICSlot::Invalid());
+  return Record(js_type_feedback_, NewNode(op, object, key, value), id);
 }
 
 
@@ -3257,8 +3254,7 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        Node* value, TypeFeedbackId id) {
   const Operator* op =
       javascript()->StoreNamed(language_mode(), MakeUnique(name));
-  return Record(js_type_feedback_, NewNode(op, object, value), id,
-                FeedbackVectorICSlot::Invalid());
+  return Record(js_type_feedback_, NewNode(op, object, value), id);
 }
 
 
