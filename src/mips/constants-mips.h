@@ -435,6 +435,7 @@ enum SecondaryField {
   // SPECIAL3 Encoding of Function Field.
   EXT = ((0 << 3) + 0),
   INS = ((0 << 3) + 4),
+  BITSWAP = ((4 << 3) + 0),
 
   // REGIMM  encoding of rt Field.
   BLTZ = ((0 << 3) + 0) << 16,
@@ -457,6 +458,7 @@ enum SecondaryField {
   L = ((2 << 3) + 5) << 21,
   PS = ((2 << 3) + 6) << 21,
   // COP1 Encoding of Function Field When rs=S.
+
   ADD_S = ((0 << 3) + 0),
   SUB_S = ((0 << 3) + 1),
   MUL_S = ((0 << 3) + 2),
@@ -475,10 +477,12 @@ enum SecondaryField {
   FLOOR_W_S = ((1 << 3) + 7),
   RECIP_S = ((2 << 3) + 5),
   RSQRT_S = ((2 << 3) + 6),
+  CLASS_S = ((3 << 3) + 3),
   CVT_D_S = ((4 << 3) + 1),
   CVT_W_S = ((4 << 3) + 4),
   CVT_L_S = ((4 << 3) + 5),
   CVT_PS_S = ((4 << 3) + 6),
+
   // COP1 Encoding of Function Field When rs=D.
   ADD_D = ((0 << 3) + 0),
   SUB_D = ((0 << 3) + 1),
@@ -498,6 +502,11 @@ enum SecondaryField {
   FLOOR_W_D = ((1 << 3) + 7),
   RECIP_D = ((2 << 3) + 5),
   RSQRT_D = ((2 << 3) + 6),
+  CLASS_D = ((3 << 3) + 3),
+  MIN = ((3 << 3) + 4),
+  MINA = ((3 << 3) + 5),
+  MAX = ((3 << 3) + 6),
+  MAXA = ((3 << 3) + 7),
   CVT_S_D = ((4 << 3) + 0),
   CVT_W_D = ((4 << 3) + 4),
   CVT_L_D = ((4 << 3) + 5),
@@ -509,6 +518,7 @@ enum SecondaryField {
   C_ULT_D = ((6 << 3) + 5),
   C_OLE_D = ((6 << 3) + 6),
   C_ULE_D = ((6 << 3) + 7),
+
   // COP1 Encoding of Function Field When rs=W or L.
   CVT_S_W = ((4 << 3) + 0),
   CVT_D_W = ((4 << 3) + 1),
@@ -551,10 +561,6 @@ enum SecondaryField {
   CMP_SUGT = ((3 << 3) + 6),  // Reserved, not implemented.
   CMP_SOGT = ((3 << 3) + 7),  // Reserved, not implemented.
 
-  MIN = ((3 << 3) + 4),
-  MINA = ((3 << 3) + 5),
-  MAX = ((3 << 3) + 6),
-  MAXA = ((3 << 3) + 7),
   SEL = ((2 << 3) + 0),
   MOVZ_C = ((2 << 3) + 2),
   MOVN_C = ((2 << 3) + 3),
@@ -698,14 +704,21 @@ inline Condition CommuteCondition(Condition cc) {
 enum FPUCondition {
   kNoFPUCondition = -1,
 
-  F     = 0,  // False.
-  UN    = 1,  // Unordered.
-  EQ    = 2,  // Equal.
-  UEQ   = 3,  // Unordered or Equal.
-  OLT   = 4,  // Ordered or Less Than.
-  ULT   = 5,  // Unordered or Less Than.
-  OLE   = 6,  // Ordered or Less Than or Equal.
-  ULE   = 7   // Unordered or Less Than or Equal.
+  F = 0x00,    // False.
+  UN = 0x01,   // Unordered.
+  EQ = 0x02,   // Equal.
+  UEQ = 0x03,  // Unordered or Equal.
+  OLT = 0x04,  // Ordered or Less Than, on Mips release < 6.
+  LT = 0x04,   // Ordered or Less Than, on Mips release >= 6.
+  ULT = 0x05,  // Unordered or Less Than.
+  OLE = 0x06,  // Ordered or Less Than or Equal, on Mips release < 6.
+  LE = 0x06,   // Ordered or Less Than or Equal, on Mips release >= 6.
+  ULE = 0x07,  // Unordered or Less Than or Equal.
+
+  // Following constants are available on Mips release >= 6 only.
+  ORD = 0x11,  // Ordered, on Mips release >= 6.
+  UNE = 0x12,  // Not equal, on Mips release >= 6.
+  NE = 0x13,   // Ordered Greater Than or Less Than. on Mips >= 6 only.
 };
 
 

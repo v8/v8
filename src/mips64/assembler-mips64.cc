@@ -2205,6 +2205,18 @@ void Assembler::dext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 }
 
 
+void Assembler::bitswap(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, BITSWAP);
+}
+
+
+void Assembler::dbitswap(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, DBITSWAP);
+}
+
+
 void Assembler::pref(int32_t hint, const MemOperand& rs) {
   DCHECK(is_uint5(hint) && is_uint16(rs.offset_));
   Instr instr = PREF | (rs.rm().code() << kRsShift) | (hint << kRtShift)
@@ -2642,6 +2654,18 @@ void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
 }
 
 
+void Assembler::class_s(FPURegister fd, FPURegister fs) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, S, f0, fs, fd, CLASS_S);
+}
+
+
+void Assembler::class_d(FPURegister fd, FPURegister fs) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, D, f0, fs, fd, CLASS_D);
+}
+
+
 void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister fs,
                      FPURegister ft) {
   DCHECK(kArchVariant == kMips64r6);
@@ -2701,6 +2725,17 @@ void Assembler::cmp(FPUCondition cond, SecondaryField fmt,
 }
 
 
+void Assembler::cmp_s(FPUCondition cond, FPURegister fd, FPURegister fs,
+                      FPURegister ft) {
+  cmp(cond, W, fd, fs, ft);
+}
+
+void Assembler::cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs,
+                      FPURegister ft) {
+  cmp(cond, L, fd, fs, ft);
+}
+
+
 void Assembler::bc1eqz(int16_t offset, FPURegister ft) {
   DCHECK(kArchVariant == kMips64r6);
   Instr instr = COP1 | BC1EQZ | ft.code() << kFtShift | (offset & kImm16Mask);
@@ -2725,6 +2760,18 @@ void Assembler::c(FPUCondition cond, SecondaryField fmt,
   Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift
       | cc << 8 | 3 << 4 | cond;
   emit(instr);
+}
+
+
+void Assembler::c_s(FPUCondition cond, FPURegister fs, FPURegister ft,
+                    uint16_t cc) {
+  c(cond, S, fs, ft, cc);
+}
+
+
+void Assembler::c_d(FPUCondition cond, FPURegister fs, FPURegister ft,
+                    uint16_t cc) {
+  c(cond, D, fs, ft, cc);
 }
 
 

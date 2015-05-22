@@ -581,6 +581,9 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case CEIL_W_D:
       Format(instr, "ceil.w.'t 'fd, 'fs");
       break;
+    case CLASS_D:
+      Format(instr, "class.'t 'fd, 'fs");
+      break;
     case CEIL_L_D:
       Format(instr, "ceil.l.'t 'fd, 'fs");
       break;
@@ -646,6 +649,9 @@ void Decoder::DecodeTypeRegisterLRsType(Instruction* instr) {
       break;
     case CVT_S_L:
       Format(instr, "cvt.s.l 'fd, 'fs");
+      break;
+    case CMP_AF:
+      Format(instr, "cmp.af.d  'fd,  'fs, 'ft");
       break;
     case CMP_UN:
       Format(instr, "cmp.un.d  'fd,  'fs, 'ft");
@@ -945,6 +951,14 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
     case EXT: {
       if (IsMipsArchVariant(kMips32r2)) {
         Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
+      } else {
+        Unknown(instr);
+      }
+      break;
+    }
+    case BITSWAP: {
+      if (IsMipsArchVariant(kMips32r6)) {
+        Format(instr, "bitswap 'rd, 'rt");
       } else {
         Unknown(instr);
       }

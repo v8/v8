@@ -669,6 +669,22 @@ TEST(Type0) {
   COMPARE(ext_(v0, v1, 0, 32),
           "7c62f800       ext     v0, v1, 0, 32");
 
+  COMPARE(add_s(f4, f6, f8), "46083100       add.s   f4, f6, f8");
+  COMPARE(add_d(f12, f14, f16), "46307300       add.d   f12, f14, f16");
+
+  if (kArchVariant == kMips64r6) {
+    COMPARE(bitswap(a0, a1), "7c052020       bitswap a0, a1");
+    COMPARE(bitswap(t8, s0), "7c10c020       bitswap t8, s0");
+    COMPARE(dbitswap(a0, a1), "7c052024       dbitswap a0, a1");
+    COMPARE(dbitswap(t8, s0), "7c10c024       dbitswap t8, s0");
+  }
+
+  COMPARE(abs_s(f6, f8), "46004185       abs.s   f6, f8");
+  COMPARE(abs_d(f10, f12), "46206285       abs.d   f10, f12");
+
+  COMPARE(div_s(f2, f4, f6), "46062083       div.s   f2, f4, f6");
+  COMPARE(div_d(f2, f4, f6), "46262083       div.d   f2, f4, f6");
+
   VERIFY_RUN();
 }
 
@@ -761,5 +777,118 @@ TEST(Type1) {
     COMPARE(movn_s(f6, f4, t0), "460c2193       movn.s    f6, f4, t0");
     COMPARE(movn_d(f6, f4, t0), "462c2193       movn.d    f6, f4, t0");
   }
+  VERIFY_RUN();
+}
+
+
+TEST(Type2) {
+  if (kArchVariant == kMips64r6) {
+    SET_UP();
+
+    COMPARE(class_s(f3, f4), "460020db       class.s f3, f4");
+    COMPARE(class_d(f2, f3), "4620189b       class.d f2, f3");
+
+    VERIFY_RUN();
+  }
+}
+
+
+TEST(C_FMT_DISASM) {
+  if (kArchVariant == kMips64r2) {
+    SET_UP();
+
+    COMPARE(c_s(F, f8, f10, 0), "460a4030       c.f.s   f8, f10, cc(0)");
+    COMPARE(c_d(F, f8, f10, 0), "462a4030       c.f.d   f8, f10, cc(0)");
+
+    COMPARE(c_s(UN, f8, f10, 2), "460a4231       c.un.s  f8, f10, cc(2)");
+    COMPARE(c_d(UN, f8, f10, 2), "462a4231       c.un.d  f8, f10, cc(2)");
+
+    COMPARE(c_s(EQ, f8, f10, 4), "460a4432       c.eq.s  f8, f10, cc(4)");
+    COMPARE(c_d(EQ, f8, f10, 4), "462a4432       c.eq.d  f8, f10, cc(4)");
+
+    COMPARE(c_s(UEQ, f8, f10, 6), "460a4633       c.ueq.s f8, f10, cc(6)");
+    COMPARE(c_d(UEQ, f8, f10, 6), "462a4633       c.ueq.d f8, f10, cc(6)");
+
+    COMPARE(c_s(OLT, f8, f10, 0), "460a4034       c.olt.s f8, f10, cc(0)");
+    COMPARE(c_d(OLT, f8, f10, 0), "462a4034       c.olt.d f8, f10, cc(0)");
+
+    COMPARE(c_s(ULT, f8, f10, 2), "460a4235       c.ult.s f8, f10, cc(2)");
+    COMPARE(c_d(ULT, f8, f10, 2), "462a4235       c.ult.d f8, f10, cc(2)");
+
+    COMPARE(c_s(OLE, f8, f10, 4), "460a4436       c.ole.s f8, f10, cc(4)");
+    COMPARE(c_d(OLE, f8, f10, 4), "462a4436       c.ole.d f8, f10, cc(4)");
+
+    COMPARE(c_s(ULE, f8, f10, 6), "460a4637       c.ule.s f8, f10, cc(6)");
+    COMPARE(c_d(ULE, f8, f10, 6), "462a4637       c.ule.d f8, f10, cc(6)");
+
+    VERIFY_RUN();
+  }
+}
+
+
+TEST(COND_FMT_DISASM) {
+  if (kArchVariant == kMips64r6) {
+    SET_UP();
+
+    COMPARE(cmp_s(F, f6, f8, f10), "468a4180       cmp.af.s    f6, f8, f10");
+    COMPARE(cmp_d(F, f6, f8, f10), "46aa4180       cmp.af.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(UN, f6, f8, f10), "468a4181       cmp.un.s    f6, f8, f10");
+    COMPARE(cmp_d(UN, f6, f8, f10), "46aa4181       cmp.un.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(EQ, f6, f8, f10), "468a4182       cmp.eq.s    f6, f8, f10");
+    COMPARE(cmp_d(EQ, f6, f8, f10), "46aa4182       cmp.eq.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(UEQ, f6, f8, f10), "468a4183       cmp.ueq.s   f6, f8, f10");
+    COMPARE(cmp_d(UEQ, f6, f8, f10), "46aa4183       cmp.ueq.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(LT, f6, f8, f10), "468a4184       cmp.lt.s    f6, f8, f10");
+    COMPARE(cmp_d(LT, f6, f8, f10), "46aa4184       cmp.lt.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(ULT, f6, f8, f10), "468a4185       cmp.ult.s   f6, f8, f10");
+    COMPARE(cmp_d(ULT, f6, f8, f10), "46aa4185       cmp.ult.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(LE, f6, f8, f10), "468a4186       cmp.le.s    f6, f8, f10");
+    COMPARE(cmp_d(LE, f6, f8, f10), "46aa4186       cmp.le.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(ULE, f6, f8, f10), "468a4187       cmp.ule.s   f6, f8, f10");
+    COMPARE(cmp_d(ULE, f6, f8, f10), "46aa4187       cmp.ule.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(ORD, f6, f8, f10), "468a4191       cmp.or.s    f6, f8, f10");
+    COMPARE(cmp_d(ORD, f6, f8, f10), "46aa4191       cmp.or.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(UNE, f6, f8, f10), "468a4192       cmp.une.s   f6, f8, f10");
+    COMPARE(cmp_d(UNE, f6, f8, f10), "46aa4192       cmp.une.d  f6,  f8, f10");
+
+    COMPARE(cmp_s(NE, f6, f8, f10), "468a4193       cmp.ne.s    f6, f8, f10");
+    COMPARE(cmp_d(NE, f6, f8, f10), "46aa4193       cmp.ne.d  f6,  f8, f10");
+
+    VERIFY_RUN();
+  }
+}
+
+
+TEST(CVT_DISSASM) {
+  SET_UP();
+  COMPARE(cvt_d_s(f22, f24), "4600c5a1       cvt.d.s f22, f24");
+  COMPARE(cvt_d_w(f22, f24), "4680c5a1       cvt.d.w f22, f24");
+  if (kArchVariant == kMips64r6 || kArchVariant == kMips64r2) {
+    COMPARE(cvt_d_l(f22, f24), "46a0c5a1       cvt.d.l f22, f24");
+  }
+
+  if (kArchVariant == kMips64r6 || kArchVariant == kMips64r2) {
+    COMPARE(cvt_l_s(f22, f24), "4600c5a5       cvt.l.s f22, f24");
+    COMPARE(cvt_l_d(f22, f24), "4620c5a5       cvt.l.d f22, f24");
+  }
+
+  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
+  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
+  if (kArchVariant == kMips64r6 || kArchVariant == kMips64r2) {
+    COMPARE(cvt_s_l(f22, f24), "46a0c5a0       cvt.s.l f22, f24");
+  }
+
+  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
+  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
+
   VERIFY_RUN();
 }

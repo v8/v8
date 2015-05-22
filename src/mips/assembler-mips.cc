@@ -1936,6 +1936,12 @@ void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 }
 
 
+void Assembler::bitswap(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips32r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, BITSWAP);
+}
+
+
 void Assembler::pref(int32_t hint, const MemOperand& rs) {
   DCHECK(!IsMipsArchVariant(kLoongson));
   DCHECK(is_uint5(hint) && is_uint16(rs.offset_));
@@ -2422,6 +2428,18 @@ void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
 }
 
 
+void Assembler::class_s(FPURegister fd, FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(COP1, S, f0, fs, fd, CLASS_S);
+}
+
+
+void Assembler::class_d(FPURegister fd, FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(COP1, D, f0, fs, fd, CLASS_D);
+}
+
+
 void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister fs,
                     FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
@@ -2500,7 +2518,7 @@ void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, L, f0, fs, fd, CVT_S_L);
 }
 
@@ -2537,6 +2555,17 @@ void Assembler::cmp(FPUCondition cond, SecondaryField fmt,
 }
 
 
+void Assembler::cmp_s(FPUCondition cond, FPURegister fd, FPURegister fs,
+                      FPURegister ft) {
+  cmp(cond, W, fd, fs, ft);
+}
+
+void Assembler::cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs,
+                      FPURegister ft) {
+  cmp(cond, L, fd, fs, ft);
+}
+
+
 void Assembler::bc1eqz(int16_t offset, FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   Instr instr = COP1 | BC1EQZ | ft.code() << kFtShift | (offset & kImm16Mask);
@@ -2555,10 +2584,23 @@ void Assembler::bc1nez(int16_t offset, FPURegister ft) {
 void Assembler::c(FPUCondition cond, SecondaryField fmt,
     FPURegister fs, FPURegister ft, uint16_t cc) {
   DCHECK(is_uint3(cc));
+  DCHECK(fmt == S || fmt == D);
   DCHECK((fmt & ~(31 << kRsShift)) == 0);
   Instr instr = COP1 | fmt | ft.code() << 16 | fs.code() << kFsShift
       | cc << 8 | 3 << 4 | cond;
   emit(instr);
+}
+
+
+void Assembler::c_s(FPUCondition cond, FPURegister fs, FPURegister ft,
+                    uint16_t cc) {
+  c(cond, S, fs, ft, cc);
+}
+
+
+void Assembler::c_d(FPUCondition cond, FPURegister fs, FPURegister ft,
+                    uint16_t cc) {
+  c(cond, D, fs, ft, cc);
 }
 
 

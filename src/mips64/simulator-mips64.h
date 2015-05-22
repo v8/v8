@@ -213,6 +213,10 @@ class Simulator {
                                int32_t& rounded_int, double fs);
   void round64_according_to_fcsr(double toRound, double& rounded,
                                  int64_t& rounded_int, double fs);
+  void round_according_to_fcsr(float toRound, float& rounded,
+                               int32_t& rounded_int, float fs);
+  void round64_according_to_fcsr(float toRound, float& rounded,
+                                 int64_t& rounded_int, float fs);
   void set_fcsr_rounding_mode(FPURoundingMode mode);
   unsigned int get_fcsr_rounding_mode();
   // Special case of set_register and get_register to access the raw PC value.
@@ -347,7 +351,7 @@ class Simulator {
                                   int64_t& alu_out);
 
   void DecodeTypeRegisterSPECIAL3(Instruction* instr, const int64_t& rt_reg,
-                                  int64_t& alu_out);
+                                  const int64_t& rd_reg, int64_t& alu_out);
 
   void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t& fs_reg,
                                  const int32_t& ft_reg, const int32_t& fd_reg);
@@ -356,7 +360,8 @@ class Simulator {
                                  const int32_t& ft_reg, const int32_t& fd_reg);
 
   void DecodeTypeRegisterWRsType(Instruction* instr, const int32_t& fs_reg,
-                                 const int32_t& fd_reg, int64_t& alu_out);
+                                 const int32_t& ft_reg, const int32_t& fd_reg,
+                                 int64_t& alu_out);
 
   void DecodeTypeRegisterLRsType(Instruction* instr, const int32_t& fs_reg,
                                  const int32_t& fd_reg, const int32_t& ft_reg);

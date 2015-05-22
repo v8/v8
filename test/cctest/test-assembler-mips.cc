@@ -1918,28 +1918,26 @@ TEST(trunc_l) {
       int64_t c;  // a trunc result
       int64_t d;  // b trunc result
     }Test;
-    const int tableLength = 16;
+    const int tableLength = 15;
     double inputs_D[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
-        std::numeric_limits<double>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<double>::infinity()
         };
     float inputs_S[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<float>::infinity()
         };
     double outputs[tableLength] = {
         2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
         -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
         2147483648.0, dFPU64InvalidResult,
-        dFPU64InvalidResult, dFPU64InvalidResult};
+        dFPU64InvalidResult};
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, a)) );
     __ lwc1(f6, MemOperand(a0, OFFSET_OF(Test, b)) );
@@ -2355,28 +2353,26 @@ TEST(round_l) {
       int64_t c;
       int64_t d;
     }Test;
-    const int tableLength = 16;
+    const int tableLength = 15;
     double inputs_D[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
-        std::numeric_limits<double>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<double>::infinity()
         };
     float inputs_S[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<float>::infinity()
         };
     double outputs[tableLength] = {
         2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
         -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
         2147483648.0, dFPU64InvalidResult,
-        dFPU64InvalidResult, dFPU64InvalidResult};
+        dFPU64InvalidResult};
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, a)) );
     __ lwc1(f6, MemOperand(a0, OFFSET_OF(Test, b)) );
@@ -2804,28 +2800,26 @@ TEST(floor_l) {
       int64_t c;
       int64_t d;
     }Test;
-    const int tableLength = 16;
+    const int tableLength = 15;
     double inputs_D[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
-        std::numeric_limits<double>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<double>::infinity()
         };
     float inputs_S[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<float>::infinity()
         };
     double outputs[tableLength] = {
         2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
         -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
         2147483648.0, dFPU64InvalidResult,
-        dFPU64InvalidResult, dFPU64InvalidResult};
+        dFPU64InvalidResult};
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, a)) );
     __ lwc1(f6, MemOperand(a0, OFFSET_OF(Test, b)) );
@@ -2922,28 +2916,26 @@ TEST(ceil_l) {
       int64_t c;
       int64_t d;
     }Test;
-    const int tableLength = 16;
+    const int tableLength = 15;
     double inputs_D[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
-        std::numeric_limits<double>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<double>::infinity()
         };
     float inputs_S[tableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
-        std::numeric_limits<float>::infinity(),
-        9223372036854775808.0
+        std::numeric_limits<float>::infinity()
         };
     double outputs[tableLength] = {
         3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
         -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
         2147483648.0, dFPU64InvalidResult,
-        dFPU64InvalidResult, dFPU64InvalidResult};
+        dFPU64InvalidResult};
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, a)) );
     __ lwc1(f6, MemOperand(a0, OFFSET_OF(Test, b)) );
@@ -3178,6 +3170,1176 @@ TEST(jump_tables3) {
 #endif
     CHECK(values[i].is_identical_to(result));
   }
+}
+
+
+TEST(BITSWAP) {
+  // Test BITSWAP
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+
+    typedef struct {
+      int32_t r1;
+      int32_t r2;
+      int32_t r3;
+      int32_t r4;
+    } T;
+    T t;
+
+    Assembler assm(isolate, NULL, 0);
+
+    __ lw(a2, MemOperand(a0, OFFSET_OF(T, r1)));
+    __ nop();
+    __ bitswap(a1, a2);
+    __ sw(a1, MemOperand(a0, OFFSET_OF(T, r1)));
+
+    __ lw(a2, MemOperand(a0, OFFSET_OF(T, r2)));
+    __ nop();
+    __ bitswap(a1, a2);
+    __ sw(a1, MemOperand(a0, OFFSET_OF(T, r2)));
+
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    t.r1 = 0x781A15C3;
+    t.r2 = 0x8B71FCDE;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+
+    CHECK_EQ(static_cast<int32_t>(0x1E58A8C3), t.r1);
+    CHECK_EQ(static_cast<int32_t>(0xD18E3F7B), t.r2);
+  }
+}
+
+
+TEST(class_fmt) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    // Test CLASS.fmt instruction.
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+
+    typedef struct {
+      double dSignalingNan;
+      double dQuietNan;
+      double dNegInf;
+      double dNegNorm;
+      double dNegSubnorm;
+      double dNegZero;
+      double dPosInf;
+      double dPosNorm;
+      double dPosSubnorm;
+      double dPosZero;
+      float  fSignalingNan;
+      float  fQuietNan;
+      float  fNegInf;
+      float  fNegNorm;
+      float  fNegSubnorm;
+      float  fNegZero;
+      float  fPosInf;
+      float  fPosNorm;
+      float  fPosSubnorm;
+      float  fPosZero;  } T;
+    T t;
+
+    // Create a function that accepts &t, and loads, manipulates, and stores
+    // the doubles t.a ... t.f.
+    MacroAssembler assm(isolate, NULL, 0);
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dSignalingNan)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dSignalingNan)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dQuietNan)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dQuietNan)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dNegInf)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dNegInf)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dNegNorm)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dNegNorm)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dNegSubnorm)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dNegSubnorm)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dNegZero)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dNegZero)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dPosInf)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dPosInf)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dPosNorm)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dPosNorm)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dPosSubnorm)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dPosSubnorm)));
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, dPosZero)));
+    __ class_d(f6, f4);
+    __ sdc1(f6, MemOperand(a0, OFFSET_OF(T, dPosZero)));
+
+    // Testing instruction CLASS.S
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fSignalingNan)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fSignalingNan)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fQuietNan)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fQuietNan)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fNegInf)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fNegInf)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fNegNorm)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fNegNorm)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fNegSubnorm)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fNegSubnorm)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fNegZero)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fNegZero)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fPosInf)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fPosInf)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fPosNorm)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fPosNorm)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fPosSubnorm)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fPosSubnorm)));
+
+    __ lwc1(f4, MemOperand(a0, OFFSET_OF(T, fPosZero)));
+    __ class_s(f6, f4);
+    __ swc1(f6, MemOperand(a0, OFFSET_OF(T, fPosZero)));
+
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    t.dSignalingNan =  std::numeric_limits<double>::signaling_NaN();
+    t.dQuietNan = std::numeric_limits<double>::quiet_NaN();
+    t.dNegInf       = -1.0 / 0.0;
+    t.dNegNorm      = -5.0;
+    t.dNegSubnorm   = -DBL_MIN / 2.0;
+    t.dNegZero      = -0.0;
+    t.dPosInf       = 2.0 / 0.0;
+    t.dPosNorm      = 275.35;
+    t.dPosSubnorm   = DBL_MIN / 2.0;
+    t.dPosZero      = +0.0;
+    // Float test values
+
+    t.fSignalingNan = std::numeric_limits<float>::signaling_NaN();
+    t.fQuietNan     = std::numeric_limits<float>::quiet_NaN();
+    t.fNegInf       = -0.5/0.0;
+    t.fNegNorm      = -FLT_MIN;
+    t.fNegSubnorm   = -FLT_MIN / 1.5;
+    t.fNegZero      = -0.0;
+    t.fPosInf       = 100000.0 / 0.0;
+    t.fPosNorm      = FLT_MAX;
+    t.fPosSubnorm   = FLT_MIN / 20.0;
+    t.fPosZero      = +0.0;
+
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+    // Expected double results.
+    CHECK_EQ(bit_cast<uint64_t>(t.dSignalingNan), 0x001);
+    CHECK_EQ(bit_cast<uint64_t>(t.dQuietNan),     0x002);
+    CHECK_EQ(bit_cast<uint64_t>(t.dNegInf),       0x004);
+    CHECK_EQ(bit_cast<uint64_t>(t.dNegNorm),      0x008);
+    CHECK_EQ(bit_cast<uint64_t>(t.dNegSubnorm),   0x010);
+    CHECK_EQ(bit_cast<uint64_t>(t.dNegZero),      0x020);
+    CHECK_EQ(bit_cast<uint64_t>(t.dPosInf),       0x040);
+    CHECK_EQ(bit_cast<uint64_t>(t.dPosNorm),      0x080);
+    CHECK_EQ(bit_cast<uint64_t>(t.dPosSubnorm),   0x100);
+    CHECK_EQ(bit_cast<uint64_t>(t.dPosZero),      0x200);
+
+    // Expected float results.
+    CHECK_EQ(bit_cast<uint32_t>(t.fSignalingNan), 0x001);
+    CHECK_EQ(bit_cast<uint32_t>(t.fQuietNan),     0x002);
+    CHECK_EQ(bit_cast<uint32_t>(t.fNegInf),       0x004);
+    CHECK_EQ(bit_cast<uint32_t>(t.fNegNorm),      0x008);
+    CHECK_EQ(bit_cast<uint32_t>(t.fNegSubnorm),   0x010);
+    CHECK_EQ(bit_cast<uint32_t>(t.fNegZero),      0x020);
+    CHECK_EQ(bit_cast<uint32_t>(t.fPosInf),       0x040);
+    CHECK_EQ(bit_cast<uint32_t>(t.fPosNorm),      0x080);
+    CHECK_EQ(bit_cast<uint32_t>(t.fPosSubnorm),   0x100);
+    CHECK_EQ(bit_cast<uint32_t>(t.fPosZero),      0x200);
+  }
+}
+
+
+TEST(ABS) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0);
+
+  typedef struct test_float {
+    int64_t fir;
+    double a;
+    float b;
+    double fcsr;
+  } TestFloat;
+
+  TestFloat test;
+
+  // Save FIR.
+  __ cfc1(a1, FCSR);
+  // Disable FPU exceptions.
+  __ ctc1(zero_reg, FCSR);
+
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)));
+  __ abs_d(f10, f4);
+  __ sdc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, a)));
+
+  __ lwc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, b)));
+  __ abs_s(f10, f4);
+  __ swc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, b)));
+
+  // Restore FCSR.
+  __ ctc1(a1, FCSR);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  test.a = -2.0;
+  test.b = -2.0;
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.a, 2.0);
+  CHECK_EQ(test.b, 2.0);
+
+  test.a = 2.0;
+  test.b = 2.0;
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.a, 2.0);
+  CHECK_EQ(test.b, 2.0);
+
+  // Testing biggest positive number
+  test.a = std::numeric_limits<double>::max();
+  test.b = std::numeric_limits<float>::max();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.a, std::numeric_limits<double>::max());
+  CHECK_EQ(test.b, std::numeric_limits<float>::max());
+
+  // Testing smallest negative number
+  test.a = -std::numeric_limits<double>::lowest();
+  test.b = -std::numeric_limits<float>::lowest();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.a, std::numeric_limits<double>::max());
+  CHECK_EQ(test.b, std::numeric_limits<float>::max());
+
+  // Testing smallest positive number
+  test.a = -std::numeric_limits<double>::min();
+  test.b = -std::numeric_limits<float>::min();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.a, std::numeric_limits<double>::min());
+  CHECK_EQ(test.b, std::numeric_limits<float>::min());
+
+  // Testing infinity
+  test.a = -std::numeric_limits<double>::max()
+          / std::numeric_limits<double>::min();
+  test.b = -std::numeric_limits<float>::max()
+          / std::numeric_limits<float>::min();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.a, std::numeric_limits<double>::max()
+                 / std::numeric_limits<double>::min());
+  CHECK_EQ(test.b, std::numeric_limits<float>::max()
+                 / std::numeric_limits<float>::min());
+
+  test.a = std::numeric_limits<double>::quiet_NaN();
+  test.b = std::numeric_limits<float>::quiet_NaN();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(std::isnan(test.a), true);
+  CHECK_EQ(std::isnan(test.b), true);
+
+  test.a = std::numeric_limits<double>::signaling_NaN();
+  test.b = std::numeric_limits<float>::signaling_NaN();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(std::isnan(test.a), true);
+  CHECK_EQ(std::isnan(test.b), true);
+}
+
+
+TEST(ADD_FMT) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0);
+
+  typedef struct test_float {
+    double a;
+    double b;
+    double c;
+    float fa;
+    float fb;
+    float fc;
+  } TestFloat;
+
+  TestFloat test;
+
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, a)));
+  __ ldc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, b)));
+  __ add_d(f10, f8, f4);
+  __ sdc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, c)));
+
+  __ lwc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, fa)));
+  __ lwc1(f8, MemOperand(a0, OFFSET_OF(TestFloat, fb)));
+  __ add_s(f10, f8, f4);
+  __ swc1(f10, MemOperand(a0, OFFSET_OF(TestFloat, fc)));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  test.a = 2.0;
+  test.b = 3.0;
+  test.fa = 2.0;
+  test.fb = 3.0;
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.c, 5.0);
+  CHECK_EQ(test.fc, 5.0);
+
+  test.a = std::numeric_limits<double>::max();
+  test.b = std::numeric_limits<double>::lowest();
+  test.fa = std::numeric_limits<float>::max();
+  test.fb = std::numeric_limits<float>::lowest();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.c, 0.0);
+  CHECK_EQ(test.fc, 0.0);
+
+  test.a = std::numeric_limits<double>::max();
+  test.b = std::numeric_limits<double>::max();
+  test.fa = std::numeric_limits<float>::max();
+  test.fb = std::numeric_limits<float>::max();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(std::isfinite(test.c), false);
+  CHECK_EQ(std::isfinite(test.fc), false);
+
+  test.a = 5.0;
+  test.b = std::numeric_limits<double>::signaling_NaN();
+  test.fa = 5.0;
+  test.fb = std::numeric_limits<float>::signaling_NaN();
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(std::isnan(test.c), true);
+  CHECK_EQ(std::isnan(test.fc), true);
+}
+
+
+TEST(C_COND_FMT) {
+  if ((IsMipsArchVariant(kMips32r1)) || (IsMipsArchVariant(kMips32r2))) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test_float {
+      double dOp1;
+      double dOp2;
+      uint32_t dF;
+      uint32_t dUn;
+      uint32_t dEq;
+      uint32_t dUeq;
+      uint32_t dOlt;
+      uint32_t dUlt;
+      uint32_t dOle;
+      uint32_t dUle;
+      float fOp1;
+      float fOp2;
+      uint32_t fF;
+      uint32_t fUn;
+      uint32_t fEq;
+      uint32_t fUeq;
+      uint32_t fOlt;
+      uint32_t fUlt;
+      uint32_t fOle;
+      uint32_t fUle;
+    } TestFloat;
+
+    TestFloat test;
+
+    __ li(t1, 1);
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, dOp1)));
+    __ ldc1(f6, MemOperand(a0, OFFSET_OF(TestFloat, dOp2)));
+
+    __ lwc1(f14, MemOperand(a0, OFFSET_OF(TestFloat, fOp1)));
+    __ lwc1(f16, MemOperand(a0, OFFSET_OF(TestFloat, fOp2)));
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(F, f4, f6, 0);
+    __ c_s(F, f14, f16, 2);
+    __ movt(t2, t1, 0);
+    __ movt(t3, t1, 2);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dF)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fF)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(UN, f4, f6, 2);
+    __ c_s(UN, f14, f16, 4);
+    __ movt(t2, t1, 2);
+    __ movt(t3, t1, 4);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dUn)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fUn)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(EQ, f4, f6, 4);
+    __ c_s(EQ, f14, f16, 6);
+    __ movt(t2, t1, 4);
+    __ movt(t3, t1, 6);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dEq)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fEq)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(UEQ, f4, f6, 6);
+    __ c_s(UEQ, f14, f16, 0);
+    __ movt(t2, t1, 6);
+    __ movt(t3, t1, 0);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dUeq)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fUeq)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(OLT, f4, f6, 0);
+    __ c_s(OLT, f14, f16, 2);
+    __ movt(t2, t1, 0);
+    __ movt(t3, t1, 2);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dOlt)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fOlt)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(ULT, f4, f6, 2);
+    __ c_s(ULT, f14, f16, 4);
+    __ movt(t2, t1, 2);
+    __ movt(t3, t1, 4);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dUlt)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fUlt)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(OLE, f4, f6, 4);
+    __ c_s(OLE, f14, f16, 6);
+    __ movt(t2, t1, 4);
+    __ movt(t3, t1, 6);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dOle)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fOle)) );
+
+    __ mov(t2, zero_reg);
+    __ mov(t3, zero_reg);
+    __ c_d(ULE, f4, f6, 6);
+    __ c_s(ULE, f14, f16, 0);
+    __ movt(t2, t1, 6);
+    __ movt(t3, t1, 0);
+    __ sw(t2, MemOperand(a0, OFFSET_OF(TestFloat, dUle)) );
+    __ sw(t3, MemOperand(a0, OFFSET_OF(TestFloat, fUle)) );
+
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    test.dOp1 = 2.0;
+    test.dOp2 = 3.0;
+    test.fOp1 = 2.0;
+    test.fOp2 = 3.0;
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.dF, 0);
+    CHECK_EQ(test.dUn, 0);
+    CHECK_EQ(test.dEq, 0);
+    CHECK_EQ(test.dUeq, 0);
+    CHECK_EQ(test.dOlt, 1);
+    CHECK_EQ(test.dUlt, 1);
+    CHECK_EQ(test.dOle, 1);
+    CHECK_EQ(test.dUle, 1);
+    CHECK_EQ(test.fF, 0);
+    CHECK_EQ(test.fUn, 0);
+    CHECK_EQ(test.fEq, 0);
+    CHECK_EQ(test.fUeq, 0);
+    CHECK_EQ(test.fOlt, 1);
+    CHECK_EQ(test.fUlt, 1);
+    CHECK_EQ(test.fOle, 1);
+    CHECK_EQ(test.fUle, 1);
+
+    test.dOp1 = std::numeric_limits<double>::max();
+    test.dOp2 = std::numeric_limits<double>::min();
+    test.fOp1 = std::numeric_limits<float>::min();
+    test.fOp2 = std::numeric_limits<float>::lowest();
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.dF, 0);
+    CHECK_EQ(test.dUn, 0);
+    CHECK_EQ(test.dEq, 0);
+    CHECK_EQ(test.dUeq, 0);
+    CHECK_EQ(test.dOlt, 0);
+    CHECK_EQ(test.dUlt, 0);
+    CHECK_EQ(test.dOle, 0);
+    CHECK_EQ(test.dUle, 0);
+    CHECK_EQ(test.fF, 0);
+    CHECK_EQ(test.fUn, 0);
+    CHECK_EQ(test.fEq, 0);
+    CHECK_EQ(test.fUeq, 0);
+    CHECK_EQ(test.fOlt, 0);
+    CHECK_EQ(test.fUlt, 0);
+    CHECK_EQ(test.fOle, 0);
+    CHECK_EQ(test.fUle, 0);
+
+    test.dOp1 = std::numeric_limits<double>::lowest();
+    test.dOp2 = std::numeric_limits<double>::lowest();
+    test.fOp1 = std::numeric_limits<float>::max();
+    test.fOp2 = std::numeric_limits<float>::max();
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.dF, 0);
+    CHECK_EQ(test.dUn, 0);
+    CHECK_EQ(test.dEq, 1);
+    CHECK_EQ(test.dUeq, 1);
+    CHECK_EQ(test.dOlt, 0);
+    CHECK_EQ(test.dUlt, 0);
+    CHECK_EQ(test.dOle, 1);
+    CHECK_EQ(test.dUle, 1);
+    CHECK_EQ(test.fF, 0);
+    CHECK_EQ(test.fUn, 0);
+    CHECK_EQ(test.fEq, 1);
+    CHECK_EQ(test.fUeq, 1);
+    CHECK_EQ(test.fOlt, 0);
+    CHECK_EQ(test.fUlt, 0);
+    CHECK_EQ(test.fOle, 1);
+    CHECK_EQ(test.fUle, 1);
+
+    test.dOp1 = std::numeric_limits<double>::quiet_NaN();
+    test.dOp2 = 0.0;
+    test.fOp1 = std::numeric_limits<float>::quiet_NaN();
+    test.fOp2 = 0.0;
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.dF, 0);
+    CHECK_EQ(test.dUn, 1);
+    CHECK_EQ(test.dEq, 0);
+    CHECK_EQ(test.dUeq, 1);
+    CHECK_EQ(test.dOlt, 0);
+    CHECK_EQ(test.dUlt, 1);
+    CHECK_EQ(test.dOle, 0);
+    CHECK_EQ(test.dUle, 1);
+    CHECK_EQ(test.fF, 0);
+    CHECK_EQ(test.fUn, 1);
+    CHECK_EQ(test.fEq, 0);
+    CHECK_EQ(test.fUeq, 1);
+    CHECK_EQ(test.fOlt, 0);
+    CHECK_EQ(test.fUlt, 1);
+    CHECK_EQ(test.fOle, 0);
+    CHECK_EQ(test.fUle, 1);
+  }
+}
+
+
+TEST(CMP_COND_FMT) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0);
+
+    typedef struct test_float {
+      double dOp1;
+      double dOp2;
+      double dF;
+      double dUn;
+      double dEq;
+      double dUeq;
+      double dOlt;
+      double dUlt;
+      double dOle;
+      double dUle;
+      double dOr;
+      double dUne;
+      double dNe;
+      float fOp1;
+      float fOp2;
+      float fF;
+      float fUn;
+      float fEq;
+      float fUeq;
+      float fOlt;
+      float fUlt;
+      float fOle;
+      float fUle;
+      float fOr;
+      float fUne;
+      float fNe;
+    } TestFloat;
+
+    TestFloat test;
+
+    __ li(t1, 1);
+
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(TestFloat, dOp1)));
+    __ ldc1(f6, MemOperand(a0, OFFSET_OF(TestFloat, dOp2)));
+
+    __ lwc1(f14, MemOperand(a0, OFFSET_OF(TestFloat, fOp1)));
+    __ lwc1(f16, MemOperand(a0, OFFSET_OF(TestFloat, fOp2)));
+
+    __ cmp_d(F, f2, f4, f6);
+    __ cmp_s(F, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dF)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fF)) );
+
+    __ cmp_d(UN, f2, f4, f6);
+    __ cmp_s(UN, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dUn)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fUn)) );
+
+    __ cmp_d(EQ, f2, f4, f6);
+    __ cmp_s(EQ, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dEq)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fEq)) );
+
+    __ cmp_d(UEQ, f2, f4, f6);
+    __ cmp_s(UEQ, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dUeq)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fUeq)) );
+
+    __ cmp_d(LT, f2, f4, f6);
+    __ cmp_s(LT, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dOlt)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fOlt)) );
+
+    __ cmp_d(ULT, f2, f4, f6);
+    __ cmp_s(ULT, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dUlt)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fUlt)) );
+
+    __ cmp_d(LE, f2, f4, f6);
+    __ cmp_s(LE, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dOle)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fOle)) );
+
+    __ cmp_d(ULE, f2, f4, f6);
+    __ cmp_s(ULE, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dUle)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fUle)) );
+
+    __ cmp_d(ORD, f2, f4, f6);
+    __ cmp_s(ORD, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dOr)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fOr)) );
+
+    __ cmp_d(UNE, f2, f4, f6);
+    __ cmp_s(UNE, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dUne)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fUne)) );
+
+    __ cmp_d(NE, f2, f4, f6);
+    __ cmp_s(NE, f12, f14, f16);
+    __ sdc1(f2, MemOperand(a0, OFFSET_OF(TestFloat, dNe)) );
+    __ swc1(f12, MemOperand(a0, OFFSET_OF(TestFloat, fNe)) );
+
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    uint64_t dTrue  = 0xFFFFFFFFFFFFFFFF;
+    uint64_t dFalse = 0x0000000000000000;
+    uint32_t fTrue  = 0xFFFFFFFF;
+    uint32_t fFalse = 0x00000000;
+
+    test.dOp1 = 2.0;
+    test.dOp2 = 3.0;
+    test.fOp1 = 2.0;
+    test.fOp2 = 3.0;
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUeq), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOlt), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUlt), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOle), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUle), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOr), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUne), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dNe), dTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fF), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUn), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fEq), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUeq), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOlt), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUlt), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOle), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUle), fTrue);
+
+    test.dOp1 = std::numeric_limits<double>::max();
+    test.dOp2 = std::numeric_limits<double>::min();
+    test.fOp1 = std::numeric_limits<float>::min();
+    test.fOp2 = std::numeric_limits<float>::lowest();
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUeq), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOlt), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUlt), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOle), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUle), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOr), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUne), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dNe), dTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fF), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUn), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fEq), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUeq), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOlt), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUlt), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOle), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUle), fFalse);
+
+    test.dOp1 = std::numeric_limits<double>::lowest();
+    test.dOp2 = std::numeric_limits<double>::lowest();
+    test.fOp1 = std::numeric_limits<float>::max();
+    test.fOp2 = std::numeric_limits<float>::max();
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dEq), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUeq), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOlt), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUlt), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOle), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUle), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOr), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUne), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dNe), dFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fF), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUn), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fEq), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUeq), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOlt), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUlt), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOle), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUle), fTrue);
+
+    test.dOp1 = std::numeric_limits<double>::quiet_NaN();
+    test.dOp2 = 0.0;
+    test.fOp1 = std::numeric_limits<float>::quiet_NaN();
+    test.fOp2 = 0.0;
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUn), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUeq), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOlt), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUlt), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOle), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUle), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dOr), dFalse);
+    CHECK_EQ(bit_cast<uint64_t>(test.dUne), dTrue);
+    CHECK_EQ(bit_cast<uint64_t>(test.dNe), dFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fF), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUn), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fEq), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUeq), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOlt), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUlt), fTrue);
+    CHECK_EQ(bit_cast<uint32_t>(test.fOle), fFalse);
+    CHECK_EQ(bit_cast<uint32_t>(test.fUle), fTrue);
+  }
+}
+
+
+TEST(CVT) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0);
+
+  typedef struct test_float {
+    float    cvt_d_s_in;
+    double   cvt_d_s_out;
+    int32_t  cvt_d_w_in;
+    double   cvt_d_w_out;
+    int64_t  cvt_d_l_in;
+    double   cvt_d_l_out;
+
+    float    cvt_l_s_in;
+    int64_t  cvt_l_s_out;
+    double   cvt_l_d_in;
+    int64_t  cvt_l_d_out;
+
+    double   cvt_s_d_in;
+    float    cvt_s_d_out;
+    int32_t  cvt_s_w_in;
+    float    cvt_s_w_out;
+    int64_t  cvt_s_l_in;
+    float    cvt_s_l_out;
+
+    float    cvt_w_s_in;
+    int32_t  cvt_w_s_out;
+    double   cvt_w_d_in;
+    int32_t  cvt_w_d_out;
+  } TestFloat;
+
+  TestFloat test;
+
+  // Save FCSR.
+  __ cfc1(a1, FCSR);
+  // Disable FPU exceptions.
+  __ ctc1(zero_reg, FCSR);
+
+#define GENERATE_CVT_TEST(x, y, z) \
+  __ y##c1(f0, MemOperand(a0, OFFSET_OF(TestFloat, x##_in))); \
+  __ x(f0, f0); \
+  __ nop(); \
+  __ z##c1(f0, MemOperand(a0, OFFSET_OF(TestFloat, x##_out)));
+
+  GENERATE_CVT_TEST(cvt_d_s, lw, sd)
+  GENERATE_CVT_TEST(cvt_d_w, lw, sd)
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    GENERATE_CVT_TEST(cvt_d_l, ld, sd)
+  }
+
+  if (IsFp64Mode()) {
+    GENERATE_CVT_TEST(cvt_l_s, lw, sd)
+    GENERATE_CVT_TEST(cvt_l_d, ld, sd)
+  }
+
+  GENERATE_CVT_TEST(cvt_s_d, ld, sw)
+  GENERATE_CVT_TEST(cvt_s_w, lw, sw)
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    GENERATE_CVT_TEST(cvt_s_l, ld, sw)
+  }
+
+  GENERATE_CVT_TEST(cvt_w_s, lw, sw)
+  GENERATE_CVT_TEST(cvt_w_d, ld, sw)
+
+  // Restore FCSR.
+  __ ctc1(a1, FCSR);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  test.cvt_d_s_in = -0.51;
+  test.cvt_d_w_in = -1;
+  test.cvt_d_l_in = -1;
+  test.cvt_l_s_in = -0.51;
+  test.cvt_l_d_in = -0.51;
+  test.cvt_s_d_in = -0.51;
+  test.cvt_s_w_in = -1;
+  test.cvt_s_l_in = -1;
+  test.cvt_w_s_in = -0.51;
+  test.cvt_w_d_in = -0.51;
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
+  CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
+  }
+  if (IsFp64Mode()) {
+    CHECK_EQ(test.cvt_l_s_out, -1);
+    CHECK_EQ(test.cvt_l_d_out, -1);
+  }
+  CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
+  CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
+  }
+  CHECK_EQ(test.cvt_w_s_out, -1);
+  CHECK_EQ(test.cvt_w_d_out, -1);
+
+
+  test.cvt_d_s_in = 0.49;
+  test.cvt_d_w_in = 1;
+  test.cvt_d_l_in = 1;
+  test.cvt_l_s_in = 0.49;
+  test.cvt_l_d_in = 0.49;
+  test.cvt_s_d_in = 0.49;
+  test.cvt_s_w_in = 1;
+  test.cvt_s_l_in = 1;
+  test.cvt_w_s_in = 0.49;
+  test.cvt_w_d_in = 0.49;
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
+  CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
+  }
+  if (IsFp64Mode()) {
+    CHECK_EQ(test.cvt_l_s_out, 0);
+    CHECK_EQ(test.cvt_l_d_out, 0);
+  }
+  CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
+  CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
+  }
+  CHECK_EQ(test.cvt_w_s_out, 0);
+  CHECK_EQ(test.cvt_w_d_out, 0);
+
+  test.cvt_d_s_in = std::numeric_limits<float>::max();
+  test.cvt_d_w_in = std::numeric_limits<int32_t>::max();
+  test.cvt_d_l_in = std::numeric_limits<int64_t>::max();
+  test.cvt_l_s_in = std::numeric_limits<float>::max();
+  test.cvt_l_d_in = std::numeric_limits<double>::max();
+  test.cvt_s_d_in = std::numeric_limits<double>::max();
+  test.cvt_s_w_in = std::numeric_limits<int32_t>::max();
+  test.cvt_s_l_in = std::numeric_limits<int64_t>::max();
+  test.cvt_w_s_in = std::numeric_limits<float>::max();
+  test.cvt_w_d_in = std::numeric_limits<double>::max();
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
+  CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
+  }
+  if (IsFp64Mode()) {
+    CHECK_EQ(test.cvt_l_s_out, std::numeric_limits<int64_t>::max());
+    CHECK_EQ(test.cvt_l_d_out, std::numeric_limits<int64_t>::max());
+  }
+  CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
+  CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
+  }
+  CHECK_EQ(test.cvt_w_s_out, std::numeric_limits<int32_t>::max());
+  CHECK_EQ(test.cvt_w_d_out, std::numeric_limits<int32_t>::max());
+
+
+  test.cvt_d_s_in = std::numeric_limits<float>::lowest();
+  test.cvt_d_w_in = std::numeric_limits<int32_t>::lowest();
+  test.cvt_d_l_in = std::numeric_limits<int64_t>::lowest();
+  test.cvt_l_s_in = std::numeric_limits<float>::lowest();
+  test.cvt_l_d_in = std::numeric_limits<double>::lowest();
+  test.cvt_s_d_in = std::numeric_limits<double>::lowest();
+  test.cvt_s_w_in = std::numeric_limits<int32_t>::lowest();
+  test.cvt_s_l_in = std::numeric_limits<int64_t>::lowest();
+  test.cvt_w_s_in = std::numeric_limits<float>::lowest();
+  test.cvt_w_d_in = std::numeric_limits<double>::lowest();
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
+  CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
+  }
+  // The returned value when converting from fixed-point to float-point
+  // is not consistent between board, simulator and specification
+  // in this test case, therefore modifying the test
+  if (IsFp64Mode()) {
+    CHECK(test.cvt_l_s_out == std::numeric_limits<int64_t>::min() ||
+         test.cvt_l_s_out == std::numeric_limits<int64_t>::max());
+    CHECK(test.cvt_l_d_out == std::numeric_limits<int64_t>::min() ||
+          test.cvt_l_d_out == std::numeric_limits<int64_t>::max());
+  }
+  CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
+  CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
+  }
+  CHECK(test.cvt_w_s_out == std::numeric_limits<int32_t>::min() ||
+        test.cvt_w_s_out == std::numeric_limits<int32_t>::max());
+  CHECK(test.cvt_w_d_out == std::numeric_limits<int32_t>::min() ||
+        test.cvt_w_d_out == std::numeric_limits<int32_t>::max());
+
+
+  test.cvt_d_s_in = std::numeric_limits<float>::min();
+  test.cvt_d_w_in = std::numeric_limits<int32_t>::min();
+  test.cvt_d_l_in = std::numeric_limits<int64_t>::min();
+  test.cvt_l_s_in = std::numeric_limits<float>::min();
+  test.cvt_l_d_in = std::numeric_limits<double>::min();
+  test.cvt_s_d_in = std::numeric_limits<double>::min();
+  test.cvt_s_w_in = std::numeric_limits<int32_t>::min();
+  test.cvt_s_l_in = std::numeric_limits<int64_t>::min();
+  test.cvt_w_s_in = std::numeric_limits<float>::min();
+  test.cvt_w_d_in = std::numeric_limits<double>::min();
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
+  CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
+  }
+  if (IsFp64Mode()) {
+    CHECK_EQ(test.cvt_l_s_out, 0);
+    CHECK_EQ(test.cvt_l_d_out, 0);
+  }
+  CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
+  CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
+  }
+  CHECK_EQ(test.cvt_w_s_out, 0);
+  CHECK_EQ(test.cvt_w_d_out, 0);
+}
+
+
+TEST(DIV_FMT) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0);
+
+  typedef struct test {
+    double dOp1;
+    double dOp2;
+    double dRes;
+    float  fOp1;
+    float  fOp2;
+    float  fRes;
+  } Test;
+
+  Test test;
+
+  // Save FCSR.
+  __ cfc1(a1, FCSR);
+  // Disable FPU exceptions.
+  __ ctc1(zero_reg, FCSR);
+
+  __ ldc1(f4, MemOperand(a0, OFFSET_OF(Test, dOp1)) );
+  __ ldc1(f2, MemOperand(a0, OFFSET_OF(Test, dOp2)) );
+  __ nop();
+  __ div_d(f6, f4, f2);
+  __ sdc1(f6, MemOperand(a0, OFFSET_OF(Test, dRes)) );
+
+  __ lwc1(f4, MemOperand(a0, OFFSET_OF(Test, fOp1)) );
+  __ lwc1(f2, MemOperand(a0, OFFSET_OF(Test, fOp2)) );
+  __ nop();
+  __ div_s(f6, f4, f2);
+  __ swc1(f6, MemOperand(a0, OFFSET_OF(Test, fRes)) );
+
+    // Restore FCSR.
+  __ ctc1(a1, FCSR);
+
+  __ jr(ra);
+  __ nop();
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+
+  const int test_size = 3;
+
+  double dOp1[test_size] = {
+    5.0,
+    DBL_MAX,
+    DBL_MAX,
+  };
+  double dOp2[test_size] = {
+    2.0,
+    2.0,
+    -DBL_MAX,
+  };
+  double dRes[test_size] = {
+    2.5,
+    DBL_MAX / 2.0,
+    -1.0,
+  };
+  float fOp1[test_size] = {
+    5.0,
+    FLT_MAX,
+    FLT_MAX,
+  };
+  float fOp2[test_size] = {
+    2.0,
+    2.0,
+    -FLT_MAX,
+  };
+  float fRes[test_size] = {
+    2.5,
+    FLT_MAX / 2.0,
+    -1.0,
+  };
+
+  for (int i = 0; i < test_size; i++) {
+    test.dOp1 = dOp1[i];
+    test.dOp2 = dOp2[i];
+    test.fOp1 = fOp1[i];
+    test.fOp2 = fOp2[i];
+
+    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    CHECK_EQ(test.dRes, dRes[i]);
+    CHECK_EQ(test.fRes, fRes[i]);
+  }
+
+  test.dOp1 = DBL_MAX;
+  test.dOp2 = -0.0;
+  test.fOp1 = FLT_MAX;
+  test.fOp2 = -0.0;
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(false, std::isfinite(test.dRes));
+  CHECK_EQ(false, std::isfinite(test.fRes));
+
+  test.dOp1 = 0.0;
+  test.dOp2 = -0.0;
+  test.fOp1 = 0.0;
+  test.fOp2 = -0.0;
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(true, std::isnan(test.dRes));
+  CHECK_EQ(true, std::isnan(test.fRes));
+
+  test.dOp1 = std::numeric_limits<double>::quiet_NaN();
+  test.dOp2 = -5.0;
+  test.fOp1 = std::numeric_limits<float>::quiet_NaN();
+  test.fOp2 = -5.0;
+
+  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  CHECK_EQ(true, std::isnan(test.dRes));
+  CHECK_EQ(true, std::isnan(test.fRes));
 }
 
 

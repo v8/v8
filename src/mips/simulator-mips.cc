@@ -1302,6 +1302,8 @@ unsigned int Simulator::get_fcsr_rounding_mode() {
 }
 
 
+// Sets the rounding error codes in FCSR based on the result of the rounding.
+// Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
   bool ret = false;
   double max_int32 = std::numeric_limits<int32_t>::max();
@@ -1364,6 +1366,8 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
 }
 
 
+// Sets the rounding error codes in FCSR based on the result of the rounding.
+// Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(float original, float rounded) {
   bool ret = false;
   double max_int32 = std::numeric_limits<int32_t>::max();
@@ -1462,6 +1466,129 @@ void Simulator::round_according_to_fcsr(double toRound, double& rounded,
     case kRoundToMinusInf:
       rounded = std::floor(fs);
       rounded_int = static_cast<int32_t>(rounded);
+      break;
+  }
+}
+
+
+void Simulator::round_according_to_fcsr(float toRound, float& rounded,
+                                        int32_t& rounded_int, float fs) {
+  // 0 RN (round to nearest): Round a result to the nearest
+  // representable value; if the result is exactly halfway between
+  // two representable values, round to zero. Behave like round_w_d.
+
+  // 1 RZ (round toward zero): Round a result to the closest
+  // representable value whose absolute value is less than or
+  // equal to the infinitely accurate result. Behave like trunc_w_d.
+
+  // 2 RP (round up, or toward  infinity): Round a result to the
+  // next representable value up. Behave like ceil_w_d.
+
+  // 3 RD (round down, or toward −infinity): Round a result to
+  // the next representable value down. Behave like floor_w_d.
+  switch (get_fcsr_rounding_mode()) {
+    case kRoundToNearest:
+      rounded = std::floor(fs + 0.5);
+      rounded_int = static_cast<int32_t>(rounded);
+      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+        // If the number is halfway between two integers,
+        // round to the even one.
+        rounded_int--;
+      }
+      break;
+    case kRoundToZero:
+      rounded = trunc(fs);
+      rounded_int = static_cast<int32_t>(rounded);
+      break;
+    case kRoundToPlusInf:
+      rounded = std::ceil(fs);
+      rounded_int = static_cast<int32_t>(rounded);
+      break;
+    case kRoundToMinusInf:
+      rounded = std::floor(fs);
+      rounded_int = static_cast<int32_t>(rounded);
+      break;
+  }
+}
+
+
+void Simulator::round64_according_to_fcsr(double toRound, double& rounded,
+                                          int64_t& rounded_int, double fs) {
+  // 0 RN (round to nearest): Round a result to the nearest
+  // representable value; if the result is exactly halfway between
+  // two representable values, round to zero. Behave like round_w_d.
+
+  // 1 RZ (round toward zero): Round a result to the closest
+  // representable value whose absolute value is less than or.
+  // equal to the infinitely accurate result. Behave like trunc_w_d.
+
+  // 2 RP (round up, or toward +infinity): Round a result to the
+  // next representable value up. Behave like ceil_w_d.
+
+  // 3 RN (round down, or toward −infinity): Round a result to
+  // the next representable value down. Behave like floor_w_d.
+  switch (FCSR_ & 3) {
+    case kRoundToNearest:
+      rounded = std::floor(fs + 0.5);
+      rounded_int = static_cast<int64_t>(rounded);
+      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+        // If the number is halfway between two integers,
+        // round to the even one.
+        rounded_int--;
+      }
+      break;
+    case kRoundToZero:
+      rounded = trunc(fs);
+      rounded_int = static_cast<int64_t>(rounded);
+      break;
+    case kRoundToPlusInf:
+      rounded = std::ceil(fs);
+      rounded_int = static_cast<int64_t>(rounded);
+      break;
+    case kRoundToMinusInf:
+      rounded = std::floor(fs);
+      rounded_int = static_cast<int64_t>(rounded);
+      break;
+  }
+}
+
+
+void Simulator::round64_according_to_fcsr(float toRound, float& rounded,
+                                          int64_t& rounded_int, float fs) {
+  // 0 RN (round to nearest): Round a result to the nearest
+  // representable value; if the result is exactly halfway between
+  // two representable values, round to zero. Behave like round_w_d.
+
+  // 1 RZ (round toward zero): Round a result to the closest
+  // representable value whose absolute value is less than or.
+  // equal to the infinitely accurate result. Behave like trunc_w_d.
+
+  // 2 RP (round up, or toward +infinity): Round a result to the
+  // next representable value up. Behave like ceil_w_d.
+
+  // 3 RN (round down, or toward −infinity): Round a result to
+  // the next representable value down. Behave like floor_w_d.
+  switch (FCSR_ & 3) {
+    case kRoundToNearest:
+      rounded = std::floor(fs + 0.5);
+      rounded_int = static_cast<int64_t>(rounded);
+      if ((rounded_int & 1) != 0 && rounded_int - fs == 0.5) {
+        // If the number is halfway between two integers,
+        // round to the even one.
+        rounded_int--;
+      }
+      break;
+    case kRoundToZero:
+      rounded = trunc(fs);
+      rounded_int = static_cast<int64_t>(rounded);
+      break;
+    case kRoundToPlusInf:
+      rounded = std::ceil(fs);
+      rounded_int = static_cast<int64_t>(rounded);
+      break;
+    case kRoundToMinusInf:
+      rounded = std::floor(fs);
+      rounded_int = static_cast<int64_t>(rounded);
       break;
   }
 }
@@ -2284,6 +2411,30 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           *alu_out = (rs_u & (mask << lsb)) >> lsb;
           break;
         }
+        case BITSWAP: {  // Mips32r6 instruction
+          uint32_t input = static_cast<uint32_t>(rt);
+          uint32_t output = 0;
+          uint8_t i_byte, o_byte;
+
+          // Reverse the bit in byte for each individual byte
+          for (int i = 0; i < 4; i++) {
+            output = output >> 8;
+            i_byte = input & 0xff;
+
+            // Fast way to reverse bits in byte
+            // Devised by Sean Anderson, July 13, 2001
+            o_byte = static_cast<uint8_t>(((i_byte * 0x0802LU & 0x22110LU) |
+                                           (i_byte * 0x8020LU & 0x88440LU)) *
+                                              0x10101LU >>
+                                          16);
+
+            output = output | (static_cast<uint32_t>(o_byte << 24));
+            input = input >> 8;
+          }
+
+          *alu_out = static_cast<int32_t>(output);
+          break;
+        }
         default:
           UNREACHABLE();
       }
@@ -2570,13 +2721,18 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
       set_fpu_register_float(fd_reg, static_cast<float>(fs));
       break;
     case CVT_L_D: {  // Mips32r2: Truncate double to 64-bit long-word.
-      double rounded = trunc(fs);
-      i64 = static_cast<int64_t>(rounded);
       if (IsFp64Mode()) {
-        set_fpu_register(fd_reg, i64);
+        int64_t result;
+        double rounded;
+        round64_according_to_fcsr(fs, rounded, result, fs);
+        set_fpu_register(fd_reg, result);
+        if (set_fcsr_round64_error(fs, rounded)) {
+          set_fpu_register(fd_reg, kFPU64InvalidResult);
+        }
       } else {
         UNSUPPORTED();
       }
+      break;
       break;
     }
     case TRUNC_L_D: {  // Mips32r2 instruction.
@@ -2641,9 +2797,75 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
       }
       break;
     }
-    case C_F_D:
-      UNIMPLEMENTED_MIPS();
+    case CLASS_D: {  // Mips32r6 instruction
+      // Convert double input to uint64_t for easier bit manipulation
+      uint64_t classed = bit_cast<uint64_t>(fs);
+
+      // Extracting sign, exponent and mantissa from the input double
+      uint32_t sign = (classed >> 63) & 1;
+      uint32_t exponent = (classed >> 52) & 0x00000000000007ff;
+      uint64_t mantissa = classed & 0x000fffffffffffff;
+      uint64_t result;
+      double dResult;
+
+      // Setting flags if input double is negative infinity,
+      // positive infinity, negative zero or positive zero
+      bool negInf = (classed == 0xFFF0000000000000);
+      bool posInf = (classed == 0x7FF0000000000000);
+      bool negZero = (classed == 0x8000000000000000);
+      bool posZero = (classed == 0x0000000000000000);
+
+      bool signalingNan;
+      bool quietNan;
+      bool negSubnorm;
+      bool posSubnorm;
+      bool negNorm;
+      bool posNorm;
+
+      // Setting flags if double is NaN
+      signalingNan = false;
+      quietNan = false;
+      if (!negInf && !posInf && exponent == 0x7ff) {
+        quietNan = ((mantissa & 0x0008000000000000) != 0) &&
+                   ((mantissa & (0x0008000000000000 - 1)) == 0);
+        signalingNan = !quietNan;
+      }
+
+      // Setting flags if double is subnormal number
+      posSubnorm = false;
+      negSubnorm = false;
+      if ((exponent == 0) && (mantissa != 0)) {
+        DCHECK(sign == 0 || sign == 1);
+        posSubnorm = (sign == 0);
+        negSubnorm = (sign == 1);
+      }
+
+      // Setting flags if double is normal number
+      posNorm = false;
+      negNorm = false;
+      if (!posSubnorm && !negSubnorm && !posInf && !negInf && !signalingNan &&
+          !quietNan && !negZero && !posZero) {
+        DCHECK(sign == 0 || sign == 1);
+        posNorm = (sign == 0);
+        negNorm = (sign == 1);
+      }
+
+      // Calculating result according to description of CLASS.D instruction
+      result = (posZero << 9) | (posSubnorm << 8) | (posNorm << 7) |
+               (posInf << 6) | (negZero << 5) | (negSubnorm << 4) |
+               (negNorm << 3) | (negInf << 2) | (quietNan << 1) | signalingNan;
+
+      DCHECK(result != 0);
+
+      dResult = bit_cast<double>(result);
+      set_fpu_register_double(fd_reg, dResult);
+
       break;
+    }
+    case C_F_D: {
+      set_fcsr_bit(fcsr_cc, false);
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -2652,7 +2874,10 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
 
 void Simulator::DecodeTypeRegisterWRsType(Instruction* instr, int32_t& alu_out,
                                           const int32_t& fd_reg,
-                                          const int32_t& fs_reg) {
+                                          const int32_t& fs_reg,
+                                          const int32_t& ft_reg) {
+  float fs = get_fpu_register_float(fs_reg);
+  float ft = get_fpu_register_float(ft_reg);
   switch (instr->FunctionFieldRaw()) {
     case CVT_S_W:  // Convert word to float (single).
       alu_out = get_fpu_register_signed_word(fs_reg);
@@ -2662,7 +2887,80 @@ void Simulator::DecodeTypeRegisterWRsType(Instruction* instr, int32_t& alu_out,
       alu_out = get_fpu_register_signed_word(fs_reg);
       set_fpu_register_double(fd_reg, static_cast<double>(alu_out));
       break;
-    default:  // Mips64r6 CMP.S instructions unimplemented.
+    case CMP_AF:
+      set_fpu_register_word(fd_reg, 0);
+      break;
+    case CMP_UN:
+      if (std::isnan(fs) || std::isnan(ft)) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_EQ:
+      if (fs == ft) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_UEQ:
+      if ((fs == ft) || (std::isnan(fs) || std::isnan(ft))) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_LT:
+      if (fs < ft) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_ULT:
+      if ((fs < ft) || (std::isnan(fs) || std::isnan(ft))) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_LE:
+      if (fs <= ft) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_ULE:
+      if ((fs <= ft) || (std::isnan(fs) || std::isnan(ft))) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_OR:
+      if (!std::isnan(fs) && !std::isnan(ft)) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_UNE:
+      if ((fs != ft) || (std::isnan(fs) || std::isnan(ft))) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    case CMP_NE:
+      if (fs != ft) {
+        set_fpu_register_word(fd_reg, -1);
+      } else {
+        set_fpu_register_word(fd_reg, 0);
+      }
+      break;
+    default:
       UNREACHABLE();
   }
 }
@@ -2754,6 +3052,9 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
       set_fpu_register_float(fd_reg, result);
       break;
     }
+    case C_F_D:
+      set_fcsr_bit(fcsr_cc, false);
+      break;
     case C_UN_D:
       set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));
       break;
@@ -2782,6 +3083,72 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
       DCHECK(IsMipsArchVariant(kMips32r6));
       set_fpu_register_float(fd_reg, (fd_int & 0x1) == 0 ? fs : ft);
       break;
+    case CLASS_S: {  // Mips32r6 instruction
+      // Convert float input to uint32_t for easier bit manipulation
+      float fs = get_fpu_register_float(fs_reg);
+      uint32_t classed = bit_cast<uint32_t>(fs);
+
+      // Extracting sign, exponent and mantissa from the input float
+      uint32_t sign = (classed >> 31) & 1;
+      uint32_t exponent = (classed >> 23) & 0x000000ff;
+      uint32_t mantissa = classed & 0x007fffff;
+      uint32_t result;
+      float fResult;
+
+      // Setting flags if input float is negative infinity,
+      // positive infinity, negative zero or positive zero
+      bool negInf = (classed == 0xFF800000);
+      bool posInf = (classed == 0x7F800000);
+      bool negZero = (classed == 0x80000000);
+      bool posZero = (classed == 0x00000000);
+
+      bool signalingNan;
+      bool quietNan;
+      bool negSubnorm;
+      bool posSubnorm;
+      bool negNorm;
+      bool posNorm;
+
+      // Setting flags if float is NaN
+      signalingNan = false;
+      quietNan = false;
+      if (!negInf && !posInf && (exponent == 0xff)) {
+        quietNan = ((mantissa & 0x00200000) == 0) &&
+                   ((mantissa & (0x00200000 - 1)) == 0);
+        signalingNan = !quietNan;
+      }
+
+      // Setting flags if float is subnormal number
+      posSubnorm = false;
+      negSubnorm = false;
+      if ((exponent == 0) && (mantissa != 0)) {
+        DCHECK(sign == 0 || sign == 1);
+        posSubnorm = (sign == 0);
+        negSubnorm = (sign == 1);
+      }
+
+      // Setting flags if float is normal number
+      posNorm = false;
+      negNorm = false;
+      if (!posSubnorm && !negSubnorm && !posInf && !negInf && !signalingNan &&
+          !quietNan && !negZero && !posZero) {
+        DCHECK(sign == 0 || sign == 1);
+        posNorm = (sign == 0);
+        negNorm = (sign == 1);
+      }
+
+      // Calculating result according to description of CLASS.S instruction
+      result = (posZero << 9) | (posSubnorm << 8) | (posNorm << 7) |
+               (posInf << 6) | (negZero << 5) | (negSubnorm << 4) |
+               (negNorm << 3) | (negInf << 2) | (quietNan << 1) | signalingNan;
+
+      DCHECK(result != 0);
+
+      fResult = bit_cast<float>(result);
+      set_fpu_register_float(fd_reg, fResult);
+
+      break;
+    }
     case SELEQZ_C:
       DCHECK(IsMipsArchVariant(kMips32r6));
       set_fpu_register_float(
@@ -2994,6 +3361,30 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
         set_fpu_register_float(fd_reg, result);
       }
       break;
+    case CVT_L_S: {
+      if (IsFp64Mode()) {
+        int64_t result;
+        float rounded;
+        round64_according_to_fcsr(fs, rounded, result, fs);
+        set_fpu_register(fd_reg, result);
+        if (set_fcsr_round64_error(fs, rounded)) {
+          set_fpu_register(fd_reg, kFPU64InvalidResult);
+        }
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+    case CVT_W_S: {
+      float rounded;
+      int32_t result;
+      round_according_to_fcsr(fs, rounded, result, fs);
+      set_fpu_register_word(fd_reg, result);
+      if (set_fcsr_round_error(fs, rounded)) {
+        set_fpu_register_word(fd_reg, kFPUInvalidResult);
+      }
+      break;
+    }
     default:
       // CVT_W_S CVT_L_S  ROUND_W_S ROUND_L_S FLOOR_W_S FLOOR_L_S
       // CEIL_W_S CEIL_L_S CVT_PS_S are unimplemented.
@@ -3022,10 +3413,16 @@ void Simulator::DecodeTypeRegisterLRsType(Instruction* instr,
       set_fpu_register_double(fd_reg, static_cast<double>(i64));
       break;
     case CVT_S_L:
-      UNIMPLEMENTED_MIPS();
+      if (IsFp64Mode()) {
+        i64 = get_fpu_register(fs_reg);
+      } else {
+        i64 = static_cast<uint32_t>(get_fpu_register_word(fs_reg));
+        i64 |= static_cast<int64_t>(get_fpu_register_word(fs_reg + 1)) << 32;
+      }
+      set_fpu_register_float(fd_reg, static_cast<float>(i64));
       break;
     case CMP_AF:  // Mips64r6 CMP.D instructions.
-      UNIMPLEMENTED_MIPS();
+      set_fpu_register(fd_reg, 0);
       break;
     case CMP_UN:
       if (std::isnan(fs) || std::isnan(ft)) {
@@ -3076,7 +3473,28 @@ void Simulator::DecodeTypeRegisterLRsType(Instruction* instr,
         set_fpu_register(fd_reg, 0);
       }
       break;
-    default:  // CMP_OR CMP_UNE CMP_NE UNIMPLEMENTED.
+    case CMP_OR:
+      if (!std::isnan(fs) && !std::isnan(ft)) {
+        set_fpu_register(fd_reg, -1);
+      } else {
+        set_fpu_register(fd_reg, 0);
+      }
+      break;
+    case CMP_UNE:
+      if ((fs != ft) || (std::isnan(fs) || std::isnan(ft))) {
+        set_fpu_register(fd_reg, -1);
+      } else {
+        set_fpu_register(fd_reg, 0);
+      }
+      break;
+    case CMP_NE:
+      if (fs != ft && (!std::isnan(fs) && !std::isnan(ft))) {
+        set_fpu_register(fd_reg, -1);
+      } else {
+        set_fpu_register(fd_reg, 0);
+      }
+      break;
+    default:
       UNREACHABLE();
   }
 }
@@ -3120,7 +3538,7 @@ void Simulator::DecodeTypeRegisterCOP1(
       DecodeTypeRegisterDRsType(instr, fr_reg, fs_reg, ft_reg, fd_reg);
       break;
     case W:
-      DecodeTypeRegisterWRsType(instr, alu_out, fd_reg, fs_reg);
+      DecodeTypeRegisterWRsType(instr, alu_out, fd_reg, fs_reg, ft_reg);
       break;
     case L:
       DecodeTypeRegisterLRsType(instr, ft_reg, fs_reg, fd_reg);
@@ -3335,6 +3753,7 @@ void Simulator::DecodeTypeRegisterSPECIAL2(Instruction* instr,
 
 void Simulator::DecodeTypeRegisterSPECIAL3(Instruction* instr,
                                            const int32_t& rt_reg,
+                                           const int32_t& rd_reg,
                                            int32_t& alu_out) {
   switch (instr->FunctionFieldRaw()) {
     case INS:
@@ -3344,6 +3763,9 @@ void Simulator::DecodeTypeRegisterSPECIAL3(Instruction* instr,
     case EXT:
       // Ext instr leaves result in Rt, rather than Rd.
       set_register(rt_reg, alu_out);
+      break;
+    case BITSWAP:
+      set_register(rd_reg, alu_out);
       break;
     default:
       UNREACHABLE();
@@ -3412,7 +3834,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
       DecodeTypeRegisterSPECIAL2(instr, rd_reg, alu_out);
       break;
     case SPECIAL3:
-      DecodeTypeRegisterSPECIAL3(instr, rt_reg, alu_out);
+      DecodeTypeRegisterSPECIAL3(instr, rt_reg, rd_reg, alu_out);
       break;
     // Unimplemented opcodes raised an error in the configuration step before,
     // so we can use the default here to set the destination register in common

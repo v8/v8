@@ -290,6 +290,8 @@ Instruction::Type Instruction::InstructionType() const {
         case INS:
         case EXT:
         case DEXT:
+        case BITSWAP:
+        case DBITSWAP:
           return kRegisterType;
         default:
           return kUnsupported;
