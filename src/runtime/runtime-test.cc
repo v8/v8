@@ -88,7 +88,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
-                 function->IsOptimizable());
+                 !function->shared()->optimization_disabled());
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
@@ -132,7 +132,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
-                 function->IsOptimizable());
+                 !function->shared()->optimization_disabled());
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();

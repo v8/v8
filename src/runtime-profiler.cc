@@ -88,8 +88,6 @@ static void GetICCounts(SharedFunctionInfo* shared,
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  DCHECK(function->IsOptimizable());
-
   if (FLAG_trace_opt && function->PassesFilter(FLAG_hydrogen_filter)) {
     PrintF("[marking ");
     function->ShortPrint();
@@ -217,7 +215,7 @@ void RuntimeProfiler::OptimizeNow() {
       }
       continue;
     }
-    if (!function->IsOptimizable()) continue;
+    if (function->IsOptimized()) continue;
 
     int ticks = shared_code->profiler_ticks();
 

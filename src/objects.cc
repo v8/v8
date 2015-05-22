@@ -9823,7 +9823,8 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 void JSFunction::MarkForOptimization() {
   Isolate* isolate = GetIsolate();
   DCHECK(!IsOptimized());
-  DCHECK(shared()->allows_lazy_compilation() || IsOptimizable());
+  DCHECK(shared()->allows_lazy_compilation() ||
+         !shared()->optimization_disabled());
   set_code_no_write_barrier(
       isolate->builtins()->builtin(Builtins::kCompileOptimized));
   // No write barrier required, since the builtin is part of the root set.
@@ -9847,7 +9848,8 @@ void JSFunction::AttemptConcurrentOptimization() {
   }
   DCHECK(!IsInOptimizationQueue());
   DCHECK(!IsOptimized());
-  DCHECK(shared()->allows_lazy_compilation() || IsOptimizable());
+  DCHECK(shared()->allows_lazy_compilation() ||
+         !shared()->optimization_disabled());
   DCHECK(isolate->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
@@ -9855,7 +9857,7 @@ void JSFunction::AttemptConcurrentOptimization() {
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
-      GetIsolate()->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
+      isolate->builtins()->builtin(Builtins::kCompileOptimizedConcurrent));
   // No write barrier required, since the builtin is part of the root set.
 }
 
