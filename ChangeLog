@@ -1,7 +1,83 @@
-2015-05-17: Sentinel
+2015-05-22: Version 4.5.13
 
-        The ChangeLog file is no longer maintained on bleeding_edge. This
-        sentinel should stay on top of this list.
+        Remove v8::Private.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-22: Version 4.5.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-22: Version 4.5.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-21: Version 4.5.10
+
+        Re-land %TypedArray%.prototype.{map,filter,some} (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-21: Version 4.5.9
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-20: Version 4.5.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-20: Version 4.5.7
+
+        Implement %TypedArray%.{lastI,i}ndexOf (issue 3578).
+
+        Implement %TypedArray%.prototype.sort (issue 3578).
+
+        Implement %TypedArray%.reverse (issue 3578).
+
+        Implement %TypedArray%.prototype.{map,filter,some,reduce,reduceRight}
+        (issue 3578).
+
+        Fix has_pending_exception logic in API's Array::CloneElementAt (issue
+        4103).
+
+        Adding api to get last gc object statistics for chrome://tracing
+        (Chromium issue 476013).
+
+        Fix harmless HGraph verification failure after hoisting inlined bounds
+        checks (Chromium issue 487608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-20: Version 4.5.6
+
+        Add TypedArray.from method (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-19: Version 4.5.5
+
+        ARM64: Propagate notification about aborted compilation from
+        RegExpEngine to MacroAssembler (Chromium issue 489290).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-18: Version 4.5.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-18: Version 4.5.3
+
+        Performance and stability improvements on all platforms.
 
 
 2015-05-17: Version 4.5.2
