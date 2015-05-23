@@ -77,7 +77,8 @@ class UploadCL(Step):
   def RunStep(self):
     cwd = self._options.chromium
     # Patch DEPS file.
-    if self.Command("roll-dep", "v8 %s" % self._options.roll, cwd=cwd) is None:
+    if self.Command("roll-dep-svn", "v8 %s" %
+                    self._options.roll, cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self._options.roll)
 
     message = []
