@@ -1222,6 +1222,8 @@ void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
   // hash = hash ^ (hash >> 16);
   srwi(scratch, t0, Operand(16));
   xor_(t0, t0, scratch);
+  // hash & 0x3fffffff
+  ExtractBitRange(t0, t0, 29, 0);
 }
 
 
