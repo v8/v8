@@ -51,7 +51,7 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
         jsgraph(main_isolate(), &graph, &common, NULL, NULL),
         start(graph.NewNode(common.Start(1))),
         p0(graph.NewNode(common.Parameter(0), start)),
-        end(graph.NewNode(common.End(), start)),
+        end(graph.NewNode(common.End(1), start)),
         osr_normal_entry(graph.NewNode(common.OsrNormalEntry(), start, start)),
         osr_loop_entry(graph.NewNode(common.OsrLoopEntry(), start, start)),
         self(graph.NewNode(common.Int32Constant(0xaabbccdd))) {
@@ -377,7 +377,7 @@ TEST(Deconstruct_osr_nested1) {
 
   Node* ret =
       T.graph.NewNode(T.common.Return(), outer_phi, T.start, outer.exit);
-  Node* end = T.graph.NewNode(T.common.End(), ret);
+  Node* end = T.graph.NewNode(T.common.End(1), ret);
   T.graph.SetEnd(end);
 
   T.DeconstructOsr();
@@ -444,7 +444,7 @@ TEST(Deconstruct_osr_nested2) {
 
   Node* ret =
       T.graph.NewNode(T.common.Return(), outer_phi, T.start, outer.exit);
-  Node* end = T.graph.NewNode(T.common.End(), ret);
+  Node* end = T.graph.NewNode(T.common.End(1), ret);
   T.graph.SetEnd(end);
 
   T.DeconstructOsr();
@@ -549,7 +549,7 @@ TEST(Deconstruct_osr_nested3) {
 
   Node* ret =
       T.graph.NewNode(T.common.Return(), loop0_cntr, T.start, loop0.exit);
-  Node* end = T.graph.NewNode(T.common.End(), ret);
+  Node* end = T.graph.NewNode(T.common.End(1), ret);
   T.graph.SetEnd(end);
 
   T.DeconstructOsr();

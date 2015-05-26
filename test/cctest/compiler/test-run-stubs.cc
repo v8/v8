@@ -50,7 +50,7 @@ TEST(RunMathFloorStub) {
                              js.UndefinedConstant(), js.UndefinedConstant(),
                              numberParam, dummyContext, start, start);
   Node* ret = graph.NewNode(common.Return(), call, call, start);
-  Node* end = graph.NewNode(common.End(), ret);
+  Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);
   FunctionTester ft(&graph);
@@ -89,7 +89,7 @@ TEST(RunStringLengthTFStub) {
       graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
                     slotParam, vectorParam, dummyContext, start, start);
   Node* ret = graph.NewNode(common.Return(), call, call, start);
-  Node* end = graph.NewNode(common.End(), ret);
+  Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);
   FunctionTester ft(&graph);
@@ -132,7 +132,7 @@ TEST(RunStringAddTFStub) {
   Node* call = graph.NewNode(common.Call(descriptor), theCode, leftParam,
                              rightParam, dummyContext, start, start);
   Node* ret = graph.NewNode(common.Return(), call, call, start);
-  Node* end = graph.NewNode(common.End(), ret);
+  Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);
   FunctionTester ft(&graph);

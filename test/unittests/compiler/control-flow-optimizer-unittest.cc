@@ -62,7 +62,7 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch1) {
   Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
   Node* merge =
       graph()->NewNode(common()->Merge(3), if_true0, if_true1, if_false1);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> switch_capture;
   EXPECT_THAT(end(),
@@ -93,7 +93,7 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch2) {
   Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
   Node* merge =
       graph()->NewNode(common()->Merge(3), if_true0, if_true1, if_false1);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> switch_capture;
   EXPECT_THAT(
@@ -119,7 +119,7 @@ TEST_F(ControlFlowOptimizerTest, CloneBranch) {
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> branch1_capture, branch2_capture;
   EXPECT_THAT(

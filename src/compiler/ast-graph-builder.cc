@@ -440,7 +440,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       try_nesting_level_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
-      exit_control_(nullptr),
+      exit_controls_(local_zone),
       loop_assignment_analysis_(loop),
       state_values_cache_(jsgraph),
       liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
@@ -535,7 +535,11 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   }
 
   // Finish the basic structure of the graph.
-  graph()->SetEnd(graph()->NewNode(common()->End(), exit_control()));
+  DCHECK_NE(0u, exit_controls_.size());
+  int const input_count = static_cast<int>(exit_controls_.size());
+  Node** const inputs = &exit_controls_.front();
+  Node* end = graph()->NewNode(common()->End(input_count), input_count, inputs);
+  graph()->SetEnd(end);
 
   // Compute local variable liveness information and use it to relax
   // frame states.
@@ -3571,11 +3575,8 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
 
 void AstGraphBuilder::UpdateControlDependencyToLeaveFunction(Node* exit) {
   if (environment()->IsMarkedAsUnreachable()) return;
-  if (exit_control() != NULL) {
-    exit = MergeControl(exit_control(), exit);
-  }
   environment()->MarkAsUnreachable();
-  set_exit_control(exit);
+  exit_controls_.push_back(exit);
 }
 
 

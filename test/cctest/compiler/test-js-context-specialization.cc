@@ -222,7 +222,7 @@ TEST(SpecializeToContext) {
 
     Node* ret =
         t.graph()->NewNode(t.common()->Return(), add, effect_use, start);
-    Node* end = t.graph()->NewNode(t.common()->End(), ret);
+    Node* end = t.graph()->NewNode(t.common()->End(1), ret);
     USE(end);
     t.graph()->SetEnd(end);
 

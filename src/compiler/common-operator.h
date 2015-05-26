@@ -89,7 +89,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   explicit CommonOperatorBuilder(Zone* zone);
 
   const Operator* Dead();
-  const Operator* End();
+  const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();

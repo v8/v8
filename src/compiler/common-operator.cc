@@ -102,7 +102,6 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 #define CACHED_OP_LIST(V)                                  \
   V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
-  V(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0)             \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
@@ -114,6 +113,17 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(Terminate, Operator::kNoThrow, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
+
+
+#define CACHED_END_LIST(V) \
+  V(1)                     \
+  V(2)                     \
+  V(3)                     \
+  V(4)                     \
+  V(5)                     \
+  V(6)                     \
+  V(7)                     \
+  V(8)
 
 
 #define CACHED_EFFECT_PHI_LIST(V) \
@@ -199,6 +209,19 @@ struct CommonOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <size_t kInputCount>
+  struct EndOperator final : public Operator {
+    EndOperator()
+        : Operator(                                // --
+              IrOpcode::kEnd, Operator::kKontrol,  // opcode
+              "End",                               // name
+              0, 0, kInputCount, 0, 0, 0) {}       // counts
+  };
+#define CACHED_END(input_count) \
+  EndOperator<input_count> kEnd##input_count##Operator;
+  CACHED_END_LIST(CACHED_END)
+#undef CACHED_END
 
   template <BranchHint kBranchHint>
   struct BranchOperator final : public Operator1<BranchHint> {
@@ -327,6 +350,25 @@ CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)
   }
 CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+
+const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
+  DCHECK_NE(0u, control_input_count);  // Disallow empty ends.
+  switch (control_input_count) {
+#define CACHED_END(input_count) \
+  case input_count:             \
+    return &cache_.kEnd##input_count##Operator;
+    CACHED_END_LIST(CACHED_END)
+#undef CACHED_END
+    default:
+      break;
+  }
+  // Uncached.
+  return new (zone()) Operator(             //--
+      IrOpcode::kEnd, Operator::kKontrol,   // opcode
+      "End",                                // name
+      0, 0, control_input_count, 0, 0, 0);  // counts
+}
 
 
 const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {

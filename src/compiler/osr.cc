@@ -228,20 +228,15 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
   }
 
   // Merge the ends of the graph copies.
-  Node* end = graph->end();
-  tmp_inputs.clear();
-  for (int i = -1; i < static_cast<int>(copies.size()); i++) {
-    Node* input = end->InputAt(0);
-    if (i >= 0) input = copies[i]->at(input->id());
-    if (input->opcode() == IrOpcode::kMerge) {
-      for (Node* node : input->inputs()) tmp_inputs.push_back(node);
-    } else {
-      tmp_inputs.push_back(input);
+  Node* const end = graph->end();
+  int const input_count = end->InputCount();
+  for (int i = 0; i < input_count; ++i) {
+    NodeId const id = end->InputAt(i)->id();
+    for (NodeVector* const copy : copies) {
+      end->AppendInput(graph->zone(), copy->at(id));
+      end->set_op(common->End(end->InputCount()));
     }
   }
-  int count = static_cast<int>(tmp_inputs.size());
-  Node* merge = graph->NewNode(common->Merge(count), count, &tmp_inputs[0]);
-  end->ReplaceInput(0, merge);
 
   if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
     OFStream os(stdout);

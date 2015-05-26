@@ -96,8 +96,8 @@ class AstGraphBuilder : public AstVisitor {
   int input_buffer_size_;
   Node** input_buffer_;
 
-  // Merge of all control nodes that exit the function body.
-  Node* exit_control_;
+  // Control nodes that exit the function body.
+  ZoneVector<Node*> exit_controls_;
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
@@ -130,14 +130,12 @@ class AstGraphBuilder : public AstVisitor {
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   Scope* current_scope() const;
   Node* current_context() const;
-  Node* exit_control() const { return exit_control_; }
   LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
 
   void set_environment(Environment* env) { environment_ = env; }
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
   void set_execution_control(ControlScope* ctrl) { execution_control_ = ctrl; }
   void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
-  void set_exit_control(Node* exit) { exit_control_ = exit; }
 
   // Create the main graph body by visiting the AST.
   void CreateGraphBody(bool stack_check);

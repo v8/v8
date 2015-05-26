@@ -165,50 +165,36 @@ Reduction JSInliner::InlineCall(Node* call, Node* start, Node* end) {
     }
   }
 
-  // TODO(turbofan): This can be unified once End takes a variable number of
-  // inputs.
-  Node* value_output;
-  Node* effect_output;
-  Node* control_output;
-
-  Node* final_merge = NodeProperties::GetControlInput(end);
-  if (final_merge->opcode() == IrOpcode::kReturn) {
-    value_output = NodeProperties::GetValueInput(final_merge, 0);
-    effect_output = NodeProperties::GetEffectInput(final_merge, 0);
-    control_output = NodeProperties::GetControlInput(final_merge, 0);
-  } else {
-    NodeVector values(local_zone_);
-    NodeVector effects(local_zone_);
-    NodeVector controls(local_zone_);
-    DCHECK_EQ(IrOpcode::kMerge, final_merge->opcode());
-    for (Node* const input : final_merge->inputs()) {
-      switch (input->opcode()) {
-        case IrOpcode::kReturn:
-          values.push_back(NodeProperties::GetValueInput(input, 0));
-          effects.push_back(NodeProperties::GetEffectInput(input));
-          controls.push_back(NodeProperties::GetControlInput(input));
-          break;
-        default:
-          // TODO(turbofan): Handle Throw, Terminate and Deoptimize here.
-          UNREACHABLE();
-          break;
-      }
+  NodeVector values(local_zone_);
+  NodeVector effects(local_zone_);
+  NodeVector controls(local_zone_);
+  for (Node* const input : end->inputs()) {
+    switch (input->opcode()) {
+      case IrOpcode::kReturn:
+        values.push_back(NodeProperties::GetValueInput(input, 0));
+        effects.push_back(NodeProperties::GetEffectInput(input));
+        controls.push_back(NodeProperties::GetControlInput(input));
+        break;
+      default:
+        // TODO(turbofan): Handle Throw, Terminate and Deoptimize here.
+        UNREACHABLE();
+        break;
     }
-    DCHECK_NE(0u, values.size());
-    DCHECK_EQ(values.size(), effects.size());
-    DCHECK_EQ(values.size(), controls.size());
-    int const input_count = static_cast<int>(controls.size());
-    control_output = jsgraph_->graph()->NewNode(
-        jsgraph_->common()->Merge(input_count), input_count, &controls.front());
-    values.push_back(control_output);
-    effects.push_back(control_output);
-    value_output = jsgraph_->graph()->NewNode(
-        jsgraph_->common()->Phi(kMachAnyTagged, input_count),
-        static_cast<int>(values.size()), &values.front());
-    effect_output = jsgraph_->graph()->NewNode(
-        jsgraph_->common()->EffectPhi(input_count),
-        static_cast<int>(effects.size()), &effects.front());
   }
+  DCHECK_NE(0u, values.size());
+  DCHECK_EQ(values.size(), effects.size());
+  DCHECK_EQ(values.size(), controls.size());
+  int const input_count = static_cast<int>(controls.size());
+  Node* control_output = jsgraph_->graph()->NewNode(
+      jsgraph_->common()->Merge(input_count), input_count, &controls.front());
+  values.push_back(control_output);
+  effects.push_back(control_output);
+  Node* value_output = jsgraph_->graph()->NewNode(
+      jsgraph_->common()->Phi(kMachAnyTagged, input_count),
+      static_cast<int>(values.size()), &values.front());
+  Node* effect_output = jsgraph_->graph()->NewNode(
+      jsgraph_->common()->EffectPhi(input_count),
+      static_cast<int>(effects.size()), &effects.front());
 
   ReplaceWithValue(call, value_output, effect_output, control_output);
 

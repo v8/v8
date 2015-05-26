@@ -49,7 +49,6 @@ const SharedOperator kSharedOperators[] = {
         value_output_count, effect_output_count, control_output_count        \
   }
     SHARED(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1),
-    SHARED(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0),
     SHARED(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
@@ -162,6 +161,9 @@ const double kDoubleValues[] = {-std::numeric_limits<double>::infinity(),
                                 std::numeric_limits<double>::signaling_NaN()};
 
 
+const size_t kInputCounts[] = {3, 4, 100, 255, 1024, 65000};
+
+
 const int32_t kInt32Values[] = {
     std::numeric_limits<int32_t>::min(), -1914954528, -1698749618, -1578693386,
     -1577976073, -1573998034, -1529085059, -1499540537, -1299205097,
@@ -180,6 +182,22 @@ const BranchHint kHints[] = {BranchHint::kNone, BranchHint::kTrue,
                              BranchHint::kFalse};
 
 }  // namespace
+
+
+TEST_F(CommonOperatorTest, End) {
+  TRACED_FOREACH(size_t, input_count, kInputCounts) {
+    const Operator* const op = common()->End(input_count);
+    EXPECT_EQ(IrOpcode::kEnd, op->opcode());
+    EXPECT_EQ(Operator::kKontrol, op->properties());
+    EXPECT_EQ(0, op->ValueInputCount());
+    EXPECT_EQ(0, op->EffectInputCount());
+    EXPECT_EQ(input_count, op->ControlInputCount());
+    EXPECT_EQ(input_count, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ValueOutputCount());
+    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(0, op->ControlOutputCount());
+  }
+}
 
 
 TEST_F(CommonOperatorTest, Branch) {

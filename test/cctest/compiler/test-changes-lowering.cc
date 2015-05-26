@@ -88,7 +88,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     Node* change = this->graph()->NewNode(op, p0);
     Node* ret = this->graph()->NewNode(this->common()->Return(), change,
                                        this->start(), this->start());
-    Node* end = this->graph()->NewNode(this->common()->End(), ret);
+    Node* end = this->graph()->NewNode(this->common()->End(1), ret);
     this->graph()->SetEnd(end);
     LowerChange(change);
   }
@@ -104,7 +104,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
         change, this->start(), this->start());
     Node* ret = this->graph()->NewNode(
         this->common()->Return(), this->Int32Constant(0), store, this->start());
-    Node* end = this->graph()->NewNode(this->common()->End(), ret);
+    Node* end = this->graph()->NewNode(this->common()->End(1), ret);
     this->graph()->SetEnd(end);
     LowerChange(change);
   }
@@ -119,7 +119,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     Node* change = this->graph()->NewNode(op, load);
     Node* ret = this->graph()->NewNode(this->common()->Return(), change,
                                        this->start(), this->start());
-    Node* end = this->graph()->NewNode(this->common()->End(), ret);
+    Node* end = this->graph()->NewNode(this->common()->End(1), ret);
     this->graph()->SetEnd(end);
     LowerChange(change);
   }

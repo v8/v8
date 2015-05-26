@@ -114,7 +114,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstSmi) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
@@ -131,7 +131,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstSmiWithDeoptimization) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
@@ -157,7 +157,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstNumber) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
@@ -175,7 +175,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstNumberWithDeoptimization) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
@@ -201,7 +201,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstString) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
@@ -219,7 +219,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstStringWithDeoptimization) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
@@ -245,7 +245,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellSmi) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
@@ -262,7 +262,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellSmiWithDeoptimization) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
@@ -296,7 +296,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellString) {
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
@@ -314,7 +314,7 @@ TEST_F(JSTypeFeedbackTest,
   Node* ret = ReturnLoadNamedFromGlobal(
       kName, graph()->start(), graph()->start(),
       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduction r = Reduce(ret->InputAt(0),
                        JSTypeFeedbackSpecializer::kDeoptimizationEnabled);

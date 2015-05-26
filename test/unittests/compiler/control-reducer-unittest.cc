@@ -57,11 +57,10 @@ TEST_F(ControlReducerTest, NonTerminatingLoop) {
   Node* loop = graph()->NewNode(common()->Loop(2), graph()->start());
   loop->AppendInput(graph()->zone(), loop);
   ReduceGraph();
-  EXPECT_THAT(
-      graph()->end(),
-      IsEnd(IsMerge(graph()->start(),
+  EXPECT_THAT(graph()->end(),
+              IsEnd(graph()->start(),
                     IsTerminate(graph()->start(),
-                                AllOf(loop, IsLoop(graph()->start(), loop))))));
+                                AllOf(loop, IsLoop(graph()->start(), loop)))));
 }
 
 
@@ -74,10 +73,9 @@ TEST_F(ControlReducerTest, NonTerminatingLoopWithEffectPhi) {
   ReduceGraph();
   EXPECT_THAT(
       graph()->end(),
-      IsEnd(IsMerge(
-          graph()->start(),
-          IsTerminate(AllOf(ephi, IsEffectPhi(graph()->start(), ephi, loop)),
-                      AllOf(loop, IsLoop(graph()->start(), loop))))));
+      IsEnd(graph()->start(),
+            IsTerminate(AllOf(ephi, IsEffectPhi(graph()->start(), ephi, loop)),
+                        AllOf(loop, IsLoop(graph()->start(), loop)))));
 }
 
 
@@ -93,13 +91,12 @@ TEST_F(ControlReducerTest, NonTerminatingLoopWithTwoEffectPhis) {
   ReduceGraph();
   EXPECT_THAT(
       graph()->end(),
-      IsEnd(IsMerge(
-          graph()->start(),
-          IsTerminate(
-              IsEffectSet(
-                  AllOf(ephi1, IsEffectPhi(graph()->start(), ephi1, loop)),
-                  AllOf(ephi2, IsEffectPhi(graph()->start(), ephi2, loop))),
-              AllOf(loop, IsLoop(graph()->start(), loop))))));
+      IsEnd(graph()->start(),
+            IsTerminate(
+                IsEffectSet(
+                    AllOf(ephi1, IsEffectPhi(graph()->start(), ephi1, loop)),
+                    AllOf(ephi2, IsEffectPhi(graph()->start(), ephi2, loop))),
+                AllOf(loop, IsLoop(graph()->start(), loop)))));
 }
 
 
@@ -319,7 +316,6 @@ TEST_F(ControlReducerTest, SelectTwoPhis) {
                graph()->start(), graph()->start()));
   EXPECT_THAT(graph()->end(), IsEnd(ret));
 }
-
 
 }  // namespace compiler
 }  // namespace internal

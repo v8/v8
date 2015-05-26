@@ -184,25 +184,13 @@ class ControlReducerImpl final : public AdvancedReducer {
     Node* end = graph()->end();
     if (end->opcode() == IrOpcode::kDead) {
       // End is actually the dead node. Make a new end.
-      end = graph()->NewNode(common()->End(), terminate);
+      end = graph()->NewNode(common()->End(1), terminate);
       graph()->SetEnd(end);
       return end;
     }
-    // End is not dead.
-    Node* merge = end->InputAt(0);
-    if (merge == NULL || merge->opcode() == IrOpcode::kDead) {
-      // The end node died; just connect end to {terminate}.
-      end->ReplaceInput(0, terminate);
-    } else if (merge->opcode() != IrOpcode::kMerge) {
-      // Introduce a final merge node for {end->InputAt(0)} and {terminate}.
-      merge = graph()->NewNode(common()->Merge(2), merge, terminate);
-      end->ReplaceInput(0, merge);
-      terminate = merge;
-    } else {
-      // Append a new input to the final merge at the end.
-      merge->AppendInput(graph()->zone(), terminate);
-      merge->set_op(common()->Merge(merge->InputCount()));
-    }
+    // Append a new input to the end.
+    end->AppendInput(graph()->zone(), terminate);
+    end->set_op(common()->End(end->InputCount()));
     return terminate;
   }
 
@@ -313,6 +301,9 @@ class ControlReducerImpl final : public AdvancedReducer {
       case IrOpcode::kEffectPhi:
         result = ReducePhi(node);
         break;
+      case IrOpcode::kEnd:
+        result = ReduceEnd(node);
+        break;
       default:
         break;
     }
@@ -402,6 +393,31 @@ class ControlReducerImpl final : public AdvancedReducer {
       for (Node* use : branch->uses()) Revisit(use);
     }
     return branch;
+  }
+
+  // Reduce end by trimming away dead inputs.
+  Node* ReduceEnd(Node* node) {
+    // Count the number of live inputs.
+    int live = 0;
+    for (int index = 0; index < node->InputCount(); ++index) {
+      // Skip dead inputs.
+      if (node->InputAt(index)->opcode() == IrOpcode::kDead) continue;
+      // Compact live inputs.
+      if (index != live) node->ReplaceInput(live, node->InputAt(index));
+      ++live;
+    }
+
+    TRACE("ReduceEnd: #%d:%s (%d of %d live)\n", node->id(),
+          node->op()->mnemonic(), live, node->InputCount());
+
+    if (live == 0) return dead();  // No remaining inputs.
+
+    if (live < node->InputCount()) {
+      node->set_op(common()->End(live));
+      node->TrimInputCount(live);
+    }
+
+    return node;
   }
 
   // Reduce merges by trimming away dead inputs from the merge and phis.

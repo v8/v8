@@ -27,7 +27,7 @@ class ControlEquivalenceTest : public GraphTest {
 
  protected:
   void ComputeEquivalence(Node* node) {
-    graph()->SetEnd(graph()->NewNode(common()->End(), node));
+    graph()->SetEnd(graph()->NewNode(common()->End(1), node));
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
       os << AsDOT(*graph());
@@ -79,7 +79,7 @@ class ControlEquivalenceTest : public GraphTest {
   }
 
   Node* End(Node* control) {
-    return Store(graph()->NewNode(common()->End(), control));
+    return Store(graph()->NewNode(common()->End(1), control));
   }
 
  private:

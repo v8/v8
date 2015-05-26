@@ -69,7 +69,7 @@ class ControlReducerTester : HandleAndZoneScope {
         graph(main_zone()),
         jsgraph(main_isolate(), &graph, &common, NULL, NULL),
         start(graph.NewNode(common.Start(1))),
-        end(graph.NewNode(common.End(), start)),
+        end(graph.NewNode(common.End(1), start)),
         p0(graph.NewNode(common.Parameter(0), start)),
         zero(jsgraph.Int32Constant(0)),
         one(jsgraph.OneConstant()),
@@ -161,7 +161,7 @@ class ControlReducerTester : HandleAndZoneScope {
   void ReducePhiIterative(Node* expect, Node* phi) {
     p0->ReplaceInput(0, start);  // hack: parameters may be trimmed.
     Node* ret = graph.NewNode(common.Return(), phi, start, start);
-    Node* end = graph.NewNode(common.End(), ret);
+    Node* end = graph.NewNode(common.End(1), ret);
     graph.SetEnd(end);
     ControlReducer::ReduceGraph(main_zone(), &jsgraph);
     CheckInputs(end, ret);
@@ -175,7 +175,7 @@ class ControlReducerTester : HandleAndZoneScope {
 
   void ReduceMergeIterative(Node* expect, Node* merge) {
     p0->ReplaceInput(0, start);  // hack: parameters may be trimmed.
-    Node* end = graph.NewNode(common.End(), merge);
+    Node* end = graph.NewNode(common.End(1), merge);
     graph.SetEnd(end);
     ReduceGraph();
     CheckInputs(end, expect);
@@ -412,7 +412,7 @@ TEST(Trim_cycle1) {
   ControlReducerTester T;
   Node* loop = T.graph.NewNode(T.common.Loop(1), T.start, T.start);
   loop->ReplaceInput(1, loop);
-  Node* end = T.graph.NewNode(T.common.End(), loop);
+  Node* end = T.graph.NewNode(T.common.End(1), loop);
   T.graph.SetEnd(end);
 
   CHECK(IsUsedBy(T.start, loop));
@@ -434,7 +434,7 @@ TEST(Trim_cycle2) {
   ControlReducerTester T;
   Node* loop = T.graph.NewNode(T.common.Loop(2), T.start, T.start);
   loop->ReplaceInput(1, loop);
-  Node* end = T.graph.NewNode(T.common.End(), loop);
+  Node* end = T.graph.NewNode(T.common.End(1), loop);
   Node* phi =
       T.graph.NewNode(T.common.Phi(kMachAnyTagged, 2), T.one, T.half, loop);
   T.graph.SetEnd(end);
@@ -1072,7 +1072,7 @@ TEST(CMergeReduce_dead_chain1) {
     for (int j = 0; j < i; j++) {
       merge = R.graph.NewNode(R.common.Merge(1), merge);
     }
-    Node* end = R.graph.NewNode(R.common.End(), merge);
+    Node* end = R.graph.NewNode(R.common.End(1), merge);
     R.graph.SetEnd(end);
     R.ReduceGraph();
     CHECK(merge->IsDead());

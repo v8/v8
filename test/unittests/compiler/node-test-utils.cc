@@ -1320,8 +1320,15 @@ class IsUnopMatcher final : public NodeMatcher {
 }  // namespace
 
 
-Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control_matcher));
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher) {
+  return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control0_matcher));
+}
+
+
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher) {
+  return MakeMatcher(new IsControl2Matcher(IrOpcode::kEnd, control0_matcher,
+                                           control1_matcher));
 }
 
 

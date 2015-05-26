@@ -41,7 +41,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         typer(main_isolate(), &graph, MaybeHandle<Context>()),
         context_node(NULL) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
-    graph.SetEnd(graph.NewNode(common.End()));
+    graph.SetEnd(graph.NewNode(common.End(1)));
     typer.Run();
   }
 

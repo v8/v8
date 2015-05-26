@@ -13,7 +13,7 @@ namespace compiler {
 
 GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
-  graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
 }
 
 

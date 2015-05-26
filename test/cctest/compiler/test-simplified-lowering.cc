@@ -710,7 +710,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     graph()->SetStart(start);
     ret =
         graph()->NewNode(common()->Return(), jsgraph.Constant(0), start, start);
-    end = graph()->NewNode(common()->End(), ret);
+    end = graph()->NewNode(common()->End(1), ret);
     graph()->SetEnd(end);
     p0 = graph()->NewNode(common()->Parameter(0), start);
     p1 = graph()->NewNode(common()->Parameter(1), start);
