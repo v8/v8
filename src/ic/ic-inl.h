@@ -95,6 +95,8 @@ Code* IC::GetTargetAtAddress(Address address,
 
 void IC::SetTargetAtAddress(Address address, Code* target,
                             ConstantPoolArray* constant_pool) {
+  if (AddressIsDeoptimizedCode(target->GetIsolate(), address)) return;
+
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
 
   // Don't use this for load_ics when --vector-ics is turned on.
@@ -212,11 +214,24 @@ Handle<Map> IC::GetICCacheHolder(Handle<Map> map, Isolate* isolate,
 }
 
 
-inline Code* IC::get_host() {
+Code* IC::get_host() {
   return isolate()
       ->inner_pointer_to_code_cache()
       ->GetCacheEntry(address())
       ->code;
+}
+
+
+bool IC::AddressIsDeoptimizedCode() const {
+  return AddressIsDeoptimizedCode(isolate(), address());
+}
+
+
+bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
+  Code* host =
+      isolate->inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
+  return (host->kind() == Code::OPTIMIZED_FUNCTION &&
+          host->marked_for_deoptimization());
 }
 }
 }  // namespace v8::internal

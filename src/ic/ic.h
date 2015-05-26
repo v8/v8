@@ -134,7 +134,9 @@ class IC {
   Code* GetOriginalCode() const;
 
   bool AddressIsOptimizedCode() const;
-  bool AddressIsDeoptimizedCode() const;
+  inline bool AddressIsDeoptimizedCode() const;
+  inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
+                                              Address address);
 
   // Set the call-site target.
   inline void set_target(Code* code);

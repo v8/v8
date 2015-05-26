@@ -89,6 +89,7 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 
 void IC::TraceIC(const char* type, Handle<Object> name) {
   if (FLAG_trace_ic) {
+    if (AddressIsDeoptimizedCode()) return;
     State new_state =
         UseVector() ? nexus()->StateFromFeedback() : raw_target()->ic_state();
     TraceIC(type, name, state(), new_state);
@@ -227,14 +228,6 @@ bool IC::AddressIsOptimizedCode() const {
   Code* host =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
   return host->kind() == Code::OPTIMIZED_FUNCTION;
-}
-
-
-bool IC::AddressIsDeoptimizedCode() const {
-  Code* host =
-      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
-  return host->kind() == Code::OPTIMIZED_FUNCTION &&
-         host->marked_for_deoptimization();
 }
 
 
