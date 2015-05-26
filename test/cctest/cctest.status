@@ -194,6 +194,12 @@
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
+
+  # Slow tests.
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading3': [PASS, SLOW],
+  'test-api/Threading4': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
