@@ -53,64 +53,6 @@ class ControlReducerTest : public TypedGraphTest {
 };
 
 
-TEST_F(ControlReducerTest, NonTerminatingLoop) {
-  Node* loop = graph()->NewNode(common()->Loop(2), graph()->start());
-  loop->AppendInput(graph()->zone(), loop);
-  ReduceGraph();
-  EXPECT_THAT(graph()->end(),
-              IsEnd(graph()->start(),
-                    IsTerminate(graph()->start(),
-                                AllOf(loop, IsLoop(graph()->start(), loop)))));
-}
-
-
-TEST_F(ControlReducerTest, NonTerminatingLoopWithEffectPhi) {
-  Node* loop = graph()->NewNode(common()->Loop(2), graph()->start());
-  loop->AppendInput(graph()->zone(), loop);
-  Node* ephi = graph()->NewNode(common()->EffectPhi(2), graph()->start());
-  ephi->AppendInput(graph()->zone(), ephi);
-  ephi->AppendInput(graph()->zone(), loop);
-  ReduceGraph();
-  EXPECT_THAT(
-      graph()->end(),
-      IsEnd(graph()->start(),
-            IsTerminate(AllOf(ephi, IsEffectPhi(graph()->start(), ephi, loop)),
-                        AllOf(loop, IsLoop(graph()->start(), loop)))));
-}
-
-
-TEST_F(ControlReducerTest, NonTerminatingLoopWithTwoEffectPhis) {
-  Node* loop = graph()->NewNode(common()->Loop(2), graph()->start());
-  loop->AppendInput(graph()->zone(), loop);
-  Node* ephi1 = graph()->NewNode(common()->EffectPhi(2), graph()->start());
-  ephi1->AppendInput(graph()->zone(), ephi1);
-  ephi1->AppendInput(graph()->zone(), loop);
-  Node* ephi2 = graph()->NewNode(common()->EffectPhi(2), graph()->start());
-  ephi2->AppendInput(graph()->zone(), ephi2);
-  ephi2->AppendInput(graph()->zone(), loop);
-  ReduceGraph();
-  EXPECT_THAT(
-      graph()->end(),
-      IsEnd(graph()->start(),
-            IsTerminate(
-                IsEffectSet(
-                    AllOf(ephi1, IsEffectPhi(graph()->start(), ephi1, loop)),
-                    AllOf(ephi2, IsEffectPhi(graph()->start(), ephi2, loop))),
-                AllOf(loop, IsLoop(graph()->start(), loop)))));
-}
-
-
-TEST_F(ControlReducerTest, NonTerminatingLoopWithDeadEnd) {
-  Node* loop = graph()->NewNode(common()->Loop(2), graph()->start());
-  loop->AppendInput(graph()->zone(), loop);
-  graph()->end()->ReplaceInput(0, graph()->NewNode(common()->Dead()));
-  ReduceGraph();
-  EXPECT_THAT(graph()->end(),
-              IsEnd(IsTerminate(graph()->start(),
-                                AllOf(loop, IsLoop(graph()->start(), loop)))));
-}
-
-
 TEST_F(ControlReducerTest, PhiAsInputToBranch_true) {
   Node* p0 = Parameter(0);
   Node* branch1 = graph()->NewNode(common()->Branch(), p0, graph()->start());

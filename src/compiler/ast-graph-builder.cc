@@ -3660,6 +3660,14 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
   Node* effect = builder_->NewEffectPhi(1, GetEffectDependency(), control);
   UpdateEffectDependency(effect);
 
+  // Connect the loop to end via Terminate if it's not marked as unreachable.
+  if (!IsMarkedAsUnreachable()) {
+    // Connect the Loop node to end via a Terminate node.
+    Node* terminate = builder_->graph()->NewNode(
+        builder_->common()->Terminate(), effect, control);
+    builder_->exit_controls_.push_back(terminate);
+  }
+
   if (builder_->info()->is_osr()) {
     // Introduce phis for all context values in the case of an OSR graph.
     for (int i = 0; i < static_cast<int>(contexts()->size()); ++i) {

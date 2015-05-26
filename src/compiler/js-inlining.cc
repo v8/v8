@@ -175,8 +175,14 @@ Reduction JSInliner::InlineCall(Node* call, Node* start, Node* end) {
         effects.push_back(NodeProperties::GetEffectInput(input));
         controls.push_back(NodeProperties::GetControlInput(input));
         break;
+      case IrOpcode::kDeoptimize:
+      case IrOpcode::kTerminate:
+      case IrOpcode::kThrow:
+        jsgraph_->graph()->end()->AppendInput(jsgraph_->zone(), input);
+        jsgraph_->graph()->end()->set_op(
+            jsgraph_->common()->End(jsgraph_->graph()->end()->InputCount()));
+        break;
       default:
-        // TODO(turbofan): Handle Throw, Terminate and Deoptimize here.
         UNREACHABLE();
         break;
     }

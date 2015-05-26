@@ -110,7 +110,7 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
-  V(Terminate, Operator::kNoThrow, 0, 1, 1, 0, 0, 1)       \
+  V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
 

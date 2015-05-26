@@ -1261,23 +1261,6 @@ TEST(CUnusedDiamond2) {
 TEST(CDeadLoop1) {
   ControlReducerTester R;
 
-  Node* loop = R.graph.NewNode(R.common.Loop(1), R.start);
-  Branch b(R, R.p0, loop);
-  loop->ReplaceInput(0, b.if_true);  // loop is not connected to start.
-  Node* merge = R.graph.NewNode(R.common.Merge(2), R.start, b.if_false);
-  R.ReduceMergeIterative(R.start, merge);
-
-  DeadChecker dead(&R.graph);
-  dead.Check(b.if_true);
-  dead.Check(b.if_false);
-  dead.Check(b.branch);
-  dead.Check(loop);
-}
-
-
-TEST(CDeadLoop2) {
-  ControlReducerTester R;
-
   While w(R, R.p0);
   Diamond d(R, R.zero);
   // if (0) { while (p0) ; } else { }

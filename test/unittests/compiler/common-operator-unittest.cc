@@ -55,7 +55,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(IfException, Operator::kKontrol, 0, 0, 1, 1, 0, 1),
     SHARED(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1),
     SHARED(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1),
-    SHARED(Terminate, Operator::kNoThrow, 0, 1, 1, 0, 0, 1)
+    SHARED(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)
 #undef SHARED
 };
 
