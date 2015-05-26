@@ -130,6 +130,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     else:
       outcome = 'pass'
     print 'Done running %s: %s' % (test.GetLabel(), outcome)
+    sys.stdout.flush()
 
   def Heartbeat(self):
     print 'Still working...'

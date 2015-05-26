@@ -540,8 +540,14 @@ def Execute(arch, mode, args, options, suites, workspace):
     # Predictable mode is slower.
     timeout *= 2
 
+  # TODO(machenbach): Remove temporary verbose output on windows after
+  # debugging driver-hung-up on XP.
+  verbose_output = (
+      options.verbose or
+      utils.IsWindows() and options.progress == "verbose"
+  )
   ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
-                        mode_flags, options.verbose,
+                        mode_flags, verbose_output,
                         timeout, options.isolates,
                         options.command_prefix,
                         options.extra_flags,
