@@ -615,7 +615,8 @@ size_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
 }
 
 
-size_t GCTracer::AllocatedBytesInLast(double time_ms) const {
+size_t GCTracer::AllocationThroughputInBytesPerMillisecond(
+    double time_ms) const {
   size_t bytes = new_space_allocation_in_bytes_since_gc_ +
                  old_generation_allocation_in_bytes_since_gc_;
   double durations = allocation_duration_since_gc_;
@@ -630,17 +631,13 @@ size_t GCTracer::AllocatedBytesInLast(double time_ms) const {
 
   if (durations == 0.0) return 0;
 
-  bytes = static_cast<size_t>(bytes * (time_ms / durations) + 0.5);
-  // Return at least 1 since 0 means "no data".
-  return std::max<size_t>(bytes, 1);
+  return static_cast<size_t>(bytes / durations + 0.5);
 }
 
 
 size_t GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
   static const double kThroughputTimeFrame = 5000;
-  size_t allocated_bytes = AllocatedBytesInLast(kThroughputTimeFrame);
-  if (allocated_bytes == 0) return 0;
-  return static_cast<size_t>((allocated_bytes / kThroughputTimeFrame) + 1);
+  return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrame);
 }
 
 

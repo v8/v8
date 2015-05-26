@@ -386,9 +386,10 @@ class GCTracer {
   // Returns 0 if no allocation events have been recorded.
   size_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
-  // Bytes allocated in heap in the specified time.
+  // Allocation throughput in heap in bytes/millisecond in the last time_ms
+  // milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t AllocatedBytesInLast(double time_ms) const;
+  size_t AllocationThroughputInBytesPerMillisecond(double time_ms) const;
 
   // Allocation throughput in heap in bytes/milliseconds in
   // the last five seconds.
