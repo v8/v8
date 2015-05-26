@@ -5363,6 +5363,8 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ Mov(x10, pending_message_obj);
   __ Ldr(x10, MemOperand(x10));
   __ Push(x10);
+
+  ClearPendingMessage();
 }
 
 
@@ -5384,6 +5386,16 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ SmiUntag(x10);
   __ Add(x11, x10, Operand(masm_->CodeObject()));
   __ Br(x11);
+}
+
+
+void FullCodeGenerator::ClearPendingMessage() {
+  DCHECK(!result_register().is(x10));
+  ExternalReference pending_message_obj =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
+  __ Mov(x13, pending_message_obj);
+  __ Str(x10, MemOperand(x13));
 }
 
 

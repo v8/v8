@@ -5558,3 +5558,44 @@ TEST(NewSpaceAllocationThroughput2) {
   bytes = tracer->NewSpaceAllocatedBytesInLast(100);
   CHECK_EQ((counter3 - counter1) * 100 / (time3 - time1), bytes);
 }
+
+
+static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = CcTest::i_isolate();
+  Object* message =
+      *reinterpret_cast<Object**>(isolate->pending_message_obj_address());
+  CHECK(message->IsTheHole());
+}
+
+
+TEST(MessageObjectLeak) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  global->Set(v8::String::NewFromUtf8(isolate, "check"),
+              v8::FunctionTemplate::New(isolate, CheckLeak));
+  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Context::Scope cscope(context);
+
+  const char* test =
+      "try {"
+      "  throw 'message 1';"
+      "} catch (e) {"
+      "}"
+      "check();"
+      "L: try {"
+      "  throw 'message 2';"
+      "} finally {"
+      "  break L;"
+      "}"
+      "check();";
+  CompileRun(test);
+
+  const char* flag = "--turbo-filter=*";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+  FLAG_always_opt = true;
+  FLAG_turbo_exceptions = true;
+
+  CompileRun(test);
+}

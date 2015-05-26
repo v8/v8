@@ -5353,6 +5353,8 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ li(at, Operand(pending_message_obj));
   __ lw(a1, MemOperand(at));
   __ push(a1);
+
+  ClearPendingMessage();
 }
 
 
@@ -5374,6 +5376,16 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ sra(a1, a1, 1);  // Un-smi-tag value.
   __ Addu(at, a1, Operand(masm_->CodeObject()));
   __ Jump(at);
+}
+
+
+void FullCodeGenerator::ClearPendingMessage() {
+  DCHECK(!result_register().is(a1));
+  ExternalReference pending_message_obj =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  __ LoadRoot(a1, Heap::kTheHoleValueRootIndex);
+  __ li(at, Operand(pending_message_obj));
+  __ sw(a1, MemOperand(at));
 }
 
 

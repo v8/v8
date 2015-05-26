@@ -709,6 +709,7 @@ class FullCodeGenerator: public AstVisitor {
   void ExitTryBlock(int handler_index);
   void EnterFinallyBlock();
   void ExitFinallyBlock();
+  void ClearPendingMessage();
 
   // Loop nesting counter.
   int loop_depth() { return loop_depth_; }
