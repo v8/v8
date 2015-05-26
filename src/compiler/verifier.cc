@@ -270,11 +270,17 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kDeoptimize:
-      // TODO(rossberg): check successor is End
+      // Deoptimize uses are End.
+      for (auto use : node->uses()) {
+        CHECK_EQ(IrOpcode::kEnd, use->opcode());
+      }
       // Type is empty.
       CheckNotTyped(node);
     case IrOpcode::kReturn:
-      // TODO(rossberg): check successor is End
+      // Return uses are End.
+      for (auto use : node->uses()) {
+        CHECK_EQ(IrOpcode::kEnd, use->opcode());
+      }
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -284,19 +290,25 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kTerminate:
-      CHECK_EQ(IrOpcode::kLoop,
-               NodeProperties::GetControlInput(node)->opcode());
-      // Type is empty.
-      CheckNotTyped(node);
+      // Terminates take one loop and effect.
       CHECK_EQ(1, control_count);
       CHECK_EQ(1, effect_count);
       CHECK_EQ(2, input_count);
+      CHECK_EQ(IrOpcode::kLoop,
+               NodeProperties::GetControlInput(node)->opcode());
+      // Terminate uses are End.
+      for (auto use : node->uses()) {
+        CHECK_EQ(IrOpcode::kEnd, use->opcode());
+      }
+      // Type is empty.
+      CheckNotTyped(node);
       break;
     case IrOpcode::kOsrNormalEntry:
     case IrOpcode::kOsrLoopEntry:
-      // Osr entries have
-      CHECK_EQ(1, effect_count);
+      // Osr entries take one control and effect.
       CHECK_EQ(1, control_count);
+      CHECK_EQ(1, effect_count);
+      CHECK_EQ(2, input_count);
       // Type is empty.
       CheckNotTyped(node);
       break;
