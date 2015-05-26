@@ -2952,6 +2952,12 @@ class V8_EXPORT Map : public Object {
   size_t Size() const;
 
   /**
+   * Returns an array of [key, value] arrays representing the contents
+   * of this Map.
+   */
+  Local<Array> AsArray() const;
+
+  /**
    * Creates a new Map.
    */
   static Local<Map> New(Isolate* isolate);
@@ -2970,6 +2976,11 @@ class V8_EXPORT Map : public Object {
 class V8_EXPORT Set : public Object {
  public:
   size_t Size() const;
+
+  /**
+   * Returns an array of the keys in this Set.
+   */
+  Local<Array> AsArray() const;
 
   /**
    * Creates a new Set.

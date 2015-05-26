@@ -6131,6 +6131,31 @@ size_t v8::Map::Size() const {
 }
 
 
+Local<Array> Map::AsArray() const {
+  i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Factory* factory = isolate->factory();
+  LOG_API(isolate, "Map::AsArray");
+  ENTER_V8(isolate);
+  i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(obj->table()));
+  int length = table->NumberOfElements();
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  for (int i = 0; i < length; ++i) {
+    if (table->KeyAt(i)->IsTheHole()) continue;
+    i::HandleScope handle_scope(isolate);
+    i::Handle<i::FixedArray> entry = factory->NewFixedArray(2);
+    entry->set(0, table->KeyAt(i));
+    entry->set(1, table->ValueAt(i));
+    i::Handle<i::JSArray> entry_array =
+        factory->NewJSArrayWithElements(entry, i::FAST_ELEMENTS, 2);
+    result->set(i, *entry_array);
+  }
+  i::Handle<i::JSArray> result_array =
+      factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
+  return Utils::ToLocal(result_array);
+}
+
+
 Local<v8::Set> v8::Set::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "Set::New");
@@ -6143,6 +6168,27 @@ Local<v8::Set> v8::Set::New(Isolate* isolate) {
 size_t v8::Set::Size() const {
   i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
   return i::OrderedHashSet::cast(obj->table())->NumberOfElements();
+}
+
+
+Local<Array> Set::AsArray() const {
+  i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Factory* factory = isolate->factory();
+  LOG_API(isolate, "Set::AsArray");
+  ENTER_V8(isolate);
+  i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(obj->table()));
+  int length = table->NumberOfElements();
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  for (int i = 0; i < length; ++i) {
+    i::Object* key = table->KeyAt(i);
+    if (!key->IsTheHole()) {
+      result->set(i, key);
+    }
+  }
+  i::Handle<i::JSArray> result_array =
+      factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
+  return Utils::ToLocal(result_array);
 }
 
 

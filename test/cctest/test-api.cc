@@ -21116,6 +21116,17 @@ TEST(Map) {
   CHECK(val->IsMap());
   map = v8::Local<v8::Map>::Cast(val);
   CHECK_EQ(2, map->Size());
+
+  v8::Local<v8::Array> entries = map->AsArray();
+  CHECK_EQ(2, entries->Length());
+  v8::Local<v8::Array> entry = entries->Get(0).As<v8::Array>();
+  CHECK_EQ(2, entry->Length());
+  CHECK_EQ(1, entry->Get(0).As<v8::Int32>()->Value());
+  CHECK_EQ(2, entry->Get(1).As<v8::Int32>()->Value());
+  entry = entries->Get(1).As<v8::Array>();
+  CHECK_EQ(2, entry->Length());
+  CHECK_EQ(3, entry->Get(0).As<v8::Int32>()->Value());
+  CHECK_EQ(4, entry->Get(1).As<v8::Int32>()->Value());
 }
 
 
@@ -21133,4 +21144,9 @@ TEST(Set) {
   CHECK(val->IsSet());
   set = v8::Local<v8::Set>::Cast(val);
   CHECK_EQ(2, set->Size());
+
+  v8::Local<v8::Array> keys = set->AsArray();
+  CHECK_EQ(2, keys->Length());
+  CHECK_EQ(1, keys->Get(0).As<v8::Int32>()->Value());
+  CHECK_EQ(2, keys->Get(1).As<v8::Int32>()->Value());
 }
