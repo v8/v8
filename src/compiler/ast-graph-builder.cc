@@ -1898,14 +1898,23 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
 
+    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
+      environment()->Push(literal);  // Duplicate receiver.
+      VisitForValue(property->value());
+      Node* value = environment()->Pop();
+      Node* receiver = environment()->Pop();
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
+      Node* call = NewNode(op, receiver, value);
+      PrepareFrameState(call, BailoutId::None());
+      continue;
+    }
+
     environment()->Push(literal);  // Duplicate receiver.
     VisitForValue(property->key());
     Node* name = BuildToName(environment()->Pop(),
                              expr->GetIdForProperty(property_index));
     environment()->Push(name);
-    // TODO(mstarzinger): For ObjectLiteral::Property::PROTOTYPE the key should
-    // not be on the operand stack while the value is being evaluated. Come up
-    // with a repro for this and fix it. Also find a nice way to do so. :)
     VisitForValue(property->value());
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
@@ -1923,13 +1932,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         PrepareFrameState(call, BailoutId::None());
         break;
       }
-      case ObjectLiteral::Property::PROTOTYPE: {
-        const Operator* op =
-            javascript()->CallRuntime(Runtime::kInternalSetPrototype, 2);
-        Node* call = NewNode(op, receiver, value);
-        PrepareFrameState(call, BailoutId::None());
+      case ObjectLiteral::Property::PROTOTYPE:
+        UNREACHABLE();  // Handled specially above.
         break;
-      }
       case ObjectLiteral::Property::GETTER: {
         Node* attr = jsgraph()->Constant(NONE);
         const Operator* op = javascript()->CallRuntime(
