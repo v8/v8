@@ -5495,7 +5495,7 @@ TEST(OldSpaceAllocationCounter) {
   CHECK_LE(kSize, counter2 - counter1);
   heap->CollectGarbage(NEW_SPACE);
   size_t counter3 = heap->OldGenerationAllocationCounter();
-  CHECK_LE(0, counter3 - counter2);
+  CHECK_EQ(0u, counter3 - counter2);
   AllocateInSpace(isolate, kSize, OLD_SPACE);
   heap->CollectGarbage(OLD_SPACE);
   size_t counter4 = heap->OldGenerationAllocationCounter();
