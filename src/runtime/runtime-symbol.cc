@@ -37,9 +37,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateOwnSymbol) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  Handle<Symbol> symbol = isolate->factory()->NewPrivateOwnSymbol();
-  if (name->IsString()) symbol->set_name(*name);
-  return *symbol;
+  return *isolate->factory()->NewPrivateOwnSymbol(name);
 }
 
 
@@ -50,18 +48,15 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateOwnSymbol) {
   Handle<JSObject> registry = isolate->GetSymbolRegistry();
   Handle<String> part = isolate->factory()->private_intern_string();
   Handle<Object> privates;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, privates, Object::GetPropertyOrElement(registry, part));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, privates,
+                                     Object::GetProperty(registry, part));
   Handle<Object> symbol;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, symbol, Object::GetPropertyOrElement(privates, name));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, symbol,
+                                     Object::GetProperty(privates, name));
   if (!symbol->IsSymbol()) {
     DCHECK(symbol->IsUndefined());
-    symbol = isolate->factory()->NewPrivateSymbol();
-    Handle<Symbol>::cast(symbol)->set_name(*name);
-    Handle<Symbol>::cast(symbol)->set_is_own(true);
-    JSObject::SetProperty(Handle<JSObject>::cast(privates), name, symbol,
-                          STRICT).Assert();
+    symbol = isolate->factory()->NewPrivateOwnSymbol(name);
+    JSObject::AddProperty(Handle<JSObject>::cast(privates), name, symbol, NONE);
   }
   return *symbol;
 }

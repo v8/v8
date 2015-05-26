@@ -2259,12 +2259,24 @@ THREADED_TEST(IdentityHash) {
 }
 
 
-THREADED_TEST(GlobalProxyIdentityHash) {
+void GlobalProxyIdentityHash(bool set_in_js) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   Handle<Object> global_proxy = env->Global();
-  int hash1 = global_proxy->GetIdentityHash();
+  i::Handle<i::Object> i_global_proxy = v8::Utils::OpenHandle(*global_proxy);
+  env->Global()->Set(v8_str("global"), global_proxy);
+  i::Handle<i::Object> original_hash;
+  if (set_in_js) {
+    CompileRun("var m = new Set(); m.add(global);");
+    original_hash = i::Handle<i::Object>(i_global_proxy->GetHash(), i_isolate);
+  } else {
+    original_hash = i::Handle<i::Object>(
+        i::Object::GetOrCreateHash(i_isolate, i_global_proxy));
+  }
+  CHECK(original_hash->IsSmi());
+  int32_t hash1 = i::Handle<i::Smi>::cast(original_hash)->value();
   // Hash should be retained after being detached.
   env->DetachGlobal();
   int hash2 = global_proxy->GetIdentityHash();
@@ -2275,6 +2287,12 @@ THREADED_TEST(GlobalProxyIdentityHash) {
     int hash3 = global_proxy->GetIdentityHash();
     CHECK_EQ(hash1, hash3);
   }
+}
+
+
+THREADED_TEST(GlobalProxyIdentityHash) {
+  GlobalProxyIdentityHash(true);
+  GlobalProxyIdentityHash(false);
 }
 
 

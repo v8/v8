@@ -705,10 +705,15 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
 }
 
 
-Handle<Symbol> Factory::NewPrivateOwnSymbol() {
+Handle<Symbol> Factory::NewPrivateOwnSymbol(Handle<Object> name) {
   Handle<Symbol> symbol = NewSymbol();
   symbol->set_is_private(true);
   symbol->set_is_own(true);
+  if (name->IsString()) {
+    symbol->set_name(*name);
+  } else {
+    DCHECK(name->IsUndefined());
+  }
   return symbol;
 }
 

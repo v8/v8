@@ -810,6 +810,15 @@ Map* Object::GetRootMap(Isolate* isolate) {
 
 
 Object* Object::GetHash() {
+  Object* hash = GetSimpleHash();
+  if (hash->IsSmi()) return hash;
+
+  DCHECK(IsJSReceiver());
+  return JSReceiver::cast(this)->GetIdentityHash();
+}
+
+
+Object* Object::GetSimpleHash() {
   // The object is either a Smi, a HeapNumber, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsSmi()) {
@@ -834,14 +843,14 @@ Object* Object::GetHash() {
     uint32_t hash = Oddball::cast(this)->to_string()->Hash();
     return Smi::FromInt(hash);
   }
-
   DCHECK(IsJSReceiver());
-  return JSReceiver::cast(this)->GetIdentityHash();
+  JSReceiver* receiver = JSReceiver::cast(this);
+  return receiver->GetHeap()->undefined_value();
 }
 
 
 Handle<Smi> Object::GetOrCreateHash(Isolate* isolate, Handle<Object> object) {
-  Handle<Object> hash(object->GetHash(), isolate);
+  Handle<Object> hash(object->GetSimpleHash(), isolate);
   if (hash->IsSmi()) return Handle<Smi>::cast(hash);
 
   DCHECK(object->IsJSReceiver());
@@ -5035,7 +5044,8 @@ static Smi* GenerateIdentityHash(Isolate* isolate) {
 void JSObject::SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash) {
   DCHECK(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
-  SetHiddenProperty(object, isolate->factory()->identity_hash_string(), hash);
+  Handle<Name> hash_code_symbol(isolate->heap()->hash_code_symbol());
+  JSObject::AddProperty(object, hash_code_symbol, hash, NONE);
 }
 
 
@@ -5058,11 +5068,12 @@ Object* JSObject::GetIdentityHash() {
   if (IsJSGlobalProxy()) {
     return JSGlobalProxy::cast(this)->hash();
   }
-  Object* stored_value =
-      GetHiddenProperty(isolate->factory()->identity_hash_string());
-  return stored_value->IsSmi()
-      ? stored_value
-      : isolate->heap()->undefined_value();
+  Handle<Name> hash_code_symbol(isolate->heap()->hash_code_symbol());
+  Handle<Object> stored_value =
+      Object::GetPropertyOrElement(Handle<Object>(this, isolate),
+                                   hash_code_symbol).ToHandleChecked();
+  return stored_value->IsSmi() ? *stored_value
+                               : isolate->heap()->undefined_value();
 }
 
 
@@ -5077,7 +5088,8 @@ Handle<Smi> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
   if (maybe_hash->IsSmi()) return Handle<Smi>::cast(maybe_hash);
 
   Handle<Smi> hash(GenerateIdentityHash(isolate), isolate);
-  SetHiddenProperty(object, isolate->factory()->identity_hash_string(), hash);
+  Handle<Name> hash_code_symbol(isolate->heap()->hash_code_symbol());
+  JSObject::AddProperty(object, hash_code_symbol, hash, NONE);
   return hash;
 }
 
@@ -5096,8 +5108,6 @@ Object* JSObject::GetHiddenProperty(Handle<Name> key) {
   DisallowHeapAllocation no_gc;
   DCHECK(key->IsUniqueName());
   if (IsJSGlobalProxy()) {
-    // JSGlobalProxies store their hash internally.
-    DCHECK(*key != GetHeap()->identity_hash_string());
     // For a proxy, use the prototype as target object.
     PrototypeIterator iter(GetIsolate(), this);
     // If the proxy is detached, return undefined.
@@ -5107,15 +5117,6 @@ Object* JSObject::GetHiddenProperty(Handle<Name> key) {
   }
   DCHECK(!IsJSGlobalProxy());
   Object* inline_value = GetHiddenPropertiesHashTable();
-
-  if (inline_value->IsSmi()) {
-    // Handle inline-stored identity hash.
-    if (*key == GetHeap()->identity_hash_string()) {
-      return inline_value;
-    } else {
-      return GetHeap()->the_hole_value();
-    }
-  }
 
   if (inline_value->IsUndefined()) return GetHeap()->the_hole_value();
 
@@ -5132,8 +5133,6 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> object,
 
   DCHECK(key->IsUniqueName());
   if (object->IsJSGlobalProxy()) {
-    // JSGlobalProxies store their hash internally.
-    DCHECK(*key != *isolate->factory()->identity_hash_string());
     // For a proxy, use the prototype as target object.
     PrototypeIterator iter(isolate, object);
     // If the proxy is detached, return undefined.
@@ -5146,13 +5145,6 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> object,
   DCHECK(!object->IsJSGlobalProxy());
 
   Handle<Object> inline_value(object->GetHiddenPropertiesHashTable(), isolate);
-
-  // If there is no backing store yet, store the identity hash inline.
-  if (value->IsSmi() &&
-      *key == *isolate->factory()->identity_hash_string() &&
-      (inline_value->IsUndefined() || inline_value->IsSmi())) {
-    return JSObject::SetHiddenPropertiesHashTable(object, value);
-  }
 
   Handle<ObjectHashTable> hashtable =
       GetOrCreateHiddenPropertiesHashtable(object);
@@ -5185,9 +5177,7 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
   Object* inline_value = object->GetHiddenPropertiesHashTable();
 
-  // We never delete (inline-stored) identity hashes.
-  DCHECK(*key != *isolate->factory()->identity_hash_string());
-  if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
+  if (inline_value->IsUndefined()) return;
 
   Handle<ObjectHashTable> hashtable(ObjectHashTable::cast(inline_value));
   bool was_present = false;
@@ -5251,14 +5241,7 @@ Handle<ObjectHashTable> JSObject::GetOrCreateHiddenPropertiesHashtable(
   Handle<ObjectHashTable> hashtable = ObjectHashTable::New(
       isolate, kInitialCapacity, USE_CUSTOM_MINIMUM_CAPACITY);
 
-  if (inline_value->IsSmi()) {
-    // We were storing the identity hash inline and now allocated an actual
-    // dictionary.  Put the identity hash into the new dictionary.
-    hashtable = ObjectHashTable::Put(hashtable,
-                                     isolate->factory()->identity_hash_string(),
-                                     inline_value);
-  }
-
+  DCHECK(inline_value->IsUndefined());
   SetHiddenPropertiesHashTable(object, hashtable);
   return hashtable;
 }
@@ -16324,18 +16307,34 @@ Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
 }
 
 
+Object* ObjectHashTable::Lookup(Isolate* isolate, Handle<Object> key,
+                                int32_t hash) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(IsKey(*key));
+
+  int entry = FindEntry(isolate, key, hash);
+  if (entry == kNotFound) return isolate->heap()->the_hole_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
 Object* ObjectHashTable::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
   DCHECK(IsKey(*key));
 
+  Isolate* isolate = GetIsolate();
+
   // If the object does not have an identity hash, it was never used as a key.
   Object* hash = key->GetHash();
   if (hash->IsUndefined()) {
-    return GetHeap()->the_hole_value();
+    return isolate->heap()->the_hole_value();
   }
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return GetHeap()->the_hole_value();
-  return get(EntryToIndex(entry) + 1);
+  return Lookup(isolate, key, Smi::cast(hash)->value());
+}
+
+
+Object* ObjectHashTable::Lookup(Handle<Object> key, int32_t hash) {
+  return Lookup(GetIsolate(), key, hash);
 }
 
 
@@ -16346,11 +16345,23 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   DCHECK(!value->IsTheHole());
 
   Isolate* isolate = table->GetIsolate();
-
   // Make sure the key object has an identity hash code.
-  Handle<Smi> hash = Object::GetOrCreateHash(isolate, key);
+  int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
 
-  int entry = table->FindEntry(key);
+  return Put(table, key, value, hash);
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
+                                             Handle<Object> key,
+                                             Handle<Object> value,
+                                             int32_t hash) {
+  DCHECK(table->IsKey(*key));
+  DCHECK(!value->IsTheHole());
+
+  Isolate* isolate = table->GetIsolate();
+
+  int entry = table->FindEntry(isolate, key, hash);
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
@@ -16360,9 +16371,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
 
   // Check whether the hash table should be extended.
   table = EnsureCapacity(table, 1, key);
-  table->AddEntry(table->FindInsertionEntry(hash->value()),
-                  *key,
-                  *value);
+  table->AddEntry(table->FindInsertionEntry(hash), *key, *value);
   return table;
 }
 
@@ -16378,7 +16387,17 @@ Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
     return table;
   }
 
-  int entry = table->FindEntry(key);
+  return Remove(table, key, was_present, Smi::cast(hash)->value());
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
+                                                Handle<Object> key,
+                                                bool* was_present,
+                                                int32_t hash) {
+  DCHECK(table->IsKey(*key));
+
+  int entry = table->FindEntry(table->GetIsolate(), key, hash);
   if (entry == kNotFound) {
     *was_present = false;
     return table;

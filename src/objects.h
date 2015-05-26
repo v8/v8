@@ -1223,6 +1223,11 @@ class Object {
   // undefined if not yet created.
   Object* GetHash();
 
+  // Returns undefined for JSObjects, but returns the hash code for simple
+  // objects.  This avoids a double lookup in the cases where we know we will
+  // add the hash to the JSObject if it does not already exist.
+  Object* GetSimpleHash();
+
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
@@ -3434,6 +3439,7 @@ class HashTable : public HashTableBase {
 
   // Find entry for key otherwise return kNotFound.
   inline int FindEntry(Key key);
+  inline int FindEntry(Isolate* isolate, Key key, int32_t hash);
   int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
@@ -3940,16 +3946,24 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Handle<Object> key);
+  Object* Lookup(Handle<Object> key, int32_t hash);
+  Object* Lookup(Isolate* isolate, Handle<Object> key, int32_t hash);
 
   // Adds (or overwrites) the value associated with the given key.
   static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
                                      Handle<Object> key,
                                      Handle<Object> value);
+  static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
+                                     Handle<Object> key, Handle<Object> value,
+                                     int32_t hash);
 
   // Returns an ObjectHashTable (possibly |table|) where |key| has been removed.
   static Handle<ObjectHashTable> Remove(Handle<ObjectHashTable> table,
                                         Handle<Object> key,
                                         bool* was_present);
+  static Handle<ObjectHashTable> Remove(Handle<ObjectHashTable> table,
+                                        Handle<Object> key, bool* was_present,
+                                        int32_t hash);
 
  protected:
   friend class MarkCompactCollector;

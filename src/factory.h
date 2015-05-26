@@ -233,7 +233,7 @@ class Factory final {
   // Create a symbol.
   Handle<Symbol> NewSymbol();
   Handle<Symbol> NewPrivateSymbol();
-  Handle<Symbol> NewPrivateOwnSymbol();
+  Handle<Symbol> NewPrivateOwnSymbol(Handle<Object> name);
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();

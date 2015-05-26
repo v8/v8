@@ -3300,11 +3300,18 @@ int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
 }
 
 
-// Find entry for key otherwise return kNotFound.
 template<typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key) {
+  return FindEntry(isolate, key, HashTable::Hash(key));
+}
+
+
+// Find entry for key otherwise return kNotFound.
+template <typename Derived, typename Shape, typename Key>
+int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
+                                              int32_t hash) {
   uint32_t capacity = Capacity();
-  uint32_t entry = FirstProbe(HashTable::Hash(key), capacity);
+  uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
   while (true) {

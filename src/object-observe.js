@@ -208,28 +208,30 @@ function ObjectInfoGetOrCreate(object) {
       performingCount: 0,
     };
     %WeakCollectionSet(GetObservationStateJS().objectInfoMap,
-                       object, objectInfo);
+                       object, objectInfo, $getHash(object));
   }
   return objectInfo;
 }
 
 
 function ObjectInfoGet(object) {
-  return %WeakCollectionGet(GetObservationStateJS().objectInfoMap, object);
+  return %WeakCollectionGet(GetObservationStateJS().objectInfoMap, object,
+                            $getHash(object));
 }
 
 
 function ObjectInfoGetFromNotifier(notifier) {
   return %WeakCollectionGet(GetObservationStateJS().notifierObjectInfoMap,
-                            notifier);
+                            notifier, $getHash(notifier));
 }
 
 
 function ObjectInfoGetNotifier(objectInfo) {
   if (IS_NULL(objectInfo.notifier)) {
-    objectInfo.notifier = { __proto__: notifierPrototype };
+    var notifier = { __proto__: notifierPrototype };
+    objectInfo.notifier = notifier;
     %WeakCollectionSet(GetObservationStateJS().notifierObjectInfoMap,
-                       objectInfo.notifier, objectInfo);
+                       notifier, objectInfo, $getHash(notifier));
   }
 
   return objectInfo.notifier;
@@ -340,13 +342,14 @@ function ConvertAcceptListToTypeMap(arg) {
 // priority. When a change record must be enqueued for the callback, it
 // normalizes. When delivery clears any pending change records, it re-optimizes.
 function CallbackInfoGet(callback) {
-  return %WeakCollectionGet(GetObservationStateJS().callbackInfoMap, callback);
+  return %WeakCollectionGet(GetObservationStateJS().callbackInfoMap, callback,
+                            $getHash(callback));
 }
 
 
 function CallbackInfoSet(callback, callbackInfo) {
   %WeakCollectionSet(GetObservationStateJS().callbackInfoMap,
-                     callback, callbackInfo);
+                     callback, callbackInfo, $getHash(callback));
 }
 
 

@@ -3060,9 +3060,12 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name)                               \
-  Handle<Symbol> name = factory->NewPrivateOwnSymbol(); \
-  roots_[k##name##RootIndex] = *name;
+#define SYMBOL_INIT(name)                                                      \
+  {                                                                            \
+    Handle<String> name##d = factory->NewStringFromStaticChars(#name);         \
+    Handle<Object> symbol(isolate()->factory()->NewPrivateOwnSymbol(name##d)); \
+    roots_[k##name##RootIndex] = *symbol;                                      \
+  }
     PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
   }
@@ -3168,6 +3171,19 @@ void Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+}
+
+
+void Heap::AddPrivateGlobalSymbols(Handle<Object> private_intern_table) {
+#define ADD_SYMBOL_TO_PRIVATE_INTERN_TABLE(name_arg)                     \
+  {                                                                      \
+    Handle<Symbol> symbol(Symbol::cast(roots_[k##name_arg##RootIndex])); \
+    Handle<String> name_arg##d(String::cast(symbol->name()));            \
+    JSObject::AddProperty(Handle<JSObject>::cast(private_intern_table),  \
+                          name_arg##d, symbol, NONE);                    \
+  }
+  PRIVATE_SYMBOL_LIST(ADD_SYMBOL_TO_PRIVATE_INTERN_TABLE)
+#undef ADD_SYMBOL_TO_PRIVATE_INTERN_TABLE
 }
 
 

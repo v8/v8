@@ -3291,41 +3291,6 @@ TEST(PrintSharedFunctionInfo) {
 #endif  // OBJECT_PRINT
 
 
-TEST(Regress2211) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  v8::Handle<v8::String> value = v8_str("val string");
-  Smi* hash = Smi::FromInt(321);
-  Factory* factory = CcTest::i_isolate()->factory();
-
-  for (int i = 0; i < 2; i++) {
-    // Store identity hash first and common hidden property second.
-    v8::Handle<v8::Object> obj = v8::Object::New(CcTest::isolate());
-    Handle<JSObject> internal_obj = v8::Utils::OpenHandle(*obj);
-    CHECK(internal_obj->HasFastProperties());
-
-    // In the first iteration, set hidden value first and identity hash second.
-    // In the second iteration, reverse the order.
-    if (i == 0) obj->SetHiddenValue(v8_str("key string"), value);
-    JSObject::SetIdentityHash(internal_obj, handle(hash, CcTest::i_isolate()));
-    if (i == 1) obj->SetHiddenValue(v8_str("key string"), value);
-
-    // Check values.
-    CHECK_EQ(hash,
-             internal_obj->GetHiddenProperty(factory->identity_hash_string()));
-    CHECK(value->Equals(obj->GetHiddenValue(v8_str("key string"))));
-
-    // Check size.
-    FieldIndex index = FieldIndex::ForDescriptor(internal_obj->map(), 0);
-    ObjectHashTable* hashtable = ObjectHashTable::cast(
-        internal_obj->RawFastPropertyAt(index));
-    // HashTable header (5) and 4 initial entries (8).
-    CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
-  }
-}
-
-
 TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();

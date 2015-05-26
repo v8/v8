@@ -4010,6 +4010,7 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   movl(scratch, r0);
   shrl(scratch, Immediate(16));
   xorl(r0, scratch);
+  andl(r0, Immediate(0x3fffffff));
 }
 
 

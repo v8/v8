@@ -2522,21 +2522,29 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #endif
 
 
+Handle<JSObject> Isolate::SetUpSubregistry(Handle<JSObject> registry,
+                                           Handle<Map> map, const char* cname) {
+  Handle<String> name = factory()->InternalizeUtf8String(cname);
+  Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
+  JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
+                                "SetupSymbolRegistry");
+  JSObject::AddProperty(registry, name, obj, NONE);
+  return obj;
+}
+
+
 Handle<JSObject> Isolate::GetSymbolRegistry() {
   if (heap()->symbol_registry()->IsSmi()) {
     Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> registry = factory()->NewJSObjectFromMap(map);
     heap()->set_symbol_registry(*registry);
 
-    static const char* nested[] = {"for", "for_api", "keyFor", "private_api",
-                                   "private_intern"};
-    for (unsigned i = 0; i < arraysize(nested); ++i) {
-      Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
-      Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
-      JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8,
-                                    "SetupSymbolRegistry");
-      JSObject::SetProperty(registry, name, obj, STRICT).Assert();
-    }
+    SetUpSubregistry(registry, map, "for");
+    SetUpSubregistry(registry, map, "for_api");
+    SetUpSubregistry(registry, map, "keyFor");
+    SetUpSubregistry(registry, map, "private_api");
+    heap()->AddPrivateGlobalSymbols(
+        SetUpSubregistry(registry, map, "private_intern"));
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());
 }

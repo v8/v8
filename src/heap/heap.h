@@ -271,7 +271,6 @@ namespace internal {
   V(illegal_access_string, "illegal access")                   \
   V(cell_value_string, "%cell_value")                          \
   V(illegal_argument_string, "illegal argument")               \
-  V(identity_hash_string, "v8::IdentityHash")                  \
   V(closure_string, "(closure)")                               \
   V(dot_string, ".")                                           \
   V(compare_ic_string, "==")                                   \
@@ -294,6 +293,7 @@ namespace internal {
 #define PRIVATE_SYMBOL_LIST(V)      \
   V(nonextensible_symbol)           \
   V(sealed_symbol)                  \
+  V(hash_code_symbol)               \
   V(frozen_symbol)                  \
   V(nonexistent_symbol)             \
   V(elements_transition_symbol)     \
@@ -1753,6 +1753,8 @@ class Heap {
   // The special hidden string which is an empty string, but does not match
   // any string when looked up in properties.
   String* hidden_string_;
+
+  void AddPrivateGlobalSymbols(Handle<Object> private_intern_table);
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.

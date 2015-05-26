@@ -2540,7 +2540,8 @@ void NativeWeakMap::Set(Handle<Value> v8_key, Handle<Value> v8_value) {
     DCHECK(false);
     return;
   }
-  i::Runtime::WeakCollectionSet(weak_collection, key, value);
+  int32_t hash = i::Object::GetOrCreateHash(isolate, key)->value();
+  i::Runtime::WeakCollectionSet(weak_collection, key, value, hash);
 }
 
 

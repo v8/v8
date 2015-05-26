@@ -43,7 +43,9 @@ function WeakMapGet(key) {
                         'WeakMap.prototype.get', this);
   }
   if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
-  return %WeakCollectionGet(this, key);
+  var hash = $getExistingHash(key);
+  if (IS_UNDEFINED(hash)) return UNDEFINED;
+  return %WeakCollectionGet(this, key, hash);
 }
 
 
@@ -53,7 +55,7 @@ function WeakMapSet(key, value) {
                         'WeakMap.prototype.set', this);
   }
   if (!IS_SPEC_OBJECT(key)) throw MakeTypeError(kInvalidWeakMapKey);
-  return %WeakCollectionSet(this, key, value);
+  return %WeakCollectionSet(this, key, value, $getHash(key));
 }
 
 
@@ -63,7 +65,9 @@ function WeakMapHas(key) {
                         'WeakMap.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
-  return %WeakCollectionHas(this, key);
+  var hash = $getExistingHash(key);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionHas(this, key, hash);
 }
 
 
@@ -73,7 +77,9 @@ function WeakMapDelete(key) {
                         'WeakMap.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
-  return %WeakCollectionDelete(this, key);
+  var hash = $getExistingHash(key);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionDelete(this, key, hash);
 }
 
 
@@ -123,7 +129,7 @@ function WeakSetAdd(value) {
                         'WeakSet.prototype.add', this);
   }
   if (!IS_SPEC_OBJECT(value)) throw MakeTypeError(kInvalidWeakSetValue);
-  return %WeakCollectionSet(this, value, true);
+  return %WeakCollectionSet(this, value, true, $getHash(value));
 }
 
 
@@ -133,7 +139,9 @@ function WeakSetHas(value) {
                         'WeakSet.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
-  return %WeakCollectionHas(this, value);
+  var hash = $getExistingHash(value);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionHas(this, value, hash);
 }
 
 
@@ -143,7 +151,9 @@ function WeakSetDelete(value) {
                         'WeakSet.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
-  return %WeakCollectionDelete(this, value);
+  var hash = $getExistingHash(value);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionDelete(this, value, hash);
 }
 
 
