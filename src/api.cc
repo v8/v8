@@ -1527,6 +1527,12 @@ ScriptCompiler::CachedData::~CachedData() {
 }
 
 
+bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
+
+
+void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
+
+
 ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
                                                Encoding encoding)
     : impl_(new i::StreamedSource(stream, encoding)) {}

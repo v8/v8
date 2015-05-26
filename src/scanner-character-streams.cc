@@ -356,10 +356,7 @@ size_t ExternalStreamingStream::FillBuffer(size_t position) {
           // chunk. This will only happen when the chunk was really small. We
           // don't handle the case where a UTF-8 character is split over several
           // chunks; in that case V8 won't crash, but it will be a parse error.
-          delete[] current_data_;
-          current_data_ = NULL;
-          current_data_length_ = 0;
-          current_data_offset_ = 0;
+          FlushCurrent();
           continue;  // Request a new chunk.
         }
       }
@@ -383,14 +380,75 @@ size_t ExternalStreamingStream::FillBuffer(size_t position) {
 
     // Did we use all the data in the data chunk?
     if (current_data_offset_ == current_data_length_) {
-      delete[] current_data_;
-      current_data_ = NULL;
-      current_data_length_ = 0;
-      current_data_offset_ = 0;
+      FlushCurrent();
     }
   }
   return data_in_buffer;
 }
+
+
+bool ExternalStreamingStream::SetBookmark() {
+  DCHECK(utf8_split_char_buffer_length_ == 0);  // We can't be within a char.
+
+  // Bookmarking for this stream is a bit more complex than expected, since
+  // the stream state is distributed over several places:
+  // - pos_ (inherited from Utf16CharacterStream)
+  // - buffer_cursor_ and buffer_end_ (also from Utf16CharacterStream)
+  // - buffer_ (from BufferedUtf16CharacterStream)
+  // - current_data_ (+ .._offset_ and .._length) (this class)
+  //
+  // The underlying source_stream_ instance likely could re-construct this
+  // local data for us, but with the given interfaces we have no way of
+  // accomplishing this. Thus, we'll have to save all data locally.
+  //
+  // What gets saved where:
+  // - pos_  =>  bookmark_
+  // - buffer_[buffer_cursor_ .. buffer_end_]  =>  bookmark_buffer_
+  // - current_data_[.._offset_ .. .._length_]  =>  bookmark_data_
+
+  bookmark_ = pos_;
+
+  size_t buffer_length = buffer_end_ - buffer_cursor_;
+  bookmark_buffer_.Dispose();
+  bookmark_buffer_ = Vector<uint16_t>::New(static_cast<int>(buffer_length));
+  CopyCharsUnsigned(bookmark_buffer_.start(), buffer_cursor_, buffer_length);
+
+  size_t data_length = current_data_length_ - current_data_offset_;
+  bookmark_data_.Dispose();
+  bookmark_data_ = Vector<uint8_t>::New(static_cast<int>(data_length));
+  CopyBytes(bookmark_data_.start(), current_data_ + current_data_offset_,
+            data_length);
+
+  return source_stream_->SetBookmark();
+}
+
+
+void ExternalStreamingStream::ResetToBookmark() {
+  source_stream_->ResetToBookmark();
+  FlushCurrent();
+
+  pos_ = bookmark_;
+
+  // current_data_ can point to bookmark_data_'s buffer.
+  current_data_ = bookmark_data_.start();
+  current_data_offset_ = 0;
+  current_data_length_ = bookmark_data_.length();
+
+  // bookmark_buffer_ needs to be copied to buffer_.
+  CopyCharsUnsigned(buffer_, bookmark_buffer_.begin(),
+                    bookmark_buffer_.length());
+  buffer_cursor_ = buffer_;
+  buffer_end_ = buffer_ + bookmark_buffer_.length();
+}
+
+
+void ExternalStreamingStream::FlushCurrent() {
+  delete[] current_data_;
+  current_data_ = NULL;
+  current_data_length_ = 0;
+  current_data_offset_ = 0;
+}
+
 
 void ExternalStreamingStream::HandleUtf8SplitCharacters(
     size_t* data_in_buffer) {
