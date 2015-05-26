@@ -5486,6 +5486,8 @@ TEST(OldSpaceAllocationCounter) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  // TODO(ulan): remove this GC after fixing no-snapshot failure.
+  heap->CollectGarbage(OLD_SPACE);
   size_t counter1 = heap->OldGenerationAllocationCounter();
   heap->CollectGarbage(NEW_SPACE);
   const size_t kSize = 1024;
