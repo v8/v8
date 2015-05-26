@@ -142,6 +142,8 @@ Heap::Heap()
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
+      old_generation_allocation_counter_(0),
+      old_generation_size_at_last_gc_(0),
       gcs_since_last_deopt_(0),
       allocation_sites_scratchpad_length_(0),
       promotion_queue_(this),
@@ -467,6 +469,7 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
+  UpdateOldGenerationAllocationCounter();
 }
 
 
@@ -735,7 +738,7 @@ void Heap::GarbageCollectionEpilogue() {
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 
   ReduceNewSpaceSize(
-      tracer()->CurrentNewSpaceAllocationThroughputInBytesPerMillisecond());
+      tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
 }
 
 
@@ -1222,6 +1225,10 @@ bool Heap::PerformGarbageCollection(
   } else {
     Scavenge();
   }
+
+  // This should be updated before PostGarbageCollectionProcessing, which can
+  // cause another GC.
+  old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
 
   UpdateSurvivalStatistics(start_new_space_size);
   ConfigureInitialOldGenerationSize();
@@ -4642,11 +4649,11 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
   heap_state.new_space_capacity = new_space_.Capacity();
   heap_state.new_space_allocation_throughput_in_bytes_per_ms =
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond();
-  heap_state.current_new_space_allocation_throughput_in_bytes_per_ms =
-      tracer()->CurrentNewSpaceAllocationThroughputInBytesPerMillisecond();
+  heap_state.current_allocation_throughput_in_bytes_per_ms =
+      tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
   intptr_t limit = old_generation_allocation_limit_;
   if (HasLowAllocationRate(
-          heap_state.current_new_space_allocation_throughput_in_bytes_per_ms)) {
+          heap_state.current_allocation_throughput_in_bytes_per_ms)) {
     limit = idle_old_generation_allocation_limit_;
   }
   heap_state.can_start_incremental_marking =
@@ -4800,7 +4807,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       GCIdleTimeHandler::kMaxFrameRenderingIdleTime;
 
   if (is_long_idle_notification) {
-    tracer()->SampleNewSpaceAllocation(start_ms, NewSpaceAllocationCounter());
+    tracer()->SampleAllocation(start_ms, NewSpaceAllocationCounter(),
+                               OldGenerationAllocationCounter());
   }
 
   GCIdleTimeHandler::HeapState heap_state = ComputeHeapState();

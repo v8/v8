@@ -296,10 +296,11 @@ class GCTracer {
   void Stop(GarbageCollector collector);
 
   // Sample and accumulate bytes allocated since the last GC.
-  void SampleNewSpaceAllocation(double current_ms, size_t counter_bytes);
+  void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
+                        size_t old_generation_counter_bytes);
 
   // Log the accumulated new space allocation bytes.
-  void AddNewSpaceAllocation(double current_ms);
+  void AddAllocation(double current_ms);
 
   void AddContextDisposalTime(double time);
 
@@ -385,14 +386,14 @@ class GCTracer {
   // Returns 0 if no allocation events have been recorded.
   size_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
-  // Bytes allocated in new space in the specified time.
+  // Bytes allocated in heap in the specified time.
   // Returns 0 if no allocation events have been recorded.
-  size_t NewSpaceAllocatedBytesInLast(double time_ms) const;
+  size_t AllocatedBytesInLast(double time_ms) const;
 
-  // Allocation throughput in the new space in bytes/milliseconds in
+  // Allocation throughput in heap in bytes/milliseconds in
   // the last five seconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t CurrentNewSpaceAllocationThroughputInBytesPerMillisecond() const;
+  size_t CurrentAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
@@ -459,6 +460,7 @@ class GCTracer {
   EventBuffer incremental_mark_compactor_events_;
 
   // RingBuffer for allocation events.
+  AllocationEventBuffer new_space_allocation_events_;
   AllocationEventBuffer allocation_events_;
 
   // RingBuffer for context disposal events.
@@ -498,12 +500,14 @@ class GCTracer {
   double cumulative_sweeping_duration_;
 
   // Timestamp and allocation counter at the last sampled allocation event.
-  double new_space_allocation_time_ms_;
+  double allocation_time_ms_;
   size_t new_space_allocation_counter_bytes_;
+  size_t old_generation_allocation_counter_bytes_;
 
   // Accumulated duration and allocated bytes since the last GC.
-  double new_space_allocation_duration_since_gc_;
+  double allocation_duration_since_gc_;
   size_t new_space_allocation_in_bytes_since_gc_;
+  size_t old_generation_allocation_in_bytes_since_gc_;
 
   // Counts how many tracers were started without stopping.
   int start_counter_;

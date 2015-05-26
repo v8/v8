@@ -1325,6 +1325,23 @@ class Heap {
     new_space_allocation_counter_ = new_value;
   }
 
+  void UpdateOldGenerationAllocationCounter() {
+    old_generation_allocation_counter_ = OldGenerationAllocationCounter();
+  }
+
+  size_t OldGenerationAllocationCounter() {
+    return old_generation_allocation_counter_ + PromotedSinceLastGC();
+  }
+
+  // This should be used only for testing.
+  void set_old_generation_allocation_counter(size_t new_value) {
+    old_generation_allocation_counter_ = new_value;
+  }
+
+  size_t PromotedSinceLastGC() {
+    return PromotedSpaceSizeOfObjects() - old_generation_size_at_last_gc_;
+  }
+
   // Update GC statistics that are tracked on the Heap.
   void UpdateCumulativeGCStatistics(double duration, double spent_in_mutator,
                                     double marking_time);
@@ -2205,6 +2222,14 @@ class Heap {
   // To account for the bytes allocated since the last GC, use the
   // NewSpaceAllocationCounter() function.
   size_t new_space_allocation_counter_;
+
+  // This counter is increased before each GC and never reset. To
+  // account for the bytes allocated since the last GC, use the
+  // OldGenerationAllocationCounter() function.
+  size_t old_generation_allocation_counter_;
+
+  // The size of objects in old generation after the last MarkCompact GC.
+  size_t old_generation_size_at_last_gc_;
 
   // If the --deopt_every_n_garbage_collections flag is set to a positive value,
   // this variable holds the number of garbage collections since the last

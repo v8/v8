@@ -60,8 +60,8 @@ void GCIdleTimeHandler::HeapState::Print() {
   PrintF("new_space_capacity=%" V8_PTR_PREFIX "d ", new_space_capacity);
   PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          new_space_allocation_throughput_in_bytes_per_ms);
-  PrintF("current_new_space_allocation_throughput=%" V8_PTR_PREFIX "d",
-         current_new_space_allocation_throughput_in_bytes_per_ms);
+  PrintF("current_allocation_throughput=%" V8_PTR_PREFIX "d",
+         current_allocation_throughput_in_bytes_per_ms);
 }
 
 
