@@ -439,10 +439,16 @@ class ControlReducerImpl final : public AdvancedReducer {
 
     if (live == 0) return dead();  // no remaining inputs.
 
-    // Gather phis and effect phis to be edited.
+    // Gather terminates, phis and effect phis to be edited.
     NodeVector phis(zone_);
+    Node* terminate = nullptr;
     for (Node* const use : node->uses()) {
-      if (NodeProperties::IsPhi(use)) phis.push_back(use);
+      if (NodeProperties::IsPhi(use)) {
+        phis.push_back(use);
+      } else if (use->opcode() == IrOpcode::kTerminate) {
+        DCHECK_NULL(terminate);
+        terminate = use;
+      }
     }
 
     if (live == 1) {
@@ -450,6 +456,8 @@ class ControlReducerImpl final : public AdvancedReducer {
       for (Node* const phi : phis) {
         Replace(phi, phi->InputAt(live_index));
       }
+      // The terminate is not needed anymore.
+      if (terminate) Replace(terminate, dead());
       // The merge itself is redundant.
       return node->InputAt(live_index);
     }
