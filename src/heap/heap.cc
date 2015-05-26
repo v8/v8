@@ -4570,7 +4570,7 @@ bool Heap::HasLowAllocationRate(size_t allocation_rate) {
 
 
 void Heap::ReduceNewSpaceSize(size_t allocation_rate) {
-  if (HasLowAllocationRate(allocation_rate)) {
+  if (!FLAG_predictable && HasLowAllocationRate(allocation_rate)) {
     new_space_.Shrink();
     UncommitFromSpace();
   }
