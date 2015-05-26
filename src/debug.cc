@@ -608,13 +608,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
       source_code, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
       context, NULL, NULL, ScriptCompiler::kNoCompileOptions, NATIVES_CODE,
       false);
-
-  // Silently ignore stack overflows during compilation.
-  if (function_info.is_null()) {
-    DCHECK(isolate->has_pending_exception());
-    isolate->clear_pending_exception();
-    return false;
-  }
+  if (function_info.is_null()) return false;
 
   // Execute the shared function in the debugger context.
   Handle<JSFunction> function =

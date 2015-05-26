@@ -177,6 +177,9 @@
   # Issue 488: this test sometimes times out.
   'array-constructor': [PASS, TIMEOUT],
 
+  # Run only on fast architectures, contains no architecture dependent code.
+  'regress/regress-crbug-491062': [PASS, ['arch != ia32 and arch != x64', SKIP], NO_VARIANTS],
+
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', TIMEOUT]],
   'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
