@@ -288,69 +288,95 @@
     ],
   },
   'conditions': [
-    ['asan==1 and OS!="mac"', {
+    ['os_posix==1 and OS!="mac"', {
       'target_defaults': {
-        'cflags_cc+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=address',
-          '-w',  # http://crbug.com/162783
-        ],
-        'cflags!': [
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=address',
-        ],
-      },
-    }],
-    ['tsan==1 and OS!="mac"', {
-      'target_defaults': {
-        'cflags+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=thread',
-          '-fPIC',
-          '-Wno-c++11-extensions',
-        ],
-        'cflags!': [
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=thread',
-          '-pie',
-        ],
-        'defines': [
-          'THREAD_SANITIZER',
-        ],
-      },
-    }],
-    ['msan==1 and OS!="mac"', {
-      'target_defaults': {
-        'cflags_cc+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=memory',
-          '-fsanitize-memory-track-origins=<(msan_track_origins)',
-          '-fPIC',
-        ],
-        'cflags+': [
-          '-fPIC',
-        ],
-        'cflags!': [
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=memory',
-        ],
-        'defines': [
-          'MEMORY_SANITIZER',
-        ],
-        'dependencies': [
-          # Use libc++ (third_party/libc++ and third_party/libc++abi) instead of
-          # stdlibc++ as standard library. This is intended to use for instrumented
-          # builds.
-          '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
+       'conditions': [
+          # Common options for AddressSanitizer, LeakSanitizer,
+          # ThreadSanitizer and MemorySanitizer.
+          ['asan==1 or lsan==1 or tsan==1 or msan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fno-omit-frame-pointer',
+                  '-gline-tables-only',
+                ],
+                'cflags!': [
+                  '-fomit-frame-pointer',
+                ],
+              }],
+            ],
+          }],
+          ['asan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=address',
+                ],
+                'ldflags': [
+                  '-fsanitize=address',
+                ],
+                'defines': [
+                  'ADDRESS_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          # TODO(machenbach): Add sanitizer coverage.
+          ['lsan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=leak',
+                ],
+                'ldflags': [
+                  '-fsanitize=leak',
+                ],
+                'defines': [
+                  'LEAK_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          ['tsan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=thread',
+                ],
+                'ldflags': [
+                  '-fsanitize=thread',
+                ],
+                'defines': [
+                  'THREAD_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          ['msan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=memory',
+                  '-fsanitize-memory-track-origins=<(msan_track_origins)',
+                ],
+                'ldflags': [
+                  '-fsanitize=memory',
+                ],
+                'defines': [
+                  'MEMORY_SANITIZER',
+                ],
+              }],
+            ],
+            # TODO(machenbach): Share this between all *san configs like in
+            # common.gypi.
+            'dependencies': [
+              # Use libc++ (buildtools/third_party/libc++ and
+              # buildtools/third_party/libc++abi) instead of stdlibc++ as
+              # standard library. This is intended to be used for for
+              # instrumented builds.
+              '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
+            ],
+          }],
         ],
       },
     }],
@@ -365,6 +391,9 @@
           ],
           'OTHER_CFLAGS!': [
             '-fomit-frame-pointer',
+          ],
+          'defines': [
+            'ADDRESS_SANITIZER',
           ],
         },
         'target_conditions': [
