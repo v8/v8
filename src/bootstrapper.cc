@@ -1530,7 +1530,8 @@ bool Genesis::CallUtilsFunction(Isolate* isolate, const char* name) {
       isolate->factory()->NewStringFromAsciiChecked(name);
   Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
   Handle<Object> receiver = isolate->factory()->undefined_value();
-  return !Execution::Call(isolate, fun, receiver, 0, NULL).is_null();
+  Handle<Object> args[] = {utils};
+  return !Execution::Call(isolate, fun, receiver, 1, args).is_null();
 }
 
 
@@ -2445,6 +2446,8 @@ bool Genesis::InstallExperimentalNatives() {
     HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
+
+  CallUtilsFunction(isolate(), "PostExperimentals");
 
   InstallExperimentalNativeFunctions();
   return true;

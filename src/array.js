@@ -3,22 +3,12 @@
 // found in the LICENSE file.
 
 var $arrayConcat;
-var $arrayJoin;
 var $arrayPush;
 var $arrayPop;
 var $arrayShift;
 var $arraySlice;
 var $arraySplice;
 var $arrayUnshift;
-var $innerArrayForEach;
-var $innerArrayEvery;
-var $innerArrayFilter;
-var $innerArrayIndexOf;
-var $innerArrayLastIndexOf;
-var $innerArrayMap;
-var $innerArrayReverse;
-var $innerArraySome;
-var $innerArraySort;
 
 (function(global, utils) {
 
@@ -33,10 +23,20 @@ var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 
+var Delete;
 var MathMin;
+var ObjectHasOwnProperty;
+var ObjectIsFrozen;
+var ObjectIsSealed;
+var ObjectToString;
 
 utils.Import(function(from) {
+  Delete = from.Delete;
   MathMin = from.MathMin;
+  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
+  ObjectIsFrozen = from.ObjectIsFrozen;
+  ObjectIsSealed = from.ObjectIsSealed;
+  ObjectToString = from.ObjectToString;
 });
 
 // -------------------------------------------------------------------
@@ -392,7 +392,7 @@ function ArrayToString() {
     func = array.join;
   }
   if (!IS_SPEC_FUNCTION(func)) {
-    return %_CallFunction(array, $objectToString);
+    return %_CallFunction(array, ObjectToString);
   }
   return %_CallFunction(array, func);
 }
@@ -467,7 +467,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
-  $delete(array, $toName(n), true);
+  Delete(array, $toName(n), true);
   array.length = n;
   return value;
 }
@@ -645,7 +645,7 @@ function ArrayShift() {
     return;
   }
 
-  if ($objectIsSealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
+  if (ObjectIsSealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
 
   if (%IsObserved(array))
     return ObservedArrayShift.call(array, len);
@@ -696,7 +696,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var num_arguments = %_ArgumentsLength();
 
   if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
-      !$objectIsSealed(array)) {
+      !ObjectIsSealed(array)) {
     SparseMove(array, 0, 0, len, num_arguments);
   } else {
     SimpleMove(array, 0, 0, len, num_arguments);
@@ -842,9 +842,9 @@ function ArraySplice(start, delete_count) {
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && $objectIsSealed(array)) {
+  if (del_count != num_elements_to_add && ObjectIsSealed(array)) {
     throw MakeTypeError(kArrayFunctionsOnSealed);
-  } else if (del_count > 0 && $objectIsFrozen(array)) {
+  } else if (del_count > 0 && ObjectIsFrozen(array)) {
     throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
@@ -1582,7 +1582,7 @@ var unscopables = {
                   DONT_ENUM | READ_ONLY);
 
 // Set up non-enumerable functions on the Array object.
-$installFunctions(GlobalArray, DONT_ENUM, [
+utils.InstallFunctions(GlobalArray, DONT_ENUM, [
   "isArray", ArrayIsArray
 ]);
 
@@ -1603,7 +1603,7 @@ var getFunction = function(name, jsBuiltin, len) {
 // set their names.
 // Manipulate the length of some of the functions to meet
 // expectations set by ECMA-262 or Mozilla.
-$installFunctions(GlobalArray.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "toString", getFunction("toString", ArrayToString),
   "toLocaleString", getFunction("toLocaleString", ArrayToLocaleString),
   "join", getFunction("join", ArrayJoin),
@@ -1632,7 +1632,7 @@ $installFunctions(GlobalArray.prototype, DONT_ENUM, [
 // The internal Array prototype doesn't need to be fancy, since it's never
 // exposed to user code.
 // Adding only the functions that are actually used.
-$setUpLockedPrototype(InternalArray, GlobalArray(), [
+utils.SetUpLockedPrototype(InternalArray, GlobalArray(), [
   "concat", getFunction("concat", ArrayConcatJS),
   "indexOf", getFunction("indexOf", ArrayIndexOf),
   "join", getFunction("join", ArrayJoin),
@@ -1642,30 +1642,35 @@ $setUpLockedPrototype(InternalArray, GlobalArray(), [
   "splice", getFunction("splice", ArraySplice)
 ]);
 
-$setUpLockedPrototype(InternalPackedArray, GlobalArray(), [
+utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush),
   "shift", getFunction("shift", ArrayShift)
 ]);
 
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.ArrayJoin = ArrayJoin;
+  to.InnerArrayEvery = InnerArrayEvery;
+  to.InnerArrayFilter = InnerArrayFilter;
+  to.InnerArrayForEach = InnerArrayForEach;
+  to.InnerArrayIndexOf = InnerArrayIndexOf;
+  to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
+  to.InnerArrayMap = InnerArrayMap;
+  to.InnerArrayReverse = InnerArrayReverse;
+  to.InnerArraySome = InnerArraySome;
+  to.InnerArraySort = InnerArraySort;
+});
+
 $arrayConcat = ArrayConcatJS;
-$arrayJoin = ArrayJoin;
 $arrayPush = ArrayPush;
 $arrayPop = ArrayPop;
 $arrayShift = ArrayShift;
 $arraySlice = ArraySlice;
 $arraySplice = ArraySplice;
 $arrayUnshift = ArrayUnshift;
-
-$innerArrayEvery = InnerArrayEvery;
-$innerArrayFilter = InnerArrayFilter;
-$innerArrayForEach = InnerArrayForEach;
-$innerArrayIndexOf = InnerArrayIndexOf;
-$innerArrayLastIndexOf = InnerArrayLastIndexOf;
-$innerArrayMap = InnerArrayMap;
-$innerArrayReverse = InnerArrayReverse;
-$innerArraySome = InnerArraySome;
-$innerArraySort = InnerArraySort;
 
 });

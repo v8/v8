@@ -16,17 +16,6 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
 
-var MathMax;
-var MathMin;
-
-utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
-});
-
-// -------------------------------------------------------------------
-
-
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
 FUNCTION(1, Uint8Array, 1)
@@ -45,6 +34,14 @@ var GlobalNAME = global.NAME;
 endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
+
+var MathMax;
+var MathMin;
+
+utils.Import(function(from) {
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
+});
 
 // --------------- Typed Arrays ---------------------
 
@@ -326,16 +323,16 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %AddNamedProperty(GlobalNAME.prototype,
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
-  $installGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
-                 DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
-                 DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, "length", NAME_GetLength,
-                 DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, symbolToStringTag,
-                 TypedArrayGetToStringTag);
-  $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
+  utils.InstallGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
+  utils.InstallGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
+                      DONT_ENUM | DONT_DELETE);
+  utils.InstallGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
+                      DONT_ENUM | DONT_DELETE);
+  utils.InstallGetter(GlobalNAME.prototype, "length", NAME_GetLength,
+                      DONT_ENUM | DONT_DELETE);
+  utils.InstallGetter(GlobalNAME.prototype, symbolToStringTag,
+                      TypedArrayGetToStringTag);
+  utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
     "subarray", NAMESubArray,
     "set", TypedArraySet
   ]);
@@ -442,11 +439,13 @@ DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 %AddNamedProperty(GlobalDataView.prototype, symbolToStringTag, "DataView",
                   READ_ONLY|DONT_ENUM);
 
-$installGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
-$installGetter(GlobalDataView.prototype, "byteOffset", DataViewGetByteOffset);
-$installGetter(GlobalDataView.prototype, "byteLength", DataViewGetByteLength);
+utils.InstallGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
+utils.InstallGetter(GlobalDataView.prototype, "byteOffset",
+                    DataViewGetByteOffset);
+utils.InstallGetter(GlobalDataView.prototype, "byteLength",
+                    DataViewGetByteLength);
 
-$installFunctions(GlobalDataView.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalDataView.prototype, DONT_ENUM, [
   "getInt8", DataViewGetInt8JS,
   "setInt8", DataViewSetInt8JS,
 

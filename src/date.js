@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file relies on the fact that the following declarations have been made
-// in v8natives.js:
-// var $isFinite = GlobalIsFinite;
-
 var $createDate;
 
 // -------------------------------------------------------------------
@@ -22,10 +18,12 @@ var $createDate;
 var GlobalDate = global.Date;
 var InternalArray = utils.InternalArray;
 
+var IsFinite;
 var MathAbs;
 var MathFloor;
 
 utils.Import(function(from) {
+  IsFinite = from.IsFinite;
   MathAbs = from.MathAbs;
   MathFloor = from.MathFloor;
 });
@@ -60,10 +58,10 @@ function UTC(time) {
 
 // ECMA 262 - 15.9.1.11
 function MakeTime(hour, min, sec, ms) {
-  if (!$isFinite(hour)) return NAN;
-  if (!$isFinite(min)) return NAN;
-  if (!$isFinite(sec)) return NAN;
-  if (!$isFinite(ms)) return NAN;
+  if (!IsFinite(hour)) return NAN;
+  if (!IsFinite(min)) return NAN;
+  if (!IsFinite(sec)) return NAN;
+  if (!IsFinite(ms)) return NAN;
   return TO_INTEGER(hour) * msPerHour
       + TO_INTEGER(min) * msPerMinute
       + TO_INTEGER(sec) * msPerSecond
@@ -84,7 +82,7 @@ function TimeInYear(year) {
 //     MakeDay(2007, -33, 1) --> MakeDay(2004, 3, 1)
 //     MakeDay(2007, 14, -50) --> MakeDay(2007, 8, 11)
 function MakeDay(year, month, date) {
-  if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return NAN;
+  if (!IsFinite(year) || !IsFinite(month) || !IsFinite(date)) return NAN;
 
   // Convert to integer and map -0 to 0.
   year = TO_INTEGER_MAP_MINUS_ZERO(year);
@@ -116,7 +114,7 @@ function MakeDate(day, time) {
 
 // ECMA 262 - 15.9.1.14
 function TimeClip(time) {
-  if (!$isFinite(time)) return NAN;
+  if (!IsFinite(time)) return NAN;
   if (MathAbs(time) > MAX_TIME_MS) return NAN;
   return TO_INTEGER(time);
 }
@@ -774,7 +772,7 @@ function CreateDate(time) {
 %FunctionSetPrototype(GlobalDate, new GlobalDate(NAN));
 
 // Set up non-enumerable properties of the Date object itself.
-$installFunctions(GlobalDate, DONT_ENUM, [
+utils.InstallFunctions(GlobalDate, DONT_ENUM, [
   "UTC", DateUTC,
   "parse", DateParse,
   "now", DateNow
@@ -785,7 +783,7 @@ $installFunctions(GlobalDate, DONT_ENUM, [
 
 // Set up non-enumerable functions of the Date prototype object and
 // set their names.
-$installFunctions(GlobalDate.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toString", DateToString,
   "toDateString", DateToDateString,
   "toTimeString", DateToTimeString,

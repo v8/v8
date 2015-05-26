@@ -2,35 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $delete;
 var $functionSourceString;
-var $getIterator;
-var $getMethod;
 var $globalEval;
-var $installConstants;
-var $installFunctions;
-var $installGetter;
-var $isFinite;
-var $isNaN;
-var $newFunctionString;
-var $numberIsNaN;
-var $objectDefineProperties;
-var $objectDefineProperty;
-var $objectFreeze;
 var $objectGetOwnPropertyDescriptor;
-var $objectGetOwnPropertyKeys;
-var $objectHasOwnProperty;
-var $objectIsFrozen;
-var $objectIsSealed;
-var $objectLookupGetter;
-var $objectLookupSetter;
-var $objectToString;
-var $overrideFunction;
-var $ownPropertyKeys;
-var $setFunctionName;
-var $setUpLockedPrototype;
 var $toCompletePropertyDescriptor;
-var $toNameArray;
 
 (function(global, utils) {
 
@@ -47,6 +22,9 @@ var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 
 var MathAbs;
+var ProxyDelegateCallAndConstruct;
+var ProxyDerivedHasOwnTrap;
+var ProxyDerivedKeysTrap;
 var StringIndexOf;
 
 utils.Import(function(from) {
@@ -54,113 +32,11 @@ utils.Import(function(from) {
   StringIndexOf = from.StringIndexOf;
 });
 
-// ----------------------------------------------------------------------------
-
-// ES6 - 9.2.11 SetFunctionName
-function SetFunctionName(f, name, prefix) {
-  if (IS_SYMBOL(name)) {
-    name = "[" + %SymbolDescription(name) + "]";
-  }
-  if (IS_UNDEFINED(prefix)) {
-    %FunctionSetName(f, name);
-  } else {
-    %FunctionSetName(f, prefix + " " + name);
-  }
-}
-
-
-// Helper function used to install functions on objects.
-function InstallFunctions(object, attributes, functions) {
-  %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
-  for (var i = 0; i < functions.length; i += 2) {
-    var key = functions[i];
-    var f = functions[i + 1];
-    SetFunctionName(f, key);
-    %FunctionRemovePrototype(f);
-    %AddNamedProperty(object, key, f, attributes);
-    %SetNativeFlag(f);
-  }
-  %ToFastProperties(object);
-}
-
-
-function OverrideFunction(object, name, f) {
-  ObjectDefineProperty(object, name, { value: f,
-                                       writeable: true,
-                                       configurable: true,
-                                       enumerable: false });
-  SetFunctionName(f, name);
-  %FunctionRemovePrototype(f);
-  %SetNativeFlag(f);
-}
-
-
-// Helper function to install a getter-only accessor property.
-function InstallGetter(object, name, getter, attributes) {
-  if (typeof attributes == "undefined") {
-    attributes = DONT_ENUM;
-  }
-  SetFunctionName(getter, name, "get");
-  %FunctionRemovePrototype(getter);
-  %DefineAccessorPropertyUnchecked(object, name, getter, null, attributes);
-  %SetNativeFlag(getter);
-}
-
-
-// Helper function to install a getter/setter accessor property.
-function InstallGetterSetter(object, name, getter, setter) {
-  SetFunctionName(getter, name, "get");
-  SetFunctionName(setter, name, "set");
-  %FunctionRemovePrototype(getter);
-  %FunctionRemovePrototype(setter);
-  %DefineAccessorPropertyUnchecked(object, name, getter, setter, DONT_ENUM);
-  %SetNativeFlag(getter);
-  %SetNativeFlag(setter);
-}
-
-
-// Helper function for installing constant properties on objects.
-function InstallConstants(object, constants) {
-  %OptimizeObjectForAddingMultipleProperties(object, constants.length >> 1);
-  var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
-  for (var i = 0; i < constants.length; i += 2) {
-    var name = constants[i];
-    var k = constants[i + 1];
-    %AddNamedProperty(object, name, k, attributes);
-  }
-  %ToFastProperties(object);
-}
-
-
-// Prevents changes to the prototype of a built-in function.
-// The "prototype" property of the function object is made non-configurable,
-// and the prototype object is made non-extensible. The latter prevents
-// changing the __proto__ property.
-function SetUpLockedPrototype(constructor, fields, methods) {
-  %CheckIsBootstrapping();
-  var prototype = constructor.prototype;
-  // Install functions first, because this function is used to initialize
-  // PropertyDescriptor itself.
-  var property_count = (methods.length >> 1) + (fields ? fields.length : 0);
-  if (property_count >= 4) {
-    %OptimizeObjectForAddingMultipleProperties(prototype, property_count);
-  }
-  if (fields) {
-    for (var i = 0; i < fields.length; i++) {
-      %AddNamedProperty(prototype, fields[i],
-                        UNDEFINED, DONT_ENUM | DONT_DELETE);
-    }
-  }
-  for (var i = 0; i < methods.length; i += 2) {
-    var key = methods[i];
-    var f = methods[i + 1];
-    %AddNamedProperty(prototype, key, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
-    %SetNativeFlag(f);
-  }
-  %InternalSetPrototype(prototype, null);
-  %ToFastProperties(prototype);
-}
-
+utils.ImportFromExperimental(function(from) {
+  ProxyDelegateCallAndConstruct = from.ProxyDelegateCallAndConstruct;
+  ProxyDerivedHasOwnTrap = from.ProxyDerivedHasOwnTrap;
+  ProxyDerivedKeysTrap = from.ProxyDerivedKeysTrap;
+});
 
 // ----------------------------------------------------------------------------
 
@@ -238,7 +114,7 @@ function GlobalEval(x) {
 // Set up global object.
 var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
 
-InstallConstants(global, [
+utils.InstallConstants(global, [
   // ECMA 262 - 15.1.1.1.
   "NaN", NAN,
   // ECMA-262 - 15.1.1.2.
@@ -248,7 +124,7 @@ InstallConstants(global, [
 ]);
 
 // Set up non-enumerable function on the global object.
-InstallFunctions(global, DONT_ENUM, [
+utils.InstallFunctions(global, DONT_ENUM, [
   "isNaN", GlobalIsNaN,
   "isFinite", GlobalIsFinite,
   "parseInt", GlobalParseInt,
@@ -302,7 +178,7 @@ function ObjectHasOwnProperty(V) {
     if (IS_SYMBOL(V)) return false;
 
     var handler = %GetHandler(this);
-    return CallTrap1(handler, "hasOwn", $proxyDerivedHasOwnTrap, $toName(V));
+    return CallTrap1(handler, "hasOwn", ProxyDerivedHasOwnTrap, $toName(V));
   }
   return %HasOwnProperty(TO_OBJECT_INLINE(this), $toName(V));
 }
@@ -385,7 +261,7 @@ function ObjectKeys(obj) {
   obj = TO_OBJECT_INLINE(obj);
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
-    var names = CallTrap0(handler, "keys", $proxyDerivedKeysTrap);
+    var names = CallTrap0(handler, "keys", ProxyDerivedKeysTrap);
     return ToNameArray(names, "keys", false);
   }
   return %OwnKeys(obj);
@@ -542,7 +418,7 @@ function PropertyDescriptor() {
   this.hasSetter_ = false;
 }
 
-SetUpLockedPrototype(PropertyDescriptor, [
+utils.SetUpLockedPrototype(PropertyDescriptor, [
   "value_",
   "hasValue_",
   "writable_",
@@ -1286,7 +1162,7 @@ function ProxyFix(obj) {
   if (%IsJSFunctionProxy(obj)) {
     var callTrap = %GetCallTrap(obj);
     var constructTrap = %GetConstructTrap(obj);
-    var code = $proxyDelegateCallAndConstruct(callTrap, constructTrap);
+    var code = ProxyDelegateCallAndConstruct(callTrap, constructTrap);
     %Fix(obj);  // becomes a regular function
     %SetCode(obj, code);
     // TODO(rossberg): What about length and other properties? Not specified.
@@ -1464,7 +1340,7 @@ function ObjectConstructor(x) {
                   DONT_ENUM);
 
 // Set up non-enumerable functions on the Object.prototype object.
-InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   "toString", ObjectToString,
   "toLocaleString", ObjectToLocaleString,
   "valueOf", ObjectValueOf,
@@ -1476,11 +1352,11 @@ InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   "__defineSetter__", ObjectDefineSetter,
   "__lookupSetter__", ObjectLookupSetter
 ]);
-InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
+utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
                     ObjectSetProto);
 
 // Set up non-enumerable functions in the Object object.
-InstallFunctions(GlobalObject, DONT_ENUM, [
+utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "keys", ObjectKeys,
   "create", ObjectCreate,
   "defineProperty", ObjectDefineProperty,
@@ -1545,7 +1421,7 @@ function BooleanValueOf() {
 %AddNamedProperty(GlobalBoolean.prototype, "constructor", GlobalBoolean,
                   DONT_ENUM);
 
-InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
   "toString", BooleanToString,
   "valueOf", BooleanValueOf
 ]);
@@ -1722,7 +1598,7 @@ function NumberIsSafeInteger(number) {
 %AddNamedProperty(GlobalNumber.prototype, "constructor", GlobalNumber,
                   DONT_ENUM);
 
-InstallConstants(GlobalNumber, [
+utils.InstallConstants(GlobalNumber, [
   // ECMA-262 section 15.7.3.1.
   "MAX_VALUE", 1.7976931348623157e+308,
   // ECMA-262 section 15.7.3.2.
@@ -1742,7 +1618,7 @@ InstallConstants(GlobalNumber, [
 ]);
 
 // Set up non-enumerable functions on the Number prototype object.
-InstallFunctions(GlobalNumber.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalNumber.prototype, DONT_ENUM, [
   "toString", NumberToStringJS,
   "toLocaleString", NumberToLocaleString,
   "valueOf", NumberValueOf,
@@ -1752,7 +1628,7 @@ InstallFunctions(GlobalNumber.prototype, DONT_ENUM, [
 ]);
 
 // Harmony Number constructor additions
-InstallFunctions(GlobalNumber, DONT_ENUM, [
+utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
   "isFinite", NumberIsFinite,
   "isInteger", NumberIsInteger,
   "isNaN", NumberIsNaN,
@@ -1920,7 +1796,7 @@ function FunctionConstructor(arg1) {  // length == 1
 %AddNamedProperty(GlobalFunction.prototype, "constructor", GlobalFunction,
                   DONT_ENUM);
 
-InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
   "bind", FunctionBind,
   "toString", FunctionToString
 ]);
@@ -1944,36 +1820,34 @@ function GetIterator(obj, method) {
   return iterator;
 }
 
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// Exports
 
-$delete = Delete;
 $functionSourceString = FunctionSourceString;
-$getIterator = GetIterator;
-$getMethod = GetMethod;
 $globalEval = GlobalEval;
-$installConstants = InstallConstants;
-$installFunctions = InstallFunctions;
-$installGetter = InstallGetter;
-$isFinite = GlobalIsFinite;
-$isNaN = GlobalIsNaN;
-$newFunctionString = NewFunctionString;
-$numberIsNaN = NumberIsNaN;
-$objectDefineProperties = ObjectDefineProperties;
-$objectDefineProperty = ObjectDefineProperty;
-$objectFreeze = ObjectFreezeJS;
 $objectGetOwnPropertyDescriptor = ObjectGetOwnPropertyDescriptor;
-$objectGetOwnPropertyKeys = ObjectGetOwnPropertyKeys;
-$objectHasOwnProperty = ObjectHasOwnProperty;
-$objectIsFrozen = ObjectIsFrozen;
-$objectIsSealed = ObjectIsSealed;
-$objectLookupGetter = ObjectLookupGetter;
-$objectLookupSetter = ObjectLookupSetter;
-$objectToString = ObjectToString;
-$overrideFunction = OverrideFunction;
-$ownPropertyKeys = OwnPropertyKeys;
-$setFunctionName = SetFunctionName;
-$setUpLockedPrototype = SetUpLockedPrototype;
 $toCompletePropertyDescriptor = ToCompletePropertyDescriptor;
-$toNameArray = ToNameArray;
+
+utils.ObjectDefineProperties = ObjectDefineProperties;
+utils.ObjectDefineProperty = ObjectDefineProperty;
+
+utils.Export(function(to) {
+  to.Delete = Delete;
+  to.GetIterator = GetIterator;
+  to.GetMethod = GetMethod;
+  to.IsFinite = GlobalIsFinite;
+  to.IsNaN = GlobalIsNaN;
+  to.NewFunctionString = NewFunctionString;
+  to.NumberIsNaN = NumberIsNaN;
+  to.ObjectDefineProperty = ObjectDefineProperty;
+  to.ObjectFreeze = ObjectFreezeJS;
+  to.ObjectGetOwnPropertyKeys = ObjectGetOwnPropertyKeys;
+  to.ObjectHasOwnProperty = ObjectHasOwnProperty;
+  to.ObjectIsFrozen = ObjectIsFrozen;
+  to.ObjectIsSealed = ObjectIsSealed;
+  to.ObjectToString = ObjectToString;
+  to.OwnPropertyKeys = OwnPropertyKeys;
+  to.ToNameArray = ToNameArray;
+});
 
 })

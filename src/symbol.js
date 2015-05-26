@@ -18,8 +18,17 @@ var $symbolToString;
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalObject = global.Object;
 var GlobalSymbol = global.Symbol;
+
+var ObjectGetOwnPropertyKeys;
+
+utils.Import(function(from) {
+  ObjectGetOwnPropertyKeys = from.ObjectGetOwnPropertyKeys;
+});
 
 // -------------------------------------------------------------------
 
@@ -73,7 +82,7 @@ function ObjectGetOwnPropertySymbols(obj) {
 
   // TODO(arv): Proxies use a shared trap for String and Symbol keys.
 
-  return $objectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_STRING);
+  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_STRING);
 }
 
 //-------------------------------------------------------------------
@@ -81,7 +90,7 @@ function ObjectGetOwnPropertySymbols(obj) {
 %SetCode(GlobalSymbol, SymbolConstructor);
 %FunctionSetPrototype(GlobalSymbol, new GlobalObject());
 
-$installConstants(GlobalSymbol, [
+utils.InstallConstants(GlobalSymbol, [
   // TODO(rossberg): expose when implemented.
   // "hasInstance", symbolHasInstance,
   // "isConcatSpreadable", symbolIsConcatSpreadable,
@@ -93,7 +102,7 @@ $installConstants(GlobalSymbol, [
   "unscopables", symbolUnscopables
 ]);
 
-$installFunctions(GlobalSymbol, DONT_ENUM, [
+utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
   "for", SymbolFor,
   "keyFor", SymbolKeyFor
 ]);
@@ -103,12 +112,12 @@ $installFunctions(GlobalSymbol, DONT_ENUM, [
 %AddNamedProperty(
     GlobalSymbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
 
-$installFunctions(GlobalSymbol.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
   "toString", SymbolToString,
   "valueOf", SymbolValueOf
 ]);
 
-$installFunctions(GlobalObject, DONT_ENUM, [
+utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
 ]);
 

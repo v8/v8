@@ -27,9 +27,6 @@ var MakeReferenceError;
 var MakeSyntaxError;
 var MakeTypeError;
 var MakeURIError;
-var MakeReferenceErrorEmbedded;
-var MakeSyntaxErrorEmbedded;
-var MakeTypeErrorEmbedded;
 
 (function(global, utils) {
 
@@ -40,12 +37,17 @@ var MakeTypeErrorEmbedded;
 
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
+var ObjectDefineProperty = utils.ObjectDefineProperty;
 
+var ArrayJoin;
+var ObjectToString;
 var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
 
 utils.Import(function(from) {
+  ArrayJoin = from.ArrayJoin;
+  ObjectToString = from.ObjectToString;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
@@ -85,7 +87,7 @@ function NoSideEffectToString(obj) {
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
   if (IS_OBJECT(obj)
-      && %GetDataProperty(obj, "toString") === $objectToString) {
+      && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
       var constructorName = constructor.name;
@@ -137,7 +139,7 @@ function ToStringCheckErrorObject(obj) {
 
 
 function ToDetailString(obj) {
-  if (obj != null && IS_OBJECT(obj) && obj.toString === $objectToString) {
+  if (obj != null && IS_OBJECT(obj) && obj.toString === ObjectToString) {
     var constructor = obj.constructor;
     if (typeof constructor == "function") {
       var constructorName = constructor.name;
@@ -409,7 +411,7 @@ function ScriptNameOrSourceURL() {
 }
 
 
-$setUpLockedPrototype(Script, [
+utils.SetUpLockedPrototype(Script, [
     "source",
     "name",
     "source_url",
@@ -473,7 +475,7 @@ function SourceLocationSourceText() {
 }
 
 
-$setUpLockedPrototype(SourceLocation,
+utils.SetUpLockedPrototype(SourceLocation,
   ["script", "position", "line", "column", "start", "end"],
   ["sourceText", SourceLocationSourceText]
 );
@@ -517,7 +519,7 @@ function SourceSliceSourceText() {
                         StringSubstring);
 }
 
-$setUpLockedPrototype(SourceSlice,
+utils.SetUpLockedPrototype(SourceSlice,
   ["script", "from_line", "to_line", "from_position", "to_position"],
   ["sourceText", SourceSliceSourceText]
 );
@@ -715,7 +717,7 @@ function CallSiteToString() {
   return line;
 }
 
-$setUpLockedPrototype(CallSite, ["receiver", "fun", "pos"], [
+utils.SetUpLockedPrototype(CallSite, ["receiver", "fun", "pos"], [
   "getThis", CallSiteGetThis,
   "getTypeName", CallSiteGetTypeName,
   "isToplevel", CallSiteIsToplevel,
@@ -842,7 +844,7 @@ function FormatStackTrace(obj, raw_stack) {
     }
     lines.push("    at " + line);
   }
-  return %_CallFunction(lines, "\n", $arrayJoin);
+  return %_CallFunction(lines, "\n", ArrayJoin);
 }
 
 
@@ -902,13 +904,7 @@ var StackTraceSetter = function(v) {
 
 // Use a dummy function since we do not actually want to capture a stack trace
 // when constructing the initial Error prototytpes.
-var captureStackTrace = function captureStackTrace(obj, cons_opt) {
-  // Define accessors first, as this may fail and throw.
-  $objectDefineProperty(obj, 'stack', { get: StackTraceGetter,
-                                        set: StackTraceSetter,
-                                        configurable: true });
-  %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
-}
+var captureStackTrace = function() {};
 
 
 // Define special error type constructors.
@@ -962,9 +958,6 @@ GlobalReferenceError = DefineError(global, function ReferenceError() { });
 GlobalSyntaxError = DefineError(global, function SyntaxError() { });
 GlobalTypeError = DefineError(global, function TypeError() { });
 GlobalURIError = DefineError(global, function URIError() { });
-
-
-GlobalError.captureStackTrace = captureStackTrace;
 
 %AddNamedProperty(GlobalError.prototype, 'message', '', DONT_ENUM);
 
@@ -1030,8 +1023,8 @@ function ErrorToString() {
   }
 }
 
-$installFunctions(GlobalError.prototype, DONT_ENUM,
-                  ['toString', ErrorToString]);
+utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
+                       ['toString', ErrorToString]);
 
 $errorToString = ErrorToString;
 $getStackTraceLine = GetStackTraceLine;
@@ -1077,10 +1070,22 @@ MakeURIError = function() {
   return MakeGenericError(GlobalURIError, kURIMalformed);
 }
 
-//Boilerplate for exceptions for stack overflows. Used from
-//Isolate::StackOverflow().
+// Boilerplate for exceptions for stack overflows. Used from
+// Isolate::StackOverflow().
 $stackOverflowBoilerplate = MakeRangeError(kStackOverflow);
 %DefineAccessorPropertyUnchecked($stackOverflowBoilerplate, 'stack',
-                                 StackTraceGetter, StackTraceSetter, DONT_ENUM);
+                                 StackTraceGetter, StackTraceSetter,
+                                 DONT_ENUM);
 
-})
+// Define actual captureStackTrace function after everything has been set up.
+captureStackTrace = function captureStackTrace(obj, cons_opt) {
+  // Define accessors first, as this may fail and throw.
+  ObjectDefineProperty(obj, 'stack', { get: StackTraceGetter,
+                                       set: StackTraceSetter,
+                                       configurable: true });
+  %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
+};
+
+GlobalError.captureStackTrace = captureStackTrace;
+
+});
