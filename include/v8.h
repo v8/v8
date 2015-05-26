@@ -2958,9 +2958,17 @@ class V8_EXPORT Map : public Object {
   Local<Array> AsArray() const;
 
   /**
-   * Creates a new Map.
+   * Creates a new empty Map.
    */
   static Local<Map> New(Isolate* isolate);
+
+  /**
+   * Creates a new Map containing the elements of array, which must be comprised
+   * of [key, value] arrays.
+   * Guaranteed to be side-effect free if the array contains no holes.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Map> FromArray(Local<Context> context,
+                                                         Local<Array> array);
 
   V8_INLINE static Map* Cast(Value* obj);
 
@@ -2983,9 +2991,16 @@ class V8_EXPORT Set : public Object {
   Local<Array> AsArray() const;
 
   /**
-   * Creates a new Set.
+   * Creates a new empty Set.
    */
   static Local<Set> New(Isolate* isolate);
+
+  /**
+   * Creates a new Set containing the items in array.
+   * Guaranteed to be side-effect free if the array contains no holes.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Set> FromArray(Local<Context> context,
+                                                         Local<Array> array);
 
   V8_INLINE static Set* Cast(Value* obj);
 

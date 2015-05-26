@@ -4,6 +4,8 @@
 
 var $getHash;
 var $getExistingHash;
+var $mapFromArray;
+var $setFromArray;
 
 (function(global, utils) {
 "use strict";
@@ -479,5 +481,24 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 // Expose to the global scope.
 $getHash = GetHash;
 $getExistingHash = GetExistingHash;
+
+$mapFromArray = function(array) {
+  var map = new GlobalMap;
+  var length = array.length;
+  for (var i = 0; i < length; ++i) {
+    var entry = array[i];
+    %_CallFunction(map, entry[0], entry[1], MapSet);
+  }
+  return map;
+};
+
+$setFromArray = function(array) {
+  var set = new GlobalSet;
+  var length = array.length;
+  for (var i = 0; i < length; ++i) {
+    %_CallFunction(set, array[i], SetAdd);
+  }
+  return set;
+};
 
 })

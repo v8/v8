@@ -21127,6 +21127,9 @@ TEST(Map) {
   CHECK_EQ(2, entry->Length());
   CHECK_EQ(3, entry->Get(0).As<v8::Int32>()->Value());
   CHECK_EQ(4, entry->Get(1).As<v8::Int32>()->Value());
+
+  map = v8::Map::FromArray(env.local(), entries).ToLocalChecked();
+  CHECK_EQ(2, map->Size());
 }
 
 
@@ -21149,4 +21152,7 @@ TEST(Set) {
   CHECK_EQ(2, keys->Length());
   CHECK_EQ(1, keys->Get(0).As<v8::Int32>()->Value());
   CHECK_EQ(2, keys->Get(1).As<v8::Int32>()->Value());
+
+  set = v8::Set::FromArray(env.local(), keys).ToLocalChecked();
+  CHECK_EQ(2, set->Size());
 }

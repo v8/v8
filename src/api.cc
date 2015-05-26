@@ -6156,6 +6156,19 @@ Local<Array> Map::AsArray() const {
 }
 
 
+MaybeLocal<Map> Map::FromArray(Local<Context> context, Local<Array> array) {
+  PREPARE_FOR_EXECUTION(context, "Map::FromArray", Map);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*array)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->map_from_array(),
+                          isolate->factory()->undefined_value(),
+                          arraysize(argv), argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Map);
+  RETURN_ESCAPED(Local<Map>::Cast(Utils::ToLocal(result)));
+}
+
+
 Local<v8::Set> v8::Set::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "Set::New");
@@ -6189,6 +6202,19 @@ Local<Array> Set::AsArray() const {
   i::Handle<i::JSArray> result_array =
       factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
   return Utils::ToLocal(result_array);
+}
+
+
+MaybeLocal<Set> Set::FromArray(Local<Context> context, Local<Array> array) {
+  PREPARE_FOR_EXECUTION(context, "Set::FromArray", Set);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*array)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->set_from_array(),
+                          isolate->factory()->undefined_value(),
+                          arraysize(argv), argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Set);
+  RETURN_ESCAPED(Local<Set>::Cast(Utils::ToLocal(result)));
 }
 
 
