@@ -5684,8 +5684,6 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // of the property values and is the value of the entire expression.
   Push(literal);
 
-  expr->CalculateEmitStore(zone());
-
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->is_computed_name()) return Bailout(kComputedPropertyName);

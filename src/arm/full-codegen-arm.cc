@@ -1676,11 +1676,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // result_saved is false the result is in r0.
   bool result_saved = false;
 
-  // Mark all computed expressions that are bound to a key that
-  // is shadowed by a later occurrence of the same key. For the
-  // marked expressions, no store code is emitted.
-  expr->CalculateEmitStore(zone());
-
   AccessorTable accessor_table(zone());
   int property_index = 0;
   for (; property_index < expr->properties()->length(); property_index++) {

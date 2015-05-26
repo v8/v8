@@ -1786,11 +1786,6 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // property values and is the value of the entire expression.
   environment()->Push(literal);
 
-  // Mark all computed expressions that are bound to a key that is shadowed by
-  // a later occurrence of the same key. For the marked expressions, no store
-  // code is emitted.
-  expr->CalculateEmitStore(zone());
-
   // Create nodes to store computed values into the literal.
   int property_index = 0;
   AccessorTable accessor_table(zone());
