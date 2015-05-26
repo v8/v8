@@ -339,12 +339,17 @@ class ParserBase : public Traits {
     Mode old_mode_;
   };
 
-  Scope* NewScope(Scope* parent, ScopeType scope_type,
-                  FunctionKind kind = kNormalFunction) {
+  Scope* NewScope(Scope* parent, ScopeType scope_type) {
+    // Must always pass the function kind for FUNCTION_SCOPE and ARROW_SCOPE.
+    DCHECK(scope_type != FUNCTION_SCOPE);
+    DCHECK(scope_type != ARROW_SCOPE);
+    return NewScope(parent, scope_type, kNormalFunction);
+  }
+
+  Scope* NewScope(Scope* parent, ScopeType scope_type, FunctionKind kind) {
     DCHECK(ast_value_factory());
     DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
-    DCHECK((scope_type == FUNCTION_SCOPE && IsValidFunctionKind(kind)) ||
-           kind == kNormalFunction);
+    DCHECK(scope_type != ARROW_SCOPE || IsArrowFunction(kind));
     Scope* result = new (zone())
         Scope(zone(), parent, scope_type, ast_value_factory(), kind);
     result->Initialize();
@@ -1711,7 +1716,8 @@ class PreParserTraits {
   }
 
   static PreParserExpression SuperReference(Scope* scope,
-                                            PreParserFactory* factory) {
+                                            PreParserFactory* factory,
+                                            int pos) {
     return PreParserExpression::Default();
   }
 
@@ -2393,7 +2399,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         classifier->RecordBindingPatternError(scanner()->location(),
                                               MessageTemplate::kUnexpectedToken,
                                               Token::String(Token::RPAREN));
-        Scope* scope = this->NewScope(scope_, ARROW_SCOPE);
+        Scope* scope =
+            this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
         scope->set_start_position(beg_pos);
         ExpressionClassifier args_classifier;
         bool has_rest = false;
@@ -2920,7 +2927,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
                                   CHECK_OK);
     Scanner::Location loc(lhs_location.beg_pos, scanner()->location().end_pos);
     bool has_rest = false;
-    Scope* scope = this->NewScope(scope_, ARROW_SCOPE);
+    Scope* scope =
+        this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
     scope->set_start_position(lhs_location.beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
     this->ParseArrowFunctionFormalParameters(scope, expression, loc, &has_rest,
@@ -3507,7 +3515,7 @@ ParserBase<Traits>::ParseStrongSuperCallExpression(
   Consume(Token::SUPER);
   int pos = position();
   Scanner::Location super_loc = scanner()->location();
-  ExpressionT expr = this->SuperReference(scope_, factory());
+  ExpressionT expr = this->SuperReference(scope_, factory(), pos);
 
   if (peek() != Token::LPAREN) {
     ReportMessage(MessageTemplate::kStrongConstructorSuper);
@@ -3556,21 +3564,23 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseSuperExpression(bool is_new,
                                          ExpressionClassifier* classifier,
                                          bool* ok) {
+  int pos = position();
   Expect(Token::SUPER, CHECK_OK);
 
-  // TODO(wingo): Does this actually work with lazily compiled arrows?
-  FunctionState* function_state = function_state_;
-  while (IsArrowFunction(function_state->kind())) {
-    function_state = function_state->outer();
-  }
-  // TODO(arv): Handle eval scopes similarly.
+  Scope* scope = scope_->DeclarationScope();
 
-  FunctionKind kind = function_state->kind();
+  while (scope->is_eval_scope() || scope->is_arrow_scope()) {
+    scope = scope->outer_scope();
+    DCHECK_NOT_NULL(scope);
+    scope = scope->DeclarationScope();
+  }
+
+  FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       i::IsConstructor(kind)) {
     if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
-      scope_->RecordSuperPropertyUsage();
-      return this->SuperReference(scope_, factory());
+      scope->RecordSuperPropertyUsage();
+      return this->SuperReference(scope_, factory(), pos);
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
@@ -3582,8 +3592,10 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
         *ok = false;
         return this->EmptyExpression();
       }
-      function_state->set_super_location(scanner()->location());
-      return this->SuperReference(scope_, factory());
+      // TODO(rossberg): This might not be the correct FunctionState for the
+      // method here.
+      function_state_->set_super_location(scanner()->location());
+      return this->SuperReference(scope_, factory(), pos);
     }
   }
 

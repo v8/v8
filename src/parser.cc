@@ -749,8 +749,13 @@ Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
 
 Expression* ParserTraits::SuperReference(Scope* scope, AstNodeFactory* factory,
                                          int pos) {
+  // TODO(arv): Split into SuperProperty and SuperCall?
+  VariableProxy* home_object_proxy = scope->NewUnresolved(
+      factory, parser_->ast_value_factory()->home_object_string(),
+      Variable::NORMAL, pos);
+
   return factory->NewSuperReference(
-      ThisExpression(scope, factory, pos)->AsVariableProxy(),
+      ThisExpression(scope, factory, pos)->AsVariableProxy(), home_object_proxy,
       pos);
 }
 
@@ -1138,7 +1143,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     bool ok = true;
 
     if (shared_info->is_arrow()) {
-      Scope* scope = NewScope(scope_, ARROW_SCOPE);
+      Scope* scope =
+          NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
       bool has_rest = false;

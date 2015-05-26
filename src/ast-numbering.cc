@@ -174,6 +174,7 @@ void AstNumberingVisitor::VisitSuperReference(SuperReference* node) {
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(SuperReference::num_ids()));
   Visit(node->this_var());
+  Visit(node->home_object_var());
 }
 
 
@@ -524,6 +525,8 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
     DisableCrankshaft(kContextAllocatedArguments);
   }
+
+  ReserveFeedbackSlots(node);
 
   VisitDeclarations(scope->declarations());
   if (scope->is_function_scope() && scope->function() != NULL) {

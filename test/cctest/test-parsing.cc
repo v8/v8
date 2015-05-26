@@ -976,9 +976,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
     SUPER_PROPERTY = 1 << 1,
     THIS = 1 << 2,
     INNER_ARGUMENTS = 1 << 3,
-    INNER_SUPER_PROPERTY = 1 << 4,
   };
 
+  // clang-format off
   static const struct {
     const char* body;
     int expected;
@@ -992,7 +992,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"return this + arguments[0] + super.x",
      ARGUMENTS | SUPER_PROPERTY | THIS},
     {"return x => this + x", THIS},
-    {"return x => super.f() + x", INNER_SUPER_PROPERTY},
+    {"return x => super.f() + x", SUPER_PROPERTY},
     {"this.foo = 42;", THIS},
     {"this.foo();", THIS},
     {"if (foo()) { this.f() }", THIS},
@@ -1018,15 +1018,15 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"\"use strict\"; while (true) { let x; this, arguments; }",
      INNER_ARGUMENTS | THIS},
     {"\"use strict\"; while (true) { let x; this, super.f(), arguments; }",
-     INNER_ARGUMENTS | INNER_SUPER_PROPERTY | THIS},
+     INNER_ARGUMENTS | SUPER_PROPERTY | THIS},
     {"\"use strict\"; if (foo()) { let x; this.f() }", THIS},
-    {"\"use strict\"; if (foo()) { let x; super.f() }",
-     INNER_SUPER_PROPERTY},
+    {"\"use strict\"; if (foo()) { let x; super.f() }", SUPER_PROPERTY},
     {"\"use strict\"; if (1) {"
      "  let x; return { m() { return this + super.m() + arguments } }"
      "}",
      NONE},
   };
+  // clang-format on
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1042,7 +1042,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
     for (unsigned i = 0; i < arraysize(source_data); ++i) {
       // Super property is only allowed in constructor and method.
       if (((source_data[i].expected & SUPER_PROPERTY) ||
-           (source_data[i].expected & INNER_SUPER_PROPERTY) ||
            (source_data[i].expected == NONE)) && j != 2) {
         continue;
       }
@@ -1090,8 +1089,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
       }
       CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
                scope->inner_uses_arguments());
-      CHECK_EQ((source_data[i].expected & INNER_SUPER_PROPERTY) != 0,
-               scope->inner_uses_super_property());
     }
   }
 }

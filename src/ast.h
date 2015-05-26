@@ -2539,6 +2539,26 @@ class FunctionLiteral final : public Expression {
     dont_optimize_reason_ = reason;
   }
 
+  static int num_ids() { return parent_num_ids() + 1; }
+  TypeFeedbackId HomeObjectFeedbackId() { return TypeFeedbackId(local_id(0)); }
+
+  // Type feedback information.
+  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
+      Isolate* isolate, const ICSlotCache* cache) override {
+    return FeedbackVectorRequirements(0, 1);
+  }
+  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                              ICSlotCache* cache) override {
+    DCHECK(!slot.IsInvalid());
+    home_object_feedback_slot_ = slot;
+  }
+  Code::Kind FeedbackICSlotKind(int index) override { return Code::LOAD_IC; }
+
+  FeedbackVectorICSlot HomeObjectFeedbackSlot() {
+    DCHECK(!home_object_feedback_slot_.IsInvalid());
+    return home_object_feedback_slot_;
+  }
+
  protected:
   FunctionLiteral(Zone* zone, const AstRawString* name,
                   AstValueFactory* ast_value_factory, Scope* scope,
@@ -2560,7 +2580,8 @@ class FunctionLiteral final : public Expression {
         expected_property_count_(expected_property_count),
         handler_count_(handler_count),
         parameter_count_(parameter_count),
-        function_token_position_(RelocInfo::kNoPosition) {
+        function_token_position_(RelocInfo::kNoPosition),
+        home_object_feedback_slot_(FeedbackVectorICSlot::Invalid()) {
     bitfield_ = IsExpression::encode(function_type != DECLARATION) |
                 IsAnonymous::encode(function_type == ANONYMOUS_EXPRESSION) |
                 Pretenure::encode(false) |
@@ -2571,6 +2592,8 @@ class FunctionLiteral final : public Expression {
                 ShouldBeUsedOnceHintBit::encode(kDontKnowIfShouldBeUsedOnce);
     DCHECK(IsValidFunctionKind(kind));
   }
+
+  static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
   const AstRawString* raw_name_;
@@ -2588,6 +2611,9 @@ class FunctionLiteral final : public Expression {
   int handler_count_;
   int parameter_count_;
   int function_token_position_;
+
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+  FeedbackVectorICSlot home_object_feedback_slot_;
 
   unsigned bitfield_;
   class IsExpression : public BitField<bool, 0, 1> {};
@@ -2690,37 +2716,21 @@ class SuperReference final : public Expression {
   DECLARE_NODE_TYPE(SuperReference)
 
   VariableProxy* this_var() const { return this_var_; }
-
-  static int num_ids() { return parent_num_ids(); }
-
-  // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(0, 1);
-  }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    homeobject_feedback_slot_ = slot;
-  }
-  Code::Kind FeedbackICSlotKind(int index) override { return Code::LOAD_IC; }
-
-  FeedbackVectorICSlot HomeObjectFeedbackSlot() {
-    DCHECK(!homeobject_feedback_slot_.IsInvalid());
-    return homeobject_feedback_slot_;
-  }
+  VariableProxy* home_object_var() const { return home_object_var_; }
 
  protected:
-  SuperReference(Zone* zone, VariableProxy* this_var, int pos)
+  SuperReference(Zone* zone, VariableProxy* this_var,
+                 VariableProxy* home_object_var, int pos)
       : Expression(zone, pos),
         this_var_(this_var),
-        homeobject_feedback_slot_(FeedbackVectorICSlot::Invalid()) {
+        home_object_var_(home_object_var) {
     DCHECK(this_var->is_this());
+    DCHECK(home_object_var->raw_name()->IsOneByteEqualTo(".home_object"));
   }
-  static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
   VariableProxy* this_var_;
-  FeedbackVectorICSlot homeobject_feedback_slot_;
+  VariableProxy* home_object_var_;
 };
 
 
@@ -3491,8 +3501,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) ThisFunction(zone_, pos);
   }
 
-  SuperReference* NewSuperReference(VariableProxy* this_var, int pos) {
-    return new (zone_) SuperReference(zone_, this_var, pos);
+  SuperReference* NewSuperReference(VariableProxy* this_var,
+                                    VariableProxy* home_object_var, int pos) {
+    return new (zone_) SuperReference(zone_, this_var, home_object_var, pos);
   }
 
  private:

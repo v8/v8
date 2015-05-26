@@ -154,12 +154,13 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   function_kind_ = function_kind;
   block_scope_is_class_scope_ = false;
   scope_name_ = ast_value_factory_->empty_string();
-  dynamics_ = NULL;
-  receiver_ = NULL;
+  dynamics_ = nullptr;
+  receiver_ = nullptr;
   new_target_ = nullptr;
-  function_ = NULL;
-  arguments_ = NULL;
-  illegal_redecl_ = NULL;
+  function_ = nullptr;
+  arguments_ = nullptr;
+  home_object_ = nullptr;
+  illegal_redecl_ = nullptr;
   scope_inside_with_ = false;
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
@@ -172,7 +173,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   inner_scope_uses_arguments_ = false;
-  inner_scope_uses_super_property_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
@@ -336,6 +336,17 @@ void Scope::Initialize() {
                        VAR,
                        Variable::ARGUMENTS,
                        kCreatedInitialized);
+  }
+
+  if (is_function_scope() &&
+      (IsConciseMethod(function_kind_) || IsConstructor(function_kind_) ||
+       IsAccessorFunction(function_kind_))) {
+    DCHECK(!is_arrow_scope());
+    // Declare '.home_object' variable which exists in all methods.
+    // Note that it might never be accessed, in which case it won't be
+    // allocated during variable allocation.
+    variables_.Declare(this, ast_value_factory_->home_object_string(), VAR,
+                       Variable::NORMAL, kCreatedInitialized);
   }
 }
 
@@ -929,8 +940,6 @@ void Scope::Print(int n) {
   if (inner_scope_uses_arguments_) {
     Indent(n1, "// inner scope uses 'arguments'\n");
   }
-  if (inner_scope_uses_super_property_)
-    Indent(n1, "// inner scope uses 'super' property\n");
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
@@ -1287,10 +1296,6 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
       if (inner->scope_uses_arguments_ || inner->inner_scope_uses_arguments_) {
         inner_scope_uses_arguments_ = true;
       }
-      if (inner->scope_uses_super_property_ ||
-          inner->inner_scope_uses_super_property_) {
-        inner_scope_uses_super_property_ = true;
-      }
     }
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;
@@ -1396,6 +1401,18 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
 
   if (rest_parameter_ && !MustAllocate(rest_parameter_)) {
     rest_parameter_ = NULL;
+  }
+
+  Variable* home_object_var =
+      LookupLocal(ast_value_factory_->home_object_string());
+  if (home_object_var != nullptr && uses_super_property() &&
+      MustAllocate(home_object_var)) {
+    // TODO(arv): super() uses a SuperReference so it generates a VariableProxy
+    // for the .home_object which makes it look like we need to allocate the
+    // home_object_var.
+    // Consider splitting the AST node into 2 different nodes since the
+    // semantics is just so different.
+    home_object_ = home_object_var;
   }
 
   // The same parameter may occur multiple times in the parameters_ list.

@@ -676,8 +676,6 @@ class FullCodeGenerator: public AstVisitor {
   // accumulator.
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
-  void EmitLoadHomeObject(SuperReference* expr);
-
   static bool NeedsHomeObject(Expression* expr) {
     return FunctionLiteral::NeedsHomeObject(expr);
   }

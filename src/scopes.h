@@ -409,6 +409,16 @@ class Scope: public ZoneObject {
     return arguments_;
   }
 
+  // A local variable to the [[HomeObject]] used by methods if we need to
+  // allocate it; NULL otherwise.
+  Variable* home_object_var() const {
+    DCHECK(home_object_ == nullptr ||
+           (is_function_scope() && (IsConciseMethod(function_kind()) ||
+                                    IsAccessorFunction(function_kind()) ||
+                                    IsConstructor(function_kind()))));
+    return home_object_;
+  }
+
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
@@ -567,6 +577,8 @@ class Scope: public ZoneObject {
   Variable* new_target_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
+  // Convenience variable; method scopes only.
+  Variable* home_object_;
   // Module descriptor; module scopes only.
   ModuleDescriptor* module_descriptor_;
 

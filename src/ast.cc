@@ -179,7 +179,7 @@ LanguageMode FunctionLiteral::language_mode() const {
 
 bool FunctionLiteral::uses_super_property() const {
   DCHECK_NOT_NULL(scope());
-  return scope()->uses_super_property() || scope()->inner_uses_super_property();
+  return scope()->uses_super_property();
 }
 
 

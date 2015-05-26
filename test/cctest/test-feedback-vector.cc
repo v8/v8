@@ -173,7 +173,7 @@ TEST(VectorICProfilerStatistics) {
   CHECK_EQ(0, feedback_info->ic_generic_count());
   Handle<TypeFeedbackVector> feedback_vector =
       handle(f->shared()->feedback_vector(), isolate);
-  int ic_slot = 0;
+  int ic_slot = 1;
   CallICNexus nexus(feedback_vector, FeedbackVectorICSlot(ic_slot));
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
@@ -222,7 +222,7 @@ TEST(VectorCallICStates) {
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
-  FeedbackVectorICSlot slot(0);
+  FeedbackVectorICSlot slot(1);
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // CallIC doesn't return map feedback.
@@ -264,7 +264,7 @@ TEST(VectorLoadICStates) {
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
-  FeedbackVectorICSlot slot(0);
+  FeedbackVectorICSlot slot(1);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
 
@@ -322,8 +322,8 @@ TEST(VectorLoadICSlotSharing) {
   // There should be one IC slot.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
-  CHECK_EQ(1, feedback_vector->ICSlots());
-  FeedbackVectorICSlot slot(0);
+  CHECK_EQ(2, feedback_vector->ICSlots());
+  FeedbackVectorICSlot slot(1);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
@@ -346,7 +346,7 @@ TEST(VectorLoadICOnSmi) {
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
-  FeedbackVectorICSlot slot(0);
+  FeedbackVectorICSlot slot(1);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
 
