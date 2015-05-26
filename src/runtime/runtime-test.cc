@@ -88,7 +88,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
-                 !function->shared()->optimization_disabled());
+                 (function->code()->kind() == Code::FUNCTION &&
+                  !function->shared()->optimization_disabled()));
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
