@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
@@ -46,10 +46,10 @@ function SharedArrayBufferIsViewJS(obj) {
 %AddNamedProperty(GlobalSharedArrayBuffer.prototype,
     symbolToStringTag, "SharedArrayBuffer", DONT_ENUM | READ_ONLY);
 
-$installGetter(GlobalSharedArrayBuffer.prototype, "byteLength",
-              SharedArrayBufferGetByteLen);
+utils.InstallGetter(GlobalSharedArrayBuffer.prototype, "byteLength",
+                    SharedArrayBufferGetByteLen);
 
-$installFunctions(GlobalSharedArrayBuffer, DONT_ENUM, [
+utils.InstallFunctions(GlobalSharedArrayBuffer, DONT_ENUM, [
     "isView", SharedArrayBufferIsViewJS
 ]);
 
