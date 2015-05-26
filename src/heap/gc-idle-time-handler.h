@@ -148,18 +148,24 @@ class GCIdleTimeHandler {
   // the kDone mode.
   static const int kMaxIdleMarkCompacts = 3;
 
-  // The number of mutator GCs before transitioning to the kReduceLatency mode.
-  static const int kGCsBeforeMutatorIsActive = 7;
+  // The number of mutator MarkCompact GCs before transitioning to the
+  // kReduceLatency mode.
+  static const int kMarkCompactsBeforeMutatorIsActive = 1;
 
   // Mutator is considered idle if
-  // 1) there is an idle notification with time >= kLargeLongIdleTime,
-  // 2) or there are kLongIdleNotificationsBeforeMutatorIsIdle idle
-  // notifications
-  //    with time >= kMinLongIdleTime and without any mutator GC in between.
+  // 1) there are N idle notification with time >= kMinBackgroundIdleTime,
+  // 2) or there are M idle notifications with time >= kMinLongIdleTime
+  // without any mutator GC in between.
+  // Where N = kBackgroundIdleNotificationsBeforeMutatorIsIdle,
+  //       M = kLongIdleNotificationsBeforeMutatorIsIdle
   static const int kMinLongIdleTime = kMaxFrameRenderingIdleTime + 1;
-  static const int kLargeLongIdleTime = 900;
-  static const int kLongIdleNotificationsBeforeMutatorIsIdle = 20;
-
+  static const int kMinBackgroundIdleTime = 900;
+  static const int kBackgroundIdleNotificationsBeforeMutatorIsIdle = 2;
+  static const int kLongIdleNotificationsBeforeMutatorIsIdle = 50;
+  // Number of times we will return a Nothing action in the current mode
+  // despite having idle time available before we returning a Done action to
+  // ensure we don't keep scheduling idle tasks and making no progress.
+  static const int kMaxNoProgressIdleTimesPerMode = 10;
 
   class HeapState {
    public:
@@ -186,6 +192,8 @@ class GCIdleTimeHandler {
         mark_compacts_(0),
         scavenges_(0),
         long_idle_notifications_(0),
+        background_idle_notifications_(0),
+        idle_times_which_made_no_progress_per_mode_(0),
         mode_(kReduceLatency) {}
 
   GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
@@ -229,19 +237,26 @@ class GCIdleTimeHandler {
 
  private:
   bool IsMutatorActive(int contexts_disposed, int gcs);
-  bool IsMutatorIdle(int long_idle_notifications, int gcs);
+  bool IsMutatorIdle(int long_idle_notifications,
+                     int background_idle_notifications, int gcs);
   void UpdateCounters(double idle_time_in_ms);
   void ResetCounters();
   Mode NextMode(const HeapState& heap_state);
   GCIdleTimeAction Action(double idle_time_in_ms, const HeapState& heap_state,
                           bool reduce_memory);
+  GCIdleTimeAction NothingOrDone();
 
   int idle_mark_compacts_;
   int mark_compacts_;
   int scavenges_;
-  // The number of long idle notifications with no mutator GC happening
+  // The number of long idle notifications with no GC happening
   // between the notifications.
   int long_idle_notifications_;
+  // The number of background idle notifications with no GC happening
+  // between the notifications.
+  int background_idle_notifications_;
+  // Idle notifications with no progress in the current mode.
+  int idle_times_which_made_no_progress_per_mode_;
 
   Mode mode_;
 
