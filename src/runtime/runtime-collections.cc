@@ -45,12 +45,17 @@ RUNTIME_FUNCTION(Runtime_GenericHash) {
 }
 
 
+void Runtime::JSSetInitialize(Isolate* isolate, Handle<JSSet> set) {
+  Handle<OrderedHashSet> table = isolate->factory()->NewOrderedHashSet();
+  set->set_table(*table);
+}
+
+
 RUNTIME_FUNCTION(Runtime_SetInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<OrderedHashSet> table = isolate->factory()->NewOrderedHashSet();
-  holder->set_table(*table);
+  Runtime::JSSetInitialize(isolate, holder);
   return *holder;
 }
 
@@ -143,12 +148,17 @@ RUNTIME_FUNCTION(Runtime_SetIteratorDetails) {
 }
 
 
+void Runtime::JSMapInitialize(Isolate* isolate, Handle<JSMap> map) {
+  Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
+  map->set_table(*table);
+}
+
+
 RUNTIME_FUNCTION(Runtime_MapInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
-  holder->set_table(*table);
+  Runtime::JSMapInitialize(isolate, holder);
   return *holder;
 }
 

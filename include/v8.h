@@ -1823,37 +1823,31 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a Map.
-   * This is an experimental feature.
    */
   bool IsMap() const;
 
   /**
    * Returns true if this value is a Set.
-   * This is an experimental feature.
    */
   bool IsSet() const;
 
   /**
    * Returns true if this value is a Map Iterator.
-   * This is an experimental feature.
    */
   bool IsMapIterator() const;
 
   /**
    * Returns true if this value is a Set Iterator.
-   * This is an experimental feature.
    */
   bool IsSetIterator() const;
 
   /**
    * Returns true if this value is a WeakMap.
-   * This is an experimental feature.
    */
   bool IsWeakMap() const;
 
   /**
    * Returns true if this value is a WeakSet.
-   * This is an experimental feature.
    */
   bool IsWeakSet() const;
 
@@ -2946,6 +2940,46 @@ class V8_EXPORT Array : public Object {
   V8_INLINE static Array* Cast(Value* obj);
  private:
   Array();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in Map constructor (ECMA-262, 6th Edition, 23.1.1).
+ */
+class V8_EXPORT Map : public Object {
+ public:
+  size_t Size() const;
+
+  /**
+   * Creates a new Map.
+   */
+  static Local<Map> New(Isolate* isolate);
+
+  V8_INLINE static Map* Cast(Value* obj);
+
+ private:
+  Map();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in Set constructor (ECMA-262, 6th Edition, 23.2.1).
+ */
+class V8_EXPORT Set : public Object {
+ public:
+  size_t Size() const;
+
+  /**
+   * Creates a new Set.
+   */
+  static Local<Set> New(Isolate* isolate);
+
+  V8_INLINE static Set* Cast(Value* obj);
+
+ private:
+  Set();
   static void CheckCast(Value* obj);
 };
 
@@ -7779,6 +7813,22 @@ Array* Array::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Array*>(value);
+}
+
+
+Map* Map::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Map*>(value);
+}
+
+
+Set* Set::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Set*>(value);
 }
 
 

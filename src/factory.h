@@ -464,6 +464,9 @@ class Factory final {
   Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
                                    size_t byte_offset, size_t byte_length);
 
+  Handle<JSMap> NewJSMap();
+  Handle<JSSet> NewJSSet();
+
   // TODO(aandrey): Maybe these should take table, index and kind arguments.
   Handle<JSMapIterator> NewJSMapIterator();
   Handle<JSSetIterator> NewJSSetIterator();

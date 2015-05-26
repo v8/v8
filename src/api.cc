@@ -3085,6 +3085,20 @@ void v8::Array::CheckCast(Value* that) {
 }
 
 
+void v8::Map::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsJSMap(), "v8::Map::Cast()",
+                  "Could not convert to Map");
+}
+
+
+void v8::Set::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsJSSet(), "v8::Set::Cast()",
+                  "Could not convert to Set");
+}
+
+
 void v8::Promise::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsPromise(),
                   "v8::Promise::Cast()",
@@ -6099,6 +6113,36 @@ MaybeLocal<Object> Array::CloneElementAt(Local<Context> context,
 Local<Object> Array::CloneElementAt(uint32_t index) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   RETURN_TO_LOCAL_UNCHECKED(CloneElementAt(context, index), Object);
+}
+
+
+Local<v8::Map> v8::Map::New(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "Map::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSMap> obj = i_isolate->factory()->NewJSMap();
+  return Utils::ToLocal(obj);
+}
+
+
+size_t v8::Map::Size() const {
+  i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
+  return i::OrderedHashMap::cast(obj->table())->NumberOfElements();
+}
+
+
+Local<v8::Set> v8::Set::New(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "Set::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSSet> obj = i_isolate->factory()->NewJSSet();
+  return Utils::ToLocal(obj);
+}
+
+
+size_t v8::Set::Size() const {
+  i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
+  return i::OrderedHashSet::cast(obj->table())->NumberOfElements();
 }
 
 

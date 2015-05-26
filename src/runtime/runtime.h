@@ -852,6 +852,10 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<FixedArray> literals,
       Handle<FixedArray> elements, bool is_strong);
 
+
+  static void JSMapInitialize(Isolate* isolate, Handle<JSMap> map);
+  static void JSSetInitialize(Isolate* isolate, Handle<JSSet> set);
+
   static void WeakCollectionInitialize(
       Isolate* isolate, Handle<JSWeakCollection> weak_collection);
   static void WeakCollectionSet(Handle<JSWeakCollection> weak_collection,

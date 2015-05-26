@@ -21100,3 +21100,37 @@ TEST(ExtrasExportsObject) {
 
   CHECK(result->Value() == 5.0);
 }
+
+
+TEST(Map) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::Local<v8::Map> map = v8::Map::New(isolate);
+  CHECK(map->IsObject());
+  CHECK(map->IsMap());
+  CHECK_EQ(0, map->Size());
+
+  v8::Local<v8::Value> val = CompileRun("new Map([[1, 2], [3, 4]])");
+  CHECK(val->IsMap());
+  map = v8::Local<v8::Map>::Cast(val);
+  CHECK_EQ(2, map->Size());
+}
+
+
+TEST(Set) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::Local<v8::Set> set = v8::Set::New(isolate);
+  CHECK(set->IsObject());
+  CHECK(set->IsSet());
+  CHECK_EQ(0, set->Size());
+
+  v8::Local<v8::Value> val = CompileRun("new Set([1, 2])");
+  CHECK(val->IsSet());
+  set = v8::Local<v8::Set>::Cast(val);
+  CHECK_EQ(2, set->Size());
+}

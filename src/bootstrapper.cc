@@ -1221,13 +1221,19 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     native_context()->set_data_view_fun(*data_view_fun);
   }
 
-  // -- M a p
-  InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
-                  isolate->initial_object_prototype(), Builtins::kIllegal);
+  {  // -- M a p
+    Handle<JSFunction> js_map_fun = InstallFunction(
+        global, "Map", JS_MAP_TYPE, JSMap::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_js_map_map(js_map_fun->initial_map());
+  }
 
-  // -- S e t
-  InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
-                  isolate->initial_object_prototype(), Builtins::kIllegal);
+  {  // -- S e t
+    Handle<JSFunction> js_set_fun = InstallFunction(
+        global, "Set", JS_SET_TYPE, JSSet::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_js_set_map(js_set_fun->initial_map());
+  }
 
   {  // Set up the iterator result object
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);

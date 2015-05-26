@@ -187,6 +187,8 @@ enum BindingFlags {
   V(STRONG_GENERATOR_FUNCTION_MAP_INDEX, Map, strong_generator_function_map)   \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
+  V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
+  V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
@@ -427,6 +429,8 @@ class Context: public FixedArray {
     STRONG_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     ITERATOR_RESULT_MAP_INDEX,
+    JS_MAP_MAP_INDEX,
+    JS_SET_MAP_INDEX,
     MAP_ITERATOR_MAP_INDEX,
     SET_ITERATOR_MAP_INDEX,
     ARRAY_VALUES_ITERATOR_INDEX,

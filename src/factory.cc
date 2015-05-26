@@ -1744,6 +1744,22 @@ Handle<JSDataView> Factory::NewJSDataView() {
 }
 
 
+Handle<JSMap> Factory::NewJSMap() {
+  Handle<Map> map(isolate()->native_context()->js_map_map());
+  Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));
+  Runtime::JSMapInitialize(isolate(), js_map);
+  return js_map;
+}
+
+
+Handle<JSSet> Factory::NewJSSet() {
+  Handle<Map> map(isolate()->native_context()->js_set_map());
+  Handle<JSSet> js_set = Handle<JSSet>::cast(NewJSObjectFromMap(map));
+  Runtime::JSSetInitialize(isolate(), js_set);
+  return js_set;
+}
+
+
 Handle<JSMapIterator> Factory::NewJSMapIterator() {
   Handle<Map> map(isolate()->native_context()->map_iterator_map());
   CALL_HEAP_FUNCTION(isolate(),
