@@ -42,6 +42,9 @@
     'debugger': {
       'filepath': 'src/debug\.(cc|h)|src/.*-debugger\.js|src/runtime/runtime-debug\.cc',
     },
+    'x87': {
+      'filepath': 'src/x87/',
+    },
   },
 
   'WATCHLISTS': {
@@ -53,6 +56,9 @@
     ],
     'debugger': [
       'yangguo@chromium.org',
+    ],
+    'x87': [
+      'hablich@chromium.org',
     ],
   },
 }
