@@ -156,6 +156,7 @@
 
 
 var GeneratorFunction = function*() {}.__proto__.constructor;
+var GeneratorPrototype = Object.getPrototypeOf(function*() {}).prototype;
 
 
 function assertIteratorResult(value, done, result) {
@@ -212,6 +213,19 @@ function assertIteratorResult(value, done, result) {
   var g = desc.value();
   assertIteratorResult(1, false, g.next());
   assertIteratorResult(undefined, true, g.next());
+})();
+
+
+(function TestGeneratorPrototypeDescriptor() {
+  var object = {
+    *method() {}
+  };
+
+  var desc = Object.getOwnPropertyDescriptor(object.method, 'prototype');
+  assertFalse(desc.enumerable);
+  assertFalse(desc.configurable);
+  assertTrue(desc.writable);
+  assertEquals(GeneratorPrototype, Object.getPrototypeOf(desc.value));
 })();
 
 

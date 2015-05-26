@@ -2205,9 +2205,11 @@ bool Genesis::InstallNatives() {
                     Builtins::kIllegal, kUseStrictFunctionMap);
 
     // Create maps for generator functions and their prototypes.  Store those
-    // maps in the native context. Generator functions do not have writable
-    // prototypes, nor do they have "caller" or "arguments" accessors.
-    Handle<Map> strict_function_map(native_context()->strict_function_map());
+    // maps in the native context. The "prototype" property descriptor is
+    // writable, non-enumerable, and non-configurable (as per ES6 draft
+    // 04-14-15, section 25.2.4.3).
+    Handle<Map> strict_function_map(strict_function_map_writable_prototype_);
+    // Generator functions do not have "caller" or "arguments" accessors.
     Handle<Map> sloppy_generator_function_map =
         Map::Copy(strict_function_map, "SloppyGeneratorFunction");
     Map::SetPrototype(sloppy_generator_function_map,

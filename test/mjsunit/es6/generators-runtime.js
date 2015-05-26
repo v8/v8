@@ -52,16 +52,9 @@ function TestGeneratorFunctionInstance() {
     var prop = f_own_property_names[i];
     var f_desc = Object.getOwnPropertyDescriptor(f, prop);
     var g_desc = Object.getOwnPropertyDescriptor(g, prop);
-    if (prop === "prototype") {
-      // ES6 draft 03-17-2015 section 25.2.2.2
-      assertFalse(g_desc.writable, prop);
-      assertFalse(g_desc.enumerable, prop);
-      assertFalse(g_desc.configurable, prop);
-    } else {
-      assertEquals(f_desc.configurable, g_desc.configurable, prop);
-      assertEquals(f_desc.writable, g_desc.writable, prop);
-      assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
-    }
+    assertEquals(f_desc.configurable, g_desc.configurable, prop);
+    assertEquals(f_desc.writable, g_desc.writable, prop);
+    assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
   }
 }
 TestGeneratorFunctionInstance();
@@ -156,6 +149,13 @@ function TestGeneratorFunction() {
 
   assertTrue((new GeneratorFunction()) instanceof GeneratorFunction);
   assertTrue(GeneratorFunction() instanceof GeneratorFunction);
+
+  // ES6 draft 04-14-15, section 25.2.2.2
+  var prototype_desc = Object.getOwnPropertyDescriptor(GeneratorFunction,
+      "prototype");
+  assertFalse(prototype_desc.writable);
+  assertFalse(prototype_desc.enumerable);
+  assertFalse(prototype_desc.configurable);
 }
 TestGeneratorFunction();
 
