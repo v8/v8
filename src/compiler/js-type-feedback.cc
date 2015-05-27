@@ -283,7 +283,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
     // TODO(titzer): no feedback from vector ICs from stores.
     return NoChange();
   } else {
-    oracle()->PropertyReceiverTypes(id, name, &maps);
+    oracle()->AssignmentReceiverTypes(id, name, &maps);
   }
 
   Node* receiver = node->InputAt(0);

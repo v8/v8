@@ -42,14 +42,8 @@ class TypeFeedbackOracle: public ZoneObject {
                               IcCheckType* key_type);
   void GetLoadKeyType(TypeFeedbackId id, IcCheckType* key_type);
 
-  void PropertyReceiverTypes(TypeFeedbackId id, Handle<Name> name,
-                             SmallMapList* receiver_types);
   void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void KeyedPropertyReceiverTypes(TypeFeedbackId id,
-                                  SmallMapList* receiver_types,
-                                  bool* is_string,
-                                  IcCheckType* key_type);
   void KeyedPropertyReceiverTypes(FeedbackVectorICSlot slot,
                                   SmallMapList* receiver_types, bool* is_string,
                                   IcCheckType* key_type);
