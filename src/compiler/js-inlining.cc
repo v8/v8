@@ -116,7 +116,8 @@ class CopyVisitor {
 };
 
 
-Reduction JSInliner::InlineCall(Node* call, Node* start, Node* end) {
+Reduction JSInliner::InlineCall(Node* call, Node* frame_state, Node* start,
+                                Node* end) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee, and {effect} becomes
   // the effect input of the start of the inlinee.
@@ -158,6 +159,8 @@ Reduction JSInliner::InlineCall(Node* call, Node* start, Node* end) {
           edge.UpdateTo(effect);
         } else if (NodeProperties::IsControlEdge(edge)) {
           edge.UpdateTo(control);
+        } else if (NodeProperties::IsFrameStateEdge(edge)) {
+          edge.UpdateTo(frame_state);
         } else {
           UNREACHABLE();
         }
@@ -284,7 +287,7 @@ Reduction JSInliner::Reduce(Node* node) {
   Node* start = visitor.GetCopy(graph.start());
   Node* end = visitor.GetCopy(graph.end());
 
-  Node* outer_frame_state = call.frame_state();
+  Node* frame_state = call.frame_state();
   size_t const inlinee_formal_parameters = start->op()->ValueOutputCount() - 3;
   // Insert argument adaptor frame if required.
   if (call.formal_arguments() != inlinee_formal_parameters) {
@@ -294,22 +297,10 @@ Reduction JSInliner::Reduce(Node* node) {
         call.formal_arguments() < inlinee_formal_parameters) {
       return NoChange();
     }
-    outer_frame_state = CreateArgumentsAdaptorFrameState(&call, info.zone());
+    frame_state = CreateArgumentsAdaptorFrameState(&call, info.zone());
   }
 
-  // Fix up all outer frame states from the inlinee.
-  for (Node* const node : visitor.copies()) {
-    if (node->opcode() == IrOpcode::kFrameState) {
-      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-      // Don't touch this frame state, if it already has an "outer frame state".
-      if (NodeProperties::GetFrameStateInput(node, 0)->opcode() !=
-          IrOpcode::kFrameState) {
-        NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
-      }
-    }
-  }
-
-  return InlineCall(node, start, end);
+  return InlineCall(node, frame_state, start, end);
 }
 
 }  // namespace compiler

@@ -78,6 +78,20 @@ TEST(SimpleInliningDeopt) {
 }
 
 
+TEST(SimpleInliningDeoptSelf) {
+  FunctionTester T(
+      "(function(){"
+      "  function foo(s) { %_DeoptimizeNow(); return s; };"
+      "  function bar(s, t) { return foo(s); };"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.Val(1), T.Val(1), T.Val(2));
+}
+
+
 TEST(SimpleInliningContext) {
   FunctionTester T(
       "(function () {"

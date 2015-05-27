@@ -856,7 +856,7 @@ Node* AstGraphBuilder::Environment::Checkpoint(
   Node* result = graph()->NewNode(op, parameters_node_, locals_node_,
                                   stack_node_, builder()->current_context(),
                                   builder()->GetFunctionClosure(),
-                                  builder()->jsgraph()->UndefinedConstant());
+                                  builder()->graph()->start());
 
   DCHECK(IsLivenessBlockConsistent());
   if (liveness_block() != nullptr) {

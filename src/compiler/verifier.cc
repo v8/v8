@@ -118,9 +118,9 @@ void Verifier::Visitor::Check(Node* node) {
   for (int i = 0; i < frame_state_count; i++) {
     Node* frame_state = NodeProperties::GetFrameStateInput(node, i);
     CHECK(frame_state->opcode() == IrOpcode::kFrameState ||
-          // kFrameState uses undefined as a sentinel.
+          // kFrameState uses Start as a sentinel.
           (node->opcode() == IrOpcode::kFrameState &&
-           frame_state->opcode() == IrOpcode::kHeapConstant));
+           frame_state->opcode() == IrOpcode::kStart));
     CHECK(IsDefUseChainLinkPresent(frame_state, node));
     CHECK(IsUseDefChainLinkPresent(frame_state, node));
   }

@@ -37,7 +37,7 @@ class JSInliner final : public AdvancedReducer {
   Node* CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
                                          Zone* temp_zone);
 
-  Reduction InlineCall(Node* call, Node* start, Node* end);
+  Reduction InlineCall(Node* call, Node* frame_state, Node* start, Node* end);
 };
 
 }  // namespace compiler
