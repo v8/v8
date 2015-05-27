@@ -10368,8 +10368,7 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
       if (array_function->IsJSFunction() &&
           *function == JSFunction::cast(*array_function)) {
         CacheInitialJSArrayMaps(native_context, new_map);
-        Handle<Map> new_strong_map =
-            Map::Copy(initial_map, "SetInstancePrototype");
+        Handle<Map> new_strong_map = Map::Copy(new_map, "SetInstancePrototype");
         new_strong_map->set_is_strong();
         CacheInitialJSArrayMaps(native_context, new_strong_map);
       }

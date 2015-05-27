@@ -534,7 +534,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
     // Allocate initial strong object map.
     Handle<Map> strong_object_map =
-        Map::Copy(object_function_map, "EmptyStrongObject");
+        Map::Copy(Handle<Map>(object_fun->initial_map()), "EmptyStrongObject");
     strong_object_map->set_is_strong();
     native_context()->set_js_object_strong_map(*strong_object_map);
   }

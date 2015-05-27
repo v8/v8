@@ -8,6 +8,28 @@
 
 'use strict';
 
+let GeneratorFunctionPrototype = (function*(){}).__proto__;
+
+function assertStrongObject(o) {
+  assertTrue(%IsStrong(o));
+  assertSame(Object.prototype, o.__proto__);
+}
+
+function assertStrongArray(a) {
+  assertTrue(%IsStrong(a));
+  assertSame(Array.prototype, a.__proto__);
+}
+
+function assertStrongFunction(f) {
+  assertTrue(%IsStrong(f));
+  assertSame(Function.prototype, f.__proto__);
+}
+
+function assertStrongGenerator(g) {
+  assertTrue(%IsStrong(g));
+  assertSame(GeneratorFunctionPrototype, g.__proto__);
+}
+
 (function WeakObjectLiterals() {
   assertTrue(!%IsStrong({}));
   assertTrue(!%IsStrong({a: 0, b: 0}));
@@ -24,16 +46,16 @@
 
 (function StrongObjectLiterals() {
   'use strong';
-  assertTrue(%IsStrong({}));
-  assertTrue(%IsStrong({a: 0, b: 0}));
-  assertTrue(%IsStrong({a: [], b: {}}));
-  assertTrue(%IsStrong({a: [], b: {}}.a));
-  assertTrue(%IsStrong({a: [], b: {}}.b));
-  assertTrue(%IsStrong({a: {b: {c: {}}}}.a));
-  assertTrue(%IsStrong({a: {b: {c: {}}}}.a.b));
-  assertTrue(%IsStrong({a: {b: {c: {}}}}.a.b.c));
+  assertStrongObject({});
+  assertStrongObject({a: 0, b: 0});
+  assertStrongObject({a: [], b: {}});
+  assertStrongArray({a: [], b: {}}.a);
+  assertStrongObject({a: [], b: {}}.b);
+  assertStrongObject({a: {b: {c: {}}}}.a);
+  assertStrongObject({a: {b: {c: {}}}}.a.b);
+  assertStrongObject({a: {b: {c: {}}}}.a.b.c);
   // Maps for literals with too many properties are not cached.
-  assertTrue(%IsStrong({
+  assertStrongObject({
     x001: 0, x002: 0, x003: 0, x004: 0, x005: 0,
     x006: 0, x007: 0, x008: 0, x009: 0, x010: 0,
     x011: 0, x012: 0, x013: 0, x014: 0, x015: 0,
@@ -74,15 +96,15 @@
     x186: 0, x187: 0, x188: 0, x189: 0, x190: 0,
     x191: 0, x192: 0, x193: 0, x194: 0, x195: 0,
     x196: 0, x197: 0, x198: 0, x199: 0, x200: 0,
-  }));
-  assertTrue(%IsStrong({__proto__: {}, get a() {}, set b(x) {}}));
-  assertTrue(%IsStrong({[Date() + ""]: 0, [Symbol()]: 0}));
-  assertTrue(%IsStrong({m() { super.m() }}));
+  });
+  assertStrongObject({[Date() + ""]: 0, [Symbol()]: 0});
+  assertStrongObject({m() { super.m() }});
   // Object literals with constant functions are treated specially,
   // but currently only on the toplevel (using Realm.eval to emulate that).
-  assertTrue(%IsStrong({f: function(){}}));
-  assertTrue(%IsStrong(Realm.eval(Realm.current(),
-                       "'use strong'; ({f: function(){}})")));
+  assertStrongObject({f: function(){}});
+  assertStrongObject(Realm.eval(Realm.current(),
+                       "'use strong'; ({f: function(){}})"));
+  assertTrue(%IsStrong({__proto__: {}, get a() {}, set b(x) {}}));
 })();
 
 (function WeakArrayLiterals(...args) {
@@ -108,12 +130,12 @@
   // assertTrue(%IsStrong([]));
   // assertTrue(%IsStrong([1, 2, 3]));
   // assertTrue(%IsStrong([1, 2, ...[3, 4], 5]));
-  assertTrue(%IsStrong([[[]]]));
-  assertTrue(%IsStrong([[1], {}, [[3]]]));
-  assertTrue(%IsStrong([[1], {}, [[3]]][0]));
-  assertTrue(%IsStrong([[1], {}, [[3]]][1]));
-  assertTrue(%IsStrong([[1], {}, [[3]]][2]));
-  assertTrue(%IsStrong([[1], {}, [[3]]][2][0]));
+  assertStrongArray([[[]]]);
+  assertStrongArray([[1], {}, [[3]]]);
+  assertStrongArray([[1], {}, [[3]]][0]);
+  assertStrongObject([[1], {}, [[3]]][1]);
+  assertStrongArray([[1], {}, [[3]]][2]);
+  assertStrongArray([[1], {}, [[3]]][2][0]);
 })();
 
 (function WeakFunctionLiterals() {
@@ -143,50 +165,50 @@
 (function StrongFunctionLiterals() {
   'use strong';
   function f() {}
-  assertTrue(%IsStrong(f));
-  assertTrue(%IsStrong(function(){}));
-  assertTrue(%IsStrong(function f(){}));
-  assertTrue(%IsStrong(() => {}));
-  assertTrue(%IsStrong(x => x));
-  assertTrue(%IsStrong({m(){}}.m));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      {get a(){}}, 'a').get));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      {set a(x){}}, 'a').set));
-  assertTrue(%IsStrong((class {static m(){}}).m));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      class {static get a(){}}, 'a').get));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      class {static set a(x){}}, 'a').set));
-  assertTrue(%IsStrong((new class {m(){}}).m));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      (class {get a(){}}).prototype, 'a').get));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      (class {set a(x){}}).prototype, 'a').set));
+  assertStrongFunction(f);
+  assertStrongFunction(function(){});
+  assertStrongFunction(function f(){});
+  assertStrongFunction(() => {});
+  assertStrongFunction(x => x);
+  assertStrongFunction({m(){}}.m);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      {get a(){}}, 'a').get);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      {set a(x){}}, 'a').set);
+  assertStrongFunction((class {static m(){}}).m);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      class {static get a(){}}, 'a').get);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      class {static set a(x){}}, 'a').set);
+  assertStrongFunction((new class {m(){}}).m);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      (class {get a(){}}).prototype, 'a').get);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      (class {set a(x){}}).prototype, 'a').set);
 })();
 
 (function SelfStrongFunctionLiterals() {
   function f() {'use strong'}
-  assertTrue(%IsStrong(f));
-  assertTrue(%IsStrong(function(){'use strong'}));
-  assertTrue(%IsStrong(function f(){'use strong'}));
-  assertTrue(%IsStrong(() => {'use strong'}));
-  assertTrue(%IsStrong(x => {'use strong'}));
-  assertTrue(%IsStrong({m(){'use strong'}}.m));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      {get a(){'use strong'}}, 'a').get));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      {set a(x){'use strong'}}, 'a').set));
-  assertTrue(%IsStrong((class {static m(){'use strong'}}).m));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      class {static get a(){'use strong'}}, 'a').get));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      class {static set a(x){'use strong'}}, 'a').set));
-  assertTrue(%IsStrong((new class {m(){'use strong'}}).m));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      (class {get a(){'use strong'}}).prototype, 'a').get));
-  assertTrue(%IsStrong(Object.getOwnPropertyDescriptor(
-      (class {set a(x){'use strong'}}).prototype, 'a').set));
+  assertStrongFunction(f);
+  assertStrongFunction(function(){'use strong'});
+  assertStrongFunction(function f(){'use strong'});
+  assertStrongFunction(() => {'use strong'});
+  assertStrongFunction(x => {'use strong'});
+  assertStrongFunction({m(){'use strong'}}.m);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      {get a(){'use strong'}}, 'a').get);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      {set a(x){'use strong'}}, 'a').set);
+  assertStrongFunction((class {static m(){'use strong'}}).m);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      class {static get a(){'use strong'}}, 'a').get);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      class {static set a(x){'use strong'}}, 'a').set);
+  assertStrongFunction((new class {m(){'use strong'}}).m);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      (class {get a(){'use strong'}}).prototype, 'a').get);
+  assertStrongFunction(Object.getOwnPropertyDescriptor(
+      (class {set a(x){'use strong'}}).prototype, 'a').set);
 })();
 
 (function WeakGeneratorLiterals() {
@@ -202,22 +224,22 @@
 (function StrongGeneratorLiterals() {
   'use strong';
   function* g() {}
-  assertTrue(%IsStrong(g));
-  assertTrue(%IsStrong(function*(){}));
-  assertTrue(%IsStrong(function* g(){}));
-  assertTrue(%IsStrong({*m(){}}.m));
-  assertTrue(%IsStrong((class {static *m(){}}).m));
-  assertTrue(%IsStrong((new class {*m(){}}).m));
+  assertStrongGenerator(g);
+  assertStrongGenerator(function*(){});
+  assertStrongGenerator(function* g(){});
+  assertStrongGenerator({*m(){}}.m);
+  assertStrongGenerator((class {static *m(){}}).m);
+  assertStrongGenerator((new class {*m(){}}).m);
 })();
 
 (function SelfStrongGeneratorLiterals() {
   function* g() {'use strong'}
-  assertTrue(%IsStrong(g));
-  assertTrue(%IsStrong(function*(){'use strong'}));
-  assertTrue(%IsStrong(function* g(){'use strong'}));
-  assertTrue(%IsStrong({*m(){'use strong'}}.m));
-  assertTrue(%IsStrong((class {static *m(){'use strong'}}).m));
-  assertTrue(%IsStrong((new class {*m(){'use strong'}}).m));
+  assertStrongGenerator(g);
+  assertStrongGenerator(function*(){'use strong'});
+  assertStrongGenerator(function* g(){'use strong'});
+  assertStrongGenerator({*m(){'use strong'}}.m);
+  assertStrongGenerator((class {static *m(){'use strong'}}).m);
+  assertStrongGenerator((new class {*m(){'use strong'}}).m);
 })();
 
 (function WeakClassLiterals() {
