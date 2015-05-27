@@ -287,7 +287,7 @@ struct WeakListVisitor<Code> {
 template <>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Context* context, Object* next) {
-    context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
+    context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static Object* WeakNext(Context* context) {

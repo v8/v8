@@ -1275,13 +1275,15 @@ Maybe<bool> JSProxy::HasElementWithHandler(Handle<JSProxy> proxy,
     heap->RecordWrite(object->address(), offset);                       \
   }
 
-#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)    \
-  if (mode == UPDATE_WRITE_BARRIER) {                                   \
-    heap->incremental_marking()->RecordWrite(                           \
-      object, HeapObject::RawField(object, offset), value);             \
-    if (heap->InNewSpace(value)) {                                      \
-      heap->RecordWrite(object->address(), offset);                     \
-    }                                                                   \
+#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode) \
+  if (mode != SKIP_WRITE_BARRIER) {                                  \
+    if (mode == UPDATE_WRITE_BARRIER) {                              \
+      heap->incremental_marking()->RecordWrite(                      \
+          object, HeapObject::RawField(object, offset), value);      \
+    }                                                                \
+    if (heap->InNewSpace(value)) {                                   \
+      heap->RecordWrite(object->address(), offset);                  \
+    }                                                                \
   }
 
 #ifndef V8_TARGET_ARCH_MIPS
