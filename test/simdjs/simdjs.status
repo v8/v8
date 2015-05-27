@@ -16,4 +16,11 @@
   # TODO(bbudge): Drop this when simd implementation is faster.
   'benchmarks/memcpy': SKIP,
 }],
+
+######################################################################
+['byteorder == big', {
+  # shell_test_runner requires little-endian, skip it on big-endian.
+  'shell_test_runner': [SKIP],
+}],  # 'byteorder == big'
+
 ]
