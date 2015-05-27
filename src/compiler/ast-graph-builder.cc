@@ -2805,6 +2805,8 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     Visit(expr->right());
   } else if (ast_context()->IsEffect()) {
     environment()->Pop();
+  } else if (ast_context()->IsTest()) {
+    environment()->Poke(0, jsgraph()->TrueConstant());
   }
   compare_if.Else();
   if (!is_logical_and) {
@@ -2812,6 +2814,8 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     Visit(expr->right());
   } else if (ast_context()->IsEffect()) {
     environment()->Pop();
+  } else if (ast_context()->IsTest()) {
+    environment()->Poke(0, jsgraph()->FalseConstant());
   }
   compare_if.End();
   ast_context()->ReplaceValue();
