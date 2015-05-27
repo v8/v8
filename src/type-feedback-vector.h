@@ -228,10 +228,12 @@ class TypeFeedbackVector : public FixedArray {
     KindUnused = 0x0,
     KindCallIC = 0x1,
     KindLoadIC = 0x2,
-    KindKeyedLoadIC = 0x3
+    KindKeyedLoadIC = 0x3,
+    KindStoreIC = 0x4,
+    KindKeyedStoreIC = 0x5,
   };
 
-  static const int kVectorICKindBits = 2;
+  static const int kVectorICKindBits = 3;
   static VectorICKind FromCodeKind(Code::Kind kind);
   static Code::Kind FromVectorICKind(VectorICKind kind);
   void SetKind(FeedbackVectorICSlot slot, Code::Kind kind);

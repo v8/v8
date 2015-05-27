@@ -23,6 +23,12 @@ TypeFeedbackVector::VectorICKind TypeFeedbackVector::FromCodeKind(
       return KindLoadIC;
     case Code::KEYED_LOAD_IC:
       return KindKeyedLoadIC;
+    case Code::STORE_IC:
+      DCHECK(FLAG_vector_stores);
+      return KindStoreIC;
+    case Code::KEYED_STORE_IC:
+      DCHECK(FLAG_vector_stores);
+      return KindKeyedStoreIC;
     default:
       // Shouldn't get here.
       UNREACHABLE();
@@ -41,6 +47,12 @@ Code::Kind TypeFeedbackVector::FromVectorICKind(VectorICKind kind) {
       return Code::LOAD_IC;
     case KindKeyedLoadIC:
       return Code::KEYED_LOAD_IC;
+    case KindStoreIC:
+      DCHECK(FLAG_vector_stores);
+      return Code::STORE_IC;
+    case KindKeyedStoreIC:
+      DCHECK(FLAG_vector_stores);
+      return Code::KEYED_STORE_IC;
     case KindUnused:
       break;
   }
@@ -200,6 +212,8 @@ void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
         KeyedLoadICNexus nexus(this, slot);
         nexus.Clear(host);
       }
+      // TODO(mvstanton): Handle clearing of store ics when FLAG_vector_stores
+      // is true.
     }
   }
 }

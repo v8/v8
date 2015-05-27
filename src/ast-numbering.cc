@@ -313,6 +313,7 @@ void AstNumberingVisitor::VisitAssignment(Assignment* node) {
   if (node->is_compound()) VisitBinaryOperation(node->binary_operation());
   Visit(node->target());
   Visit(node->value());
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -342,11 +343,11 @@ void AstNumberingVisitor::VisitSpread(Spread* node) {
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
-  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(ForInStatement::num_ids()));
   Visit(node->each());
   Visit(node->enumerable());
   Visit(node->body());
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -359,6 +360,7 @@ void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   Visit(node->result_done());
   Visit(node->assign_each());
   Visit(node->body());
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -437,6 +439,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   // is shadowed by a later occurrence of the same key. For the
   // marked expressions, no store code will be is emitted.
   node->CalculateEmitStore(zone());
+  ReserveFeedbackSlots(node);
 }
 
 

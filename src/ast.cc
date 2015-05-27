@@ -121,16 +121,73 @@ FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
 }
 
 
+static int GetStoreICSlots(Expression* expr) {
+  int ic_slots = 0;
+  if (FLAG_vector_stores) {
+    Property* property = expr->AsProperty();
+    LhsKind assign_type = Property::GetAssignType(property);
+    if ((assign_type == VARIABLE &&
+         expr->AsVariableProxy()->var()->IsUnallocated()) ||
+        assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
+      ic_slots++;
+    }
+  }
+  return ic_slots;
+}
+
+
+static Code::Kind GetStoreICKind(Expression* expr) {
+  LhsKind assign_type = Property::GetAssignType(expr->AsProperty());
+  return assign_type == KEYED_PROPERTY ? Code::KEYED_STORE_IC : Code::STORE_IC;
+}
+
+
+FeedbackVectorRequirements ForEachStatement::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  int ic_slots = GetStoreICSlots(each());
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+Code::Kind ForEachStatement::FeedbackICSlotKind(int index) {
+  return GetStoreICKind(each());
+}
+
+
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(zone, pos),
-      bit_field_(IsUninitializedField::encode(false) |
-                 KeyTypeField::encode(ELEMENT) |
-                 StoreModeField::encode(STANDARD_STORE) |
-                 TokenField::encode(op)),
+      bit_field_(
+          IsUninitializedField::encode(false) | KeyTypeField::encode(ELEMENT) |
+          StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
       target_(target),
       value_(value),
-      binary_operation_(NULL) {}
+      binary_operation_(NULL),
+      slot_(FeedbackVectorICSlot::Invalid()) {}
+
+
+FeedbackVectorRequirements Assignment::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  int ic_slots = GetStoreICSlots(target());
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+Code::Kind Assignment::FeedbackICSlotKind(int index) {
+  return GetStoreICKind(target());
+}
+
+
+FeedbackVectorRequirements CountOperation::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  int ic_slots = GetStoreICSlots(expression());
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+Code::Kind CountOperation::FeedbackICSlotKind(int index) {
+  return GetStoreICKind(expression());
+}
 
 
 Token::Value Assignment::binary_op() const {
@@ -250,6 +307,56 @@ void ObjectLiteral::Property::set_emit_store(bool emit_store) {
 
 bool ObjectLiteral::Property::emit_store() {
   return emit_store_;
+}
+
+
+FeedbackVectorRequirements ObjectLiteral::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  if (!FLAG_vector_stores) return FeedbackVectorRequirements(0, 0);
+
+  // This logic that computes the number of slots needed for vector store
+  // ics must mirror FullCodeGenerator::VisitObjectLiteral.
+  int ic_slots = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    if (property->IsCompileTimeValue()) continue;
+
+    Expression* value = property->value();
+    if (property->is_computed_name() &&
+        property->kind() != ObjectLiteral::Property::PROTOTYPE) {
+      if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+    } else if (property->emit_store()) {
+      if (property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL ||
+          property->kind() == ObjectLiteral::Property::COMPUTED) {
+        Literal* key = property->key()->AsLiteral();
+        if (key->value()->IsInternalizedString()) ic_slots++;
+        if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+      } else if (property->kind() == ObjectLiteral::Property::GETTER ||
+                 property->kind() == ObjectLiteral::Property::SETTER) {
+        // We might need a slot for the home object.
+        if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+      }
+    }
+  }
+
+#ifdef DEBUG
+  // FullCodeGenerator::VisitObjectLiteral verifies that it consumes slot_count_
+  // slots.
+  slot_count_ = ic_slots;
+#endif
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+FeedbackVectorICSlot ObjectLiteral::SlotForHomeObject(Expression* value,
+                                                      int* slot_index) const {
+  if (FLAG_vector_stores && FunctionLiteral::NeedsHomeObject(value)) {
+    DCHECK(slot_index != NULL && *slot_index >= 0 && *slot_index < slot_count_);
+    FeedbackVectorICSlot slot = GetNthSlot(*slot_index);
+    *slot_index += 1;
+    return slot;
+  }
+  return FeedbackVectorICSlot::Invalid();
 }
 
 
@@ -590,7 +697,10 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 
 bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
-  if (IsUsingCallFeedbackSlot(isolate) || call_type == POSSIBLY_EVAL_CALL) {
+  if (call_type == POSSIBLY_EVAL_CALL) {
+    return false;
+  }
+  if (call_type == SUPER_CALL && !FLAG_vector_stores) {
     return false;
   }
   return true;
@@ -599,7 +709,7 @@ bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
 
 bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
   // SuperConstructorCall uses a CallConstructStub, which wants
-  // a Slot, not an IC slot.
+  // a Slot, in addition to any IC slots requested elsewhere.
   return GetCallType(isolate) == SUPER_CALL;
 }
 
@@ -608,8 +718,6 @@ FeedbackVectorRequirements Call::ComputeFeedbackRequirements(
     Isolate* isolate, const ICSlotCache* cache) {
   int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
   int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
-  // A Call uses either a slot or an IC slot.
-  DCHECK((ic_slots & slots) == 0);
   return FeedbackVectorRequirements(slots, ic_slots);
 }
 
