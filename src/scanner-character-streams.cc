@@ -388,14 +388,13 @@ size_t ExternalStreamingStream::FillBuffer(size_t position) {
 
 
 bool ExternalStreamingStream::SetBookmark() {
-  DCHECK(utf8_split_char_buffer_length_ == 0);  // We can't be within a char.
-
   // Bookmarking for this stream is a bit more complex than expected, since
   // the stream state is distributed over several places:
   // - pos_ (inherited from Utf16CharacterStream)
   // - buffer_cursor_ and buffer_end_ (also from Utf16CharacterStream)
   // - buffer_ (from BufferedUtf16CharacterStream)
   // - current_data_ (+ .._offset_ and .._length) (this class)
+  // - utf8_split_char_buffer_* (a partial utf8 symbol at the block boundary)
   //
   // The underlying source_stream_ instance likely could re-construct this
   // local data for us, but with the given interfaces we have no way of
@@ -405,6 +404,7 @@ bool ExternalStreamingStream::SetBookmark() {
   // - pos_  =>  bookmark_
   // - buffer_[buffer_cursor_ .. buffer_end_]  =>  bookmark_buffer_
   // - current_data_[.._offset_ .. .._length_]  =>  bookmark_data_
+  // - utf8_split_char_buffer_* => bookmark_utf8_split...
 
   bookmark_ = pos_;
 
@@ -418,6 +418,11 @@ bool ExternalStreamingStream::SetBookmark() {
   bookmark_data_ = Vector<uint8_t>::New(static_cast<int>(data_length));
   CopyBytes(bookmark_data_.start(), current_data_ + current_data_offset_,
             data_length);
+
+  bookmark_utf8_split_char_buffer_length_ = utf8_split_char_buffer_length_;
+  for (size_t i = 0; i < utf8_split_char_buffer_length_; i++) {
+    bookmark_utf8_split_char_buffer_[i] = utf8_split_char_buffer_[i];
+  }
 
   return source_stream_->SetBookmark();
 }
@@ -439,6 +444,12 @@ void ExternalStreamingStream::ResetToBookmark() {
                     bookmark_buffer_.length());
   buffer_cursor_ = buffer_;
   buffer_end_ = buffer_ + bookmark_buffer_.length();
+
+  // utf8 split char buffer
+  utf8_split_char_buffer_length_ = bookmark_utf8_split_char_buffer_length_;
+  for (size_t i = 0; i < bookmark_utf8_split_char_buffer_length_; i++) {
+    utf8_split_char_buffer_[i] = bookmark_utf8_split_char_buffer_[i];
+  }
 }
 
 

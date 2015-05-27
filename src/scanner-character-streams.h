@@ -93,7 +93,8 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
         current_data_offset_(0),
         current_data_length_(0),
         utf8_split_char_buffer_length_(0),
-        bookmark_(0) {}
+        bookmark_(0),
+        bookmark_utf8_split_char_buffer_length_(0) {}
 
   virtual ~ExternalStreamingStream() {
     delete[] current_data_;
@@ -133,6 +134,8 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
   size_t bookmark_;
   Vector<uint16_t> bookmark_buffer_;
   Vector<uint8_t> bookmark_data_;
+  uint8_t bookmark_utf8_split_char_buffer_[4];
+  size_t bookmark_utf8_split_char_buffer_length_;
 };
 
 
