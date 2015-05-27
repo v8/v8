@@ -748,6 +748,32 @@ class IsTailCallMatcher final : public NodeMatcher {
 };
 
 
+class IsReferenceEqualMatcher final : public NodeMatcher {
+ public:
+  IsReferenceEqualMatcher(const Matcher<Type*>& type_matcher,
+                          const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher)
+      : NodeMatcher(IrOpcode::kReferenceEqual),
+        type_matcher_(type_matcher),
+        lhs_matcher_(lhs_matcher),
+        rhs_matcher_(rhs_matcher) {}
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            // TODO(bmeurer): The type parameter is currently ignored.
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
+                                 lhs_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
+                                 rhs_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Type*> type_matcher_;
+  const Matcher<Node*> lhs_matcher_;
+  const Matcher<Node*> rhs_matcher_;
+};
+
+
 class IsAllocateMatcher final : public NodeMatcher {
  public:
   IsAllocateMatcher(const Matcher<Node*>& size_matcher,
@@ -1604,6 +1630,14 @@ Matcher<Node*> IsTailCall(
   value_matchers.push_back(value1_matcher);
   return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
                                            effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
+                                const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher) {
+  return MakeMatcher(
+      new IsReferenceEqualMatcher(type_matcher, lhs_matcher, rhs_matcher));
 }
 
 

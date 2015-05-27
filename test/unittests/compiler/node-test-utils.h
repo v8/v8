@@ -17,6 +17,10 @@ class ExternalReference;
 class HeapObject;
 template <class T>
 class Unique;
+template <class>
+class TypeImpl;
+struct ZoneTypeConfig;
+typedef TypeImpl<ZoneTypeConfig> Type;
 
 namespace compiler {
 
@@ -127,6 +131,9 @@ Matcher<Node*> IsTailCall(
     const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
+                                const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,

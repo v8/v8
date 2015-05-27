@@ -566,6 +566,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(
         simplified()->ReferenceEqual(Type::Receiver()), invert);
   }
+  if (r.BothInputsAre(Type::Unique())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Unique()),
+                                  invert);
+  }
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
