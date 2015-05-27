@@ -12618,6 +12618,13 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
 #endif
 
   Isolate* isolate = object->GetIsolate();
+  // Strong objects may not have their prototype set via __proto__ or
+  // setPrototypeOf.
+  if (from_javascript && object->map()->is_strong()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kStrongSetProto, object),
+                    Object);
+  }
   Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
