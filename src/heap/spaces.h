@@ -678,11 +678,11 @@ class MemoryChunk {
   base::AtomicWord parallel_sweeping_;
 
   // PagedSpace free-list statistics.
-  intptr_t available_in_small_free_list_;
-  intptr_t available_in_medium_free_list_;
-  intptr_t available_in_large_free_list_;
-  intptr_t available_in_huge_free_list_;
-  intptr_t non_available_small_blocks_;
+  int available_in_small_free_list_;
+  int available_in_medium_free_list_;
+  int available_in_large_free_list_;
+  int available_in_huge_free_list_;
+  int non_available_small_blocks_;
 
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -776,16 +776,22 @@ class Page : public MemoryChunk {
 
   void ResetFreeListStatistics();
 
+  int LiveBytesFromFreeList() {
+    return area_size() - non_available_small_blocks_ -
+           available_in_small_free_list_ - available_in_medium_free_list_ -
+           available_in_large_free_list_ - available_in_huge_free_list_;
+  }
+
 #define FRAGMENTATION_STATS_ACCESSORS(type, name) \
   type name() { return name##_; }                 \
   void set_##name(type name) { name##_ = name; }  \
   void add_##name(type name) { name##_ += name; }
 
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, non_available_small_blocks)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_small_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_medium_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_large_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_huge_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, non_available_small_blocks)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_small_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_medium_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_large_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_huge_free_list)
 
 #undef FRAGMENTATION_STATS_ACCESSORS
 
@@ -1700,18 +1706,6 @@ class PagedSpace : public Space {
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() override;
 
-  struct SizeStats {
-    intptr_t Total() {
-      return small_size_ + medium_size_ + large_size_ + huge_size_;
-    }
-
-    intptr_t small_size_;
-    intptr_t medium_size_;
-    intptr_t large_size_;
-    intptr_t huge_size_;
-  };
-
-  void ObtainFreeListStatistics(Page* p, SizeStats* sizes);
   void ResetFreeListStatistics();
 
   // Sets the capacity, the available space and the wasted space to zero.

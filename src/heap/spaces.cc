@@ -1055,14 +1055,6 @@ int PagedSpace::CountTotalPages() {
 }
 
 
-void PagedSpace::ObtainFreeListStatistics(Page* page, SizeStats* sizes) {
-  sizes->huge_size_ = page->available_in_huge_free_list();
-  sizes->small_size_ = page->available_in_small_free_list();
-  sizes->medium_size_ = page->available_in_medium_free_list();
-  sizes->large_size_ = page->available_in_large_free_list();
-}
-
-
 void PagedSpace::ResetFreeListStatistics() {
   PageIterator page_iterator(this);
   while (page_iterator.has_next()) {

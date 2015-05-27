@@ -641,136 +641,15 @@ const char* AllocationSpaceName(AllocationSpace space) {
 }
 
 
-// Returns zero for pages that have so little fragmentation that it is not
-// worth defragmenting them.  Otherwise a positive integer that gives an
-// estimate of fragmentation on an arbitrary scale.
-static int FreeListFragmentation(PagedSpace* space, Page* p) {
-  // If page was not swept then there are no free list items on it.
-  if (!p->WasSwept()) {
-    if (FLAG_trace_fragmentation_verbose) {
-      PrintF("%p [%s]: %d bytes live (unswept)\n", reinterpret_cast<void*>(p),
-             AllocationSpaceName(space->identity()), p->LiveBytes());
-    }
-    return FLAG_always_compact ? 1 : 0;
-  }
-
-  PagedSpace::SizeStats sizes;
-  space->ObtainFreeListStatistics(p, &sizes);
-
-  intptr_t ratio;
-  intptr_t ratio_threshold;
-  intptr_t area_size = space->AreaSize();
-  if (space->identity() == CODE_SPACE) {
-    ratio = (sizes.medium_size_ * 10 + sizes.large_size_ * 2) * 100 / area_size;
-    ratio_threshold = 10;
-  } else {
-    ratio = (sizes.small_size_ * 5 + sizes.medium_size_) * 100 / area_size;
-    ratio_threshold = 15;
-  }
-
-  if (FLAG_trace_fragmentation_verbose) {
-    PrintF("%p [%s]: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
-           reinterpret_cast<void*>(p), AllocationSpaceName(space->identity()),
-           static_cast<int>(sizes.small_size_),
-           static_cast<double>(sizes.small_size_ * 100) / area_size,
-           static_cast<int>(sizes.medium_size_),
-           static_cast<double>(sizes.medium_size_ * 100) / area_size,
-           static_cast<int>(sizes.large_size_),
-           static_cast<double>(sizes.large_size_ * 100) / area_size,
-           static_cast<int>(sizes.huge_size_),
-           static_cast<double>(sizes.huge_size_ * 100) / area_size,
-           (ratio > ratio_threshold) ? "[fragmented]" : "");
-  }
-
-  if (FLAG_always_compact && sizes.Total() != area_size) {
-    return 1;
-  }
-
-  if (ratio <= ratio_threshold) return 0;  // Not fragmented.
-
-  return static_cast<int>(ratio - ratio_threshold);
-}
-
-
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE);
 
-  static const int kMaxMaxEvacuationCandidates = 1000;
   int number_of_pages = space->CountTotalPages();
-  int max_evacuation_candidates =
-      static_cast<int>(std::sqrt(number_of_pages / 2.0) + 1);
+  int area_size = space->AreaSize();
 
-  if (FLAG_stress_compaction || FLAG_always_compact) {
-    max_evacuation_candidates = kMaxMaxEvacuationCandidates;
-  }
-
-  class Candidate {
-   public:
-    Candidate() : fragmentation_(0), page_(NULL) {}
-    Candidate(int f, Page* p) : fragmentation_(f), page_(p) {}
-
-    int fragmentation() { return fragmentation_; }
-    Page* page() { return page_; }
-
-   private:
-    int fragmentation_;
-    Page* page_;
-  };
-
-  enum CompactionMode { COMPACT_FREE_LISTS, REDUCE_MEMORY_FOOTPRINT };
-
-  CompactionMode mode = COMPACT_FREE_LISTS;
-
-  intptr_t reserved = number_of_pages * space->AreaSize();
-  intptr_t over_reserved = reserved - space->SizeOfObjects();
-  static const intptr_t kFreenessThreshold = 50;
-
-  if (reduce_memory_footprint_ && over_reserved >= space->AreaSize()) {
-    // If reduction of memory footprint was requested, we are aggressive
-    // about choosing pages to free.  We expect that half-empty pages
-    // are easier to compact so slightly bump the limit.
-    mode = REDUCE_MEMORY_FOOTPRINT;
-    max_evacuation_candidates += 2;
-  }
-
-
-  if (over_reserved > reserved / 3 && over_reserved >= 2 * space->AreaSize()) {
-    // If over-usage is very high (more than a third of the space), we
-    // try to free all mostly empty pages.  We expect that almost empty
-    // pages are even easier to compact so bump the limit even more.
-    mode = REDUCE_MEMORY_FOOTPRINT;
-    max_evacuation_candidates *= 2;
-  }
-
-  if (FLAG_always_compact) {
-    max_evacuation_candidates = kMaxMaxEvacuationCandidates;
-  }
-
-  if (FLAG_trace_fragmentation && mode == REDUCE_MEMORY_FOOTPRINT) {
-    PrintF(
-        "Estimated over reserved memory: %.1f / %.1f MB (threshold %d), "
-        "evacuation candidate limit: %d\n",
-        static_cast<double>(over_reserved) / MB,
-        static_cast<double>(reserved) / MB,
-        static_cast<int>(kFreenessThreshold), max_evacuation_candidates);
-  }
-
-  intptr_t estimated_release = 0;
-
-  if (FLAG_trace_fragmentation &&
-      max_evacuation_candidates >= kMaxMaxEvacuationCandidates) {
-    PrintF("Hit max page compaction limit of %d pages\n",
-           kMaxMaxEvacuationCandidates);
-  }
-  max_evacuation_candidates =
-      Min(kMaxMaxEvacuationCandidates, max_evacuation_candidates);
-
-  std::vector<Candidate> candidates(max_evacuation_candidates);
-
-  int count = 0;
-  int fragmentation = 0;
-  int page_number = 0;
-  int least_index = -1;
+  // Pairs of (live_bytes_in_page, page).
+  std::vector<std::pair<int, Page*> > pages;
+  pages.reserve(number_of_pages);
 
   PageIterator it(space);
   while (it.has_next()) {
@@ -781,88 +660,102 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       p->ClearFlag(Page::POPULAR_PAGE);
       continue;
     }
-
     // Invariant: Evacuation candidates are just created when marking is
     // started. At the end of a GC all evacuation candidates are cleared and
     // their slot buffers are released.
     CHECK(!p->IsEvacuationCandidate());
     CHECK(p->slots_buffer() == NULL);
+    DCHECK(p->area_size() == area_size);
+    int live_bytes =
+        p->WasSwept() ? p->LiveBytesFromFreeList() : p->LiveBytes();
+    pages.push_back(std::make_pair(live_bytes, p));
+  }
 
-    if (FLAG_stress_compaction) {
-      if (FLAG_manual_evacuation_candidates_selection) {
-        if (p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
-          p->ClearFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-          fragmentation = 1;
-        }
-      } else {
-        unsigned int counter = space->heap()->ms_count();
-        if ((counter & 1) == (page_number & 1)) fragmentation = 1;
-        page_number++;
+  int candidate_count = 0;
+  int total_live_bytes = 0;
+
+  bool reduce_memory =
+      reduce_memory_footprint_ ||
+      heap()->HasLowAllocationRate(
+          heap()->tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
+
+  if (FLAG_stress_compaction || FLAG_manual_evacuation_candidates_selection) {
+    for (size_t i = 0; i < pages.size(); i++) {
+      Page* p = pages[i].second;
+      if (((i % 2 == 0) && FLAG_stress_compaction) ||
+          p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
+        candidate_count++;
+        total_live_bytes += pages[i].first;
+        p->ClearFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+        AddEvacuationCandidate(p);
       }
-    } else if (mode == REDUCE_MEMORY_FOOTPRINT && !FLAG_always_compact) {
-      // Don't try to release too many pages.
-      if (estimated_release >= over_reserved) {
-        continue;
-      }
+    }
+  } else {
+    const int kTargetFragmentationPercent = 50;
+    const int kMaxEvacuatedBytes = 4 * Page::kPageSize;
 
-      intptr_t free_bytes = 0;
+    const int kTargetFragmentationPercentForReduceMemory = 20;
+    const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
 
-      if (!p->WasSwept()) {
-        free_bytes = (p->area_size() - p->LiveBytes());
-      } else {
-        PagedSpace::SizeStats sizes;
-        space->ObtainFreeListStatistics(p, &sizes);
-        free_bytes = sizes.Total();
-      }
+    int max_evacuated_bytes;
+    int target_fragmentation_percent;
 
-      int free_pct = static_cast<int>(free_bytes * 100) / p->area_size();
-
-      if (free_pct >= kFreenessThreshold) {
-        estimated_release += free_bytes;
-        fragmentation = free_pct;
-      } else {
-        fragmentation = 0;
-      }
-
-      if (FLAG_trace_fragmentation_verbose) {
-        PrintF("%p [%s]: %d (%.2f%%) free %s\n", reinterpret_cast<void*>(p),
-               AllocationSpaceName(space->identity()),
-               static_cast<int>(free_bytes),
-               static_cast<double>(free_bytes * 100) / p->area_size(),
-               (fragmentation > 0) ? "[fragmented]" : "");
-      }
+    if (reduce_memory) {
+      target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
+      max_evacuated_bytes = kMaxEvacuatedBytesForReduceMemory;
     } else {
-      fragmentation = FreeListFragmentation(space, p);
+      target_fragmentation_percent = kTargetFragmentationPercent;
+      max_evacuated_bytes = kMaxEvacuatedBytes;
     }
+    intptr_t free_bytes_threshold =
+        target_fragmentation_percent * (area_size / 100);
 
-    if (fragmentation != 0) {
-      if (count < max_evacuation_candidates) {
-        candidates[count++] = Candidate(fragmentation, p);
-      } else {
-        if (least_index == -1) {
-          for (int i = 0; i < max_evacuation_candidates; i++) {
-            if (least_index == -1 ||
-                candidates[i].fragmentation() <
-                    candidates[least_index].fragmentation()) {
-              least_index = i;
-            }
-          }
-        }
-        if (candidates[least_index].fragmentation() < fragmentation) {
-          candidates[least_index] = Candidate(fragmentation, p);
-          least_index = -1;
-        }
+    // Sort pages from the most free to the least free, then select
+    // the first n pages for evacuation such that:
+    // - the total size of evacuated objects does not exceed the specified
+    // limit.
+    // - fragmentation of (n+1)-th page does not exceed the specified limit.
+    std::sort(pages.begin(), pages.end());
+    for (size_t i = 0; i < pages.size(); i++) {
+      int live_bytes = pages[i].first;
+      int free_bytes = area_size - live_bytes;
+      if (FLAG_always_compact ||
+          (free_bytes >= free_bytes_threshold &&
+           total_live_bytes + live_bytes <= max_evacuated_bytes)) {
+        candidate_count++;
+        total_live_bytes += live_bytes;
+      }
+      if (FLAG_trace_fragmentation_verbose) {
+        PrintF(
+            "Page in %s: %d KB free [fragmented if this >= %d KB], "
+            "sum of live bytes in fragmented pages %d KB [max is %d KB]\n",
+            AllocationSpaceName(space->identity()),
+            static_cast<int>(free_bytes / KB),
+            static_cast<int>(free_bytes_threshold / KB),
+            static_cast<int>(total_live_bytes / KB),
+            static_cast<int>(max_evacuated_bytes / KB));
       }
     }
+    // How many pages we will allocated for the evacuated objects
+    // in the worst case: ceil(total_live_bytes / area_size)
+    int estimated_new_pages = (total_live_bytes + area_size - 1) / area_size;
+    DCHECK_LE(estimated_new_pages, candidate_count);
+    int estimated_released_pages = candidate_count - estimated_new_pages;
+    // Avoid (compact -> expand) cycles.
+    if (estimated_released_pages == 0 && !FLAG_always_compact)
+      candidate_count = 0;
+    for (int i = 0; i < candidate_count; i++) {
+      AddEvacuationCandidate(pages[i].second);
+    }
   }
 
-  for (int i = 0; i < count; i++) {
-    AddEvacuationCandidate(candidates[i].page());
-  }
-
-  if (count > 0 && FLAG_trace_fragmentation) {
-    PrintF("Collected %d evacuation candidates for space %s\n", count,
-           AllocationSpaceName(space->identity()));
+  if (FLAG_trace_fragmentation) {
+    PrintF(
+        "Collected %d evacuation candidates [%d KB live] for space %s "
+        "[mode %s]\n",
+        candidate_count, static_cast<int>(total_live_bytes / KB),
+        AllocationSpaceName(space->identity()),
+        (reduce_memory ? "reduce memory footprint" : "normal"));
   }
 }
 
