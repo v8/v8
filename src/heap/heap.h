@@ -1153,7 +1153,7 @@ class Heap {
 
   // Sets the allocation limit to trigger the next full garbage collection.
   void SetOldGenerationAllocationLimit(intptr_t old_gen_size,
-                                       int freed_global_handles);
+                                       size_t current_allocation_throughput);
 
   // Indicates whether inline bump-pointer allocation has been disabled.
   bool inline_allocation_disabled() { return inline_allocation_disabled_; }

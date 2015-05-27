@@ -1216,10 +1216,6 @@ bool Heap::PerformGarbageCollection(
     // Perform mark-sweep with optional compaction.
     MarkCompact();
     sweep_generation_++;
-    // Temporarily set the limit for case when PostGarbageCollectionProcessing
-    // allocates and triggers GC. The real limit is set at after
-    // PostGarbageCollectionProcessing.
-    SetOldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(), 0);
     old_gen_exhausted_ = false;
     old_generation_size_configured_ = true;
   } else {
@@ -1257,8 +1253,9 @@ bool Heap::PerformGarbageCollection(
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
-    SetOldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(),
-                                    freed_global_handles);
+    SetOldGenerationAllocationLimit(
+        PromotedSpaceSizeOfObjects(),
+        tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
     // We finished a marking cycle. We can uncommit the marking deque until
     // we start marking again.
     mark_compact_collector_.UncommitMarkingDeque();
@@ -5342,11 +5339,19 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
 }
 
 
-void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
-                                           int freed_global_handles) {
-  const int kMaxHandles = 1000;
-  const int kMinHandles = 100;
-  const double min_factor = 1.1;
+void Heap::SetOldGenerationAllocationLimit(
+    intptr_t old_gen_size, size_t current_allocation_throughput) {
+// Allocation throughput on Android devices is typically lower than on
+// non-mobile devices.
+#if V8_OS_ANDROID
+  const size_t kHighThroughput = 2500;
+  const size_t kLowThroughput = 250;
+#else
+  const size_t kHighThroughput = 10000;
+  const size_t kLowThroughput = 1000;
+#endif
+  const double min_scaling_factor = 1.1;
+  const double max_scaling_factor = 1.5;
   double max_factor = 4;
   const double idle_max_factor = 1.5;
   // We set the old generation growing factor to 2 to grow the heap slower on
@@ -5355,31 +5360,30 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     max_factor = 2;
   }
 
-  // If there are many freed global handles, then the next full GC will
-  // likely collect a lot of garbage. Choose the heap growing factor
-  // depending on freed global handles.
-  // TODO(ulan, hpayer): Take into account mutator utilization.
-  // TODO(hpayer): The idle factor could make the handles heuristic obsolete.
-  // Look into that.
   double factor;
   double idle_factor;
-  if (freed_global_handles <= kMinHandles) {
+  if (current_allocation_throughput == 0 ||
+      current_allocation_throughput >= kHighThroughput) {
     factor = max_factor;
-  } else if (freed_global_handles >= kMaxHandles) {
-    factor = min_factor;
+  } else if (current_allocation_throughput <= kLowThroughput) {
+    factor = min_scaling_factor;
   } else {
     // Compute factor using linear interpolation between points
-    // (kMinHandles, max_factor) and (kMaxHandles, min_factor).
-    factor = max_factor -
-             (freed_global_handles - kMinHandles) * (max_factor - min_factor) /
-                 (kMaxHandles - kMinHandles);
+    // (kHighThroughput, max_scaling_factor) and (kLowThroughput, min_factor).
+    factor = min_scaling_factor +
+             (current_allocation_throughput - kLowThroughput) *
+                 (max_scaling_factor - min_scaling_factor) /
+                 (kHighThroughput - kLowThroughput);
   }
 
   if (FLAG_stress_compaction ||
       mark_compact_collector()->reduce_memory_footprint_) {
-    factor = min_factor;
+    factor = min_scaling_factor;
   }
 
+  // TODO(hpayer): Investigate if idle_old_generation_allocation_limit_ is still
+  // needed after taking the allocation rate for the old generation limit into
+  // account.
   idle_factor = Min(factor, idle_max_factor);
 
   old_generation_allocation_limit_ =
