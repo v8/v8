@@ -20,15 +20,9 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
-#include "src/base/atomicops.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-
-// CLOCK_REALTIME_COARSE was added in Linux 2.6.32.
-#if V8_OS_LINUX && !defined(CLOCK_REALTIME_COARSE)
-#define CLOCK_REALTIME_COARSE 5
-#endif
 
 namespace v8 {
 namespace base {
@@ -258,40 +252,11 @@ FILETIME Time::ToFiletime() const {
 #elif V8_OS_POSIX
 
 Time Time::Now() {
-#ifdef CLOCK_REALTIME_COARSE
-  struct timespec ts;
-  static const clockid_t kInvalidClockId = static_cast<clockid_t>(-1);
-  static clockid_t cached_clock_id = kInvalidClockId;
-  clockid_t clock_id = NoBarrier_Load(&cached_clock_id);
-  if (V8_UNLIKELY(clock_id == kInvalidClockId)) {
-    // Use CLOCK_REALTIME_COARSE when available (linux >= 2.6.32) and precise
-    // enough.  Unlike CLOCK_REALTIME, its coarse cousin is normally serviced
-    // from the vDSO, without making an actual system call.
-    //
-    // CLOCK_REALTIME_COARSE precision is determined by CONFIG_HZ, the number
-    // of ticks per second that the kernel runs at.  Granularity can be as low
-    // as one update every few hundred milliseconds so we need to ensure it is
-    // not _too_ coarse.  Most kernels are built with CONFIG_HZ=1000, providing
-    // a one millisecond precision that is good enough for our purposes.
-    if (clock_getres(CLOCK_REALTIME_COARSE, &ts) < 0 || ts.tv_sec > 0 ||
-        ts.tv_nsec > 1000 * 1000) {
-      clock_id = CLOCK_REALTIME;  // Not available or not suitable.
-    } else {
-      clock_id = CLOCK_REALTIME_COARSE;
-    }
-    NoBarrier_Store(&cached_clock_id, clock_id);
-  }
-  int result = clock_gettime(clock_id, &ts);
-  DCHECK_EQ(0, result);
-  USE(result);
-  return FromTimespec(ts);
-#else
   struct timeval tv;
   int result = gettimeofday(&tv, NULL);
   DCHECK_EQ(0, result);
   USE(result);
   return FromTimeval(tv);
-#endif
 }
 
 

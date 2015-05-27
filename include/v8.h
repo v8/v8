@@ -1198,7 +1198,7 @@ class V8_EXPORT ScriptCompiler {
    * For streaming incomplete script data to V8. The embedder should implement a
    * subclass of this class.
    */
-  class ExternalSourceStream {
+  class V8_EXPORT ExternalSourceStream {
    public:
     virtual ~ExternalSourceStream() {}
 
