@@ -678,15 +678,22 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       reduce_memory_footprint_ ||
       heap()->HasLowAllocationRate(
           heap()->tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
-
-  if (FLAG_stress_compaction || FLAG_manual_evacuation_candidates_selection) {
+  if (FLAG_manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
       Page* p = pages[i].second;
-      if (((i % 2 == 0) && FLAG_stress_compaction) ||
-          p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
+      if (p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
         candidate_count++;
         total_live_bytes += pages[i].first;
         p->ClearFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+        AddEvacuationCandidate(p);
+      }
+    }
+  } else if (FLAG_stress_compaction) {
+    for (size_t i = 0; i < pages.size(); i++) {
+      Page* p = pages[i].second;
+      if (i % 2 == 0) {
+        candidate_count++;
+        total_live_bytes += pages[i].first;
         AddEvacuationCandidate(p);
       }
     }
