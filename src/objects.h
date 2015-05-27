@@ -2155,9 +2155,11 @@ class JSObject: public JSReceiver {
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
 
-  // Disalow further properties to be added to the object.
+  // Disalow further properties to be added to the oject.
   MUST_USE_RESULT static MaybeHandle<Object> PreventExtensions(
       Handle<JSObject> object);
+
+  bool IsExtensible();
 
   // ES5 Object.seal
   MUST_USE_RESULT static MaybeHandle<Object> Seal(Handle<JSObject> object);

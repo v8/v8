@@ -4,6 +4,7 @@
 
 var $functionSourceString;
 var $globalEval;
+var $objectDefineArrayProperty;
 var $objectGetOwnPropertyDescriptor;
 var $toCompletePropertyDescriptor;
 
@@ -892,6 +893,17 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
 
   // Step 5 - Fallback to default implementation.
   return DefineObjectProperty(obj, p, desc, should_throw);
+}
+
+
+function DefineArrayPropertyFromAPI(obj, p, value) {
+  return DefineArrayProperty(obj, p, ToPropertyDescriptor({
+                               value: value,
+                               configurable: true,
+                               enumerable: true,
+                               writable: true
+                             }),
+                             false);
 }
 
 
@@ -1825,6 +1837,7 @@ function GetIterator(obj, method) {
 
 $functionSourceString = FunctionSourceString;
 $globalEval = GlobalEval;
+$objectDefineArrayProperty = DefineArrayPropertyFromAPI;
 $objectGetOwnPropertyDescriptor = ObjectGetOwnPropertyDescriptor;
 $toCompletePropertyDescriptor = ToCompletePropertyDescriptor;
 

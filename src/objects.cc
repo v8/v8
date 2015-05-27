@@ -5726,6 +5726,17 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
 }
 
 
+bool JSObject::IsExtensible() {
+  if (IsJSGlobalProxy()) {
+    PrototypeIterator iter(GetIsolate(), this);
+    if (iter.IsAtEnd()) return false;
+    DCHECK(iter.GetCurrent()->IsJSGlobalObject());
+    return JSObject::cast(iter.GetCurrent())->map()->is_extensible();
+  }
+  return map()->is_extensible();
+}
+
+
 Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
     Handle<JSObject> object) {
   DCHECK(!object->elements()->IsDictionary());

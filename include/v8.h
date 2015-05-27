@@ -2586,6 +2586,20 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
                                         Local<Value> value);
 
+  // Implements CreateDataProperty (ECMA-262, 7.3.4).
+  //
+  // Defines a configurable, writable, enumerable property with the given value
+  // on the object unless the property already exists and is not configurable
+  // or the object is not extensible.
+  //
+  // Returns true on success.
+  V8_WARN_UNUSED_RESULT Maybe<bool> CreateDataProperty(Local<Context> context,
+                                                       Local<Name> key,
+                                                       Local<Value> value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> CreateDataProperty(Local<Context> context,
+                                                       uint32_t index,
+                                                       Local<Value> value);
+
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
@@ -2594,12 +2608,13 @@ class V8_EXPORT Object : public Value {
   // will only be returned if the interceptor doesn't return a value.
   //
   // Note also that this only works for named properties.
-  V8_DEPRECATE_SOON("Use maybe version",
+  V8_DEPRECATE_SOON("Use CreateDataProperty",
                     bool ForceSet(Handle<Value> key, Handle<Value> value,
                                   PropertyAttribute attribs = None));
-  // TODO(dcarney): mark V8_WARN_UNUSED_RESULT
-  Maybe<bool> ForceSet(Local<Context> context, Local<Value> key,
-                       Local<Value> value, PropertyAttribute attribs = None);
+  V8_DEPRECATE_SOON("Use CreateDataProperty",
+                    Maybe<bool> ForceSet(Local<Context> context,
+                                         Local<Value> key, Local<Value> value,
+                                         PropertyAttribute attribs = None));
 
   V8_DEPRECATE_SOON("Use maybe version", Local<Value> Get(Handle<Value> key));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,

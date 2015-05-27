@@ -457,13 +457,7 @@ RUNTIME_FUNCTION(Runtime_IsExtensible) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  if (obj->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, obj);
-    if (iter.IsAtEnd()) return isolate->heap()->false_value();
-    DCHECK(iter.GetCurrent()->IsJSGlobalObject());
-    obj = JSObject::cast(iter.GetCurrent());
-  }
-  return isolate->heap()->ToBoolean(obj->map()->is_extensible());
+  return isolate->heap()->ToBoolean(obj->IsExtensible());
 }
 
 

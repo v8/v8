@@ -3476,6 +3476,106 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
 }
 
 
+Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
+                                           v8::Local<Name> key,
+                                           v8::Local<Value> value) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::CreateDataProperty()",
+                                  bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  auto value_obj = Utils::OpenHandle(*value);
+
+  if (self->IsAccessCheckNeeded() && !isolate->MayAccess(self)) {
+    isolate->ReportFailedAccessCheck(self);
+    return Nothing<bool>();
+  }
+
+  if (!self->IsExtensible()) return Just(false);
+
+  uint32_t index = 0;
+  if (key_obj->AsArrayIndex(&index)) {
+    return CreateDataProperty(context, index, value);
+  }
+
+  // Special case for Array.length.
+  if (self->IsJSArray() &&
+      key->StrictEquals(Utils::ToLocal(isolate->factory()->length_string()))) {
+    // Length is not configurable, however, CreateDataProperty always attempts
+    // to create a configurable property, so we just fail here.
+    return Just(false);
+  }
+
+  i::LookupIterator it(self, key_obj, i::LookupIterator::OWN_SKIP_INTERCEPTOR);
+  if (it.IsFound() && it.state() == i::LookupIterator::ACCESS_CHECK) {
+    DCHECK(isolate->MayAccess(self));
+    it.Next();
+  }
+
+  if (it.state() == i::LookupIterator::DATA ||
+      it.state() == i::LookupIterator::ACCESSOR) {
+    if (!it.IsConfigurable()) return Just(false);
+
+    if (it.state() == i::LookupIterator::ACCESSOR) {
+      has_pending_exception = i::JSObject::SetOwnPropertyIgnoreAttributes(
+                                  self, key_obj, value_obj, NONE,
+                                  i::JSObject::DONT_FORCE_FIELD).is_null();
+      RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+      return Just(true);
+    }
+  }
+
+  has_pending_exception = i::Runtime::DefineObjectProperty(
+                              self, key_obj, value_obj, NONE).is_null();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
+
+Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
+                                           uint32_t index,
+                                           v8::Local<Value> value) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::CreateDataProperty()",
+                                  bool);
+  auto self = Utils::OpenHandle(this);
+  auto value_obj = Utils::OpenHandle(*value);
+
+  if (self->IsAccessCheckNeeded() && !isolate->MayAccess(self)) {
+    isolate->ReportFailedAccessCheck(self);
+    return Nothing<bool>();
+  }
+
+  if (!self->IsExtensible()) return Just(false);
+
+  if (self->IsJSArray()) {
+    size_t length =
+        i::NumberToSize(isolate, i::Handle<i::JSArray>::cast(self)->length());
+    if (index >= length) {
+      i::Handle<i::Object> args[] = {
+          self, isolate->factory()->Uint32ToString(index), value_obj};
+      i::Handle<i::Object> result;
+      has_pending_exception =
+          !CallV8HeapFunction(isolate, "$objectDefineArrayProperty",
+                              isolate->factory()->undefined_value(),
+                              arraysize(args), args).ToHandle(&result);
+      RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+      return Just(result->BooleanValue());
+    }
+  }
+
+  Maybe<PropertyAttributes> attributes =
+      i::JSReceiver::GetOwnElementAttribute(self, index);
+  if (attributes.IsJust() && attributes.FromJust() & DONT_DELETE) {
+    return Just(false);
+  }
+
+  has_pending_exception = i::Runtime::DefineObjectProperty(
+                              self, isolate->factory()->Uint32ToString(index),
+                              value_obj, NONE).is_null();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
+
 Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
                                  v8::Local<Value> key, v8::Local<Value> value,
                                  v8::PropertyAttribute attribs) {
