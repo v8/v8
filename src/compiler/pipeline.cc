@@ -602,7 +602,8 @@ struct ControlFlowOptimizationPhase {
   static const char* phase_name() { return "control flow optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    ControlFlowOptimizer optimizer(data->jsgraph(), temp_zone);
+    ControlFlowOptimizer optimizer(data->graph(), data->common(),
+                                   data->machine(), temp_zone);
     optimizer.Optimize();
   }
 };

@@ -81,6 +81,16 @@ Node* GraphTest::UndefinedConstant() {
 }
 
 
+Node* GraphTest::EmptyFrameState() {
+  Node* state_values = graph()->NewNode(common()->StateValues(0));
+  return graph()->NewNode(
+      common()->FrameState(JS_FRAME, BailoutId::None(),
+                           OutputFrameStateCombine::Ignore()),
+      state_values, state_values, state_values, NumberConstant(0),
+      UndefinedConstant(), graph()->start());
+}
+
+
 Matcher<Node*> GraphTest::IsFalseConstant() {
   return IsHeapConstant(
       Unique<HeapObject>::CreateImmovable(factory()->false_value()));
