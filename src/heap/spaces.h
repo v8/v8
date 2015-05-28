@@ -1931,9 +1931,10 @@ class PagedSpace : public Space {
   // address denoted by top in allocation_info_.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
 
-  // Generic fast case allocation function that tries double aligned linear
-  // allocation at the address denoted by top in allocation_info_.
-  inline HeapObject* AllocateLinearlyAligned(int size_in_bytes,
+  // Generic fast case allocation function that tries aligned linear allocation
+  // at the address denoted by top in allocation_info_. Writes the aligned
+  // allocation size, which includes the filler size, to size_in_bytes.
+  inline HeapObject* AllocateLinearlyAligned(int* size_in_bytes,
                                              AllocationAlignment alignment);
 
   // If sweeping is still in progress try to sweep unswept pages. If that is

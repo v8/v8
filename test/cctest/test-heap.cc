@@ -1784,6 +1784,158 @@ TEST(TestSizeOfObjects) {
 }
 
 
+TEST(TestAlignmentCalculations) {
+  // Maximum fill amounts should be consistent.
+  int maximum_double_misalignment = kDoubleSize - kPointerSize;
+  int max_word_fill = Heap::GetMaximumFillToAlign(kWordAligned);
+  CHECK_EQ(0, max_word_fill);
+  int max_double_fill = Heap::GetMaximumFillToAlign(kDoubleAligned);
+  CHECK_EQ(maximum_double_misalignment, max_double_fill);
+  int max_double_unaligned_fill = Heap::GetMaximumFillToAlign(kDoubleUnaligned);
+  CHECK_EQ(maximum_double_misalignment, max_double_unaligned_fill);
+
+  Address base = reinterpret_cast<Address>(NULL);
+  int fill = 0;
+
+  // Word alignment never requires fill.
+  fill = Heap::GetFillToAlign(base, kWordAligned);
+  CHECK_EQ(0, fill);
+  fill = Heap::GetFillToAlign(base + kPointerSize, kWordAligned);
+  CHECK_EQ(0, fill);
+
+  // No fill is required when address is double aligned.
+  fill = Heap::GetFillToAlign(base, kDoubleAligned);
+  CHECK_EQ(0, fill);
+  // Fill is required if address is not double aligned.
+  fill = Heap::GetFillToAlign(base + kPointerSize, kDoubleAligned);
+  CHECK_EQ(maximum_double_misalignment, fill);
+  // kDoubleUnaligned has the opposite fill amounts.
+  fill = Heap::GetFillToAlign(base, kDoubleUnaligned);
+  CHECK_EQ(maximum_double_misalignment, fill);
+  fill = Heap::GetFillToAlign(base + kPointerSize, kDoubleUnaligned);
+  CHECK_EQ(0, fill);
+}
+
+
+static HeapObject* NewSpaceAllocateAligned(int size,
+                                           AllocationAlignment alignment) {
+  Heap* heap = CcTest::heap();
+  AllocationResult allocation =
+      heap->new_space()->AllocateRawAligned(size, alignment);
+  HeapObject* obj = NULL;
+  allocation.To(&obj);
+  heap->CreateFillerObjectAt(obj->address(), size);
+  return obj;
+}
+
+
+TEST(TestAlignedAllocation) {
+  // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
+  const intptr_t double_misalignment = kDoubleSize - kPointerSize;
+  if (double_misalignment) {
+    // Allocate a pointer sized object that must be double aligned.
+    Address* top_addr = CcTest::heap()->new_space()->allocation_top_address();
+    Address start = *top_addr;
+    HeapObject* obj1 = NewSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    CHECK(IsAddressAligned(obj1->address(), kDoubleAlignment));
+    // Allocate a second pointer sized object. These two allocations should
+    // cause exactly one filler object to be created.
+    HeapObject* obj2 = NewSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    CHECK(IsAddressAligned(obj2->address(), kDoubleAlignment));
+    CHECK_EQ(2 * kPointerSize + double_misalignment, *top_addr - start);
+    // There should be 3 filler objects now (the two HeapObjects we created and
+    // the filler.)
+    CHECK(HeapObject::FromAddress(start)->IsFiller() &&
+          HeapObject::FromAddress(start + kPointerSize)->IsFiller() &&
+          HeapObject::FromAddress(start + 2 * kPointerSize)->IsFiller());
+
+    // Similarly for kDoubleUnaligned.
+    start = *top_addr;
+    obj1 = NewSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
+    CHECK(IsAddressAligned(obj1->address(), kDoubleAlignment, kPointerSize));
+    obj2 = NewSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
+    CHECK(IsAddressAligned(obj2->address(), kDoubleAlignment, kPointerSize));
+    CHECK_EQ(2 * kPointerSize + double_misalignment, *top_addr - start);
+    CHECK(HeapObject::FromAddress(start)->IsFiller() &&
+          HeapObject::FromAddress(start + kPointerSize)->IsFiller() &&
+          HeapObject::FromAddress(start + 2 * kPointerSize)->IsFiller());
+  }
+}
+
+
+// Force allocation to happen from the free list, at a desired misalignment.
+static Address SetUpFreeListAllocation(int misalignment) {
+  Heap* heap = CcTest::heap();
+  OldSpace* old_space = heap->old_space();
+  Address top = old_space->top();
+  // First, allocate enough filler to get the linear area into the desired
+  // misalignment.
+  const intptr_t maximum_misalignment = 2 * kPointerSize;
+  const intptr_t maximum_misalignment_mask = maximum_misalignment - 1;
+  intptr_t top_alignment = OffsetFrom(top) & maximum_misalignment_mask;
+  int filler_size = misalignment - static_cast<int>(top_alignment);
+  if (filler_size < 0) filler_size += maximum_misalignment;
+  if (filler_size) {
+    // Create the filler object.
+    AllocationResult allocation = old_space->AllocateRawUnaligned(filler_size);
+    HeapObject* obj = NULL;
+    allocation.To(&obj);
+    heap->CreateFillerObjectAt(obj->address(), filler_size);
+  }
+  top = old_space->top();
+  old_space->EmptyAllocationInfo();
+  return top;
+}
+
+
+static HeapObject* OldSpaceAllocateAligned(int size,
+                                           AllocationAlignment alignment) {
+  Heap* heap = CcTest::heap();
+  AllocationResult allocation =
+      heap->old_space()->AllocateRawAligned(size, alignment);
+  HeapObject* obj = NULL;
+  allocation.To(&obj);
+  heap->CreateFillerObjectAt(obj->address(), size);
+  return obj;
+}
+
+
+// Test the case where allocation must be done from the free list, so filler
+// may precede or follow the object.
+TEST(TestAlignedOverAllocation) {
+  // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
+  const intptr_t double_misalignment = kDoubleSize - kPointerSize;
+  if (double_misalignment) {
+    Address start = SetUpFreeListAllocation(0);
+    HeapObject* obj1 = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    // The object should be aligned, and a filler object should be created.
+    CHECK(IsAddressAligned(obj1->address(), kDoubleAlignment));
+    CHECK(HeapObject::FromAddress(start)->IsFiller() &&
+          HeapObject::FromAddress(start + kPointerSize)->IsFiller());
+    // Try the opposite alignment case.
+    start = SetUpFreeListAllocation(kPointerSize);
+    HeapObject* obj2 = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    CHECK(IsAddressAligned(obj2->address(), kDoubleAlignment));
+    CHECK(HeapObject::FromAddress(start)->IsFiller() &&
+          HeapObject::FromAddress(start + kPointerSize)->IsFiller());
+
+    // Similarly for kDoubleUnaligned.
+    start = SetUpFreeListAllocation(0);
+    obj1 = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
+    // The object should be aligned, and a filler object should be created.
+    CHECK(IsAddressAligned(obj1->address(), kDoubleAlignment, kPointerSize));
+    CHECK(HeapObject::FromAddress(start)->IsFiller() &&
+          HeapObject::FromAddress(start + kPointerSize)->IsFiller());
+    // Try the opposite alignment case.
+    start = SetUpFreeListAllocation(kPointerSize);
+    obj2 = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
+    CHECK(IsAddressAligned(obj2->address(), kDoubleAlignment, kPointerSize));
+    CHECK(HeapObject::FromAddress(start)->IsFiller() &&
+          HeapObject::FromAddress(start + kPointerSize)->IsFiller());
+  }
+}
+
+
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   CcTest::InitializeVM();
   HeapIterator iterator(CcTest::heap());
