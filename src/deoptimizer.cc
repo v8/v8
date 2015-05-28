@@ -2269,6 +2269,9 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
+      int int_value = FastD2IChecked(value);
+      bool is_smi =
+          !IsMinusZero(value) && value == int_value && Smi::IsValid(int_value);
       if (trace_scope_ != NULL) {
         PrintF(trace_scope_->file(),
                "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
@@ -2278,7 +2281,13 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
                "%e ; %s\n", value,
                DoubleRegister::AllocationIndexToString(input_reg));
       }
-      AddObjectDoubleValue(value);
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(int_value));
+        AddObjectTaggedValue(tagged_value);
+      } else {
+        AddObjectDoubleValue(value);
+      }
       return;
     }
 
@@ -2380,6 +2389,9 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       int input_slot_index = iterator->Next();
       unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
       double value = input_->GetDoubleFrameSlot(input_offset);
+      int int_value = FastD2IChecked(value);
+      bool is_smi =
+          !IsMinusZero(value) && value == int_value && Smi::IsValid(int_value);
       if (trace_scope_ != NULL) {
         PrintF(trace_scope_->file(),
                "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
@@ -2388,7 +2400,13 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
         PrintF(trace_scope_->file(),
                "%e ; [sp + %d]\n", value, input_offset);
       }
-      AddObjectDoubleValue(value);
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(int_value));
+        AddObjectTaggedValue(tagged_value);
+      } else {
+        AddObjectDoubleValue(value);
+      }
       return;
     }
 
@@ -2586,18 +2604,25 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
+      int int_value = FastD2IChecked(value);
+      bool is_smi =
+          !IsMinusZero(value) && value == int_value && Smi::IsValid(int_value);
       if (trace_scope_ != NULL) {
         PrintF(trace_scope_->file(),
                "    0x%08" V8PRIxPTR ": [top + %d] <- %e ; %s\n",
-               output_[frame_index]->GetTop() + output_offset,
-               output_offset,
-               value,
-               DoubleRegister::AllocationIndexToString(input_reg));
+               output_[frame_index]->GetTop() + output_offset, output_offset,
+               value, DoubleRegister::AllocationIndexToString(input_reg));
       }
-      // We save the untagged value on the side and store a GC-safe
-      // temporary placeholder in the frame.
-      AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
-      output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(int_value));
+        output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else {
+        // We save the untagged value on the side and store a GC-safe
+        // temporary placeholder in the frame.
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
+        output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
       return;
     }
 
@@ -2713,6 +2738,9 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       int input_slot_index = iterator->Next();
       unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
       double value = input_->GetDoubleFrameSlot(input_offset);
+      int int_value = FastD2IChecked(value);
+      bool is_smi =
+          !IsMinusZero(value) && value == int_value && Smi::IsValid(int_value);
       if (trace_scope_ != NULL) {
         PrintF(trace_scope_->file(),
                "    0x%08" V8PRIxPTR ": [top + %d] <- %e ; [sp + %d]\n",
@@ -2721,10 +2749,16 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
                value,
                input_offset);
       }
-      // We save the untagged value on the side and store a GC-safe
-      // temporary placeholder in the frame.
-      AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
-      output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(int_value));
+        output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else {
+        // We save the untagged value on the side and store a GC-safe
+        // temporary placeholder in the frame.
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
+        output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
       return;
     }
 
