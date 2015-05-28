@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_VISITING_INL_H_
 #define V8_OBJECTS_VISITING_INL_H_
 
+#include "src/heap/objects-visiting.h"
 
 namespace v8 {
 namespace internal {
@@ -618,19 +619,16 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(Heap* heap,
                                                                    Code* code) {
-  // Skip in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (code->is_turbofanned()) return;
   // For optimized functions we should retain both non-optimized version
   // of its code and non-optimized version of all inlined functions.
   // This is required to support bailing out from inlined code.
-  DeoptimizationInputData* data =
+  DeoptimizationInputData* const data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  FixedArray* literals = data->LiteralArray();
-  for (int i = 0, count = data->InlinedFunctionCount()->value(); i < count;
-       i++) {
-    JSFunction* inlined = JSFunction::cast(literals->get(i));
-    StaticVisitor::MarkObject(heap, inlined->shared()->code());
+  FixedArray* const literals = data->LiteralArray();
+  int const inlined_count = data->InlinedFunctionCount()->value();
+  for (int i = 0; i < inlined_count; ++i) {
+    StaticVisitor::MarkObject(
+        heap, SharedFunctionInfo::cast(literals->get(i))->code());
   }
 }
 

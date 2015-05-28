@@ -1958,6 +1958,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
   Handle<JSFunction> closure() const { return closure_; }
   HConstant* closure_context() const { return closure_context_; }
   int arguments_count() const { return arguments_count_; }
@@ -1985,6 +1986,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
                 Variable* arguments_var, HArgumentsObject* arguments_object,
                 Zone* zone)
       : return_id_(return_id),
+        shared_(handle(closure->shared())),
         closure_(closure),
         closure_context_(closure_context),
         arguments_count_(arguments_count),
@@ -1997,6 +1999,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
         return_targets_(2, zone) {}
 
   BailoutId return_id_;
+  Handle<SharedFunctionInfo> shared_;
   Handle<JSFunction> closure_;
   HConstant* closure_context_;
   int arguments_count_;

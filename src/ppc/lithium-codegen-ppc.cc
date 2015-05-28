@@ -895,15 +895,12 @@ int LCodeGen::DefineDeoptimizationLiteral(Handle<Object> literal) {
 
 
 void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
-  DCHECK(deoptimization_literals_.length() == 0);
-
-  const ZoneList<Handle<JSFunction> >* inlined_closures =
+  DCHECK_EQ(0, deoptimization_literals_.length());
+  const ZoneList<Handle<JSFunction>>* const inlined_closures =
       chunk()->inlined_closures();
-
-  for (int i = 0, length = inlined_closures->length(); i < length; i++) {
-    DefineDeoptimizationLiteral(inlined_closures->at(i));
+  for (int i = 0; i < inlined_closures->length(); ++i) {
+    DefineDeoptimizationLiteral(handle(inlined_closures->at(i)->shared()));
   }
-
   inlined_function_count_ = deoptimization_literals_.length();
 }
 

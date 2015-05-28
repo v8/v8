@@ -653,12 +653,12 @@ class LChunk : public ZoneObject {
   int LookupDestination(int block_id) const;
   Label* GetAssemblyLabel(int block_id) const;
 
-  const ZoneList<Handle<JSFunction> >* inlined_closures() const {
-    return &inlined_closures_;
+  const ZoneList<Handle<SharedFunctionInfo>>& inlined_functions() const {
+    return inlined_functions_;
   }
 
-  void AddInlinedClosure(Handle<JSFunction> closure) {
-    inlined_closures_.Add(closure, zone());
+  void AddInlinedFunction(Handle<SharedFunctionInfo> closure) {
+    inlined_functions_.Add(closure, zone());
   }
 
   void AddDeprecationDependency(Handle<Map> map) {
@@ -702,7 +702,7 @@ class LChunk : public ZoneObject {
   BitVector* allocated_double_registers_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
-  ZoneList<Handle<JSFunction> > inlined_closures_;
+  ZoneList<Handle<SharedFunctionInfo>> inlined_functions_;
   MapSet deprecation_dependencies_;
   MapSet stability_dependencies_;
 };
