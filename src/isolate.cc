@@ -1377,17 +1377,6 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
     location = &potential_computed_location;
   }
 
-  // If the exception argument is a custom object, turn it into a string
-  // before throwing as uncaught exception.  Note that the pending
-  // exception object to be set later must not be turned into a string.
-  if (exception->IsJSObject() && !IsErrorObject(exception)) {
-    MaybeHandle<Object> maybe_exception =
-        Execution::ToDetailString(this, exception);
-    if (!maybe_exception.ToHandle(&exception)) {
-      exception =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("exception"));
-    }
-  }
   return MessageHandler::MakeMessageObject(
       this, MessageTemplate::kUncaughtException, location, exception,
       stack_trace_object);

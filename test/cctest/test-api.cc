@@ -4950,6 +4950,26 @@ TEST(CustomErrorMessage) {
 }
 
 
+static void check_custom_rethrowing_message(v8::Handle<v8::Message> message,
+                                            v8::Handle<v8::Value> data) {
+  const char* uncaught_error = "Uncaught exception";
+  CHECK(message->Get()->Equals(v8_str(uncaught_error)));
+}
+
+
+TEST(CustomErrorRethrowsOnToString) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  v8::V8::AddMessageListener(check_custom_rethrowing_message);
+
+  CompileRun(
+      "var e = { toString: function() { throw e; } };"
+      "try { throw e; } finally {}");
+
+  v8::V8::RemoveMessageListeners(check_custom_rethrowing_message);
+}
+
+
 static void receive_message(v8::Handle<v8::Message> message,
                             v8::Handle<v8::Value> data) {
   message->Get();

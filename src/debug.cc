@@ -629,7 +629,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
     DCHECK(!isolate->has_pending_exception());
     MessageLocation computed_location;
     isolate->ComputeLocation(&computed_location);
-    Handle<Object> message = MessageHandler::MakeMessageObject(
+    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
         isolate, MessageTemplate::kDebuggerLoading, &computed_location,
         isolate->factory()->undefined_value(), Handle<JSArray>());
     DCHECK(!isolate->has_pending_exception());

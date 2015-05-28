@@ -59,9 +59,8 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 }
 
 
-void MessageHandler::ReportMessage(Isolate* isolate,
-                                   MessageLocation* loc,
-                                   Handle<Object> message) {
+void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
+                                   Handle<JSMessageObject> message) {
   // We are calling into embedder's code which can throw exceptions.
   // Thus we need to save current exception state, reset it to the clean one
   // and ignore scheduled exceptions callbacks can throw.
@@ -71,14 +70,29 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   if (isolate->has_pending_exception()) {
     exception_object = isolate->pending_exception();
   }
-  Handle<Object> exception_handle(exception_object, isolate);
+  Handle<Object> exception(exception_object, isolate);
 
   Isolate::ExceptionScope exception_scope(isolate);
   isolate->clear_pending_exception();
   isolate->set_external_caught_exception(false);
 
+  // Turn the exception on the message into a string if it is an object.
+  if (message->argument()->IsJSObject()) {
+    HandleScope scope(isolate);
+    Handle<Object> argument(message->argument(), isolate);
+    Handle<Object> args[] = {argument};
+    MaybeHandle<Object> maybe_stringified = Execution::TryCall(
+        isolate->to_detail_string_fun(), isolate->js_builtins_object(),
+        arraysize(args), args);
+    Handle<Object> stringified;
+    if (!maybe_stringified.ToHandle(&stringified)) {
+      stringified = isolate->factory()->NewStringFromAsciiChecked("exception");
+    }
+    message->set_argument(*stringified);
+  }
+
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
-  v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception_handle);
+  v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
 
   v8::NeanderArray global_listeners(isolate->factory()->message_listeners());
   int global_length = global_listeners.length();
@@ -280,22 +294,27 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
                                               int template_index,
                                               Handle<Object> arg) {
   Factory* factory = isolate->factory();
-  Handle<String> fmt_str = factory->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("$noSideEffectToString"));
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      Object::GetProperty(isolate->js_builtins_object(), fmt_str)
-          .ToHandleChecked());
+  Handle<String> result_string;
+  if (arg->IsString()) {
+    result_string = Handle<String>::cast(arg);
+  } else {
+    Handle<String> fmt_str = factory->InternalizeOneByteString(
+        STATIC_CHAR_VECTOR("$noSideEffectToString"));
+    Handle<JSFunction> fun = Handle<JSFunction>::cast(
+        Object::GetProperty(isolate->js_builtins_object(), fmt_str)
+            .ToHandleChecked());
 
-  MaybeHandle<Object> maybe_result =
-      Execution::TryCall(fun, isolate->js_builtins_object(), 1, &arg);
-  Handle<Object> result;
-  if (!maybe_result.ToHandle(&result) || !result->IsString()) {
-    return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
+    MaybeHandle<Object> maybe_result =
+        Execution::TryCall(fun, isolate->js_builtins_object(), 1, &arg);
+    Handle<Object> result;
+    if (!maybe_result.ToHandle(&result) || !result->IsString()) {
+      return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
+    }
+    result_string = Handle<String>::cast(result);
   }
   MaybeHandle<String> maybe_result_string = MessageTemplate::FormatMessage(
-      template_index, Handle<String>::cast(result), factory->empty_string(),
+      template_index, result_string, factory->empty_string(),
       factory->empty_string());
-  Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
     return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
   }

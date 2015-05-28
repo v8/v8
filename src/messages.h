@@ -438,7 +438,7 @@ class MessageHandler {
 
   // Report a formatted message (needs JS allocation).
   static void ReportMessage(Isolate* isolate, MessageLocation* loc,
-                            Handle<Object> message);
+                            Handle<JSMessageObject> message);
 
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
                                    Handle<Object> message_obj);
