@@ -716,23 +716,13 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       CopyJSObject(JSObject* source, AllocationSite* site = NULL);
 
-  // Calculates the maximum amount of filler that could be required by the
-  // given alignment.
-  static int GetMaximumFillToAlign(AllocationAlignment alignment);
-  // Calculates the actual amount of filler required for a given address at the
-  // given alignment.
-  static int GetFillToAlign(Address address, AllocationAlignment alignment);
+  // This method assumes overallocation of one word. It will store a filler
+  // before the object if the given object is not double aligned, otherwise
+  // it will place the filler after the object.
+  MUST_USE_RESULT HeapObject* EnsureAligned(HeapObject* object, int size,
+                                            AllocationAlignment alignment);
 
-  // Creates a filler object and returns a heap object immediately after it.
-  MUST_USE_RESULT HeapObject* PrecedeWithFiller(HeapObject* object,
-                                                int filler_size);
-  // Creates a filler object if needed for alignment and returns a heap object
-  // immediately after it. If any space is left after the returned object,
-  // another filler object is created so the over allocated memory is iterable.
-  MUST_USE_RESULT HeapObject* AlignWithFiller(HeapObject* object,
-                                              int object_size,
-                                              int allocation_size,
-                                              AllocationAlignment alignment);
+  MUST_USE_RESULT HeapObject* PrecedeWithFiller(HeapObject* object);
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();

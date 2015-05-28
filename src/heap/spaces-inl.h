@@ -250,21 +250,28 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 }
 
 
-HeapObject* PagedSpace::AllocateLinearlyAligned(int* size_in_bytes,
+HeapObject* PagedSpace::AllocateLinearlyAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
   Address current_top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(current_top, alignment);
+  int alignment_size = 0;
 
-  Address new_top = current_top + filler_size + *size_in_bytes;
+  if (alignment == kDoubleAligned &&
+      (OffsetFrom(current_top) & kDoubleAlignmentMask) != 0) {
+    alignment_size = kPointerSize;
+    size_in_bytes += alignment_size;
+  } else if (alignment == kDoubleUnaligned &&
+             (OffsetFrom(current_top) & kDoubleAlignmentMask) == 0) {
+    alignment_size = kPointerSize;
+    size_in_bytes += alignment_size;
+  }
+  Address new_top = current_top + size_in_bytes;
   if (new_top > allocation_info_.limit()) return NULL;
 
   allocation_info_.set_top(new_top);
-  if (filler_size > 0) {
-    *size_in_bytes += filler_size;
-    return heap()->PrecedeWithFiller(HeapObject::FromAddress(current_top),
-                                     filler_size);
+  if (alignment_size > 0) {
+    return heap()->EnsureAligned(HeapObject::FromAddress(current_top),
+                                 size_in_bytes, alignment);
   }
-
   return HeapObject::FromAddress(current_top);
 }
 
@@ -296,26 +303,21 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
   DCHECK(identity() == OLD_SPACE);
-  int allocation_size = size_in_bytes;
-  HeapObject* object = AllocateLinearlyAligned(&allocation_size, alignment);
+  HeapObject* object = AllocateLinearlyAligned(size_in_bytes, alignment);
+  int aligned_size_in_bytes = size_in_bytes + kPointerSize;
 
   if (object == NULL) {
-    // We don't know exactly how much filler we need to align until space is
-    // allocated, so assume the worst case.
-    int filler_size = Heap::GetMaximumFillToAlign(alignment);
-    allocation_size += filler_size;
-    object = free_list_.Allocate(allocation_size);
+    object = free_list_.Allocate(aligned_size_in_bytes);
     if (object == NULL) {
-      object = SlowAllocateRaw(allocation_size);
+      object = SlowAllocateRaw(aligned_size_in_bytes);
     }
-    if (object != NULL && filler_size != 0) {
-      object = heap()->AlignWithFiller(object, size_in_bytes, allocation_size,
-                                       alignment);
+    if (object != NULL) {
+      object = heap()->EnsureAligned(object, aligned_size_in_bytes, alignment);
     }
   }
 
   if (object != NULL) {
-    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), allocation_size);
+    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), size_in_bytes);
     return object;
   }
 
@@ -342,8 +344,19 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
 AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                                               AllocationAlignment alignment) {
   Address old_top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(old_top, alignment);
-  int aligned_size_in_bytes = size_in_bytes + filler_size;
+  int alignment_size = 0;
+  int aligned_size_in_bytes = 0;
+
+  // If double alignment is required and top pointer is not aligned, we allocate
+  // additional memory to take care of the alignment.
+  if (alignment == kDoubleAligned &&
+      (OffsetFrom(old_top) & kDoubleAlignmentMask) != 0) {
+    alignment_size += kPointerSize;
+  } else if (alignment == kDoubleUnaligned &&
+             (OffsetFrom(old_top) & kDoubleAlignmentMask) == 0) {
+    alignment_size += kPointerSize;
+  }
+  aligned_size_in_bytes = size_in_bytes + alignment_size;
 
   if (allocation_info_.limit() - old_top < aligned_size_in_bytes) {
     return SlowAllocateRaw(size_in_bytes, alignment);
@@ -353,12 +366,15 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
   allocation_info_.set_top(allocation_info_.top() + aligned_size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  if (filler_size > 0) {
-    obj = heap()->PrecedeWithFiller(obj, filler_size);
+  if (alignment_size > 0) {
+    obj = heap()->PrecedeWithFiller(obj);
   }
 
   // The slow path above ultimately goes through AllocateRaw, so this suffices.
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
+
+  DCHECK((kDoubleAligned && (OffsetFrom(obj) & kDoubleAlignmentMask) == 0) ||
+         (kDoubleUnaligned && (OffsetFrom(obj) & kDoubleAlignmentMask) != 0));
 
   return obj;
 }
