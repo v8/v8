@@ -129,7 +129,9 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* StateValues(int arguments);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types);
   const Operator* FrameState(FrameStateType type, BailoutId bailout_id,
-                             OutputFrameStateCombine state_combine);
+                             OutputFrameStateCombine state_combine,
+                             MaybeHandle<SharedFunctionInfo> shared_info =
+                                 MaybeHandle<SharedFunctionInfo>());
   const Operator* Call(const CallDescriptor* descriptor);
   const Operator* TailCall(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);

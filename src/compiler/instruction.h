@@ -866,6 +866,7 @@ class FrameStateDescriptor : public ZoneObject {
                        OutputFrameStateCombine state_combine,
                        size_t parameters_count, size_t locals_count,
                        size_t stack_count,
+                       MaybeHandle<SharedFunctionInfo> shared_info,
                        FrameStateDescriptor* outer_state = nullptr);
 
   FrameStateType type() const { return type_; }
@@ -874,6 +875,7 @@ class FrameStateDescriptor : public ZoneObject {
   size_t parameters_count() const { return parameters_count_; }
   size_t locals_count() const { return locals_count_; }
   size_t stack_count() const { return stack_count_; }
+  MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasContext() const { return type_ == JS_FRAME; }
 
@@ -894,6 +896,7 @@ class FrameStateDescriptor : public ZoneObject {
   size_t locals_count_;
   size_t stack_count_;
   ZoneVector<MachineType> types_;
+  MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* outer_state_;
 };
 
@@ -1149,6 +1152,9 @@ class InstructionSequence final : public ZoneObject {
   StateId AddFrameStateDescriptor(FrameStateDescriptor* descriptor);
   FrameStateDescriptor* GetFrameStateDescriptor(StateId deoptimization_id);
   int GetFrameStateDescriptorCount();
+  DeoptimizationVector const& frame_state_descriptors() const {
+    return deoptimization_entries_;
+  }
 
   RpoNumber InputRpo(Instruction* instr, size_t index);
 

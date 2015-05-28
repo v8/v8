@@ -1052,7 +1052,8 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 
   return new (instruction_zone()) FrameStateDescriptor(
       instruction_zone(), state_info.type(), state_info.bailout_id(),
-      state_info.state_combine(), parameters, locals, stack, outer_state);
+      state_info.state_combine(), parameters, locals, stack,
+      state_info.shared_info(), outer_state);
 }
 
 

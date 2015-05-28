@@ -45,6 +45,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       handlers_(code->zone()),
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
+      inlined_function_count_(0),
       translations_(code->zone()),
       last_lazy_deopt_pc_(0),
       jump_tables_(nullptr),
@@ -72,6 +73,17 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // Architecture-specific, linkage-specific prologue.
   info->set_prologue_offset(masm()->pc_offset());
   AssemblePrologue();
+
+  // Define deoptimization literals for all inlined functions.
+  DCHECK_EQ(0u, deoptimization_literals_.size());
+  for (auto frame_state_descriptor : code()->frame_state_descriptors()) {
+    Handle<SharedFunctionInfo> shared_info;
+    if (frame_state_descriptor->shared_info().ToHandle(&shared_info) &&
+        !shared_info.is_identical_to(info->shared_info())) {
+      DefineDeoptimizationLiteral(shared_info);
+    }
+  }
+  inlined_function_count_ = deoptimization_literals_.size();
 
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
@@ -302,7 +314,8 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
       translations_.CreateByteArray(isolate()->factory());
 
   data->SetTranslationByteArray(*translation_array);
-  data->SetInlinedFunctionCount(Smi::FromInt(0));
+  data->SetInlinedFunctionCount(
+      Smi::FromInt(static_cast<int>(inlined_function_count_)));
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
   // TODO(jarin) The following code was copied over from Lithium, not sure
   // whether the scope or the IsOptimizing condition are really needed.

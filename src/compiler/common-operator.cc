@@ -651,12 +651,14 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
 
 const Operator* CommonOperatorBuilder::FrameState(
     FrameStateType type, BailoutId bailout_id,
-    OutputFrameStateCombine state_combine) {
-  return new (zone()) Operator1<FrameStateCallInfo>(         // --
-      IrOpcode::kFrameState, Operator::kPure,                // opcode
-      "FrameState",                                          // name
-      5, 0, 0, 1, 0, 0,                                      // counts
-      FrameStateCallInfo(type, bailout_id, state_combine));  // parameter
+    OutputFrameStateCombine state_combine,
+    MaybeHandle<SharedFunctionInfo> shared_info) {
+  FrameStateCallInfo state_info(type, bailout_id, state_combine, shared_info);
+  return new (zone()) Operator1<FrameStateCallInfo>(  // --
+      IrOpcode::kFrameState, Operator::kPure,         // opcode
+      "FrameState",                                   // name
+      5, 0, 0, 1, 0, 0,                               // counts
+      state_info);                                    // parameter
 }
 
 

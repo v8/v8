@@ -664,7 +664,9 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BailoutId bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
-    size_t locals_count, size_t stack_count, FrameStateDescriptor* outer_state)
+    size_t locals_count, size_t stack_count,
+    MaybeHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state)
     : type_(type),
       bailout_id_(bailout_id),
       frame_state_combine_(state_combine),
@@ -672,6 +674,7 @@ FrameStateDescriptor::FrameStateDescriptor(
       locals_count_(locals_count),
       stack_count_(stack_count),
       types_(zone),
+      shared_info_(shared_info),
       outer_state_(outer_state) {
   types_.resize(GetSize(), kMachNone);
 }

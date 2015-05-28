@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_FRAME_STATES_H_
 #define V8_COMPILER_FRAME_STATES_H_
 
-#include "src/utils.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -79,19 +79,23 @@ enum FrameStateType {
 class FrameStateCallInfo final {
  public:
   FrameStateCallInfo(FrameStateType type, BailoutId bailout_id,
-                     OutputFrameStateCombine state_combine)
+                     OutputFrameStateCombine state_combine,
+                     MaybeHandle<SharedFunctionInfo> shared_info)
       : type_(type),
         bailout_id_(bailout_id),
-        frame_state_combine_(state_combine) {}
+        frame_state_combine_(state_combine),
+        shared_info_(shared_info) {}
 
   FrameStateType type() const { return type_; }
   BailoutId bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
+  MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
 
  private:
   FrameStateType const type_;
   BailoutId const bailout_id_;
   OutputFrameStateCombine const frame_state_combine_;
+  MaybeHandle<SharedFunctionInfo> const shared_info_;
 };
 
 bool operator==(FrameStateCallInfo const&, FrameStateCallInfo const&);

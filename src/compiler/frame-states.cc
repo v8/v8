@@ -45,8 +45,13 @@ size_t hash_value(FrameStateCallInfo const& info) {
 
 
 std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
-  return os << info.type() << ", " << info.bailout_id() << ", "
-            << info.state_combine();
+  os << info.type() << ", " << info.bailout_id() << ", "
+     << info.state_combine();
+  Handle<SharedFunctionInfo> shared_info;
+  if (info.shared_info().ToHandle(&shared_info)) {
+    os << ", " << Brief(*shared_info);
+  }
+  return os;
 }
 
 }  // namespace compiler

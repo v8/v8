@@ -11636,6 +11636,13 @@ WeakCell* Code::CachedWeakCell() {
 void DeoptimizationInputData::DeoptimizationInputDataPrint(
     std::ostream& os) {  // NOLINT
   disasm::NameConverter converter;
+  int const inlined_function_count = InlinedFunctionCount()->value();
+  os << "Inlined functions (count = " << inlined_function_count << ")\n";
+  for (int id = 0; id < inlined_function_count; ++id) {
+    Object* info = LiteralArray()->get(id);
+    os << " " << Brief(SharedFunctionInfo::cast(info)) << "\n";
+  }
+  os << "\n";
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
