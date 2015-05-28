@@ -135,10 +135,11 @@ def FullDump(reader, heap):
     if is_ascii is not False:
       # Output in the same format as the Unix hd command
       addr = start
-      for slot in xrange(location, location + size, 16):
+      for i in xrange(0, size, 16):
+        slot = i + location
         hex_line = ""
         asc_line = ""
-        for i in xrange(0, 16):
+        for i in xrange(16):
           if slot + i < location + size:
             byte = ctypes.c_uint8.from_buffer(reader.minidump, slot + i).value
             if byte >= 0x20 and byte < 0x7f:
@@ -158,9 +159,9 @@ def FullDump(reader, heap):
     if is_executable is not True and is_ascii is not True:
       print "%s - %s" % (reader.FormatIntPtr(start),
                          reader.FormatIntPtr(start + size))
-      for slot in xrange(start,
-                         start + size,
-                         reader.PointerSize()):
+      print start + size + 1;
+      for i in xrange(0, size, reader.PointerSize()):
+        slot = start + i
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
         print "%s: %s" % (reader.FormatIntPtr(slot),
@@ -660,7 +661,8 @@ class MinidumpReader(object):
   def IsProbableASCIIRegion(self, location, length):
     ascii_bytes = 0
     non_ascii_bytes = 0
-    for loc in xrange(location, location + length):
+    for i in xrange(length):
+      loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if byte >= 0x7f:
         non_ascii_bytes += 1
@@ -681,7 +683,8 @@ class MinidumpReader(object):
   def IsProbableExecutableRegion(self, location, length):
     opcode_bytes = 0
     sixty_four = self.arch == MD_CPU_ARCHITECTURE_AMD64
-    for loc in xrange(location, location + length):
+    for i in xrange(length):
+      loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if (byte == 0x8b or           # mov
           byte == 0x89 or           # mov reg-reg
@@ -729,7 +732,8 @@ class MinidumpReader(object):
   def FindWord(self, word, alignment=0):
     def search_inside_region(reader, start, size, location):
       location = (location + alignment) & ~alignment
-      for loc in xrange(location, location + size - self.PointerSize()):
+      for i in xrange(size - self.PointerSize()):
+        loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
           print "%s: %s" % (reader.FormatIntPtr(slot),
@@ -740,7 +744,8 @@ class MinidumpReader(object):
     aligned_res = []
     unaligned_res = []
     def search_inside_region(reader, start, size, location):
-      for loc in xrange(location, location + size - self.PointerSize()):
+      for i in xrange(size - self.PointerSize()):
+        loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
           if slot % self.PointerSize() == 0:
@@ -2338,7 +2343,8 @@ class InspectionWebFormatter(object):
     f.write('<div class="code">')
     f.write("<table class=\"codedump\">\n")
 
-    for slot in xrange(start_address, end_address, size):
+    for j in xrange(0, end_address - start_address, size):
+      slot = start_address + j
       heap_object = ""
       maybe_address = None
       end_region = region[0] + region[1]
@@ -2413,7 +2419,8 @@ class InspectionWebFormatter(object):
 
     start = self.align_down(start_address, line_width)
 
-    for address in xrange(start, end_address):
+    for i in xrange(end_address - start):
+      address = start + i
       if address % 64 == 0:
         if address != start:
           f.write("<br>")
@@ -2482,7 +2489,7 @@ class InspectionWebFormatter(object):
             (start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
     f.write("<table class=\"codedump\">\n");
-    for i in xrange(0, len(lines)):
+    for i in xrange(len(lines)):
       line = lines[i]
       next_address = count
       if i + 1 < len(lines):
@@ -2838,9 +2845,10 @@ class InspectionShell(cmd.Cmd):
     num = int(args[1], 16) if len(args) > 1 else 0x10
     if (start & self.heap.ObjectAlignmentMask()) != 0:
       print "Warning: Dumping un-aligned memory, is this what you had in mind?"
-    for slot in xrange(start,
-                       start + self.reader.PointerSize() * num,
-                       self.reader.PointerSize()):
+    for i in xrange(0,
+                    self.reader.PointerSize() * num,
+                    self.reader.PointerSize()):
+      slot = start + i
       if not self.reader.IsValidAddress(slot):
         print "Address is not contained within the minidump!"
         return
