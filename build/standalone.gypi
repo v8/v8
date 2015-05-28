@@ -80,6 +80,10 @@
       # also controls coverage granularity (1 for function-level, 2 for
       # block-level, 3 for edge-level).
       'sanitizer_coverage%': 0,
+      # Use libc++ (buildtools/third_party/libc++ and
+      # buildtools/third_party/libc++abi) instead of stdlibc++ as standard
+      # library. This is intended to be used for instrumented builds.
+      'use_custom_libcxx%': 0,
 
       # goma settings.
       # 1 to use goma.
@@ -106,6 +110,7 @@
     'msan%': '<(msan)',
     'tsan%': '<(tsan)',
     'sanitizer_coverage%': '<(sanitizer_coverage)',
+    'use_custom_libcxx%': '<(use_custom_libcxx)',
 
     # Add a simple extra solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
@@ -183,6 +188,18 @@
       ['asan==1 or lsan==1 or msan==1 or tsan==1', {
         'clang%': 1,
         'use_allocator%': 'none',
+      }],
+      ['asan==1 and OS=="linux"', {
+        'use_custom_libcxx%': 1,
+      }],
+      ['tsan==1', {
+        'use_custom_libcxx%': 1,
+      }],
+      ['msan==1', {
+        # Use a just-built, MSan-instrumented libc++ instead of the system-wide
+        # libstdc++. This is required to avoid false positive reports whenever
+        # the C++ standard library is used.
+        'use_custom_libcxx%': 1,
       }],
     ],
     # Default ARM variable settings.
@@ -371,13 +388,9 @@
                 ],
               }],
             ],
-            # TODO(machenbach): Share this between all *san configs like in
-            # common.gypi.
+          }],
+          ['use_custom_libcxx==1', {
             'dependencies': [
-              # Use libc++ (buildtools/third_party/libc++ and
-              # buildtools/third_party/libc++abi) instead of stdlibc++ as
-              # standard library. This is intended to be used for for
-              # instrumented builds.
               '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
             ],
           }],
