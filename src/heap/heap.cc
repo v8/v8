@@ -1024,7 +1024,7 @@ bool Heap::ReserveSpace(Reservation* reservations) {
         } else {
           if (counter > 1) {
             CollectAllGarbage(
-                kReduceMemoryFootprintMask,
+                kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
                 "failed to reserve space in paged or large "
                 "object space, trying to reduce memory footprint");
           } else {
