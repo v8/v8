@@ -1368,14 +1368,15 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   Node* cache_type = environment()->Peek(3);
   Node* obj = environment()->Peek(4);
 
-  // Check loop termination condition.
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
-  Node* exit_cond = NewNode(javascript()->LessThan(LanguageMode::SLOPPY),
-                            index, cache_length);
-  // TODO(jarin): provide real bailout id.
-  states.AddToNode(exit_cond, BailoutId::None(),
-                   OutputFrameStateCombine::Ignore());
-  for_loop.BreakUnless(exit_cond);
+  // Check loop termination condition (cannot deoptimize).
+  {
+    FrameStateBeforeAndAfter states(this, BailoutId::None());
+    Node* exit_cond = NewNode(javascript()->LessThan(LanguageMode::SLOPPY),
+                              index, cache_length);
+    states.AddToNode(exit_cond, BailoutId::None(),
+                     OutputFrameStateCombine::Ignore());
+    for_loop.BreakUnless(exit_cond);
+  }
   Node* pair = NewNode(javascript()->CallRuntime(Runtime::kForInNext, 4), obj,
                        cache_array, cache_type, index);
   Node* value = NewNode(common()->Projection(0), pair);
@@ -1405,9 +1406,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
       IfBuilder is_property_missing(this);
       is_property_missing.If(property_missing);
       is_property_missing.Then();
-      // Inc counter and continue.
+      // Inc counter and continue (cannot deoptimize).
       {
-        // TODO(jarin): provide real bailout id.
         FrameStateBeforeAndAfter states(this, BailoutId::None());
         Node* index_inc = NewNode(javascript()->Add(LanguageMode::SLOPPY),
                                   index, jsgraph()->OneConstant());
@@ -1431,17 +1431,15 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   index = environment()->Peek(0);
   for_loop.EndBody();
 
-  // Inc counter and continue.
-  Node* index_inc =
-      NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
-              jsgraph()->OneConstant());
+  // Inc counter and continue (cannot deoptimize).
   {
-    // TODO(jarin): provide real bailout ids.
     FrameStateBeforeAndAfter states(this, BailoutId::None());
+    Node* index_inc = NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
+                              jsgraph()->OneConstant());
     states.AddToNode(index_inc, BailoutId::None(),
                      OutputFrameStateCombine::Ignore());
+    environment()->Poke(0, index_inc);
   }
-  environment()->Poke(0, index_inc);
   for_loop.EndLoop();
   environment()->Drop(5);
   // PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
