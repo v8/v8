@@ -307,7 +307,6 @@ void FullCodeGenerator::Generate() {
   }
 
   // Possibly set up a local binding to the [[HomeObject]].
-  // Variable* home_object_var = scope()->home_object_var();
   if (home_object_var != nullptr) {
     Comment cmnt(masm_, "[ Home object");
     __ Pop(LoadDescriptor::ReceiverRegister());

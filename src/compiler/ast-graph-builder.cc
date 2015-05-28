@@ -2214,13 +2214,6 @@ void AstGraphBuilder::VisitThrow(Throw* expr) {
 
 
 void AstGraphBuilder::VisitProperty(Property* expr) {
-  if (expr->obj()->IsSuperReference()) {
-    // TODO(turbofan): Implement super here.
-    SetStackOverflow();
-    ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
-    return;
-  }
-
   Node* value;
   VectorSlotPair pair = CreateVectorSlotPair(expr->PropertyFeedbackSlot());
   if (expr->key()->IsPropertyName()) {
