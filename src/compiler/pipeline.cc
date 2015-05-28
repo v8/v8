@@ -43,7 +43,6 @@
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
-#include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -569,13 +568,11 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
-    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(data->jsgraph());
     AddReducer(data, &graph_reducer, &builtin_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);
-    AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
@@ -590,12 +587,10 @@ struct SimplifiedLoweringPhase {
                                 data->source_positions());
     lowering.LowerAllNodes();
     ValueNumberingReducer vn_reducer(temp_zone);
-    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
-    AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
@@ -618,13 +613,11 @@ struct ChangeLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     ValueNumberingReducer vn_reducer(temp_zone);
-    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(data->jsgraph());
     GraphReducer graph_reducer(data->graph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
-    AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
