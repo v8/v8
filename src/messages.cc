@@ -331,6 +331,7 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
                                                    Handle<String> arg0,
                                                    Handle<String> arg1,
                                                    Handle<String> arg2) {
+  Isolate* isolate = arg0->GetIsolate();
   const char* template_string;
   switch (template_index) {
 #define CASE(NAME, STRING)    \
@@ -341,12 +342,10 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
 #undef CASE
     case kLastMessage:
     default:
-      UNREACHABLE();
-      template_string = "";
-      break;
+      isolate->ThrowIllegalOperation();
+      return MaybeHandle<String>();
   }
 
-  Isolate* isolate = arg0->GetIsolate();
   IncrementalStringBuilder builder(isolate);
 
   unsigned int i = 0;
