@@ -699,18 +699,22 @@ TEST(Utf8CharacterStream) {
   char buffer[kAllUtf8CharsSizeU];
   unsigned cursor = 0;
   for (int i = 0; i <= kMaxUC16Char; i++) {
-    cursor += unibrow::Utf8::Encode(buffer + cursor,
-                                    i,
-                                    unibrow::Utf16::kNoPreviousCharacter);
+    cursor += unibrow::Utf8::Encode(buffer + cursor, i,
+                                    unibrow::Utf16::kNoPreviousCharacter, true);
   }
   DCHECK(cursor == kAllUtf8CharsSizeU);
 
   i::Utf8ToUtf16CharacterStream stream(reinterpret_cast<const i::byte*>(buffer),
                                        kAllUtf8CharsSizeU);
+  int32_t bad = unibrow::Utf8::kBadChar;
   for (int i = 0; i <= kMaxUC16Char; i++) {
     CHECK_EQU(i, stream.pos());
     int32_t c = stream.Advance();
-    CHECK_EQ(i, c);
+    if (i >= 0xd800 && i <= 0xdfff) {
+      CHECK_EQ(bad, c);
+    } else {
+      CHECK_EQ(i, c);
+    }
     CHECK_EQU(i + 1, stream.pos());
   }
   for (int i = kMaxUC16Char; i >= 0; i--) {
@@ -724,7 +728,9 @@ TEST(Utf8CharacterStream) {
     int progress = static_cast<int>(stream.SeekForward(12));
     i += progress;
     int32_t c = stream.Advance();
-    if (i <= kMaxUC16Char) {
+    if (i >= 0xd800 && i <= 0xdfff) {
+      CHECK_EQ(bad, c);
+    } else if (i <= kMaxUC16Char) {
       CHECK_EQ(i, c);
     } else {
       CHECK_EQ(-1, c);
@@ -912,6 +918,15 @@ static int Utf8LengthHelper(const char* s) {
           // This 3 byte sequence could have been coded as a 2 byte sequence.
           // Record a single kBadChar for the first byte and continue.
           continue;
+        }
+        if (c == 0xed) {
+          unsigned char d = s[i + 1];
+          if ((d < 0x80) || (d > 0x9f)) {
+            // This 3 byte sequence is part of a surrogate pair which is not
+            // supported by UTF-8. Record a single kBadChar for the first byte
+            // and continue.
+            continue;
+          }
         }
         input_offset = 2;
         // 3 bytes of UTF-8 turn into 1 UTF-16 code unit.

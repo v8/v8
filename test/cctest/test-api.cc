@@ -7205,84 +7205,6 @@ static void Utf16Helper(
 }
 
 
-static uint16_t StringGet(Handle<String> str, int index) {
-  i::Handle<i::String> istring =
-      v8::Utils::OpenHandle(String::Cast(*str));
-  return istring->Get(index);
-}
-
-
-static void WriteUtf8Helper(
-    LocalContext& context,  // NOLINT
-    const char* name,
-    const char* lengths_name,
-    int len) {
-  Local<v8::Array> b =
-      Local<v8::Array>::Cast(context->Global()->Get(v8_str(name)));
-  Local<v8::Array> alens =
-      Local<v8::Array>::Cast(context->Global()->Get(v8_str(lengths_name)));
-  char buffer[1000];
-  char buffer2[1000];
-  for (int i = 0; i < len; i++) {
-    Local<v8::String> string =
-      Local<v8::String>::Cast(b->Get(i));
-    Local<v8::Number> expected_len =
-      Local<v8::Number>::Cast(alens->Get(i));
-    int utf8_length = static_cast<int>(expected_len->Value());
-    for (int j = utf8_length + 1; j >= 0; j--) {
-      memset(reinterpret_cast<void*>(&buffer), 42, sizeof(buffer));
-      memset(reinterpret_cast<void*>(&buffer2), 42, sizeof(buffer2));
-      int nchars;
-      int utf8_written =
-          string->WriteUtf8(buffer, j, &nchars, String::NO_OPTIONS);
-      int utf8_written2 =
-          string->WriteUtf8(buffer2, j, &nchars, String::NO_NULL_TERMINATION);
-      CHECK_GE(utf8_length + 1, utf8_written);
-      CHECK_GE(utf8_length, utf8_written2);
-      for (int k = 0; k < utf8_written2; k++) {
-        CHECK_EQ(buffer[k], buffer2[k]);
-      }
-      CHECK(nchars * 3 >= utf8_written - 1);
-      CHECK(nchars <= utf8_written);
-      if (j == utf8_length + 1) {
-        CHECK_EQ(utf8_written2, utf8_length);
-        CHECK_EQ(utf8_written2 + 1, utf8_written);
-      }
-      CHECK_EQ(buffer[utf8_written], 42);
-      if (j > utf8_length) {
-        if (utf8_written != 0) CHECK_EQ(buffer[utf8_written - 1], 0);
-        if (utf8_written > 1) CHECK_NE(buffer[utf8_written - 2], 42);
-        Handle<String> roundtrip = v8_str(buffer);
-        CHECK(roundtrip->Equals(string));
-      } else {
-        if (utf8_written != 0) CHECK_NE(buffer[utf8_written - 1], 42);
-      }
-      if (utf8_written2 != 0) CHECK_NE(buffer[utf8_written - 1], 42);
-      if (nchars >= 2) {
-        uint16_t trail = StringGet(string, nchars - 1);
-        uint16_t lead = StringGet(string, nchars - 2);
-        if (((lead & 0xfc00) == 0xd800) &&
-            ((trail & 0xfc00) == 0xdc00)) {
-          unsigned u1 = buffer2[utf8_written2 - 4];
-          unsigned u2 = buffer2[utf8_written2 - 3];
-          unsigned u3 = buffer2[utf8_written2 - 2];
-          unsigned u4 = buffer2[utf8_written2 - 1];
-          CHECK_EQ((u1 & 0xf8), 0xf0u);
-          CHECK_EQ((u2 & 0xc0), 0x80u);
-          CHECK_EQ((u3 & 0xc0), 0x80u);
-          CHECK_EQ((u4 & 0xc0), 0x80u);
-          uint32_t c = 0x10000 + ((lead & 0x3ff) << 10) + (trail & 0x3ff);
-          CHECK_EQ((u4 & 0x3f), (c & 0x3f));
-          CHECK_EQ((u3 & 0x3f), ((c >> 6) & 0x3f));
-          CHECK_EQ((u2 & 0x3f), ((c >> 12) & 0x3f));
-          CHECK_EQ((u1 & 0x3), c >> 18);
-        }
-      }
-    }
-  }
-}
-
-
 THREADED_TEST(Utf16) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -7329,9 +7251,6 @@ THREADED_TEST(Utf16) {
       "}");
   Utf16Helper(context, "a", "alens", 9);
   Utf16Helper(context, "a2", "a2lens", 81);
-  WriteUtf8Helper(context, "b", "alens", 9);
-  WriteUtf8Helper(context, "b2", "a2lens", 81);
-  WriteUtf8Helper(context, "c2", "a2lens", 81);
 }
 
 
@@ -7339,15 +7258,6 @@ static bool SameSymbol(Handle<String> s1, Handle<String> s2) {
   i::Handle<i::String> is1(v8::Utils::OpenHandle(*s1));
   i::Handle<i::String> is2(v8::Utils::OpenHandle(*s2));
   return *is1 == *is2;
-}
-
-static void SameSymbolHelper(v8::Isolate* isolate, const char* a,
-                             const char* b) {
-  Handle<String> symbol1 =
-      v8::String::NewFromUtf8(isolate, a, v8::String::kInternalizedString);
-  Handle<String> symbol2 =
-      v8::String::NewFromUtf8(isolate, b, v8::String::kInternalizedString);
-  CHECK(SameSymbol(symbol1, symbol2));
 }
 
 
@@ -7361,18 +7271,6 @@ THREADED_TEST(Utf16Symbol) {
       context->GetIsolate(), "abc", v8::String::kInternalizedString);
   CHECK(SameSymbol(symbol1, symbol2));
 
-  SameSymbolHelper(context->GetIsolate(),
-                   "\360\220\220\205",  // 4 byte encoding.
-                   "\355\240\201\355\260\205");  // 2 3-byte surrogates.
-  SameSymbolHelper(context->GetIsolate(),
-                   "\355\240\201\355\260\206",  // 2 3-byte surrogates.
-                   "\360\220\220\206");  // 4 byte encoding.
-  SameSymbolHelper(context->GetIsolate(),
-                   "x\360\220\220\205",  // 4 byte encoding.
-                   "x\355\240\201\355\260\205");  // 2 3-byte surrogates.
-  SameSymbolHelper(context->GetIsolate(),
-                   "x\355\240\201\355\260\206",  // 2 3-byte surrogates.
-                   "x\360\220\220\206");  // 4 byte encoding.
   CompileRun(
       "var sym0 = 'benedictus';"
       "var sym0b = 'S\303\270ren';"
