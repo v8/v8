@@ -4008,10 +4008,10 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   auto proto = i::PrototypeIterator::GetCurrent(iter);
   i::LookupIterator it(self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  if (!it.IsFound()) return MaybeLocal<Value>();
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
+  if (!it.IsFound()) return MaybeLocal<Value>();
   RETURN_ESCAPED(result);
 }
 
@@ -4037,9 +4037,9 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
   auto proto = i::PrototypeIterator::GetCurrent(iter);
   i::LookupIterator it(self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  if (!it.IsFound()) return Nothing<PropertyAttribute>();
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
+  if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == ABSENT) {
     return Just(static_cast<PropertyAttribute>(NONE));
   }
@@ -4057,16 +4057,15 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(Handle<String> key) {
 
 MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
                                                    Local<Name> key) {
-  PREPARE_FOR_EXECUTION(
-      context, "v8::Object::GetRealNamedPropertyInPrototypeChain()", Value);
+  PREPARE_FOR_EXECUTION(context, "v8::Object::GetRealNamedProperty()", Value);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   i::LookupIterator it(self, key_obj,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  if (!it.IsFound()) return MaybeLocal<Value>();
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
+  if (!it.IsFound()) return MaybeLocal<Value>();
   RETURN_ESCAPED(result);
 }
 
@@ -4086,9 +4085,9 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
   auto key_obj = Utils::OpenHandle(*key);
   i::LookupIterator it(self, key_obj,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  if (!it.IsFound()) return Nothing<PropertyAttribute>();
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
+  if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == ABSENT) {
     return Just(static_cast<PropertyAttribute>(NONE));
   }
