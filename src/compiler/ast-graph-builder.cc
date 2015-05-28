@@ -1331,27 +1331,14 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         NewNode(javascript()->CallRuntime(Runtime::kForInCacheArrayLength, 2),
                 cache_type, cache_array);
     {
-      // TODO(dcarney): this check is actually supposed to be for the
-      //                empty enum case only.
-      IfBuilder have_no_properties(this);
-      Node* empty_array_cond = NewNode(javascript()->StrictEqual(),
-                                       cache_length, jsgraph()->ZeroConstant());
-      have_no_properties.If(empty_array_cond);
-      have_no_properties.Then();
-      // Pop obj and skip loop.
-      environment()->Pop();
-      have_no_properties.Else();
-      {
-        // Construct the rest of the environment.
-        environment()->Push(cache_type);
-        environment()->Push(cache_array);
-        environment()->Push(cache_length);
-        environment()->Push(jsgraph()->ZeroConstant());
+      // Construct the rest of the environment.
+      environment()->Push(cache_type);
+      environment()->Push(cache_array);
+      environment()->Push(cache_length);
+      environment()->Push(jsgraph()->ZeroConstant());
 
-        // Build the actual loop body.
-        VisitForInBody(stmt);
-      }
-      have_no_properties.End();
+      // Build the actual loop body.
+      VisitForInBody(stmt);
     }
     is_null.End();
   }

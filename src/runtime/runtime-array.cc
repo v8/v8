@@ -1318,14 +1318,9 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInInit) {
   Handle<Object> cache_type = args.at<Object>(1);
   if (cache_type->IsMap()) {
     // Enum cache case.
-    if (Map::EnumLengthBits::decode(Map::cast(*cache_type)->bit_field3()) ==
-        0) {
-      // 0 length enum.
-      // Can't handle this case in the graph builder,
-      // so transform it into the empty fixed array case.
-      return MakePair(isolate->heap()->empty_fixed_array(), Smi::FromInt(1));
-    }
-    return MakePair(object->map()->instance_descriptors()->GetEnumCache(),
+    return MakePair(Map::cast(*cache_type)->EnumLength() != 0
+                        ? object->map()->instance_descriptors()->GetEnumCache()
+                        : isolate->heap()->empty_fixed_array(),
                     *cache_type);
   } else {
     // FixedArray case.
