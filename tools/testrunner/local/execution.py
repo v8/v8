@@ -255,8 +255,13 @@ class Runner(object):
     if queued_exception:
       raise queued_exception
 
-    # Make sure that any allocations were printed in predictable mode.
-    assert not self.context.predictable or self.printed_allocations
+    # Make sure that any allocations were printed in predictable mode (if we
+    # ran any tests).
+    assert (
+        not self.total or
+        not self.context.predictable or
+        self.printed_allocations
+    )
 
   def _VerbosePrint(self, text):
     if self.context.verbose:
