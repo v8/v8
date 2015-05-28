@@ -36,6 +36,21 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 
+size_t hash_value(IfExceptionHint hint) { return static_cast<size_t>(hint); }
+
+
+std::ostream& operator<<(std::ostream& os, IfExceptionHint hint) {
+  switch (hint) {
+    case IfExceptionHint::kLocallyCaught:
+      return os << "Caught";
+    case IfExceptionHint::kLocallyUncaught:
+      return os << "Uncaught";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
   return lhs.type() == rhs.type() && lhs.hint() == rhs.hint();
 }
@@ -105,7 +120,6 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(IfException, Operator::kKontrol, 0, 0, 1, 1, 0, 1)     \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
@@ -209,6 +223,18 @@ struct CommonOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <IfExceptionHint kCaughtLocally>
+  struct IfExceptionOperator final : public Operator1<IfExceptionHint> {
+    IfExceptionOperator()
+        : Operator1<IfExceptionHint>(                      // --
+              IrOpcode::kIfException, Operator::kKontrol,  // opcode
+              "IfException",                               // name
+              0, 0, 1, 1, 0, 1,                            // counts
+              kCaughtLocally) {}                           // parameter
+  };
+  IfExceptionOperator<IfExceptionHint::kLocallyCaught> kIfExceptionCOperator;
+  IfExceptionOperator<IfExceptionHint::kLocallyUncaught> kIfExceptionUOperator;
 
   template <size_t kInputCount>
   struct EndOperator final : public Operator {
@@ -379,6 +405,18 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
       return &cache_.kBranchTrueOperator;
     case BranchHint::kFalse:
       return &cache_.kBranchFalseOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+const Operator* CommonOperatorBuilder::IfException(IfExceptionHint hint) {
+  switch (hint) {
+    case IfExceptionHint::kLocallyCaught:
+      return &cache_.kIfExceptionCOperator;
+    case IfExceptionHint::kLocallyUncaught:
+      return &cache_.kIfExceptionUOperator;
   }
   UNREACHABLE();
   return nullptr;

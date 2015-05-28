@@ -73,7 +73,8 @@ class CallDescriptor final : public ZoneObject {
     kPatchableCallSite = 1u << 1,
     kNeedsNopAfterCall = 1u << 2,
     kHasExceptionHandler = 1u << 3,
-    kSupportsTailCalls = 1u << 4,
+    kHasLocalCatchHandler = 1u << 4,
+    kSupportsTailCalls = 1u << 5,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;

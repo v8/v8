@@ -160,6 +160,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   };
 
   struct HandlerInfo {
+    bool caught_locally;
     Label* handler;
     int pc_offset;
   };

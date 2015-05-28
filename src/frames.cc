@@ -983,7 +983,8 @@ int OptimizedFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
   *stack_slots = code->stack_slots();
-  return table->LookupReturn(pc_offset);
+  HandlerTable::CatchPrediction prediction;  // TODO(yangguo): For debugger.
+  return table->LookupReturn(pc_offset, &prediction);
 }
 
 

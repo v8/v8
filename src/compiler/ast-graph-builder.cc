@@ -335,9 +335,11 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
   ControlScopeForCatch(AstGraphBuilder* owner, TryCatchBuilder* control)
       : ControlScope(owner), control_(control) {
     builder()->try_nesting_level_++;  // Increment nesting.
+    builder()->try_catch_nesting_level_++;
   }
   ~ControlScopeForCatch() {
     builder()->try_nesting_level_--;  // Decrement nesting.
+    builder()->try_catch_nesting_level_--;
   }
 
  protected:
@@ -437,6 +439,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       globals_(0, local_zone),
       execution_control_(nullptr),
       execution_context_(nullptr),
+      try_catch_nesting_level_(0),
       try_nesting_level_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
@@ -3563,17 +3566,22 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       }
       // Add implicit exception continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
+        // Conservative prediction whether caught locally.
+        IfExceptionHint hint = try_catch_nesting_level_ > 0
+                                   ? IfExceptionHint::kLocallyCaught
+                                   : IfExceptionHint::kLocallyUncaught;
         // Copy the environment for the success continuation.
         Environment* success_env = environment()->CopyForConditional();
-
-        Node* on_exception = graph()->NewNode(common()->IfException(), result);
+        const Operator* op = common()->IfException(hint);
+        Node* on_exception = graph()->NewNode(op, result);
         environment_->UpdateControlDependency(on_exception);
         execution_control()->ThrowValue(on_exception);
         set_environment(success_env);
       }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {
-        Node* on_success = graph()->NewNode(common()->IfSuccess(), result);
+        const Operator* op = common()->IfSuccess();
+        Node* on_success = graph()->NewNode(op, result);
         environment_->UpdateControlDependency(on_success);
       }
     }

@@ -8638,11 +8638,14 @@ int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out) {
 
 
 // TODO(turbofan): Make sure table is sorted and use binary search.
-int HandlerTable::LookupReturn(int pc_offset) {
+int HandlerTable::LookupReturn(int pc_offset, CatchPrediction* prediction) {
   for (int i = 0; i < length(); i += kReturnEntrySize) {
     int return_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
-    int handler_offset = Smi::cast(get(i + kReturnHandlerIndex))->value();
-    if (pc_offset == return_offset) return handler_offset;
+    int handler_field = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    if (pc_offset == return_offset) {
+      *prediction = HandlerPredictionField::decode(handler_field);
+      return HandlerOffsetField::decode(handler_field);
+    }
   }
   return -1;
 }
@@ -11841,12 +11844,14 @@ void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
 
 
 void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
-  os << "   off      hdlr\n";
+  os << "   off      hdlr (c)\n";
   for (int i = 0; i < length(); i += kReturnEntrySize) {
     int pc_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
-    int handler = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    int handler_field = Smi::cast(get(i + kReturnHandlerIndex))->value();
+    int handler_offset = HandlerOffsetField::decode(handler_field);
+    CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
     os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
-       << handler << "\n";
+       << handler_offset << " (" << prediction << ")\n";
   }
 }
 

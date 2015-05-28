@@ -104,8 +104,9 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Branch) {
 TEST_F(NodePropertiesTest, CollectControlProjections_Call) {
   Node* result[2];
   CommonOperatorBuilder common(zone());
+  IfExceptionHint h = IfExceptionHint::kLocallyUncaught;
   Node* call = Node::New(zone(), 1, &kMockCallOperator, 0, nullptr, false);
-  Node* if_ex = Node::New(zone(), 2, common.IfException(), 1, &call, false);
+  Node* if_ex = Node::New(zone(), 2, common.IfException(h), 1, &call, false);
   Node* if_ok = Node::New(zone(), 3, common.IfSuccess(), 1, &call, false);
   NodeProperties::CollectControlProjections(call, result, arraysize(result));
   EXPECT_EQ(if_ok, result[0]);

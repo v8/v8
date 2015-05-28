@@ -5159,6 +5159,11 @@ class DeoptimizationOutputData: public FixedArray {
 //      [ return-address-offset , handler-offset ]
 class HandlerTable : public FixedArray {
  public:
+  // Conservative prediction whether a given handler will locally catch an
+  // exception or cause a re-throw to outside the code boundary. Since this is
+  // undecidable it is merely an approximation (e.g. useful for debugger).
+  enum CatchPrediction { UNCAUGHT, CAUGHT };
+
   // Accessors for handler table based on ranges.
   void SetRangeStart(int index, int value) {
     set(index * kRangeEntrySize + kRangeStartIndex, Smi::FromInt(value));
@@ -5177,7 +5182,9 @@ class HandlerTable : public FixedArray {
   void SetReturnOffset(int index, int value) {
     set(index * kReturnEntrySize + kReturnOffsetIndex, Smi::FromInt(value));
   }
-  void SetReturnHandler(int index, int value) {
+  void SetReturnHandler(int index, int offset, CatchPrediction prediction) {
+    int value = HandlerOffsetField::encode(offset) |
+                HandlerPredictionField::encode(prediction);
     set(index * kReturnEntrySize + kReturnHandlerIndex, Smi::FromInt(value));
   }
 
@@ -5185,7 +5192,7 @@ class HandlerTable : public FixedArray {
   int LookupRange(int pc_offset, int* stack_depth);
 
   // Lookup handler in a table based on return addresses.
-  int LookupReturn(int pc_offset);
+  int LookupReturn(int pc_offset, CatchPrediction* prediction);
 
   // Returns the required length of the underlying fixed array.
   static int LengthForRange(int entries) { return entries * kRangeEntrySize; }
@@ -5210,6 +5217,10 @@ class HandlerTable : public FixedArray {
   static const int kReturnOffsetIndex = 0;
   static const int kReturnHandlerIndex = 1;
   static const int kReturnEntrySize = 2;
+
+  // Encoding of the {handler} field.
+  class HandlerPredictionField : public BitField<CatchPrediction, 0, 1> {};
+  class HandlerOffsetField : public BitField<int, 1, 30> {};
 };
 
 

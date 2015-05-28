@@ -156,8 +156,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
             HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
             TENURED));
     for (size_t i = 0; i < handlers_.size(); ++i) {
+      int position = handlers_[i].handler->pos();
+      HandlerTable::CatchPrediction prediction = handlers_[i].caught_locally
+                                                     ? HandlerTable::CAUGHT
+                                                     : HandlerTable::UNCAUGHT;
       table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
+      table->SetReturnHandler(static_cast<int>(i), position, prediction);
     }
     result->set_handler_table(*table);
   }
@@ -379,9 +383,9 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (flags & CallDescriptor::kHasExceptionHandler) {
     InstructionOperandConverter i(this, instr);
-    RpoNumber handler_rpo =
-        i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
-    handlers_.push_back({GetLabel(handler_rpo), masm()->pc_offset()});
+    bool caught = flags & CallDescriptor::kHasLocalCatchHandler;
+    RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
+    handlers_.push_back({caught, GetLabel(handler_rpo), masm()->pc_offset()});
   }
 
   if (flags & CallDescriptor::kNeedsNopAfterCall) {
