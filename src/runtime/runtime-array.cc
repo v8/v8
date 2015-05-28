@@ -1234,7 +1234,8 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
 
   if (index >= capacity) {
     if (object->WouldConvertToSlowElements(index)) {
-      JSObject::NormalizeElements(object);
+      // We don't want to allow operations that cause lazy deopt. Return a Smi
+      // as a signal that optimized code should eagerly deoptimize.
       return Smi::FromInt(0);
     }
 
