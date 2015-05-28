@@ -112,7 +112,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
       Handle<Object> callback_data(listener.get(1), isolate);
       {
         // Do not allow exceptions to propagate.
-        v8::TryCatch try_catch;
+        v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined()
                                       ? api_exception_obj
                                       : v8::Utils::ToLocal(callback_data));

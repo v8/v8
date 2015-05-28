@@ -63,7 +63,7 @@ class FunctionTester : public InitializedHandleScope {
   }
 
   void CheckThrows(Handle<Object> a, Handle<Object> b) {
-    TryCatch try_catch;
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     MaybeHandle<Object> no_result = Call(a, b);
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
@@ -73,7 +73,7 @@ class FunctionTester : public InitializedHandleScope {
 
   v8::Handle<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
                                                    Handle<Object> b) {
-    TryCatch try_catch;
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     MaybeHandle<Object> no_result = Call(a, b);
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());

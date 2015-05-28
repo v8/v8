@@ -307,7 +307,7 @@ bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
   bool FLAG_debugger = false;
 #endif  // !V8_SHARED
   HandleScope handle_scope(isolate);
-  TryCatch try_catch;
+  TryCatch try_catch(isolate);
   options.script_executed = true;
   if (FLAG_debugger) {
     // When debugging make exceptions appear to be uncaught.
@@ -352,7 +352,7 @@ bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
       }
 #if !defined(V8_SHARED)
     } else {
-      v8::TryCatch try_catch;
+      v8::TryCatch try_catch(isolate);
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate, utility_context_);
       v8::Context::Scope context_scope(context);
@@ -571,7 +571,7 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
 
     // Explicitly catch potential exceptions in toString().
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(args.GetIsolate());
     Handle<String> str_obj = args[i]->ToString(args.GetIsolate());
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();

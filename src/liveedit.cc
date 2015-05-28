@@ -844,7 +844,7 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
   {
     // Creating verbose TryCatch from public API is currently the only way to
     // force code save location. We do not use this the object directly.
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     try_catch.SetVerbose(true);
 
     // A logical 'try' section.

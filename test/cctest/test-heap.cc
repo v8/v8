@@ -5346,7 +5346,7 @@ TEST(PreprocessStackTrace) {
   FLAG_gc_interval = -1;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
   CompileRun("throw new Error();");
   CHECK(try_catch.HasCaught());
   Isolate* isolate = CcTest::i_isolate();
@@ -5420,7 +5420,7 @@ TEST(Regress1878) {
       v8::Utils::ToLocal(CcTest::i_isolate()->internal_array_function());
   CcTest::global()->Set(v8_str("InternalArray"), constructor);
 
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(isolate);
 
   CompileRun(
       "var a = Array();"

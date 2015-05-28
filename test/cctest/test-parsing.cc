@@ -1685,7 +1685,7 @@ TEST(StrictOctal) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(
       v8::Context::New(CcTest::isolate()));
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
   const char* script =
       "\"use strict\";       \n"
       "a = function() {      \n"
@@ -6224,7 +6224,7 @@ TEST(StrongModeFreeVariablesDeclaredByPreviousScript) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(v8::Context::New(CcTest::isolate()));
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
 
   // Introduce a bunch of variables, in all language modes.
   const char* script1 =
@@ -6283,7 +6283,7 @@ TEST(StrongModeFreeVariablesDeclaredByLanguage) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(v8::Context::New(CcTest::isolate()));
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
 
   const char* script1 =
       "\"use strong\";         \n"
@@ -6299,7 +6299,7 @@ TEST(StrongModeFreeVariablesDeclaredInGlobalPrototype) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(v8::Context::New(CcTest::isolate()));
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
 
   const char* script1 = "this.__proto__.my_var = 0;\n";
   CompileRun(v8_str(script1));
@@ -6318,7 +6318,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(v8::Context::New(CcTest::isolate()));
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
 
   // Test that referencing unintroduced variables in sloppy mode is ok.
   const char* script1 =
@@ -6335,7 +6335,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
         "if (false) {            \n"
         "  not_there2;           \n"
         "}                       \n";
-    v8::TryCatch try_catch2;
+    v8::TryCatch try_catch2(CcTest::isolate());
     v8::Script::Compile(v8_str(script2));
     CHECK(try_catch2.HasCaught());
     v8::String::Utf8Value exception(try_catch2.Exception());
@@ -6356,7 +6356,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
         "    not_there3;         \n"
         "  }                     \n"
         "})();                   \n";
-    v8::TryCatch try_catch2;
+    v8::TryCatch try_catch2(CcTest::isolate());
     v8::Script::Compile(v8_str(script3));
     CHECK(try_catch2.HasCaught());
     v8::String::Utf8Value exception(try_catch2.Exception());

@@ -211,7 +211,7 @@ static int SetScriptBreakPointByIdFromJS(v8::Isolate* isolate, int script_id,
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
   {
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     v8::Handle<v8::String> str =
         v8::String::NewFromUtf8(isolate, buffer.start());
     v8::Handle<v8::Value> value = v8::Script::Compile(str)->Run();
@@ -240,7 +240,7 @@ static int SetScriptBreakPointByNameFromJS(v8::Isolate* isolate,
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
   {
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     v8::Handle<v8::String> str =
         v8::String::NewFromUtf8(isolate, buffer.start());
     v8::Handle<v8::Value> value = v8::Script::Compile(str)->Run();
@@ -4023,7 +4023,7 @@ TEST(EvalJSInDebugEventListenerOnNativeReThrownException) {
 
   // ReThrow native error
   {
-    v8::TryCatch tryCatch;
+    v8::TryCatch tryCatch(env->GetIsolate());
     env->GetIsolate()->ThrowException(v8::Exception::TypeError(
         v8::String::NewFromUtf8(env->GetIsolate(), "Type error")));
     CHECK(tryCatch.HasCaught());
@@ -5602,7 +5602,7 @@ static void CheckDataParameter(
   CHECK(v8::Debug::Call(debugger_call_with_data, data)->IsString());
 
   for (int i = 0; i < 3; i++) {
-    v8::TryCatch catcher;
+    v8::TryCatch catcher(args.GetIsolate());
     CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
     CHECK(catcher.HasCaught());
     CHECK(catcher.Exception()->IsString());
@@ -7267,7 +7267,7 @@ static void DebugEventStepNext(
 
 
 static void RunScriptInANewCFrame(const char* source) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
   CompileRun(source);
   CHECK(try_catch.HasCaught());
 }
@@ -7447,7 +7447,7 @@ TEST(DebugBreakOffThreadTerminate) {
   v8::Debug::SetDebugEventListener(DebugBreakTriggerTerminate);
   TerminationThread terminator(isolate);
   terminator.Start();
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(env->GetIsolate());
   v8::Debug::DebugBreak(isolate);
   CompileRun("while (true);");
   CHECK(try_catch.HasTerminated());
@@ -7463,7 +7463,7 @@ static void DebugEventExpectNoException(
 
 static void TryCatchWrappedThrowCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   CompileRun("throw 'rejection';");
   CHECK(try_catch.HasCaught());
 }

@@ -305,7 +305,7 @@ bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
   // Run custom script if provided.
   base::ElapsedTimer timer;
   timer.Start();
-  TryCatch try_catch;
+  TryCatch try_catch(isolate);
   Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
   if (try_catch.HasCaught()) return false;
   ScriptOrigin origin(String::NewFromUtf8(isolate, "<embedded script>"));
@@ -7473,11 +7473,12 @@ void Isolate::VisitHandlesForPartialDependence(
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  TryCatch try_catch;
-  Handle<String> str = obj->ToString(reinterpret_cast<v8::Isolate*>(isolate));
+  TryCatch try_catch(v8_isolate);
+  Handle<String> str = obj->ToString(v8_isolate);
   if (str.IsEmpty()) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
   length_ = v8::Utf8Length(*i_str, isolate);
@@ -7494,11 +7495,12 @@ String::Utf8Value::~Utf8Value() {
 String::Value::Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  TryCatch try_catch;
-  Handle<String> str = obj->ToString(reinterpret_cast<v8::Isolate*>(isolate));
+  TryCatch try_catch(v8_isolate);
+  Handle<String> str = obj->ToString(v8_isolate);
   if (str.IsEmpty()) return;
   length_ = str->Length();
   str_ = i::NewArray<uint16_t>(length_ + 1);

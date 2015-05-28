@@ -200,7 +200,7 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
   // creating message objects during stack overflow we shouldn't
   // capture messages.
   {
-    v8::TryCatch catcher;
+    v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
     catcher.SetVerbose(false);
     catcher.SetCaptureMessage(false);
 
