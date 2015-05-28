@@ -2047,14 +2047,10 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       bool key_is_smi_like = !Object::ToSmi(isolate(), key).is_null();
       if (receiver->elements()->map() ==
-          isolate()->heap()->sloppy_arguments_elements_map()) {
-        if (is_sloppy(language_mode())) {
-          stub = sloppy_arguments_stub();
-        } else {
-          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
-        }
-      } else if (key_is_smi_like &&
-                 !(target().is_identical_to(sloppy_arguments_stub()))) {
+              isolate()->heap()->sloppy_arguments_elements_map() &&
+          !is_sloppy(language_mode())) {
+        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
+      } else if (key_is_smi_like) {
         // We should go generic if receiver isn't a dictionary, but our
         // prototype chain does have dictionary elements. This ensures that
         // other non-dictionary receivers in the polymorphic case benefit

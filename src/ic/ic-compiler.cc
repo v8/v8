@@ -364,9 +364,11 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
-      if (receiver_map->has_fast_elements() ||
-          receiver_map->has_external_array_elements() ||
-          receiver_map->has_fixed_typed_array_elements()) {
+      if (IsSloppyArgumentsElements(elements_kind)) {
+        cached_stub = KeyedStoreSloppyArgumentsStub(isolate()).GetCode();
+      } else if (receiver_map->has_fast_elements() ||
+                 receiver_map->has_external_array_elements() ||
+                 receiver_map->has_fixed_typed_array_elements()) {
         cached_stub = StoreFastElementStub(isolate(), is_js_array,
                                            elements_kind, store_mode).GetCode();
       } else {
@@ -394,9 +396,11 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
-  if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements() ||
-      receiver_map->has_fixed_typed_array_elements()) {
+  if (receiver_map->has_sloppy_arguments_elements()) {
+    stub = KeyedStoreSloppyArgumentsStub(isolate()).GetCode();
+  } else if (receiver_map->has_fast_elements() ||
+             receiver_map->has_external_array_elements() ||
+             receiver_map->has_fixed_typed_array_elements()) {
     stub = StoreFastElementStub(isolate(), is_jsarray, elements_kind,
                                 store_mode).GetCode();
   } else {

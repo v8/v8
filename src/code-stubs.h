@@ -101,6 +101,7 @@ namespace internal {
   V(LoadFastElement)                        \
   V(LoadField)                              \
   V(KeyedLoadSloppyArguments)               \
+  V(KeyedStoreSloppyArguments)              \
   V(StoreField)                             \
   V(StoreGlobal)                            \
   V(StoreTransition)                        \
@@ -1134,6 +1135,20 @@ class KeyedLoadSloppyArgumentsStub : public HandlerStub {
 
  private:
   DEFINE_HANDLER_CODE_STUB(KeyedLoadSloppyArguments, HandlerStub);
+};
+
+
+class KeyedStoreSloppyArgumentsStub : public HandlerStub {
+ public:
+  explicit KeyedStoreSloppyArgumentsStub(Isolate* isolate)
+      : HandlerStub(isolate) {}
+
+ protected:
+  Code::Kind kind() const override { return Code::KEYED_STORE_IC; }
+  Code::StubType GetStubType() const override { return Code::FAST; }
+
+ private:
+  DEFINE_HANDLER_CODE_STUB(KeyedStoreSloppyArguments, HandlerStub);
 };
 
 

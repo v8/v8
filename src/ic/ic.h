@@ -610,7 +610,6 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
-  static void GenerateSloppyArguments(MacroAssembler* masm);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       LanguageMode language_mode,
@@ -634,11 +633,6 @@ class KeyedStoreIC : public StoreIC {
 
  private:
   inline void set_target(Code* code);
-
-  // Stub accessors.
-  Handle<Code> sloppy_arguments_stub() {
-    return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
-  }
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);

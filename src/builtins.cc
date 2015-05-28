@@ -1369,11 +1369,6 @@ static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedStoreIC_SloppyArguments(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSloppyArguments(masm);
-}
-
-
 static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateCallICStubDebugBreak(masm);
 }
