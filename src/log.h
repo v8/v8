@@ -146,7 +146,6 @@ struct TickSample;
 class JitLogger;
 class PerfBasicLogger;
 class LowLevelLogger;
-class PerfJitLogger;
 class Sampler;
 
 class Logger {
@@ -401,7 +400,6 @@ class Logger {
   bool is_logging_;
   Log* log_;
   PerfBasicLogger* perf_basic_logger_;
-  PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
   List<CodeEventListener*> listeners_;
