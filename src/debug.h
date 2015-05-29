@@ -186,6 +186,7 @@ class BreakLocation {
     int break_index_;
     int position_;
     int statement_position_;
+    bool has_immediate_position_;
 
     DisallowHeapAllocation no_gc_;
 

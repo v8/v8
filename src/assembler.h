@@ -1112,7 +1112,11 @@ class PreservePositionScope BASE_EMBEDDED {
  public:
   explicit PreservePositionScope(PositionsRecorder* positions_recorder)
       : positions_recorder_(positions_recorder),
-        saved_state_(positions_recorder->state_) {}
+        saved_state_(positions_recorder->state_) {
+    // Reset positions so that previous ones do not accidentally get
+    // recorded within this scope.
+    positions_recorder->state_ = PositionState();
+  }
 
   ~PreservePositionScope() {
     positions_recorder_->state_ = saved_state_;
