@@ -2596,7 +2596,8 @@ void Assembler::vmov(const DwVfpRegister dst,
     } else if (scratch.is(no_reg)) {
       mov(ip, Operand(lo));
       vmov(dst, VmovIndexLo, ip);
-      if ((lo & 0xffff) == (hi & 0xffff)) {
+      if (((lo & 0xffff) == (hi & 0xffff)) &&
+          CpuFeatures::IsSupported(ARMv7)) {
         movt(ip, hi >> 16);
       } else {
         mov(ip, Operand(hi));
