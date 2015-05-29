@@ -1455,33 +1455,28 @@ AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes,
   Address old_top = allocation_info_.top();
   Address high = to_space_.page_high();
   if (allocation_info_.limit() < high) {
+    int alignment_size = Heap::GetFillToAlign(old_top, alignment);
+    int aligned_size_in_bytes = size_in_bytes + alignment_size;
+
     // Either the limit has been lowered because linear allocation was disabled
     // or because incremental marking wants to get a chance to do a step. Set
     // the new limit accordingly.
-    int aligned_size = size_in_bytes;
-    aligned_size += (alignment != kWordAligned) ? kPointerSize : 0;
-    Address new_top = old_top + aligned_size;
+    Address new_top = old_top + aligned_size_in_bytes;
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
     heap()->incremental_marking()->Step(bytes_allocated,
                                         IncrementalMarking::GC_VIA_STACK_GUARD);
-    UpdateInlineAllocationLimit(aligned_size);
+    UpdateInlineAllocationLimit(aligned_size_in_bytes);
     top_on_previous_step_ = new_top;
-    if (alignment == kDoubleAligned)
-      return AllocateRawAligned(size_in_bytes, kDoubleAligned);
-    else if (alignment == kDoubleUnaligned)
-      return AllocateRawAligned(size_in_bytes, kDoubleUnaligned);
-    return AllocateRawUnaligned(size_in_bytes);
+    if (alignment == kWordAligned) return AllocateRawUnaligned(size_in_bytes);
+    return AllocateRawAligned(size_in_bytes, alignment);
   } else if (AddFreshPage()) {
     // Switched to new page. Try allocating again.
     int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
     heap()->incremental_marking()->Step(bytes_allocated,
                                         IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = to_space_.page_low();
-    if (alignment == kDoubleAligned)
-      return AllocateRawAligned(size_in_bytes, kDoubleAligned);
-    else if (alignment == kDoubleUnaligned)
-      return AllocateRawAligned(size_in_bytes, kDoubleUnaligned);
-    return AllocateRawUnaligned(size_in_bytes);
+    if (alignment == kWordAligned) return AllocateRawUnaligned(size_in_bytes);
+    return AllocateRawAligned(size_in_bytes, alignment);
   } else {
     return AllocationResult::Retry();
   }
