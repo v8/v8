@@ -849,9 +849,13 @@ Object* Isolate::StackOverflow() {
   // constructor.  Instead, we copy the pre-constructed boilerplate and
   // attach the stack trace as a hidden property.
   Handle<String> key = factory()->stack_overflow_string();
-  Handle<JSObject> boilerplate = Handle<JSObject>::cast(
-      Object::GetProperty(js_builtins_object(), key).ToHandleChecked());
-  Handle<JSObject> exception = factory()->CopyJSObject(boilerplate);
+  Handle<Object> boilerplate =
+      Object::GetProperty(js_builtins_object(), key).ToHandleChecked();
+  if (boilerplate->IsUndefined()) {
+    return Throw(heap()->undefined_value(), nullptr);
+  }
+  Handle<JSObject> exception =
+      factory()->CopyJSObject(Handle<JSObject>::cast(boilerplate));
   Throw(*exception, nullptr);
 
   CaptureAndSetSimpleStackTrace(exception, factory()->undefined_value());

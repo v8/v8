@@ -2748,6 +2748,10 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   Handle<FixedArray> instances;
   {
     DebugScope debug_scope(isolate->debug());
+    if (debug_scope.failed()) {
+      DCHECK(isolate->has_pending_exception());
+      return isolate->heap()->exception();
+    }
     // Fill the script objects.
     instances = isolate->debug()->GetLoadedScripts();
   }
