@@ -682,14 +682,19 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         }
         // Step 10a
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
-          if (!current.isWritable() && desc.isWritable()) {
-            if (should_throw) {
-              throw MakeTypeError(kRedefineDisallowed, p);
-            } else {
-              return false;
+          var currentIsWritable = current.isWritable();
+          if (currentIsWritable != desc.isWritable()) {
+            if (!currentIsWritable || IS_STRONG(obj)) {
+              if (should_throw) {
+                throw currentIsWritable
+                    ? MakeTypeError(kStrongRedefineDisallowed, obj, p)
+                    : MakeTypeError(kRedefineDisallowed, p);
+              } else {
+                return false;
+              }
             }
           }
-          if (!current.isWritable() && desc.hasValue() &&
+          if (!currentIsWritable && desc.hasValue() &&
               !$sameValue(desc.getValue(), current.getValue())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
@@ -1223,7 +1228,10 @@ function ObjectSealJS(obj) {
 function ObjectFreezeJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
   var isProxy = %_IsJSProxy(obj);
-  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
+  // TODO(conradw): Investigate modifying the fast path to accommodate strong
+  // objects.
+  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj) ||
+      IS_STRONG(obj)) {
     if (isProxy) {
       ProxyFix(obj);
     }
