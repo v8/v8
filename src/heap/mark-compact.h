@@ -516,7 +516,8 @@ class CodeFlusher {
 
   static void SetNextCandidate(JSFunction* candidate,
                                JSFunction* next_candidate) {
-    candidate->set_next_function_link(next_candidate);
+    candidate->set_next_function_link(next_candidate,
+                                      UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static void ClearNextCandidate(JSFunction* candidate, Object* undefined) {

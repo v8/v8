@@ -253,7 +253,7 @@ static void ClearWeakList(Heap* heap, Object* list) {
 template <>
 struct WeakListVisitor<JSFunction> {
   static void SetWeakNext(JSFunction* function, Object* next) {
-    function->set_next_function_link(next);
+    function->set_next_function_link(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static Object* WeakNext(JSFunction* function) {
@@ -271,7 +271,7 @@ struct WeakListVisitor<JSFunction> {
 template <>
 struct WeakListVisitor<Code> {
   static void SetWeakNext(Code* code, Object* next) {
-    code->set_next_code_link(next);
+    code->set_next_code_link(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static Object* WeakNext(Code* code) { return code->next_code_link(); }
@@ -342,7 +342,7 @@ struct WeakListVisitor<Context> {
 template <>
 struct WeakListVisitor<AllocationSite> {
   static void SetWeakNext(AllocationSite* obj, Object* next) {
-    obj->set_weak_next(next);
+    obj->set_weak_next(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static Object* WeakNext(AllocationSite* obj) { return obj->weak_next(); }

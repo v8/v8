@@ -394,7 +394,8 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
   DCHECK(function->next_function_link()->IsUndefined());
 
-  function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST));
+  function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST),
+                                   UPDATE_WEAK_WRITE_BARRIER);
   set(OPTIMIZED_FUNCTIONS_LIST, function, UPDATE_WEAK_WRITE_BARRIER);
 }
 
@@ -412,9 +413,11 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
         set(OPTIMIZED_FUNCTIONS_LIST, element_function->next_function_link(),
             UPDATE_WEAK_WRITE_BARRIER);
       } else {
-        prev->set_next_function_link(element_function->next_function_link());
+        prev->set_next_function_link(element_function->next_function_link(),
+                                     UPDATE_WEAK_WRITE_BARRIER);
       }
-      element_function->set_next_function_link(GetHeap()->undefined_value());
+      element_function->set_next_function_link(GetHeap()->undefined_value(),
+                                               UPDATE_WEAK_WRITE_BARRIER);
       return;
     }
     prev = element_function;

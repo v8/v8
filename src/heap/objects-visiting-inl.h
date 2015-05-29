@@ -332,7 +332,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
   // We can ignore weak cells with cleared values because they will always
   // contain smi zero.
   if (weak_cell->next() == undefined && !weak_cell->cleared()) {
-    weak_cell->set_next(heap->encountered_weak_cells());
+    weak_cell->set_next(heap->encountered_weak_cells(),
+                        UPDATE_WEAK_WRITE_BARRIER);
     heap->set_encountered_weak_cells(weak_cell);
   }
 }

@@ -260,7 +260,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
       // changed the code to which it refers to no longer be optimized code.
       // Remove the function from this list.
       if (prev != NULL) {
-        prev->set_next_function_link(next);
+        prev->set_next_function_link(next, UPDATE_WEAK_WRITE_BARRIER);
       } else {
         context->SetOptimizedFunctionsListHead(next);
       }
@@ -268,7 +268,8 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
       CHECK_EQ(function->next_function_link(), next);
       // Set the next function link to undefined to indicate it is no longer
       // in the optimized functions list.
-      function->set_next_function_link(context->GetHeap()->undefined_value());
+      function->set_next_function_link(context->GetHeap()->undefined_value(),
+                                       SKIP_WRITE_BARRIER);
     } else {
       // The visitor should not alter the link directly.
       CHECK_EQ(function->next_function_link(), next);
