@@ -4395,7 +4395,7 @@ TEST(RunTestIntPtrArithmetic) {
   RawMachineAssemblerTester<int32_t*> m;
   Node* input = m.PointerConstant(&inputs[0]);
   Node* output = m.PointerConstant(&outputs[kInputSize - 1]);
-  Node* elem_size = m.ConvertInt32ToIntPtr(m.Int32Constant(sizeof(inputs[0])));
+  Node* elem_size = m.IntPtrConstant(sizeof(inputs[0]));
   for (int i = 0; i < kInputSize; i++) {
     m.Store(kMachInt32, output, m.Load(kMachInt32, input));
     input = m.IntPtrAdd(input, elem_size);
