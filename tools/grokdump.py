@@ -3123,20 +3123,38 @@ def AnalyzeMinidump(options, minidump_name):
   elif not options.command:
     if reader.exception is not None:
       frame_pointer = reader.ExceptionFP()
+      in_oom_dump_area = False
       print "Annotated stack (from exception.esp to bottom):"
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
         ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
                          for c in reader.ReadBytes(slot, reader.PointerSize())]
         maybe_address = reader.ReadUIntPtr(slot)
+        maybe_address_contents = None
+        if maybe_address >= stack_top and maybe_address <= stack_bottom:
+          maybe_address_contents = reader.ReadUIntPtr(maybe_address)
+          if maybe_address_contents == 0xdecade00:
+            in_oom_dump_area = True
         heap_object = heap.FindObject(maybe_address)
         maybe_symbol = reader.FindSymbol(maybe_address)
+        oom_comment = ""
+        if in_oom_dump_area:
+          if maybe_address_contents == 0xdecade00:
+            oom_comment = " <----- HeapStats start marker"
+          elif maybe_address_contents == 0xdecade01:
+            oom_comment = " <----- HeapStats end marker"
+          else:
+            oom_comment = " %d (%d Mbytes)" % (maybe_address_contents,
+                                            maybe_address_contents >> 20)
         if slot == frame_pointer:
           maybe_symbol = "<---- frame pointer"
           frame_pointer = maybe_address
-        print "%s: %s %s %s" % (reader.FormatIntPtr(slot),
-                                reader.FormatIntPtr(maybe_address),
-                                "".join(ascii_content),
-                                maybe_symbol or "")
+        print "%s: %s %s %s%s" % (reader.FormatIntPtr(slot),
+                                  reader.FormatIntPtr(maybe_address),
+                                   "".join(ascii_content),
+                                   maybe_symbol or "",
+                                   oom_comment)
+        if maybe_address_contents == 0xdecade01:
+          in_oom_dump_area = False
         if heap_object:
           heap_object.Print(Printer())
           print
