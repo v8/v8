@@ -270,22 +270,12 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kDeoptimize:
-      // Deoptimize uses are End.
-      for (auto use : node->uses()) {
-        CHECK_EQ(IrOpcode::kEnd, use->opcode());
-      }
-      // Type is empty.
-      CheckNotTyped(node);
     case IrOpcode::kReturn:
-      // Return uses are End.
+    case IrOpcode::kThrow:
+      // Deoptimize, Return and Throw uses are End.
       for (auto use : node->uses()) {
         CHECK_EQ(IrOpcode::kEnd, use->opcode());
       }
-      // Type is empty.
-      CheckNotTyped(node);
-      break;
-    case IrOpcode::kThrow:
-      // TODO(rossberg): what are the constraints on these?
       // Type is empty.
       CheckNotTyped(node);
       break;

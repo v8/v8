@@ -3357,7 +3357,7 @@ Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
   PrepareFrameState(call, bailout_id);
   Node* control = NewNode(common()->Throw(), call);
   UpdateControlDependencyToLeaveFunction(control);
-  return control;
+  return call;
 }
 
 
@@ -3370,7 +3370,7 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
   PrepareFrameState(call, bailout_id);
   Node* control = NewNode(common()->Throw(), call);
   UpdateControlDependencyToLeaveFunction(control);
-  return control;
+  return call;
 }
 
 
@@ -3381,7 +3381,7 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
   PrepareFrameState(call, bailout_id);
   Node* control = NewNode(common()->Throw(), call);
   UpdateControlDependencyToLeaveFunction(control);
-  return control;
+  return call;
 }
 
 
@@ -3392,7 +3392,7 @@ Node* AstGraphBuilder::BuildThrowStaticPrototypeError(BailoutId bailout_id) {
   PrepareFrameState(call, bailout_id);
   Node* control = NewNode(common()->Throw(), call);
   UpdateControlDependencyToLeaveFunction(control);
-  return control;
+  return call;
 }
 
 
@@ -3536,13 +3536,14 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       *current_input++ = environment_->GetControlDependency();
     }
     result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
-    if (has_effect) {
-      environment_->UpdateEffectDependency(result);
-    }
     if (!environment()->IsMarkedAsUnreachable()) {
       // Update the current control dependency for control-producing nodes.
       if (NodeProperties::IsControl(result)) {
         environment_->UpdateControlDependency(result);
+      }
+      // Update the current effect dependency for effect-producing nodes.
+      if (result->op()->EffectOutputCount() > 0) {
+        environment_->UpdateEffectDependency(result);
       }
       // Add implicit exception continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
