@@ -5884,8 +5884,6 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
 
-  DeoptimizeIf(equal, instr, Deoptimizer::kNull);
-
   Condition cc = masm()->CheckSmi(rax);
   DeoptimizeIf(cc, instr, Deoptimizer::kSmi);
 
