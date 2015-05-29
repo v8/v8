@@ -434,10 +434,14 @@ void ExternalStreamingStream::ResetToBookmark() {
 
   pos_ = bookmark_;
 
-  // current_data_ can point to bookmark_data_'s buffer.
-  current_data_ = bookmark_data_.start();
+  // bookmark_data_* => current_data_*
+  // (current_data_ assumes ownership of its memory.)
+  uint8_t* data = new uint8_t[bookmark_data_.length()];
   current_data_offset_ = 0;
   current_data_length_ = bookmark_data_.length();
+  CopyCharsUnsigned(data, bookmark_data_.begin(), bookmark_data_.length());
+  delete[] current_data_;
+  current_data_ = data;
 
   // bookmark_buffer_ needs to be copied to buffer_.
   CopyCharsUnsigned(buffer_, bookmark_buffer_.begin(),
