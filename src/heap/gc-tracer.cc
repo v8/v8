@@ -167,11 +167,9 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
 void GCTracer::Stop(GarbageCollector collector) {
   start_counter_--;
   if (start_counter_ != 0) {
-    if (FLAG_trace_gc) {
-      PrintF("[Finished reentrant %s during %s.]\n",
-             collector == SCAVENGER ? "Scavenge" : "Mark-sweep",
-             current_.TypeName(false));
-    }
+    Output("[Finished reentrant %s during %s.]\n",
+           collector == SCAVENGER ? "Scavenge" : "Mark-sweep",
+           current_.TypeName(false));
     return;
   }
 
@@ -238,8 +236,6 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   // TODO(ernstm): move the code below out of GCTracer.
 
-  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
-
   double duration = current_.end_time - current_.start_time;
   double spent_in_mutator = Max(current_.start_time - previous_.end_time, 0.0);
 
@@ -249,12 +245,12 @@ void GCTracer::Stop(GarbageCollector collector) {
   if (current_.type == Event::SCAVENGER && FLAG_trace_gc_ignore_scavenger)
     return;
 
-  if (FLAG_trace_gc) {
-    if (FLAG_trace_gc_nvp)
-      PrintNVP();
-    else
-      Print();
+  if (FLAG_trace_gc_nvp)
+    PrintNVP();
+  else
+    Print();
 
+  if (FLAG_trace_gc) {
     heap_->PrintShortHeapStatistics();
   }
 }
@@ -329,11 +325,33 @@ void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
 }
 
 
-void GCTracer::Print() const {
-  PrintIsolate(heap_->isolate(), "%8.0f ms: ",
-               heap_->isolate()->time_millis_since_init());
+void GCTracer::Output(const char* format, ...) const {
+  if (FLAG_trace_gc) {
+    va_list arguments;
+    va_start(arguments, format);
+    base::OS::VPrint(format, arguments);
+    va_end(arguments);
+  }
 
-  PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ", current_.TypeName(false),
+  const int kBufferSize = 256;
+  char raw_buffer[kBufferSize];
+  Vector<char> buffer(raw_buffer, kBufferSize);
+  va_list arguments2;
+  va_start(arguments2, format);
+  VSNPrintF(buffer, format, arguments2);
+  va_end(arguments2);
+
+  heap_->AddToRingBuffer(buffer.start());
+}
+
+
+void GCTracer::Print() const {
+  if (FLAG_trace_gc) {
+    PrintIsolate(heap_->isolate(), "");
+  }
+  Output("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+
+  Output("%s %.1f (%.1f) -> %.1f (%.1f) MB, ", current_.TypeName(false),
          static_cast<double>(current_.start_object_size) / MB,
          static_cast<double>(current_.start_memory_size) / MB,
          static_cast<double>(current_.end_object_size) / MB,
@@ -343,16 +361,16 @@ void GCTracer::Print() const {
   if (external_time > 0) PrintF("%d / ", external_time);
 
   double duration = current_.end_time - current_.start_time;
-  PrintF("%.1f ms", duration);
+  Output("%.1f ms", duration);
   if (current_.type == Event::SCAVENGER) {
     if (current_.incremental_marking_steps > 0) {
-      PrintF(" (+ %.1f ms in %d steps since last GC)",
+      Output(" (+ %.1f ms in %d steps since last GC)",
              current_.incremental_marking_duration,
              current_.incremental_marking_steps);
     }
   } else {
     if (current_.incremental_marking_steps > 0) {
-      PrintF(
+      Output(
           " (+ %.1f ms in %d steps since start of marking, "
           "biggest step %.1f ms)",
           current_.incremental_marking_duration,
@@ -362,14 +380,14 @@ void GCTracer::Print() const {
   }
 
   if (current_.gc_reason != NULL) {
-    PrintF(" [%s]", current_.gc_reason);
+    Output(" [%s]", current_.gc_reason);
   }
 
   if (current_.collector_reason != NULL) {
-    PrintF(" [%s]", current_.collector_reason);
+    Output(" [%s]", current_.collector_reason);
   }
 
-  PrintF(".\n");
+  Output(".\n");
 }
 
 

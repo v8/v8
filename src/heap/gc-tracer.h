@@ -422,6 +422,10 @@ class GCTracer {
   // TODO(ernstm): Move to Heap.
   void Print() const;
 
+  // Prints a line and also adds it to the heap's ring buffer so that
+  // it can be included in later crash dumps.
+  void Output(const char* format, ...) const;
+
   // Compute the mean duration of the events in the given ring buffer.
   double MeanDuration(const EventBuffer& events) const;
 

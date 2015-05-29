@@ -1156,6 +1156,8 @@ class Heap {
   static const int kMaxExecutableSizeHugeMemoryDevice =
       256 * kPointerMultiplier;
 
+  static const int kTraceRingBufferSize = 512;
+
   // Calculates the allocation limit based on a given growing factor and a
   // given old generation size.
   intptr_t CalculateOldGenerationAllocationLimit(double factor,
@@ -2182,6 +2184,9 @@ class Heap {
   inline void UpdateAllocationsHash(uint32_t value);
   inline void PrintAlloctionsHash();
 
+  void AddToRingBuffer(const char* string);
+  void GetFromRingBuffer(char* buffer);
+
   // Object counts and used memory by InstanceType
   size_t object_counts_[OBJECT_STATS_COUNT];
   size_t object_counts_last_time_[OBJECT_STATS_COUNT];
@@ -2248,6 +2253,13 @@ class Heap {
 
   static const int kAllocationSiteScratchpadSize = 256;
   int allocation_sites_scratchpad_length_;
+
+  char trace_ring_buffer_[kTraceRingBufferSize];
+  // If it's not full then the data is from 0 to ring_buffer_end_.  If it's
+  // full then the data is from ring_buffer_end_ to the end of the buffer and
+  // from 0 to ring_buffer_end_.
+  bool ring_buffer_full_;
+  size_t ring_buffer_end_;
 
   static const int kMaxMarkCompactsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;
@@ -2320,7 +2332,8 @@ class HeapStats {
   int* objects_per_type;                   // 17
   int* size_per_type;                      // 18
   int* os_error;                           // 19
-  int* end_marker;                         // 20
+  char* last_few_messages;                 // 20
+  int* end_marker;                         // 21
 };
 
 
