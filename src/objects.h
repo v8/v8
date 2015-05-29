@@ -5171,7 +5171,9 @@ class HandlerTable : public FixedArray {
   void SetRangeEnd(int index, int value) {
     set(index * kRangeEntrySize + kRangeEndIndex, Smi::FromInt(value));
   }
-  void SetRangeHandler(int index, int value) {
+  void SetRangeHandler(int index, int offset, CatchPrediction prediction) {
+    int value = HandlerOffsetField::encode(offset) |
+                HandlerPredictionField::encode(prediction);
     set(index * kRangeEntrySize + kRangeHandlerIndex, Smi::FromInt(value));
   }
   void SetRangeDepth(int index, int value) {
@@ -5189,7 +5191,7 @@ class HandlerTable : public FixedArray {
   }
 
   // Lookup handler in a table based on ranges.
-  int LookupRange(int pc_offset, int* stack_depth);
+  int LookupRange(int pc_offset, int* stack_depth, CatchPrediction* prediction);
 
   // Lookup handler in a table based on return addresses.
   int LookupReturn(int pc_offset, CatchPrediction* prediction);

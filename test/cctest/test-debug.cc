@@ -3856,6 +3856,13 @@ TEST(PauseInScript) {
 }
 
 
+static void DebugEventCounterCheck(int caught, int uncaught, int message) {
+  CHECK_EQ(caught, exception_hit_count);
+  CHECK_EQ(uncaught, uncaught_exception_hit_count);
+  CHECK_EQ(message, message_callback_count);
+}
+
+
 // Test break on exceptions. For each exception break combination the number
 // of debug event exception callbacks and message callbacks are collected. The
 // number of debug event exception callbacks are used to check that the
@@ -3875,6 +3882,15 @@ TEST(BreakOnException) {
                       "caught");
   v8::Local<v8::Function> notCaught =
       CompileFunction(&env, "function notCaught(){throws();}", "notCaught");
+  v8::Local<v8::Function> notCaughtFinally = CompileFunction(
+      &env, "function notCaughtFinally(){try{throws();}finally{}}",
+      "notCaughtFinally");
+  // In this edge case, even though this finally does not propagate the
+  // exception, the debugger considers this uncaught, since we want to break
+  // at the first throw for the general case where finally implicitly rethrows.
+  v8::Local<v8::Function> edgeCaseFinally = CompileFunction(
+      &env, "function caughtFinally(){L:try{throws();}finally{break L;}}",
+      "caughtFinally");
 
   v8::V8::AddMessageListener(MessageCallbackCount);
   v8::Debug::SetDebugEventListener(DebugEventCounter);
@@ -3883,121 +3899,150 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(0, 0, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
 
   // No break on exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(false, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(0, 0, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
 
   // Break on uncaught exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(false, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(1, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(2, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 3, 2);
 
   // Break on exception and uncaught exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(true, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   // Break on exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(true, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   // No break on exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), false, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(0, 0, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
 
   // Break on uncaught exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), false, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(1, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(2, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 3, 2);
 
   // Break on exception and uncaught exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), true, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   // Break on exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), true, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
   v8::V8::RemoveMessageListeners(MessageCallbackCount);
+}
+
+
+static void try_finally_original_message(v8::Handle<v8::Message> message,
+                                         v8::Handle<v8::Value> data) {
+  CHECK_EQ(2, message->GetLineNumber());
+  CHECK_EQ(2, message->GetStartColumn());
+  message_callback_count++;
+}
+
+
+TEST(TryFinallyOriginalMessage) {
+  // Test that the debugger plays nicely with the pending message.
+  message_callback_count = 0;
+  DebugEventCounterClear();
+  v8::V8::AddMessageListener(try_finally_original_message);
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+  ChangeBreakOnException(true, true);
+  DebugLocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+      "try {\n"
+      "  throw 1;\n"
+      "} finally {\n"
+      "}\n");
+  DebugEventCounterCheck(1, 1, 1);
+  v8::Debug::SetDebugEventListener(NULL);
+  v8::V8::RemoveMessageListeners(try_finally_original_message);
 }
 
 

@@ -761,12 +761,13 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
 }
 
 
-int JavaScriptFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+int JavaScriptFrame::LookupExceptionHandlerInTable(
+    int* stack_slots, HandlerTable::CatchPrediction* prediction) {
   Code* code = LookupCode();
   DCHECK(!code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
-  return table->LookupRange(pc_offset, stack_slots);
+  return table->LookupRange(pc_offset, stack_slots, prediction);
 }
 
 
@@ -977,14 +978,14 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 }
 
 
-int OptimizedFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+int OptimizedFrame::LookupExceptionHandlerInTable(
+    int* stack_slots, HandlerTable::CatchPrediction* prediction) {
   Code* code = LookupCode();
   DCHECK(code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
   *stack_slots = code->stack_slots();
-  HandlerTable::CatchPrediction prediction;  // TODO(yangguo): For debugger.
-  return table->LookupReturn(pc_offset, &prediction);
+  return table->LookupReturn(pc_offset, prediction);
 }
 
 

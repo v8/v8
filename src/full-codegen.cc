@@ -1209,11 +1209,14 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_entry);
+
+  try_catch_depth_++;
   EnterTryBlock(stmt->index(), &handler_entry);
   { TryCatch try_body(this);
     Visit(stmt->try_block());
   }
   ExitTryBlock(stmt->index());
+  try_catch_depth_--;
   __ bind(&exit);
 }
 
@@ -1428,7 +1431,9 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 
 void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
   handler_table()->SetRangeStart(index, masm()->pc_offset());
-  handler_table()->SetRangeHandler(index, handler->pos());
+  HandlerTable::CatchPrediction prediction =
+      try_catch_depth_ > 0 ? HandlerTable::CAUGHT : HandlerTable::UNCAUGHT;
+  handler_table()->SetRangeHandler(index, handler->pos(), prediction);
 
   // Determine expression stack depth of try statement.
   int stack_depth = info_->scope()->num_stack_slots();  // Include stack locals.

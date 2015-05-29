@@ -1150,7 +1150,7 @@ void Debug::FloodHandlerWithOneShot() {
   for (JavaScriptFrameIterator it(isolate_, id); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     int stack_slots = 0;  // The computed stack slot count is not used.
-    if (frame->LookupExceptionHandlerInTable(&stack_slots) > 0) {
+    if (frame->LookupExceptionHandlerInTable(&stack_slots, NULL) > 0) {
       // Flood the function with the catch/finally block with break points.
       FloodWithOneShot(Handle<JSFunction>(frame->function()));
       return;
@@ -2486,6 +2486,7 @@ MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
 
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
+  // In our prediction, try-finally is not considered to catch.
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
   bool uncaught = (catch_type == Isolate::NOT_CAUGHT);
   if (promise->IsJSObject()) {

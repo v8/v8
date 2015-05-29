@@ -1067,7 +1067,7 @@ Object* Isolate::UnwindAndFindHandler() {
     if (frame->is_optimized() && catchable_by_js) {
       OptimizedFrame* js_frame = static_cast<OptimizedFrame*>(frame);
       int stack_slots = 0;  // Will contain stack slot count of frame.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots);
+      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, NULL);
       if (offset >= 0) {
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
@@ -1087,7 +1087,7 @@ Object* Isolate::UnwindAndFindHandler() {
     if (frame->is_java_script() && catchable_by_js) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
       int stack_slots = 0;  // Will contain operand stack depth of handler.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots);
+      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, NULL);
       if (offset >= 0) {
         // Compute the stack pointer from the frame pointer. This ensures that
         // operand stack slots are dropped for nested statements. Also restore
@@ -1143,8 +1143,12 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
     if (frame->is_java_script()) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
       int stack_slots = 0;  // The computed stack slot count is not used.
-      if (js_frame->LookupExceptionHandlerInTable(&stack_slots) > 0) {
-        return CAUGHT_BY_JAVASCRIPT;
+      HandlerTable::CatchPrediction prediction;
+      if (js_frame->LookupExceptionHandlerInTable(&stack_slots, &prediction) >
+          0) {
+        // We are conservative with our prediction: try-finally is considered
+        // to always rethrow, to meet the expectation of the debugger.
+        if (prediction == HandlerTable::CAUGHT) return CAUGHT_BY_JAVASCRIPT;
       }
     }
 
@@ -1573,7 +1577,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     int stack_slots = 0;  // The computed stack slot count is not used.
-    if (frame->LookupExceptionHandlerInTable(&stack_slots) > 0) {
+    if (frame->LookupExceptionHandlerInTable(&stack_slots, NULL) > 0) {
       // Throwing inside a Promise only leads to a reject if not caught by an
       // inner try-catch or try-finally.
       if (frame->function() == *promise_function) {

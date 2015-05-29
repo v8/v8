@@ -69,10 +69,12 @@ class FullCodeGenerator: public AstVisitor {
         scope_(info->scope()),
         nesting_stack_(NULL),
         loop_depth_(0),
+        try_catch_depth_(0),
         globals_(NULL),
         context_(NULL),
         bailout_entries_(info->HasDeoptimizationSupport()
-                         ? info->function()->ast_node_count() : 0,
+                             ? info->function()->ast_node_count()
+                             : 0,
                          info->zone()),
         back_edges_(2, info->zone()),
         ic_total_count_(0) {
@@ -964,6 +966,7 @@ class FullCodeGenerator: public AstVisitor {
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;
+  int try_catch_depth_;
   ZoneList<Handle<Object> >* globals_;
   Handle<FixedArray> modules_;
   int module_index_;
