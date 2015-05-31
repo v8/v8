@@ -358,7 +358,7 @@ void GCTracer::Print() const {
          static_cast<double>(current_.end_memory_size) / MB);
 
   int external_time = static_cast<int>(current_.scopes[Scope::EXTERNAL]);
-  if (external_time > 0) PrintF("%d / ", external_time);
+  if (external_time > 0) Output("%d / ", external_time);
 
   double duration = current_.end_time - current_.start_time;
   Output("%.1f ms", duration);
