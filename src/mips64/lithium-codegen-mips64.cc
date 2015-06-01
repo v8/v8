@@ -1491,7 +1491,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
           DeoptimizeIf(gt, instr, Deoptimizer::kOverflow, scratch,
                        Operand(kMaxInt));
         } else {
-          __ Dsubu(result, zero_reg, left);
+          __ Subu(result, zero_reg, left);
         }
         break;
       case 0:
@@ -1516,25 +1516,25 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
         if (base::bits::IsPowerOfTwo32(constant_abs)) {
           int32_t shift = WhichPowerOf2(constant_abs);
-          __ dsll(result, left, shift);
+          __ sll(result, left, shift);
           // Correct the sign of the result if the constant is negative.
-          if (constant < 0)  __ Dsubu(result, zero_reg, result);
+          if (constant < 0) __ Subu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
-          __ dsll(scratch, left, shift);
-          __ Daddu(result, scratch, left);
+          __ sll(scratch, left, shift);
+          __ addu(result, scratch, left);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0)  __ Dsubu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs + 1)) {
           int32_t shift = WhichPowerOf2(constant_abs + 1);
-          __ dsll(scratch, left, shift);
-          __ Dsubu(result, scratch, left);
+          __ sll(scratch, left, shift);
+          __ Subu(result, scratch, left);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0)  __ Dsubu(result, zero_reg, result);
         } else {
           // Generate standard code.
           __ li(at, constant);
-          __ Dmul(result, left, at);
+          __ Mul(result, left, at);
         }
     }
 
@@ -1558,9 +1558,9 @@ void LCodeGen::DoMulI(LMulI* instr) {
     } else {
       if (instr->hydrogen()->representation().IsSmi()) {
         __ SmiUntag(result, left);
-        __ Dmul(result, result, right);
+        __ mul(result, result, right);
       } else {
-        __ Dmul(result, left, right);
+        __ mul(result, left, right);
       }
     }
 
@@ -1706,10 +1706,10 @@ void LCodeGen::DoSubI(LSubI* instr) {
   if (!can_overflow) {
     if (right->IsStackSlot()) {
       Register right_reg = EmitLoadRegister(right, at);
-      __ Dsubu(ToRegister(result), ToRegister(left), Operand(right_reg));
+      __ Subu(ToRegister(result), ToRegister(left), Operand(right_reg));
     } else {
       DCHECK(right->IsRegister() || right->IsConstantOperand());
-      __ Dsubu(ToRegister(result), ToRegister(left), ToOperand(right));
+      __ Subu(ToRegister(result), ToRegister(left), ToOperand(right));
     }
   } else {  // can_overflow.
     Register overflow = scratch0();
@@ -1904,10 +1904,10 @@ void LCodeGen::DoAddI(LAddI* instr) {
   if (!can_overflow) {
     if (right->IsStackSlot()) {
       Register right_reg = EmitLoadRegister(right, at);
-      __ Daddu(ToRegister(result), ToRegister(left), Operand(right_reg));
+      __ Addu(ToRegister(result), ToRegister(left), Operand(right_reg));
     } else {
       DCHECK(right->IsRegister() || right->IsConstantOperand());
-      __ Daddu(ToRegister(result), ToRegister(left), ToOperand(right));
+      __ Addu(ToRegister(result), ToRegister(left), ToOperand(right));
     }
   } else {  // can_overflow.
     Register overflow = scratch0();
