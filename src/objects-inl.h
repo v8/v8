@@ -905,6 +905,9 @@ bool Object::IsNameDictionary() const {
 }
 
 
+bool Object::IsGlobalDictionary() const { return IsDictionary(); }
+
+
 bool Object::IsSeededNumberDictionary() const {
   return IsDictionary();
 }
@@ -3384,6 +3387,7 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(GlobalObject)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
@@ -6733,7 +6737,17 @@ bool JSObject::HasIndexedInterceptor() {
 
 NameDictionary* JSObject::property_dictionary() {
   DCHECK(!HasFastProperties());
+  // TODO(ishell): Uncomment, once all property_dictionary() usages for global
+  // objects are replaced with global_dictionary().
+  // DCHECK(!IsGlobalObject());
   return NameDictionary::cast(properties());
+}
+
+
+GlobalDictionary* JSObject::global_dictionary() {
+  DCHECK(!HasFastProperties());
+  DCHECK(IsGlobalObject());
+  return GlobalDictionary::cast(properties());
 }
 
 

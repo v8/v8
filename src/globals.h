@@ -377,6 +377,7 @@ class MemoryChunk;
 class SeededNumberDictionary;
 class UnseededNumberDictionary;
 class NameDictionary;
+class GlobalDictionary;
 template <typename T> class MaybeHandle;
 template <typename T> class Handle;
 class Heap;

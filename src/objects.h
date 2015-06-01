@@ -1059,6 +1059,7 @@ class Object {
   INLINE(bool IsSpecFunction()) const;
   INLINE(bool IsTemplateInfo()) const;
   INLINE(bool IsNameDictionary() const);
+  INLINE(bool IsGlobalDictionary() const);
   INLINE(bool IsSeededNumberDictionary() const);
   INLINE(bool IsUnseededNumberDictionary() const);
   INLINE(bool IsOrderedHashSet() const);
@@ -1728,7 +1729,10 @@ class JSObject: public JSReceiver {
   DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
   inline void initialize_properties();
   inline bool HasFastProperties();
-  inline NameDictionary* property_dictionary();  // Gets slow properties.
+  // Gets slow properties for non-global objects.
+  inline NameDictionary* property_dictionary();
+  // Gets global object properties.
+  inline GlobalDictionary* global_dictionary();
 
   // [elements]: The elements (properties with names that are integers).
   //
@@ -3599,30 +3603,29 @@ enum class DictionaryEntryType { kObjects, kCells };
 
 template <typename Derived, typename Shape, typename Key>
 class Dictionary: public HashTable<Derived, Shape, Key> {
- protected:
   typedef HashTable<Derived, Shape, Key> DerivedHashTable;
 
  public:
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
+    return this->get(Derived::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
+    this->set(Derived::EntryToIndex(entry) + 1, value);
   }
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
     DCHECK(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(
-        Smi::cast(this->get(DerivedHashTable::EntryToIndex(entry) + 2)));
+        Smi::cast(this->get(Derived::EntryToIndex(entry) + 2)));
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    this->set(DerivedHashTable::EntryToIndex(entry) + 2, value.AsSmi());
+    this->set(Derived::EntryToIndex(entry) + 2, value.AsSmi());
   }
 
   // Delete a property from the dictionary.
@@ -3712,6 +3715,17 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
     }
   }
 
+  // Copies enumerable keys to preallocated fixed array.
+  template <DictionaryEntryType type>
+  void CopyEnumKeysTo(FixedArray* storage);
+  void CopyEnumKeysTo(Object* holder, FixedArray* storage) {
+    if (holder->IsGlobalObject()) {
+      return CopyEnumKeysTo<DictionaryEntryType::kCells>(storage);
+    } else {
+      return CopyEnumKeysTo<DictionaryEntryType::kObjects>(storage);
+    }
+  }
+
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
     DCHECK(index != 0);
@@ -3781,6 +3795,17 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 };
 
 
+template <typename Derived, typename Shape>
+class NameDictionaryBase : public Dictionary<Derived, Shape, Handle<Name> > {
+  typedef Dictionary<Derived, Shape, Handle<Name> > DerivedDictionary;
+
+ public:
+  // Find entry for key, otherwise return kNotFound. Optimized version of
+  // HashTable::FindEntry.
+  int FindEntry(Handle<Name> key);
+};
+
+
 class NameDictionaryShape : public BaseShape<Handle<Name> > {
  public:
   static inline bool IsMatch(Handle<Name> key, Object* other);
@@ -3793,32 +3818,29 @@ class NameDictionaryShape : public BaseShape<Handle<Name> > {
 };
 
 
-class NameDictionary: public Dictionary<NameDictionary,
-                                        NameDictionaryShape,
-                                        Handle<Name> > {
-  typedef Dictionary<
-      NameDictionary, NameDictionaryShape, Handle<Name> > DerivedDictionary;
+class NameDictionary
+    : public NameDictionaryBase<NameDictionary, NameDictionaryShape> {
+  typedef NameDictionaryBase<NameDictionary, NameDictionaryShape>
+      DerivedDictionary;
 
  public:
   DECLARE_CAST(NameDictionary)
 
-  // Copies enumerable keys to preallocated fixed array.
-  template <DictionaryEntryType type>
-  void CopyEnumKeysTo(FixedArray* storage);
-  void CopyEnumKeysTo(Object* holder, FixedArray* storage) {
-    if (holder->IsGlobalObject()) {
-      return CopyEnumKeysTo<DictionaryEntryType::kCells>(storage);
-    } else {
-      return CopyEnumKeysTo<DictionaryEntryType::kObjects>(storage);
-    }
-  }
-
   inline static Handle<FixedArray> DoGenerateNewEnumerationIndices(
       Handle<NameDictionary> dictionary);
+};
 
-  // Find entry for key, otherwise return kNotFound. Optimized version of
-  // HashTable::FindEntry.
-  int FindEntry(Handle<Name> key);
+
+class GlobalDictionaryShape : public NameDictionaryShape {
+ public:
+  static const int kEntrySize = 3;  // Overrides NameDictionaryShape::kEntrySize
+};
+
+
+class GlobalDictionary
+    : public NameDictionaryBase<GlobalDictionary, GlobalDictionaryShape> {
+ public:
+  DECLARE_CAST(GlobalDictionary)
 };
 
 

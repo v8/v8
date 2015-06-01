@@ -14021,10 +14021,10 @@ bool JSObject::ShouldConvertToFastDoubleElements(
 #ifdef OBJECT_PRINT
 template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k)) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k)) {
       os << " ";
       if (k->IsString()) {
         String::cast(k)->StringPrint(os);
@@ -14041,12 +14041,12 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
-    Object* k =  Dictionary::KeyAt(i);
-    if (Dictionary::IsKey(k)) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k)) {
       elements->set(pos++, ValueAt(i), mode);
     }
   }
@@ -14780,9 +14780,10 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
 
 
 // Find entry for key otherwise return kNotFound.
-int NameDictionary::FindEntry(Handle<Name> key) {
+template <typename Derived, typename Shape>
+int NameDictionaryBase<Derived, Shape>::FindEntry(Handle<Name> key) {
   if (!key->IsUniqueName()) {
-    return DerivedHashTable::FindEntry(key);
+    return DerivedDictionary::FindEntry(key);
   }
 
   // Optimized for unique names. Knowledge of the key type allows:
@@ -14795,13 +14796,13 @@ int NameDictionary::FindEntry(Handle<Name> key) {
   //    boost a certain style of code).
 
   // EnsureCapacity will guarantee the hash table is never full.
-  uint32_t capacity = Capacity();
-  uint32_t entry = FirstProbe(key->Hash(), capacity);
+  uint32_t capacity = this->Capacity();
+  uint32_t entry = Derived::FirstProbe(key->Hash(), capacity);
   uint32_t count = 1;
 
   while (true) {
-    int index = EntryToIndex(entry);
-    Object* element = get(index);
+    int index = Derived::EntryToIndex(entry);
+    Object* element = this->get(index);
     if (element->IsUndefined()) break;  // Empty entry.
     if (*key == element) return entry;
     if (!element->IsUniqueName() &&
@@ -14809,13 +14810,13 @@ int NameDictionary::FindEntry(Handle<Name> key) {
         Name::cast(element)->Equals(*key)) {
       // Replace a key that is a non-internalized string by the equivalent
       // internalized string for faster further lookups.
-      set(index, *key);
+      this->set(index, *key);
       return entry;
     }
     DCHECK(element->IsTheHole() || !Name::cast(element)->Equals(*key));
-    entry = NextProbe(entry, count++, capacity);
+    entry = Derived::NextProbe(entry, count++, capacity);
   }
-  return kNotFound;
+  return Derived::kNotFound;
 }
 
 
@@ -14836,12 +14837,12 @@ void HashTable<Derived, Shape, Key>::Rehash(
   }
 
   // Rehash the elements.
-  int capacity = Capacity();
+  int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
-    Object* k = get(from_index);
+    Object* k = this->get(from_index);
     if (IsKey(k)) {
-      uint32_t hash = HashTable::HashForObject(key, k);
+      uint32_t hash = this->HashForObject(key, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -14860,8 +14861,8 @@ uint32_t HashTable<Derived, Shape, Key>::EntryForProbe(
     Object* k,
     int probe,
     uint32_t expected) {
-  uint32_t hash = HashTable::HashForObject(key, k);
-  uint32_t capacity = Capacity();
+  uint32_t hash = this->HashForObject(key, k);
+  uint32_t capacity = this->Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
     if (entry == expected) return expected;
@@ -15124,6 +15125,9 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
 
 template int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape,
                        uint32_t>::FindEntry(uint32_t);
+
+template int NameDictionaryBase<NameDictionary, NameDictionaryShape>::FindEntry(
+    Handle<Name>);
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -16215,11 +16219,11 @@ template <typename Derived, typename Shape, typename Key>
 template <DictionaryEntryType type>
 int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
     PropertyAttributes filter) {
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k) && !FilterKey(k, filter)) {
       if (IsDeleted<type>(this, i)) continue;
       PropertyDetails details = DetailsAt(i);
       PropertyAttributes attr = details.attributes();
@@ -16233,10 +16237,10 @@ int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
 template <typename Derived, typename Shape, typename Key>
 template <DictionaryEntryType type>
 bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k) && !FilterKey(k, NONE)) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k) && !FilterKey(k, NONE)) {
       if (IsDeleted<type>(this, i)) continue;
       PropertyDetails details = DetailsAt(i);
       if (details.type() == ACCESSOR_CONSTANT) return true;
@@ -16254,16 +16258,16 @@ void Dictionary<Derived, Shape, Key>::CopyKeysTo(
     FixedArray* storage, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   DCHECK(storage->length() >= NumberOfElementsFilterAttributes<type>(filter));
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
-     Object* k = DerivedHashTable::KeyAt(i);
-     if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
-       if (IsDeleted<type>(this, i)) continue;
-       PropertyDetails details = DetailsAt(i);
-       PropertyAttributes attr = details.attributes();
-       if ((attr & filter) == 0) storage->set(index++, k);
-     }
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k) && !FilterKey(k, filter)) {
+      if (IsDeleted<type>(this, i)) continue;
+      PropertyDetails details = DetailsAt(i);
+      PropertyAttributes attr = details.attributes();
+      if ((attr & filter) == 0) storage->set(index++, k);
+    }
   }
   if (sort_mode == Dictionary::SORTED) {
     storage->SortPairs(storage, index);
@@ -16272,25 +16276,27 @@ void Dictionary<Derived, Shape, Key>::CopyKeysTo(
 }
 
 
+template <typename Dictionary>
 struct EnumIndexComparator {
-  explicit EnumIndexComparator(NameDictionary* dict) : dict(dict) { }
+  explicit EnumIndexComparator(Dictionary* dict) : dict(dict) {}
   bool operator() (Smi* a, Smi* b) {
     PropertyDetails da(dict->DetailsAt(a->value()));
     PropertyDetails db(dict->DetailsAt(b->value()));
     return da.dictionary_index() < db.dictionary_index();
   }
-  NameDictionary* dict;
+  Dictionary* dict;
 };
 
 
+template <typename Derived, typename Shape, typename Key>
 template <DictionaryEntryType type>
-void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
+void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(FixedArray* storage) {
   int length = storage->length();
-  int capacity = Capacity();
+  int capacity = this->Capacity();
   int properties = 0;
   for (int i = 0; i < capacity; i++) {
-     Object* k = KeyAt(i);
-     if (IsKey(k) && !k->IsSymbol()) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k) && !k->IsSymbol()) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDontEnum() || IsDeleted<type>(this, i)) continue;
        storage->set(properties, Smi::FromInt(i));
@@ -16299,12 +16305,12 @@ void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
      }
   }
   CHECK_EQ(length, properties);
-  EnumIndexComparator cmp(this);
+  EnumIndexComparator<Derived> cmp(static_cast<Derived*>(this));
   Smi** start = reinterpret_cast<Smi**>(storage->GetFirstElementAddress());
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     int index = Smi::cast(storage->get(i))->value();
-    storage->set(i, KeyAt(index));
+    storage->set(i, this->KeyAt(index));
   }
 }
 
@@ -16315,10 +16321,10 @@ void Dictionary<Derived, Shape, Key>::CopyKeysTo(
     FixedArray* storage, int index, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   DCHECK(storage->length() >= NumberOfElementsFilterAttributes<type>(filter));
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k) && !FilterKey(k, filter)) {
       if (IsDeleted<type>(this, i)) continue;
       PropertyDetails details = DetailsAt(i);
       PropertyAttributes attr = details.attributes();
@@ -16335,10 +16341,10 @@ void Dictionary<Derived, Shape, Key>::CopyKeysTo(
 // Backwards lookup (slow).
 template<typename Derived, typename Shape, typename Key>
 Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k =  DerivedHashTable::KeyAt(i);
-    if (Dictionary::IsKey(k)) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k)) {
       Object* e = ValueAt(i);
       // TODO(dcarney): this should be templatized.
       if (e->IsPropertyCell()) {
