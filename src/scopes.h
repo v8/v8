@@ -419,6 +419,13 @@ class Scope: public ZoneObject {
     return home_object_;
   }
 
+  Variable* this_function_var() const {
+    // This is only used in derived constructors atm.
+    DCHECK(this_function_ == nullptr ||
+           (is_function_scope() && IsSubclassConstructor(function_kind())));
+    return this_function_;
+  }
+
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
@@ -579,6 +586,8 @@ class Scope: public ZoneObject {
   Variable* arguments_;
   // Convenience variable; method scopes only.
   Variable* home_object_;
+  // Convenience variable; Subclass constructor only
+  Variable* this_function_;
   // Module descriptor; module scopes only.
   ModuleDescriptor* module_descriptor_;
 

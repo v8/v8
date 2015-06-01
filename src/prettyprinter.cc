@@ -364,7 +364,10 @@ void CallPrinter::VisitSpread(Spread* node) {
 void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 
 
-void CallPrinter::VisitSuperReference(SuperReference* node) {}
+void CallPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {}
+
+
+void CallPrinter::VisitSuperCallReference(SuperCallReference* node) {}
 
 
 void CallPrinter::FindStatements(ZoneList<Statement*>* statements) {
@@ -835,8 +838,13 @@ void PrettyPrinter::VisitThisFunction(ThisFunction* node) {
 }
 
 
-void PrettyPrinter::VisitSuperReference(SuperReference* node) {
-  Print("<super-reference>");
+void PrettyPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
+  Print("<super-property-reference>");
+}
+
+
+void PrettyPrinter::VisitSuperCallReference(SuperCallReference* node) {
+  Print("<super-call-reference>");
 }
 
 
@@ -1527,9 +1535,15 @@ void AstPrinter::VisitThisFunction(ThisFunction* node) {
 }
 
 
-void AstPrinter::VisitSuperReference(SuperReference* node) {
-  IndentedScope indent(this, "SUPER-REFERENCE");
+void AstPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
+  IndentedScope indent(this, "SUPER-PROPERTY-REFERENCE");
 }
+
+
+void AstPrinter::VisitSuperCallReference(SuperCallReference* node) {
+  IndentedScope indent(this, "SUPER-CALL-REFERENCE");
+}
+
 
 #endif  // DEBUG
 

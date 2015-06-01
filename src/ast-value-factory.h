@@ -267,6 +267,7 @@ class AstValue : public ZoneObject {
   F(spread_arguments, "$spreadArguments")                                  \
   F(spread_iterable, "$spreadIterable")                                    \
   F(this, "this")                                                          \
+  F(this_function, ".this_function")                                       \
   F(throw_iterator_result_not_an_object, "ThrowIteratorResultNotAnObject") \
   F(to_string, "$toString")                                                \
   F(undefined, "undefined")                                                \
