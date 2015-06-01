@@ -52,9 +52,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
       : GraphAndBuilders(main_zone()),
         CallHelper<ReturnType>(
             main_isolate(),
-            MakeMachineSignature(
-                main_zone(), ReturnValueTraits<ReturnType>::Representation(),
-                p0, p1, p2, p3, p4)),
+            MakeMachineSignature(main_zone(), MachineTypeForC<ReturnType>(), p0,
+                                 p1, p2, p3, p4)),
         SimplifiedGraphBuilder(main_isolate(), main_graph_, &main_common_,
                                &main_machine_, &main_simplified_),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {

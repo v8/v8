@@ -30,14 +30,12 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       : HandleAndZoneScope(),
         CallHelper<ReturnType>(
             main_isolate(),
-            MakeMachineSignature(
-                main_zone(), ReturnValueTraits<ReturnType>::Representation(),
-                p0, p1, p2, p3, p4)),
+            MakeMachineSignature(main_zone(), MachineTypeForC<ReturnType>(), p0,
+                                 p1, p2, p3, p4)),
         RawMachineAssembler(
             main_isolate(), new (main_zone()) Graph(main_zone()),
-            MakeMachineSignature(
-                main_zone(), ReturnValueTraits<ReturnType>::Representation(),
-                p0, p1, p2, p3, p4),
+            MakeMachineSignature(main_zone(), MachineTypeForC<ReturnType>(), p0,
+                                 p1, p2, p3, p4),
             kMachPtr, InstructionSelector::SupportedMachineOperatorFlags()) {}
 
   void CheckNumber(double expected, Object* number) {

@@ -9,6 +9,8 @@
 
 #include "src/simulator.h"
 
+#include "test/cctest/compiler/c-signature.h"
+
 #if V8_TARGET_ARCH_IA32
 #if __GNUC__
 #define V8_CDECL __attribute__((cdecl))
@@ -23,95 +25,64 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(titzer): use c-signature.h instead of ReturnValueTraits
 template <typename R>
-struct ReturnValueTraits {
-  static R Cast(uintptr_t r) { return reinterpret_cast<R>(r); }
-  static MachineType Representation() {
-    // TODO(dcarney): detect when R is of a subclass of Object* instead of this
-    // type check.
-    while (false) {
-      *(static_cast<Object* volatile*>(0)) = static_cast<R>(0);
-    }
-    return kMachAnyTagged;
-  }
-};
+inline R CastReturnValue(uintptr_t r) {
+  return reinterpret_cast<R>(r);
+}
 
 template <>
-struct ReturnValueTraits<int32_t*> {
-  static int32_t* Cast(uintptr_t r) { return reinterpret_cast<int32_t*>(r); }
-  static MachineType Representation() { return kMachPtr; }
-};
+inline void CastReturnValue(uintptr_t r) {}
 
 template <>
-struct ReturnValueTraits<void> {
-  static void Cast(uintptr_t r) {}
-  static MachineType Representation() { return kMachPtr; }
-};
+inline bool CastReturnValue(uintptr_t r) {
+  return static_cast<bool>(r);
+}
 
 template <>
-struct ReturnValueTraits<bool> {
-  static bool Cast(uintptr_t r) { return static_cast<bool>(r); }
-  static MachineType Representation() { return kRepBit; }
-};
+inline int32_t CastReturnValue(uintptr_t r) {
+  return static_cast<int32_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<int32_t> {
-  static int32_t Cast(uintptr_t r) { return static_cast<int32_t>(r); }
-  static MachineType Representation() { return kMachInt32; }
-};
+inline uint32_t CastReturnValue(uintptr_t r) {
+  return static_cast<uint32_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<uint32_t> {
-  static uint32_t Cast(uintptr_t r) { return static_cast<uint32_t>(r); }
-  static MachineType Representation() { return kMachUint32; }
-};
+inline int64_t CastReturnValue(uintptr_t r) {
+  return static_cast<int64_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<int64_t> {
-  static int64_t Cast(uintptr_t r) { return static_cast<int64_t>(r); }
-  static MachineType Representation() { return kMachInt64; }
-};
+inline uint64_t CastReturnValue(uintptr_t r) {
+  return static_cast<uint64_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<uint64_t> {
-  static uint64_t Cast(uintptr_t r) { return static_cast<uint64_t>(r); }
-  static MachineType Representation() { return kMachUint64; }
-};
+inline int16_t CastReturnValue(uintptr_t r) {
+  return static_cast<int16_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<int16_t> {
-  static int16_t Cast(uintptr_t r) { return static_cast<int16_t>(r); }
-  static MachineType Representation() { return kMachInt16; }
-};
+inline uint16_t CastReturnValue(uintptr_t r) {
+  return static_cast<uint16_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<uint16_t> {
-  static uint16_t Cast(uintptr_t r) { return static_cast<uint16_t>(r); }
-  static MachineType Representation() { return kMachUint16; }
-};
+inline int8_t CastReturnValue(uintptr_t r) {
+  return static_cast<int8_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<int8_t> {
-  static int8_t Cast(uintptr_t r) { return static_cast<int8_t>(r); }
-  static MachineType Representation() { return kMachInt8; }
-};
+inline uint8_t CastReturnValue(uintptr_t r) {
+  return static_cast<uint8_t>(r);
+}
 
 template <>
-struct ReturnValueTraits<uint8_t> {
-  static uint8_t Cast(uintptr_t r) { return static_cast<uint8_t>(r); }
-  static MachineType Representation() { return kMachUint8; }
-};
-
-template <>
-struct ReturnValueTraits<double> {
-  static double Cast(uintptr_t r) {
-    UNREACHABLE();
-    return 0.0;
-  }
-  static MachineType Representation() { return kMachFloat64; }
-};
-
+inline double CastReturnValue(uintptr_t r) {
+  UNREACHABLE();
+  return 0.0;
+}
 
 template <typename R>
 struct ParameterTraits {
@@ -213,27 +184,27 @@ class CallHelper {
   template <typename F>
   R DoCall(F* f) {
     Simulator::CallArgument args[] = {Simulator::CallArgument::End()};
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f), args));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
   template <typename F, typename P1>
   R DoCall(F* f, P1 p1) {
     Simulator::CallArgument args[] = {Simulator::CallArgument(p1),
                                       Simulator::CallArgument::End()};
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f), args));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
   template <typename F, typename P1, typename P2>
   R DoCall(F* f, P1 p1, P2 p2) {
     Simulator::CallArgument args[] = {Simulator::CallArgument(p1),
                                       Simulator::CallArgument(p2),
                                       Simulator::CallArgument::End()};
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f), args));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
   template <typename F, typename P1, typename P2, typename P3>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3) {
     Simulator::CallArgument args[] = {
         Simulator::CallArgument(p1), Simulator::CallArgument(p2),
         Simulator::CallArgument(p3), Simulator::CallArgument::End()};
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f), args));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
   template <typename F, typename P1, typename P2, typename P3, typename P4>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4) {
@@ -241,7 +212,7 @@ class CallHelper {
         Simulator::CallArgument(p1), Simulator::CallArgument(p2),
         Simulator::CallArgument(p3), Simulator::CallArgument(p4),
         Simulator::CallArgument::End()};
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f), args));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
 #elif USE_SIMULATOR && (V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64)
   uintptr_t CallSimulator(byte* f, int64_t p1 = 0, int64_t p2 = 0,
@@ -253,28 +224,28 @@ class CallHelper {
 
   template <typename F>
   R DoCall(F* f) {
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f)));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f)));
   }
   template <typename F, typename P1>
   R DoCall(F* f, P1 p1) {
-    return ReturnValueTraits<R>::Cast(
+    return CastReturnValue<R>(
         CallSimulator(FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1)));
   }
   template <typename F, typename P1, typename P2>
   R DoCall(F* f, P1 p1, P2 p2) {
-    return ReturnValueTraits<R>::Cast(
-        CallSimulator(FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
-                      ParameterTraits<P2>::Cast(p2)));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f),
+                                            ParameterTraits<P1>::Cast(p1),
+                                            ParameterTraits<P2>::Cast(p2)));
   }
   template <typename F, typename P1, typename P2, typename P3>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3) {
-    return ReturnValueTraits<R>::Cast(CallSimulator(
+    return CastReturnValue<R>(CallSimulator(
         FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3)));
   }
   template <typename F, typename P1, typename P2, typename P3, typename P4>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4) {
-    return ReturnValueTraits<R>::Cast(CallSimulator(
+    return CastReturnValue<R>(CallSimulator(
         FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
         ParameterTraits<P4>::Cast(p4)));
@@ -288,28 +259,28 @@ class CallHelper {
   }
   template <typename F>
   R DoCall(F* f) {
-    return ReturnValueTraits<R>::Cast(CallSimulator(FUNCTION_ADDR(f)));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f)));
   }
   template <typename F, typename P1>
   R DoCall(F* f, P1 p1) {
-    return ReturnValueTraits<R>::Cast(
+    return CastReturnValue<R>(
         CallSimulator(FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1)));
   }
   template <typename F, typename P1, typename P2>
   R DoCall(F* f, P1 p1, P2 p2) {
-    return ReturnValueTraits<R>::Cast(
-        CallSimulator(FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
-                      ParameterTraits<P2>::Cast(p2)));
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f),
+                                            ParameterTraits<P1>::Cast(p1),
+                                            ParameterTraits<P2>::Cast(p2)));
   }
   template <typename F, typename P1, typename P2, typename P3>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3) {
-    return ReturnValueTraits<R>::Cast(CallSimulator(
+    return CastReturnValue<R>(CallSimulator(
         FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3)));
   }
   template <typename F, typename P1, typename P2, typename P3, typename P4>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4) {
-    return ReturnValueTraits<R>::Cast(CallSimulator(
+    return CastReturnValue<R>(CallSimulator(
         FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
         ParameterTraits<P4>::Cast(p4)));
@@ -356,31 +327,27 @@ class CallHelper {
 
   template <typename P1>
   void VerifyParameters1() {
-    MachineType parameters[] = {ReturnValueTraits<P1>::Representation()};
+    MachineType parameters[] = {MachineTypeForC<P1>()};
     VerifyParameters(arraysize(parameters), parameters);
   }
 
   template <typename P1, typename P2>
   void VerifyParameters2() {
-    MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
-                                ReturnValueTraits<P2>::Representation()};
+    MachineType parameters[] = {MachineTypeForC<P1>(), MachineTypeForC<P2>()};
     VerifyParameters(arraysize(parameters), parameters);
   }
 
   template <typename P1, typename P2, typename P3>
   void VerifyParameters3() {
-    MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
-                                ReturnValueTraits<P2>::Representation(),
-                                ReturnValueTraits<P3>::Representation()};
+    MachineType parameters[] = {MachineTypeForC<P1>(), MachineTypeForC<P2>(),
+                                MachineTypeForC<P3>()};
     VerifyParameters(arraysize(parameters), parameters);
   }
 
   template <typename P1, typename P2, typename P3, typename P4>
   void VerifyParameters4() {
-    MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
-                                ReturnValueTraits<P2>::Representation(),
-                                ReturnValueTraits<P3>::Representation(),
-                                ReturnValueTraits<P4>::Representation()};
+    MachineType parameters[] = {MachineTypeForC<P1>(), MachineTypeForC<P2>(),
+                                MachineTypeForC<P3>(), MachineTypeForC<P4>()};
     VerifyParameters(arraysize(parameters), parameters);
   }
 #endif

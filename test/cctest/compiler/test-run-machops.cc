@@ -4412,7 +4412,7 @@ TEST(RunTestIntPtrArithmetic) {
 
 TEST(RunSpillLotsOfThings) {
   static const int kInputSize = 1000;
-  RawMachineAssemblerTester<void> m;
+  RawMachineAssemblerTester<int32_t> m;
   Node* accs[kInputSize];
   int32_t outputs[kInputSize];
   Node* one = m.Int32Constant(1);
