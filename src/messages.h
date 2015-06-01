@@ -230,11 +230,10 @@ class CallSite {
     "On strong object %, deletion of property % is deprecated")                \
   T(StrongImplicitCast, "In strong mode, implicit conversions are deprecated") \
   T(StrongRedefineDisallowed,                                                  \
-    "Cannot redefine non-configurable property '%' of strong object % to be "  \
-    "non-writable")                                                            \
-  T(StrongSetProto,                                                            \
     "On strong object %, redefining writable, non-configurable property '%' "  \
     "to be non-writable is deprecated")                                        \
+  T(StrongSetProto,                                                            \
+    "On strong object %, redefining the internal prototype is deprecated")     \
   T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToPrimitive,                                                         \
     "Cannot convert a Symbol wrapper object to a primitive value")             \
