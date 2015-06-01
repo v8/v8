@@ -21328,6 +21328,28 @@ TEST(StrongModeArityCallFromApi2) {
 }
 
 
+TEST(StrongObjectDelete) {
+  i::FLAG_strong_mode = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> obj;
+  {
+    v8::TryCatch try_catch;
+    obj = Local<Object>::Cast(CompileRun(
+        "'use strong';"
+        "({});"));
+    CHECK(!try_catch.HasCaught());
+  }
+  obj->ForceSet(v8_str("foo"), v8_num(1), v8::None);
+  obj->ForceSet(v8_str("2"), v8_num(1), v8::None);
+  CHECK(obj->HasOwnProperty(v8_str("foo")));
+  CHECK(obj->HasOwnProperty(v8_str("2")));
+  CHECK(!obj->Delete(v8_str("foo")));
+  CHECK(!obj->Delete(2));
+}
+
+
 TEST(ExtrasExportsObject) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

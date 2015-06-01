@@ -5467,9 +5467,16 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
         }
       // Fall through.
       case LookupIterator::ACCESSOR: {
-        if (!it.IsConfigurable()) {
-          // Fail if the property is not configurable.
+        if (!it.IsConfigurable() || object->map()->is_strong()) {
+          // Fail if the property is not configurable, or on a strong object.
           if (is_strict(language_mode)) {
+            if (object->map()->is_strong()) {
+              THROW_NEW_ERROR(
+                  it.isolate(),
+                  NewTypeError(MessageTemplate::kStrongDeleteProperty, object,
+                               name),
+                  Object);
+            }
             THROW_NEW_ERROR(it.isolate(),
                             NewTypeError(MessageTemplate::kStrictDeleteProperty,
                                          name, object),

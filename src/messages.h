@@ -226,6 +226,8 @@ class CallSite {
   T(StrictReadOnlyProperty, "Cannot assign to read only property '%' of %")    \
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
+  T(StrongDeleteProperty,                                                      \
+    "On strong object %, deletion of property % is deprecated")                \
   T(StrongImplicitCast, "In strong mode, implicit conversions are deprecated") \
   T(StrongRedefineDisallowed,                                                  \
     "Cannot redefine non-configurable property '%' of strong object % to be "  \

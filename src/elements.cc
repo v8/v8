@@ -925,8 +925,8 @@ class FastElementsAccessor
     return length_object;
   }
 
-  static Handle<Object> DeleteCommon(Handle<JSObject> obj, uint32_t key,
-                                     LanguageMode language_mode) {
+  static MaybeHandle<Object> DeleteCommon(Handle<JSObject> obj, uint32_t key,
+                                          LanguageMode language_mode) {
     DCHECK(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
@@ -949,6 +949,16 @@ class FastElementsAccessor
         ? Smi::cast(Handle<JSArray>::cast(obj)->length())->value()
         : backing_store->length());
     if (key < length) {
+      if (obj->map()->is_strong() && !backing_store->is_the_hole(key)) {
+        if (is_strict(language_mode)) {
+          Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
+          THROW_NEW_ERROR(
+              isolate,
+              NewTypeError(MessageTemplate::kStrongDeleteProperty, obj, name),
+              Object);
+        }
+        return isolate->factory()->false_value();
+      }
       if (!is_sloppy_arguments_elements_map) {
         ElementsKind kind = KindTraits::Kind;
         if (IsFastPackedElementsKind(kind)) {
@@ -1420,12 +1430,21 @@ class DictionaryElementsAccessor
         Handle<SeededNumberDictionary>::cast(backing_store);
     int entry = dictionary->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
-      Handle<Object> result =
-          SeededNumberDictionary::DeleteProperty(dictionary, entry);
-      if (*result == *isolate->factory()->false_value()) {
+      Handle<Object> result;
+      bool strong = obj->map()->is_strong();
+      if (!strong) {
+        result = SeededNumberDictionary::DeleteProperty(dictionary, entry);
+      }
+      if (strong || *result == *isolate->factory()->false_value()) {
+        // Fail if the property is not configurable, or on a strong object.
         if (is_strict(language_mode)) {
-          // Deleting a non-configurable property in strict mode.
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
+          if (strong) {
+            THROW_NEW_ERROR(
+                isolate,
+                NewTypeError(MessageTemplate::kStrongDeleteProperty, obj, name),
+                Object);
+          }
           THROW_NEW_ERROR(
               isolate,
               NewTypeError(MessageTemplate::kStrictDeleteProperty, name, obj),
