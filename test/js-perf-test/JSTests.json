@@ -106,6 +106,16 @@
       "tests": [
         {"name": "Assign"}
       ]
+    },
+    {
+      "name": "Scope",
+      "path": ["Scope"],
+      "main": "run.js",
+      "resources": ["with.js"],
+      "results_regexp": "^%s\\-Scope\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "With"}
+      ]
     }
   ]
 }
