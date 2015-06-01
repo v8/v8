@@ -58,6 +58,8 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSToName:
 
     // Misc operations
+    case IrOpcode::kJSForInNext:
+    case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSDeleteProperty:
       return 1;

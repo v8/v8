@@ -288,8 +288,9 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildStoreExternal(ExternalReference ref, MachineType type, Node* val);
 
   // Builders for automatic type conversion.
-  Node* BuildToBoolean(Node* value);
-  Node* BuildToName(Node* value, BailoutId bailout_id);
+  Node* BuildToBoolean(Node* input);
+  Node* BuildToName(Node* input, BailoutId bailout_id);
+  Node* BuildToObject(Node* input, BailoutId bailout_id);
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.
@@ -359,7 +360,6 @@ class AstGraphBuilder : public AstVisitor {
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value,
                             BailoutId bailout_id);
-  void VisitForInBody(ForInStatement* stmt);
 
   // Dispatched from VisitClassLiteral.
   void VisitClassLiteralContents(ClassLiteral* expr);

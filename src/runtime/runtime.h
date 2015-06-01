@@ -29,28 +29,27 @@ namespace internal {
 
 // Entries have the form F(name, number of arguments, number of values):
 
-#define FOR_EACH_INTRINSIC_ARRAY(F)                                   \
-  F(FinishArrayPrototypeSetup, 1, 1)                                  \
-  F(SpecialArrayFunctions, 0, 1)                                      \
-  F(TransitionElementsKind, 2, 1)                                     \
-  F(PushIfAbsent, 2, 1)                                               \
-  F(ArrayConcat, 1, 1)                                                \
-  F(RemoveArrayHoles, 2, 1)                                           \
-  F(MoveArrayContents, 2, 1)                                          \
-  F(EstimateNumberOfElements, 1, 1)                                   \
-  F(GetArrayKeys, 2, 1)                                               \
-  F(ArrayConstructor, -1, 1)                                          \
-  F(ArrayConstructorWithSubclassing, -1, 1)                           \
-  F(InternalArrayConstructor, -1, 1)                                  \
-  F(NormalizeElements, 1, 1)                                          \
-  F(GrowArrayElements, 2, 1)                                          \
-  F(HasComplexElements, 1, 1)                                         \
-  F(ForInCacheArrayLength, 2, 1) /* TODO(turbofan): Only temporary */ \
-  F(IsArray, 1, 1)                                                    \
-  F(HasCachedArrayIndex, 1, 1)                                        \
-  F(GetCachedArrayIndex, 1, 1)                                        \
-  F(FixedArrayGet, 2, 1)                                              \
-  F(FixedArraySet, 3, 1)                                              \
+#define FOR_EACH_INTRINSIC_ARRAY(F)         \
+  F(FinishArrayPrototypeSetup, 1, 1)        \
+  F(SpecialArrayFunctions, 0, 1)            \
+  F(TransitionElementsKind, 2, 1)           \
+  F(PushIfAbsent, 2, 1)                     \
+  F(ArrayConcat, 1, 1)                      \
+  F(RemoveArrayHoles, 2, 1)                 \
+  F(MoveArrayContents, 2, 1)                \
+  F(EstimateNumberOfElements, 1, 1)         \
+  F(GetArrayKeys, 2, 1)                     \
+  F(ArrayConstructor, -1, 1)                \
+  F(ArrayConstructorWithSubclassing, -1, 1) \
+  F(InternalArrayConstructor, -1, 1)        \
+  F(NormalizeElements, 1, 1)                \
+  F(GrowArrayElements, 2, 1)                \
+  F(HasComplexElements, 1, 1)               \
+  F(IsArray, 1, 1)                          \
+  F(HasCachedArrayIndex, 1, 1)              \
+  F(GetCachedArrayIndex, 1, 1)              \
+  F(FixedArrayGet, 2, 1)                    \
+  F(FixedArraySet, 3, 1)                    \
   F(FastOneByteArrayJoin, 2, 1)
 
 
@@ -186,6 +185,13 @@ namespace internal {
   F(DebugAsyncTaskEvent, 1, 1)                 \
   F(DebugIsActive, 0, 1)                       \
   F(DebugBreakInOptimizedCode, 0, 1)
+
+
+#define FOR_EACH_INTRINSIC_FORIN(F) \
+  F(ForInDone, 2, 1)                \
+  F(ForInFilter, 2, 1)              \
+  F(ForInNext, 4, 1)                \
+  F(ForInStep, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \
@@ -672,12 +678,10 @@ namespace internal {
   F(URIUnescape, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC_RETURN_PAIR(F)                 \
-  F(LoadLookupSlot, 2, 2)                                 \
-  F(LoadLookupSlotNoReferenceError, 2, 2)                 \
-  F(ResolvePossiblyDirectEval, 6, 2)                      \
-  F(ForInInit, 2, 2) /* TODO(turbofan): Only temporary */ \
-  F(ForInNext, 4, 2) /* TODO(turbofan): Only temporary */
+#define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
+  F(LoadLookupSlot, 2, 2)                 \
+  F(LoadLookupSlotNoReferenceError, 2, 2) \
+  F(ResolvePossiblyDirectEval, 6, 2)
 
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
@@ -687,6 +691,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_COMPILER(F)            \
   FOR_EACH_INTRINSIC_DATE(F)                \
   FOR_EACH_INTRINSIC_DEBUG(F)               \
+  FOR_EACH_INTRINSIC_FORIN(F)               \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
   FOR_EACH_INTRINSIC_I18N(F)                \

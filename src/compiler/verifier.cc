@@ -564,6 +564,25 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Any());
       break;
 
+    case IrOpcode::kJSForInPrepare: {
+      // TODO(bmeurer): What are the constraints on thse?
+      CheckUpperIs(node, Type::Any());
+      break;
+    }
+    case IrOpcode::kJSForInDone: {
+      CheckValueInputIs(node, 0, Type::UnsignedSmall());
+      break;
+    }
+    case IrOpcode::kJSForInNext: {
+      CheckUpperIs(node, Type::Union(Type::Name(), Type::Undefined()));
+      break;
+    }
+    case IrOpcode::kJSForInStep: {
+      CheckValueInputIs(node, 0, Type::UnsignedSmall());
+      CheckUpperIs(node, Type::UnsignedSmall());
+      break;
+    }
+
     case IrOpcode::kJSStackCheck:
       // Type is empty.
       CheckNotTyped(node);

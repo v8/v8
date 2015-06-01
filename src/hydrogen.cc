@@ -5201,12 +5201,17 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     Add<HCheckMapValue>(enumerable, environment()->ExpressionStackAt(3));
     Bind(each_var, key);
   } else {
-    HValue* function = AddLoadJSBuiltin(Builtins::FILTER_KEY);
     Add<HPushArguments>(enumerable, key);
-    key = Add<HInvokeFunction>(function, 2);
+    Runtime::FunctionId function_id = Runtime::kForInFilter;
+    key = Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                            Runtime::FunctionForId(function_id), 2);
     Bind(each_var, key);
     Add<HSimulate>(stmt->AssignmentId());
-    Add<HCheckHeapObject>(key);
+    IfBuilder if_undefined(this);
+    if_undefined.If<HCompareObjectEqAndBranch>(key,
+                                               graph()->GetConstantUndefined());
+    if_undefined.ThenDeopt(Deoptimizer::kUndefined);
+    if_undefined.End();
   }
 
   BreakAndContinueInfo break_info(stmt, scope(), 5);

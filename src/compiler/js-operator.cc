@@ -238,6 +238,10 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
   V(HasProperty, Operator::kNoProperties, 2, 1)           \
   V(TypeOf, Operator::kPure, 1, 1)                        \
   V(InstanceOf, Operator::kNoProperties, 2, 1)            \
+  V(ForInDone, Operator::kPure, 2, 1)                     \
+  V(ForInNext, Operator::kNoProperties, 4, 1)             \
+  V(ForInPrepare, Operator::kNoProperties, 1, 3)          \
+  V(ForInStep, Operator::kPure, 1, 1)                     \
   V(StackCheck, Operator::kNoProperties, 0, 0)            \
   V(CreateFunctionContext, Operator::kNoProperties, 1, 1) \
   V(CreateWithContext, Operator::kNoProperties, 2, 1)     \

@@ -134,6 +134,10 @@
   V(JSCallConstruct)        \
   V(JSCallFunction)         \
   V(JSCallRuntime)          \
+  V(JSForInDone)            \
+  V(JSForInNext)            \
+  V(JSForInPrepare)         \
+  V(JSForInStep)            \
   V(JSYield)                \
   V(JSStackCheck)
 

@@ -558,6 +558,208 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSForInDone(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kForInDone);
+}
+
+
+void JSGenericLowering::LowerJSForInNext(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kForInNext);
+}
+
+
+void JSGenericLowering::LowerJSForInPrepare(Node* node) {
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+
+  // Get the set of properties to enumerate.
+  Runtime::Function const* function =
+      Runtime::FunctionForId(Runtime::kGetPropertyNamesFast);
+  CallDescriptor const* descriptor = Linkage::GetRuntimeCallDescriptor(
+      zone(), function->function_id, 1, Operator::kNoProperties);
+  Node* cache_type = effect = graph()->NewNode(
+      common()->Call(descriptor),
+      jsgraph()->CEntryStubConstant(function->result_size), object,
+      jsgraph()->ExternalConstant(
+          ExternalReference(function->function_id, isolate())),
+      jsgraph()->Int32Constant(1), context, frame_state, effect, control);
+  control = graph()->NewNode(common()->IfSuccess(), cache_type);
+
+  Node* object_map = effect = graph()->NewNode(
+      machine()->Load(kMachAnyTagged), object,
+      jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
+      effect, control);
+  Node* cache_type_map = effect = graph()->NewNode(
+      machine()->Load(kMachAnyTagged), cache_type,
+      jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
+      effect, control);
+  Node* meta_map = jsgraph()->HeapConstant(isolate()->factory()->meta_map());
+
+  // If we got a map from the GetPropertyNamesFast runtime call, we can do a
+  // fast modification check. Otherwise, we got a fixed array, and we have to
+  // perform a slow check on every iteration.
+  Node* check0 =
+      graph()->NewNode(machine()->WordEqual(), cache_type_map, meta_map);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* cache_array_true0;
+  Node* cache_length_true0;
+  Node* cache_type_true0;
+  Node* etrue0;
+  {
+    // Enum cache case.
+    Node* cache_type_enum_length = etrue0 = graph()->NewNode(
+        machine()->Load(kMachUint32), cache_type,
+        jsgraph()->IntPtrConstant(Map::kBitField3Offset - kHeapObjectTag),
+        effect, if_true0);
+    cache_type_enum_length =
+        graph()->NewNode(machine()->Word32And(), cache_type_enum_length,
+                         jsgraph()->Uint32Constant(Map::EnumLengthBits::kMask));
+
+    Node* check1 =
+        graph()->NewNode(machine()->Word32Equal(), cache_type_enum_length,
+                         jsgraph()->Int32Constant(0));
+    Node* branch1 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* cache_array_true1;
+    Node* etrue1;
+    {
+      // No properties to enumerate.
+      cache_array_true1 =
+          jsgraph()->HeapConstant(isolate()->factory()->empty_fixed_array());
+      etrue1 = etrue0;
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* cache_array_false1;
+    Node* efalse1;
+    {
+      // Load the enumeration cache from the instance descriptors of {object}.
+      Node* object_map_descriptors = efalse1 = graph()->NewNode(
+          machine()->Load(kMachAnyTagged), object_map,
+          jsgraph()->IntPtrConstant(Map::kDescriptorsOffset - kHeapObjectTag),
+          etrue0, if_false1);
+      Node* object_map_enum_cache = efalse1 = graph()->NewNode(
+          machine()->Load(kMachAnyTagged), object_map_descriptors,
+          jsgraph()->IntPtrConstant(DescriptorArray::kEnumCacheOffset -
+                                    kHeapObjectTag),
+          efalse1, if_false1);
+      cache_array_false1 = efalse1 = graph()->NewNode(
+          machine()->Load(kMachAnyTagged), object_map_enum_cache,
+          jsgraph()->IntPtrConstant(
+              DescriptorArray::kEnumCacheBridgeCacheOffset - kHeapObjectTag),
+          efalse1, if_false1);
+    }
+
+    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    etrue0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
+    cache_array_true0 =
+        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true1,
+                         cache_array_false1, if_true0);
+
+    cache_length_true0 = graph()->NewNode(
+        machine()->WordShl(),
+        machine()->Is64()
+            ? graph()->NewNode(machine()->ChangeUint32ToUint64(),
+                               cache_type_enum_length)
+            : cache_type_enum_length,
+        jsgraph()->Int32Constant(kSmiShiftSize + kSmiTagSize));
+    cache_type_true0 = cache_type;
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* cache_array_false0;
+  Node* cache_length_false0;
+  Node* cache_type_false0;
+  Node* efalse0;
+  {
+    // FixedArray case.
+    Node* object_instance_type = efalse0 = graph()->NewNode(
+        machine()->Load(kMachUint8), object_map,
+        jsgraph()->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag),
+        effect, if_false0);
+
+    STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+    Node* check1 = graph()->NewNode(
+        machine()->Uint32LessThanOrEqual(), object_instance_type,
+        jsgraph()->Uint32Constant(LAST_JS_PROXY_TYPE));
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* cache_type_true1 = jsgraph()->ZeroConstant();  // Zero indicates proxy
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* cache_type_false1 = jsgraph()->OneConstant();  // One means slow check
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    cache_type_false0 =
+        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_type_true1,
+                         cache_type_false1, if_false0);
+
+    cache_array_false0 = cache_type;
+    cache_length_false0 = efalse0 = graph()->NewNode(
+        machine()->Load(kMachAnyTagged), cache_array_false0,
+        jsgraph()->IntPtrConstant(FixedArray::kLengthOffset - kHeapObjectTag),
+        efalse0, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* cache_array =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true0,
+                       cache_array_false0, control);
+  Node* cache_length =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_length_true0,
+                       cache_length_false0, control);
+  cache_type = graph()->NewNode(common()->Phi(kMachAnyTagged, 2),
+                                cache_type_true0, cache_type_false0, control);
+
+  for (auto edge : node->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect);
+    } else if (NodeProperties::IsControlEdge(edge)) {
+      Node* const use = edge.from();
+      DCHECK_EQ(IrOpcode::kIfSuccess, use->opcode());
+      use->ReplaceUses(control);
+      use->Kill();
+    } else {
+      Node* const use = edge.from();
+      DCHECK(NodeProperties::IsValueEdge(edge));
+      DCHECK_EQ(IrOpcode::kProjection, use->opcode());
+      switch (ProjectionIndexOf(use->op())) {
+        case 0:
+          use->ReplaceUses(cache_type);
+          break;
+        case 1:
+          use->ReplaceUses(cache_array);
+          break;
+        case 2:
+          use->ReplaceUses(cache_length);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+      use->Kill();
+    }
+  }
+}
+
+
+void JSGenericLowering::LowerJSForInStep(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kForInStep);
+}
+
+
 void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

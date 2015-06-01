@@ -49,7 +49,6 @@ var SHR_STRONG;
 var DELETE;
 var IN;
 var INSTANCE_OF;
-var FILTER_KEY;
 var CALL_NON_FUNCTION;
 var CALL_NON_FUNCTION_AS_CONSTRUCTOR;
 var CALL_FUNCTION_PROXY;
@@ -558,16 +557,6 @@ INSTANCE_OF = function INSTANCE_OF(F) {
 
   // Return whether or not O is in the prototype chain of V.
   return %IsInPrototypeChain(O, V) ? 0 : 1;
-}
-
-
-// Filter a given key against an object by checking if the object
-// has a property with the given key; return the key as a string if
-// it has. Otherwise returns 0 (smi). Used in for-in statements.
-FILTER_KEY = function FILTER_KEY(key) {
-  var string = %$toName(key);
-  if (%HasProperty(this, string)) return string;
-  return 0;
 }
 
 

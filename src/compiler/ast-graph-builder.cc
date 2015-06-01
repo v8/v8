@@ -1292,148 +1292,80 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
 }
 
 
-// TODO(dcarney): this is a big function.  Try to clean up some.
 void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   VisitForValue(stmt->subject());
-  Node* obj = environment()->Pop();
-  // Check for undefined or null before entering loop.
-  IfBuilder is_undefined(this);
-  Node* is_undefined_cond =
-      NewNode(javascript()->StrictEqual(), obj, jsgraph()->UndefinedConstant());
-  is_undefined.If(is_undefined_cond);
-  is_undefined.Then();
-  is_undefined.Else();
+  Node* object = environment()->Pop();
+  BlockBuilder for_block(this);
+  for_block.BeginBlock();
+  // Check for null or undefined before entering loop.
+  Node* is_null_cond =
+      NewNode(javascript()->StrictEqual(), object, jsgraph()->NullConstant());
+  for_block.BreakWhen(is_null_cond, BranchHint::kFalse);
+  Node* is_undefined_cond = NewNode(javascript()->StrictEqual(), object,
+                                    jsgraph()->UndefinedConstant());
+  for_block.BreakWhen(is_undefined_cond, BranchHint::kFalse);
   {
-    IfBuilder is_null(this);
-    Node* is_null_cond =
-        NewNode(javascript()->StrictEqual(), obj, jsgraph()->NullConstant());
-    is_null.If(is_null_cond);
-    is_null.Then();
-    is_null.Else();
     // Convert object to jsobject.
-    // PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
-    obj = NewNode(javascript()->ToObject(), obj);
-    PrepareFrameState(obj, stmt->ToObjectId(), OutputFrameStateCombine::Push());
-    environment()->Push(obj);
-    // TODO(dcarney): should do a fast enum cache check here to skip runtime.
-    Node* cache_type = NewNode(
-        javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), obj);
-    PrepareFrameState(cache_type, stmt->EnumId(),
-                      OutputFrameStateCombine::Push());
-    // TODO(dcarney): these next runtime calls should be removed in favour of
-    //                a few simplified instructions.
-    Node* cache_pair = NewNode(
-        javascript()->CallRuntime(Runtime::kForInInit, 2), obj, cache_type);
-    // cache_type may have been replaced.
-    Node* cache_array = NewNode(common()->Projection(0), cache_pair);
-    cache_type = NewNode(common()->Projection(1), cache_pair);
-    Node* cache_length =
-        NewNode(javascript()->CallRuntime(Runtime::kForInCacheArrayLength, 2),
-                cache_type, cache_array);
+    object = BuildToObject(object, stmt->ToObjectId());
+    environment()->Push(object);
+
+    // Prepare for-in cache.
+    Node* prepare = NewNode(javascript()->ForInPrepare(), object);
+    PrepareFrameState(prepare, stmt->EnumId(), OutputFrameStateCombine::Push());
+    Node* cache_type = NewNode(common()->Projection(0), prepare);
+    Node* cache_array = NewNode(common()->Projection(1), prepare);
+    Node* cache_length = NewNode(common()->Projection(2), prepare);
+
+    // Construct the rest of the environment.
+    environment()->Push(cache_type);
+    environment()->Push(cache_array);
+    environment()->Push(cache_length);
+    environment()->Push(jsgraph()->ZeroConstant());
+
+    // Build the actual loop body.
+    LoopBuilder for_loop(this);
+    for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
     {
-      // Construct the rest of the environment.
-      environment()->Push(cache_type);
-      environment()->Push(cache_array);
-      environment()->Push(cache_length);
-      environment()->Push(jsgraph()->ZeroConstant());
+      // These stack values are renamed in the case of OSR, so reload them
+      // from the environment.
+      Node* index = environment()->Peek(0);
+      Node* cache_length = environment()->Peek(1);
+      Node* cache_array = environment()->Peek(2);
+      Node* cache_type = environment()->Peek(3);
+      Node* object = environment()->Peek(4);
 
-      // Build the actual loop body.
-      VisitForInBody(stmt);
-    }
-    is_null.End();
-  }
-  is_undefined.End();
-}
+      // Check loop termination condition.
+      Node* exit_cond = NewNode(javascript()->ForInDone(), index, cache_length);
+      for_loop.BreakWhen(exit_cond);
 
-
-// TODO(dcarney): this is a big function.  Try to clean up some.
-void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
-  LoopBuilder for_loop(this);
-  for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-
-  // These stack values are renamed in the case of OSR, so reload them
-  // from the environment.
-  Node* index = environment()->Peek(0);
-  Node* cache_length = environment()->Peek(1);
-  Node* cache_array = environment()->Peek(2);
-  Node* cache_type = environment()->Peek(3);
-  Node* obj = environment()->Peek(4);
-
-  // Check loop termination condition (cannot deoptimize).
-  {
-    FrameStateBeforeAndAfter states(this, BailoutId::None());
-    Node* exit_cond = NewNode(javascript()->LessThan(LanguageMode::SLOPPY),
-                              index, cache_length);
-    states.AddToNode(exit_cond, BailoutId::None(),
-                     OutputFrameStateCombine::Ignore());
-    for_loop.BreakUnless(exit_cond);
-  }
-  Node* pair = NewNode(javascript()->CallRuntime(Runtime::kForInNext, 4), obj,
-                       cache_array, cache_type, index);
-  Node* value = NewNode(common()->Projection(0), pair);
-  Node* should_filter = NewNode(common()->Projection(1), pair);
-  environment()->Push(value);
-  {
-    // Test if FILTER_KEY needs to be called.
-    IfBuilder test_should_filter(this);
-    Node* should_filter_cond = NewNode(
-        javascript()->StrictEqual(), should_filter, jsgraph()->TrueConstant());
-    test_should_filter.If(should_filter_cond);
-    test_should_filter.Then();
-    value = environment()->Pop();
-    Node* builtins = BuildLoadBuiltinsObject();
-    Node* function = BuildLoadObjectField(
-        builtins,
-        JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
-    // result is either the string key or Smi(0) indicating the property
-    // is gone.
-    Node* res = NewNode(
-        javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS, language_mode()),
-        function, obj, value);
-    PrepareFrameState(res, stmt->FilterId(), OutputFrameStateCombine::Push());
-    Node* property_missing =
-        NewNode(javascript()->StrictEqual(), res, jsgraph()->ZeroConstant());
-    {
-      IfBuilder is_property_missing(this);
-      is_property_missing.If(property_missing);
-      is_property_missing.Then();
-      // Inc counter and continue (cannot deoptimize).
+      // Compute the next enumerated value.
+      Node* value = NewNode(javascript()->ForInNext(), object, cache_array,
+                            cache_type, index);
+      PrepareFrameState(value, stmt->FilterId(),
+                        OutputFrameStateCombine::Push());
+      IfBuilder test_value(this);
+      Node* test_value_cond = NewNode(javascript()->StrictEqual(), value,
+                                      jsgraph()->UndefinedConstant());
+      test_value.If(test_value_cond, BranchHint::kFalse);
+      test_value.Then();
+      test_value.Else();
       {
-        FrameStateBeforeAndAfter states(this, BailoutId::None());
-        Node* index_inc = NewNode(javascript()->Add(LanguageMode::SLOPPY),
-                                  index, jsgraph()->OneConstant());
-        states.AddToNode(index_inc, BailoutId::None(),
-                         OutputFrameStateCombine::Ignore());
-        environment()->Poke(0, index_inc);
+        // Bind value and do loop body.
+        VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
+        VisitIterationBody(stmt, &for_loop);
       }
-      for_loop.Continue();
-      is_property_missing.Else();
-      is_property_missing.End();
-    }
-    // Replace 'value' in environment.
-    environment()->Push(res);
-    test_should_filter.Else();
-    test_should_filter.End();
-  }
-  value = environment()->Pop();
-  // Bind value and do loop body.
-  VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
-  VisitIterationBody(stmt, &for_loop);
-  index = environment()->Peek(0);
-  for_loop.EndBody();
+      test_value.End();
+      index = environment()->Peek(0);
+      for_loop.EndBody();
 
-  // Inc counter and continue (cannot deoptimize).
-  {
-    FrameStateBeforeAndAfter states(this, BailoutId::None());
-    Node* index_inc = NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
-                              jsgraph()->OneConstant());
-    states.AddToNode(index_inc, BailoutId::None(),
-                     OutputFrameStateCombine::Ignore());
-    environment()->Poke(0, index_inc);
+      // Increment counter and continue.
+      index = NewNode(javascript()->ForInStep(), index);
+      environment()->Poke(0, index);
+    }
+    for_loop.EndLoop();
+    environment()->Drop(5);
   }
-  for_loop.EndLoop();
-  environment()->Drop(5);
-  // PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  for_block.EndBlock();
 }
 
 
@@ -3336,6 +3268,13 @@ Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
   Node* name = NewNode(javascript()->ToName(), input);
   PrepareFrameState(name, bailout_id);
   return name;
+}
+
+
+Node* AstGraphBuilder::BuildToObject(Node* input, BailoutId bailout_id) {
+  Node* object = NewNode(javascript()->ToObject(), input);
+  PrepareFrameState(object, bailout_id, OutputFrameStateCombine::Push());
+  return object;
 }
 
 

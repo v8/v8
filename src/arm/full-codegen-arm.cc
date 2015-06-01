@@ -1271,9 +1271,11 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // just skip it.
   __ push(r1);  // Enumerable.
   __ push(r3);  // Current entry.
-  __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kForInFilter, 2);
   PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
-  __ mov(r3, Operand(r0), SetCC);
+  __ mov(r3, Operand(r0));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
   __ b(eq, loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered

@@ -300,6 +300,11 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* TypeOf();
   const Operator* InstanceOf();
 
+  const Operator* ForInDone();
+  const Operator* ForInNext();
+  const Operator* ForInPrepare();
+  const Operator* ForInStep();
+
   const Operator* StackCheck();
 
   // TODO(titzer): nail down the static parts of each of these context flavors.

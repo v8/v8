@@ -143,6 +143,16 @@ void BlockBuilder::Break() {
 }
 
 
+void BlockBuilder::BreakWhen(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+
 void BlockBuilder::EndBlock() {
   break_environment_->Merge(environment());
   set_environment(break_environment_);

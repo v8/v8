@@ -834,6 +834,7 @@
         '../../src/runtime/runtime-compiler.cc',
         '../../src/runtime/runtime-date.cc',
         '../../src/runtime/runtime-debug.cc',
+        '../../src/runtime/runtime-forin.cc',
         '../../src/runtime/runtime-function.cc',
         '../../src/runtime/runtime-generator.cc',
         '../../src/runtime/runtime-i18n.cc',
