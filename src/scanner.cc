@@ -1630,4 +1630,5 @@ byte* DuplicateFinder::BackupKey(Vector<const uint8_t> bytes,
   return backing_store_.EndSequence().start();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

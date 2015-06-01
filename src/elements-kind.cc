@@ -195,4 +195,5 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

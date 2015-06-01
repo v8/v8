@@ -367,4 +367,5 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
 
   return builder.Finish();
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

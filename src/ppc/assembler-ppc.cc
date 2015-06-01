@@ -2387,7 +2387,7 @@ Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
   DCHECK(!FLAG_enable_ool_constant_pool);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_PPC

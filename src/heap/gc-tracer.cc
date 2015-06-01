@@ -695,5 +695,5 @@ bool GCTracer::SurvivalEventsRecorded() const {
 
 
 void GCTracer::ResetSurvivalEvents() { survival_events_.reset(); }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

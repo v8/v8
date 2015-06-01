@@ -3847,4 +3847,5 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   }
   return DeoptInfo(SourcePosition::Unknown(), NULL, Deoptimizer::kNoReason);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

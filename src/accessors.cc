@@ -1458,4 +1458,5 @@ Handle<AccessorInfo> Accessors::MakeModuleExport(
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

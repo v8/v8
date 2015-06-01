@@ -4663,5 +4663,5 @@ void SlotsBufferAllocator::DeallocateChain(SlotsBuffer** buffer_address) {
   }
   *buffer_address = NULL;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

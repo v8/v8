@@ -226,4 +226,5 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data) {
   int context_length = data->raw_size - context_offset;
   return Vector<const byte>(context_data, context_length);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

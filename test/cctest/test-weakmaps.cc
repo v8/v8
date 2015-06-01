@@ -34,7 +34,6 @@
 
 using namespace v8::internal;
 
-
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
 }

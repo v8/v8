@@ -561,5 +561,5 @@ void ElementHandlerCompiler::CompileElementHandlers(
     handlers->Add(cached_stub);
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

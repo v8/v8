@@ -187,5 +187,5 @@ void IdentityMapBase::Resize() {
   heap_->UnregisterStrongRoots(old_keys);
   heap_->RegisterStrongRoots(keys_, keys_ + size_);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

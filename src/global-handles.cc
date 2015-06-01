@@ -1231,4 +1231,5 @@ void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

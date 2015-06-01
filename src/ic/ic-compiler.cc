@@ -419,5 +419,5 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

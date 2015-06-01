@@ -562,4 +562,5 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

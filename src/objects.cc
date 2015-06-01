@@ -17427,4 +17427,5 @@ void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
         isolate, DependentCode::kPropertyCellChangedGroup);
   }
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

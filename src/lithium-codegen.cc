@@ -198,4 +198,5 @@ Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
   deopt_info.inlining_id = enter_inlined ? enter_inlined->inlining_id() : 0;
   return deopt_info;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -1125,4 +1125,5 @@ bool Literal::Match(void* literal1, void* literal2) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

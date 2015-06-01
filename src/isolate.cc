@@ -2796,4 +2796,5 @@ bool PostponeInterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
   return false;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

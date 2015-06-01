@@ -4581,7 +4581,8 @@ uintptr_t Simulator::PopAddress() {
 
 
 #undef UNSUPPORTED
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // USE_SIMULATOR
 

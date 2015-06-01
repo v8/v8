@@ -425,7 +425,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 // Check that the debugger has been fully unloaded.

@@ -6161,4 +6161,5 @@ bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
   }
   return too_much;
 }
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

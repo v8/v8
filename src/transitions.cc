@@ -513,4 +513,5 @@ int TransitionArray::Search(PropertyKind kind, Name* name,
   }
   return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

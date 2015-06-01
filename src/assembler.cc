@@ -1669,4 +1669,5 @@ void Assembler::RecordDebugBreakSlot() {
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

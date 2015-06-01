@@ -8367,4 +8367,5 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

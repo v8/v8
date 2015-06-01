@@ -1533,4 +1533,5 @@ void AstPrinter::VisitSuperReference(SuperReference* node) {
 
 #endif  // DEBUG
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

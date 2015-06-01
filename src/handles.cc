@@ -127,4 +127,5 @@ DeferredHandles* DeferredHandleScope::Detach() {
   return deferred;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -6670,5 +6670,5 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
   }
   return false;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

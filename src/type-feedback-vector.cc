@@ -559,5 +559,5 @@ Name* KeyedLoadICNexus::FindFirstName() const {
   }
   return NULL;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

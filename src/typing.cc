@@ -789,4 +789,5 @@ void AstTyper::VisitExportDeclaration(ExportDeclaration* declaration) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -3369,4 +3369,5 @@ void LockingCommandMessageQueue::Clear() {
   queue_.Clear();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

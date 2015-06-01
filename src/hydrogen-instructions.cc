@@ -4714,4 +4714,5 @@ std::ostream& operator<<(std::ostream& os, const HObjectAccess& access) {
   return os << "@" << access.offset();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

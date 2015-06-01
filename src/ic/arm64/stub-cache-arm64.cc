@@ -157,7 +157,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ IncrementCounter(counters->megamorphic_stub_cache_misses(), 1, extra2,
                       extra3);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

@@ -129,4 +129,5 @@ void StatisticsExtension::GetCounters(
   args.GetReturnValue().Set(result);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

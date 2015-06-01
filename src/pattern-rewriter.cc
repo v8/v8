@@ -417,5 +417,5 @@ NOT_A_PATTERN(WithStatement)
 NOT_A_PATTERN(Yield)
 
 #undef NOT_A_PATTERN
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

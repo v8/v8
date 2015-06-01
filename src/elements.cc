@@ -1919,4 +1919,5 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
   return array;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

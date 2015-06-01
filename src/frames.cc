@@ -1525,4 +1525,5 @@ Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

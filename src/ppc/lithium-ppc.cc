@@ -2620,5 +2620,5 @@ LInstruction* LChunkBuilder::DoAllocateBlockContext(
       new (zone()) LAllocateBlockContext(context, function);
   return MarkAsCall(DefineFixed(result, cp), instr);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

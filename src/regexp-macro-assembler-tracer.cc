@@ -415,4 +415,5 @@ Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
   return assembler_->GetCode(source);
 }
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

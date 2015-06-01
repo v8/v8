@@ -410,4 +410,5 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
   }
   return interceptor_state_ == InterceptorState::kProcessNonMasking;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

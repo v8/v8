@@ -2906,5 +2906,5 @@ static const Address IC_utilities[] = {
 
 
 Address IC::AddressFromUtilityId(IC::UtilityId id) { return IC_utilities[id]; }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

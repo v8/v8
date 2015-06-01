@@ -5520,6 +5520,6 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
          isolate->builtins()->OsrAfterStackCheck()->entry());
   return OSR_AFTER_STACK_CHECK;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 #endif  // V8_TARGET_ARCH_PPC

@@ -38,7 +38,7 @@ Object*& ExitFrame::constant_pool_slot() const {
   UNREACHABLE();
   return Memory::Object_at(NULL);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_PPC

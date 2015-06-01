@@ -519,4 +519,5 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

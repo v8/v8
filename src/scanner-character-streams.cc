@@ -559,4 +559,5 @@ void ExternalTwoByteStringUtf16CharacterStream::ResetToBookmark() {
   pos_ = bookmark_;
   buffer_cursor_ = raw_data_ + bookmark_;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

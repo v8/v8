@@ -2693,4 +2693,5 @@ SerializedCodeData* SerializedCodeData::FromCachedData(Isolate* isolate,
   delete scd;
   return NULL;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

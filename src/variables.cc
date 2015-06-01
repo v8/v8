@@ -71,4 +71,5 @@ int Variable::CompareIndex(Variable* const* v, Variable* const* w) {
   return x - y;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

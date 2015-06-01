@@ -114,5 +114,4 @@ TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 
-
 #endif  // V8_TURBOFAN_TARGET

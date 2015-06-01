@@ -5796,4 +5796,5 @@ Expression* Parser::SpreadCallNew(Expression* function,
   return factory()->NewCallRuntime(
       ast_value_factory()->reflect_construct_string(), NULL, args, pos);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

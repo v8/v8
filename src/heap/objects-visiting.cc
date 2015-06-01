@@ -360,5 +360,5 @@ template Object* VisitWeakList<Context>(Heap* heap, Object* list,
 
 template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
                                                WeakObjectRetainer* retainer);
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

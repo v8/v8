@@ -23,4 +23,5 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
                               : v8::Isolate::kFullGarbageCollection);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

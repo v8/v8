@@ -724,4 +724,5 @@ Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
   return info;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

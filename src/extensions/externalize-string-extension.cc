@@ -122,4 +122,5 @@ void ExternalizeStringExtension::IsOneByte(
   args.GetReturnValue().Set(is_one_byte);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

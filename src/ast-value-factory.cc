@@ -378,4 +378,5 @@ bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
   if (rhs->byte_length() != len) return false;
   return memcmp(lhs->raw_data(), rhs->raw_data(), len) == 0;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

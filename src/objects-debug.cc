@@ -1287,4 +1287,5 @@ void Code::VerifyEmbeddedObjects(VerifyMode mode) {
 
 #endif  // DEBUG
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

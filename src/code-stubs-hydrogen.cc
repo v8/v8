@@ -2242,4 +2242,5 @@ Handle<Code> KeyedLoadGenericStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -851,7 +851,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     patcher.tbz(smi_reg, 0, branch_imm);
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

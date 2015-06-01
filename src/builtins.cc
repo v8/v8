@@ -1666,4 +1666,5 @@ BUILTIN_LIST_DEBUG_A(DEFINE_BUILTIN_ACCESSOR_A)
 #undef DEFINE_BUILTIN_ACCESSOR_A
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -579,5 +579,5 @@ void StoreBuffer::Compact() {
   }
   heap_->isolate()->counters()->store_buffer_compactions()->Increment();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

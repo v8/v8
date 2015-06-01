@@ -3125,5 +3125,5 @@ void Page::Print() {
 }
 
 #endif  // DEBUG
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

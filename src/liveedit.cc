@@ -2060,4 +2060,5 @@ bool LiveEditFunctionTracker::IsActive(Isolate* isolate) {
   return isolate->active_function_info_listener() != NULL;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

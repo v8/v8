@@ -1367,4 +1367,5 @@ template TypeImpl<HeapTypeConfig>::TypeHandle
   TypeImpl<HeapTypeConfig>::Convert<Type>(
     TypeImpl<ZoneTypeConfig>::TypeHandle, TypeImpl<HeapTypeConfig>::Region*);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

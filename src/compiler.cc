@@ -1573,4 +1573,5 @@ void CompilationInfo::PrintAstForTesting() {
          PrettyPrinter(isolate(), zone()).PrintProgram(function()));
 }
 #endif
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

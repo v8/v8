@@ -546,5 +546,5 @@ bool AstNumbering::Renumber(Isolate* isolate, Zone* zone,
   AstNumberingVisitor visitor(isolate, zone);
   return visitor.Renumber(function);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

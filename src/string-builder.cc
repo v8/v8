@@ -107,5 +107,5 @@ void IncrementalStringBuilder::AppendString(Handle<String> string) {
       factory()->NewConsString(accumulator(), string).ToHandleChecked();
   set_accumulator(concat);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

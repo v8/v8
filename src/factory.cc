@@ -2470,4 +2470,5 @@ Handle<Object> Factory::ToBoolean(bool value) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

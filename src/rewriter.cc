@@ -248,4 +248,5 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -1579,4 +1579,5 @@ int Scope::ContextLocalCount() const {
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
       (function_ != NULL && function_->proxy()->var()->IsContextSlot() ? 1 : 0);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

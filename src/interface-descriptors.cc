@@ -171,5 +171,5 @@ void GrowArrayElementsDescriptor::Initialize(
   Register registers[] = {ContextRegister(), ObjectRegister(), KeyRegister()};
   data->Initialize(arraysize(registers), registers, NULL);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

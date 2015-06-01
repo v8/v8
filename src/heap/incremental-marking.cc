@@ -1040,5 +1040,5 @@ void IncrementalMarking::IncrementIdleMarkingDelayCounter() {
 void IncrementalMarking::ClearIdleMarkingDelayCounter() {
   idle_marking_delay_counter_ = 0;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

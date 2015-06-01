@@ -58,5 +58,5 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
 
   isolate->Throw(*error, &location);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
