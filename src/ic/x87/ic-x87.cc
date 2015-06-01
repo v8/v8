@@ -263,73 +263,6 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
 }
 
 
-static Operand GenerateMappedArgumentsLookup(
-    MacroAssembler* masm, Register object, Register key, Register scratch1,
-    Register scratch2, Label* unmapped_case, Label* slow_case) {
-  Heap* heap = masm->isolate()->heap();
-  Factory* factory = masm->isolate()->factory();
-
-  // Check that the receiver is a JSObject. Because of the elements
-  // map check later, we do not need to check for interceptors or
-  // whether it requires access checks.
-  __ JumpIfSmi(object, slow_case);
-  // Check that the object is some kind of JSObject.
-  __ CmpObjectType(object, FIRST_JS_RECEIVER_TYPE, scratch1);
-  __ j(below, slow_case);
-
-  // Check that the key is a positive smi.
-  __ test(key, Immediate(0x80000001));
-  __ j(not_zero, slow_case);
-
-  // Load the elements into scratch1 and check its map.
-  Handle<Map> arguments_map(heap->sloppy_arguments_elements_map());
-  __ mov(scratch1, FieldOperand(object, JSObject::kElementsOffset));
-  __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
-
-  // Check if element is in the range of mapped arguments. If not, jump
-  // to the unmapped lookup with the parameter map in scratch1.
-  __ mov(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
-  __ sub(scratch2, Immediate(Smi::FromInt(2)));
-  __ cmp(key, scratch2);
-  __ j(above_equal, unmapped_case);
-
-  // Load element index and check whether it is the hole.
-  const int kHeaderSize = FixedArray::kHeaderSize + 2 * kPointerSize;
-  __ mov(scratch2,
-         FieldOperand(scratch1, key, times_half_pointer_size, kHeaderSize));
-  __ cmp(scratch2, factory->the_hole_value());
-  __ j(equal, unmapped_case);
-
-  // Load value from context and return it. We can reuse scratch1 because
-  // we do not jump to the unmapped lookup (which requires the parameter
-  // map in scratch1).
-  const int kContextOffset = FixedArray::kHeaderSize;
-  __ mov(scratch1, FieldOperand(scratch1, kContextOffset));
-  return FieldOperand(scratch1, scratch2, times_half_pointer_size,
-                      Context::kHeaderSize);
-}
-
-
-static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
-                                               Register key,
-                                               Register parameter_map,
-                                               Register scratch,
-                                               Label* slow_case) {
-  // Element is in arguments backing store, which is referenced by the
-  // second element of the parameter_map.
-  const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
-  Register backing_store = parameter_map;
-  __ mov(backing_store, FieldOperand(parameter_map, kBackingStoreOffset));
-  Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
-  __ CheckMap(backing_store, fixed_array_map, slow_case, DONT_DO_SMI_CHECK);
-  __ mov(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
-  __ cmp(key, scratch);
-  __ j(greater_equal, slow_case);
-  return FieldOperand(backing_store, key, times_half_pointer_size,
-                      FixedArray::kHeaderSize);
-}
-
-
 void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is on the stack.
   Label slow, check_name, index_smi, index_name, property_array_property;
@@ -434,37 +367,6 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ IndexFromHash(ebx, key);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
-}
-
-
-void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label slow, notin;
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  DCHECK(receiver.is(edx));
-  DCHECK(name.is(ecx));
-  DCHECK(value.is(eax));
-
-  Operand mapped_location = GenerateMappedArgumentsLookup(
-      masm, receiver, name, ebx, edi, &notin, &slow);
-  __ mov(mapped_location, value);
-  __ lea(ecx, mapped_location);
-  __ mov(edx, value);
-  __ RecordWrite(ebx, ecx, edx, kDontSaveFPRegs);
-  __ Ret();
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in ebx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, name, ebx, edi, &slow);
-  __ mov(unmapped_location, value);
-  __ lea(edi, unmapped_location);
-  __ mov(edx, value);
-  __ RecordWrite(ebx, edi, edx, kDontSaveFPRegs);
-  __ Ret();
-  __ bind(&slow);
-  GenerateMiss(masm);
 }
 
 
