@@ -194,7 +194,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_reflect, "harmony Reflect API")                     \
   V(harmony_destructuring, "harmony destructuring")             \
   V(harmony_spread_arrays, "harmony spread in array literals")  \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")     \
+  V(harmony_default_parameters, "harmony default parameters")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                               \

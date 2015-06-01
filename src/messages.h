@@ -331,6 +331,8 @@ class CallSite {
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
+  T(BadRestParameterInitializer,                                               \
+    "Rest parameters must not have an initializer")                            \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
   T(SingleFunctionLiteral, "Single function literal required")                 \
   T(SloppyLexical,                                                             \

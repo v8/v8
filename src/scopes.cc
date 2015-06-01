@@ -77,6 +77,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       internals_(4, zone),
       temps_(4, zone),
       params_(4, zone),
+      param_positions_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
       module_descriptor_(
@@ -100,6 +101,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       internals_(4, zone),
       temps_(4, zone),
       params_(4, zone),
+      param_positions_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
       module_descriptor_(NULL),
@@ -126,6 +128,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       internals_(0, zone),
       temps_(0, zone),
       params_(0, zone),
+      param_positions_(0, zone),
       unresolved_(0, zone),
       decls_(0, zone),
       module_descriptor_(NULL),
@@ -183,6 +186,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   module_var_ = NULL,
   rest_parameter_ = NULL;
   rest_index_ = -1;
+  has_parameter_expressions_ = false;
   scope_info_ = scope_info;
   start_position_ = RelocInfo::kNoPosition;
   end_position_ = RelocInfo::kNoPosition;
@@ -470,7 +474,7 @@ Variable* Scope::Lookup(const AstRawString* name) {
 
 
 Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
-                                  bool is_rest, bool* is_duplicate) {
+                                  bool is_rest, bool* is_duplicate, int pos) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
   Variable* var = variables_.Declare(this, name, mode, Variable::NORMAL,
@@ -483,6 +487,7 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
   // TODO(wingo): Avoid O(n^2) check.
   *is_duplicate = IsDeclaredParameter(name);
   params_.Add(var, zone());
+  param_positions_.Add(pos, zone());
   return var;
 }
 
@@ -550,6 +555,18 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 
 void Scope::AddDeclaration(Declaration* declaration) {
   decls_.Add(declaration, zone());
+}
+
+
+void Scope::UndeclareParametersForExpressions() {
+  DCHECK(is_function_scope());
+  DCHECK(!has_parameter_expressions_);
+  has_parameter_expressions_ = true;
+  for (int i = 0; i < num_parameters(); ++i) {
+    Variable* p = parameter(i);
+    const AstRawString* name = p->raw_name();
+    variables_.Remove(const_cast<AstRawString*>(name), name->hash());
+  }
 }
 
 
@@ -1419,16 +1436,21 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
   // If it does, and if it is not copied into the context object, it must
   // receive the highest parameter index for that parameter; thus iteration
   // order is relevant!
-  for (int i = params_.length() - 1; i >= 0; --i) {
-    Variable* var = params_[i];
-    if (var == rest_parameter_) continue;
+  //
+  // If hasParameterExpressions is true, parameters are redeclared during
+  // desugaring, and must not be allocated here.
+  if (!has_parameter_expressions_) {
+    for (int i = params_.length() - 1; i >= 0; --i) {
+      Variable* var = params_[i];
+      if (var == rest_parameter_) continue;
 
-    DCHECK(var->scope() == this);
-    if (uses_sloppy_arguments || has_forced_context_allocation()) {
-      // Force context allocation of the parameter.
-      var->ForceContextAllocation();
+      DCHECK(var->scope() == this);
+      if (uses_sloppy_arguments || has_forced_context_allocation()) {
+        // Force context allocation of the parameter.
+        var->ForceContextAllocation();
+      }
+      AllocateParameter(var, i);
     }
-    AllocateParameter(var, i);
   }
 }
 

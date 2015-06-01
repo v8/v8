@@ -67,6 +67,10 @@ class Variable: public ZoneObject {
   Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return mode_; }
+  void set_mode(VariableMode mode) {
+    // Don't use this unless you have a very good reason
+    mode_ = mode;
+  }
   bool has_forced_context_allocation() const {
     return force_context_allocation_;
   }

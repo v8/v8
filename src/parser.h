@@ -748,9 +748,10 @@ class ParserTraits {
                             FunctionKind kind = kNormalFunction);
 
   bool DeclareFormalParameter(Scope* scope, const AstRawString* name,
-                              bool is_rest) {
+                              bool is_rest, int pos) {
     bool is_duplicate = false;
-    Variable* var = scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
+    Variable* var =
+        scope->DeclareParameter(name, VAR, is_rest, &is_duplicate, pos);
     if (is_sloppy(scope->language_mode())) {
       // TODO(sigurds) Mark every parameter as maybe assigned. This is a
       // conservative approximation necessary to account for parameters
@@ -1025,7 +1026,6 @@ class Parser : public ParserBase<ParserTraits> {
     bool* ok_;
   };
 
-
   void ParseVariableDeclarations(VariableDeclarationContext var_context,
                                  DeclarationParsingResult* parsing_result,
                                  bool* ok);
@@ -1070,6 +1070,10 @@ class Parser : public ParserBase<ParserTraits> {
       Scope* inner_scope, bool is_const, ZoneList<const AstRawString*>* names,
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, bool* ok);
+
+  ZoneList<Statement*>* DesugarInitializeParameters(
+      Scope* scope, bool has_parameter_expressions,
+      ZoneList<Expression*>* initializers);
 
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,

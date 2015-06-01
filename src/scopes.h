@@ -126,7 +126,7 @@ class Scope: public ZoneObject {
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
-                             bool is_rest, bool* is_duplicate);
+                             bool is_rest, bool* is_duplicate, int pos);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -181,6 +181,10 @@ class Scope: public ZoneObject {
   // this scope. The declarations are processed as part of entering
   // the scope; see codegen.cc:ProcessDeclarations.
   void AddDeclaration(Declaration* declaration);
+
+  // Formal parameters may be re-declared as lexical declarations in order to
+  // support TDZ semantics specified in ECMAScript 6.
+  void UndeclareParametersForExpressions();
 
   // ---------------------------------------------------------------------------
   // Illegal redeclaration support.
@@ -373,6 +377,13 @@ class Scope: public ZoneObject {
     return params_[index];
   }
 
+  // TODO(caitp): This probably won't work when BindingPatterns are supported
+  // in function parameters. Need a better way.
+  int parameter_position(int index) const {
+    DCHECK(is_function_scope());
+    return param_positions_[index];
+  }
+
   // Returns the default function arity --- does not include rest parameters.
   int default_function_length() const {
     int count = params_.length();
@@ -563,6 +574,7 @@ class Scope: public ZoneObject {
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
+  ZoneList<int> param_positions_;
   // Variables that must be looked up dynamically.
   DynamicScopePart* dynamics_;
   // Unresolved variables referred to from this scope.
@@ -636,6 +648,8 @@ class Scope: public ZoneObject {
   // Rest parameter
   Variable* rest_parameter_;
   int rest_index_;
+
+  bool has_parameter_expressions_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;
