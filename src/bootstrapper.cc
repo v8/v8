@@ -1195,7 +1195,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
             isolate->initial_object_prototype(),
             Builtins::kIllegal);
     native_context()->set_array_buffer_fun(*array_buffer_fun);
-    native_context()->set_array_buffer_map(array_buffer_fun->initial_map());
   }
 
   {  // -- T y p e d A r r a y s
@@ -2800,6 +2799,8 @@ bool Genesis::ConfigureGlobalObjects(
 
   native_context()->set_initial_array_prototype(
       JSArray::cast(native_context()->array_function()->prototype()));
+  native_context()->set_array_buffer_map(
+      native_context()->array_buffer_fun()->initial_map());
 
   return true;
 }
