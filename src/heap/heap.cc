@@ -4481,7 +4481,7 @@ AllocationResult Heap::AllocateConstantPoolArray(
   int size = ConstantPoolArray::SizeFor(small);
   AllocationSpace space = SelectSpace(size, TENURED);
 
-  HeapObject* object;
+  HeapObject* object = nullptr;
   {
     AllocationResult allocation =
         AllocateRaw(size, space, OLD_SPACE, kDoubleAligned);
