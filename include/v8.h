@@ -2600,6 +2600,16 @@ class V8_EXPORT Object : public Value {
                                                        uint32_t index,
                                                        Local<Value> value);
 
+  // Implements DefineOwnProperty.
+  //
+  // In general, CreateDataProperty will be faster, however, does not allow
+  // for specifying attributes.
+  //
+  // Returns true on success.
+  V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
+      Local<Context> context, Local<Name> key, Local<Value> value,
+      PropertyAttribute attributes = None);
+
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //

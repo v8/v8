@@ -3558,15 +3558,9 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     size_t length =
         i::NumberToSize(isolate, i::Handle<i::JSArray>::cast(self)->length());
     if (index >= length) {
-      i::Handle<i::Object> args[] = {
-          self, isolate->factory()->Uint32ToString(index), value_obj};
-      i::Handle<i::Object> result;
-      has_pending_exception =
-          !CallV8HeapFunction(isolate, "$objectDefineArrayProperty",
-                              isolate->factory()->undefined_value(),
-                              arraysize(args), args).ToHandle(&result);
-      RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-      return Just(result->BooleanValue());
+      return DefineOwnProperty(
+          context, Utils::ToLocal(isolate->factory()->Uint32ToString(index)),
+          value, v8::None);
     }
   }
 
@@ -3581,6 +3575,38 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                               value_obj, NONE).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
+}
+
+
+Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
+                                          v8::Local<Name> key,
+                                          v8::Local<Value> value,
+                                          v8::PropertyAttribute attributes) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::DefineOwnProperty()",
+                                  bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  auto value_obj = Utils::OpenHandle(*value);
+
+  if (self->IsAccessCheckNeeded() && !isolate->MayAccess(self)) {
+    isolate->ReportFailedAccessCheck(self);
+    return Nothing<bool>();
+  }
+
+  i::Handle<i::FixedArray> desc = isolate->factory()->NewFixedArray(3);
+  desc->set(0, isolate->heap()->ToBoolean(!(attributes & v8::ReadOnly)));
+  desc->set(1, isolate->heap()->ToBoolean(!(attributes & v8::DontEnum)));
+  desc->set(2, isolate->heap()->ToBoolean(!(attributes & v8::DontDelete)));
+  i::Handle<i::JSArray> desc_array =
+      isolate->factory()->NewJSArrayWithElements(desc, i::FAST_ELEMENTS, 3);
+  i::Handle<i::Object> args[] = {self, key_obj, value_obj, desc_array};
+  i::Handle<i::Object> result;
+  has_pending_exception =
+      !CallV8HeapFunction(isolate, "$objectDefineOwnProperty",
+                          isolate->factory()->undefined_value(),
+                          arraysize(args), args).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->BooleanValue());
 }
 
 
