@@ -884,7 +884,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_spreadcalls(FLAG_harmony_spreadcalls);
   set_allow_harmony_destructuring(FLAG_harmony_destructuring);
   set_allow_harmony_spread_arrays(FLAG_harmony_spread_arrays);
-  set_allow_harmony_default_parameters(FLAG_harmony_default_parameters);
   set_allow_strong_mode(FLAG_strong_mode);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -1149,16 +1148,9 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
       bool has_rest = false;
-      bool has_parameter_expressions = false;
-
-      // TODO(caitp): make default parameters work in arrow functions
-      ZoneList<Expression*>* initializers =
-          new (zone()) ZoneList<Expression*>(0, zone());
       if (Check(Token::LPAREN)) {
         // '(' StrictFormalParameters ')'
-        ParseFormalParameterList(scope, initializers,
-                                 &has_parameter_expressions, &has_rest,
-                                 &formals_classifier, &ok);
+        ParseFormalParameterList(scope, &has_rest, &formals_classifier, &ok);
         if (ok) ok = Check(Token::RPAREN);
       } else {
         // BindingIdentifier
@@ -3412,114 +3404,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 }
 
 
-ZoneList<Statement*>* Parser::DesugarInitializeParameters(
-    Scope* scope, bool has_parameter_expressions,
-    ZoneList<Expression*>* initializers) {
-  DCHECK(scope->is_function_scope());
-
-  if (has_parameter_expressions) {
-    // If has_parameter_expressions for the function is true, each parameter is
-    // desugared as follows:
-    //
-    // SingleNameBinding :
-    //   let <name> = %_Arguments(<index>);
-    // SingleNameBinding Initializer
-    //   let <name> = IS_UNDEFINED(%_Arguments(<index>)) ? <initializer>
-    //                                                   : %_Arguments(<index>);
-    //
-    // TODO(caitp, dslomov): support BindingPatterns & rest parameters
-    //
-    scope->UndeclareParametersForExpressions();
-    ZoneList<Statement*>* body =
-        new (zone()) ZoneList<Statement*>(initializers->length(), zone());
-    for (int i = 0; i < initializers->length(); ++i) {
-      Expression* initializer = initializers->at(i);
-
-      // Position of parameter VariableProxy, for hole-checking
-      int pos = scope->parameter_position(i);
-
-      static const int kCapacity = 1;
-      static const bool kIsInitializerBlock = true;
-      Block* param_block =
-          factory()->NewBlock(nullptr, kCapacity, kIsInitializerBlock, pos);
-
-      VariableProxy* proxy =
-          NewUnresolved(scope->parameter(i)->raw_name(), LET);
-      VariableDeclaration* declaration = factory()->NewVariableDeclaration(
-          proxy, LET, scope, RelocInfo::kNoPosition);
-
-      bool ok = true;
-      // All formal parameters have been removed from the scope VariableMap,
-      // and so Declare() should not be able to fail.
-      proxy = factory()->NewVariableProxy(Declare(declaration, true, &ok), pos);
-      DCHECK(ok);
-
-      const AstRawString* fn_name = ast_value_factory()->empty_string();
-      const Runtime::Function* arguments =
-          Runtime::FunctionForId(Runtime::kInlineArguments);
-      ZoneList<Expression*>* arguments_i0 =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      arguments_i0->Add(factory()->NewSmiLiteral(i, RelocInfo::kNoPosition),
-                        zone());
-
-      if (initializer == nullptr) {
-        // let <name> = %_Arguments(i)
-        Expression* assign = factory()->NewAssignment(
-            Token::INIT_LET, proxy,
-            factory()->NewCallRuntime(fn_name, arguments, arguments_i0,
-                                      RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition);
-        param_block->AddStatement(
-            factory()->NewExpressionStatement(assign, RelocInfo::kNoPosition),
-            zone());
-        proxy->var()->set_initializer_position(pos);
-      } else {
-        // IS_UNDEFINED(%_Arguments(i)) ? <initializer> : %_Arguments(i);
-        ZoneList<Expression*>* arguments_i1 =
-            new (zone()) ZoneList<Expression*>(1, zone());
-        arguments_i1->Add(factory()->NewSmiLiteral(i, RelocInfo::kNoPosition),
-                          zone());
-
-        Expression* arg_or_default = factory()->NewConditional(
-            // condition:
-            factory()->NewCompareOperation(
-                Token::EQ_STRICT,
-                factory()->NewCallRuntime(fn_name, arguments, arguments_i0,
-                                          RelocInfo::kNoPosition),
-                factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-                RelocInfo::kNoPosition),
-            // if true:
-            initializer,
-            // if false:
-            factory()->NewCallRuntime(fn_name, arguments, arguments_i1,
-                                      RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition);
-
-        Expression* assign = factory()->NewAssignment(
-            Token::INIT_LET, proxy, arg_or_default, RelocInfo::kNoPosition);
-
-        param_block->AddStatement(
-            factory()->NewExpressionStatement(assign, RelocInfo::kNoPosition),
-            zone());
-        proxy->var()->set_initializer_position(initializer->position());
-      }
-      body->Add(param_block, zone());
-    }
-    return body;
-  } else {
-    // If has_parameter_expressions is false, remove the unnecessary parameter
-    // block scopes.
-    ZoneList<Scope*>* scopes = scope->inner_scopes();
-    for (int i = 0; i < scopes->length(); ++i) {
-      Scope* scope = scopes->at(i);
-      DCHECK(scope->is_block_scope());
-      scope->FinalizeBlockScope();
-    }
-    return nullptr;
-  }
-}
-
-
 Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
                                      bool* ok) {
   // ForStatement ::
@@ -3890,8 +3774,7 @@ void ParserTraits::DeclareArrowFunctionParameters(
   parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
 
   bool is_rest = false;
-  int pos = expr->position();
-  bool is_duplicate = DeclareFormalParameter(scope, raw_name, is_rest, pos);
+  bool is_duplicate = DeclareFormalParameter(scope, raw_name, is_rest);
 
   if (is_duplicate && !duplicate_loc->IsValid()) {
     *duplicate_loc = param_location;
@@ -4002,15 +3885,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
 
     bool has_rest = false;
-    bool has_parameter_expressions = false;
     Expect(Token::LPAREN, CHECK_OK);
     int start_position = scanner()->location().beg_pos;
     scope_->set_start_position(start_position);
-    ZoneList<Expression*>* initializers =
-        new (zone()) ZoneList<Expression*>(0, zone());
-    num_parameters = ParseFormalParameterList(
-        scope, initializers, &has_parameter_expressions, &has_rest,
-        &formals_classifier, CHECK_OK);
+    num_parameters = ParseFormalParameterList(scope, &has_rest,
+                                              &formals_classifier, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -4111,31 +3990,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
     }
     if (!is_lazily_parsed) {
-      body = DesugarInitializeParameters(scope, has_parameter_expressions,
-                                         initializers);
-      if (has_parameter_expressions) {
-        // TODO(caitp): Function body scope must be a declaration scope
-        Scope* function_body_scope = NewScope(scope, BLOCK_SCOPE);
-        function_body_scope->set_start_position(scope->start_position());
-        function_body_scope->SetScopeName(function_name);
-        BlockState function_body_state(&scope_, function_body_scope);
-        ZoneList<Statement*>* inner_body = ParseEagerFunctionBody(
-            function_name, pos, fvar, fvar_init_op, kind, CHECK_OK);
-
-        // Declare Block node
-        Block* block =
-            factory()->NewBlock(nullptr, inner_body->length(), false, pos);
-        block->set_scope(function_body_scope);
-        for (int i = 0; i < inner_body->length(); ++i) {
-          block->AddStatement(inner_body->at(i), zone());
-        }
-
-        scope->set_end_position(function_body_scope->end_position());
-        body->Add(block, zone());
-      } else {
-        body = ParseEagerFunctionBody(function_name, pos, fvar, fvar_init_op,
-                                      kind, CHECK_OK);
-      }
+      body = ParseEagerFunctionBody(function_name, pos, fvar, fvar_init_op,
+                                    kind, CHECK_OK);
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
@@ -4419,8 +4275,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
         allow_harmony_destructuring());
     reusable_preparser_->set_allow_harmony_spread_arrays(
         allow_harmony_spread_arrays());
-    reusable_preparser_->set_allow_harmony_default_parameters(
-        allow_harmony_default_parameters());
     reusable_preparser_->set_allow_strong_mode(allow_strong_mode());
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(

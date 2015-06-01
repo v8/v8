@@ -1035,17 +1035,14 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   ExpressionClassifier formals_classifier;
 
   bool has_rest = false;
-  bool has_parameter_expressions = false;
-  PreParserExpressionList initializers = NewExpressionList(0, zone());
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   int num_parameters;
   {
     DuplicateFinder duplicate_finder(scanner()->unicode_cache());
-    num_parameters = ParseFormalParameterList(
-        &duplicate_finder, initializers, &has_parameter_expressions, &has_rest,
-        &formals_classifier, CHECK_OK);
+    num_parameters = ParseFormalParameterList(&duplicate_finder, &has_rest,
+                                              &formals_classifier, CHECK_OK);
   }
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;

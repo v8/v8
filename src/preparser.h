@@ -66,7 +66,6 @@ class ParserBase : public Traits {
  public:
   // Shorten type names defined by Traits.
   typedef typename Traits::Type::Expression ExpressionT;
-  typedef typename Traits::Type::ExpressionList ExpressionListT;
   typedef typename Traits::Type::Identifier IdentifierT;
   typedef typename Traits::Type::FormalParameter FormalParameterT;
   typedef typename Traits::Type::FormalParameterScope FormalParameterScopeT;
@@ -98,7 +97,6 @@ class ParserBase : public Traits {
         allow_harmony_computed_property_names_(false),
         allow_harmony_rest_params_(false),
         allow_harmony_spreadcalls_(false),
-        allow_harmony_default_parameters_(false),
         allow_strong_mode_(false) {}
 
   // Getters that indicate whether certain syntactical constructs are
@@ -127,9 +125,6 @@ class ParserBase : public Traits {
   }
   bool allow_harmony_spread_arrays() const {
     return allow_harmony_spread_arrays_;
-  }
-  bool allow_harmony_default_parameters() const {
-    return allow_harmony_default_parameters_;
   }
 
   bool allow_strong_mode() const { return allow_strong_mode_; }
@@ -172,10 +167,6 @@ class ParserBase : public Traits {
   void set_allow_harmony_spread_arrays(bool allow) {
     allow_harmony_spread_arrays_ = allow;
   }
-  void set_allow_harmony_default_parameters(bool allow) {
-    allow_harmony_default_parameters_ = allow;
-  }
-
 
  protected:
   enum AllowRestrictedIdentifiers {
@@ -928,9 +919,7 @@ class ParserBase : public Traits {
 
   void ParseFormalParameter(FormalParameterScopeT* scope, bool is_rest,
                             ExpressionClassifier* classifier, bool* ok);
-  int ParseFormalParameterList(FormalParameterScopeT* scope,
-                               ExpressionListT initializers,
-                               bool* has_parameter_expressions, bool* has_rest,
+  int ParseFormalParameterList(FormalParameterScopeT* scope, bool* has_rest,
                                ExpressionClassifier* classifier, bool* ok);
   void CheckArityRestrictions(
       int param_count, FunctionLiteral::ArityRestriction arity_restriction,
@@ -1033,7 +1022,6 @@ class ParserBase : public Traits {
   bool allow_harmony_spreadcalls_;
   bool allow_harmony_destructuring_;
   bool allow_harmony_spread_arrays_;
-  bool allow_harmony_default_parameters_;
   bool allow_strong_mode_;
 };
 
@@ -1811,8 +1799,8 @@ class PreParserTraits {
   }
 
   V8_INLINE bool DeclareFormalParameter(DuplicateFinder* scope,
-                                        PreParserIdentifier param, bool is_rest,
-                                        int pos);
+                                        PreParserIdentifier param,
+                                        bool is_rest);
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 
@@ -2008,7 +1996,7 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
 
 bool PreParserTraits::DeclareFormalParameter(
     DuplicateFinder* duplicate_finder, PreParserIdentifier current_identifier,
-    bool is_rest, int pos) {
+    bool is_rest) {
   return pre_parser_->scanner()->FindSymbol(duplicate_finder, 1) != 0;
 }
 
@@ -3685,11 +3673,10 @@ void ParserBase<Traits>::ParseFormalParameter(FormalParameterScopeT* scope,
                                               bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
-  int pos = peek_position();
   IdentifierT name = ParseAndClassifyIdentifier(classifier, ok);
   if (!*ok) return;
 
-  bool was_declared = Traits::DeclareFormalParameter(scope, name, is_rest, pos);
+  bool was_declared = Traits::DeclareFormalParameter(scope, name, is_rest);
   if (was_declared) {
     classifier->RecordDuplicateFormalParameterError(scanner()->location());
   }
@@ -3698,8 +3685,7 @@ void ParserBase<Traits>::ParseFormalParameter(FormalParameterScopeT* scope,
 
 template <class Traits>
 int ParserBase<Traits>::ParseFormalParameterList(
-    FormalParameterScopeT* scope, ExpressionListT initializers,
-    bool* has_parameter_expressions, bool* is_rest,
+    FormalParameterScopeT* scope, bool* is_rest,
     ExpressionClassifier* classifier, bool* ok) {
   // FormalParameters[Yield,GeneratorParameter] :
   //   [empty]
@@ -3719,43 +3705,14 @@ int ParserBase<Traits>::ParseFormalParameterList(
 
   if (peek() != Token::RPAREN) {
     do {
-      Scope* param_scope = NewScope(scope_, BLOCK_SCOPE);
-      BlockState param_state(&scope_, param_scope);
-      param_scope->set_start_position(peek_position());
       if (++parameter_count > Code::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         *ok = false;
         return -1;
       }
-
-      int start_pos = peek_position();
       *is_rest = allow_harmony_rest_params() && Check(Token::ELLIPSIS);
       ParseFormalParameter(scope, *is_rest, classifier, ok);
       if (!*ok) return -1;
-
-      // TODO(caitp, dslomov): set *has_parameter_expressions to true if
-      // formal parameter is an ObjectBindingPattern containing computed
-      // property keys
-
-      ExpressionT initializer = this->EmptyExpression();
-      if (allow_harmony_default_parameters() && Check(Token::ASSIGN)) {
-        // Default parameter initializer
-        static const bool accept_IN = true;
-        ExpressionClassifier classifier;
-        initializer = ParseAssignmentExpression(accept_IN, &classifier, ok);
-        if (!*ok) return -1;
-        *has_parameter_expressions = true;
-
-        // A rest parameter cannot be initialized.
-        if (*is_rest) {
-          Scanner::Location loc(start_pos, scanner()->location().end_pos);
-          ReportMessageAt(loc, MessageTemplate::kBadRestParameterInitializer);
-          *ok = false;
-          return -1;
-        }
-      }
-      param_scope->set_end_position(scanner()->location().end_pos);
-      initializers->Add(initializer, zone());
     } while (!*is_rest && Check(Token::COMMA));
 
     if (*is_rest && peek() == Token::COMMA) {
