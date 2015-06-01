@@ -1633,8 +1633,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     DCHECK_NOT_NULL(expr->class_variable_proxy());
     Variable* var = expr->class_variable_proxy()->var();
     FrameStateBeforeAndAfter states(this, BailoutId::None());
-    BuildVariableAssignment(states, var, literal, Token::INIT_CONST,
-                            BailoutId::None());
+    BuildVariableAssignment(var, literal, Token::INIT_CONST, BailoutId::None(),
+                            states);
   }
 
   ast_context()->ProduceValue(literal);
@@ -1663,7 +1663,7 @@ void AstGraphBuilder::VisitConditional(Conditional* expr) {
 void AstGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   VectorSlotPair pair = CreateVectorSlotPair(expr->VariableFeedbackSlot());
   FrameStateBeforeAndAfter states(this, BeforeId(expr));
-  Node* value = BuildVariableLoad(states, expr->var(), expr->id(), pair,
+  Node* value = BuildVariableLoad(expr->var(), expr->id(), states, pair,
                                   ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
@@ -1975,7 +1975,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
     case VARIABLE: {
       Variable* var = expr->AsVariableProxy()->var();
       FrameStateBeforeAndAfter states(this, BailoutId::None());
-      BuildVariableAssignment(states, var, value, Token::ASSIGN, bailout_id);
+      BuildVariableAssignment(var, value, Token::ASSIGN, bailout_id, states);
       break;
     }
     case NAMED_PROPERTY: {
@@ -2047,7 +2047,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
             CreateVectorSlotPair(proxy->VariableFeedbackSlot());
         FrameStateBeforeAndAfter states(this, BeforeId(proxy));
         old_value =
-            BuildVariableLoad(states, proxy->var(), expr->target()->id(), pair,
+            BuildVariableLoad(proxy->var(), expr->target()->id(), states, pair,
                               OutputFrameStateCombine::Push());
         break;
       }
@@ -2102,8 +2102,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
-      BuildVariableAssignment(store_states, variable, value, expr->op(),
-                              expr->id(), ast_context()->GetStateCombine());
+      BuildVariableAssignment(variable, value, expr->op(), expr->id(),
+                              store_states, ast_context()->GetStateCombine());
       break;
     }
     case NAMED_PROPERTY: {
@@ -2184,7 +2184,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
       FrameStateBeforeAndAfter states(this, BeforeId(proxy));
       callee_value =
-          BuildVariableLoad(states, proxy->var(), expr->expression()->id(),
+          BuildVariableLoad(proxy->var(), expr->expression()->id(), states,
                             pair, OutputFrameStateCombine::Push());
       receiver_value = jsgraph()->UndefinedConstant();
       break;
@@ -2412,7 +2412,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
       FrameStateBeforeAndAfter states(this, BeforeId(proxy));
       old_value =
-          BuildVariableLoad(states, proxy->var(), expr->expression()->id(),
+          BuildVariableLoad(proxy->var(), expr->expression()->id(), states,
                             pair, OutputFrameStateCombine::Push());
       stack_depth = 0;
       break;
@@ -2476,8 +2476,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     case VARIABLE: {
       Variable* variable = expr->expression()->AsVariableProxy()->var();
       environment()->Push(value);
-      BuildVariableAssignment(store_states, variable, value, expr->op(),
-                              expr->AssignmentId());
+      BuildVariableAssignment(variable, value, expr->op(), expr->AssignmentId(),
+                              store_states);
       environment()->Pop();
       break;
     }
@@ -2680,7 +2680,7 @@ void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
     VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
     FrameStateBeforeAndAfter states(this, BeforeId(proxy));
     operand =
-        BuildVariableLoad(states, proxy->var(), expr->expression()->id(), pair,
+        BuildVariableLoad(proxy->var(), expr->expression()->id(), states, pair,
                           OutputFrameStateCombine::Push(), NOT_CONTEXTUAL);
   } else {
     VisitForValue(expr->expression());
@@ -2744,6 +2744,39 @@ LanguageMode AstGraphBuilder::language_mode() const {
 VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
     FeedbackVectorICSlot slot) const {
   return VectorSlotPair(handle(info()->shared_info()->feedback_vector()), slot);
+}
+
+
+uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
+  DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
+  EnumSet<int, uint32_t> check_depths;
+  for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
+    if (s->num_heap_slots() <= 0) continue;
+    // TODO(mstarzinger): Be smarter about which checks to require!
+    int depth = current_scope()->ContextChainLength(s);
+    if (depth > DynamicGlobalAccess::kMaxCheckDepth) {
+      return DynamicGlobalAccess::kFullCheckRequired;
+    }
+    check_depths.Add(depth);
+  }
+  return check_depths.ToIntegral();
+}
+
+
+uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
+  DCHECK_EQ(DYNAMIC_LOCAL, variable->mode());
+  EnumSet<int, uint32_t> check_depths;
+  for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
+    if (s->num_heap_slots() <= 0) continue;
+    if (!s->calls_sloppy_eval()) continue;
+    int depth = current_scope()->ContextChainLength(s);
+    if (depth > DynamicContextAccess::kMaxCheckDepth) {
+      return DynamicContextAccess::kFullCheckRequired;
+    }
+    check_depths.Add(depth);
+    if (s == variable->scope()) break;
+  }
+  return check_depths.ToIntegral();
 }
 
 
@@ -2856,8 +2889,8 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(states, arguments, object, Token::ASSIGN,
-                          BailoutId::None());
+  BuildVariableAssignment(arguments, object, Token::ASSIGN, BailoutId::None(),
+                          states);
 
   return object;
 }
@@ -2874,8 +2907,8 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(states, rest, object, Token::ASSIGN,
-                          BailoutId::None());
+  BuildVariableAssignment(rest, object, Token::ASSIGN, BailoutId::None(),
+                          states);
 
   return object;
 }
@@ -2924,9 +2957,9 @@ Node* AstGraphBuilder::BuildThrowIfStaticPrototype(Node* name,
 }
 
 
-Node* AstGraphBuilder::BuildVariableLoad(FrameStateBeforeAndAfter& states,
-                                         Variable* variable,
+Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          BailoutId bailout_id,
+                                         FrameStateBeforeAndAfter& states,
                                          const VectorSlotPair& feedback,
                                          OutputFrameStateCombine combine,
                                          ContextualMode contextual_mode) {
@@ -2937,9 +2970,9 @@ Node* AstGraphBuilder::BuildVariableLoad(FrameStateBeforeAndAfter& states,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
-      Node* node = BuildNamedLoad(global, name, feedback, contextual_mode);
-      states.AddToNode(node, bailout_id, combine);
-      return node;
+      Node* value = BuildNamedLoad(global, name, feedback, contextual_mode);
+      states.AddToNode(value, bailout_id, combine);
+      return value;
     }
     case Variable::PARAMETER:
     case Variable::LOCAL: {
@@ -2985,15 +3018,30 @@ Node* AstGraphBuilder::BuildVariableLoad(FrameStateBeforeAndAfter& states,
     }
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
-      Node* name = jsgraph()->Constant(variable->name());
-      Runtime::FunctionId function_id =
-          (contextual_mode == CONTEXTUAL)
-              ? Runtime::kLoadLookupSlot
-              : Runtime::kLoadLookupSlotNoReferenceError;
-      const Operator* op = javascript()->CallRuntime(function_id, 2);
-      Node* pair = NewNode(op, current_context(), name);
-      PrepareFrameState(pair, bailout_id, OutputFrameStateCombine::Push(1));
-      return NewNode(common()->Projection(0), pair);
+      Node* value = jsgraph()->TheHoleConstant();
+      Handle<String> name = variable->name();
+      if (mode == DYNAMIC_GLOBAL) {
+        uint32_t check_bitset = ComputeBitsetForDynamicGlobal(variable);
+        const Operator* op = javascript()->LoadDynamicGlobal(name, check_bitset,
+                                                             contextual_mode);
+        value = NewNode(op, current_context());
+      } else if (mode == DYNAMIC_LOCAL) {
+        Variable* local = variable->local_if_not_shadowed();
+        DCHECK(local->location() == Variable::CONTEXT);  // Must be context.
+        int depth = current_scope()->ContextChainLength(local->scope());
+        uint32_t check_bitset = ComputeBitsetForDynamicContext(variable);
+        const Operator* op = javascript()->LoadDynamicContext(
+            name, check_bitset, depth, local->index());
+        value = NewNode(op, current_context());
+        // TODO(mstarzinger): Hole checks are missing here when optimized.
+      } else if (mode == DYNAMIC) {
+        uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
+        const Operator* op = javascript()->LoadDynamicGlobal(name, check_bitset,
+                                                             contextual_mode);
+        value = NewNode(op, current_context());
+      }
+      PrepareFrameState(value, bailout_id, combine);
+      return value;
     }
   }
   UNREACHABLE();
@@ -3035,8 +3083,8 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
 
 
 Node* AstGraphBuilder::BuildVariableAssignment(
-    FrameStateBeforeAndAfter& states, Variable* variable, Node* value,
-    Token::Value op, BailoutId bailout_id, OutputFrameStateCombine combine) {
+    Variable* variable, Node* value, Token::Value op, BailoutId bailout_id,
+    FrameStateBeforeAndAfter& states, OutputFrameStateCombine combine) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
   switch (variable->location()) {

@@ -1506,6 +1506,16 @@ Bounds Typer::Visitor::TypeJSStoreContext(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeJSLoadDynamicGlobal(Node* node) {
+  return Bounds::Unbounded(zone());
+}
+
+
+Bounds Typer::Visitor::TypeJSLoadDynamicContext(Node* node) {
+  return Bounds::Unbounded(zone());
+}
+
+
 Bounds Typer::Visitor::WrapContextBoundsForInput(Node* node) {
   Bounds outer = BoundsOrNone(NodeProperties::GetContextInput(node));
   if (outer.upper->Is(Type::None())) {

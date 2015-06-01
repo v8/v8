@@ -91,6 +91,86 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 }
 
 
+DynamicGlobalAccess::DynamicGlobalAccess(const Handle<String>& name,
+                                         uint32_t check_bitset,
+                                         ContextualMode mode)
+    : name_(name), check_bitset_(check_bitset), mode_(mode) {
+  DCHECK(check_bitset == kFullCheckRequired || check_bitset < 0x80000000U);
+}
+
+
+bool operator==(DynamicGlobalAccess const& lhs,
+                DynamicGlobalAccess const& rhs) {
+  UNIMPLEMENTED();
+  return true;
+}
+
+
+bool operator!=(DynamicGlobalAccess const& lhs,
+                DynamicGlobalAccess const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(DynamicGlobalAccess const& access) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+std::ostream& operator<<(std::ostream& os, DynamicGlobalAccess const& access) {
+  return os << Brief(*access.name()) << ", " << access.check_bitset() << ", "
+            << access.mode();
+}
+
+
+DynamicGlobalAccess const& DynamicGlobalAccessOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSLoadDynamicGlobal, op->opcode());
+  return OpParameter<DynamicGlobalAccess>(op);
+}
+
+
+DynamicContextAccess::DynamicContextAccess(const Handle<String>& name,
+                                           uint32_t check_bitset,
+                                           const ContextAccess& context_access)
+    : name_(name),
+      check_bitset_(check_bitset),
+      context_access_(context_access) {
+  DCHECK(check_bitset == kFullCheckRequired || check_bitset < 0x80000000U);
+}
+
+
+bool operator==(DynamicContextAccess const& lhs,
+                DynamicContextAccess const& rhs) {
+  UNIMPLEMENTED();
+  return true;
+}
+
+
+bool operator!=(DynamicContextAccess const& lhs,
+                DynamicContextAccess const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(DynamicContextAccess const& access) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+std::ostream& operator<<(std::ostream& os, DynamicContextAccess const& access) {
+  return os << Brief(*access.name()) << ", " << access.check_bitset() << ", "
+            << access.context_access();
+}
+
+
+DynamicContextAccess const& DynamicContextAccessOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSLoadDynamicContext, op->opcode());
+  return OpParameter<DynamicContextAccess>(op);
+}
+
+
 bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
   return lhs.slot().ToInt() == rhs.slot().ToInt() &&
          lhs.vector().is_identical_to(rhs.vector());
@@ -437,6 +517,31 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       "JSStoreContext",                          // name
       2, 1, 1, 0, 1, 0,                          // counts
       access);                                   // parameter
+}
+
+
+const Operator* JSOperatorBuilder::LoadDynamicGlobal(const Handle<String>& name,
+                                                     uint32_t check_bitset,
+                                                     ContextualMode mode) {
+  DynamicGlobalAccess access(name, check_bitset, mode);
+  return new (zone()) Operator1<DynamicGlobalAccess>(           // --
+      IrOpcode::kJSLoadDynamicGlobal, Operator::kNoProperties,  // opcode
+      "JSLoadDynamicGlobal",                                    // name
+      1, 1, 1, 1, 1, 2,                                         // counts
+      access);                                                  // parameter
+}
+
+
+const Operator* JSOperatorBuilder::LoadDynamicContext(
+    const Handle<String>& name, uint32_t check_bitset, size_t depth,
+    size_t index) {
+  ContextAccess context_access(depth, index, false);
+  DynamicContextAccess access(name, check_bitset, context_access);
+  return new (zone()) Operator1<DynamicContextAccess>(           // --
+      IrOpcode::kJSLoadDynamicContext, Operator::kNoProperties,  // opcode
+      "JSLoadDynamicContext",                                    // name
+      1, 1, 1, 1, 1, 2,                                          // counts
+      access);                                                   // parameter
 }
 
 

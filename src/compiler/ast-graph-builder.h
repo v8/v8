@@ -209,9 +209,9 @@ class AstGraphBuilder : public AstVisitor {
   void UpdateControlDependencyToLeaveFunction(Node* exit);
 
   // Builds deoptimization for a given node.
-  void PrepareFrameState(
-      Node* node, BailoutId ast_id,
-      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
+  void PrepareFrameState(Node* node, BailoutId ast_id,
+                         OutputFrameStateCombine framestate_combine =
+                             OutputFrameStateCombine::Ignore());
 
   BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
 
@@ -234,6 +234,11 @@ class AstGraphBuilder : public AstVisitor {
   // Named and keyed loads require a VectorSlotPair for successful lowering.
   VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
 
+  // Determine which contexts need to be checked for extension objects that
+  // might shadow the optimistic declaration of dynamic lookup variables.
+  uint32_t ComputeBitsetForDynamicGlobal(Variable* variable);
+  uint32_t ComputeBitsetForDynamicContext(Variable* variable);
+
   // ===========================================================================
   // The following build methods all generate graph fragments and return one
   // resulting node. The operand stack height remains the same, variables and
@@ -254,15 +259,17 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildRestArgumentsArray(Variable* rest, int index);
 
   // Builders for variable load and assignment.
-  Node* BuildVariableAssignment(
-      FrameStateBeforeAndAfter& states, Variable* var, Node* value,
-      Token::Value op, BailoutId bailout_id,
-      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
-  Node* BuildVariableDelete(Variable* var, BailoutId bailout_id,
-                            OutputFrameStateCombine combine);
-  Node* BuildVariableLoad(FrameStateBeforeAndAfter& states, Variable* var,
-                          BailoutId bailout_id, const VectorSlotPair& feedback,
-                          OutputFrameStateCombine combine,
+  Node* BuildVariableAssignment(Variable* variable, Node* value,
+                                Token::Value op, BailoutId bailout_id,
+                                FrameStateBeforeAndAfter& states,
+                                OutputFrameStateCombine framestate_combine =
+                                    OutputFrameStateCombine::Ignore());
+  Node* BuildVariableDelete(Variable* variable, BailoutId bailout_id,
+                            OutputFrameStateCombine framestate_combine);
+  Node* BuildVariableLoad(Variable* variable, BailoutId bailout_id,
+                          FrameStateBeforeAndAfter& states,
+                          const VectorSlotPair& feedback,
+                          OutputFrameStateCombine framestate_combine,
                           ContextualMode mode = CONTEXTUAL);
 
   // Builders for property loads and stores.

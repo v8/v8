@@ -112,6 +112,84 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 ContextAccess const& ContextAccessOf(Operator const*);
 
 
+// Defines the name for a dynamic variable lookup. The {check_bitset} allows to
+// inline checks whether the lookup yields in a global variable. This is used as
+// a parameter by JSLoadDynamicGlobal and JSStoreDynamicGlobal operators.
+class DynamicGlobalAccess final {
+ public:
+  DynamicGlobalAccess(const Handle<String>& name, uint32_t check_bitset,
+                      ContextualMode mode);
+
+  const Handle<String>& name() const { return name_; }
+  uint32_t check_bitset() const { return check_bitset_; }
+  ContextualMode mode() const { return mode_; }
+
+  // Indicates that an inline check is disabled.
+  bool RequiresFullCheck() const {
+    return check_bitset() == kFullCheckRequired;
+  }
+
+  // Limit of context chain length to which inline check is possible.
+  static const int kMaxCheckDepth = 30;
+
+  // Sentinel for {check_bitset} disabling inline checks.
+  static const uint32_t kFullCheckRequired = -1;
+
+ private:
+  const Handle<String> name_;
+  const uint32_t check_bitset_;
+  const ContextualMode mode_;
+};
+
+size_t hash_value(DynamicGlobalAccess const&);
+
+bool operator==(DynamicGlobalAccess const&, DynamicGlobalAccess const&);
+bool operator!=(DynamicGlobalAccess const&, DynamicGlobalAccess const&);
+
+std::ostream& operator<<(std::ostream&, DynamicGlobalAccess const&);
+
+DynamicGlobalAccess const& DynamicGlobalAccessOf(Operator const*);
+
+
+// Defines the name for a dynamic variable lookup. The {check_bitset} allows to
+// inline checks whether the lookup yields in a context variable. This is used
+// as a parameter by JSLoadDynamicContext and JSStoreDynamicContext operators.
+class DynamicContextAccess final {
+ public:
+  DynamicContextAccess(const Handle<String>& name, uint32_t check_bitset,
+                       const ContextAccess& context_access);
+
+  const Handle<String>& name() const { return name_; }
+  uint32_t check_bitset() const { return check_bitset_; }
+  const ContextAccess& context_access() const { return context_access_; }
+
+  // Indicates that an inline check is disabled.
+  bool RequiresFullCheck() const {
+    return check_bitset() == kFullCheckRequired;
+  }
+
+  // Limit of context chain length to which inline check is possible.
+  static const int kMaxCheckDepth = 30;
+
+  // Sentinel for {check_bitset} disabling inline checks.
+  static const uint32_t kFullCheckRequired = -1;
+
+ private:
+  const Handle<String> name_;
+  const uint32_t check_bitset_;
+  const ContextAccess context_access_;
+};
+
+size_t hash_value(DynamicContextAccess const&);
+
+bool operator==(DynamicContextAccess const&, DynamicContextAccess const&);
+bool operator!=(DynamicContextAccess const&, DynamicContextAccess const&);
+
+std::ostream& operator<<(std::ostream&, DynamicContextAccess const&);
+
+DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
+
+
 class VectorSlotPair {
  public:
   VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
@@ -296,6 +374,12 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
+
+  const Operator* LoadDynamicGlobal(const Handle<String>& name,
+                                    uint32_t check_bitset, ContextualMode mode);
+  const Operator* LoadDynamicContext(const Handle<String>& name,
+                                     uint32_t check_bitset, size_t depth,
+                                     size_t index);
 
   const Operator* TypeOf();
   const Operator* InstanceOf();

@@ -447,6 +447,29 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
+  const DynamicGlobalAccess& access = DynamicGlobalAccessOf(node->op());
+  Runtime::FunctionId function_id =
+      (access.mode() == CONTEXTUAL) ? Runtime::kLoadLookupSlot
+                                    : Runtime::kLoadLookupSlotNoReferenceError;
+  Node* projection = graph()->NewNode(common()->Projection(0), node);
+  NodeProperties::ReplaceWithValue(node, projection, node, node);
+  node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
+  ReplaceWithRuntimeCall(node, function_id);
+  projection->ReplaceInput(0, node);
+}
+
+
+void JSGenericLowering::LowerJSLoadDynamicContext(Node* node) {
+  const DynamicContextAccess& access = DynamicContextAccessOf(node->op());
+  Node* projection = graph()->NewNode(common()->Projection(0), node);
+  NodeProperties::ReplaceWithValue(node, projection, node, node);
+  node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
+  ReplaceWithRuntimeCall(node, Runtime::kLoadLookupSlot);
+  projection->ReplaceInput(0, node);
+}
+
+
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   CreateClosureParameters p = CreateClosureParametersOf(node->op());
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.shared_info()));
