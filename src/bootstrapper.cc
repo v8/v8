@@ -1225,14 +1225,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<JSFunction> js_map_fun = InstallFunction(
         global, "Map", JS_MAP_TYPE, JSMap::kSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_js_map_map(js_map_fun->initial_map());
+    native_context()->set_js_map_fun(*js_map_fun);
   }
 
   {  // -- S e t
     Handle<JSFunction> js_set_fun = InstallFunction(
         global, "Set", JS_SET_TYPE, JSSet::kSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_js_set_map(js_set_fun->initial_map());
+    native_context()->set_js_set_fun(*js_set_fun);
   }
 
   {  // Set up the iterator result object
@@ -2801,6 +2801,10 @@ bool Genesis::ConfigureGlobalObjects(
       JSArray::cast(native_context()->array_function()->prototype()));
   native_context()->set_array_buffer_map(
       native_context()->array_buffer_fun()->initial_map());
+  native_context()->set_js_map_map(
+      native_context()->js_map_fun()->initial_map());
+  native_context()->set_js_set_map(
+      native_context()->js_set_fun()->initial_map());
 
   return true;
 }

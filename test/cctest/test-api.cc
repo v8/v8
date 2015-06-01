@@ -21376,6 +21376,7 @@ TEST(Map) {
   v8::Local<v8::Map> map = v8::Map::New(isolate);
   CHECK(map->IsObject());
   CHECK(map->IsMap());
+  CHECK(map->GetPrototype()->StrictEquals(CompileRun("Map.prototype")));
   CHECK_EQ(0, map->Size());
 
   v8::Local<v8::Value> val = CompileRun("new Map([[1, 2], [3, 4]])");
@@ -21407,6 +21408,7 @@ TEST(Set) {
   v8::Local<v8::Set> set = v8::Set::New(isolate);
   CHECK(set->IsObject());
   CHECK(set->IsSet());
+  CHECK(set->GetPrototype()->StrictEquals(CompileRun("Set.prototype")));
   CHECK_EQ(0, set->Size());
 
   v8::Local<v8::Value> val = CompileRun("new Set([1, 2])");
