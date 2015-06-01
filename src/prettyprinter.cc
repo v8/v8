@@ -1321,7 +1321,48 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 
 void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   IndentedScope indent(this, "CLASS LITERAL");
-  PrintLiteralIndented("NAME", node->name(), false);
+  if (node->raw_name() != nullptr) {
+    PrintLiteralIndented("NAME", node->name(), false);
+  }
+  if (node->extends() != nullptr) {
+    PrintIndentedVisit("EXTENDS", node->extends());
+  }
+  PrintProperties(node->properties());
+}
+
+
+void AstPrinter::PrintProperties(
+    ZoneList<ObjectLiteral::Property*>* properties) {
+  for (int i = 0; i < properties->length(); i++) {
+    ObjectLiteral::Property* property = properties->at(i);
+    const char* prop_kind = nullptr;
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        prop_kind = "CONSTANT";
+        break;
+      case ObjectLiteral::Property::COMPUTED:
+        prop_kind = "COMPUTED";
+        break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        prop_kind = "MATERIALIZED_LITERAL";
+        break;
+      case ObjectLiteral::Property::PROTOTYPE:
+        prop_kind = "PROTOTYPE";
+        break;
+      case ObjectLiteral::Property::GETTER:
+        prop_kind = "GETTER";
+        break;
+      case ObjectLiteral::Property::SETTER:
+        prop_kind = "SETTER";
+        break;
+    }
+    EmbeddedVector<char, 128> buf;
+    SNPrintF(buf, "PROPERTY%s - %s", property->is_static() ? " - STATIC" : "",
+             prop_kind);
+    IndentedScope prop(this, buf.start());
+    PrintIndentedVisit("KEY", properties->at(i)->key());
+    PrintIndentedVisit("VALUE", properties->at(i)->value());
+  }
 }
 
 
@@ -1354,34 +1395,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   IndentedScope indent(this, "OBJ LITERAL");
-  for (int i = 0; i < node->properties()->length(); i++) {
-    const char* prop_kind = NULL;
-    switch (node->properties()->at(i)->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-        prop_kind = "PROPERTY - CONSTANT";
-        break;
-      case ObjectLiteral::Property::COMPUTED:
-        prop_kind = "PROPERTY - COMPUTED";
-        break;
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        prop_kind = "PROPERTY - MATERIALIZED_LITERAL";
-        break;
-      case ObjectLiteral::Property::PROTOTYPE:
-        prop_kind = "PROPERTY - PROTOTYPE";
-        break;
-      case ObjectLiteral::Property::GETTER:
-        prop_kind = "PROPERTY - GETTER";
-        break;
-      case ObjectLiteral::Property::SETTER:
-        prop_kind = "PROPERTY - SETTER";
-        break;
-      default:
-        UNREACHABLE();
-    }
-    IndentedScope prop(this, prop_kind);
-    PrintIndentedVisit("KEY", node->properties()->at(i)->key());
-    PrintIndentedVisit("VALUE", node->properties()->at(i)->value());
-  }
+  PrintProperties(node->properties());
 }
 
 
