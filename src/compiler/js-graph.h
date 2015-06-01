@@ -102,6 +102,7 @@ class JSGraph : public ZoneObject {
 
   // Creates an ExternalConstant node, usually canonicalized.
   Node* ExternalConstant(ExternalReference ref);
+  Node* ExternalConstant(Runtime::FunctionId function_id);
 
   Node* SmiConstant(int32_t immediate) {
     DCHECK(Smi::IsValid(immediate));

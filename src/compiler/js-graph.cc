@@ -183,6 +183,11 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
 }
 
 
+Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
+  return ExternalConstant(ExternalReference(function_id, isolate()));
+}
+
+
 Node* JSGraph::EmptyFrameState() {
   Node* empty_frame_state = cached_nodes_[kEmptyFrameState];
   if (!empty_frame_state || empty_frame_state->IsDead()) {

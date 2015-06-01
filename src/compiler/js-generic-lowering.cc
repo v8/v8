@@ -606,8 +606,7 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   Node* cache_type = effect = graph()->NewNode(
       common()->Call(descriptor),
       jsgraph()->CEntryStubConstant(function->result_size), object,
-      jsgraph()->ExternalConstant(
-          ExternalReference(function->function_id, isolate())),
+      jsgraph()->ExternalConstant(function->function_id),
       jsgraph()->Int32Constant(1), context, frame_state, effect, control);
   control = graph()->NewNode(common()->IfSuccess(), cache_type);
 

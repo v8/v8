@@ -1081,6 +1081,268 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSForInDone(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSForInDone, node->opcode());
+  node->set_op(machine()->Word32Equal());
+  node->TrimInputCount(2);
+  return Changed(node);
+}
+
+
+Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSForInPrepare, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Get the set of properties to enumerate.
+  Node* cache_type = effect = graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), receiver,
+      context, frame_state, effect, control);
+  control = graph()->NewNode(common()->IfSuccess(), cache_type);
+
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, effect, control);
+  Node* cache_type_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       cache_type, effect, control);
+  Node* meta_map = jsgraph()->HeapConstant(factory()->meta_map());
+
+  // If we got a map from the GetPropertyNamesFast runtime call, we can do a
+  // fast modification check. Otherwise, we got a fixed array, and we have to
+  // perform a slow check on every iteration.
+  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                  cache_type_map, meta_map);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* cache_array_true0;
+  Node* cache_length_true0;
+  Node* cache_type_true0;
+  Node* etrue0;
+  {
+    // Enum cache case.
+    Node* cache_type_enum_length = etrue0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapBitField3()), cache_type,
+        effect, if_true0);
+    cache_length_true0 =
+        graph()->NewNode(machine()->Word32And(), cache_type_enum_length,
+                         jsgraph()->Uint32Constant(Map::EnumLengthBits::kMask));
+
+    Node* check1 =
+        graph()->NewNode(machine()->Word32Equal(), cache_length_true0,
+                         jsgraph()->Int32Constant(0));
+    Node* branch1 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* cache_array_true1;
+    Node* etrue1;
+    {
+      // No properties to enumerate.
+      cache_array_true1 =
+          jsgraph()->HeapConstant(factory()->empty_fixed_array());
+      etrue1 = etrue0;
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* cache_array_false1;
+    Node* efalse1;
+    {
+      // Load the enumeration cache from the instance descriptors of {receiver}.
+      Node* receiver_map_descriptors = efalse1 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapDescriptors()),
+          receiver_map, etrue0, if_false1);
+      Node* object_map_enum_cache = efalse1 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForDescriptorArrayEnumCache()),
+          receiver_map_descriptors, efalse1, if_false1);
+      cache_array_false1 = efalse1 = graph()->NewNode(
+          simplified()->LoadField(
+              AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache()),
+          object_map_enum_cache, efalse1, if_false1);
+    }
+
+    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    etrue0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
+    cache_array_true0 =
+        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true1,
+                         cache_array_false1, if_true0);
+
+    cache_type_true0 = cache_type;
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* cache_array_false0;
+  Node* cache_length_false0;
+  Node* cache_type_false0;
+  Node* efalse0;
+  {
+    // FixedArray case.
+    Node* receiver_instance_type = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+        receiver_map, effect, if_false0);
+
+    STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+    cache_type_false0 = graph()->NewNode(
+        common()->Select(kMachAnyTagged, BranchHint::kFalse),
+        graph()->NewNode(machine()->Uint32LessThanOrEqual(),
+                         receiver_instance_type,
+                         jsgraph()->Uint32Constant(LAST_JS_PROXY_TYPE)),
+        jsgraph()->ZeroConstant(),  // Zero indicagtes proxy.
+        jsgraph()->OneConstant());  // One means slow check.
+
+    cache_array_false0 = cache_type;
+    cache_length_false0 = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+        cache_array_false0, efalse0, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* cache_array =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true0,
+                       cache_array_false0, control);
+  Node* cache_length =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_length_true0,
+                       cache_length_false0, control);
+  cache_type = graph()->NewNode(common()->Phi(kMachAnyTagged, 2),
+                                cache_type_true0, cache_type_false0, control);
+
+  for (auto edge : node->use_edges()) {
+    Node* const use = edge.from();
+    if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect);
+      Revisit(use);
+    } else {
+      if (NodeProperties::IsControlEdge(edge)) {
+        DCHECK_EQ(IrOpcode::kIfSuccess, use->opcode());
+        Replace(use, control);
+      } else {
+        DCHECK(NodeProperties::IsValueEdge(edge));
+        DCHECK_EQ(IrOpcode::kProjection, use->opcode());
+        switch (ProjectionIndexOf(use->op())) {
+          case 0:
+            Replace(use, cache_type);
+            break;
+          case 1:
+            Replace(use, cache_array);
+            break;
+          case 2:
+            Replace(use, cache_length);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+      }
+      use->Kill();
+    }
+  }
+  return NoChange();  // All uses were replaced already above.
+}
+
+
+Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSForInNext, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* cache_array = NodeProperties::GetValueInput(node, 1);
+  Node* cache_type = NodeProperties::GetValueInput(node, 2);
+  Node* index = NodeProperties::GetValueInput(node, 3);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Load the next {key} from the {cache_array}.
+  Node* key = effect = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+      cache_array, index, effect, control);
+
+  // Load the map of the {receiver}.
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, effect, control);
+
+  // Check if the expected map still matches that of the {receiver}.
+  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                  receiver_map, cache_type);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0;
+  Node* vtrue0;
+  {
+    // Don't need filtering since expected map still matches that of the
+    // {receiver}.
+    etrue0 = effect;
+    vtrue0 = key;
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0;
+  Node* vfalse0;
+  {
+    // Check if the {cache_type} is zero, which indicates proxy.
+    Node* check1 = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                    cache_type, jsgraph()->ZeroConstant());
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1;
+    Node* vtrue1;
+    {
+      // Don't do filtering for proxies.
+      etrue1 = effect;
+      vtrue1 = key;
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1;
+    Node* vfalse1;
+    {
+      // Filter the {key} to check if it's still a valid property of the
+      // {receiver} (does the ToName conversion implicitly).
+      vfalse1 = efalse1 = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kForInFilter, 2), receiver, key,
+          context, frame_state, effect, if_false1);
+      if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+    }
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+    vfalse0 = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vtrue1,
+                               vfalse1, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  ReplaceWithValue(node, node, effect, control);
+  node->set_op(common()->Phi(kMachAnyTagged, 2));
+  node->ReplaceInput(0, vtrue0);
+  node->ReplaceInput(1, vfalse0);
+  node->ReplaceInput(2, control);
+  node->TrimInputCount(3);
+  return Changed(node);
+}
+
+
+Reduction JSTypedLowering::ReduceJSForInStep(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSForInStep, node->opcode());
+  node->set_op(machine()->Int32Add());
+  node->ReplaceInput(1, jsgraph()->Int32Constant(1));
+  DCHECK_EQ(2, node->InputCount());
+  return Changed(node);
+}
+
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
@@ -1177,6 +1439,14 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateWithContext(node);
     case IrOpcode::kJSCreateBlockContext:
       return ReduceJSCreateBlockContext(node);
+    case IrOpcode::kJSForInDone:
+      return ReduceJSForInDone(node);
+    case IrOpcode::kJSForInNext:
+      return ReduceJSForInNext(node);
+    case IrOpcode::kJSForInPrepare:
+      return ReduceJSForInPrepare(node);
+    case IrOpcode::kJSForInStep:
+      return ReduceJSForInStep(node);
     default:
       break;
   }

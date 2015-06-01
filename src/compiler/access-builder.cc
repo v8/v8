@@ -59,6 +59,34 @@ FieldAccess AccessBuilder::ForExternalArrayPointer() {
 
 
 // static
+FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
+  return {kTaggedBase, DescriptorArray::kEnumCacheOffset, Handle<Name>(),
+          Type::TaggedPointer(), kMachAnyTagged};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
+  return {kTaggedBase, DescriptorArray::kEnumCacheBridgeCacheOffset,
+          Handle<Name>(), Type::TaggedPointer(), kMachAnyTagged};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForMapBitField3() {
+  return {kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
+          Type::UntaggedUnsigned32(), kMachUint32};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForMapDescriptors() {
+  return {kTaggedBase, Map::kDescriptorsOffset, Handle<Name>(),
+          Type::TaggedPointer(), kMachAnyTagged};
+}
+
+
+// static
 FieldAccess AccessBuilder::ForMapInstanceType() {
   return {kTaggedBase, Map::kInstanceTypeOffset, Handle<Name>(),
           Type::UntaggedUnsigned8(), kMachUint8};

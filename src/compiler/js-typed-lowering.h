@@ -58,6 +58,10 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSCreateLiteralObject(Node* node);
   Reduction ReduceJSCreateWithContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
+  Reduction ReduceJSForInDone(Node* node);
+  Reduction ReduceJSForInNext(Node* node);
+  Reduction ReduceJSForInPrepare(Node* node);
+  Reduction ReduceJSForInStep(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
