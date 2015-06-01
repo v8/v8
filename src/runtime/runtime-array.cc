@@ -1293,8 +1293,7 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
       return isolate->heap()->true_value();
     }
     if (!current->HasDictionaryElements()) continue;
-    if (current->element_dictionary()
-            ->HasComplexElements<DictionaryEntryType::kObjects>()) {
+    if (current->element_dictionary()->HasComplexElements()) {
       return isolate->heap()->true_value();
     }
   }

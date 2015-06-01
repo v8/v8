@@ -7210,6 +7210,13 @@ Handle<FixedArray> NameDictionary::DoGenerateNewEnumerationIndices(
 }
 
 
+template <typename Dictionary>
+bool GlobalDictionaryShape::IsDeleted(Dictionary* dict, int entry) {
+  DCHECK(dict->ValueAt(entry)->IsPropertyCell());
+  return PropertyCell::cast(dict->ValueAt(entry))->value()->IsTheHole();
+}
+
+
 bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
   return key->SameValue(other);
 }

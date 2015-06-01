@@ -3598,9 +3598,6 @@ class StringTable: public HashTable<StringTable,
 };
 
 
-enum class DictionaryEntryType { kObjects, kCells };
-
-
 template <typename Derived, typename Shape, typename Key>
 class Dictionary: public HashTable<Derived, Shape, Key> {
   typedef HashTable<Derived, Shape, Key> DerivedHashTable;
@@ -3628,6 +3625,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
     this->set(Derived::EntryToIndex(entry) + 2, value.AsSmi());
   }
 
+  // Returns true if property at given entry is deleted.
+  bool IsDeleted(int entry) {
+    return Shape::IsDeleted(static_cast<Derived*>(this), entry);
+  }
+
   // Delete a property from the dictionary.
   static Handle<Object> DeleteProperty(Handle<Derived> dictionary, int entry);
 
@@ -3644,87 +3646,30 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
-  template <DictionaryEntryType type>
   int NumberOfElementsFilterAttributes(PropertyAttributes filter);
-  int NumberOfElementsFilterAttributes(Object* holder,
-                                       PropertyAttributes filter) {
-    if (holder->IsGlobalObject()) {
-      return NumberOfElementsFilterAttributes<DictionaryEntryType::kCells>(
-          filter);
-    } else {
-      return NumberOfElementsFilterAttributes<DictionaryEntryType::kObjects>(
-          filter);
-    }
-  }
 
   // Returns the number of enumerable elements in the dictionary.
-  template <DictionaryEntryType type>
   int NumberOfEnumElements() {
-    return NumberOfElementsFilterAttributes<type>(
+    return NumberOfElementsFilterAttributes(
         static_cast<PropertyAttributes>(DONT_ENUM | SYMBOLIC));
-  }
-  int NumberOfEnumElements(Object* holder) {
-    if (holder->IsGlobalObject()) {
-      return NumberOfEnumElements<DictionaryEntryType::kCells>();
-    } else {
-      return NumberOfEnumElements<DictionaryEntryType::kObjects>();
-    }
   }
 
   // Returns true if the dictionary contains any elements that are non-writable,
   // non-configurable, non-enumerable, or have getters/setters.
-  template <DictionaryEntryType type>
   bool HasComplexElements();
-  bool HasComplexElements(Object* holder) {
-    if (holder->IsGlobalObject()) {
-      return HasComplexElements<DictionaryEntryType::kCells>();
-    } else {
-      return HasComplexElements<DictionaryEntryType::kObjects>();
-    }
-  }
 
   enum SortMode { UNSORTED, SORTED };
 
   // Copies keys to preallocated fixed array.
-  template <DictionaryEntryType type>
   void CopyKeysTo(FixedArray* storage, PropertyAttributes filter,
                   SortMode sort_mode);
-  void CopyKeysTo(Object* holder, FixedArray* storage,
-                  PropertyAttributes filter, SortMode sort_mode) {
-    if (holder->IsGlobalObject()) {
-      return CopyKeysTo<DictionaryEntryType::kCells>(storage, filter,
-                                                     sort_mode);
-    } else {
-      return CopyKeysTo<DictionaryEntryType::kObjects>(storage, filter,
-                                                       sort_mode);
-    }
-  }
 
   // Fill in details for properties into storage.
-  template <DictionaryEntryType type>
   void CopyKeysTo(FixedArray* storage, int index, PropertyAttributes filter,
                   SortMode sort_mode);
-  void CopyKeysTo(Object* holder, FixedArray* storage, int index,
-                  PropertyAttributes filter, SortMode sort_mode) {
-    if (holder->IsGlobalObject()) {
-      return CopyKeysTo<DictionaryEntryType::kCells>(storage, index, filter,
-                                                     sort_mode);
-    } else {
-      return CopyKeysTo<DictionaryEntryType::kObjects>(storage, index, filter,
-                                                       sort_mode);
-    }
-  }
 
   // Copies enumerable keys to preallocated fixed array.
-  template <DictionaryEntryType type>
   void CopyEnumKeysTo(FixedArray* storage);
-  void CopyEnumKeysTo(Object* holder, FixedArray* storage) {
-    if (holder->IsGlobalObject()) {
-      return CopyEnumKeysTo<DictionaryEntryType::kCells>(storage);
-    } else {
-      return CopyEnumKeysTo<DictionaryEntryType::kObjects>(storage);
-    }
-  }
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
@@ -3806,7 +3751,17 @@ class NameDictionaryBase : public Dictionary<Derived, Shape, Handle<Name> > {
 };
 
 
-class NameDictionaryShape : public BaseShape<Handle<Name> > {
+template <typename Key>
+class BaseDictionaryShape : public BaseShape<Key> {
+ public:
+  template <typename Dictionary>
+  static bool IsDeleted(Dictionary* dict, int entry) {
+    return false;
+  }
+};
+
+
+class NameDictionaryShape : public BaseDictionaryShape<Handle<Name> > {
  public:
   static inline bool IsMatch(Handle<Name> key, Object* other);
   static inline uint32_t Hash(Handle<Name> key);
@@ -3834,6 +3789,9 @@ class NameDictionary
 class GlobalDictionaryShape : public NameDictionaryShape {
  public:
   static const int kEntrySize = 3;  // Overrides NameDictionaryShape::kEntrySize
+
+  template <typename Dictionary>
+  static bool IsDeleted(Dictionary* dict, int entry);
 };
 
 
@@ -3844,7 +3802,7 @@ class GlobalDictionary
 };
 
 
-class NumberDictionaryShape : public BaseShape<uint32_t> {
+class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);

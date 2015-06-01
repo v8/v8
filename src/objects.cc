@@ -6384,21 +6384,21 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
     return storage;
   } else if (object->IsGlobalObject()) {
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
-    int length = dictionary->NumberOfEnumElements(*object);
+    int length = dictionary->NumberOfEnumElements();
     if (length == 0) {
       return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
     }
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
-    dictionary->CopyEnumKeysTo(*object, *storage);
+    dictionary->CopyEnumKeysTo(*storage);
     return storage;
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary());
-    int length = dictionary->NumberOfEnumElements(*object);
+    int length = dictionary->NumberOfEnumElements();
     if (length == 0) {
       return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
     }
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
-    dictionary->CopyEnumKeysTo(*object, *storage);
+    dictionary->CopyEnumKeysTo(*storage);
     return storage;
   }
 }
@@ -14063,7 +14063,8 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
       } else {
         os << Brief(k);
       }
-      os << ": " << Brief(ValueAt(i)) << " " << DetailsAt(i) << "\n";
+      os << ": " << Brief(this->ValueAt(i)) << " " << this->DetailsAt(i)
+         << "\n";
     }
   }
 }
@@ -14079,7 +14080,7 @@ void Dictionary<Derived, Shape, Key>::CopyValuesTo(FixedArray* elements) {
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k)) {
-      elements->set(pos++, ValueAt(i), mode);
+      elements->set(pos++, this->ValueAt(i), mode);
     }
   }
   DCHECK(pos == elements->length());
@@ -14254,10 +14255,9 @@ int JSObject::NumberOfOwnProperties(PropertyAttributes filter) {
     }
     return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
   } else if (IsGlobalObject()) {
-    return global_dictionary()->NumberOfElementsFilterAttributes(this, filter);
+    return global_dictionary()->NumberOfElementsFilterAttributes(filter);
   } else {
-    return property_dictionary()->NumberOfElementsFilterAttributes(this,
-                                                                   filter);
+    return property_dictionary()->NumberOfElementsFilterAttributes(filter);
   }
 }
 
@@ -14391,10 +14391,10 @@ void JSObject::GetOwnPropertyNames(
       }
     }
   } else if (IsGlobalObject()) {
-    global_dictionary()->CopyKeysTo(this, storage, index, filter,
+    global_dictionary()->CopyKeysTo(storage, index, filter,
                                     GlobalDictionary::UNSORTED);
   } else {
-    property_dictionary()->CopyKeysTo(this, storage, index, filter,
+    property_dictionary()->CopyKeysTo(storage, index, filter,
                                       NameDictionary::UNSORTED);
   }
 }
@@ -14478,13 +14478,10 @@ int JSObject::GetOwnElementKeys(FixedArray* storage,
 
     case DICTIONARY_ELEMENTS: {
       if (storage != NULL) {
-        element_dictionary()->CopyKeysTo<DictionaryEntryType::kObjects>(
-            storage, filter, SeededNumberDictionary::SORTED);
+        element_dictionary()->CopyKeysTo(storage, filter,
+                                         SeededNumberDictionary::SORTED);
       }
-      counter +=
-          element_dictionary()
-              ->NumberOfElementsFilterAttributes<DictionaryEntryType::kObjects>(
-                  filter);
+      counter += element_dictionary()->NumberOfElementsFilterAttributes(filter);
       break;
     }
     case SLOPPY_ARGUMENTS_ELEMENTS: {
@@ -14497,11 +14494,10 @@ int JSObject::GetOwnElementKeys(FixedArray* storage,
         SeededNumberDictionary* dictionary =
             SeededNumberDictionary::cast(arguments);
         if (storage != NULL) {
-          dictionary->CopyKeysTo<DictionaryEntryType::kObjects>(
-              storage, filter, SeededNumberDictionary::UNSORTED);
+          dictionary->CopyKeysTo(storage, filter,
+                                 SeededNumberDictionary::UNSORTED);
         }
-        counter += dictionary->NumberOfElementsFilterAttributes<
-            DictionaryEntryType::kObjects>(filter);
+        counter += dictionary->NumberOfElementsFilterAttributes(filter);
         for (int i = 0; i < mapped_length; ++i) {
           if (!parameter_map->get(i + 2)->IsTheHole()) {
             if (storage != NULL) storage->set(counter, Smi::FromInt(i));
@@ -15166,13 +15162,8 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     EnsureCapacity(Handle<NameDictionary>, int, Handle<Name>);
 
-template bool
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
-           uint32_t>::HasComplexElements<DictionaryEntryType::kCells>();
-
-template bool
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
-           uint32_t>::HasComplexElements<DictionaryEntryType::kObjects>();
+template bool Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
+                         uint32_t>::HasComplexElements();
 
 template int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape,
                        uint32_t>::FindEntry(uint32_t);
@@ -16252,22 +16243,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
 }
 
 
-template <DictionaryEntryType type, typename D>
-static inline bool IsDeleted(D d, int i) {
-  switch (type) {
-    case DictionaryEntryType::kObjects:
-      return false;
-    case DictionaryEntryType::kCells:
-      DCHECK(d->ValueAt(i)->IsPropertyCell());
-      return PropertyCell::cast(d->ValueAt(i))->value()->IsTheHole();
-  }
-  UNREACHABLE();
-  return false;
-}
-
-
 template <typename Derived, typename Shape, typename Key>
-template <DictionaryEntryType type>
 int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
     PropertyAttributes filter) {
   int capacity = this->Capacity();
@@ -16275,8 +16251,8 @@ int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k) && !FilterKey(k, filter)) {
-      if (IsDeleted<type>(this, i)) continue;
-      PropertyDetails details = DetailsAt(i);
+      if (this->IsDeleted(i)) continue;
+      PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) result++;
     }
@@ -16286,14 +16262,13 @@ int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
 
 
 template <typename Derived, typename Shape, typename Key>
-template <DictionaryEntryType type>
 bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k) && !FilterKey(k, NONE)) {
-      if (IsDeleted<type>(this, i)) continue;
-      PropertyDetails details = DetailsAt(i);
+      if (this->IsDeleted(i)) continue;
+      PropertyDetails details = this->DetailsAt(i);
       if (details.type() == ACCESSOR_CONSTANT) return true;
       PropertyAttributes attr = details.attributes();
       if (attr & (READ_ONLY | DONT_DELETE | DONT_ENUM)) return true;
@@ -16304,18 +16279,17 @@ bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
 
 
 template <typename Derived, typename Shape, typename Key>
-template <DictionaryEntryType type>
 void Dictionary<Derived, Shape, Key>::CopyKeysTo(
     FixedArray* storage, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
-  DCHECK(storage->length() >= NumberOfElementsFilterAttributes<type>(filter));
+  DCHECK(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = this->Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k) && !FilterKey(k, filter)) {
-      if (IsDeleted<type>(this, i)) continue;
-      PropertyDetails details = DetailsAt(i);
+      if (this->IsDeleted(i)) continue;
+      PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) storage->set(index++, k);
     }
@@ -16340,7 +16314,6 @@ struct EnumIndexComparator {
 
 
 template <typename Derived, typename Shape, typename Key>
-template <DictionaryEntryType type>
 void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(FixedArray* storage) {
   int length = storage->length();
   int capacity = this->Capacity();
@@ -16348,12 +16321,12 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(FixedArray* storage) {
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k) && !k->IsSymbol()) {
-       PropertyDetails details = DetailsAt(i);
-       if (details.IsDontEnum() || IsDeleted<type>(this, i)) continue;
-       storage->set(properties, Smi::FromInt(i));
-       properties++;
-       if (properties == length) break;
-     }
+      PropertyDetails details = this->DetailsAt(i);
+      if (details.IsDontEnum() || this->IsDeleted(i)) continue;
+      storage->set(properties, Smi::FromInt(i));
+      properties++;
+      if (properties == length) break;
+    }
   }
   CHECK_EQ(length, properties);
   EnumIndexComparator<Derived> cmp(static_cast<Derived*>(this));
@@ -16367,17 +16340,16 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(FixedArray* storage) {
 
 
 template <typename Derived, typename Shape, typename Key>
-template <DictionaryEntryType type>
 void Dictionary<Derived, Shape, Key>::CopyKeysTo(
     FixedArray* storage, int index, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
-  DCHECK(storage->length() >= NumberOfElementsFilterAttributes<type>(filter));
+  DCHECK(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k) && !FilterKey(k, filter)) {
-      if (IsDeleted<type>(this, i)) continue;
-      PropertyDetails details = DetailsAt(i);
+      if (this->IsDeleted(i)) continue;
+      PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) storage->set(index++, k);
     }
@@ -16396,7 +16368,7 @@ Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k)) {
-      Object* e = ValueAt(i);
+      Object* e = this->ValueAt(i);
       // TODO(dcarney): this should be templatized.
       if (e->IsPropertyCell()) {
         e = PropertyCell::cast(e)->value();
