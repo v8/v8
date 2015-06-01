@@ -1715,15 +1715,9 @@ class PreParserTraits {
     return PreParserExpression::This();
   }
 
-  static PreParserExpression SuperPropertyReference(Scope* scope,
-                                                    PreParserFactory* factory,
-                                                    int pos) {
-    return PreParserExpression::Default();
-  }
-
-  static PreParserExpression SuperCallReference(Scope* scope,
-                                                PreParserFactory* factory,
-                                                int pos) {
+  static PreParserExpression SuperReference(Scope* scope,
+                                            PreParserFactory* factory,
+                                            int pos) {
     return PreParserExpression::Default();
   }
 
@@ -3521,7 +3515,7 @@ ParserBase<Traits>::ParseStrongSuperCallExpression(
   Consume(Token::SUPER);
   int pos = position();
   Scanner::Location super_loc = scanner()->location();
-  ExpressionT expr = this->SuperCallReference(scope_, factory(), pos);
+  ExpressionT expr = this->SuperReference(scope_, factory(), pos);
 
   if (peek() != Token::LPAREN) {
     ReportMessage(MessageTemplate::kStrongConstructorSuper);
@@ -3586,7 +3580,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
       i::IsConstructor(kind)) {
     if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
       scope->RecordSuperPropertyUsage();
-      return this->SuperPropertyReference(scope_, factory(), pos);
+      return this->SuperReference(scope_, factory(), pos);
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
@@ -3601,7 +3595,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       function_state_->set_super_location(scanner()->location());
-      return this->SuperCallReference(scope_, factory(), pos);
+      return this->SuperReference(scope_, factory(), pos);
     }
   }
 

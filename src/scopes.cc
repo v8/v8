@@ -160,7 +160,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   function_ = nullptr;
   arguments_ = nullptr;
   home_object_ = nullptr;
-  this_function_ = nullptr;
   illegal_redecl_ = nullptr;
   scope_inside_with_ = false;
   scope_contains_with_ = false;
@@ -309,44 +308,45 @@ void Scope::Initialize() {
   }
 
   // Declare convenience variables and the receiver.
-  if (is_declaration_scope() && has_this_declaration()) {
-    Variable* var = variables_.Declare(
-        this, ast_value_factory_->this_string(),
-        subclass_constructor ? CONST : VAR, Variable::THIS,
-        subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
-    receiver_ = var;
-  }
-
-  if (is_function_scope()) {
-    if (!is_arrow_scope()) {
-      // Declare 'arguments' variable which exists in all non arrow functions.
-      // Note that it might never be accessed, in which case it won't be
-      // allocated during variable allocation.
-      variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
-                         Variable::ARGUMENTS, kCreatedInitialized);
+  if (is_declaration_scope()) {
+    DCHECK(!subclass_constructor || is_function_scope());
+    if (has_this_declaration()) {
+      Variable* var = variables_.Declare(
+          this, ast_value_factory_->this_string(),
+          subclass_constructor ? CONST : VAR, Variable::THIS,
+          subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
+      receiver_ = var;
     }
 
     if (subclass_constructor) {
-      DCHECK(!is_arrow_scope());
-      variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
-                         Variable::NORMAL, kCreatedInitialized);
+      new_target_ =
+          variables_.Declare(this, ast_value_factory_->new_target_string(),
+                             CONST, Variable::NEW_TARGET, kCreatedInitialized);
+      new_target_->AllocateTo(Variable::PARAMETER, -2);
+      new_target_->set_is_used();
     }
+  }
 
-    if (IsConciseMethod(function_kind_) || IsConstructor(function_kind_) ||
-        IsAccessorFunction(function_kind_)) {
-      DCHECK(!is_arrow_scope());
-      // Declare '.home_object' variable which exists in all methods.
-      // Note that it might never be accessed, in which case it won't be
-      // allocated during variable allocation.
-      variables_.Declare(this, ast_value_factory_->home_object_string(), CONST,
-                         Variable::NORMAL, kCreatedInitialized);
-    }
+  if (is_function_scope() && !is_arrow_scope()) {
+    // Declare 'arguments' variable which exists in all non arrow functions.
+    // Note that it might never be accessed, in which case it won't be
+    // allocated during variable allocation.
+    variables_.Declare(this,
+                       ast_value_factory_->arguments_string(),
+                       VAR,
+                       Variable::ARGUMENTS,
+                       kCreatedInitialized);
+  }
 
-    if (IsSubclassConstructor(function_kind_)) {
-      DCHECK(!is_arrow_scope());
-      variables_.Declare(this, ast_value_factory_->this_function_string(),
-                         CONST, Variable::NORMAL, kCreatedInitialized);
-    }
+  if (is_function_scope() &&
+      (IsConciseMethod(function_kind_) || IsConstructor(function_kind_) ||
+       IsAccessorFunction(function_kind_))) {
+    DCHECK(!is_arrow_scope());
+    // Declare '.home_object' variable which exists in all methods.
+    // Note that it might never be accessed, in which case it won't be
+    // allocated during variable allocation.
+    variables_.Declare(this, ast_value_factory_->home_object_string(), VAR,
+                       Variable::NORMAL, kCreatedInitialized);
   }
 }
 
@@ -1311,7 +1311,7 @@ bool Scope::MustAllocate(Variable* var) {
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
-  if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
+  if ((var->is_this() || var->is_new_target() || !var->raw_name()->IsEmpty()) &&
       (var->has_forced_context_allocation() || scope_calls_eval_ ||
        inner_scope_calls_eval_ || scope_contains_with_ || is_catch_scope() ||
        is_block_scope() || is_module_scope() || is_script_scope())) {
@@ -1403,6 +1403,18 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
     rest_parameter_ = NULL;
   }
 
+  Variable* home_object_var =
+      LookupLocal(ast_value_factory_->home_object_string());
+  if (home_object_var != nullptr && uses_super_property() &&
+      MustAllocate(home_object_var)) {
+    // TODO(arv): super() uses a SuperReference so it generates a VariableProxy
+    // for the .home_object which makes it look like we need to allocate the
+    // home_object_var.
+    // Consider splitting the AST node into 2 different nodes since the
+    // semantics is just so different.
+    home_object_ = home_object_var;
+  }
+
   // The same parameter may occur multiple times in the parameters_ list.
   // If it does, and if it is not copied into the context object, it must
   // receive the highest parameter index for that parameter; thus iteration
@@ -1491,30 +1503,12 @@ void Scope::AllocateNonParameterLocals(Isolate* isolate) {
   // allocated in the context, it must be the last slot in the context,
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
-  if (function_ != nullptr) {
+  if (function_ != NULL) {
     AllocateNonParameterLocal(isolate, function_->proxy()->var());
   }
 
-  if (rest_parameter_ != nullptr) {
+  if (rest_parameter_) {
     AllocateNonParameterLocal(isolate, rest_parameter_);
-  }
-
-  Variable* home_object_var =
-      LookupLocal(ast_value_factory_->home_object_string());
-  if (home_object_var != nullptr && MustAllocate(home_object_var)) {
-    home_object_ = home_object_var;
-  }
-
-  Variable* new_target_var =
-      LookupLocal(ast_value_factory_->new_target_string());
-  if (new_target_var != nullptr && MustAllocate(new_target_var)) {
-    new_target_ = new_target_var;
-  }
-
-  Variable* this_function_var =
-      LookupLocal(ast_value_factory_->this_function_string());
-  if (this_function_var != nullptr && MustAllocate(this_function_var)) {
-    this_function_ = this_function_var;
   }
 }
 

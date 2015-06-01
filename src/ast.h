@@ -87,8 +87,7 @@ namespace internal {
   V(CompareOperation)           \
   V(Spread)                     \
   V(ThisFunction)               \
-  V(SuperPropertyReference)     \
-  V(SuperCallReference)         \
+  V(SuperReference)             \
   V(CaseClause)
 
 #define AST_NODE_LIST(V)                        \
@@ -1761,7 +1760,9 @@ class Property final : public Expression {
   }
   bool is_for_call() const { return IsForCallField::decode(bit_field_); }
 
-  bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
+  bool IsSuperAccess() {
+    return obj()->IsSuperReference();
+  }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate, const ICSlotCache* cache) override {
@@ -2790,16 +2791,16 @@ class ThisFunction final : public Expression {
 };
 
 
-class SuperPropertyReference final : public Expression {
+class SuperReference final : public Expression {
  public:
-  DECLARE_NODE_TYPE(SuperPropertyReference)
+  DECLARE_NODE_TYPE(SuperReference)
 
   VariableProxy* this_var() const { return this_var_; }
   VariableProxy* home_object_var() const { return home_object_var_; }
 
  protected:
-  SuperPropertyReference(Zone* zone, VariableProxy* this_var,
-                         VariableProxy* home_object_var, int pos)
+  SuperReference(Zone* zone, VariableProxy* this_var,
+                 VariableProxy* home_object_var, int pos)
       : Expression(zone, pos),
         this_var_(this_var),
         home_object_var_(home_object_var) {
@@ -2810,34 +2811,6 @@ class SuperPropertyReference final : public Expression {
  private:
   VariableProxy* this_var_;
   VariableProxy* home_object_var_;
-};
-
-
-class SuperCallReference final : public Expression {
- public:
-  DECLARE_NODE_TYPE(SuperCallReference)
-
-  VariableProxy* this_var() const { return this_var_; }
-  VariableProxy* new_target_var() const { return new_target_var_; }
-  VariableProxy* this_function_var() const { return this_function_var_; }
-
- protected:
-  SuperCallReference(Zone* zone, VariableProxy* this_var,
-                     VariableProxy* new_target_var,
-                     VariableProxy* this_function_var, int pos)
-      : Expression(zone, pos),
-        this_var_(this_var),
-        new_target_var_(new_target_var),
-        this_function_var_(this_function_var) {
-    DCHECK(this_var->is_this());
-    DCHECK(new_target_var->raw_name()->IsOneByteEqualTo("new.target"));
-    DCHECK(this_function_var->raw_name()->IsOneByteEqualTo(".this_function"));
-  }
-
- private:
-  VariableProxy* this_var_;
-  VariableProxy* new_target_var_;
-  VariableProxy* this_function_var_;
 };
 
 
@@ -3608,18 +3581,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) ThisFunction(zone_, pos);
   }
 
-  SuperPropertyReference* NewSuperPropertyReference(
-      VariableProxy* this_var, VariableProxy* home_object_var, int pos) {
-    return new (zone_)
-        SuperPropertyReference(zone_, this_var, home_object_var, pos);
-  }
-
-  SuperCallReference* NewSuperCallReference(VariableProxy* this_var,
-                                            VariableProxy* new_target_var,
-                                            VariableProxy* this_function_var,
-                                            int pos) {
-    return new (zone_) SuperCallReference(zone_, this_var, new_target_var,
-                                          this_function_var, pos);
+  SuperReference* NewSuperReference(VariableProxy* this_var,
+                                    VariableProxy* home_object_var, int pos) {
+    return new (zone_) SuperReference(zone_, this_var, home_object_var, pos);
   }
 
  private:

@@ -672,9 +672,9 @@ class FullCodeGenerator: public AstVisitor {
       Expression* initializer, int offset,
       FeedbackVectorICSlot slot = FeedbackVectorICSlot::Invalid());
 
-  void EmitLoadSuperConstructor(SuperCallReference* super_call_ref);
+  void EmitLoadSuperConstructor();
   void EmitInitializeThisAfterSuper(
-      SuperCallReference* super_call_ref,
+      SuperReference* super_ref,
       FeedbackVectorICSlot slot = FeedbackVectorICSlot::Invalid());
 
   void CallIC(Handle<Code> code,

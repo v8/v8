@@ -67,8 +67,7 @@ void ALAA::VisitVariableProxy(VariableProxy* leaf) {}
 void ALAA::VisitLiteral(Literal* leaf) {}
 void ALAA::VisitRegExpLiteral(RegExpLiteral* leaf) {}
 void ALAA::VisitThisFunction(ThisFunction* leaf) {}
-void ALAA::VisitSuperPropertyReference(SuperPropertyReference* leaf) {}
-void ALAA::VisitSuperCallReference(SuperCallReference* leaf) {}
+void ALAA::VisitSuperReference(SuperReference* leaf) {}
 
 
 // ---------------------------------------------------------------------------

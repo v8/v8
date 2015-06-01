@@ -276,12 +276,7 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void BreakableStatementChecker::VisitSuperPropertyReference(
-    SuperPropertyReference* expr) {}
-
-
-void BreakableStatementChecker::VisitSuperCallReference(
-    SuperCallReference* expr) {}
+void BreakableStatementChecker::VisitSuperReference(SuperReference* expr) {}
 
 
 #define __ ACCESS_MASM(masm())
@@ -673,13 +668,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitSuperPropertyReference(
-    SuperPropertyReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
-}
-
-
-void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
+void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
   __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
 }
 
@@ -986,12 +975,6 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
   __ InvokeBuiltin(Builtins::TO_NAME, CALL_FUNCTION);
   PrepareForBailoutForId(bailout_id, NO_REGISTERS);
   __ Push(result_register());
-}
-
-
-void FullCodeGenerator::EmitLoadSuperConstructor(SuperCallReference* ref) {
-  VisitForStackValue(ref->this_function_var());
-  __ CallRuntime(Runtime::kGetPrototype, 1);
 }
 
 

@@ -2590,15 +2590,7 @@ void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void AstGraphBuilder::VisitSuperPropertyReference(
-    SuperPropertyReference* expr) {
-  // TODO(turbofan): Implement super here.
-  SetStackOverflow();
-  ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
-}
-
-
-void AstGraphBuilder::VisitSuperCallReference(SuperCallReference* expr) {
+void AstGraphBuilder::VisitSuperReference(SuperReference* expr) {
   // TODO(turbofan): Implement super here.
   SetStackOverflow();
   ast_context()->ProduceValue(jsgraph()->UndefinedConstant());

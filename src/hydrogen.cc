@@ -11568,16 +11568,7 @@ void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void HOptimizedGraphBuilder::VisitSuperPropertyReference(
-    SuperPropertyReference* expr) {
-  DCHECK(!HasStackOverflow());
-  DCHECK(current_block() != NULL);
-  DCHECK(current_block()->HasPredecessor());
-  return Bailout(kSuperReference);
-}
-
-
-void HOptimizedGraphBuilder::VisitSuperCallReference(SuperCallReference* expr) {
+void HOptimizedGraphBuilder::VisitSuperReference(SuperReference* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());

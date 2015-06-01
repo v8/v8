@@ -72,8 +72,8 @@ namespace internal {
   F(StoreKeyedToSuper_Strict, 4, 1)           \
   F(StoreKeyedToSuper_Sloppy, 4, 1)           \
   F(HandleStepInForDerivedConstructors, 1, 1) \
-  F(DefaultConstructorCallSuper, 2, 1)        \
-  F(CallSuperWithSpread, 1, 1)
+  F(DefaultConstructorCallSuper, 0, 1)        \
+  F(CallSuperWithSpread, 0, 1)
 
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \

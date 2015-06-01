@@ -359,17 +359,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     AddAssertIsConstruct(body, pos);
     if (call_super) {
-      // %_DefaultConstructorCallSuper(new.target, .this_function)
       ZoneList<Expression*>* args =
-          new (zone()) ZoneList<Expression*>(2, zone());
-      VariableProxy* new_target_proxy = scope_->NewUnresolved(
-          factory(), ast_value_factory()->new_target_string(), Variable::NORMAL,
-          pos);
-      args->Add(new_target_proxy, zone());
-      VariableProxy* this_function_proxy = scope_->NewUnresolved(
-          factory(), ast_value_factory()->this_function_string(),
-          Variable::NORMAL, pos);
-      args->Add(this_function_proxy, zone());
+          new (zone()) ZoneList<Expression*>(0, zone());
       CallRuntime* call = factory()->NewCallRuntime(
           ast_value_factory()->empty_string(),
           Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper),
@@ -756,29 +747,16 @@ Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
                               Variable::THIS, pos, pos + 4);
 }
 
-Expression* ParserTraits::SuperPropertyReference(Scope* scope,
-                                                 AstNodeFactory* factory,
-                                                 int pos) {
+Expression* ParserTraits::SuperReference(Scope* scope, AstNodeFactory* factory,
+                                         int pos) {
+  // TODO(arv): Split into SuperProperty and SuperCall?
   VariableProxy* home_object_proxy = scope->NewUnresolved(
       factory, parser_->ast_value_factory()->home_object_string(),
       Variable::NORMAL, pos);
-  return factory->NewSuperPropertyReference(
+
+  return factory->NewSuperReference(
       ThisExpression(scope, factory, pos)->AsVariableProxy(), home_object_proxy,
       pos);
-}
-
-
-Expression* ParserTraits::SuperCallReference(Scope* scope,
-                                             AstNodeFactory* factory, int pos) {
-  VariableProxy* new_target_proxy = scope->NewUnresolved(
-      factory, parser_->ast_value_factory()->new_target_string(),
-      Variable::NORMAL, pos);
-  VariableProxy* this_function_proxy = scope->NewUnresolved(
-      factory, parser_->ast_value_factory()->this_function_string(),
-      Variable::NORMAL, pos);
-  return factory->NewSuperCallReference(
-      ThisExpression(scope, factory, pos)->AsVariableProxy(), new_target_proxy,
-      this_function_proxy, pos);
 }
 
 
@@ -5766,14 +5744,13 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
 Expression* Parser::SpreadCall(Expression* function,
                                ZoneList<v8::internal::Expression*>* args,
                                int pos) {
-  if (function->IsSuperCallReference()) {
+  if (function->IsSuperReference()) {
     // Super calls
-    // %_CallSuperWithSpread(%ReflectConstruct(<super>, args, new.target))
     args->InsertAt(0, function, zone());
-    args->Add(function->AsSuperCallReference()->new_target_var(), zone());
+    args->Add(factory()->NewVariableProxy(scope_->new_target_var()), zone());
     Expression* result = factory()->NewCallRuntime(
         ast_value_factory()->reflect_construct_string(), NULL, args, pos);
-    args = new (zone()) ZoneList<Expression*>(1, zone());
+    args = new (zone()) ZoneList<Expression*>(0, zone());
     args->Add(result, zone());
     return factory()->NewCallRuntime(
         ast_value_factory()->empty_string(),
