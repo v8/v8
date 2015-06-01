@@ -1232,10 +1232,11 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // any more. If the property has been removed while iterating, we
   // just skip it.
   __ Push(r4, r6);  // Enumerable and current entry.
-  __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kForInFilter, 2);
   PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
   __ mr(r6, r3);
-  __ cmpi(r6, Operand::Zero());
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ cmp(r3, r0);
   __ beq(loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
