@@ -3142,7 +3142,7 @@ def AnalyzeMinidump(options, minidump_name):
             oom_comment = " <----- HeapStats start marker"
           elif maybe_address_contents == 0xdecade01:
             oom_comment = " <----- HeapStats end marker"
-          else:
+          elif maybe_address_contents is not None:
             oom_comment = " %d (%d Mbytes)" % (maybe_address_contents,
                                             maybe_address_contents >> 20)
         if slot == frame_pointer:
