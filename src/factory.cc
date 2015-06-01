@@ -1583,8 +1583,8 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
 
   // Allocate a dictionary object for backing storage.
   int at_least_space_for = map->NumberOfOwnDescriptors() * 2 + initial_size;
-  Handle<NameDictionary> dictionary =
-      NameDictionary::New(isolate(), at_least_space_for);
+  Handle<GlobalDictionary> dictionary =
+      GlobalDictionary::New(isolate(), at_least_space_for);
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
@@ -1599,7 +1599,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
     Handle<PropertyCell> cell = NewPropertyCell();
     cell->set_value(descs->GetCallbacksObject(i));
     // |dictionary| already contains enough space for all properties.
-    USE(NameDictionary::Add(dictionary, name, cell, d));
+    USE(GlobalDictionary::Add(dictionary, name, cell, d));
   }
 
   // Allocate the global object and initialize it with the backing store.

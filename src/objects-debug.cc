@@ -1064,6 +1064,11 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_objects_with_fast_properties_++;
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
+  } else if (IsGlobalObject()) {
+    GlobalDictionary* dict = global_dictionary();
+    info->number_of_slow_used_properties_ += dict->NumberOfElements();
+    info->number_of_slow_unused_properties_ +=
+        dict->Capacity() - dict->NumberOfElements();
   } else {
     NameDictionary* dict = property_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();

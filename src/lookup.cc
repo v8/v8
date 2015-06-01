@@ -258,12 +258,12 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 Handle<Object> LookupIterator::FetchValue() const {
   Object* result = NULL;
   Handle<JSObject> holder = GetHolder<JSObject>();
-  if (holder_map_->is_dictionary_map()) {
+  if (holder_map_->IsGlobalObjectMap()) {
+    result = holder->global_dictionary()->ValueAt(number_);
+    DCHECK(result->IsPropertyCell());
+    result = PropertyCell::cast(result)->value();
+  } else if (holder_map_->is_dictionary_map()) {
     result = holder->property_dictionary()->ValueAt(number_);
-    if (holder_map_->IsGlobalObjectMap()) {
-      DCHECK(result->IsPropertyCell());
-      result = PropertyCell::cast(result)->value();
-    }
   } else if (property_details_.type() == v8::internal::DATA) {
     FieldIndex field_index = FieldIndex::ForDescriptor(*holder_map_, number_);
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
@@ -315,7 +315,7 @@ Handle<HeapType> LookupIterator::GetFieldType() const {
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   Handle<JSObject> holder = GetHolder<JSObject>();
   Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-  Object* value = global->property_dictionary()->ValueAt(dictionary_entry());
+  Object* value = global->global_dictionary()->ValueAt(dictionary_entry());
   DCHECK(value->IsPropertyCell());
   return handle(PropertyCell::cast(value));
 }
@@ -337,15 +337,15 @@ Handle<Object> LookupIterator::GetDataValue() const {
 void LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK_EQ(DATA, state_);
   Handle<JSObject> holder = GetHolder<JSObject>();
-  if (holder_map_->is_dictionary_map()) {
+  if (holder->IsGlobalObject()) {
+    Handle<GlobalDictionary> property_dictionary =
+        handle(holder->global_dictionary());
+    PropertyCell::UpdateCell(property_dictionary, dictionary_entry(), value,
+                             property_details_);
+  } else if (holder_map_->is_dictionary_map()) {
     Handle<NameDictionary> property_dictionary =
         handle(holder->property_dictionary());
-    if (holder->IsGlobalObject()) {
-      PropertyCell::UpdateCell(property_dictionary, dictionary_entry(), value,
-                               property_details_);
-    } else {
-      property_dictionary->ValueAtPut(dictionary_entry(), *value);
-    }
+    property_dictionary->ValueAtPut(dictionary_entry(), *value);
   } else if (property_details_.type() == v8::internal::DATA) {
     holder->WriteToField(descriptor_number(), *value);
   } else {

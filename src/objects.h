@@ -9945,11 +9945,11 @@ class PropertyCell : public HeapObject {
   static PropertyCellType UpdatedType(Handle<PropertyCell> cell,
                                       Handle<Object> value,
                                       PropertyDetails details);
-  static void UpdateCell(Handle<NameDictionary> dictionary, int entry,
+  static void UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
                          Handle<Object> value, PropertyDetails details);
 
-  static Handle<PropertyCell> InvalidateEntry(Handle<NameDictionary> dictionary,
-                                              int entry);
+  static Handle<PropertyCell> InvalidateEntry(
+      Handle<GlobalDictionary> dictionary, int entry);
 
   static void SetValueWithInvalidation(Handle<PropertyCell> cell,
                                        Handle<Object> new_value);

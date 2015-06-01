@@ -592,18 +592,26 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
       DisallowHeapAllocation no_allocation;
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
-      if (!receiver->HasFastProperties()) {
+      if (receiver->IsGlobalObject()) {
+        // Attempt dictionary lookup.
+        GlobalDictionary* dictionary = receiver->global_dictionary();
+        int entry = dictionary->FindEntry(key);
+        if ((entry != GlobalDictionary::kNotFound) &&
+            (dictionary->DetailsAt(entry).type() == DATA)) {
+          Object* value = dictionary->ValueAt(entry);
+          DCHECK(value->IsPropertyCell());
+          value = PropertyCell::cast(value)->value();
+          if (!value->IsTheHole()) return value;
+          // If value is the hole (meaning, absent) do the general lookup.
+        }
+      } else if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.
         NameDictionary* dictionary = receiver->property_dictionary();
         int entry = dictionary->FindEntry(key);
         if ((entry != NameDictionary::kNotFound) &&
             (dictionary->DetailsAt(entry).type() == DATA)) {
           Object* value = dictionary->ValueAt(entry);
-          if (!receiver->IsGlobalObject()) return value;
-          DCHECK(value->IsPropertyCell());
-          value = PropertyCell::cast(value)->value();
-          if (!value->IsTheHole()) return value;
-          // If value is the hole (meaning, absent) do the general lookup.
+          return value;
         }
       }
     } else if (key_obj->IsSmi()) {

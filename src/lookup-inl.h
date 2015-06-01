@@ -64,16 +64,20 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         number_ = accessor->GetIndexForKey(backing_store, index_);
         if (number_ == kMaxUInt32) return NOT_FOUND;
         property_details_ = accessor->GetDetails(backing_store, number_);
+      } else if (holder->IsGlobalObject()) {
+        GlobalDictionary* dict = JSObject::cast(holder)->global_dictionary();
+        int number = dict->FindEntry(name_);
+        if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
+        number_ = static_cast<uint32_t>(number);
+        DCHECK(dict->ValueAt(number_)->IsPropertyCell());
+        PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
+        if (cell->value()->IsTheHole()) return NOT_FOUND;
+        property_details_ = dict->DetailsAt(number_);
       } else if (map->is_dictionary_map()) {
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
         int number = dict->FindEntry(name_);
         if (number == NameDictionary::kNotFound) return NOT_FOUND;
         number_ = static_cast<uint32_t>(number);
-        if (holder->IsGlobalObject()) {
-          DCHECK(dict->ValueAt(number_)->IsPropertyCell());
-          PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
-          if (cell->value()->IsTheHole()) return NOT_FOUND;
-        }
         property_details_ = dict->DetailsAt(number_);
       } else {
         DescriptorArray* descriptors = map->instance_descriptors();

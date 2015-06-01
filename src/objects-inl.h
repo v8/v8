@@ -6737,9 +6737,7 @@ bool JSObject::HasIndexedInterceptor() {
 
 NameDictionary* JSObject::property_dictionary() {
   DCHECK(!HasFastProperties());
-  // TODO(ishell): Uncomment, once all property_dictionary() usages for global
-  // objects are replaced with global_dictionary().
-  // DCHECK(!IsGlobalObject());
+  DCHECK(!IsGlobalObject());
   return NameDictionary::cast(properties());
 }
 

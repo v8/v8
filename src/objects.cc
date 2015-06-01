@@ -555,39 +555,44 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      Handle<Object> value,
                                      PropertyDetails details) {
   DCHECK(!object->HasFastProperties());
-  Handle<NameDictionary> property_dictionary(object->property_dictionary());
-
   if (!name->IsUniqueName()) {
     name = object->GetIsolate()->factory()->InternalizeString(
         Handle<String>::cast(name));
   }
 
-  int entry = property_dictionary->FindEntry(name);
-  if (entry == NameDictionary::kNotFound) {
-    if (object->IsGlobalObject()) {
+  if (object->IsGlobalObject()) {
+    Handle<GlobalDictionary> property_dictionary(object->global_dictionary());
+
+    int entry = property_dictionary->FindEntry(name);
+    if (entry == GlobalDictionary::kNotFound) {
       auto cell = object->GetIsolate()->factory()->NewPropertyCell();
       cell->set_value(*value);
       auto cell_type = value->IsUndefined() ? PropertyCellType::kUndefined
                                             : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
       value = cell;
+      property_dictionary =
+          GlobalDictionary::Add(property_dictionary, name, value, details);
+      object->set_properties(*property_dictionary);
+    } else {
+      PropertyCell::UpdateCell(property_dictionary, entry, value, details);
     }
-    property_dictionary =
-        NameDictionary::Add(property_dictionary, name, value, details);
-    object->set_properties(*property_dictionary);
-    return;
-  }
+  } else {
+    Handle<NameDictionary> property_dictionary(object->property_dictionary());
 
-  if (object->IsGlobalObject()) {
-    PropertyCell::UpdateCell(property_dictionary, entry, value, details);
-    return;
+    int entry = property_dictionary->FindEntry(name);
+    if (entry == NameDictionary::kNotFound) {
+      property_dictionary =
+          NameDictionary::Add(property_dictionary, name, value, details);
+      object->set_properties(*property_dictionary);
+    } else {
+      PropertyDetails original_details = property_dictionary->DetailsAt(entry);
+      int enumeration_index = original_details.dictionary_index();
+      DCHECK(enumeration_index > 0);
+      details = details.set_index(enumeration_index);
+      property_dictionary->SetEntry(entry, name, value, details);
+    }
   }
-
-  PropertyDetails original_details = property_dictionary->DetailsAt(entry);
-  int enumeration_index = original_details.dictionary_index();
-  DCHECK(enumeration_index > 0);
-  details = details.set_index(enumeration_index);
-  property_dictionary->SetEntry(entry, name, value, details);
 }
 
 
@@ -1804,12 +1809,12 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
                                PropertyAttributes attributes) {
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
-  Handle<NameDictionary> dict(object->property_dictionary());
-  PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
   if (object->IsGlobalObject()) {
+    Handle<GlobalDictionary> dict(object->global_dictionary());
+    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
     int entry = dict->FindEntry(name);
     // If there's a cell there, just invalidate and set the property.
-    if (entry != NameDictionary::kNotFound) {
+    if (entry != GlobalDictionary::kNotFound) {
       PropertyCell::UpdateCell(dict, entry, value, details);
       // TODO(dcarney): move this to UpdateCell.
       // Need to adjust the details.
@@ -1817,18 +1822,26 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
       dict->SetNextEnumerationIndex(index + 1);
       details = dict->DetailsAt(entry).set_index(index);
       dict->DetailsAtPut(entry, details);
-      return;
+
+    } else {
+      auto cell = isolate->factory()->NewPropertyCell();
+      cell->set_value(*value);
+      auto cell_type = value->IsUndefined() ? PropertyCellType::kUndefined
+                                            : PropertyCellType::kConstant;
+      details = details.set_cell_type(cell_type);
+      value = cell;
+
+      Handle<GlobalDictionary> result =
+          GlobalDictionary::Add(dict, name, value, details);
+      if (*dict != *result) object->set_properties(*result);
     }
-    auto cell = isolate->factory()->NewPropertyCell();
-    cell->set_value(*value);
-    auto cell_type = value->IsUndefined() ? PropertyCellType::kUndefined
-                                          : PropertyCellType::kConstant;
-    details = details.set_cell_type(cell_type);
-    value = cell;
+  } else {
+    Handle<NameDictionary> dict(object->property_dictionary());
+    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
+    Handle<NameDictionary> result =
+        NameDictionary::Add(dict, name, value, details);
+    if (*dict != *result) object->set_properties(*result);
   }
-  Handle<NameDictionary> result =
-      NameDictionary::Add(dict, name, value, details);
-  if (*dict != *result) object->set_properties(*result);
 }
 
 
@@ -5400,24 +5413,28 @@ void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
                                         Handle<Name> name) {
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
-  Handle<NameDictionary> dictionary(object->property_dictionary());
-  int entry = dictionary->FindEntry(name);
-  DCHECK_NE(NameDictionary::kNotFound, entry);
 
-  // If we have a global object, invalidate the cell and swap in a new one.
   if (object->IsGlobalObject()) {
+    // If we have a global object, invalidate the cell and swap in a new one.
+    Handle<GlobalDictionary> dictionary(object->global_dictionary());
+    int entry = dictionary->FindEntry(name);
+    DCHECK_NE(GlobalDictionary::kNotFound, entry);
+
     auto cell = PropertyCell::InvalidateEntry(dictionary, entry);
     cell->set_value(isolate->heap()->the_hole_value());
     // TODO(dcarney): InvalidateForDelete
     dictionary->DetailsAtPut(entry, dictionary->DetailsAt(entry).set_cell_type(
                                         PropertyCellType::kInvalidated));
-    return;
-  }
+  } else {
+    Handle<NameDictionary> dictionary(object->property_dictionary());
+    int entry = dictionary->FindEntry(name);
+    DCHECK_NE(NameDictionary::kNotFound, entry);
 
-  NameDictionary::DeleteProperty(dictionary, entry);
-  Handle<NameDictionary> new_properties =
-      NameDictionary::Shrink(dictionary, name);
-  object->set_properties(*new_properties);
+    NameDictionary::DeleteProperty(dictionary, entry);
+    Handle<NameDictionary> new_properties =
+        NameDictionary::Shrink(dictionary, name);
+    object->set_properties(*new_properties);
+  }
 }
 
 
@@ -5869,7 +5886,11 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
     JSObject::MigrateToMap(object, new_map);
 
     if (attrs != NONE) {
-      ApplyAttributesToDictionary(object->property_dictionary(), attrs);
+      if (object->IsGlobalObject()) {
+        ApplyAttributesToDictionary(object->global_dictionary(), attrs);
+      } else {
+        ApplyAttributesToDictionary(object->property_dictionary(), attrs);
+      }
     }
   }
 
@@ -6360,6 +6381,15 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
     if (cache_result) {
       object->map()->SetEnumLength(own_property_count);
     }
+    return storage;
+  } else if (object->IsGlobalObject()) {
+    Handle<GlobalDictionary> dictionary(object->global_dictionary());
+    int length = dictionary->NumberOfEnumElements(*object);
+    if (length == 0) {
+      return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
+    }
+    Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
+    dictionary->CopyEnumKeysTo(*object, *storage);
     return storage;
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary());
@@ -6940,6 +6970,8 @@ Object* JSObject::SlowReverseLookup(Object* value) {
       }
     }
     return GetHeap()->undefined_value();
+  } else if (IsGlobalObject()) {
+    return global_dictionary()->SlowReverseLookup(value);
   } else {
     return property_dictionary()->SlowReverseLookup(value);
   }
@@ -14221,8 +14253,12 @@ int JSObject::NumberOfOwnProperties(PropertyAttributes filter) {
       if (result != kInvalidEnumCacheSentinel) return result;
     }
     return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
+  } else if (IsGlobalObject()) {
+    return global_dictionary()->NumberOfElementsFilterAttributes(this, filter);
+  } else {
+    return property_dictionary()->NumberOfElementsFilterAttributes(this,
+                                                                   filter);
   }
-  return property_dictionary()->NumberOfElementsFilterAttributes(this, filter);
 }
 
 
@@ -14354,6 +14390,9 @@ void JSObject::GetOwnPropertyNames(
         storage->set(index++, descs->GetKey(i));
       }
     }
+  } else if (IsGlobalObject()) {
+    global_dictionary()->CopyKeysTo(this, storage, index, filter,
+                                    GlobalDictionary::UNSORTED);
   } else {
     property_dictionary()->CopyKeysTo(this, storage, index, filter,
                                       NameDictionary::UNSORTED);
@@ -15021,6 +15060,9 @@ template class HashTable<WeakHashTable, WeakHashTableShape<2>, Handle<Object> >;
 
 template class Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >;
 
+template class Dictionary<GlobalDictionary, GlobalDictionaryShape,
+                          Handle<Name> >;
+
 template class Dictionary<SeededNumberDictionary,
                           SeededNumberDictionaryShape,
                           uint32_t>;
@@ -15040,6 +15082,10 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     New(Isolate*, int n, PretenureFlag pretenure);
+
+template Handle<GlobalDictionary>
+Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name> >::New(
+    Isolate*, int n, PretenureFlag pretenure);
 
 template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15080,6 +15126,11 @@ HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::Add(
     Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails);
+
+template Handle<GlobalDictionary>
+    Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name> >::Add(
+        Handle<GlobalDictionary>, Handle<Name>, Handle<Object>,
+        PropertyDetails);
 
 template Handle<FixedArray> Dictionary<
     NameDictionary, NameDictionaryShape,
@@ -15570,9 +15621,9 @@ Handle<Object> ExternalFloat64Array::SetValue(
 void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
                                           Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
-  auto dictionary = handle(global->property_dictionary());
+  auto dictionary = handle(global->global_dictionary());
   int entry = dictionary->FindEntry(name);
-  if (entry == NameDictionary::kNotFound) return;
+  if (entry == GlobalDictionary::kNotFound) return;
   PropertyCell::InvalidateEntry(dictionary, entry);
 }
 
@@ -15581,10 +15632,10 @@ void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
 Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
     Handle<GlobalObject> global, Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
-  auto dictionary = handle(global->property_dictionary());
+  auto dictionary = handle(global->global_dictionary());
   int entry = dictionary->FindEntry(name);
   Handle<PropertyCell> cell;
-  if (entry != NameDictionary::kNotFound) {
+  if (entry != GlobalDictionary::kNotFound) {
     // This call should be idempotent.
     DCHECK(dictionary->DetailsAt(entry).cell_type() ==
                PropertyCellType::kUninitialized ||
@@ -15598,7 +15649,7 @@ Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
   Isolate* isolate = global->GetIsolate();
   cell = isolate->factory()->NewPropertyCell();
   PropertyDetails details(NONE, DATA, 0, PropertyCellType::kUninitialized);
-  dictionary = NameDictionary::Add(dictionary, name, cell, details);
+  dictionary = GlobalDictionary::Add(dictionary, name, cell, details);
   global->set_properties(*dictionary);
   return cell;
 }
@@ -17272,7 +17323,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 
 
 Handle<PropertyCell> PropertyCell::InvalidateEntry(
-    Handle<NameDictionary> dictionary, int entry) {
+    Handle<GlobalDictionary> dictionary, int entry) {
   Isolate* isolate = dictionary->GetIsolate();
   // Swap with a copy.
   DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
@@ -17355,7 +17406,7 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
 }
 
 
-void PropertyCell::UpdateCell(Handle<NameDictionary> dictionary, int entry,
+void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
                               Handle<Object> value, PropertyDetails details) {
   DCHECK(!value->IsTheHole());
   DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());

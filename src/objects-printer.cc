@@ -255,6 +255,8 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
           break;
       }
     }
+  } else if (IsGlobalObject()) {
+    global_dictionary()->Print(os);
   } else {
     property_dictionary()->Print(os);
   }
