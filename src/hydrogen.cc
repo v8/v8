@@ -9727,18 +9727,8 @@ HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
           native_context, nullptr,
           HObjectAccess::ForContextSlot(Context::ARRAY_BUFFER_MAP_INDEX)));
 
-  HConstant* empty_fixed_array =
-      Add<HConstant>(isolate()->factory()->empty_fixed_array());
-  Add<HStoreNamedField>(
-      result, HObjectAccess::ForJSArrayOffset(JSArray::kPropertiesOffset),
-      empty_fixed_array);
-  Add<HStoreNamedField>(
-      result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
-      empty_fixed_array);
-  Add<HStoreNamedField>(
-      result, HObjectAccess::ForJSArrayBufferBackingStore().WithRepresentation(
-                  Representation::Smi()),
-      graph()->GetConstant0());
+  Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferBackingStore(),
+                        Add<HConstant>(ExternalReference()));
   Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferByteLength(),
                         byte_length);
   Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferBitFieldSlot(),
@@ -9945,7 +9935,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(kObjectArg)));
   HValue* obj = Pop();
 
-  if (!arguments->at(kArrayIdArg)->IsLiteral()) {
+  if (arguments->at(kArrayIdArg)->IsLiteral()) {
     // This should never happen in real use, but can happen when fuzzing.
     // Just bail out.
     Bailout(kNeedSmiLiteral);
