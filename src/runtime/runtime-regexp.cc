@@ -638,7 +638,11 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // fresly allocated page or on an already swept page. Hence, the sweeper
   // thread can not get confused with the filler creation. No synchronization
   // needed.
-  heap->CreateFillerObjectAt(end_of_string, delta);
+  // TODO(hpayer): We should shrink the large object page if the size
+  // of the object changed significantly.
+  if (!heap->lo_space()->Contains(*answer)) {
+    heap->CreateFillerObjectAt(end_of_string, delta);
+  }
   heap->AdjustLiveBytes(answer->address(), -delta, Heap::CONCURRENT_TO_SWEEPER);
   return *answer;
 }
