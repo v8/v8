@@ -3138,7 +3138,6 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
     return false;
   }
 
-#if V8_DOUBLE_FIELDS_UNBOXING
   // |object| is NULL only when the slot belongs to large object space.
   DCHECK(object != NULL ||
          Page::FromAnyPointerAddress(heap_, slot)->owner() ==
@@ -3146,15 +3145,32 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
   // We don't need to check large objects' layout descriptor since it can't
   // contain in-object fields anyway.
   if (object != NULL) {
-    // Filter out slots that happens to point to unboxed double fields.
-    LayoutDescriptorHelper helper(object->map());
-    bool has_only_tagged_fields = helper.all_fields_tagged();
-    if (!has_only_tagged_fields &&
-        !helper.IsTagged(static_cast<int>(slot - object->address()))) {
-      return false;
+    // TODO(ishell): This is a workaround for crbug/454297. We must not have
+    // slots in data objects at all. Remove this once we found the root cause.
+    InstanceType type = object->map()->instance_type();
+    // Slots in maps and code can't be invalid because they are never shrunk.
+    if (type == MAP_TYPE || type == CODE_TYPE) return true;
+    if (type == CONSTANT_POOL_ARRAY_TYPE) {
+      if (FLAG_enable_ool_constant_pool) {
+        // TODO(ishell): implement constant pool support if we ever enable it.
+        UNIMPLEMENTED();
+      } else {
+        // This is left here just to make constant pool unit tests work.
+        return true;
+      }
+    }
+    // Consider slots in objects that contain ONLY raw data as invalid.
+    if (object->MayContainRawValues()) return false;
+    if (FLAG_unbox_double_fields) {
+      // Filter out slots that happen to point to unboxed double fields.
+      LayoutDescriptorHelper helper(object->map());
+      bool has_only_tagged_fields = helper.all_fields_tagged();
+      if (!has_only_tagged_fields &&
+          !helper.IsTagged(static_cast<int>(slot - object->address()))) {
+        return false;
+      }
     }
   }
-#endif
 
   return true;
 }
