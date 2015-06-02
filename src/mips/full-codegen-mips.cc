@@ -278,7 +278,8 @@ void FullCodeGenerator::Generate() {
             Operand(StandardFrameConstants::kCallerSPOffset + offset));
     __ li(a2, Operand(Smi::FromInt(num_parameters)));
     __ li(a1, Operand(Smi::FromInt(rest_index)));
-    __ Push(a3, a2, a1);
+    __ li(a0, Operand(Smi::FromInt(language_mode())));
+    __ Push(a3, a2, a1, a0);
 
     RestParamAccessStub stub(isolate());
     __ CallStub(&stub);

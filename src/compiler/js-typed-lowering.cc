@@ -1014,7 +1014,9 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
 
   // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
   // initial length limit for arrays with "fast" elements kind.
+  // TODO(rossberg): Teach strong mode to FastCloneShallowArrayStub.
   if ((flags & ArrayLiteral::kShallowElements) != 0 &&
+      (flags & ArrayLiteral::kIsStrong) == 0 &&
       length < JSObject::kInitialMaxFastElementArray) {
     Isolate* isolate = jsgraph()->isolate();
     Callable callable = CodeFactory::FastCloneShallowArray(isolate);

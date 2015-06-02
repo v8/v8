@@ -225,6 +225,11 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
+enum ObjectStrength {
+  WEAK,
+  FIRM  // strong object
+};
+
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
 enum LanguageMode {
@@ -281,6 +286,11 @@ inline LanguageMode construct_language_mode(bool strict_bit, bool strong_bit) {
   if (strong_bit) language_mode |= STRONG_BIT;
   DCHECK(is_valid_language_mode(language_mode));
   return static_cast<LanguageMode>(language_mode);
+}
+
+
+inline ObjectStrength strength(LanguageMode language_mode) {
+  return is_strong(language_mode) ? FIRM : WEAK;
 }
 
 

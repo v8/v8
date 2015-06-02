@@ -2092,9 +2092,10 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // Stack layout on entry.
-  //  sp[0] : index of rest parameter
-  //  sp[4] : number of parameters
-  //  sp[8] : receiver displacement
+  //  sp[0] : language mode
+  //  sp[4] : index of rest parameter
+  //  sp[8] : number of parameters
+  //  sp[12] : receiver displacement
 
   Label runtime;
   __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -2104,14 +2105,14 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
 
   // Patch the arguments.length and the parameters pointer.
   __ LoadP(r4, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ StoreP(r4, MemOperand(sp, 1 * kPointerSize));
+  __ StoreP(r4, MemOperand(sp, 2 * kPointerSize));
   __ SmiToPtrArrayOffset(r6, r4);
   __ add(r6, r5, r6);
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ StoreP(r6, MemOperand(sp, 2 * kPointerSize));
+  __ StoreP(r6, MemOperand(sp, 3 * kPointerSize));
 
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewRestParam, 3, 1);
+  __ TailCallRuntime(Runtime::kNewRestParam, 4, 1);
 }
 
 

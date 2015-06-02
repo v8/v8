@@ -4,52 +4,37 @@
 
 // Flags: --strong-mode --allow-natives-syntax
 // Flags: --harmony-arrow-functions --harmony-rest-parameters
-// Flags: --harmony-destructuring
+// Flags: --harmony-destructuring --harmony-spread-arrays
 
 'use strict';
 
-let GeneratorFunctionPrototype = (function*(){}).__proto__;
-
-function assertStrongObject(o) {
-  assertTrue(%IsStrong(o));
-  assertSame(Object.prototype, o.__proto__);
-}
-
-function assertStrongArray(a) {
-  assertTrue(%IsStrong(a));
-  assertSame(Array.prototype, a.__proto__);
-}
-
-function assertStrongFunction(f) {
-  assertTrue(%IsStrong(f));
-  assertSame(Function.prototype, f.__proto__);
-}
-
-function assertStrongGenerator(g) {
-  assertTrue(%IsStrong(g));
-  assertSame(GeneratorFunctionPrototype, g.__proto__);
-}
-
 (function WeakObjectLiterals() {
-  assertTrue(!%IsStrong({}));
-  assertTrue(!%IsStrong({a: 0, b: 0}));
-  assertTrue(!%IsStrong({a: [], b: {}}));
-  assertTrue(!%IsStrong({a: [], b: {}}.a));
-  assertTrue(!%IsStrong({a: [], b: {}}.b));
-  assertTrue(!%IsStrong({a: {b: {c: {}}}}.a));
-  assertTrue(!%IsStrong({a: {b: {c: {}}}}.a.b));
-  assertTrue(!%IsStrong({a: {b: {c: {}}}}.a.b.c));
-  assertTrue(!%IsStrong({f: function(){}}));
-  assertTrue(!%IsStrong(Realm.eval(Realm.current(),
-                                   "({f: function(){}})")));
+  function assertWeakObject(x) {
+    assertFalse(%IsStrong(x));
+    assertSame(Object.prototype, Object.getPrototypeOf(x));
+  }
+  assertWeakObject({});
+  assertWeakObject({a: 0, b: 0});
+  assertWeakObject({a: [], b: {}});
+  assertWeakObject({a: [], b: {}}.b);
+  assertWeakObject({a: {b: {c: {}}}}.a);
+  assertWeakObject({a: {b: {c: {}}}}.a.b);
+  assertWeakObject({a: {b: {c: {}}}}.a.b.c);
+  assertWeakObject([[1], {}, [[3]]][1]);
+  assertWeakObject({f: function(){}});
+  assertWeakObject(
+    Realm.eval(Realm.current(), "({f: function(){}})"));
 })();
 
 (function StrongObjectLiterals() {
   'use strong';
+  function assertStrongObject(x) {
+    assertTrue(%IsStrong(x));
+    assertSame(Object.prototype, Object.getPrototypeOf(x));
+  }
   assertStrongObject({});
   assertStrongObject({a: 0, b: 0});
   assertStrongObject({a: [], b: {}});
-  assertStrongArray({a: [], b: {}}.a);
   assertStrongObject({a: [], b: {}}.b);
   assertStrongObject({a: {b: {c: {}}}}.a);
   assertStrongObject({a: {b: {c: {}}}}.a.b);
@@ -97,73 +82,92 @@ function assertStrongGenerator(g) {
     x191: 0, x192: 0, x193: 0, x194: 0, x195: 0,
     x196: 0, x197: 0, x198: 0, x199: 0, x200: 0,
   });
+  assertStrongObject([[1], {}, [[3]]][1]);
   assertStrongObject({[Date() + ""]: 0, [Symbol()]: 0});
   assertStrongObject({m() { super.m() }});
+  assertTrue(%IsStrong({__proto__: {}, get a() {}, set b(x) {}}));
   // Object literals with constant functions are treated specially,
   // but currently only on the toplevel (using Realm.eval to emulate that).
   assertStrongObject({f: function(){}});
-  assertStrongObject(Realm.eval(Realm.current(),
-                       "'use strong'; ({f: function(){}})"));
-  assertTrue(%IsStrong({__proto__: {}, get a() {}, set b(x) {}}));
+  assertStrongObject(
+    Realm.eval(Realm.current(), "'use strong'; ({f: function(){}})"));
 })();
 
 (function WeakArrayLiterals(...args) {
+  function assertWeakArray(x) {
+    assertFalse(%IsStrong(x));
+    assertSame(Array.prototype, Object.getPrototypeOf(x));
+  }
   let [...r] = [];
-  assertTrue(!%IsStrong(args));
-  assertTrue(!%IsStrong(r));
-  assertTrue(!%IsStrong([]));
-  assertTrue(!%IsStrong([1, 2, 3]));
-  assertTrue(!%IsStrong([[[]]]));
-  assertTrue(!%IsStrong([[1], {}, [[3]]]));
-  assertTrue(!%IsStrong([[1], {}, [[3]]][0]));
-  assertTrue(!%IsStrong([[1], {}, [[3]]][1]));
-  assertTrue(!%IsStrong([[1], {}, [[3]]][2]));
-  assertTrue(!%IsStrong([[1], {}, [[3]]][2][0]));
+  assertWeakArray(args);
+  assertWeakArray(r);
+  assertWeakArray([]);
+  assertWeakArray([1, 2, 3]);
+  assertWeakArray([1, 2, ...[3, 4], 5]);
+  assertWeakArray([[[]]]);
+  assertWeakArray([[1], {}, [[3]]]);
+  assertWeakArray([[1], {}, [[3]]][0]);
+  assertWeakArray([[1], {}, [[3]]][2]);
+  assertWeakArray([[1], {}, [[3]]][2][0]);
+  assertWeakArray({a: [], b: {}}.a);
 })();
 
 (function StrongArrayLiterals(...args) {
   'use strong';
+  function assertStrongArray(x) {
+    assertTrue(%IsStrong(x));
+    assertSame(Array.prototype, Object.getPrototypeOf(x));
+  }
   let [...r] = [];
-  // TODO(rossberg): teach strongness to FastCloneShallowArrayStub
-  // assertTrue(%IsStrong(args));
-  // assertTrue(%IsStrong(r));
-  // assertTrue(%IsStrong([]));
-  // assertTrue(%IsStrong([1, 2, 3]));
-  // assertTrue(%IsStrong([1, 2, ...[3, 4], 5]));
+  assertStrongArray(args);
+  assertStrongArray(r);
+  assertStrongArray([]);
+  assertStrongArray([1, 2, 3]);
+  assertStrongArray([1, 2, ...[3, 4], 5]);
   assertStrongArray([[[]]]);
   assertStrongArray([[1], {}, [[3]]]);
   assertStrongArray([[1], {}, [[3]]][0]);
-  assertStrongObject([[1], {}, [[3]]][1]);
   assertStrongArray([[1], {}, [[3]]][2]);
   assertStrongArray([[1], {}, [[3]]][2][0]);
+  assertStrongArray({a: [], b: {}}.a);
 })();
 
 (function WeakFunctionLiterals() {
+  function assertWeakFunction(x) {
+    assertFalse(%IsStrong(x));
+    assertFalse(%IsStrong(x.prototype));
+    assertSame(Function.prototype, Object.getPrototypeOf(x));
+  }
   function f() {}
-  assertTrue(!%IsStrong(f));
-  assertTrue(!%IsStrong(function(){}));
-  assertTrue(!%IsStrong(function f(){}));
-  assertTrue(!%IsStrong(() => {}));
-  assertTrue(!%IsStrong(x => x));
-  assertTrue(!%IsStrong({m(){}}.m));
-  assertTrue(!%IsStrong(Object.getOwnPropertyDescriptor(
-      {get a(){}}, 'a').get));
-  assertTrue(!%IsStrong(Object.getOwnPropertyDescriptor(
-      {set a(x){}}, 'a').set));
-  assertTrue(!%IsStrong((class {static m(){}}).m));
-  assertTrue(!%IsStrong(Object.getOwnPropertyDescriptor(
-      class {static get a(){}}, 'a').get));
-  assertTrue(!%IsStrong(Object.getOwnPropertyDescriptor(
-      class {static set a(x){}}, 'a').set));
-  assertTrue(!%IsStrong((new class {m(){}}).m));
-  assertTrue(!%IsStrong(Object.getOwnPropertyDescriptor(
-      (class {get a(){}}).prototype, 'a').get));
-  assertTrue(!%IsStrong(Object.getOwnPropertyDescriptor(
-      (class {set a(x){}}).prototype, 'a').set));
+  assertWeakFunction(f);
+  assertWeakFunction(function(){});
+  assertWeakFunction(function f(){});
+  assertWeakFunction(() => {});
+  assertWeakFunction(x => x);
+  assertWeakFunction({m(){}}.m);
+  assertWeakFunction(Object.getOwnPropertyDescriptor(
+      {get a(){}}, 'a').get);
+  assertWeakFunction(Object.getOwnPropertyDescriptor(
+      {set a(x){}}, 'a').set);
+  assertWeakFunction((class {static m(){}}).m);
+  assertWeakFunction(Object.getOwnPropertyDescriptor(
+      class {static get a(){}}, 'a').get);
+  assertWeakFunction(Object.getOwnPropertyDescriptor(
+      class {static set a(x){}}, 'a').set);
+  assertWeakFunction((new class {m(){}}).m);
+  assertWeakFunction(Object.getOwnPropertyDescriptor(
+      (class {get a(){}}).prototype, 'a').get);
+  assertWeakFunction(Object.getOwnPropertyDescriptor(
+      (class {set a(x){}}).prototype, 'a').set);
 })();
 
 (function StrongFunctionLiterals() {
   'use strong';
+  function assertStrongFunction(x) {
+    assertTrue(%IsStrong(x));
+    assertFalse('prototype' in x);
+    assertSame(Function.prototype, Object.getPrototypeOf(x));
+  }
   function f() {}
   assertStrongFunction(f);
   assertStrongFunction(function(){});
@@ -188,6 +192,11 @@ function assertStrongGenerator(g) {
 })();
 
 (function SelfStrongFunctionLiterals() {
+  function assertStrongFunction(x) {
+    assertTrue(%IsStrong(x));
+    assertFalse('prototype' in x);
+    assertSame(Function.prototype, Object.getPrototypeOf(x));
+  }
   function f() {'use strong'}
   assertStrongFunction(f);
   assertStrongFunction(function(){'use strong'});
@@ -211,18 +220,34 @@ function assertStrongGenerator(g) {
       (class {set a(x){'use strong'}}).prototype, 'a').set);
 })();
 
+let GeneratorPrototype = (function*(){}).__proto__;
+
 (function WeakGeneratorLiterals() {
+  function assertWeakGenerator(x) {
+    assertFalse(%IsStrong(x));
+    assertFalse(%IsStrong(x.prototype));
+    assertSame(GeneratorPrototype, Object.getPrototypeOf(x));
+    assertFalse(%IsStrong(x()));
+  }
   function* g() {}
-  assertTrue(!%IsStrong(g));
-  assertTrue(!%IsStrong(function*(){}));
-  assertTrue(!%IsStrong(function* g(){}));
-  assertTrue(!%IsStrong({*m(){}}.m));
-  assertTrue(!%IsStrong((class {static *m(){}}).m));
-  assertTrue(!%IsStrong((new class {*m(){}}).m));
+  assertWeakGenerator(g);
+  assertWeakGenerator(function*(){});
+  assertWeakGenerator(function* g(){});
+  assertWeakGenerator({*m(){}}.m);
+  assertWeakGenerator((class {static *m(){}}).m);
+  assertWeakGenerator((new class {*m(){}}).m);
 })();
 
 (function StrongGeneratorLiterals() {
   'use strong';
+  function assertStrongGenerator(x) {
+    assertTrue(%IsStrong(x));
+    // TODO(rossberg): strongify generator prototypes
+    // assertTrue(%IsStrong(x.prototype));
+    assertSame(GeneratorPrototype, Object.getPrototypeOf(x));
+    // TODO(rossberg): strongify generator instances
+    // assertTrue(%IsStrong(x()));
+  }
   function* g() {}
   assertStrongGenerator(g);
   assertStrongGenerator(function*(){});
@@ -233,6 +258,14 @@ function assertStrongGenerator(g) {
 })();
 
 (function SelfStrongGeneratorLiterals() {
+  function assertStrongGenerator(x) {
+    assertTrue(%IsStrong(x));
+    // TODO(rossberg): strongify generator prototypes
+    // assertTrue(%IsStrong(x.prototype));
+    assertSame(GeneratorPrototype, Object.getPrototypeOf(x));
+    // TODO(rossberg): strongify generator instances
+    // assertTrue(%IsStrong(x()));
+  }
   function* g() {'use strong'}
   assertStrongGenerator(g);
   assertStrongGenerator(function*(){'use strong'});
@@ -243,30 +276,31 @@ function assertStrongGenerator(g) {
 })();
 
 (function WeakClassLiterals() {
-  function assertWeakClass(C) {
-    assertTrue(!%IsStrong(C));
-    assertTrue(!%IsStrong(C.prototype));
+  function assertWeakClass(x) {
+    assertFalse(%IsStrong(x));
+    assertFalse(%IsStrong(x.prototype));
+    assertFalse(%IsStrong(new x));
   }
   class C {};
   class D extends C {};
   class E extends Object {};
-  class F extends null {};
+  // class F extends null {};
   const S = (() => {'use strong'; return class {}})();
   class G extends S {};
   assertWeakClass(C);
   assertWeakClass(D);
   assertWeakClass(E);
-  assertWeakClass(F);
+  // assertWeakClass(F);
   assertWeakClass(G);
   assertWeakClass(class {});
   assertWeakClass(class extends Object {});
-  assertWeakClass(class extends null {});
+  // assertWeakClass(class extends null {});
   assertWeakClass(class extends C {});
   assertWeakClass(class extends S {});
   assertWeakClass(class extends class {} {});
   assertWeakClass(class C {});
   assertWeakClass(class D extends Object {});
-  assertWeakClass(class D extends null {});
+  // assertWeakClass(class D extends null {});
   assertWeakClass(class D extends C {});
   assertWeakClass(class D extends S {});
   assertWeakClass(class D extends class {} {});
@@ -274,42 +308,45 @@ function assertStrongGenerator(g) {
 
 (function StrongClassLiterals() {
   'use strong';
-  function assertStrongClass(C) {
-    assertTrue(%IsStrong(C));
-    // TODO(rossberg): prototype object is not yet strongified
-    // assertTrue(%IsStrong(C.prototype));
+  function assertStrongClass(x) {
+    assertTrue(%IsStrong(x));
+    // TODO(rossberg): strongify class prototype and instance
+    // assertTrue(%IsStrong(x.prototype));
+    // assertTrue(%IsStrong(new x));
   }
   class C {};
   class D extends C {};
   class E extends Object {};
-  class F extends null {};
   const W = (1, eval)(() => {'use strict'; return class {}})();
   class G extends W {};
   assertStrongClass(C);
   assertStrongClass(D);
   assertStrongClass(E);
-  assertStrongClass(F);
   assertStrongClass(G);
   assertStrongClass(class {});
   assertStrongClass(class extends Object {});
-  assertStrongClass(class extends null {});
   assertStrongClass(class extends C {});
   assertStrongClass(class extends W {});
   assertStrongClass(class extends class {} {});
   assertStrongClass(class C {});
   assertStrongClass(class D extends Object {});
-  assertStrongClass(class D extends null {});
   assertStrongClass(class D extends C {});
   assertStrongClass(class D extends W {});
   assertStrongClass(class D extends class {} {});
 })();
 
 (function WeakRegExpLiterals() {
-  assertTrue(!%IsStrong(/abc/));
+  function assertWeakRegExp(x) {
+    assertFalse(%IsStrong(x));
+  }
+  assertWeakRegExp(/abc/);
 })();
 
 (function StrongRegExpLiterals() {
   'use strong';
-  // TODO(rossberg): implement strong regexp literals
-  // assertTrue(%IsStrong(/abc/));
+  function assertStrongRegExp(x) {
+    // TODO(rossberg): strongify regexps
+    // assertTrue(%IsStrong(x));
+  }
+  assertStrongRegExp(/abc/);
 })();

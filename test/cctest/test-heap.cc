@@ -896,9 +896,8 @@ TEST(Iteration) {
 
   // Allocate a JS array to OLD_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewJSArray(10);
-  objs[next_objs_index++] = factory->NewJSArray(10,
-                                                FAST_HOLEY_ELEMENTS,
-                                                TENURED);
+  objs[next_objs_index++] =
+      factory->NewJSArray(10, FAST_HOLEY_ELEMENTS, WEAK, TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewStringFromStaticChars("abcdefghij");
@@ -2366,7 +2365,8 @@ TEST(PrototypeTransitionClearing) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     SimulateFullSpace(space);
-    prototype = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
+    prototype =
+        factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, WEAK, TENURED);
   }
 
   // Add a prototype on an evacuation candidate and verify that transition
@@ -4067,9 +4067,8 @@ TEST(Regress169928) {
                        JSArray::kSize + AllocationMemento::kSize +
                        kPointerSize);
 
-  Handle<JSArray> array = factory->NewJSArrayWithElements(array_data,
-                                                          FAST_SMI_ELEMENTS,
-                                                          NOT_TENURED);
+  Handle<JSArray> array =
+      factory->NewJSArrayWithElements(array_data, FAST_SMI_ELEMENTS);
 
   CHECK_EQ(Smi::FromInt(2), array->length());
   CHECK(array->HasFastSmiOrObjectElements());

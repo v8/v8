@@ -2063,9 +2063,10 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // sp[0] : index of rest parameter
-  // sp[4] : number of parameters
-  // sp[8] : receiver displacement
+  // sp[0] : language mode
+  // sp[4] : index of rest parameter
+  // sp[8] : number of parameters
+  // sp[12] : receiver displacement
   // Check if the calling frame is an arguments adaptor frame.
 
   Label runtime;
@@ -2076,16 +2077,16 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
 
   // Patch the arguments.length and the parameters pointer.
   __ lw(a1, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ sw(a1, MemOperand(sp, 1 * kPointerSize));
+  __ sw(a1, MemOperand(sp, 2 * kPointerSize));
   __ sll(at, a1, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a3, a2, Operand(at));
 
   __ Addu(a3, a3, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ sw(a3, MemOperand(sp, 2 * kPointerSize));
+  __ sw(a3, MemOperand(sp, 3 * kPointerSize));
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewRestParam, 3, 1);
+  __ TailCallRuntime(Runtime::kNewRestParam, 4, 1);
 }
 
 

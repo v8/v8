@@ -513,8 +513,8 @@ namespace internal {
   F(NewArguments, 1, 1) /* TODO(turbofan): Only temporary */ \
   F(NewSloppyArguments, 3, 1)                                \
   F(NewStrictArguments, 3, 1)                                \
-  F(NewRestParam, 3, 1)                                      \
-  F(NewRestParamSlow, 1, 1)                                  \
+  F(NewRestParam, 4, 1)                                      \
+  F(NewRestParamSlow, 2, 1)                                  \
   F(NewClosureFromStubFailure, 1, 1)                         \
   F(NewClosure, 3, 1)                                        \
   F(NewScriptContext, 2, 1)                                  \

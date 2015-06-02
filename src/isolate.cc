@@ -2373,9 +2373,11 @@ CodeTracer* Isolate::GetCodeTracer() {
 }
 
 
-Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
+Map* Isolate::get_initial_js_array_map(ElementsKind kind,
+                                       ObjectStrength strength) {
   Context* native_context = context()->native_context();
-  Object* maybe_map_array = native_context->js_array_maps();
+  Object* maybe_map_array = strength ? native_context->js_array_strong_maps()
+                                     : native_context->js_array_maps();
   if (!maybe_map_array->IsUndefined()) {
     Object* maybe_transitioned_map =
         FixedArray::cast(maybe_map_array)->get(kind);

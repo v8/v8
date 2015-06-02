@@ -262,6 +262,7 @@ void FullCodeGenerator::Generate() {
     __ Push(rdx);
     __ Push(Smi::FromInt(num_parameters));
     __ Push(Smi::FromInt(rest_index));
+    __ Push(Smi::FromInt(language_mode()));
 
     RestParamAccessStub stub(isolate());
     __ CallStub(&stub);

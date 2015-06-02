@@ -1637,22 +1637,24 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
+                                    ObjectStrength strength,
                                     PretenureFlag pretenure) {
-  Context* native_context = isolate()->context()->native_context();
-  JSFunction* array_function = native_context->array_function();
-  Map* map = array_function->initial_map();
-  Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
-  if (transition_map != NULL) map = transition_map;
+  Map* map = isolate()->get_initial_js_array_map(elements_kind, strength);
+  if (map == nullptr) {
+    DCHECK(strength == WEAK);
+    Context* native_context = isolate()->context()->native_context();
+    JSFunction* array_function = native_context->array_function();
+    map = array_function->initial_map();
+  }
   return Handle<JSArray>::cast(NewJSObjectFromMap(handle(map), pretenure));
 }
 
 
-Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
-                                    int length,
-                                    int capacity,
+Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
+                                    int capacity, ObjectStrength strength,
                                     ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
-  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
+  Handle<JSArray> array = NewJSArray(elements_kind, strength, pretenure);
   NewJSArrayStorage(array, length, capacity, mode);
   return array;
 }
@@ -1661,9 +1663,10 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 ElementsKind elements_kind,
                                                 int length,
+                                                ObjectStrength strength,
                                                 PretenureFlag pretenure) {
   DCHECK(length <= elements->length());
-  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
+  Handle<JSArray> array = NewJSArray(elements_kind, strength, pretenure);
 
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(length));

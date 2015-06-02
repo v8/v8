@@ -401,23 +401,26 @@ class Factory final {
   // Create a JSArray with no elements.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind,
+      ObjectStrength strength = WEAK,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind, int length, int capacity,
+      ObjectStrength strength = WEAK,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArray(
       int capacity,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      ObjectStrength strength = WEAK,
       PretenureFlag pretenure = NOT_TENURED) {
     if (capacity != 0) {
       elements_kind = GetHoleyElementsKind(elements_kind);
     }
-    return NewJSArray(elements_kind, 0, capacity,
+    return NewJSArray(elements_kind, 0, capacity, strength,
                       INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }
 
@@ -426,14 +429,16 @@ class Factory final {
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind,
       int length,
+      ObjectStrength strength = WEAK,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      ObjectStrength strength = WEAK,
       PretenureFlag pretenure = NOT_TENURED) {
-    return NewJSArrayWithElements(
-        elements, elements_kind, elements->length(), pretenure);
+    return NewJSArrayWithElements(elements, elements_kind, elements->length(),
+                                  strength, pretenure);
   }
 
   void NewJSArrayStorage(

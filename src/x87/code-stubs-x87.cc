@@ -844,9 +844,10 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // esp[0] : return address
-  // esp[4] : index of rest parameter
-  // esp[8] : number of parameters
-  // esp[12] : receiver displacement
+  // esp[4] : language mode
+  // esp[8] : index of rest parameter
+  // esp[12] : number of parameters
+  // esp[16] : receiver displacement
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
@@ -857,13 +858,13 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
 
   // Patch the arguments.length and the parameters pointer.
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ mov(Operand(esp, 2 * kPointerSize), ecx);
+  __ mov(Operand(esp, 3 * kPointerSize), ecx);
   __ lea(edx, Operand(edx, ecx, times_2,
                       StandardFrameConstants::kCallerSPOffset));
-  __ mov(Operand(esp, 3 * kPointerSize), edx);
+  __ mov(Operand(esp, 4 * kPointerSize), edx);
 
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewRestParam, 3, 1);
+  __ TailCallRuntime(Runtime::kNewRestParam, 4, 1);
 }
 
 

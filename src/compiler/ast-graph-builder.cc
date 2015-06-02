@@ -2904,8 +2904,9 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   if (rest == NULL) return NULL;
 
   DCHECK(index >= 0);
-  const Operator* op = javascript()->CallRuntime(Runtime::kNewRestParamSlow, 1);
-  Node* object = NewNode(op, jsgraph()->SmiConstant(index));
+  const Operator* op = javascript()->CallRuntime(Runtime::kNewRestParamSlow, 2);
+  Node* object = NewNode(op, jsgraph()->SmiConstant(index),
+                         jsgraph()->SmiConstant(language_mode()));
 
   // Assign the object to the rest array
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
