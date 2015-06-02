@@ -2384,29 +2384,20 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                       : context->object_function()->initial_map(), isolate());
   }
 
-  // Create a new map and add it to the cache.
-  Handle<Map> map = Map::Create(isolate(), number_of_properties);
   int cache_index = number_of_properties - 1;
-  Handle<FixedArray> cache;
-  if (is_strong) {
-    map->set_is_strong();
-    if (context->strong_map_cache()->IsUndefined()) {
-      // Allocate the new map cache for the native context.
-      Handle<FixedArray> new_cache = NewFixedArray(kMapCacheSize, TENURED);
-      context->set_strong_map_cache(*new_cache);
+  Handle<Object> maybe_cache(is_strong ? context->strong_map_cache()
+                                       : context->map_cache(), isolate());
+  if (maybe_cache->IsUndefined()) {
+    // Allocate the new map cache for the native context.
+    maybe_cache = NewFixedArray(kMapCacheSize, TENURED);
+    if (is_strong) {
+      context->set_strong_map_cache(*maybe_cache);
+    } else {
+      context->set_map_cache(*maybe_cache);
     }
-    // Check to see whether there is a matching element in the cache.
-    cache = handle(FixedArray::cast(context->strong_map_cache()));
   } else {
-    if (context->map_cache()->IsUndefined()) {
-      // Allocate the new map cache for the native context.
-      Handle<FixedArray> new_cache = NewFixedArray(kMapCacheSize, TENURED);
-      context->set_map_cache(*new_cache);
-    }
     // Check to see whether there is a matching element in the cache.
-    cache = handle(FixedArray::cast(context->map_cache()));
-  }
-  {
+    Handle<FixedArray> cache = Handle<FixedArray>::cast(maybe_cache);
     Object* result = cache->get(cache_index);
     if (result->IsWeakCell()) {
       WeakCell* cell = WeakCell::cast(result);
@@ -2415,6 +2406,10 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
       }
     }
   }
+  // Create a new map and add it to the cache.
+  Handle<FixedArray> cache = Handle<FixedArray>::cast(maybe_cache);
+  Handle<Map> map = Map::Create(isolate(), number_of_properties);
+  if (is_strong) map->set_is_strong();
   Handle<WeakCell> cell = NewWeakCell(map);
   cache->set(cache_index, *cell);
   return map;
