@@ -1614,7 +1614,6 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
   __ LoadP(r6, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ LoadP(r6, FieldMemOperand(r6, JSFunction::kLiteralsOffset));
