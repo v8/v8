@@ -1995,8 +1995,6 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
     case kDoubleAligned:
     case kDoubleUnaligned:
       return kDoubleSize - kPointerSize;
-    case kSimd128Unaligned:
-      return kSimd128Size - kPointerSize;
     default:
       UNREACHABLE();
   }
@@ -2010,10 +2008,6 @@ int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
     return kPointerSize;
   if (alignment == kDoubleUnaligned && (offset & kDoubleAlignmentMask) == 0)
     return kDoubleSize - kPointerSize;  // No fill if double is always aligned.
-  if (alignment == kSimd128Unaligned) {
-    return (kSimd128Size - (static_cast<int>(offset) + kPointerSize)) &
-           kSimd128AlignmentMask;
-  }
   return 0;
 }
 
