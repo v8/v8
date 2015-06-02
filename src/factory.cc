@@ -2019,16 +2019,12 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
                                   int size) {
   DCHECK(type == JS_OBJECT_TYPE || type == JS_FUNCTION_TYPE);
 
-  // Allocate fresh map.
-  // TODO(rossberg): Once we optimize proxies, cache these maps.
-  Handle<Map> map = NewMap(type, size);
+  Handle<Map> proxy_map(proxy->map());
+  Handle<Map> map = Map::FixProxy(proxy_map, type, size);
 
   // Check that the receiver has at least the size of the fresh object.
-  int size_difference = proxy->map()->instance_size() - map->instance_size();
+  int size_difference = proxy_map->instance_size() - map->instance_size();
   DCHECK(size_difference >= 0);
-
-  Handle<Object> prototype(proxy->map()->prototype(), isolate());
-  Map::SetPrototype(map, prototype);
 
   // Allocate the backing storage for the properties.
   int prop_size = map->InitialPropertiesLength();

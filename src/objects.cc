@@ -7200,6 +7200,25 @@ Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
 }
 
 
+Handle<Map> Map::FixProxy(Handle<Map> map, InstanceType type, int size) {
+  DCHECK(type == JS_OBJECT_TYPE || type == JS_FUNCTION_TYPE);
+  DCHECK(map->IsJSProxyMap());
+
+  Isolate* isolate = map->GetIsolate();
+
+  // Allocate fresh map.
+  // TODO(rossberg): Once we optimize proxies, cache these maps.
+  Handle<Map> new_map = isolate->factory()->NewMap(type, size);
+
+  Handle<Object> prototype(map->prototype(), isolate);
+  Map::SetPrototype(new_map, prototype);
+
+  map->NotifyLeafMapLayoutChange();
+
+  return new_map;
+}
+
+
 bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
   PropertyDetails details = GetDetails(descriptor);
   switch (details.type()) {

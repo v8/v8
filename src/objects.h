@@ -6295,6 +6295,10 @@ class Map: public HeapObject {
                                               PropertyAttributes attrs_to_add,
                                               Handle<Symbol> transition_marker,
                                               const char* reason);
+
+  static Handle<Map> FixProxy(Handle<Map> map, InstanceType type, int size);
+
+
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
