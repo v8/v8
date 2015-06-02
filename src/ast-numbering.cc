@@ -168,12 +168,23 @@ void AstNumberingVisitor::VisitThisFunction(ThisFunction* node) {
 }
 
 
-void AstNumberingVisitor::VisitSuperReference(SuperReference* node) {
+void AstNumberingVisitor::VisitSuperPropertyReference(
+    SuperPropertyReference* node) {
   IncrementNodeCount();
   DisableOptimization(kSuperReference);
-  node->set_base_id(ReserveIdRange(SuperReference::num_ids()));
+  node->set_base_id(ReserveIdRange(SuperPropertyReference::num_ids()));
   Visit(node->this_var());
   Visit(node->home_object_var());
+}
+
+
+void AstNumberingVisitor::VisitSuperCallReference(SuperCallReference* node) {
+  IncrementNodeCount();
+  DisableOptimization(kSuperReference);
+  node->set_base_id(ReserveIdRange(SuperCallReference::num_ids()));
+  Visit(node->this_var());
+  Visit(node->new_target_var());
+  Visit(node->this_function_var());
 }
 
 
