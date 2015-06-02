@@ -1531,8 +1531,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "PropertyCell for ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      PropertyCell::cast(this)->value()->ShortPrint(&accumulator);
-      os << accumulator.ToCString().get();
+      PropertyCell* cell = PropertyCell::cast(this);
+      cell->value()->ShortPrint(&accumulator);
+      os << accumulator.ToCString().get() << " " << cell->property_details();
       break;
     }
     case WEAK_CELL_TYPE: {
@@ -1816,12 +1817,13 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
     // If there's a cell there, just invalidate and set the property.
     if (entry != GlobalDictionary::kNotFound) {
       PropertyCell::UpdateCell(dict, entry, value, details);
-      // TODO(dcarney): move this to UpdateCell.
+      // TODO(ishell): move this to UpdateCell.
       // Need to adjust the details.
       int index = dict->NextEnumerationIndex();
       dict->SetNextEnumerationIndex(index + 1);
-      details = dict->DetailsAt(entry).set_index(index);
-      dict->DetailsAtPut(entry, details);
+      PropertyCell* cell = PropertyCell::cast(dict->ValueAt(entry));
+      details = cell->property_details().set_index(index);
+      cell->set_property_details(details);
 
     } else {
       auto cell = isolate->factory()->NewPropertyCell();
@@ -5422,9 +5424,9 @@ void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
 
     auto cell = PropertyCell::InvalidateEntry(dictionary, entry);
     cell->set_value(isolate->heap()->the_hole_value());
-    // TODO(dcarney): InvalidateForDelete
-    dictionary->DetailsAtPut(entry, dictionary->DetailsAt(entry).set_cell_type(
-                                        PropertyCellType::kInvalidated));
+    // TODO(ishell): InvalidateForDelete
+    cell->set_property_details(
+        cell->property_details().set_cell_type(PropertyCellType::kInvalidated));
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary());
     int entry = dictionary->FindEntry(name);
@@ -15619,7 +15621,7 @@ void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
 }
 
 
-// TODO(dcarney): rename to EnsureEmptyPropertyCell or something.
+// TODO(ishell): rename to EnsureEmptyPropertyCell or something.
 Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
     Handle<GlobalObject> global, Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
@@ -15628,12 +15630,12 @@ Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
   Handle<PropertyCell> cell;
   if (entry != GlobalDictionary::kNotFound) {
     // This call should be idempotent.
-    DCHECK(dictionary->DetailsAt(entry).cell_type() ==
-               PropertyCellType::kUninitialized ||
-           dictionary->DetailsAt(entry).cell_type() ==
-               PropertyCellType::kInvalidated);
     DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
     cell = handle(PropertyCell::cast(dictionary->ValueAt(entry)));
+    DCHECK(cell->property_details().cell_type() ==
+               PropertyCellType::kUninitialized ||
+           cell->property_details().cell_type() ==
+               PropertyCellType::kInvalidated);
     DCHECK(cell->value()->IsTheHole());
     return cell;
   }
@@ -17305,10 +17307,10 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   dictionary->ValueAtPut(entry, *new_cell);
   bool is_the_hole = cell->value()->IsTheHole();
   // Cell is officially mutable henceforth.
-  auto details = dictionary->DetailsAt(entry);
+  PropertyDetails details = cell->property_details();
   details = details.set_cell_type(is_the_hole ? PropertyCellType::kInvalidated
                                               : PropertyCellType::kMutable);
-  dictionary->DetailsAtPut(entry, details);
+  new_cell->set_property_details(details);
   // Old cell is ready for invalidation.
   if (is_the_hole) {
     cell->set_value(isolate->heap()->undefined_value());
@@ -17383,12 +17385,12 @@ void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
   DCHECK(!value->IsTheHole());
   DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
   Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
-  const PropertyDetails original_details = dictionary->DetailsAt(entry);
+  const PropertyDetails original_details = cell->property_details();
   // Data accesses could be cached in ics or optimized code.
   bool invalidate =
       original_details.kind() == kData && details.kind() == kAccessor;
   int index = original_details.dictionary_index();
-  auto old_type = original_details.cell_type();
+  PropertyCellType old_type = original_details.cell_type();
   // Preserve the enumeration index unless the property was deleted or never
   // initialized.
   if (cell->value()->IsTheHole()) {
@@ -17400,12 +17402,12 @@ void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
   DCHECK(index > 0);
   details = details.set_index(index);
 
-  auto new_type = UpdatedType(cell, value, original_details);
+  PropertyCellType new_type = UpdatedType(cell, value, original_details);
   if (invalidate) cell = PropertyCell::InvalidateEntry(dictionary, entry);
 
   // Install new property details and cell value.
   details = details.set_cell_type(new_type);
-  dictionary->DetailsAtPut(entry, details);
+  cell->set_property_details(details);
   cell->set_value(*value);
 
   // Deopt when transitioning from a constant type.

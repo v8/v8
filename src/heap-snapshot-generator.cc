@@ -1655,15 +1655,15 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
       if (dictionary->IsKey(k)) {
-        Object* target = dictionary->ValueAt(i);
-        DCHECK(target->IsPropertyCell());
-        Object* value = PropertyCell::cast(target)->value();
+        DCHECK(dictionary->ValueAt(i)->IsPropertyCell());
+        PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(i));
+        Object* value = cell->value();
         if (k == heap_->hidden_string()) {
           TagObject(value, "(hidden properties)");
           SetInternalReference(js_obj, entry, "hidden_properties", value);
           continue;
         }
-        PropertyDetails details = dictionary->DetailsAt(i);
+        PropertyDetails details = cell->property_details();
         SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
                                            Name::cast(k), value);
       }

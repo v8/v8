@@ -72,7 +72,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         DCHECK(dict->ValueAt(number_)->IsPropertyCell());
         PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
         if (cell->value()->IsTheHole()) return NOT_FOUND;
-        property_details_ = dict->DetailsAt(number_);
+        property_details_ = cell->property_details();
       } else if (map->is_dictionary_map()) {
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
         int number = dict->FindEntry(name_);

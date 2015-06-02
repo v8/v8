@@ -596,13 +596,14 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         // Attempt dictionary lookup.
         GlobalDictionary* dictionary = receiver->global_dictionary();
         int entry = dictionary->FindEntry(key);
-        if ((entry != GlobalDictionary::kNotFound) &&
-            (dictionary->DetailsAt(entry).type() == DATA)) {
-          Object* value = dictionary->ValueAt(entry);
-          DCHECK(value->IsPropertyCell());
-          value = PropertyCell::cast(value)->value();
-          if (!value->IsTheHole()) return value;
-          // If value is the hole (meaning, absent) do the general lookup.
+        if (entry != GlobalDictionary::kNotFound) {
+          DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
+          PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
+          if (cell->property_details().type() == DATA) {
+            Object* value = cell->value();
+            if (!value->IsTheHole()) return value;
+            // If value is the hole (meaning, absent) do the general lookup.
+          }
         }
       } else if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.

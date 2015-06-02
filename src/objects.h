@@ -3468,6 +3468,11 @@ class HashTable : public HashTableBase {
   static const int kCapacityOffset =
       kHeaderSize + kCapacityIndex * kPointerSize;
 
+  // Returns the index for an entry (of the key)
+  static inline int EntryToIndex(int entry) {
+    return (entry * kEntrySize) + kElementsStartIndex;
+  }
+
  protected:
   friend class ObjectHashTable;
 
@@ -3484,11 +3489,6 @@ class HashTable : public HashTableBase {
       int n,
       Key key,
       PretenureFlag pretenure = NOT_TENURED);
-
-  // Returns the index for an entry (of the key)
-  static inline int EntryToIndex(int entry) {
-    return (entry * kEntrySize) + kElementsStartIndex;
-  }
 
   // Sets the capacity of the hash table.
   void SetCapacity(int capacity) {
@@ -3615,14 +3615,12 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
-    DCHECK(entry >= 0);  // Not found is -1, which is not caught by get().
-    return PropertyDetails(
-        Smi::cast(this->get(Derived::EntryToIndex(entry) + 2)));
+    return Shape::DetailsAt(static_cast<Derived*>(this), entry);
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    this->set(Derived::EntryToIndex(entry) + 2, value.AsSmi());
+    Shape::DetailsAtPut(static_cast<Derived*>(this), entry, value);
   }
 
   // Returns true if property at given entry is deleted.
@@ -3755,9 +3753,28 @@ template <typename Key>
 class BaseDictionaryShape : public BaseShape<Key> {
  public:
   template <typename Dictionary>
+  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
+    STATIC_ASSERT(Dictionary::kEntrySize == 3);
+    DCHECK(entry >= 0);  // Not found is -1, which is not caught by get().
+    return PropertyDetails(
+        Smi::cast(dict->get(Dictionary::EntryToIndex(entry) + 2)));
+  }
+
+  template <typename Dictionary>
+  static inline void DetailsAtPut(Dictionary* dict, int entry,
+                                  PropertyDetails value) {
+    STATIC_ASSERT(Dictionary::kEntrySize == 3);
+    dict->set(Dictionary::EntryToIndex(entry) + 2, value.AsSmi());
+  }
+
+  template <typename Dictionary>
   static bool IsDeleted(Dictionary* dict, int entry) {
     return false;
   }
+
+  template <typename Dictionary>
+  static inline void SetEntry(Dictionary* dict, int entry, Handle<Object> key,
+                              Handle<Object> value, PropertyDetails details);
 };
 
 
@@ -3788,10 +3805,21 @@ class NameDictionary
 
 class GlobalDictionaryShape : public NameDictionaryShape {
  public:
-  static const int kEntrySize = 3;  // Overrides NameDictionaryShape::kEntrySize
+  static const int kEntrySize = 2;  // Overrides NameDictionaryShape::kEntrySize
+
+  template <typename Dictionary>
+  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry);
+
+  template <typename Dictionary>
+  static inline void DetailsAtPut(Dictionary* dict, int entry,
+                                  PropertyDetails value);
 
   template <typename Dictionary>
   static bool IsDeleted(Dictionary* dict, int entry);
+
+  template <typename Dictionary>
+  static inline void SetEntry(Dictionary* dict, int entry, Handle<Object> key,
+                              Handle<Object> value, PropertyDetails details);
 };
 
 
@@ -9890,11 +9918,21 @@ class Cell: public HeapObject {
 
 class PropertyCell : public HeapObject {
  public:
+  // [property_details]: details of the global property.
+  DECL_ACCESSORS(property_details_raw, Object)
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
   // [dependent_code]: dependent code that depends on the type of the global
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)
+
+  PropertyDetails property_details() {
+    return PropertyDetails(Smi::cast(property_details_raw()));
+  }
+
+  void set_property_details(PropertyDetails details) {
+    set_property_details_raw(details.AsSmi());
+  }
 
   PropertyCellConstantType GetConstantType();
 
@@ -9919,7 +9957,8 @@ class PropertyCell : public HeapObject {
   DECLARE_VERIFIER(PropertyCell)
 
   // Layout description.
-  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kDetailsOffset = HeapObject::kHeaderSize;
+  static const int kValueOffset = kDetailsOffset + kPointerSize;
   static const int kDependentCodeOffset = kValueOffset + kPointerSize;
   static const int kSize = kDependentCodeOffset + kPointerSize;
 

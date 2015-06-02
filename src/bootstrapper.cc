@@ -2892,12 +2892,11 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
         if (it.IsFound()) continue;
         // Set the property.
-        Handle<Object> value =
-            Handle<Object>(properties->ValueAt(i), isolate());
-        DCHECK(value->IsPropertyCell());
-        value = handle(PropertyCell::cast(*value)->value(), isolate());
+        DCHECK(properties->ValueAt(i)->IsPropertyCell());
+        Handle<PropertyCell> cell(PropertyCell::cast(properties->ValueAt(i)));
+        Handle<Object> value(cell->value(), isolate());
         if (value->IsTheHole()) continue;
-        PropertyDetails details = properties->DetailsAt(i);
+        PropertyDetails details = cell->property_details();
         DCHECK_EQ(kData, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());
       }
