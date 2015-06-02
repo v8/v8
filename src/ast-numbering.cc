@@ -224,6 +224,7 @@ void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(CountOperation::num_ids()));
   Visit(node->expression());
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -434,6 +435,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }
+  node->BuildConstantProperties(isolate());
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
   // marked expressions, no store code will be is emitted.
