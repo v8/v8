@@ -1190,9 +1190,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // just skip it.
   __ push(ecx);  // Enumerable.
   __ push(ebx);  // Current entry.
-  __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kForInFilter, 2);
   PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
-  __ test(eax, eax);
+  __ cmp(eax, isolate()->factory()->undefined_value());
   __ j(equal, loop_statement.continue_label());
   __ mov(ebx, eax);
 
