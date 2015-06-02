@@ -154,17 +154,20 @@ function PostNatives(utils) {
 
   // Whitelist of exports from normal natives to experimental natives.
   var expose_to_experimental = [
+    "ArrayToString",
     "GetIterator",
     "GetMethod",
     "InnerArrayEvery",
     "InnerArrayFilter",
     "InnerArrayForEach",
     "InnerArrayIndexOf",
+    "InnerArrayJoin",
     "InnerArrayLastIndexOf",
     "InnerArrayMap",
     "InnerArrayReverse",
     "InnerArraySome",
     "InnerArraySort",
+    "InnerArrayToLocaleString",
     "IsNaN",
     "MathMax",
     "MathMin",

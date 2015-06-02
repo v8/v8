@@ -32,6 +32,7 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 DECLARE_GLOBALS(Array)
 
 var ArrayFrom;
+var ArrayToString;
 var InnerArrayCopyWithin;
 var InnerArrayEvery;
 var InnerArrayFill;
@@ -40,15 +41,18 @@ var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayForEach;
 var InnerArrayIndexOf;
+var InnerArrayJoin;
 var InnerArrayLastIndexOf;
 var InnerArrayMap;
 var InnerArrayReverse;
 var InnerArraySome;
 var InnerArraySort;
+var InnerArrayToLocaleString;
 var IsNaN;
 
 utils.Import(function(from) {
   ArrayFrom = from.ArrayFrom;
+  ArrayToString = from.ArrayToString;
   InnerArrayCopyWithin = from.InnerArrayCopyWithin;
   InnerArrayEvery = from.InnerArrayEvery;
   InnerArrayFill = from.InnerArrayFill;
@@ -57,11 +61,13 @@ utils.Import(function(from) {
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayForEach = from.InnerArrayForEach;
   InnerArrayIndexOf = from.InnerArrayIndexOf;
+  InnerArrayJoin = from.InnerArrayJoin;
   InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
   InnerArrayMap = from.InnerArrayMap;
   InnerArrayReverse = from.InnerArrayReverse;
   InnerArraySome = from.InnerArraySome;
   InnerArraySort = from.InnerArraySort;
+  InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   IsNaN = from.IsNaN;
 });
 
@@ -250,6 +256,30 @@ function TypedArraySome(f, receiver) {
 %FunctionSetLength(TypedArraySome, 1);
 
 
+// ES6 section 22.2.3.27
+function TypedArrayToLocaleString() {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  return InnerArrayToLocaleString(this, length);
+}
+
+// ES6 section 22.2.3.28
+function TypedArrayToString() {
+  return %_CallFunction(this, ArrayToString);
+}
+
+// ES6 section 22.2.3.14
+function TypedArrayJoin(separator) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  return InnerArrayJoin(separator, this, length);
+}
+
+
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = %_ArgumentsLength();
@@ -286,12 +316,15 @@ macro EXTEND_TYPED_ARRAY(NAME)
     "find", TypedArrayFind,
     "findIndex", TypedArrayFindIndex,
     "indexOf", TypedArrayIndexOf,
+    "join", TypedArrayJoin,
     "lastIndexOf", TypedArrayLastIndexOf,
     "forEach", TypedArrayForEach,
     "map", TypedArrayMap,
     "reverse", TypedArrayReverse,
     "some", TypedArraySome,
-    "sort", TypedArraySort
+    "sort", TypedArraySort,
+    "toString", TypedArrayToString,
+    "toLocaleString", TypedArrayToLocaleString
   ]);
 endmacro
 

@@ -398,20 +398,21 @@ function ArrayToString() {
 }
 
 
-function ArrayToLocaleString() {
-  var array = $toObject(this);
-  var arrayLen = array.length;
-  var len = TO_UINT32(arrayLen);
+function InnerArrayToLocaleString(array, length) {
+  var len = TO_UINT32(length);
   if (len === 0) return "";
   return Join(array, len, ',', ConvertToLocaleString);
 }
 
 
-function ArrayJoin(separator) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
+function ArrayToLocaleString() {
+  var array = $toObject(this);
+  var arrayLen = array.length;
+  return InnerArrayToLocaleString(array, arrayLen);
+}
 
-  var array = TO_OBJECT_INLINE(this);
-  var length = TO_UINT32(array.length);
+
+function InnerArrayJoin(separator, array, length) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
@@ -430,6 +431,16 @@ function ArrayJoin(separator) {
   }
 
   return Join(array, length, separator, ConvertToString);
+}
+
+
+function ArrayJoin(separator) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
+
+  var array = TO_OBJECT_INLINE(this);
+  var length = TO_UINT32(array.length);
+
+  return InnerArrayJoin(separator, array, length);
 }
 
 
@@ -1654,15 +1665,18 @@ utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
 
 utils.Export(function(to) {
   to.ArrayJoin = ArrayJoin;
+  to.ArrayToString = ArrayToString;
   to.InnerArrayEvery = InnerArrayEvery;
   to.InnerArrayFilter = InnerArrayFilter;
   to.InnerArrayForEach = InnerArrayForEach;
   to.InnerArrayIndexOf = InnerArrayIndexOf;
+  to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
   to.InnerArrayMap = InnerArrayMap;
   to.InnerArrayReverse = InnerArrayReverse;
   to.InnerArraySome = InnerArraySome;
   to.InnerArraySort = InnerArraySort;
+  to.InnerArrayToLocaleString = InnerArrayToLocaleString;
 });
 
 $arrayConcat = ArrayConcatJS;
