@@ -311,6 +311,9 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
     if (object != NULL && filler_size != 0) {
       object = heap()->AlignWithFiller(object, size_in_bytes, allocation_size,
                                        alignment);
+      // Filler objects are initialized, so mark only the aligned object memory
+      // as uninitialized.
+      allocation_size = size_in_bytes;
     }
   }
 
