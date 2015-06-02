@@ -1658,6 +1658,8 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = SLOPPY);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
+      LookupIterator* it, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
@@ -2325,20 +2327,12 @@ class JSObject: public JSReceiver {
                               Handle<Object> value,
                               PropertyAttributes attributes);
 
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
-      Handle<JSObject> object, Handle<Name> name, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
-      Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name);
+      LookupIterator* it);
 
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSObject> object,
                                        Handle<Name> name);
-
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
-      Handle<JSObject> object, uint32_t index, LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithInterceptor(
-      Handle<JSObject> object,
-      uint32_t index);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
@@ -10032,13 +10026,9 @@ class JSProxy: public JSReceiver {
 
   MUST_USE_RESULT static Maybe<bool> HasPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Name> name);
-  MUST_USE_RESULT static inline Maybe<bool> HasElementWithHandler(
-      Handle<JSProxy> proxy, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithHandler(
-      Handle<JSProxy> proxy, uint32_t index, LanguageMode language_mode);
 
   MUST_USE_RESULT Object* GetIdentityHash();
 

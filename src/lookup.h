@@ -59,6 +59,12 @@ class LookupIterator final BASE_EMBEDDED {
         holder_map_(holder_->map(), isolate_),
         initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
+#if 0  // TODO(verwaest): Enable once blocking hacks are removed.
+#ifdef DEBUG
+    uint32_t index;  // Assert that the name is not an array index.
+    DCHECK(!name->AsArrayIndex(&index));
+#endif  // DEBUG
+#endif
     Next();
   }
 
@@ -79,6 +85,12 @@ class LookupIterator final BASE_EMBEDDED {
         holder_map_(holder_->map(), isolate_),
         initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
+#if 0  // TODO(verwaest): Enable once blocking hacks are removed.
+#ifdef DEBUG
+    uint32_t index;  // Assert that the name is not an array index.
+    DCHECK(!name->AsArrayIndex(&index));
+#endif  // DEBUG
+#endif
     Next();
   }
 

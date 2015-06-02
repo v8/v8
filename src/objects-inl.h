@@ -1193,11 +1193,6 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         const char* name) {
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  DCHECK(!str.is_null());
-#ifdef DEBUG
-  uint32_t index;  // Assert that the name is not an array index.
-  DCHECK(!str->AsArrayIndex(&index));
-#endif  // DEBUG
   return GetProperty(object, str);
 }
 
@@ -1210,14 +1205,6 @@ MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   return SetPropertyWithHandler(proxy, receiver, name, value, language_mode);
-}
-
-
-Maybe<bool> JSProxy::HasElementWithHandler(Handle<JSProxy> proxy,
-                                           uint32_t index) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return HasPropertyWithHandler(proxy, name);
 }
 
 

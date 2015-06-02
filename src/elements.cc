@@ -669,9 +669,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNIMPLEMENTED();
   }
 
-  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key,
-      LanguageMode language_mode) override = 0;
+  virtual void Delete(Handle<JSObject> obj, uint32_t key,
+                      LanguageMode language_mode) override = 0;
 
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
                                FixedArrayBase* to, ElementsKind from_kind,
@@ -919,17 +918,16 @@ class FastElementsAccessor
     return length_object;
   }
 
-  static MaybeHandle<Object> DeleteCommon(Handle<JSObject> obj, uint32_t key,
-                                          LanguageMode language_mode) {
+  static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
+                           LanguageMode language_mode) {
     DCHECK(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
     Isolate* isolate = obj->GetIsolate();
     Heap* heap = obj->GetHeap();
     Handle<FixedArrayBase> elements(obj->elements());
-    if (*elements == heap->empty_fixed_array()) {
-      return isolate->factory()->true_value();
-    }
+    if (*elements == heap->empty_fixed_array()) return;
+
     Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
     bool is_sloppy_arguments_elements_map =
         backing_store->map() == heap->sloppy_arguments_elements_map();
@@ -943,16 +941,6 @@ class FastElementsAccessor
         ? Smi::cast(Handle<JSArray>::cast(obj)->length())->value()
         : backing_store->length());
     if (key < length) {
-      if (obj->map()->is_strong() && !backing_store->is_the_hole(key)) {
-        if (is_strict(language_mode)) {
-          Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
-          THROW_NEW_ERROR(
-              isolate,
-              NewTypeError(MessageTemplate::kStrongDeleteProperty, obj, name),
-              Object);
-        }
-        return isolate->factory()->false_value();
-      }
       if (!is_sloppy_arguments_elements_map) {
         ElementsKind kind = KindTraits::Kind;
         if (IsFastPackedElementsKind(kind)) {
@@ -984,12 +972,11 @@ class FastElementsAccessor
         }
       }
     }
-    return isolate->factory()->true_value();
   }
 
-  virtual MaybeHandle<Object> Delete(Handle<JSObject> obj, uint32_t key,
-                                     LanguageMode language_mode) final {
-    return DeleteCommon(obj, key, language_mode);
+  virtual void Delete(Handle<JSObject> obj, uint32_t key,
+                      LanguageMode language_mode) final {
+    DeleteCommon(obj, key, language_mode);
   }
 
   static bool HasElementImpl(
@@ -1306,10 +1293,9 @@ class TypedElementsAccessor
     return obj;
   }
 
-  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) final {
+  virtual void Delete(Handle<JSObject> obj, uint32_t key,
+                      LanguageMode language_mode) final {
     // External arrays always ignore deletes.
-    return obj->GetIsolate()->factory()->true_value();
   }
 
   static bool HasElementImpl(Handle<JSObject> holder, uint32_t key,
@@ -1409,8 +1395,8 @@ class DictionaryElementsAccessor
     return length_object;
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteCommon(
-      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) {
+  static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
+                           LanguageMode language_mode) {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> backing_store(FixedArray::cast(obj->elements()),
                                      isolate);
@@ -1423,28 +1409,10 @@ class DictionaryElementsAccessor
         Handle<SeededNumberDictionary>::cast(backing_store);
     int entry = dictionary->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
-      Handle<Object> result;
-      bool strong = obj->map()->is_strong();
-      if (!strong) {
-        result = SeededNumberDictionary::DeleteProperty(dictionary, entry);
-      }
-      if (strong || *result == *isolate->factory()->false_value()) {
-        // Fail if the property is not configurable, or on a strong object.
-        if (is_strict(language_mode)) {
-          Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
-          if (strong) {
-            THROW_NEW_ERROR(
-                isolate,
-                NewTypeError(MessageTemplate::kStrongDeleteProperty, obj, name),
-                Object);
-          }
-          THROW_NEW_ERROR(
-              isolate,
-              NewTypeError(MessageTemplate::kStrictDeleteProperty, name, obj),
-              Object);
-        }
-        return isolate->factory()->false_value();
-      }
+      Handle<Object> result =
+          SeededNumberDictionary::DeleteProperty(dictionary, entry);
+      USE(result);
+      DCHECK(result->IsTrue());
       Handle<FixedArray> new_elements =
           SeededNumberDictionary::Shrink(dictionary, key);
 
@@ -1454,7 +1422,6 @@ class DictionaryElementsAccessor
         obj->set_elements(*new_elements);
       }
     }
-    return isolate->factory()->true_value();
   }
 
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
@@ -1469,9 +1436,9 @@ class DictionaryElementsAccessor
   friend class ElementsAccessorBase<DictionaryElementsAccessor,
                                     ElementsKindTraits<DICTIONARY_ELEMENTS> >;
 
-  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) final {
-    return DeleteCommon(obj, key, language_mode);
+  virtual void Delete(Handle<JSObject> obj, uint32_t key,
+                      LanguageMode language_mode) final {
+    DeleteCommon(obj, key, language_mode);
   }
 
   static Handle<Object> GetImpl(Handle<JSObject> obj, uint32_t key,
@@ -1631,8 +1598,8 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     return obj;
   }
 
-  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> obj, uint32_t key, LanguageMode language_mode) final {
+  virtual void Delete(Handle<JSObject> obj, uint32_t key,
+                      LanguageMode language_mode) final {
     Isolate* isolate = obj->GetIsolate();
     Handle<FixedArray> parameter_map(FixedArray::cast(obj->elements()));
     Handle<Object> probe(GetParameterMapArg(*parameter_map, key), isolate);
@@ -1644,17 +1611,14 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     } else {
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       if (arguments->IsDictionary()) {
-        return DictionaryElementsAccessor::DeleteCommon(obj, key,
-                                                        language_mode);
+        DictionaryElementsAccessor::DeleteCommon(obj, key, language_mode);
       } else {
         // It's difficult to access the version of DeleteCommon that is declared
         // in the templatized super class, call the concrete implementation in
         // the class for the most generalized ElementsKind subclass.
-        return FastHoleyObjectElementsAccessor::DeleteCommon(obj, key,
-                                                             language_mode);
+        FastHoleyObjectElementsAccessor::DeleteCommon(obj, key, language_mode);
       }
     }
-    return isolate->factory()->true_value();
   }
 
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,

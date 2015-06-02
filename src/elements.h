@@ -102,9 +102,9 @@ class ElementsAccessor {
       int capacity,
       int length) = 0;
 
-  // Deletes an element in an object, returning a new elements backing store.
-  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> holder, uint32_t key, LanguageMode language_mode) = 0;
+  // Deletes an element in an object.
+  virtual void Delete(Handle<JSObject> holder, uint32_t key,
+                      LanguageMode language_mode) = 0;
 
   // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
   // of elements from source after source_start to the destination array.
