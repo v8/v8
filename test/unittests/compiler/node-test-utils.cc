@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/unique.h"
@@ -1186,51 +1187,6 @@ class IsLoadMatcher final : public NodeMatcher {
 };
 
 
-class IsToNumberMatcher final : public NodeMatcher {
- public:
-  IsToNumberMatcher(const Matcher<Node*>& base_matcher,
-                    const Matcher<Node*>& context_matcher,
-                    const Matcher<Node*>& effect_matcher,
-                    const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kJSToNumber),
-        base_matcher_(base_matcher),
-        context_matcher_(context_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
-
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose base (";
-    base_matcher_.DescribeTo(os);
-    *os << "), context (";
-    context_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
-                                 base_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetContextInput(node),
-                                 "context", context_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<Node*> base_matcher_;
-  const Matcher<Node*> context_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
-
 class IsStoreMatcher final : public NodeMatcher {
  public:
   IsStoreMatcher(const Matcher<StoreRepresentation>& rep_matcher,
@@ -1287,6 +1243,73 @@ class IsStoreMatcher final : public NodeMatcher {
   const Matcher<Node*> value_matcher_;
   const Matcher<Node*> effect_matcher_;
   const Matcher<Node*> control_matcher_;
+};
+
+
+class IsToNumberMatcher final : public NodeMatcher {
+ public:
+  IsToNumberMatcher(const Matcher<Node*>& base_matcher,
+                    const Matcher<Node*>& context_matcher,
+                    const Matcher<Node*>& effect_matcher,
+                    const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSToNumber),
+        base_matcher_(base_matcher),
+        context_matcher_(context_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose base (";
+    base_matcher_.DescribeTo(os);
+    *os << "), context (";
+    context_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                 base_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetContextInput(node),
+                                 "context", context_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> context_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsLoadContextMatcher final : public NodeMatcher {
+ public:
+  IsLoadContextMatcher(const Matcher<ContextAccess>& access_matcher,
+                       const Matcher<Node*>& context_matcher)
+      : NodeMatcher(IrOpcode::kJSLoadContext),
+        access_matcher_(access_matcher),
+        context_matcher_(context_matcher) {}
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<ContextAccess>(node), "access",
+                                 access_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetContextInput(node),
+                                 "context", context_matcher_, listener));
+  }
+
+ private:
+  const Matcher<ContextAccess> access_matcher_;
+  const Matcher<Node*> context_matcher_;
 };
 
 
@@ -1727,15 +1750,6 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
 }
 
 
-Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
-                          const Matcher<Node*>& context_matcher,
-                          const Matcher<Node*>& effect_matcher,
-                          const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsToNumberMatcher(base_matcher, context_matcher,
-                                           effect_matcher, control_matcher));
-}
-
-
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& base_matcher,
                        const Matcher<Node*>& index_matcher,
@@ -1745,6 +1759,21 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
   return MakeMatcher(new IsStoreMatcher(rep_matcher, base_matcher,
                                         index_matcher, value_matcher,
                                         effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
+                          const Matcher<Node*>& context_matcher,
+                          const Matcher<Node*>& effect_matcher,
+                          const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsToNumberMatcher(base_matcher, context_matcher,
+                                           effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher) {
+  return MakeMatcher(new IsLoadContextMatcher(access_matcher, context_matcher));
 }
 
 

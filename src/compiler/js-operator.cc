@@ -93,8 +93,12 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 
 DynamicGlobalAccess::DynamicGlobalAccess(const Handle<String>& name,
                                          uint32_t check_bitset,
+                                         const VectorSlotPair& feedback,
                                          ContextualMode mode)
-    : name_(name), check_bitset_(check_bitset), mode_(mode) {
+    : name_(name),
+      check_bitset_(check_bitset),
+      feedback_(feedback),
+      mode_(mode) {
   DCHECK(check_bitset == kFullCheckRequired || check_bitset < 0x80000000U);
 }
 
@@ -520,10 +524,10 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 }
 
 
-const Operator* JSOperatorBuilder::LoadDynamicGlobal(const Handle<String>& name,
-                                                     uint32_t check_bitset,
-                                                     ContextualMode mode) {
-  DynamicGlobalAccess access(name, check_bitset, mode);
+const Operator* JSOperatorBuilder::LoadDynamicGlobal(
+    const Handle<String>& name, uint32_t check_bitset,
+    const VectorSlotPair& feedback, ContextualMode mode) {
+  DynamicGlobalAccess access(name, check_bitset, feedback, mode);
   return new (zone()) Operator1<DynamicGlobalAccess>(           // --
       IrOpcode::kJSLoadDynamicGlobal, Operator::kNoProperties,  // opcode
       "JSLoadDynamicGlobal",                                    // name

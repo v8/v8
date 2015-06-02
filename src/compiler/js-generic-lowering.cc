@@ -454,6 +454,7 @@ void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
                                     : Runtime::kLoadLookupSlotNoReferenceError;
   Node* projection = graph()->NewNode(common()->Projection(0), node);
   NodeProperties::ReplaceWithValue(node, projection, node, node);
+  node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
   node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
   ReplaceWithRuntimeCall(node, function_id);
   projection->ReplaceInput(0, node);

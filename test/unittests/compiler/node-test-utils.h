@@ -27,6 +27,7 @@ namespace compiler {
 // Forward declarations.
 class BufferAccess;
 class CallDescriptor;
+class ContextAccess;
 struct ElementAccess;
 struct FieldAccess;
 class Node;
@@ -264,6 +265,8 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& context_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 

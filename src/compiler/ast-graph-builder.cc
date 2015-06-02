@@ -2748,10 +2748,15 @@ VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
 
 uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
   DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
+  bool found_eval_scope = false;
   EnumSet<int, uint32_t> check_depths;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
     if (s->num_heap_slots() <= 0) continue;
-    // TODO(mstarzinger): Be smarter about which checks to require!
+    // TODO(mstarzinger): If we have reached an eval scope, we check all
+    // extensions from this point. Replicated from full-codegen, figure out
+    // whether this is still needed. If not, drop {found_eval_scope} below.
+    if (s->is_eval_scope()) found_eval_scope = true;
+    if (!s->calls_sloppy_eval() && !found_eval_scope) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > DynamicGlobalAccess::kMaxCheckDepth) {
       return DynamicGlobalAccess::kFullCheckRequired;
@@ -3021,9 +3026,10 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       Handle<String> name = variable->name();
       if (mode == DYNAMIC_GLOBAL) {
         uint32_t check_bitset = ComputeBitsetForDynamicGlobal(variable);
-        const Operator* op = javascript()->LoadDynamicGlobal(name, check_bitset,
-                                                             contextual_mode);
+        const Operator* op = javascript()->LoadDynamicGlobal(
+            name, check_bitset, feedback, contextual_mode);
         value = NewNode(op, current_context());
+        states.AddToNode(value, bailout_id, combine);
       } else if (mode == DYNAMIC_LOCAL) {
         Variable* local = variable->local_if_not_shadowed();
         DCHECK(local->location() == Variable::CONTEXT);  // Must be context.
@@ -3032,14 +3038,15 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         const Operator* op = javascript()->LoadDynamicContext(
             name, check_bitset, depth, local->index());
         value = NewNode(op, current_context());
+        PrepareFrameState(value, bailout_id, combine);
         // TODO(mstarzinger): Hole checks are missing here when optimized.
       } else if (mode == DYNAMIC) {
         uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
-        const Operator* op = javascript()->LoadDynamicGlobal(name, check_bitset,
-                                                             contextual_mode);
+        const Operator* op = javascript()->LoadDynamicGlobal(
+            name, check_bitset, feedback, contextual_mode);
         value = NewNode(op, current_context());
+        states.AddToNode(value, bailout_id, combine);
       }
-      PrepareFrameState(value, bailout_id, combine);
       return value;
     }
   }

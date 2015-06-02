@@ -896,6 +896,37 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
   }
 }
 
+
+// -----------------------------------------------------------------------------
+// JSLoadDynamicGlobal
+
+
+TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<String> name = factory()->object_string();
+  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
+                          FeedbackVectorICSlot::Invalid());
+  for (int i = 0; i < DynamicGlobalAccess::kMaxCheckDepth; ++i) {
+    uint32_t bitset = 1 << i;  // Only single check.
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->LoadDynamicGlobal(name, bitset, feedback, NOT_CONTEXTUAL),
+        context, context, frame_state, frame_state, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsPhi(kMachAnyTagged, _, _,
+              IsMerge(IsIfTrue(IsBranch(
+                          IsObjectIsSmi(IsLoadContext(
+                              ContextAccess(i, Context::EXTENSION_INDEX, false),
+                              context)),
+                          control)),
+                      _)));
+  }
+}
+
 #if V8_TURBOFAN_TARGET
 
 // -----------------------------------------------------------------------------
