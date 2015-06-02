@@ -17,12 +17,10 @@ namespace internal {
 // Returns a single character string where first character equals
 // string->Get(index).
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
-  if (index < static_cast<uint32_t>(string->length())) {
-    Factory* factory = string->GetIsolate()->factory();
-    return factory->LookupSingleCharacterStringFromCode(
-        String::Flatten(string)->Get(index));
-  }
-  return Execution::CharAt(string, index);
+  DCHECK_LT(index, static_cast<uint32_t>(string->length()));
+  Factory* factory = string->GetIsolate()->factory();
+  return factory->LookupSingleCharacterStringFromCode(
+      String::Flatten(string)->Get(index));
 }
 
 
@@ -30,7 +28,8 @@ MaybeHandle<Object> Runtime::GetElementOrCharAt(Isolate* isolate,
                                                 Handle<Object> object,
                                                 uint32_t index) {
   // Handle [] indexing on Strings
-  if (object->IsString()) {
+  if (object->IsString() &&
+      index < static_cast<uint32_t>(String::cast(*object)->length())) {
     Handle<Object> result = GetCharAt(Handle<String>::cast(object), index);
     if (!result->IsUndefined()) return result;
   }
