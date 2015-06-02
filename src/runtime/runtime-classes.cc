@@ -281,10 +281,9 @@ static Object* LoadElementFromSuper(Isolate* isolate, Handle<Object> receiver,
   Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
 
+  LookupIterator it(isolate, receiver, index, Handle<JSReceiver>::cast(proto));
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::GetElementWithReceiver(isolate, proto, receiver, index));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
   return *result;
 }
 

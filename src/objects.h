@@ -1214,12 +1214,6 @@ class Object {
       Handle<Object> object,
       uint32_t index);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithReceiver(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> receiver,
-      uint32_t index);
-
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithReceiver(
       Isolate* isolate, Handle<Object> object, Handle<Object> receiver,
       uint32_t index, Handle<Object> value, LanguageMode language_mode);
@@ -1252,8 +1246,13 @@ class Object {
   // by ES6 Map and Set.
   bool SameValueZero(Object* other);
 
-  // Tries to convert an object to an array index.  Returns true and sets
-  // the output parameter if it succeeds.
+  // Tries to convert an object to an array length. Returns true and sets the
+  // output parameter if it succeeds.
+  inline bool ToArrayLength(uint32_t* index);
+
+  // Tries to convert an object to an array index. Returns true and sets the
+  // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
+  // allow kMaxUInt32.
   inline bool ToArrayIndex(uint32_t* index);
 
   // Returns true if this is a JSValue containing a string and the index is
@@ -2003,12 +2002,6 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes, LanguageMode language_mode,
       bool check_prototype = true, SetPropertyMode set_mode = SET_PROPERTY);
 
-  // Returns the index'th element.
-  // The undefined object if index is out of bounds.
-  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithInterceptor(
-      Handle<JSObject> object, Handle<Object> receiver, uint32_t index,
-      bool check_prototype);
-
   enum SetFastElementsCapacitySmiMode {
     kAllowSmiElements,
     kForceSmiElements,
@@ -2306,13 +2299,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
       LookupIterator* it);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithCallback(
-      Handle<JSObject> object,
-      Handle<Object> receiver,
-      Handle<Object> structure,
-      uint32_t index,
-      Handle<Object> holder);
-
   MUST_USE_RESULT static Maybe<PropertyAttributes>
       GetElementAttributeWithInterceptor(Handle<JSObject> object,
                                          Handle<JSReceiver> receiver,
@@ -2361,9 +2347,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> SetFastDoubleElement(
       Handle<JSObject> object, uint32_t index, Handle<Object> value,
       LanguageMode language_mode, bool check_prototype = true);
-  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithFailedAccessCheck(
-      Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
-      uint32_t index);
   MUST_USE_RESULT static Maybe<PropertyAttributes>
   GetElementAttributesWithFailedAccessCheck(Isolate* isolate,
                                             Handle<JSObject> object,
@@ -10020,10 +10003,6 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy,
       Handle<Object> receiver,
       Handle<Name> name);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetElementWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<Object> receiver,
-      uint32_t index);
 
   // If the handler defines an accessor property with a setter, invoke it.
   // If it defines an accessor property without a setter, or a data property
@@ -10425,6 +10404,7 @@ class JSTypedArray: public JSArrayBufferView {
  public:
   // [length]: length of typed array in elements.
   DECL_ACCESSORS(length, Object)
+  inline uint32_t length_value() const;
 
   DECLARE_CAST(JSTypedArray)
 

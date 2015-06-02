@@ -439,7 +439,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
   uint32_t length = 0;
-  CHECK(object->length()->ToArrayIndex(&length));
+  CHECK(object->length()->ToArrayLength(&length));
   builder_.AppendCharacter('[');
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS: {

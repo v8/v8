@@ -8,7 +8,7 @@ Object.prototype["10"] = "unreachable";
 Object.prototype["7"] = "unreachable";
 Object.prototype["-1"] = "unreachable";
 Object.prototype["-0"] = "unreachable";
-Object.prototype["4294967296"] = "unreachable";
+Object.prototype["4294967295"] = "unreachable";
 
 var array = new Int32Array(10);
 
@@ -17,12 +17,12 @@ function check() {
     assertEquals(undefined, array["-1"]);
     assertEquals(undefined, array["-0"]);
     assertEquals(undefined, array["10"]);
-    assertEquals(undefined, array["4294967296"]);
+    assertEquals(undefined, array["4294967295"]);
   }
   assertEquals("unreachable", array.__proto__["-1"]);
   assertEquals("unreachable", array.__proto__["-0"]);
   assertEquals("unreachable", array.__proto__["10"]);
-  assertEquals("unreachable", array.__proto__["4294967296"]);
+  assertEquals("unreachable", array.__proto__["4294967295"]);
 }
 
 check();
@@ -30,19 +30,19 @@ check();
 array["-1"] = "unreachable";
 array["-0"] = "unreachable";
 array["10"] = "unreachable";
-array["4294967296"] = "unreachable";
+array["4294967295"] = "unreachable";
 
 check();
 
 delete array["-0"];
 delete array["-1"];
 delete array["10"];
-delete array["4294967296"];
+delete array["4294967295"];
 
 assertEquals(undefined, Object.getOwnPropertyDescriptor(array, "-1"));
 assertEquals(undefined, Object.getOwnPropertyDescriptor(array, "-0"));
 assertEquals(undefined, Object.getOwnPropertyDescriptor(array, "10"));
-assertEquals(undefined, Object.getOwnPropertyDescriptor(array, "4294967296"));
+assertEquals(undefined, Object.getOwnPropertyDescriptor(array, "4294967295"));
 assertEquals(10, Object.keys(array).length);
 
 check();
@@ -58,6 +58,6 @@ assertEquals(undefined, f());
 Object.defineProperty(new Int32Array(), "-1", {'value': 1});
 Object.defineProperty(new Int32Array(), "-0", {'value': 1});
 Object.defineProperty(new Int32Array(), "-10", {'value': 1});
-Object.defineProperty(new Int32Array(), "4294967296", {'value': 1});
+Object.defineProperty(new Int32Array(), "4294967295", {'value': 1});
 
 check();

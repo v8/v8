@@ -422,9 +422,8 @@ RUNTIME_FUNCTION(Runtime_DebugIndexedInterceptorElementValue) {
   RUNTIME_ASSERT(obj->HasIndexedInterceptor());
   CONVERT_NUMBER_CHECKED(uint32_t, index, Uint32, args[1]);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::GetElementWithInterceptor(obj, obj, index, true));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Object::GetElement(isolate, obj, index));
   return *result;
 }
 

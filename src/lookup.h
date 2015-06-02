@@ -86,7 +86,7 @@ class LookupIterator final BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(configuration),
         state_(NOT_FOUND),
-        exotic_index_state_(ExoticIndexState::kNotExotic),
+        exotic_index_state_(ExoticIndexState::kUninitialized),
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(isolate),
@@ -107,7 +107,7 @@ class LookupIterator final BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(configuration),
         state_(NOT_FOUND),
-        exotic_index_state_(ExoticIndexState::kNotExotic),
+        exotic_index_state_(ExoticIndexState::kUninitialized),
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(isolate),
@@ -222,6 +222,8 @@ class LookupIterator final BASE_EMBEDDED {
   void ReloadPropertyInformation();
   bool SkipInterceptor(JSObject* holder);
   bool HasInterceptor(Map* map) const;
+  bool InternalHolderIsReceiverOrHiddenPrototype() const;
+  InterceptorInfo* GetInterceptor(JSObject* holder) const;
 
   bool IsBootstrapping() const;
 

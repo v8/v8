@@ -2021,9 +2021,9 @@ THREADED_TEST(Enumerators) {
       "k.a = 0;"
       "k[5] = 0;"
       "k.b = 0;"
-      "k[4294967295] = 0;"
+      "k[4294967294] = 0;"
       "k.c = 0;"
-      "k[4294967296] = 0;"
+      "k[4294967295] = 0;"
       "k.d = 0;"
       "k[140000] = 0;"
       "k.e = 0;"
@@ -2046,7 +2046,7 @@ THREADED_TEST(Enumerators) {
   CHECK(v8_str("10")->Equals(result->Get(v8::Integer::New(isolate, 1))));
   CHECK(v8_str("140000")->Equals(result->Get(v8::Integer::New(isolate, 2))));
   CHECK(
-      v8_str("4294967295")->Equals(result->Get(v8::Integer::New(isolate, 3))));
+      v8_str("4294967294")->Equals(result->Get(v8::Integer::New(isolate, 3))));
   // Indexed interceptor properties in the order they are returned
   // from the enumerator interceptor.
   CHECK(v8_str("0")->Equals(result->Get(v8::Integer::New(isolate, 4))));
@@ -2056,7 +2056,7 @@ THREADED_TEST(Enumerators) {
   CHECK(v8_str("b")->Equals(result->Get(v8::Integer::New(isolate, 7))));
   CHECK(v8_str("c")->Equals(result->Get(v8::Integer::New(isolate, 8))));
   CHECK(
-      v8_str("4294967296")->Equals(result->Get(v8::Integer::New(isolate, 9))));
+      v8_str("4294967295")->Equals(result->Get(v8::Integer::New(isolate, 9))));
   CHECK(v8_str("d")->Equals(result->Get(v8::Integer::New(isolate, 10))));
   CHECK(v8_str("e")->Equals(result->Get(v8::Integer::New(isolate, 11))));
   CHECK(v8_str("30000000000")

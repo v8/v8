@@ -311,7 +311,7 @@ ParseElementResult JsonParser<seq_one_byte>::ParseElement(
   } else {
     do {
       int d = c0_ - '0';
-      if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
+      if (index > 429496729U - ((d + 3) >> 3)) break;
       index = (index * 10) + d;
       Advance();
     } while (IsDecimalDigit(c0_));

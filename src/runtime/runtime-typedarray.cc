@@ -286,12 +286,14 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   RUNTIME_ASSERT(holder->map()->elements_kind() == fixed_elements_kind);
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  size_t length = 0;
   if (source->IsJSTypedArray() &&
       JSTypedArray::cast(*source)->type() == array_type) {
-    length_obj = Handle<Object>(JSTypedArray::cast(*source)->length(), isolate);
+    length_obj = handle(JSTypedArray::cast(*source)->length(), isolate);
+    length = JSTypedArray::cast(*source)->length_value();
+  } else {
+    RUNTIME_ASSERT(TryNumberToSize(isolate, *length_obj, &length));
   }
-  size_t length = 0;
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *length_obj, &length));
 
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
       (length > (kMaxInt / element_size))) {
@@ -363,7 +365,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
 #define BUFFER_VIEW_GETTER(Type, getter, accessor)   \
   RUNTIME_FUNCTION(Runtime_##Type##Get##getter) {    \
     HandleScope scope(isolate);                      \
-    DCHECK(args.length() == 1);                      \
+    DCHECK_EQ(1, args.length());                     \
     CONVERT_ARG_HANDLE_CHECKED(JS##Type, holder, 0); \
     return holder->accessor();                       \
   }
@@ -377,7 +379,7 @@ BUFFER_VIEW_GETTER(DataView, Buffer, buffer)
 
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
   return *holder->GetBuffer();
 }
@@ -417,8 +419,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
   size_t offset = 0;
   RUNTIME_ASSERT(TryNumberToSize(isolate, *offset_obj, &offset));
-  size_t target_length = NumberToSize(isolate, target->length());
-  size_t source_length = NumberToSize(isolate, source->length());
+  size_t target_length = target->length_value();
+  size_t source_length = source->length_value();
   size_t target_byte_length = NumberToSize(isolate, target->byte_length());
   size_t source_byte_length = NumberToSize(isolate, source->byte_length());
   if (offset > target_length || offset + source_length > target_length ||

@@ -705,16 +705,13 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       break;
     }
     case SLOPPY_ARGUMENTS_ELEMENTS: {
-      ElementsAccessor* accessor = receiver->GetElementsAccessor();
       for (uint32_t index = 0; index < length; index++) {
         HandleScope loop_scope(isolate);
-        if (accessor->HasElement(receiver, index)) {
-          Handle<Object> element;
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              isolate, element, accessor->Get(receiver, receiver, index),
-              false);
-          visitor->visit(index, element);
-        }
+        Handle<Object> element;
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, element, Object::GetElement(isolate, receiver, index),
+            false);
+        visitor->visit(index, element);
       }
       break;
     }

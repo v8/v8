@@ -7433,10 +7433,10 @@ THREADED_TEST(ToArrayIndex) {
   str = v8_str("-42");
   index = str->ToArrayIndex();
   CHECK(index.IsEmpty());
-  str = v8_str("4294967295");
+  str = v8_str("4294967294");
   index = str->ToArrayIndex();
   CHECK(!index.IsEmpty());
-  CHECK_EQ(4294967295.0, index->Uint32Value());
+  CHECK_EQ(4294967294.0, index->Uint32Value());
   v8::Handle<v8::Number> num = v8::Number::New(isolate, 1);
   index = num->ToArrayIndex();
   CHECK(!index.IsEmpty());

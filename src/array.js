@@ -303,7 +303,7 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
           if (!IS_UNDEFINED(current) || key in array) {
             var new_key = key - del_count + num_additional_args;
             new_array[new_key] = current;
-            if (new_key > 0xffffffff) {
+            if (new_key > 0xfffffffe) {
               big_indices = big_indices || new InternalArray();
               big_indices.push(new_key);
             }

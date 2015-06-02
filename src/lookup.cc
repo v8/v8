@@ -234,6 +234,10 @@ void LookupIterator::TransitionToAccessorProperty(
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  return InternalHolderIsReceiverOrHiddenPrototype();
+}
+
+bool LookupIterator::InternalHolderIsReceiverOrHiddenPrototype() const {
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
@@ -258,7 +262,11 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 Handle<Object> LookupIterator::FetchValue() const {
   Object* result = NULL;
   Handle<JSObject> holder = GetHolder<JSObject>();
-  if (holder_map_->IsGlobalObjectMap()) {
+  if (IsElement()) {
+    // TODO(verwaest): Optimize.
+    ElementsAccessor* accessor = holder->GetElementsAccessor();
+    return accessor->Get(holder, index_);
+  } else if (holder_map_->IsGlobalObjectMap()) {
     result = holder->global_dictionary()->ValueAt(number_);
     DCHECK(result->IsPropertyCell());
     result = PropertyCell::cast(result)->value();
@@ -287,6 +295,7 @@ int LookupIterator::GetConstantIndex() const {
   DCHECK(has_property_);
   DCHECK(!holder_map_->is_dictionary_map());
   DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
+  DCHECK(!IsElement());
   return descriptor_number();
 }
 
@@ -295,6 +304,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
   DCHECK(!holder_map_->is_dictionary_map());
   DCHECK_EQ(v8::internal::DATA, property_details_.type());
+  DCHECK(!IsElement());
   int index =
       holder_map_->instance_descriptors()->GetFieldIndex(descriptor_number());
   bool is_double = representation().IsDouble();
@@ -313,6 +323,7 @@ Handle<HeapType> LookupIterator::GetFieldType() const {
 
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
+  DCHECK(!IsElement());
   Handle<JSObject> holder = GetHolder<JSObject>();
   Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
   Object* value = global->global_dictionary()->ValueAt(dictionary_entry());
@@ -336,6 +347,7 @@ Handle<Object> LookupIterator::GetDataValue() const {
 
 void LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK_EQ(DATA, state_);
+  DCHECK(!IsElement());
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (holder->IsGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
@@ -359,10 +371,16 @@ bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
   // Currently typed arrays are the only such objects.
   if (!holder->IsJSTypedArray()) return false;
   if (exotic_index_state_ == ExoticIndexState::kExotic) return true;
+  if (!InternalHolderIsReceiverOrHiddenPrototype()) {
+    exotic_index_state_ = ExoticIndexState::kNotExotic;
+    return false;
+  }
   DCHECK(exotic_index_state_ == ExoticIndexState::kUninitialized);
   bool result = false;
   // Compute and cache result.
-  if (name()->IsString()) {
+  if (IsElement()) {
+    result = index_ >= JSTypedArray::cast(holder)->length_value();
+  } else if (name()->IsString()) {
     Handle<String> name_string = Handle<String>::cast(name());
     if (name_string->length() != 0) {
       result = IsSpecialIndex(isolate_->unicode_cache(), *name_string);
@@ -388,14 +406,18 @@ bool LookupIterator::HasInterceptor(Map* map) const {
 
 Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  Handle<JSObject> js_holder = Handle<JSObject>::cast(holder_);
-  if (IsElement()) return handle(js_holder->GetIndexedInterceptor(), isolate_);
-  return handle(js_holder->GetNamedInterceptor(), isolate_);
+  return handle(GetInterceptor(JSObject::cast(*holder_)), isolate_);
+}
+
+
+InterceptorInfo* LookupIterator::GetInterceptor(JSObject* holder) const {
+  if (IsElement()) return holder->GetIndexedInterceptor();
+  return holder->GetNamedInterceptor();
 }
 
 
 bool LookupIterator::SkipInterceptor(JSObject* holder) {
-  auto info = holder->GetNamedInterceptor();
+  auto info = GetInterceptor(holder);
   // TODO(dcarney): check for symbol/can_intercept_symbols here as well.
   if (info->non_masking()) {
     switch (interceptor_state_) {

@@ -611,28 +611,6 @@ static MaybeHandle<JSObject> FindIndexedAllCanReadHolder(
 }
 
 
-MaybeHandle<Object> JSObject::GetElementWithFailedAccessCheck(
-    Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
-    uint32_t index) {
-  Handle<JSObject> holder = object;
-  PrototypeIterator::WhereToStart where_to_start =
-      PrototypeIterator::START_AT_RECEIVER;
-  while (true) {
-    auto all_can_read_holder =
-        FindIndexedAllCanReadHolder(isolate, holder, where_to_start);
-    if (!all_can_read_holder.ToHandle(&holder)) break;
-    auto result =
-        JSObject::GetElementWithInterceptor(holder, receiver, index, false);
-    if (isolate->has_scheduled_exception()) break;
-    if (!result.is_null()) return result;
-    where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
-  }
-  isolate->ReportFailedAccessCheck(object);
-  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  return isolate->factory()->undefined_value();
-}
-
-
 Maybe<PropertyAttributes> JSObject::GetElementAttributesWithFailedAccessCheck(
     Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
     uint32_t index) {
@@ -652,58 +630,6 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributesWithFailedAccessCheck(
   isolate->ReportFailedAccessCheck(object);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<PropertyAttributes>());
   return Just(ABSENT);
-}
-
-
-MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
-                                                   Handle<Object> object,
-                                                   Handle<Object> receiver,
-                                                   uint32_t index) {
-  DCHECK(!object->IsUndefined());
-
-  // Iterate up the prototype chain until an element is found or the null
-  // prototype is encountered.
-  for (PrototypeIterator iter(isolate, object,
-                              object->IsJSProxy() || object->IsJSObject()
-                                  ? PrototypeIterator::START_AT_RECEIVER
-                                  : PrototypeIterator::START_AT_PROTOTYPE);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-      return JSProxy::GetElementWithHandler(
-          Handle<JSProxy>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
-          index);
-    }
-
-    // Inline the case for JSObjects. Doing so significantly improves the
-    // performance of fetching elements where checking the prototype chain is
-    // necessary.
-    Handle<JSObject> js_object =
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-
-    // Check access rights if needed.
-    if (js_object->IsAccessCheckNeeded()) {
-      if (!isolate->MayAccess(js_object)) {
-        return JSObject::GetElementWithFailedAccessCheck(isolate, js_object,
-                                                         receiver, index);
-      }
-    }
-
-    if (js_object->HasIndexedInterceptor()) {
-      return JSObject::GetElementWithInterceptor(js_object, receiver, index,
-                                                 true);
-    }
-
-    if (js_object->elements() != isolate->heap()->empty_fixed_array()) {
-      Handle<Object> result;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, result,
-          js_object->GetElementsAccessor()->Get(receiver, js_object, index),
-          Object);
-      if (!result->IsTheHole()) return result;
-    }
-  }
-
-  return isolate->factory()->undefined_value();
 }
 
 
@@ -8250,10 +8176,8 @@ MaybeHandle<FixedArray> FixedArray::AddKeysFromArrayLike(
     Handle<FixedArray> content, Handle<JSObject> array, KeyFilter filter) {
   DCHECK(array->IsJSArray() || array->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<FixedArray> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      array->GetIsolate(), result,
-      accessor->AddElementsToFixedArray(array, content, filter), FixedArray);
+  Handle<FixedArray> result =
+      accessor->AddElementsToFixedArray(array, content, filter);
 
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
@@ -12299,9 +12223,9 @@ MaybeHandle<Object> JSArray::SetElementsLength(
   List<Handle<Object> > old_values;
   Handle<Object> old_length_handle(array->length(), isolate);
   uint32_t old_length = 0;
-  CHECK(old_length_handle->ToArrayIndex(&old_length));
+  CHECK(old_length_handle->ToArrayLength(&old_length));
   uint32_t new_length = 0;
-  CHECK(new_length_handle->ToArrayIndex(&new_length));
+  CHECK(new_length_handle->ToArrayLength(&new_length));
 
   static const PropertyAttributes kNoAttrFilter = NONE;
   int num_elements = array->NumberOfOwnElements(kNoAttrFilter);
@@ -12331,7 +12255,7 @@ MaybeHandle<Object> JSArray::SetElementsLength(
       array->GetElementsAccessor()->SetLength(array, new_length_handle),
       Object);
 
-  CHECK(array->length()->ToArrayIndex(&new_length));
+  CHECK(array->length()->ToArrayLength(&new_length));
   if (old_length == new_length) return hresult;
 
   RETURN_ON_EXCEPTION(isolate, BeginPerformSplice(array), Object);
@@ -12827,54 +12751,6 @@ MaybeHandle<Object> JSObject::SetElementWithInterceptor(
 }
 
 
-MaybeHandle<Object> JSObject::GetElementWithCallback(
-    Handle<JSObject> object,
-    Handle<Object> receiver,
-    Handle<Object> structure,
-    uint32_t index,
-    Handle<Object> holder) {
-  Isolate* isolate = object->GetIsolate();
-  DCHECK(!structure->IsForeign());
-  // api style callbacks.
-  if (structure->IsExecutableAccessorInfo()) {
-    Handle<ExecutableAccessorInfo> data =
-        Handle<ExecutableAccessorInfo>::cast(structure);
-    Object* fun_obj = data->getter();
-    v8::AccessorNameGetterCallback call_fun =
-        v8::ToCData<v8::AccessorNameGetterCallback>(fun_obj);
-    if (call_fun == NULL) return isolate->factory()->undefined_value();
-    Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
-    Handle<String> key = isolate->factory()->Uint32ToString(index);
-    LOG(isolate, ApiNamedPropertyAccess("load", *holder_handle, *key));
-    PropertyCallbackArguments
-        args(isolate, data->data(), *receiver, *holder_handle);
-    v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (result.IsEmpty()) return isolate->factory()->undefined_value();
-    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-    result_internal->VerifyApiCallResultType();
-    // Rebox handle before return.
-    return handle(*result_internal, isolate);
-  }
-
-  // __defineGetter__ callback
-  if (structure->IsAccessorPair()) {
-    Handle<Object> getter(Handle<AccessorPair>::cast(structure)->getter(),
-                          isolate);
-    if (getter->IsSpecFunction()) {
-      // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return GetPropertyWithDefinedGetter(
-          receiver, Handle<JSReceiver>::cast(getter));
-    }
-    // Getter is not a function.
-    return isolate->factory()->undefined_value();
-  }
-
-  UNREACHABLE();
-  return MaybeHandle<Object>();
-}
-
-
 MaybeHandle<Object> JSObject::SetElementWithCallback(
     Handle<Object> object, Handle<Object> structure, uint32_t index,
     Handle<Object> value, Handle<JSObject> holder, LanguageMode language_mode) {
@@ -12989,7 +12865,8 @@ MaybeHandle<Object> JSObject::SetFastElement(Handle<JSObject> object,
   bool must_update_array_length = false;
   bool introduces_holes = true;
   if (object->IsJSArray()) {
-    CHECK(Handle<JSArray>::cast(object)->length()->ToArrayIndex(&array_length));
+    CHECK(
+        Handle<JSArray>::cast(object)->length()->ToArrayLength(&array_length));
     introduces_holes = index > array_length;
     if (index >= array_length) {
       must_update_array_length = true;
@@ -13184,7 +13061,8 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
   if (object->ShouldConvertToFastElements()) {
     uint32_t new_length = 0;
     if (object->IsJSArray()) {
-      CHECK(Handle<JSArray>::cast(object)->length()->ToArrayIndex(&new_length));
+      CHECK(
+          Handle<JSArray>::cast(object)->length()->ToArrayLength(&new_length));
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
@@ -13239,7 +13117,7 @@ MaybeHandle<Object> JSObject::SetFastDoubleElement(Handle<JSObject> object,
   bool introduces_holes = true;
   uint32_t length = elms_length;
   if (object->IsJSArray()) {
-    CHECK(Handle<JSArray>::cast(object)->length()->ToArrayIndex(&length));
+    CHECK(Handle<JSArray>::cast(object)->length()->ToArrayLength(&length));
     introduces_holes = index > length;
   } else {
     introduces_holes = index >= elms_length;
@@ -13276,8 +13154,8 @@ MaybeHandle<Object> JSObject::SetFastDoubleElement(Handle<JSObject> object,
     if (object->IsJSArray()) {
       // Update the length of the array if needed.
       uint32_t array_length = 0;
-      CHECK(
-          Handle<JSArray>::cast(object)->length()->ToArrayIndex(&array_length));
+      CHECK(Handle<JSArray>::cast(object)->length()->ToArrayLength(
+          &array_length));
       if (index >= array_length) {
         Handle<JSArray>::cast(object)->set_length(Smi::FromInt(index + 1));
       }
@@ -13438,8 +13316,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
                                  isolate);
       uint32_t old_length = 0;
       uint32_t new_length = 0;
-      CHECK(old_length_handle->ToArrayIndex(&old_length));
-      CHECK(new_length_handle->ToArrayIndex(&new_length));
+      CHECK(old_length_handle->ToArrayLength(&old_length));
+      CHECK(new_length_handle->ToArrayLength(&new_length));
 
       RETURN_ON_EXCEPTION(
           isolate, BeginPerformSplice(Handle<JSArray>::cast(object)), Object);
@@ -13627,7 +13505,7 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
       uint32_t length = 0;
-      CHECK(transition_info->length()->ToArrayIndex(&length));
+      CHECK(transition_info->length()->ToArrayLength(&length));
       if (length <= kMaximumArrayBytesToPretransition) {
         if (FLAG_trace_track_allocation_sites) {
           bool is_nested = site->IsNestedSite();
@@ -13741,7 +13619,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
       // elements, assume a length of zero.
       length = 0;
     } else {
-      CHECK(raw_length->ToArrayIndex(&length));
+      CHECK(raw_length->ToArrayLength(&length));
     }
   }
 
@@ -13784,7 +13662,7 @@ void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
                                            uint32_t index,
                                            Handle<Object> value) {
   uint32_t old_len = 0;
-  CHECK(array->length()->ToArrayIndex(&old_len));
+  CHECK(array->length()->ToArrayLength(&old_len));
   // Check to see if we need to update the length. For now, we make
   // sure that the length stays within 32-bits (unsigned).
   if (index >= old_len && index != 0xffffffff) {
@@ -13808,7 +13686,7 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
 bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
                                         uint32_t index) {
   uint32_t length = 0;
-  CHECK(array->length()->ToArrayIndex(&length));
+  CHECK(array->length()->ToArrayLength(&length));
   if (length <= index) return HasReadOnlyLength(array);
   return false;
 }
@@ -13821,50 +13699,6 @@ MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
       isolate,
       NewTypeError(MessageTemplate::kStrictReadOnlyProperty, length, array),
       Object);
-}
-
-
-MaybeHandle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
-                                                        Handle<Object> receiver,
-                                                        uint32_t index,
-                                                        bool check_prototype) {
-  Isolate* isolate = object->GetIsolate();
-
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor(), isolate);
-  if (!interceptor->getter()->IsUndefined()) {
-    v8::IndexedPropertyGetterCallback getter =
-        v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-get", *object, index));
-    PropertyCallbackArguments
-        args(isolate, interceptor->data(), *receiver, *object);
-    v8::Handle<v8::Value> result = args.Call(getter, index);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (!result.IsEmpty()) {
-      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-      result_internal->VerifyApiCallResultType();
-      // Rebox handle before return.
-      return handle(*result_internal, isolate);
-    }
-  }
-
-  if (!check_prototype) return MaybeHandle<Object>();
-
-  ElementsAccessor* handler = object->GetElementsAccessor();
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, handler->Get(receiver,  object, index),
-      Object);
-  if (!result->IsTheHole()) return result;
-
-  PrototypeIterator iter(isolate, object);
-  if (iter.IsAtEnd()) return isolate->factory()->undefined_value();
-  return Object::GetElementWithReceiver(
-      isolate, PrototypeIterator::GetCurrent(iter), receiver, index);
 }
 
 
@@ -14011,7 +13845,7 @@ bool JSObject::ShouldConvertToFastElements() {
   // the object should have fast elements.
   uint32_t array_size = 0;
   if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_size));
+    CHECK(JSArray::cast(this)->length()->ToArrayLength(&array_size));
   } else {
     array_size = dictionary->max_number_key();
   }

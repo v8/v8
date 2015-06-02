@@ -2855,14 +2855,14 @@ RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
 
 
 RUNTIME_FUNCTION(LoadElementWithInterceptor) {
+  // TODO(verwaest): This should probably get the holder and receiver as input.
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   DCHECK(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::GetElementWithInterceptor(receiver, receiver, index, true));
+      isolate, result, Object::GetElement(isolate, receiver, index));
   return *result;
 }
 

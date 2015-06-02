@@ -779,8 +779,7 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
         // Check if we can avoid the bounds check.
-        if (key_type->Min() >= 0 &&
-            key_type->Max() < array->length()->Number()) {
+        if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
           Node* load = graph()->NewNode(
               simplified()->LoadElement(
                   AccessBuilder::ForTypedArrayElement(array->type(), true)),
@@ -850,8 +849,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
           value = graph()->NewNode(simplified()->NumberToUint32(), value);
         }
         // Check if we can avoid the bounds check.
-        if (key_type->Min() >= 0 &&
-            key_type->Max() < array->length()->Number()) {
+        if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
           node->set_op(simplified()->StoreElement(
               AccessBuilder::ForTypedArrayElement(array->type(), true)));
           node->ReplaceInput(0, buffer);

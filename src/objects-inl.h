@@ -1171,11 +1171,8 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
 MaybeHandle<Object> Object::GetElement(Isolate* isolate,
                                        Handle<Object> object,
                                        uint32_t index) {
-  // GetElement can trigger a getter which can cause allocation.
-  // This was not always the case. This DCHECK is here to catch
-  // leftover incorrect uses.
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  return Object::GetElementWithReceiver(isolate, object, object, index);
+  LookupIterator it(isolate, object, index);
+  return GetProperty(&it);
 }
 
 
@@ -1211,14 +1208,6 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
   DCHECK(!str->AsArrayIndex(&index));
 #endif  // DEBUG
   return GetProperty(object, str);
-}
-
-
-MaybeHandle<Object> JSProxy::GetElementWithHandler(Handle<JSProxy> proxy,
-                                                   Handle<Object> receiver,
-                                                   uint32_t index) {
-  return GetPropertyWithHandler(
-      proxy, receiver, proxy->GetIsolate()->factory()->Uint32ToString(index));
 }
 
 
@@ -2231,7 +2220,7 @@ void Struct::InitializeBody(int object_size) {
 }
 
 
-bool Object::ToArrayIndex(uint32_t* index) {
+bool Object::ToArrayLength(uint32_t* index) {
   if (IsSmi()) {
     int value = Smi::cast(this)->value();
     if (value < 0) return false;
@@ -2247,6 +2236,11 @@ bool Object::ToArrayIndex(uint32_t* index) {
     }
   }
   return false;
+}
+
+
+bool Object::ToArrayIndex(uint32_t* index) {
+  return ToArrayLength(index) && *index != kMaxUInt32;
 }
 
 
@@ -6547,6 +6541,14 @@ Object* JSTypedArray::length() const {
 }
 
 
+uint32_t JSTypedArray::length_value() const {
+  if (WasNeutered()) return 0;
+  uint32_t index = 0;
+  CHECK(Object::cast(READ_FIELD(this, kLengthOffset))->ToArrayLength(&index));
+  return index;
+}
+
+
 void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kLengthOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
@@ -6858,7 +6860,7 @@ bool StringHasher::UpdateIndex(uint16_t c) {
       return false;
     }
   }
-  if (array_index_ > 429496729U - ((d + 2) >> 3)) {
+  if (array_index_ > 429496729U - ((d + 3) >> 3)) {
     is_array_index_ = false;
     return false;
   }
