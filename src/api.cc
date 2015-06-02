@@ -3565,7 +3565,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   }
 
   Maybe<PropertyAttributes> attributes =
-      i::JSReceiver::GetOwnElementAttribute(self, index);
+      i::JSReceiver::GetOwnElementAttributes(self, index);
   if (attributes.IsJust() && attributes.FromJust() & DONT_DELETE) {
     return Just(false);
   }

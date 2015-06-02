@@ -1189,15 +1189,6 @@ Handle<Object> Object::GetPrototypeSkipHiddenPrototypes(
 }
 
 
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                                 Handle<Name> name) {
-  uint32_t index;
-  Isolate* isolate = name->GetIsolate();
-  if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
-  return GetProperty(object, name);
-}
-
-
 MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         const char* name) {
@@ -6962,12 +6953,24 @@ String* String::GetForwardedInternalizedString() {
 }
 
 
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
+                                                 Handle<Name> name) {
+  uint32_t index;
+  LookupIterator it = name->AsArrayIndex(&index)
+                          ? LookupIterator(name->GetIsolate(), object, index)
+                          : LookupIterator(object, name);
+  return GetProperty(&it);
+}
+
+
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
+  // Call the "has" trap on proxies.
   if (object->IsJSProxy()) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
+
   Maybe<PropertyAttributes> result = GetPropertyAttributes(object, name);
   return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
 }
@@ -6975,34 +6978,80 @@ Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
 
 Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        Handle<Name> name) {
+  // Call the "has" trap on proxies.
   if (object->IsJSProxy()) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
+
   Maybe<PropertyAttributes> result = GetOwnPropertyAttributes(object, name);
   return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
 }
 
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
-    Handle<JSReceiver> object, Handle<Name> key) {
-  uint32_t index;
-  if (object->IsJSObject() && key->AsArrayIndex(&index)) {
-    return GetElementAttribute(object, index);
-  }
-  LookupIterator it(object, key);
+    Handle<JSReceiver> object, Handle<Name> name) {
+  uint32_t index = 0;
+  LookupIterator it = name->AsArrayIndex(&index)
+                          ? LookupIterator(name->GetIsolate(), object, index)
+                          : LookupIterator(object, name);
   return GetPropertyAttributes(&it);
 }
 
 
-Maybe<PropertyAttributes> JSReceiver::GetElementAttribute(
-    Handle<JSReceiver> object, uint32_t index) {
+Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
+    Handle<JSReceiver> object, Handle<Name> name) {
+  uint32_t index = 0;
+  LookupIterator::Configuration c = LookupIterator::HIDDEN;
+  LookupIterator it = name->AsArrayIndex(&index)
+                          ? LookupIterator(name->GetIsolate(), object, index, c)
+                          : LookupIterator(object, name, c);
+  return GetPropertyAttributes(&it);
+}
+
+
+Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
+  // Call the "has" trap on proxies.
   if (object->IsJSProxy()) {
-    return JSProxy::GetElementAttributeWithHandler(
-        Handle<JSProxy>::cast(object), object, index);
+    Isolate* isolate = object->GetIsolate();
+    Handle<Name> name = isolate->factory()->Uint32ToString(index);
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return JSObject::GetElementAttributeWithReceiver(
-      Handle<JSObject>::cast(object), object, index, true);
+
+  Maybe<PropertyAttributes> result = GetElementAttributes(object, index);
+  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+}
+
+
+Maybe<bool> JSReceiver::HasOwnElement(Handle<JSReceiver> object,
+                                      uint32_t index) {
+  // Call the "has" trap on proxies.
+  if (object->IsJSProxy()) {
+    Isolate* isolate = object->GetIsolate();
+    Handle<Name> name = isolate->factory()->Uint32ToString(index);
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    return JSProxy::HasPropertyWithHandler(proxy, name);
+  }
+
+  Maybe<PropertyAttributes> result = GetOwnElementAttributes(object, index);
+  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+}
+
+
+Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(
+    Handle<JSReceiver> object, uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
+  LookupIterator it(isolate, object, index);
+  return GetPropertyAttributes(&it);
+}
+
+
+Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
+    Handle<JSReceiver> object, uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
+  LookupIterator it(isolate, object, index, LookupIterator::HIDDEN);
+  return GetPropertyAttributes(&it);
 }
 
 
@@ -7029,40 +7078,6 @@ Object* JSReceiver::GetIdentityHash() {
   return IsJSProxy()
       ? JSProxy::cast(this)->GetIdentityHash()
       : JSObject::cast(this)->GetIdentityHash();
-}
-
-
-Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
-  if (object->IsJSProxy()) {
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    return JSProxy::HasElementWithHandler(proxy, index);
-  }
-  Maybe<PropertyAttributes> result = JSObject::GetElementAttributeWithReceiver(
-      Handle<JSObject>::cast(object), object, index, true);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
-}
-
-
-Maybe<bool> JSReceiver::HasOwnElement(Handle<JSReceiver> object,
-                                      uint32_t index) {
-  if (object->IsJSProxy()) {
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    return JSProxy::HasElementWithHandler(proxy, index);
-  }
-  Maybe<PropertyAttributes> result = JSObject::GetElementAttributeWithReceiver(
-      Handle<JSObject>::cast(object), object, index, false);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
-}
-
-
-Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttribute(
-    Handle<JSReceiver> object, uint32_t index) {
-  if (object->IsJSProxy()) {
-    return JSProxy::GetElementAttributeWithHandler(
-        Handle<JSProxy>::cast(object), object, index);
-  }
-  return JSObject::GetElementAttributeWithReceiver(
-      Handle<JSObject>::cast(object), object, index, false);
 }
 
 

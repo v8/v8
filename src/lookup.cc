@@ -264,6 +264,13 @@ Handle<Object> LookupIterator::FetchValue() const {
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
     // TODO(verwaest): Optimize.
+    if (holder->IsStringObjectWithCharacterAt(index_)) {
+      Handle<JSValue> js_value = Handle<JSValue>::cast(holder);
+      Handle<String> string(String::cast(js_value->value()));
+      return factory()->LookupSingleCharacterStringFromCode(
+          String::Flatten(string)->Get(index_));
+    }
+
     ElementsAccessor* accessor = holder->GetElementsAccessor();
     return accessor->Get(holder, index_);
   } else if (holder_map_->IsGlobalObjectMap()) {

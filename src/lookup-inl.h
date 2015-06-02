@@ -59,16 +59,23 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
     case INTERCEPTOR:
       if (IsElement()) {
         // TODO(verwaest): Optimize.
-        JSObject* js_object = JSObject::cast(holder);
-        ElementsAccessor* accessor = js_object->GetElementsAccessor();
-        FixedArrayBase* backing_store = js_object->elements();
-        number_ = accessor->GetIndexForKey(backing_store, index_);
-        if (number_ == kMaxUInt32) return NOT_FOUND;
-        if (accessor->GetAttributes(js_object, index_, backing_store) ==
-            ABSENT) {
-          return NOT_FOUND;
+        if (holder->IsStringObjectWithCharacterAt(index_)) {
+          PropertyAttributes attributes =
+              static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+          property_details_ = PropertyDetails(attributes, v8::internal::DATA, 0,
+                                              PropertyCellType::kNoCell);
+        } else {
+          JSObject* js_object = JSObject::cast(holder);
+          ElementsAccessor* accessor = js_object->GetElementsAccessor();
+          FixedArrayBase* backing_store = js_object->elements();
+          number_ = accessor->GetIndexForKey(backing_store, index_);
+          if (number_ == kMaxUInt32) return NOT_FOUND;
+          if (accessor->GetAttributes(js_object, index_, backing_store) ==
+              ABSENT) {
+            return NOT_FOUND;
+          }
+          property_details_ = accessor->GetDetails(backing_store, number_);
         }
-        property_details_ = accessor->GetDetails(backing_store, number_);
       } else if (holder->IsGlobalObject()) {
         GlobalDictionary* dict = JSObject::cast(holder)->global_dictionary();
         int number = dict->FindEntry(name_);

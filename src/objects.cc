@@ -158,8 +158,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 
 
 Handle<Object> JSReceiver::GetDataProperty(Handle<JSReceiver> object,
-                                           Handle<Name> key) {
-  LookupIterator it(object, key,
+                                           Handle<Name> name) {
+  LookupIterator it(object, name,
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   return GetDataProperty(&it);
 }
@@ -596,43 +596,6 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
-static MaybeHandle<JSObject> FindIndexedAllCanReadHolder(
-    Isolate* isolate, Handle<JSObject> js_object,
-    PrototypeIterator::WhereToStart where_to_start) {
-  for (PrototypeIterator iter(isolate, js_object, where_to_start);
-       !iter.IsAtEnd(); iter.Advance()) {
-    auto curr = PrototypeIterator::GetCurrent(iter);
-    if (!curr->IsJSObject()) break;
-    auto obj = Handle<JSObject>::cast(curr);
-    if (!obj->HasIndexedInterceptor()) continue;
-    if (obj->GetIndexedInterceptor()->all_can_read()) return obj;
-  }
-  return MaybeHandle<JSObject>();
-}
-
-
-Maybe<PropertyAttributes> JSObject::GetElementAttributesWithFailedAccessCheck(
-    Isolate* isolate, Handle<JSObject> object, Handle<Object> receiver,
-    uint32_t index) {
-  Handle<JSObject> holder = object;
-  PrototypeIterator::WhereToStart where_to_start =
-      PrototypeIterator::START_AT_RECEIVER;
-  while (true) {
-    auto all_can_read_holder =
-        FindIndexedAllCanReadHolder(isolate, holder, where_to_start);
-    if (!all_can_read_holder.ToHandle(&holder)) break;
-    auto result =
-        JSObject::GetElementAttributeFromInterceptor(holder, receiver, index);
-    if (isolate->has_scheduled_exception()) break;
-    if (result.IsJust() && result.FromJust() != ABSENT) return result;
-    where_to_start = PrototypeIterator::START_AT_PROTOTYPE;
-  }
-  isolate->ReportFailedAccessCheck(object);
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<PropertyAttributes>());
-  return Just(ABSENT);
-}
-
-
 MaybeHandle<Object> Object::SetElementWithReceiver(
     Isolate* isolate, Handle<Object> object, Handle<Object> receiver,
     uint32_t index, Handle<Object> value, LanguageMode language_mode) {
@@ -663,9 +626,10 @@ MaybeHandle<Object> Object::SetElementWithReceiver(
     }
 
     if (js_object->HasIndexedInterceptor()) {
+      LookupIterator it(isolate, receiver, index, js_object,
+                        LookupIterator::OWN);
       Maybe<PropertyAttributes> from_interceptor =
-          JSObject::GetElementAttributeFromInterceptor(js_object, receiver,
-                                                       index);
+          JSObject::GetPropertyAttributes(&it);
       if (!from_interceptor.IsJust()) return MaybeHandle<Object>();
       if ((from_interceptor.FromJust() & READ_ONLY) != 0) {
         return WriteToReadOnlyElement(isolate, receiver, index, value,
@@ -4057,14 +4021,6 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
 }
 
 
-Maybe<PropertyAttributes> JSProxy::GetElementAttributeWithHandler(
-    Handle<JSProxy> proxy, Handle<JSReceiver> receiver, uint32_t index) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return GetPropertyAttributesWithHandler(proxy, receiver, name);
-}
-
-
 void JSProxy::Fix(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
 
@@ -4372,18 +4328,6 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
 }
 
 
-Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
-    Handle<JSReceiver> object, Handle<Name> name) {
-  // Check whether the name is an array index.
-  uint32_t index = 0;
-  if (object->IsJSObject() && name->AsArrayIndex(&index)) {
-    return GetOwnElementAttribute(object, index);
-  }
-  LookupIterator it(object, name, LookupIterator::HIDDEN);
-  return GetPropertyAttributes(&it);
-}
-
-
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
@@ -4412,118 +4356,6 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     }
   }
   return Just(ABSENT);
-}
-
-
-Maybe<PropertyAttributes> JSObject::GetElementAttributeWithReceiver(
-    Handle<JSObject> object, Handle<JSReceiver> receiver, uint32_t index,
-    bool check_prototype) {
-  Isolate* isolate = object->GetIsolate();
-
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayAccess(object)) {
-      return GetElementAttributesWithFailedAccessCheck(isolate, object,
-                                                       receiver, index);
-    }
-  }
-
-  if (object->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return Just(ABSENT);
-    DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return JSObject::GetElementAttributeWithReceiver(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
-        index, check_prototype);
-  }
-
-  // Check for lookup interceptor except when bootstrapping.
-  if (object->HasIndexedInterceptor() && !isolate->bootstrapper()->IsActive()) {
-    return JSObject::GetElementAttributeWithInterceptor(
-        object, receiver, index, check_prototype);
-  }
-
-  return GetElementAttributeWithoutInterceptor(
-      object, receiver, index, check_prototype);
-}
-
-
-Maybe<PropertyAttributes> JSObject::GetElementAttributeWithInterceptor(
-    Handle<JSObject> object, Handle<JSReceiver> receiver, uint32_t index,
-    bool check_prototype) {
-  Isolate* isolate = object->GetIsolate();
-  HandleScope scope(isolate);
-
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  Maybe<PropertyAttributes> from_interceptor =
-      GetElementAttributeFromInterceptor(object, receiver, index);
-  if (!from_interceptor.IsJust()) return Nothing<PropertyAttributes>();
-  if (from_interceptor.FromJust() != ABSENT)
-    return Just(from_interceptor.FromJust());
-
-  return GetElementAttributeWithoutInterceptor(object, receiver, index,
-                                               check_prototype);
-}
-
-
-Maybe<PropertyAttributes> JSObject::GetElementAttributeFromInterceptor(
-    Handle<JSObject> object, Handle<Object> receiver, uint32_t index) {
-  Isolate* isolate = object->GetIsolate();
-  AssertNoContextChange ncc(isolate);
-
-  Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
-  PropertyCallbackArguments args(
-      isolate, interceptor->data(), *receiver, *object);
-  if (!interceptor->query()->IsUndefined()) {
-    v8::IndexedPropertyQueryCallback query =
-        v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-has", *object, index));
-    v8::Handle<v8::Integer> result = args.Call(query, index);
-    if (!result.IsEmpty())
-      return Just(static_cast<PropertyAttributes>(result->Int32Value()));
-  } else if (!interceptor->getter()->IsUndefined()) {
-    v8::IndexedPropertyGetterCallback getter =
-        v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-    LOG(isolate,
-        ApiIndexedPropertyAccess(
-            "interceptor-indexed-get-has", *object, index));
-    v8::Handle<v8::Value> result = args.Call(getter, index);
-    if (!result.IsEmpty()) return Just(NONE);
-  }
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<PropertyAttributes>());
-  return Just(ABSENT);
-}
-
-
-Maybe<PropertyAttributes> JSObject::GetElementAttributeWithoutInterceptor(
-    Handle<JSObject> object, Handle<JSReceiver> receiver, uint32_t index,
-    bool check_prototype) {
-  PropertyAttributes attr =
-      object->GetElementsAccessor()->GetAttributes(object, index);
-  if (attr != ABSENT) return Just(attr);
-
-  // Handle [] on String objects.
-  if (object->IsStringObjectWithCharacterAt(index)) {
-    return Just(static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE));
-  }
-
-  if (!check_prototype) return Just(ABSENT);
-
-  PrototypeIterator iter(object->GetIsolate(), object);
-  if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
-    return JSProxy::GetElementAttributeWithHandler(
-        Handle<JSProxy>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
-        index);
-  }
-  if (iter.IsAtEnd()) return Just(ABSENT);
-  return GetElementAttributeWithReceiver(
-      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
-      index, true);
 }
 
 
@@ -12147,7 +11979,7 @@ static bool GetOldValue(Isolate* isolate,
                         List<Handle<Object> >* old_values,
                         List<uint32_t>* indices) {
   Maybe<PropertyAttributes> maybe =
-      JSReceiver::GetOwnElementAttribute(object, index);
+      JSReceiver::GetOwnElementAttributes(object, index);
   DCHECK(maybe.IsJust());
   DCHECK(maybe.FromJust() != ABSENT);
   if (maybe.FromJust() == DONT_DELETE) return false;
@@ -13273,7 +13105,7 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
 
   Maybe<PropertyAttributes> maybe =
-      JSReceiver::GetOwnElementAttribute(object, index);
+      JSReceiver::GetOwnElementAttributes(object, index);
   if (!maybe.IsJust()) return MaybeHandle<Object>();
   PropertyAttributes old_attributes = maybe.FromJust();
 
@@ -13304,7 +13136,7 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
       Object);
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  maybe = GetOwnElementAttribute(object, index);
+  maybe = GetOwnElementAttributes(object, index);
   if (!maybe.IsJust()) return MaybeHandle<Object>();
   PropertyAttributes new_attributes = maybe.FromJust();
 
@@ -14036,8 +13868,8 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
 
 
 Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
-                                           Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+                                           Handle<Name> name) {
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   if (!maybe_result.IsJust()) return Nothing<bool>();
   return Just(it.IsFound());
@@ -14047,34 +13879,17 @@ Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
 Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
                                              uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  HandleScope scope(isolate);
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayAccess(object)) {
-      isolate->ReportFailedAccessCheck(object);
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-      return Just(false);
-    }
-  }
-
-  if (object->IsJSGlobalProxy()) {
-    HandleScope scope(isolate);
-    PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return Just(false);
-    DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return HasRealElementProperty(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), index);
-  }
-
-  Maybe<PropertyAttributes> result =
-      GetElementAttributeWithoutInterceptor(object, object, index, false);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+  LookupIterator it(isolate, object, index,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
+  if (!maybe_result.IsJust()) return Nothing<bool>();
+  return Just(it.IsFound());
 }
 
 
 Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
-                                                   Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+                                                   Handle<Name> name) {
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   return maybe_result.IsJust() ? Just(it.state() == LookupIterator::ACCESSOR)
                                : Nothing<bool>();
