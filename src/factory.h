@@ -46,13 +46,6 @@ class Factory final {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<ConstantPoolArray> NewConstantPoolArray(
-      const ConstantPoolArray::NumberOfEntries& small);
-
-  Handle<ConstantPoolArray> NewExtendedConstantPoolArray(
-      const ConstantPoolArray::NumberOfEntries& small,
-      const ConstantPoolArray::NumberOfEntries& extended);
-
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
 
@@ -338,9 +331,6 @@ class Factory final {
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
-
-  Handle<ConstantPoolArray> CopyConstantPoolArray(
-      Handle<ConstantPoolArray> array);
 
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.

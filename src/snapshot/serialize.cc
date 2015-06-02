@@ -1006,7 +1006,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
 #if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_PPC) || V8_OOL_CONSTANT_POOL
+    defined(V8_TARGET_ARCH_PPC)
       // Deserialize a new object from pointer found in code and write
       // a pointer to it to the current object. Required only for MIPS, PPC or
       // ARM with ool constant pool, and omitted on the other architectures
@@ -1030,8 +1030,8 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // current object.
       CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
       CASE_BODY(kRootArray, kPlain, kStartOfObject, 0)
-#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_PPC)
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_PPC)
       // Find an object in the roots array and write a pointer to it to in code.
       CASE_STATEMENT(kRootArray, kFromCode, kStartOfObject, 0)
       CASE_BODY(kRootArray, kFromCode, kStartOfObject, 0)
@@ -1950,9 +1950,6 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
 
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
-  // Out-of-line constant pool entries will be visited by the ConstantPoolArray.
-  if (FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool()) return;
-
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -2024,9 +2021,6 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
 
 
 void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
-  // Out-of-line constant pool entries will be visited by the ConstantPoolArray.
-  if (FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool()) return;
-
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -2044,9 +2038,6 @@ void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
 
 
 void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
-  // Out-of-line constant pool entries will be visited by the ConstantPoolArray.
-  if (FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool()) return;
-
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
   Cell* object = Cell::cast(rinfo->target_cell());
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
@@ -2094,9 +2085,7 @@ Address Serializer::ObjectSerializer::PrepareCode() {
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
-    if (!(FLAG_enable_ool_constant_pool && rinfo->IsInConstantPool())) {
-      rinfo->WipeOut();
-    }
+    rinfo->WipeOut();
   }
   // We need to wipe out the header fields *after* wiping out the
   // relocations, because some of these fields are needed for the latter.

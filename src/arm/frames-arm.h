@@ -84,11 +84,11 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kFrameSize          = FLAG_enable_ool_constant_pool ?
-                                         3 * kPointerSize : 2 * kPointerSize;
+  static const int kFrameSize =
+      FLAG_enable_embedded_constant_pool ? 3 * kPointerSize : 2 * kPointerSize;
 
-  static const int kConstantPoolOffset = FLAG_enable_ool_constant_pool ?
-                                         -3 * kPointerSize : 0;
+  static const int kConstantPoolOffset =
+      FLAG_enable_embedded_constant_pool ? -3 * kPointerSize : 0;
   static const int kCodeOffset         = -2 * kPointerSize;
   static const int kSPOffset           = -1 * kPointerSize;
 

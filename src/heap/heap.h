@@ -52,7 +52,6 @@ namespace internal {
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
-  V(Map, constant_pool_array_map, ConstantPoolArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
@@ -60,7 +59,6 @@ namespace internal {
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
-  V(ConstantPoolArray, empty_constant_pool_array, EmptyConstantPoolArray)      \
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
@@ -350,7 +348,6 @@ namespace internal {
   V(ScopeInfoMap)                       \
   V(FixedCOWArrayMap)                   \
   V(FixedDoubleArrayMap)                \
-  V(ConstantPoolArrayMap)               \
   V(WeakCellMap)                        \
   V(NoInterceptorResultSentinel)        \
   V(HashTableMap)                       \
@@ -358,7 +355,6 @@ namespace internal {
   V(EmptyFixedArray)                    \
   V(EmptyByteArray)                     \
   V(EmptyDescriptorArray)               \
-  V(EmptyConstantPoolArray)             \
   V(ArgumentsMarker)                    \
   V(SymbolMap)                          \
   V(SloppyArgumentsElementsMap)         \
@@ -1967,12 +1963,6 @@ class Heap {
   MUST_USE_RESULT inline AllocationResult CopyFixedDoubleArray(
       FixedDoubleArray* src);
 
-  // Make a copy of src and return it. Returns
-  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT inline AllocationResult CopyConstantPoolArray(
-      ConstantPoolArray* src);
-
-
   // Computes a single character string where the character has code.
   // A cache is used for one-byte (Latin1) codes.
   MUST_USE_RESULT AllocationResult
@@ -1980,17 +1970,6 @@ class Heap {
 
   // Allocate a symbol in old space.
   MUST_USE_RESULT AllocationResult AllocateSymbol();
-
-  // Make a copy of src, set the map, and return the copy.
-  MUST_USE_RESULT AllocationResult
-      CopyConstantPoolArrayWithMap(ConstantPoolArray* src, Map* map);
-
-  MUST_USE_RESULT AllocationResult AllocateConstantPoolArray(
-      const ConstantPoolArray::NumberOfEntries& small);
-
-  MUST_USE_RESULT AllocationResult AllocateExtendedConstantPoolArray(
-      const ConstantPoolArray::NumberOfEntries& small,
-      const ConstantPoolArray::NumberOfEntries& extended);
 
   // Allocates an external array of the specified length and type.
   MUST_USE_RESULT AllocationResult
@@ -2030,9 +2009,6 @@ class Heap {
   // Allocate empty fixed typed array of given type.
   MUST_USE_RESULT AllocationResult
       AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
-
-  // Allocate empty constant pool array.
-  MUST_USE_RESULT AllocationResult AllocateEmptyConstantPoolArray();
 
   // Allocate a tenured simple cell.
   MUST_USE_RESULT AllocationResult AllocateCell(Object* value);

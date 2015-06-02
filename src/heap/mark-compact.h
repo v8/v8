@@ -330,6 +330,7 @@ class SlotsBuffer {
 
   enum SlotType {
     EMBEDDED_OBJECT_SLOT,
+    OBJECT_SLOT,
     RELOCATED_CODE_OBJECT,
     CELL_TARGET_SLOT,
     CODE_TARGET_SLOT,
@@ -343,6 +344,8 @@ class SlotsBuffer {
     switch (type) {
       case EMBEDDED_OBJECT_SLOT:
         return "EMBEDDED_OBJECT_SLOT";
+      case OBJECT_SLOT:
+        return "OBJECT_SLOT";
       case RELOCATED_CODE_OBJECT:
         return "RELOCATED_CODE_OBJECT";
       case CELL_TARGET_SLOT:

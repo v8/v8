@@ -48,41 +48,40 @@ Address IC::address() const {
 }
 
 
-ConstantPoolArray* IC::constant_pool() const {
-  if (!FLAG_enable_ool_constant_pool) {
+Address IC::constant_pool() const {
+  if (!FLAG_enable_embedded_constant_pool) {
     return NULL;
   } else {
-    Handle<ConstantPoolArray> result = raw_constant_pool_;
+    Address constant_pool = raw_constant_pool();
     Debug* debug = isolate()->debug();
     // First check if any break points are active if not just return the
     // original constant pool.
-    if (!debug->has_break_points()) return *result;
+    if (!debug->has_break_points()) return constant_pool;
 
     // At least one break point is active perform additional test to ensure that
     // break point locations are updated correctly.
     Address target = Assembler::target_address_from_return_address(pc());
     if (debug->IsDebugBreak(
-            Assembler::target_address_at(target, raw_constant_pool()))) {
+            Assembler::target_address_at(target, constant_pool))) {
       // If the call site is a call to debug break then we want to return the
       // constant pool for the original code instead of the breakpointed code.
       return GetOriginalCode()->constant_pool();
     }
-    return *result;
+    return constant_pool;
   }
 }
 
 
-ConstantPoolArray* IC::raw_constant_pool() const {
-  if (FLAG_enable_ool_constant_pool) {
-    return *raw_constant_pool_;
+Address IC::raw_constant_pool() const {
+  if (FLAG_enable_embedded_constant_pool) {
+    return *constant_pool_address_;
   } else {
     return NULL;
   }
 }
 
 
-Code* IC::GetTargetAtAddress(Address address,
-                             ConstantPoolArray* constant_pool) {
+Code* IC::GetTargetAtAddress(Address address, Address constant_pool) {
   // Get the target address of the IC.
   Address target = Assembler::target_address_at(address, constant_pool);
   // Convert target address to the code object. Code::GetCodeFromTargetAddress
@@ -94,7 +93,7 @@ Code* IC::GetTargetAtAddress(Address address,
 
 
 void IC::SetTargetAtAddress(Address address, Code* target,
-                            ConstantPoolArray* constant_pool) {
+                            Address constant_pool) {
   if (AddressIsDeoptimizedCode(target->GetIsolate(), address)) return;
 
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());

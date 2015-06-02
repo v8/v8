@@ -149,12 +149,6 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 }
 
 
-AllocationResult Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
-  if (src->length() == 0) return src;
-  return CopyConstantPoolArrayWithMap(src, src->map());
-}
-
-
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
                                    AllocationSpace retry_space,
                                    AllocationAlignment alignment) {

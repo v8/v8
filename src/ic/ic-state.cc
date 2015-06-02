@@ -12,7 +12,7 @@ namespace internal {
 
 // static
 void ICUtility::Clear(Isolate* isolate, Address address,
-                      ConstantPoolArray* constant_pool) {
+                      Address constant_pool) {
   IC::Clear(isolate, address, constant_pool);
 }
 
