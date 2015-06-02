@@ -1266,7 +1266,6 @@ TEST(LowerStringOps_to_call_and_compare) {
     t.CheckLoweringBinop(compare_eq, t.simplified()->StringEqual());
     t.CheckLoweringBinop(compare_lt, t.simplified()->StringLessThan());
     t.CheckLoweringBinop(compare_le, t.simplified()->StringLessThanOrEqual());
-    t.CheckLoweringBinop(IrOpcode::kCall, t.simplified()->StringAdd());
   }
 }
 

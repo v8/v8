@@ -86,12 +86,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
-  Node* EmptyFrameState() {
-    MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
-    return jsgraph.EmptyFrameState();
-  }
-
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
     Handle<JSArrayBuffer> buffer = factory()->NewJSArrayBuffer();
     Runtime::SetupArrayBuffer(isolate(), buffer, true, bytes, byte_length);
@@ -902,11 +896,39 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
   }
 }
 
+#if V8_TURBOFAN_TARGET
+
+// -----------------------------------------------------------------------------
+// JSAdd
+
+
+TEST_F(JSTypedLoweringTest, JSAddWithString) {
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    Node* lhs = Parameter(Type::String(), 0);
+    Node* rhs = Parameter(Type::String(), 1);
+    Node* context = Parameter(Type::Any(), 2);
+    Node* frame_state0 = EmptyFrameState();
+    Node* frame_state1 = EmptyFrameState();
+    Node* effect = graph()->start();
+    Node* control = graph()->start();
+    Reduction r = Reduce(graph()->NewNode(javascript()->Add(language_mode), lhs,
+                                          rhs, context, frame_state0,
+                                          frame_state1, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
+                      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
+                                             NOT_TENURED).code())),
+               lhs, rhs, context, frame_state0, effect, control));
+  }
+}
+
 
 // -----------------------------------------------------------------------------
 // JSCreateClosure
 
-#if V8_TURBOFAN_TARGET
+
 TEST_F(JSTypedLoweringTest, JSCreateClosure) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
@@ -973,7 +995,8 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
                     CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
              input0, input1, input2, _, context, frame_state, effect, control));
 }
-#endif
+
+#endif  // V8_TURBOFAN_TARGET
 
 
 // -----------------------------------------------------------------------------

@@ -172,7 +172,6 @@
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
   V(PlainPrimitiveToNumber)        \
-  V(StringAdd)                     \
   V(ChangeTaggedToInt32)           \
   V(ChangeTaggedToUint32)          \
   V(ChangeTaggedToFloat64)         \

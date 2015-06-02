@@ -1729,11 +1729,6 @@ Bounds Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeStringAdd(Node* node) {
-  return Bounds(Type::None(zone()), Type::String(zone()));
-}
-
-
 namespace {
 
 Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {

@@ -370,20 +370,20 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToNumber(frame_state);
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
-#if 0
-  // TODO(turbofan): Lowering of StringAdd is disabled for now because:
-  //   a) The inserted ToString operation screws up valueOf vs. toString order.
-  //   b) Deoptimization at ToString doesn't have corresponding bailout id.
-  //   c) Our current StringAddStub is actually non-pure and requires context.
-  if ((r.OneInputIs(Type::String()) && !r.IsStrong()) ||
-      r.BothInputsAre(Type::String())) {
-    // JSAdd(x:string, y:string) => StringAdd(x, y)
-    // JSAdd(x:string, y) => StringAdd(x, ToString(y))
-    // JSAdd(x, y:string) => StringAdd(ToString(x), y)
-    r.ConvertInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringAdd());
+  if (r.BothInputsAre(Type::String())) {
+    // JSAdd(x:string, y:string) => CallStub[StringAdd](x, y)
+    Callable const callable =
+        CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState, node->op()->properties());
+    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
+    node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->set_op(common()->Call(desc));
+    return Changed(node);
   }
-#endif
   return NoChange();
 }
 
@@ -1465,6 +1465,9 @@ Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 
 
 Graph* JSTypedLowering::graph() const { return jsgraph()->graph(); }
+
+
+Isolate* JSTypedLowering::isolate() const { return jsgraph()->isolate(); }
 
 
 JSOperatorBuilder* JSTypedLowering::javascript() const {

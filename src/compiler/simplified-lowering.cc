@@ -782,11 +782,6 @@ class RepresentationSelector {
         if (lower()) lowering->DoStringLessThanOrEqual(node);
         break;
       }
-      case IrOpcode::kStringAdd: {
-        VisitBinop(node, kMachAnyTagged, kMachAnyTagged);
-        if (lower()) lowering->DoStringAdd(node);
-        break;
-      }
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, kMachAnyTagged);
         ProcessRemainingInputs(node, 1);
@@ -1310,23 +1305,6 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
                           ComputeWriteBarrierKind(access.base_is_tagged,
                                                   access.machine_type, type))));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-}
-
-
-void SimplifiedLowering::DoStringAdd(Node* node) {
-  Operator::Properties properties = node->op()->properties();
-  Callable callable = CodeFactory::StringAdd(
-      jsgraph()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      jsgraph()->isolate(), zone(), callable.descriptor(), 0, flags,
-      properties);
-  node->set_op(common()->Call(desc));
-  node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(callable.code()));
-  node->AppendInput(graph()->zone(), jsgraph()->UndefinedConstant());
-  node->AppendInput(graph()->zone(), graph()->start());
-  node->AppendInput(graph()->zone(), graph()->start());
 }
 
 
