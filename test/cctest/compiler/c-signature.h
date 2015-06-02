@@ -53,20 +53,49 @@ class CSignature : public MachineSignature {
  public:
   template <typename P1 = void, typename P2 = void, typename P3 = void,
             typename P4 = void, typename P5 = void>
-  void Verify() {
+  void VerifyParams() {
     // Verifies the C signature against the machine types. Maximum {5} params.
-    CHECK_LT(parameter_count(), 6);
+    CHECK_LT(parameter_count(), 6u);
     const int kMax = 5;
     MachineType params[] = {MachineTypeForC<P1>(), MachineTypeForC<P2>(),
                             MachineTypeForC<P3>(), MachineTypeForC<P4>(),
                             MachineTypeForC<P5>()};
     for (int p = kMax - 1; p >= 0; p--) {
-      if (p < parameter_count()) {
+      if (p < static_cast<int>(parameter_count())) {
         CHECK_EQ(GetParam(p), params[p]);
       } else {
         CHECK_EQ(kMachNone, params[p]);
       }
     }
+  }
+
+  static CSignature* New(Zone* zone, MachineType ret,
+                         MachineType p1 = kMachNone, MachineType p2 = kMachNone,
+                         MachineType p3 = kMachNone, MachineType p4 = kMachNone,
+                         MachineType p5 = kMachNone) {
+    MachineType* buffer = zone->NewArray<MachineType>(6);
+    int pos = 0;
+    size_t return_count = 0;
+    if (ret != kMachNone) {
+      buffer[pos++] = ret;
+      return_count++;
+    }
+    buffer[pos++] = p1;
+    buffer[pos++] = p2;
+    buffer[pos++] = p3;
+    buffer[pos++] = p4;
+    buffer[pos++] = p5;
+    size_t param_count = 5;
+    if (p5 == kMachNone) param_count--;
+    if (p4 == kMachNone) param_count--;
+    if (p3 == kMachNone) param_count--;
+    if (p2 == kMachNone) param_count--;
+    if (p1 == kMachNone) param_count--;
+    for (size_t i = 0; i < param_count; i++) {
+      // Check that there are no kMachNone's in the middle of parameters.
+      CHECK_NE(kMachNone, buffer[return_count + i]);
+    }
+    return new (zone) CSignature(return_count, param_count, buffer);
   }
 };
 

@@ -52,8 +52,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
       : GraphAndBuilders(main_zone()),
         CallHelper<ReturnType>(
             main_isolate(),
-            MakeMachineSignature(main_zone(), MachineTypeForC<ReturnType>(), p0,
-                                 p1, p2, p3, p4)),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4)),
         SimplifiedGraphBuilder(main_isolate(), main_graph_, &main_common_,
                                &main_machine_, &main_simplified_),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
@@ -76,7 +76,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     if (code_.is_null()) {
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
-          Linkage::GetSimplifiedCDescriptor(zone, this->machine_sig_);
+          Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
       code_ = Pipeline::GenerateCodeForTesting(main_isolate(), desc, graph());
     }
     return code_.ToHandleChecked()->entry();
@@ -89,34 +89,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
     }
   }
 
-  size_t parameter_count() const {
-    return this->machine_sig_->parameter_count();
-  }
+  size_t parameter_count() const { return this->csig_->parameter_count(); }
 
  private:
   Node** parameters_;
   MaybeHandle<Code> code_;
-
-  // TODO(titzer): factor me elsewhere.
-  static MachineSignature* MakeMachineSignature(
-      Zone* zone, MachineType return_type, MachineType p0 = kMachNone,
-      MachineType p1 = kMachNone, MachineType p2 = kMachNone,
-      MachineType p3 = kMachNone, MachineType p4 = kMachNone) {
-    // Count the number of parameters.
-    size_t param_count = 5;
-    MachineType types[] = {p0, p1, p2, p3, p4};
-    while (param_count > 0 && types[param_count - 1] == kMachNone)
-      param_count--;
-    size_t return_count = return_type == kMachNone ? 0 : 1;
-
-    // Build the machine signature.
-    MachineSignature::Builder builder(zone, return_count, param_count);
-    if (return_count > 0) builder.AddReturn(return_type);
-    for (size_t i = 0; i < param_count; i++) {
-      builder.AddParam(types[i]);
-    }
-    return builder.Build();
-  }
 };
 
 }  // namespace compiler

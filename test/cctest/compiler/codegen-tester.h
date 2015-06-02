@@ -30,12 +30,12 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       : HandleAndZoneScope(),
         CallHelper<ReturnType>(
             main_isolate(),
-            MakeMachineSignature(main_zone(), MachineTypeForC<ReturnType>(), p0,
-                                 p1, p2, p3, p4)),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4)),
         RawMachineAssembler(
             main_isolate(), new (main_zone()) Graph(main_zone()),
-            MakeMachineSignature(main_zone(), MachineTypeForC<ReturnType>(), p0,
-                                 p1, p2, p3, p4),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4),
             kMachPtr, InstructionSelector::SupportedMachineOperatorFlags()) {}
 
   void CheckNumber(double expected, Object* number) {
@@ -64,27 +64,6 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
  private:
   MaybeHandle<Code> code_;
-
-  // TODO(titzer): factor me elsewhere.
-  static MachineSignature* MakeMachineSignature(
-      Zone* zone, MachineType return_type, MachineType p0 = kMachNone,
-      MachineType p1 = kMachNone, MachineType p2 = kMachNone,
-      MachineType p3 = kMachNone, MachineType p4 = kMachNone) {
-    // Count the number of parameters.
-    size_t param_count = 5;
-    MachineType types[] = {p0, p1, p2, p3, p4};
-    while (param_count > 0 && types[param_count - 1] == kMachNone)
-      param_count--;
-    size_t return_count = return_type == kMachNone ? 0 : 1;
-
-    // Build the machine signature.
-    MachineSignature::Builder builder(zone, return_count, param_count);
-    if (return_count > 0) builder.AddReturn(return_type);
-    for (size_t i = 0; i < param_count; i++) {
-      builder.AddParam(types[i]);
-    }
-    return builder.Build();
-  }
 };
 
 
