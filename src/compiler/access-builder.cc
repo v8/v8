@@ -46,8 +46,13 @@ FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
 
 // static
 FieldAccess AccessBuilder::ForFixedArrayLength() {
+  // TODO(turbofan): 2^30 is a valid upper limit for the FixedArray::length
+  // field, although it's not the best. If we had a Zone we could create an
+  // appropriate range type instead.
+  STATIC_ASSERT(FixedArray::kMaxLength <= 1 << 30);
   return {kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
-          Type::TaggedSigned(), kMachAnyTagged};
+          Type::Intersect(Type::Unsigned30(), Type::TaggedSigned()),
+          kMachAnyTagged};
 }
 
 
