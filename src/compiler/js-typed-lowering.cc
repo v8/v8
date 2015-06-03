@@ -942,7 +942,8 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
     Node* load = graph()->NewNode(
         javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
         context, context, effect);
-    Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), load);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()),
+                                   load, jsgraph()->ZeroConstant());
     Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
                                     check_true);
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);

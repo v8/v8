@@ -918,12 +918,16 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
     EXPECT_THAT(
         r.replacement(),
         IsPhi(kMachAnyTagged, _, _,
-              IsMerge(IsIfTrue(IsBranch(
-                          IsObjectIsSmi(IsLoadContext(
+              IsMerge(
+                  IsIfTrue(IsBranch(
+                      IsReferenceEqual(
+                          Type::Tagged(),
+                          IsLoadContext(
                               ContextAccess(i, Context::EXTENSION_INDEX, false),
-                              context)),
-                          control)),
-                      _)));
+                              context),
+                          IsNumberConstant(BitEq(0.0))),
+                      control)),
+                  _)));
   }
 }
 
