@@ -264,6 +264,7 @@ class Shell : public i::AllStatic {
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);
+  static void CollectGarbage(Isolate* isolate);
 
 #ifndef V8_SHARED
   static Handle<Array> GetCompletions(Isolate* isolate,

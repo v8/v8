@@ -1339,19 +1339,7 @@ void SourceGroup::ExecuteInThread() {
           Execute(isolate);
         }
       }
-      if (Shell::options.send_idle_notification) {
-        const double kLongIdlePauseInSeconds = 1.0;
-        isolate->ContextDisposedNotification();
-        isolate->IdleNotificationDeadline(
-            g_platform->MonotonicallyIncreasingTime() +
-            kLongIdlePauseInSeconds);
-      }
-      if (Shell::options.invoke_weak_callbacks) {
-        // By sending a low memory notifications, we will try hard to collect
-        // all garbage and will therefore also invoke all weak callbacks of
-        // actually unreachable persistent handles.
-        isolate->LowMemoryNotification();
-      }
+      Shell::CollectGarbage(isolate);
     }
     done_semaphore_.Signal();
   } while (!Shell::options.last_run);
@@ -1412,6 +1400,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--test") == 0) {
       options.test_shell = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--notest") == 0 ||
+               strcmp(argv[i], "--no-test") == 0) {
+      options.test_shell = false;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
       options.send_idle_notification = true;
@@ -1542,6 +1534,17 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
       options.isolate_sources[0].Execute(isolate);
     }
   }
+  CollectGarbage(isolate);
+#ifndef V8_SHARED
+  for (int i = 1; i < options.num_isolates; ++i) {
+    options.isolate_sources[i].WaitForThread();
+  }
+#endif  // !V8_SHARED
+  return 0;
+}
+
+
+void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
     const double kLongIdlePauseInSeconds = 1.0;
     isolate->ContextDisposedNotification();
@@ -1554,13 +1557,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     // unreachable persistent handles.
     isolate->LowMemoryNotification();
   }
-
-#ifndef V8_SHARED
-  for (int i = 1; i < options.num_isolates; ++i) {
-    options.isolate_sources[i].WaitForThread();
-  }
-#endif  // !V8_SHARED
-  return 0;
 }
 
 
@@ -1729,6 +1725,13 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // !V8_SHARED
       RunShell(isolate);
     }
+
+    // Shut down contexts and collect garbage.
+    evaluation_context_.Reset();
+#ifndef V8_SHARED
+    utility_context_.Reset();
+#endif  // !V8_SHARED
+    CollectGarbage(isolate);
   }
   OnExit(isolate);
 #ifndef V8_SHARED
