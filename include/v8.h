@@ -2977,8 +2977,8 @@ class V8_EXPORT Map : public Object {
   size_t Size() const;
 
   /**
-   * Returns an array of [key, value] arrays representing the contents
-   * of this Map.
+   * Returns an array of length Size() * 2, where index N is the Nth key and
+   * index N + 1 is the Nth value.
    */
   Local<Array> AsArray() const;
 
@@ -2988,8 +2988,8 @@ class V8_EXPORT Map : public Object {
   static Local<Map> New(Isolate* isolate);
 
   /**
-   * Creates a new Map containing the elements of array, which must be comprised
-   * of [key, value] arrays.
+   * Creates a new Map containing the elements of array, which must be formatted
+   * in the same manner as the array returned from AsArray().
    * Guaranteed to be side-effect free if the array contains no holes.
    */
   static V8_WARN_UNUSED_RESULT MaybeLocal<Map> FromArray(Local<Context> context,

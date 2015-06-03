@@ -6295,17 +6295,13 @@ Local<Array> Map::AsArray() const {
   LOG_API(isolate, "Map::AsArray");
   ENTER_V8(isolate);
   i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(obj->table()));
-  int length = table->NumberOfElements();
+  int size = table->NumberOfElements();
+  int length = size * 2;
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
-  for (int i = 0; i < length; ++i) {
+  for (int i = 0; i < size; ++i) {
     if (table->KeyAt(i)->IsTheHole()) continue;
-    i::HandleScope handle_scope(isolate);
-    i::Handle<i::FixedArray> entry = factory->NewFixedArray(2);
-    entry->set(0, table->KeyAt(i));
-    entry->set(1, table->ValueAt(i));
-    i::Handle<i::JSArray> entry_array =
-        factory->NewJSArrayWithElements(entry, i::FAST_ELEMENTS, 2);
-    result->set(i, *entry_array);
+    result->set(i * 2, table->KeyAt(i));
+    result->set(i * 2 + 1, table->ValueAt(i));
   }
   i::Handle<i::JSArray> result_array =
       factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
@@ -6315,6 +6311,9 @@ Local<Array> Map::AsArray() const {
 
 MaybeLocal<Map> Map::FromArray(Local<Context> context, Local<Array> array) {
   PREPARE_FOR_EXECUTION(context, "Map::FromArray", Map);
+  if (array->Length() % 2 != 0) {
+    return MaybeLocal<Map>();
+  }
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*array)};
   has_pending_exception =

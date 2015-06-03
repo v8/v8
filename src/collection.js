@@ -485,9 +485,10 @@ $getExistingHash = GetExistingHash;
 $mapFromArray = function(array) {
   var map = new GlobalMap;
   var length = array.length;
-  for (var i = 0; i < length; ++i) {
-    var entry = array[i];
-    %_CallFunction(map, entry[0], entry[1], MapSet);
+  for (var i = 0; i < length; i += 2) {
+    var key = array[i];
+    var value = array[i + 1];
+    %_CallFunction(map, key, value, MapSet);
   }
   return map;
 };

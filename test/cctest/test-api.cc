@@ -21384,19 +21384,19 @@ TEST(Map) {
   map = v8::Local<v8::Map>::Cast(val);
   CHECK_EQ(2, map->Size());
 
-  v8::Local<v8::Array> entries = map->AsArray();
-  CHECK_EQ(2, entries->Length());
-  v8::Local<v8::Array> entry = entries->Get(0).As<v8::Array>();
-  CHECK_EQ(2, entry->Length());
-  CHECK_EQ(1, entry->Get(0).As<v8::Int32>()->Value());
-  CHECK_EQ(2, entry->Get(1).As<v8::Int32>()->Value());
-  entry = entries->Get(1).As<v8::Array>();
-  CHECK_EQ(2, entry->Length());
-  CHECK_EQ(3, entry->Get(0).As<v8::Int32>()->Value());
-  CHECK_EQ(4, entry->Get(1).As<v8::Int32>()->Value());
+  v8::Local<v8::Array> contents = map->AsArray();
+  CHECK_EQ(4, contents->Length());
+  CHECK_EQ(1, contents->Get(0).As<v8::Int32>()->Value());
+  CHECK_EQ(2, contents->Get(1).As<v8::Int32>()->Value());
+  CHECK_EQ(3, contents->Get(2).As<v8::Int32>()->Value());
+  CHECK_EQ(4, contents->Get(3).As<v8::Int32>()->Value());
 
-  map = v8::Map::FromArray(env.local(), entries).ToLocalChecked();
+  map = v8::Map::FromArray(env.local(), contents).ToLocalChecked();
   CHECK_EQ(2, map->Size());
+
+  // Odd lengths result in a null MaybeLocal.
+  contents = v8::Array::New(isolate, 41);
+  CHECK(v8::Map::FromArray(env.local(), contents).IsEmpty());
 }
 
 
