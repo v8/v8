@@ -6866,11 +6866,16 @@ class Script: public Struct {
   V(Math, clz32, MathClz32)                         \
   V(Math, fround, MathFround)
 
+#define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
+  V(Atomics, load, AtomicsLoad)          \
+  V(Atomics, store, AtomicsStore)
+
 enum BuiltinFunctionId {
   kArrayCode,
 #define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
   k##name,
   FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
+      ATOMIC_FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
 #undef DECLARE_FUNCTION_ID
   // Fake id for a special case of Math.pow. Note, it continues the
   // list of math functions.

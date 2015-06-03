@@ -161,6 +161,8 @@ class CallSite {
   T(NotGeneric, "% is not generic")                                            \
   T(NotIterable, "% is not iterable")                                          \
   T(NotTypedArray, "this is not a typed array.")                               \
+  T(NotSharedTypedArray, "% is not a shared typed array.")                     \
+  T(NotIntegerSharedTypedArray, "% is not an integer shared typed array.")     \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \

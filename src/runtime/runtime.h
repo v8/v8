@@ -53,6 +53,19 @@ namespace internal {
   F(FastOneByteArrayJoin, 2, 1)
 
 
+#define FOR_EACH_INTRINSIC_ATOMICS(F) \
+  F(AtomicsCompareExchange, 4, 1)     \
+  F(AtomicsLoad, 2, 1)                \
+  F(AtomicsStore, 3, 1)               \
+  F(AtomicsAdd, 3, 1)                 \
+  F(AtomicsSub, 3, 1)                 \
+  F(AtomicsAnd, 3, 1)                 \
+  F(AtomicsOr, 3, 1)                  \
+  F(AtomicsXor, 3, 1)                 \
+  F(AtomicsExchange, 3, 1)            \
+  F(AtomicsIsLockFree, 1, 1)
+
+
 #define FOR_EACH_INTRINSIC_CLASSES(F)         \
   F(ThrowNonMethodError, 0, 1)                \
   F(ThrowUnsupportedSuperError, 0, 1)         \
@@ -655,6 +668,8 @@ namespace internal {
   F(TypedArraySetFastCases, 3, 1)            \
   F(TypedArrayMaxSizeInHeap, 0, 1)           \
   F(IsTypedArray, 1, 1)                      \
+  F(IsSharedTypedArray, 1, 1)                \
+  F(IsSharedIntegerTypedArray, 1, 1)         \
   F(DataViewInitialize, 4, 1)                \
   F(DataViewGetUint8, 3, 1)                  \
   F(DataViewGetInt8, 3, 1)                   \
@@ -687,6 +702,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
   FOR_EACH_INTRINSIC_ARRAY(F)               \
+  FOR_EACH_INTRINSIC_ATOMICS(F)             \
   FOR_EACH_INTRINSIC_CLASSES(F)             \
   FOR_EACH_INTRINSIC_COLLECTIONS(F)         \
   FOR_EACH_INTRINSIC_COMPILER(F)            \
@@ -874,6 +890,8 @@ class Runtime : public AllStatic {
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
                                                     Handle<Object>);
+
+  static bool AtomicIsLockFree(uint32_t size);
 };
 
 
@@ -889,6 +907,29 @@ class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
 STATIC_ASSERT(LANGUAGE_END == 3);
 class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 2> {};
+
+//---------------------------------------------------------------------------
+// Inline functions
+
+// Assume that 32-bit architectures don't have 64-bit atomic ops.
+// TODO(binji): can we do better here?
+#if V8_TARGET_ARCH_64_BIT && V8_HOST_ARCH_64_BIT
+
+#define ATOMICS_REQUIRE_LOCK_64_BIT 0
+
+inline bool Runtime::AtomicIsLockFree(uint32_t size) {
+  return size == 1 || size == 2 || size == 4 || size == 8;
+}
+
+#else
+
+#define ATOMICS_REQUIRE_LOCK_64_BIT 1
+
+inline bool Runtime::AtomicIsLockFree(uint32_t size) {
+  return size == 1 || size == 2 || size == 4;
+}
+
+#endif
 
 }  // namespace internal
 }  // namespace v8

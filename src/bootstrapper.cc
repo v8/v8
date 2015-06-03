@@ -230,6 +230,7 @@ class Genesis BASE_EMBEDDED {
   bool InstallExperimentalNatives();
   bool InstallExtraNatives();
   void InstallBuiltinFunctionIds();
+  void InstallExperimentalBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
 
@@ -1766,6 +1767,7 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_destructuring)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spread_arrays)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sharedarraybuffer)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_atomics)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1776,6 +1778,7 @@ void Genesis::InstallNativeFunctions_harmony_proxies() {
     INSTALL_NATIVE(JSFunction, "$proxyEnumerate", proxy_enumerate);
   }
 }
+
 
 #undef INSTALL_NATIVE
 
@@ -1797,6 +1800,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spreadcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spread_arrays)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_atomics)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -2441,6 +2445,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_spread_arrays_natives[] = {nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
       "native harmony-sharedarraybuffer.js", NULL};
+  static const char* harmony_atomics_natives[] = {"native harmony-atomics.js",
+                                                  nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
@@ -2463,6 +2469,7 @@ bool Genesis::InstallExperimentalNatives() {
   CallUtilsFunction(isolate(), "PostExperimentals");
 
   InstallExperimentalNativeFunctions();
+  InstallExperimentalBuiltinFunctionIds();
   return true;
 }
 
@@ -2488,6 +2495,11 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
 }
 
 
+#define INSTALL_BUILTIN_ID(holder_expr, fun_name, name) \
+  { #holder_expr, #fun_name, k##name }                  \
+  ,
+
+
 void Genesis::InstallBuiltinFunctionIds() {
   HandleScope scope(isolate());
   struct BuiltinFunctionIds {
@@ -2496,12 +2508,8 @@ void Genesis::InstallBuiltinFunctionIds() {
     BuiltinFunctionId id;
   };
 
-#define INSTALL_BUILTIN_ID(holder_expr, fun_name, name) \
-  { #holder_expr, #fun_name, k##name }                  \
-  ,
   const BuiltinFunctionIds builtins[] = {
       FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)};
-#undef INSTALL_BUILTIN_ID
 
   for (const BuiltinFunctionIds& builtin : builtins) {
     Handle<JSObject> holder =
@@ -2509,6 +2517,29 @@ void Genesis::InstallBuiltinFunctionIds() {
     InstallBuiltinFunctionId(holder, builtin.fun_name, builtin.id);
   }
 }
+
+
+void Genesis::InstallExperimentalBuiltinFunctionIds() {
+  if (FLAG_harmony_atomics) {
+    struct BuiltinFunctionIds {
+      const char* holder_expr;
+      const char* fun_name;
+      BuiltinFunctionId id;
+    };
+
+    const BuiltinFunctionIds atomic_builtins[] = {
+        ATOMIC_FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)};
+
+    for (const BuiltinFunctionIds& builtin : atomic_builtins) {
+      Handle<JSObject> holder =
+          ResolveBuiltinIdHolder(native_context(), builtin.holder_expr);
+      InstallBuiltinFunctionId(holder, builtin.fun_name, builtin.id);
+    }
+  }
+}
+
+
+#undef INSTALL_BUILTIN_ID
 
 
 // Do not forget to update macros.py with named constant
