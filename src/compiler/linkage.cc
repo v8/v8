@@ -132,10 +132,11 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
       return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
-    case Runtime::kInlineDateField:
+    case Runtime::kInlineDateField:  // TODO(bmeurer): Remove this.
     case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
+    case Runtime::kInlineThrowIfNotADate:
       return true;
     default:
       break;

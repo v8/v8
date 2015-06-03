@@ -11935,6 +11935,17 @@ void HOptimizedGraphBuilder::GenerateJSValueGetValue(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateThrowIfNotADate(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* obj = Pop();
+  BuildCheckHeapObject(obj);
+  HCheckInstanceType* check =
+      New<HCheckInstanceType>(obj, HCheckInstanceType::IS_JS_DATE);
+  return ast_context()->ReturnInstruction(check, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateDateField(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 2);
   DCHECK_NOT_NULL(call->arguments()->at(1)->AsLiteral());

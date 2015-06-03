@@ -1790,18 +1790,13 @@ void LCodeGen::DoDateField(LDateField* instr) {
   Register result = ToRegister(instr->result());
   Register scratch = ToRegister(instr->temp());
   Smi* index = instr->index();
-  Label runtime, done;
   DCHECK(object.is(result));
   DCHECK(object.is(eax));
-
-  __ test(object, Immediate(kSmiTagMask));
-  DeoptimizeIf(zero, instr, Deoptimizer::kSmi);
-  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
-  DeoptimizeIf(not_equal, instr, Deoptimizer::kNotADateObject);
 
   if (index->value() == 0) {
     __ mov(result, FieldOperand(object, JSDate::kValueOffset));
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       __ mov(scratch, Operand::StaticVariable(stamp));

@@ -3618,6 +3618,26 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitThrowIfNotADate(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label done, not_date_object;
+  Register object = x0;
+  Register result = x0;
+
+  __ JumpIfSmi(object, &not_date_object);
+  __ JumpIfObjectType(object, x10, x10, JS_DATE_TYPE, &done);
+  __ Bind(&not_date_object);
+  __ CallRuntime(Runtime::kThrowNotDateError, 0);
+
+  __ Bind(&done);
+  context()->Plug(result);
+}
+
+
 void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
@@ -3626,23 +3646,19 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
-  Label runtime, done, not_date_object;
   Register object = x0;
   Register result = x0;
   Register stamp_addr = x10;
   Register stamp_cache = x11;
 
-  __ JumpIfSmi(object, &not_date_object);
-  __ JumpIfNotObjectType(object, x10, x10, JS_DATE_TYPE, &not_date_object);
-
   if (index->value() == 0) {
     __ Ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
-    __ B(&done);
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
-      __ Mov(x10, stamp);
-      __ Ldr(stamp_addr, MemOperand(x10));
+      __ Mov(stamp_addr, stamp);
+      __ Ldr(stamp_addr, MemOperand(stamp_addr));
       __ Ldr(stamp_cache, FieldMemOperand(object, JSDate::kCacheStampOffset));
       __ Cmp(stamp_addr, stamp_cache);
       __ B(ne, &runtime);
@@ -3654,13 +3670,10 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ Bind(&runtime);
     __ Mov(x1, index);
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
-    __ B(&done);
+    __ Bind(&done);
   }
 
-  __ Bind(&not_date_object);
-  __ CallRuntime(Runtime::kThrowNotDateError, 0);
-  __ Bind(&done);
-  context()->Plug(x0);
+  context()->Plug(result);
 }
 
 

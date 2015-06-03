@@ -179,6 +179,7 @@ namespace internal {
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
+  V(kOperandIsNotADate, "Operand is not a date")                               \
   V(kOperandIsNotAName, "Operand is not a name")                               \
   V(kOperandIsNotANumber, "Operand is not a number")                           \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \

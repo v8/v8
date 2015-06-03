@@ -193,7 +193,7 @@ define MAX_TIME_BEFORE_UTC = 8640002592000000;
 
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
-macro CHECK_DATE(arg) = if (%_ClassOf(arg) !== 'Date') throw MakeTypeError(kDateType);
+macro CHECK_DATE(arg) = %_ThrowIfNotADate(arg);
 macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
 macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
 

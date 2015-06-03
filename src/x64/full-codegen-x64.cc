@@ -3793,6 +3793,28 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitThrowIfNotADate(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Register object = rax;
+  Register result = rax;
+  Register scratch = rcx;
+
+  Label done, not_date_object;
+  __ JumpIfSmi(object, &not_date_object, Label::kNear);
+  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
+  __ j(equal, &done, Label::kNear);
+  __ bind(&not_date_object);
+  __ CallRuntime(Runtime::kThrowNotDateError, 0);
+
+  __ bind(&done);
+  context()->Plug(result);
+}
+
+
 void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
@@ -3801,19 +3823,20 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
-  Label runtime, done, not_date_object;
   Register object = rax;
   Register result = rax;
   Register scratch = rcx;
 
-  __ JumpIfSmi(object, &not_date_object);
-  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
-  __ j(not_equal, &not_date_object);
+  if (FLAG_debug_code) {
+    __ AssertNotSmi(object);
+    __ CmpObjectType(object, JS_DATE_TYPE, scratch);
+    __ Check(equal, kOperandIsNotADate);
+  }
 
   if (index->value() == 0) {
     __ movp(result, FieldOperand(object, JSDate::kValueOffset));
-    __ jmp(&done);
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       Operand stamp_operand = __ ExternalOperand(stamp);
@@ -3822,7 +3845,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
       __ j(not_equal, &runtime, Label::kNear);
       __ movp(result, FieldOperand(object, JSDate::kValueOffset +
                                            kPointerSize * index->value()));
-      __ jmp(&done);
+      __ jmp(&done, Label::kNear);
     }
     __ bind(&runtime);
     __ PrepareCallCFunction(2);
@@ -3830,12 +3853,9 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ Move(arg_reg_2, index, Assembler::RelocInfoNone());
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-    __ jmp(&done);
+    __ bind(&done);
   }
 
-  __ bind(&not_date_object);
-  __ CallRuntime(Runtime::kThrowNotDateError, 0);
-  __ bind(&done);
   context()->Plug(rax);
 }
 

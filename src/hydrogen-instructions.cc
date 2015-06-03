@@ -1626,6 +1626,9 @@ void HCheckInstanceType::GetCheckInterval(InstanceType* first,
     case IS_JS_ARRAY:
       *first = *last = JS_ARRAY_TYPE;
       return;
+    case IS_JS_DATE:
+      *first = *last = JS_DATE_TYPE;
+      return;
     default:
       UNREACHABLE();
   }
@@ -1695,6 +1698,8 @@ const char* HCheckInstanceType::GetCheckName() const {
   switch (check_) {
     case IS_SPEC_OBJECT: return "object";
     case IS_JS_ARRAY: return "array";
+    case IS_JS_DATE:
+      return "date";
     case IS_STRING: return "string";
     case IS_INTERNALIZED_STRING: return "internalized_string";
   }

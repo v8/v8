@@ -2183,6 +2183,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(Arguments)                         \
   F(ValueOf)                           \
   F(SetValueOf)                        \
+  F(ThrowIfNotADate)                   \
   F(DateField)                         \
   F(StringCharFromCode)                \
   F(StringCharAt)                      \

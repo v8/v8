@@ -1776,18 +1776,19 @@ void LCodeGen::DoDateField(LDateField* instr) {
   Register object = ToRegister(instr->date());
   Register result = ToRegister(instr->result());
   Smi* index = instr->index();
-  Label runtime, done, not_date_object;
   DCHECK(object.is(result));
   DCHECK(object.is(rax));
 
-  Condition cc = masm()->CheckSmi(object);
-  DeoptimizeIf(cc, instr, Deoptimizer::kSmi);
-  __ CmpObjectType(object, JS_DATE_TYPE, kScratchRegister);
-  DeoptimizeIf(not_equal, instr, Deoptimizer::kNotADateObject);
+  if (FLAG_debug_code) {
+    __ AssertNotSmi(object);
+    __ CmpObjectType(object, JS_DATE_TYPE, kScratchRegister);
+    __ Check(equal, kOperandIsNotADate);
+  }
 
   if (index->value() == 0) {
     __ movp(result, FieldOperand(object, JSDate::kValueOffset));
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       Operand stamp_operand = __ ExternalOperand(stamp);

@@ -1802,7 +1802,7 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
   LOperand* object = UseFixed(instr->value(), a0);
   LDateField* result =
       new(zone()) LDateField(object, FixedTemp(a1), instr->index());
-  return MarkAsCall(DefineFixed(result, v0), instr, CAN_DEOPTIMIZE_EAGERLY);
+  return MarkAsCall(DefineFixed(result, v0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 
 

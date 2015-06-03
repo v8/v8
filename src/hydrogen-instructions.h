@@ -2875,9 +2875,10 @@ class HCheckInstanceType final : public HUnaryOperation {
   enum Check {
     IS_SPEC_OBJECT,
     IS_JS_ARRAY,
+    IS_JS_DATE,
     IS_STRING,
     IS_INTERNALIZED_STRING,
-    LAST_INTERVAL_CHECK = IS_JS_ARRAY
+    LAST_INTERVAL_CHECK = IS_JS_DATE
   };
 
   DECLARE_INSTRUCTION_FACTORY_P2(HCheckInstanceType, HValue*, Check);
@@ -2892,6 +2893,8 @@ class HCheckInstanceType final : public HUnaryOperation {
     switch (check_) {
       case IS_SPEC_OBJECT: return HType::JSObject();
       case IS_JS_ARRAY: return HType::JSArray();
+      case IS_JS_DATE:
+        return HType::JSObject();
       case IS_STRING: return HType::String();
       case IS_INTERNALIZED_STRING: return HType::String();
     }

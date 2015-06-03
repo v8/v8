@@ -3801,6 +3801,28 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitThrowIfNotADate(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label done, not_date_object;
+  Register object = eax;
+  Register result = eax;
+  Register scratch = ecx;
+
+  __ JumpIfSmi(object, &not_date_object, Label::kNear);
+  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
+  __ j(equal, &done, Label::kNear);
+  __ bind(&not_date_object);
+  __ CallRuntime(Runtime::kThrowNotDateError, 0);
+
+  __ bind(&done);
+  context()->Plug(result);
+}
+
+
 void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
@@ -3809,19 +3831,14 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
-  Label runtime, done, not_date_object;
   Register object = eax;
   Register result = eax;
   Register scratch = ecx;
 
-  __ JumpIfSmi(object, &not_date_object);
-  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
-  __ j(not_equal, &not_date_object);
-
   if (index->value() == 0) {
     __ mov(result, FieldOperand(object, JSDate::kValueOffset));
-    __ jmp(&done);
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       __ mov(scratch, Operand::StaticVariable(stamp));
@@ -3829,19 +3846,16 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
       __ j(not_equal, &runtime, Label::kNear);
       __ mov(result, FieldOperand(object, JSDate::kValueOffset +
                                           kPointerSize * index->value()));
-      __ jmp(&done);
+      __ jmp(&done, Label::kNear);
     }
     __ bind(&runtime);
     __ PrepareCallCFunction(2, scratch);
     __ mov(Operand(esp, 0), object);
     __ mov(Operand(esp, 1 * kPointerSize), Immediate(index));
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
-    __ jmp(&done);
+    __ bind(&done);
   }
 
-  __ bind(&not_date_object);
-  __ CallRuntime(Runtime::kThrowNotDateError, 0);
-  __ bind(&done);
   context()->Plug(result);
 }
 

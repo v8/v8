@@ -126,7 +126,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kNoCache, "no cache")                                                      \
   V(kNonStrictElementsInKeyedLoadGenericStub,                                  \
     "non-strict elements in KeyedLoadGenericStub")                             \
-  V(kNotADateObject, "not a date object")                                      \
   V(kNotAHeapNumber, "not a heap number")                                      \
   V(kNotAHeapNumberUndefinedBoolean, "not a heap number/undefined/true/false") \
   V(kNotAHeapNumberUndefined, "not a heap number/undefined")                   \

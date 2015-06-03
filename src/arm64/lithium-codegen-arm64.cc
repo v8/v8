@@ -2628,18 +2628,14 @@ void LCodeGen::DoDateField(LDateField* instr) {
   Register temp1 = x10;
   Register temp2 = x11;
   Smi* index = instr->index();
-  Label runtime, done;
 
   DCHECK(object.is(result) && object.Is(x0));
   DCHECK(instr->IsMarkedAsCall());
 
-  DeoptimizeIfSmi(object, instr, Deoptimizer::kSmi);
-  __ CompareObjectType(object, temp1, temp1, JS_DATE_TYPE);
-  DeoptimizeIf(ne, instr, Deoptimizer::kNotADateObject);
-
   if (index->value() == 0) {
     __ Ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       __ Mov(temp1, Operand(stamp));
@@ -2655,9 +2651,8 @@ void LCodeGen::DoDateField(LDateField* instr) {
     __ Bind(&runtime);
     __ Mov(x1, Operand(index));
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ Bind(&done);
   }
-
-  __ Bind(&done);
 }
 
 

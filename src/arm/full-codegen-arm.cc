@@ -3912,6 +3912,28 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitThrowIfNotADate(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label done, not_date_object;
+  Register object = r0;
+  Register result = r0;
+  Register scratch0 = r9;
+
+  __ JumpIfSmi(object, &not_date_object);
+  __ CompareObjectType(object, scratch0, scratch0, JS_DATE_TYPE);
+  __ b(eq, &done);
+  __ bind(&not_date_object);
+  __ CallRuntime(Runtime::kThrowNotDateError, 0);
+
+  __ bind(&done);
+  context()->Plug(result);
+}
+
+
 void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
@@ -3920,20 +3942,15 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
-  Label runtime, done, not_date_object;
   Register object = r0;
   Register result = r0;
   Register scratch0 = r9;
   Register scratch1 = r1;
 
-  __ JumpIfSmi(object, &not_date_object);
-  __ CompareObjectType(object, scratch1, scratch1, JS_DATE_TYPE);
-  __ b(ne, &not_date_object);
-
   if (index->value() == 0) {
     __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
-    __ jmp(&done);
   } else {
+    Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
       ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
       __ mov(scratch1, Operand(stamp));
@@ -3949,13 +3966,10 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ PrepareCallCFunction(2, scratch1);
     __ mov(r1, Operand(index));
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
-    __ jmp(&done);
+    __ bind(&done);
   }
 
-  __ bind(&not_date_object);
-  __ CallRuntime(Runtime::kThrowNotDateError, 0);
-  __ bind(&done);
-  context()->Plug(r0);
+  context()->Plug(result);
 }
 
 
