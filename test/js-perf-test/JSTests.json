@@ -116,6 +116,16 @@
       "tests": [
         {"name": "With"}
       ]
+    },
+    {
+      "name": "Exceptions",
+      "path": ["Exceptions"],
+      "main": "run.js",
+      "resources": ["try-catch.js"],
+      "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Try-Catch"}
+      ]
     }
   ]
 }
