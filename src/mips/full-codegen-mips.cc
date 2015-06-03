@@ -200,17 +200,17 @@ void FullCodeGenerator::Generate() {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  if (heap_slots > 0) {
+  if (info->scope()->num_heap_slots() > 0) {
     Comment cmnt(masm_, "[ Allocate context");
     // Argument to NewContext is the function, which is still in a1.
     bool need_write_barrier = true;
+    int slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     if (info->scope()->is_script_scope()) {
       __ push(a1);
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
-    } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), heap_slots);
+    } else if (slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(isolate(), slots);
       __ CallStub(&stub);
       // Result of FastNewContextStub is always in new space.
       need_write_barrier = false;

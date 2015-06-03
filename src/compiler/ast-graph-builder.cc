@@ -525,8 +525,7 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   }
 
   // Build function context only if there are context allocated variables.
-  int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  if (heap_slots > 0) {
+  if (info()->num_heap_slots() > 0) {
     // Push a new inner context scope for the function.
     Node* inner_context =
         BuildLocalFunctionContext(function_context_.get(), patched_receiver);

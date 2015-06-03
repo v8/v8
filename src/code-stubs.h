@@ -732,7 +732,7 @@ class FastNewContextStub final : public HydrogenCodeStub {
   static const int kMaximumSlots = 64;
 
   FastNewContextStub(Isolate* isolate, int slots) : HydrogenCodeStub(isolate) {
-    DCHECK(slots > 0 && slots <= kMaximumSlots);
+    DCHECK(slots >= 0 && slots <= kMaximumSlots);
     set_sub_minor_key(SlotsBits::encode(slots));
   }
 
