@@ -37,6 +37,7 @@ class JSTypedLowering final : public AdvancedReducer {
   friend class JSBinopReduction;
 
   Reduction ReduceJSAdd(Node* node);
+  Reduction ReduceJSModulus(Node* node);
   Reduction ReduceJSBitwiseOr(Node* node);
   Reduction ReduceJSMultiply(Node* node);
   Reduction ReduceJSComparison(Node* node);

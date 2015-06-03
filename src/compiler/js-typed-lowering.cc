@@ -388,10 +388,21 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
+  JSBinopReduction r(this, node);
+  if (r.BothInputsAre(Type::Number())) {
+    // JSModulus(x:number, x:number) => NumberModulus(x, y)
+    return r.ChangeToPureOperator(simplified()->NumberModulus(),
+                                  Type::Number());
+  }
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
                                              const Operator* numberOp) {
   JSBinopReduction r(this, node);
-  if (r.IsStrong()) {
+  if (r.IsStrong() || numberOp == simplified()->NumberModulus()) {
     if (r.BothInputsAre(Type::Number())) {
       return r.ChangeToPureOperator(numberOp, Type::Number());
     }
@@ -1469,7 +1480,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSDivide:
       return ReduceNumberBinop(node, simplified()->NumberDivide());
     case IrOpcode::kJSModulus:
-      return ReduceNumberBinop(node, simplified()->NumberModulus());
+      return ReduceJSModulus(node);
     case IrOpcode::kJSUnaryNot:
       return ReduceJSUnaryNot(node);
     case IrOpcode::kJSToBoolean:

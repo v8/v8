@@ -942,8 +942,6 @@ TEST(OrderNumberBinopEffects1) {
       R.simplified.NumberMultiply(),
       R.javascript.Divide(LanguageMode::SLOPPY),
       R.simplified.NumberDivide(),
-      R.javascript.Modulus(LanguageMode::SLOPPY),
-      R.simplified.NumberModulus(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -974,8 +972,6 @@ TEST(OrderNumberBinopEffects2) {
       R.simplified.NumberMultiply(),
       R.javascript.Divide(LanguageMode::SLOPPY),
       R.simplified.NumberDivide(),
-      R.javascript.Modulus(LanguageMode::SLOPPY),
-      R.simplified.NumberModulus(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
