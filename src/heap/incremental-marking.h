@@ -73,8 +73,6 @@ class IncrementalMarking {
 
   void MarkObjectGroups();
 
-  void PrepareForScavenge();
-
   void UpdateMarkingDequeAfterScavenge();
 
   void Hurry();

@@ -1595,8 +1595,6 @@ void Heap::Scavenge() {
 
   SelectScavengingVisitorsTable();
 
-  incremental_marking()->PrepareForScavenge();
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_.Flip();
