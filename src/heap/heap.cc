@@ -4412,7 +4412,7 @@ AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
   if (length == 0) return empty_fixed_array();
 
   DCHECK(!InNewSpace(filler));
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(length, pretenure);
     if (!allocation.To(&result)) return allocation;
@@ -4509,7 +4509,7 @@ AllocationResult Heap::AllocateExtendedConstantPoolArray(
   int size = ConstantPoolArray::SizeForExtended(small, extended);
   AllocationSpace space = SelectSpace(size, TENURED);
 
-  HeapObject* object;
+  HeapObject* object = nullptr;
   {
     AllocationResult allocation =
         AllocateRaw(size, space, OLD_SPACE, kDoubleAligned);
