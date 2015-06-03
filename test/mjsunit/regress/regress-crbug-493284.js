@@ -4,5 +4,7 @@
 
 // Flags: --invoke-weak-callbacks --omit-quit --no-test
 
-var coll = new Intl.Collator();
-assertEquals(-1, coll.compare('a', 'c'));
+if (this.Intl) {
+  var coll = new Intl.Collator();
+  assertEquals(-1, coll.compare('a', 'c'));
+}
