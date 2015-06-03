@@ -1402,9 +1402,19 @@ static void ModuleGetExport(
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
   DCHECK(context->IsModuleContext());
-  int slot = info.Data()->Int32Value();
-  Object* value = context->get(slot);
   Isolate* isolate = instance->GetIsolate();
+  int slot = info.Data()
+                 ->Int32Value(info.GetIsolate()->GetCurrentContext())
+                 .FromMaybe(-1);
+  if (slot < 0 || slot >= context->length()) {
+    Handle<String> name = v8::Utils::OpenHandle(*property);
+
+    Handle<Object> exception = isolate->factory()->NewReferenceError(
+        MessageTemplate::kNotDefined, name);
+    isolate->ScheduleThrow(*exception);
+    return;
+  }
+  Object* value = context->get(slot);
   if (value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
 
@@ -1424,9 +1434,18 @@ static void ModuleSetExport(
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
   DCHECK(context->IsModuleContext());
-  int slot = info.Data()->Int32Value();
+  Isolate* isolate = instance->GetIsolate();
+  int slot = info.Data()
+                 ->Int32Value(info.GetIsolate()->GetCurrentContext())
+                 .FromMaybe(-1);
+  if (slot < 0 || slot >= context->length()) {
+    Handle<String> name = v8::Utils::OpenHandle(*property);
+    Handle<Object> exception = isolate->factory()->NewReferenceError(
+        MessageTemplate::kNotDefined, name);
+    isolate->ScheduleThrow(*exception);
+    return;
+  }
   Object* old_value = context->get(slot);
-  Isolate* isolate = context->GetIsolate();
   if (old_value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
     Handle<Object> exception = isolate->factory()->NewReferenceError(

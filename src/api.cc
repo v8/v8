@@ -309,24 +309,32 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 }
 
 
-bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
+bool RunExtraCode(Isolate* isolate, Local<Context> context,
+                  const char* utf8_source) {
   // Run custom script if provided.
   base::ElapsedTimer timer;
   timer.Start();
   TryCatch try_catch(isolate);
-  Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
-  if (try_catch.HasCaught()) return false;
-  ScriptOrigin origin(String::NewFromUtf8(isolate, "<embedded script>"));
+  Local<String> source_string;
+  if (!String::NewFromUtf8(isolate, utf8_source, NewStringType::kNormal)
+           .ToLocal(&source_string)) {
+    return false;
+  }
+  Local<String> resource_name =
+      String::NewFromUtf8(isolate, "<embedded script>", NewStringType::kNormal)
+          .ToLocalChecked();
+  ScriptOrigin origin(resource_name);
   ScriptCompiler::Source source(source_string, origin);
-  Local<Script> script = ScriptCompiler::Compile(isolate, &source);
-  if (try_catch.HasCaught()) return false;
-  script->Run();
+  Local<Script> script;
+  if (!ScriptCompiler::Compile(context, &source).ToLocal(&script)) return false;
+  if (script->Run(context).IsEmpty()) return false;
   if (i::FLAG_profile_deserialization) {
     i::PrintF("Executing custom snapshot script took %0.3f ms\n",
               timer.Elapsed().InMillisecondsF());
   }
   timer.Stop();
-  return !try_catch.HasCaught();
+  CHECK(!try_catch.HasCaught());
+  return true;
 }
 
 
@@ -367,7 +375,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       if (custom_source != NULL) {
         metadata.set_embeds_script(true);
         Context::Scope context_scope(new_context);
-        if (!RunExtraCode(isolate, custom_source)) context.Reset();
+        if (!RunExtraCode(isolate, new_context, custom_source)) context.Reset();
       }
     }
     if (!context.IsEmpty()) {
@@ -2058,8 +2066,10 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::Handle<String> file_name) {
+  auto str = Utils::OpenHandle(*source);
+  auto context = ContextFromHeapObject(str);
   ScriptOrigin origin(file_name);
-  return Compile(source, &origin);
+  return Compile(context, source, &origin).FromMaybe(Local<Script>());
 }
 
 
@@ -3629,8 +3639,19 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
 
 bool v8::Object::ForceSet(v8::Handle<Value> key, v8::Handle<Value> value,
                           v8::PropertyAttribute attribs) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  return ForceSet(context, key, value, attribs).FromMaybe(false);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  PREPARE_FOR_EXECUTION_GENERIC(isolate, Local<Context>(),
+                                "v8::Object::ForceSet", false, i::HandleScope,
+                                false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  has_pending_exception =
+      i::Runtime::DefineObjectProperty(self, key_obj, value_obj,
+                                       static_cast<PropertyAttributes>(attribs))
+          .is_null();
+  EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false);
+  return true;
 }
 
 
@@ -3867,11 +3888,13 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   //   return "[object " + c + "]";
 
   if (!name->IsString()) {
-    return v8::String::NewFromUtf8(v8_isolate, "[object ]");
+    return v8::String::NewFromUtf8(v8_isolate, "[object ]",
+                                   NewStringType::kNormal);
   }
   auto class_name = i::Handle<i::String>::cast(name);
   if (i::String::Equals(class_name, isolate->factory()->Arguments_string())) {
-    return v8::String::NewFromUtf8(v8_isolate, "[object Object]");
+    return v8::String::NewFromUtf8(v8_isolate, "[object Object]",
+                                   NewStringType::kNormal);
   }
   if (internal::FLAG_harmony_tostring) {
     PREPARE_FOR_EXECUTION(context, "v8::Object::ObjectProtoToString()", String);
@@ -3907,8 +3930,8 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   i::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
   // Copy the buffer into a heap-allocated string and return it.
-  return v8::String::NewFromUtf8(v8_isolate, buf.start(), String::kNormalString,
-                                 buf_len);
+  return v8::String::NewFromUtf8(v8_isolate, buf.start(),
+                                 NewStringType::kNormal, buf_len);
 }
 
 
@@ -4472,7 +4495,8 @@ Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
 
 
 Local<v8::Object> Function::NewInstance() const {
-  return NewInstance(0, NULL);
+  return NewInstance(Isolate::GetCurrent()->GetCurrentContext(), 0, NULL)
+      .FromMaybe(Local<Object>());
 }
 
 
@@ -5402,7 +5426,6 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
   if (!InternalFieldOK(obj, index, location)) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
-  DCHECK(value->Equals(GetInternalField(index)));
 }
 
 
@@ -7506,14 +7529,15 @@ void Isolate::VisitHandlesForPartialDependence(
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
+  if (obj.IsEmpty()) return;
   i::Isolate* isolate = i::Isolate::Current();
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  Local<Context> context = v8_isolate->GetCurrentContext();
   TryCatch try_catch(v8_isolate);
-  Handle<String> str = obj->ToString(v8_isolate);
-  if (str.IsEmpty()) return;
+  Handle<String> str;
+  if (!obj->ToString(context).ToLocal(&str)) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
   length_ = v8::Utf8Length(*i_str, isolate);
   str_ = i::NewArray<char>(length_ + 1);
@@ -7528,14 +7552,15 @@ String::Utf8Value::~Utf8Value() {
 
 String::Value::Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
+  if (obj.IsEmpty()) return;
   i::Isolate* isolate = i::Isolate::Current();
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  Local<Context> context = v8_isolate->GetCurrentContext();
   TryCatch try_catch(v8_isolate);
-  Handle<String> str = obj->ToString(v8_isolate);
-  if (str.IsEmpty()) return;
+  Handle<String> str;
+  if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
   str_ = i::NewArray<uint16_t>(length_ + 1);
   str->Write(str_);

@@ -1410,15 +1410,19 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   Comment cmnt(masm_, "[ NativeFunctionLiteral");
 
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
+
   // Compute the function template for the native function.
   Handle<String> name = expr->name();
   v8::Handle<v8::FunctionTemplate> fun_template =
-      expr->extension()->GetNativeFunctionTemplate(
-          reinterpret_cast<v8::Isolate*>(isolate()), v8::Utils::ToLocal(name));
+      expr->extension()->GetNativeFunctionTemplate(v8_isolate,
+                                                   v8::Utils::ToLocal(name));
   DCHECK(!fun_template.IsEmpty());
 
   // Instantiate the function and create a shared function info from it.
-  Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
+  Handle<JSFunction> fun = Utils::OpenHandle(
+      *fun_template->GetFunction(v8_isolate->GetCurrentContext())
+           .ToLocalChecked());
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());

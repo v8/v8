@@ -7710,41 +7710,51 @@ template <class T> Value* Value::Cast(T* value) {
 
 
 Local<Boolean> Value::ToBoolean() const {
-  return ToBoolean(Isolate::GetCurrent());
+  return ToBoolean(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Boolean>());
 }
 
 
 Local<Number> Value::ToNumber() const {
-  return ToNumber(Isolate::GetCurrent());
+  return ToNumber(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Number>());
 }
 
 
 Local<String> Value::ToString() const {
-  return ToString(Isolate::GetCurrent());
+  return ToString(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<String>());
 }
 
 
 Local<String> Value::ToDetailString() const {
-  return ToDetailString(Isolate::GetCurrent());
+  return ToDetailString(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<String>());
 }
 
 
 Local<Object> Value::ToObject() const {
-  return ToObject(Isolate::GetCurrent());
+  return ToObject(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Object>());
 }
 
 
 Local<Integer> Value::ToInteger() const {
-  return ToInteger(Isolate::GetCurrent());
+  return ToInteger(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Integer>());
 }
 
 
 Local<Uint32> Value::ToUint32() const {
-  return ToUint32(Isolate::GetCurrent());
+  return ToUint32(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Uint32>());
 }
 
 
-Local<Int32> Value::ToInt32() const { return ToInt32(Isolate::GetCurrent()); }
+Local<Int32> Value::ToInt32() const {
+  return ToInt32(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Int32>());
+}
 
 
 Boolean* Boolean::Cast(v8::Value* value) {

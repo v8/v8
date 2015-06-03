@@ -364,6 +364,10 @@
       'include_dirs+': [
         '../..',
       ],
+      'defines': [
+        # TODO(jochen): Remove again after this is globally turned on.
+        'V8_IMMINENT_DEPRECATION_WARNINGS',
+      ],
       'sources': [  ### gcmole(all) ###
         '../../src/accessors.cc',
         '../../src/accessors.h',

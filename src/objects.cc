@@ -4290,7 +4290,9 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
     }
     if (!result.IsEmpty()) {
       DCHECK(result->IsInt32());
-      return Just(static_cast<PropertyAttributes>(result->Int32Value()));
+      return Just(static_cast<PropertyAttributes>(
+          result->Int32Value(reinterpret_cast<v8::Isolate*>(isolate)
+                                 ->GetCurrentContext()).FromJust()));
     }
   } else if (!interceptor->getter()->IsUndefined()) {
     // TODO(verwaest): Use GetPropertyWithInterceptor?

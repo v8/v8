@@ -216,11 +216,14 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
 RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
-  Local<v8::ObjectTemplate> desc =
-      v8::ObjectTemplate::New((v8::Isolate*)isolate);
-  desc->MarkAsUndetectable();  // undetectable
-  Local<v8::Object> obj = desc->NewInstance();
+  Local<v8::ObjectTemplate> desc = v8::ObjectTemplate::New(v8_isolate);
+  desc->MarkAsUndetectable();
+  Local<v8::Object> obj;
+  if (!desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocal(&obj)) {
+    return nullptr;
+  }
   return *Utils::OpenHandle(*obj);
 }
 
