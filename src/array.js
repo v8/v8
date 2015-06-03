@@ -1492,14 +1492,21 @@ function ArrayLastIndexOf(element, index) {
 }
 
 
-function InnerArrayReduce(callback, current, array, length, argumentsLength) {
+function ArrayReduce(callback, current) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduce");
+
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = $toObject(this);
+  var length = $toUint32(array.length);
+
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
   }
 
   var is_array = IS_ARRAY(array);
   var i = 0;
-  find_initial: if (argumentsLength < 2) {
+  find_initial: if (%_ArgumentsLength() < 2) {
     for (; i < length; i++) {
       if (HAS_INDEX(array, i, is_array)) {
         current = array[i++];
@@ -1522,27 +1529,21 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
 }
 
 
-function ArrayReduce(callback, current) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduce");
+function ArrayReduceRight(callback, current) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduceRight");
 
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
+  // Pull out the length so that side effects are visible before the
+  // callback function is checked.
   var array = $toObject(this);
   var length = $toUint32(array.length);
-  return InnerArrayReduce(callback, current, array, length,
-                          %_ArgumentsLength());
-}
 
-
-function InnerArrayReduceRight(callback, current, array, length,
-                               argumentsLength) {
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
   }
 
   var is_array = IS_ARRAY(array);
   var i = length - 1;
-  find_initial: if (argumentsLength < 2) {
+  find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {
       if (HAS_INDEX(array, i, is_array)) {
         current = array[i--];
@@ -1562,18 +1563,6 @@ function InnerArrayReduceRight(callback, current, array, length,
     }
   }
   return current;
-}
-
-
-function ArrayReduceRight(callback, current) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduceRight");
-
-  // Pull out the length so that side effects are visible before the
-  // callback function is checked.
-  var array = $toObject(this);
-  var length = $toUint32(array.length);
-  return InnerArrayReduceRight(callback, current, array, length,
-                               %_ArgumentsLength());
 }
 
 // ES5, 15.4.3.2
@@ -1684,8 +1673,6 @@ utils.Export(function(to) {
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
   to.InnerArrayMap = InnerArrayMap;
-  to.InnerArrayReduce = InnerArrayReduce;
-  to.InnerArrayReduceRight = InnerArrayReduceRight;
   to.InnerArrayReverse = InnerArrayReverse;
   to.InnerArraySome = InnerArraySome;
   to.InnerArraySort = InnerArraySort;
