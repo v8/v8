@@ -1999,8 +1999,8 @@ class Heap {
 
   // Allocates a fixed typed array of the specified length and type.
   MUST_USE_RESULT AllocationResult
-      AllocateFixedTypedArray(int length, ExternalArrayType array_type,
-                              PretenureFlag pretenure);
+  AllocateFixedTypedArray(int length, ExternalArrayType array_type,
+                          bool initialize, PretenureFlag pretenure);
 
   // Make a copy of src and return it.
   MUST_USE_RESULT AllocationResult CopyAndTenureFixedCOWArray(FixedArray* src);

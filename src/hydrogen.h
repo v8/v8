@@ -2466,10 +2466,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       ExternalArrayType array_type,
       bool is_zero_byte_offset,
       HValue* buffer, HValue* byte_offset, HValue* length);
-  HValue* BuildAllocateFixedTypedArray(
-      ExternalArrayType array_type, size_t element_size,
-      ElementsKind fixed_elements_kind,
-      HValue* byte_length, HValue* length);
+  HValue* BuildAllocateFixedTypedArray(ExternalArrayType array_type,
+                                       size_t element_size,
+                                       ElementsKind fixed_elements_kind,
+                                       HValue* byte_length, HValue* length,
+                                       bool initialize);
 
   // TODO(adamk): Move all OrderedHashTable functions to their own class.
   HValue* BuildOrderedHashTableHashToBucket(HValue* hash, HValue* num_buckets);

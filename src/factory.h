@@ -298,8 +298,7 @@ class Factory final {
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedTypedArrayBase> NewFixedTypedArray(
-      int length,
-      ExternalArrayType array_type,
+      int length, ExternalArrayType array_type, bool initialize,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<Cell> NewCell(Handle<Object> value);

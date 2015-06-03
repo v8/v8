@@ -3735,6 +3735,7 @@ static void ForFixedTypedArray(ExternalArrayType array_type, int* element_size,
 
 AllocationResult Heap::AllocateFixedTypedArray(int length,
                                                ExternalArrayType array_type,
+                                               bool initialize,
                                                PretenureFlag pretenure) {
   int element_size;
   ElementsKind elements_kind;
@@ -3752,7 +3753,7 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
   object->set_map(MapForFixedTypedArray(array_type));
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_length(length);
-  memset(elements->DataPtr(), 0, elements->DataSize());
+  if (initialize) memset(elements->DataPtr(), 0, elements->DataSize());
   return elements;
 }
 
@@ -4322,7 +4323,7 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
 
 AllocationResult Heap::AllocateEmptyFixedTypedArray(
     ExternalArrayType array_type) {
-  return AllocateFixedTypedArray(0, array_type, TENURED);
+  return AllocateFixedTypedArray(0, array_type, false, TENURED);
 }
 
 

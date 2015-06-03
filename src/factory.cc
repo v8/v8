@@ -917,16 +917,12 @@ Handle<ExternalArray> Factory::NewExternalArray(int length,
 
 
 Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
-    int length,
-    ExternalArrayType array_type,
+    int length, ExternalArrayType array_type, bool initialize,
     PretenureFlag pretenure) {
   DCHECK(0 <= length && length <= Smi::kMaxValue);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFixedTypedArray(length,
-                                                 array_type,
-                                                 pretenure),
-      FixedTypedArrayBase);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateFixedTypedArray(
+                                    length, array_type, initialize, pretenure),
+                     FixedTypedArrayBase);
 }
 
 
@@ -1965,7 +1961,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
   obj->set_buffer(*buffer);
   Handle<FixedTypedArrayBase> elements =
       isolate()->factory()->NewFixedTypedArray(
-          static_cast<int>(number_of_elements), array_type);
+          static_cast<int>(number_of_elements), array_type, true);
   obj->set_elements(*elements);
   return obj;
 }

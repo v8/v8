@@ -9874,8 +9874,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
 
 HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
     ExternalArrayType array_type, size_t element_size,
-    ElementsKind fixed_elements_kind,
-    HValue* byte_length, HValue* length) {
+    ElementsKind fixed_elements_kind, HValue* byte_length, HValue* length,
+    bool initialize) {
   STATIC_ASSERT(
       (FixedTypedArrayBase::kHeaderSize & kObjectAlignmentMask) == 0);
   HValue* total_size;
@@ -9914,7 +9914,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
 
   HValue* filler = Add<HConstant>(static_cast<int32_t>(0));
 
-  {
+  if (initialize) {
     LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
 
     HValue* key = builder.BeginBody(
@@ -9937,7 +9937,8 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   static const int kBufferArg = 2;
   static const int kByteOffsetArg = 3;
   static const int kByteLengthArg = 4;
-  static const int kArgsLength = 5;
+  static const int kInitializeArg = 5;
+  static const int kArgsLength = 6;
   DCHECK(arguments->length() == kArgsLength);
 
 
@@ -9986,6 +9987,11 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(kByteLengthArg)));
   HValue* byte_length = Pop();
 
+  CHECK(arguments->at(kInitializeArg)->IsLiteral());
+  bool initialize = static_cast<Literal*>(arguments->at(kInitializeArg))
+                        ->value()
+                        ->BooleanValue();
+
   NoObservableSideEffectsScope scope(this);
   IfBuilder byte_offset_smi(this);
 
@@ -10033,9 +10039,9 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
       AddStoreMapConstant(obj, obj_map);
     } else {
       DCHECK(is_zero_byte_offset);
-      elements = BuildAllocateFixedTypedArray(
-          array_type, element_size, fixed_elements_kind,
-          byte_length, length);
+      elements = BuildAllocateFixedTypedArray(array_type, element_size,
+                                              fixed_elements_kind, byte_length,
+                                              length, initialize);
     }
     Add<HStoreNamedField>(
         obj, HObjectAccess::ForElementsPointer(), elements);
@@ -10049,6 +10055,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
       Push(buffer);
       Push(byte_offset);
       Push(byte_length);
+      CHECK_ALIVE(VisitForValue(arguments->at(kInitializeArg)));
       PushArgumentsFromEnvironment(kArgsLength);
       Add<HCallRuntime>(expr->name(), expr->function(), kArgsLength);
     }

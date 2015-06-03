@@ -88,7 +88,7 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
       || (newLength > %_MaxSmi())) {
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
-  %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
+  %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength, true);
 }
 
 function NAMEConstructByLength(obj, length) {
@@ -100,9 +100,9 @@ function NAMEConstructByLength(obj, length) {
   var byteLength = l * ELEMENT_SIZE;
   if (byteLength > %_TypedArrayMaxSizeInHeap()) {
     var buffer = new GlobalArrayBuffer(byteLength);
-    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength, true);
   } else {
-    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength, true);
   }
 }
 
@@ -113,7 +113,15 @@ function NAMEConstructByArrayLike(obj, arrayLike) {
   if (l > %_MaxSmi()) {
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
-  if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
+  var initialized = false;
+  var byteLength = l * ELEMENT_SIZE;
+  if (byteLength <= %_TypedArrayMaxSizeInHeap()) {
+    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength, false);
+  } else {
+    initialized =
+        %TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l);
+  }
+  if (!initialized) {
     for (var i = 0; i < l; i++) {
       // It is crucial that we let any execptions from arrayLike[i]
       // propagate outside the function.

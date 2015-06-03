@@ -5550,7 +5550,7 @@ static void TestRightTrimFixedTypedArray(i::ExternalArrayType type,
   Heap* heap = isolate->heap();
 
   Handle<FixedTypedArrayBase> array =
-      factory->NewFixedTypedArray(initial_length, type);
+      factory->NewFixedTypedArray(initial_length, type, true);
   int old_size = array->size();
   heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array,
                                                          elements_to_trim);

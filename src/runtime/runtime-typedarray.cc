@@ -180,12 +180,13 @@ void Runtime::ArrayIdToTypeAndSize(int arrayId, ExternalArrayType* array_type,
 
 RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 6);
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
   CONVERT_SMI_ARG_CHECKED(arrayId, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, maybe_buffer, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_offset_object, 3);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length_object, 4);
+  CONVERT_BOOLEAN_ARG_CHECKED(initialize, 5);
 
   RUNTIME_ASSERT(arrayId >= Runtime::ARRAY_ID_FIRST &&
                  arrayId <= Runtime::ARRAY_ID_LAST);
@@ -252,7 +253,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     holder->set_buffer(*buffer);
     Handle<FixedTypedArrayBase> elements =
         isolate->factory()->NewFixedTypedArray(static_cast<int>(length),
-                                               array_type);
+                                               array_type, initialize);
     holder->set_elements(*elements);
   }
   return isolate->heap()->undefined_value();
