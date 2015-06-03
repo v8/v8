@@ -462,7 +462,7 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  // No embedded constant pool support.
+  // No out-of-line constant pool support.
   UNREACHABLE();
 }
 

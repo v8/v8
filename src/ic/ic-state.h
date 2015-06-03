@@ -17,7 +17,8 @@ const int kMaxKeyedPolymorphism = 4;
 class ICUtility : public AllStatic {
  public:
   // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate, Address address, Address constant_pool);
+  static void Clear(Isolate* isolate, Address address,
+                    ConstantPoolArray* constant_pool);
 };
 
 

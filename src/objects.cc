@@ -1481,6 +1481,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case FIXED_ARRAY_TYPE:
       FixedArray::BodyDescriptor::IterateBody(this, object_size, v);
       break;
+    case CONSTANT_POOL_ARRAY_TYPE:
+      reinterpret_cast<ConstantPoolArray*>(this)->ConstantPoolIterateBody(v);
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       break;
     case JS_OBJECT_TYPE:
@@ -9485,6 +9488,49 @@ bool Map::EquivalentToForNormalization(Map* other,
 }
 
 
+void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
+  // Unfortunately the serializer relies on pointers within an object being
+  // visited in-order, so we have to iterate both the code and heap pointers in
+  // the small section before doing so in the extended section.
+  for (int s = 0; s <= final_section(); ++s) {
+    LayoutSection section = static_cast<LayoutSection>(s);
+    ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR,
+                                          section);
+    while (!code_iter.is_finished()) {
+      v->VisitCodeEntry(reinterpret_cast<Address>(
+          RawFieldOfElementAt(code_iter.next_index())));
+    }
+
+    ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR,
+                                          section);
+    while (!heap_iter.is_finished()) {
+      v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
+    }
+  }
+}
+
+
+void ConstantPoolArray::ClearPtrEntries(Isolate* isolate) {
+  Type type[] = { CODE_PTR, HEAP_PTR };
+  Address default_value[] = {
+        isolate->builtins()->builtin(Builtins::kIllegal)->entry(),
+        reinterpret_cast<Address>(isolate->heap()->undefined_value()) };
+
+  for (int i = 0; i < 2; ++i) {
+    for (int s = 0; s <= final_section(); ++s) {
+      LayoutSection section = static_cast<LayoutSection>(s);
+      if (number_of_entries(type[i], section) > 0) {
+        int offset = OffsetOfElementAt(first_index(type[i], section));
+        MemsetPointer(
+          reinterpret_cast<Address*>(HeapObject::RawField(this, offset)),
+          default_value[i],
+          number_of_entries(type[i], section));
+      }
+    }
+  }
+}
+
+
 void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
   // Iterate over all fields in the body but take care in dealing with
   // the code entry.
@@ -11607,34 +11653,17 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   os << "Instructions (size = " << instruction_size() << ")\n";
   {
     Isolate* isolate = GetIsolate();
-    int size = instruction_size();
-    int safepoint_offset =
-        is_crankshafted() ? static_cast<int>(safepoint_table_offset()) : size;
-    int back_edge_offset = (kind() == Code::FUNCTION)
-                               ? static_cast<int>(back_edge_table_offset())
-                               : size;
-    int constant_pool_offset = FLAG_enable_embedded_constant_pool
-                                   ? this->constant_pool_offset()
-                                   : size;
-
-    // Stop before reaching any embedded tables
-    int code_size = Min(safepoint_offset, back_edge_offset);
-    code_size = Min(code_size, constant_pool_offset);
-    byte* begin = instruction_start();
-    byte* end = begin + code_size;
-    Disassembler::Decode(isolate, &os, begin, end, this);
-
-    if (constant_pool_offset < size) {
-      int constant_pool_size = size - constant_pool_offset;
-      DCHECK((constant_pool_size & kPointerAlignmentMask) == 0);
-      os << "\nConstant Pool (size = " << constant_pool_size << ")\n";
-      Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(begin + constant_pool_offset);
-      for (int i = 0; i < constant_pool_size; i += kPointerSize, ptr++) {
-        SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
-        os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
-      }
+    int decode_size = is_crankshafted()
+                          ? static_cast<int>(safepoint_table_offset())
+                          : instruction_size();
+    // If there might be a back edge table, stop before reaching it.
+    if (kind() == Code::FUNCTION) {
+      decode_size =
+          Min(decode_size, static_cast<int>(back_edge_table_offset()));
     }
+    byte* begin = instruction_start();
+    byte* end = begin + decode_size;
+    Disassembler::Decode(isolate, &os, begin, end, this);
   }
   os << "\n";
 
@@ -11713,6 +11742,17 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     it.rinfo()->Print(GetIsolate(), os);
   }
   os << "\n";
+
+#ifdef OBJECT_PRINT
+  if (FLAG_enable_ool_constant_pool) {
+    ConstantPoolArray* pool = constant_pool();
+    if (pool->length()) {
+      os << "Constant Pool\n";
+      pool->Print(os);
+      os << "\n";
+    }
+  }
+#endif
 }
 #endif  // ENABLE_DISASSEMBLER
 

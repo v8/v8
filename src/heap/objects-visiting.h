@@ -34,6 +34,7 @@ class StaticVisitorBase : public AllStatic {
   V(FixedDoubleArray)      \
   V(FixedTypedArray)       \
   V(FixedFloat64Array)     \
+  V(ConstantPoolArray)     \
   V(NativeContext)         \
   V(AllocationSite)        \
   V(DataObject2)           \
@@ -426,6 +427,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitMap(Map* map, HeapObject* object));
   INLINE(static void VisitCode(Map* map, HeapObject* object));
   INLINE(static void VisitSharedFunctionInfo(Map* map, HeapObject* object));
+  INLINE(static void VisitConstantPoolArray(Map* map, HeapObject* object));
   INLINE(static void VisitAllocationSite(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));

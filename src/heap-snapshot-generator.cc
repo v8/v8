@@ -1500,6 +1500,9 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);
+  SetInternalReference(code, entry,
+                       "constant_pool", code->constant_pool(),
+                       Code::kConstantPoolOffset);
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     SetWeakReference(code, entry,
                      "next_code_link", code->next_code_link(),

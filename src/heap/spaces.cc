@@ -3037,7 +3037,8 @@ void LargeObjectSpace::Verify() {
     // large object space.
     CHECK(object->IsCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsFixedArray() ||
-          object->IsFixedDoubleArray() || object->IsByteArray());
+          object->IsFixedDoubleArray() || object->IsByteArray() ||
+          object->IsConstantPoolArray());
 
     // The object itself should look OK.
     object->ObjectVerify();

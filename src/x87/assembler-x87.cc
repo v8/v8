@@ -2028,12 +2028,6 @@ void Assembler::dd(uint32_t data) {
 }
 
 
-void Assembler::dq(uint64_t data) {
-  EnsureSpace ensure_space(this);
-  emit_q(data);
-}
-
-
 void Assembler::dd(Label* label) {
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -2050,6 +2044,20 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
+}
+
+
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
+  // No out-of-line constant pool support.
+  DCHECK(!FLAG_enable_ool_constant_pool);
+  return isolate->factory()->empty_constant_pool_array();
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  DCHECK(!FLAG_enable_ool_constant_pool);
+  return;
 }
 
 

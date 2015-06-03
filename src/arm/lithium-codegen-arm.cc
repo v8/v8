@@ -113,7 +113,7 @@ bool LCodeGen::GeneratePrologue() {
 
     // r1: Callee's JS function.
     // cp: Callee's context.
-    // pp: Callee's constant pool pointer (if enabled)
+    // pp: Callee's constant pool pointer (if FLAG_enable_ool_constant_pool)
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
 
@@ -1009,6 +1009,10 @@ void LCodeGen::RecordSafepoint(
     } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
       safepoint.DefinePointerRegister(ToRegister(pointer), zone());
     }
+  }
+  if (FLAG_enable_ool_constant_pool && (kind & Safepoint::kWithRegisters)) {
+    // Register pp always contains a pointer to the constant pool.
+    safepoint.DefinePointerRegister(pp, zone());
   }
 }
 

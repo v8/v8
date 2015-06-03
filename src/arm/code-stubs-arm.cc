@@ -1100,8 +1100,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(r1));
   __ mov(r2, Operand(pending_handler_offset_address));
   __ ldr(r2, MemOperand(r2));
-  if (FLAG_enable_embedded_constant_pool) {
-    __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r1);
+  if (FLAG_enable_ool_constant_pool) {
+    __ ldr(pp, FieldMemOperand(r1, Code::kConstantPoolOffset));
   }
   __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ add(pc, r1, r2);
@@ -1148,8 +1148,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // r3: argc
   // r4: argv
   int marker = type();
-  if (FLAG_enable_embedded_constant_pool) {
-    __ mov(r8, Operand::Zero());
+  if (FLAG_enable_ool_constant_pool) {
+    __ mov(r8, Operand(isolate()->factory()->empty_constant_pool_array()));
   }
   __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
@@ -1158,8 +1158,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ ldr(r5, MemOperand(r5));
   __ mov(ip, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() |
-                       (FLAG_enable_embedded_constant_pool ? r8.bit() : 0) |
-                       ip.bit());
+                   (FLAG_enable_ool_constant_pool ? r8.bit() : 0) |
+                   ip.bit());
 
   // Set up frame pointer for the frame to be pushed.
   __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));

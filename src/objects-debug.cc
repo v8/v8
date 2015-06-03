@@ -64,6 +64,9 @@ void HeapObject::HeapObjectVerify() {
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
       break;
+    case CONSTANT_POOL_ARRAY_TYPE:
+      ConstantPoolArray::cast(this)->ConstantPoolArrayVerify();
+      break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
@@ -391,6 +394,20 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
       CHECK((value & V8_UINT64_C(0x7FF8000000000000)) != unexpected ||
             (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
     }
+  }
+}
+
+
+void ConstantPoolArray::ConstantPoolArrayVerify() {
+  CHECK(IsConstantPoolArray());
+  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
+  while (!code_iter.is_finished()) {
+    Address code_entry = get_code_ptr_entry(code_iter.next_index());
+    VerifyPointer(Code::GetCodeFromTargetAddress(code_entry));
+  }
+  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
+  while (!heap_iter.is_finished()) {
+    VerifyObjectField(OffsetOfElementAt(heap_iter.next_index()));
   }
 }
 

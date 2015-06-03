@@ -2909,13 +2909,6 @@ void Assembler::dd(uint32_t data) {
 }
 
 
-void Assembler::dq(uint64_t data) {
-  CheckBuffer();
-  *reinterpret_cast<uint64_t*>(pc_) = data;
-  pc_ += sizeof(uint64_t);
-}
-
-
 void Assembler::dd(Label* label) {
   CheckBuffer();
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -3121,6 +3114,20 @@ void Assembler::set_target_address_at(Address pc,
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     CpuFeatures::FlushICache(pc, 4 * Assembler::kInstrSize);
   }
+}
+
+
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
+  // No out-of-line constant pool support.
+  DCHECK(!FLAG_enable_ool_constant_pool);
+  return isolate->factory()->empty_constant_pool_array();
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  DCHECK(!FLAG_enable_ool_constant_pool);
+  return;
 }
 
 

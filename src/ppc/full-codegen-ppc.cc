@@ -422,7 +422,6 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   EmitProfilingCounterDecrement(weight);
   {
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-    Assembler::BlockConstantPoolEntrySharingScope prevent_entry_sharing(masm_);
     // BackEdgeTable::PatchAt manipulates this sequence.
     __ cmpi(r6, Operand::Zero());
     __ bc_short(ge, &ok);
@@ -495,7 +494,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       // With 64bit we may need nop() instructions to ensure we have
       // enough space to SetDebugBreakAtReturn()
       if (is_int16(sp_delta)) {
-        if (!FLAG_enable_embedded_constant_pool) masm_->nop();
+        masm_->nop();
         masm_->nop();
       }
 #endif
@@ -2298,10 +2297,6 @@ void FullCodeGenerator::EmitGeneratorResume(
     __ bne(&slow_resume, cr0);
     __ LoadP(ip, FieldMemOperand(r7, JSFunction::kCodeEntryOffset));
     {
-      ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
-      if (FLAG_enable_embedded_constant_pool) {
-        __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(ip);
-      }
       __ LoadP(r5, FieldMemOperand(r4, JSGeneratorObject::kContinuationOffset));
       __ SmiUntag(r5);
       __ add(ip, ip, r5);

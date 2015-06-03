@@ -74,13 +74,8 @@ namespace internal {
 #endif
 #endif
 
-// Determine whether the architecture uses an embedded constant pool
-// (contiguous constant pool embedded in code object).
-#if V8_TARGET_ARCH_PPC
-#define V8_EMBEDDED_CONSTANT_POOL 1
-#else
-#define V8_EMBEDDED_CONSTANT_POOL 0
-#endif
+// Determine whether the architecture uses an out-of-line constant pool.
+#define V8_OOL_CONSTANT_POOL 0
 
 #ifdef V8_TARGET_ARCH_ARM
 // Set stack limit lower for ARM than for other architectures because
@@ -514,15 +509,13 @@ enum ParseRestriction {
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
-// the buffer and grows backward.  A constant pool may exist at the
-// end of the instructions.
+// the buffer and grows backward.
 //
-//  |<--------------- buffer_size ----------------------------------->|
-//  |<------------- instr_size ---------->|        |<-- reloc_size -->|
-//  |               |<- const_pool_size ->|                           |
-//  +=====================================+========+==================+
-//  |  instructions |        data         |  free  |    reloc info    |
-//  +=====================================+========+==================+
+//  |<--------------- buffer_size ---------------->|
+//  |<-- instr_size -->|        |<-- reloc_size -->|
+//  +==================+========+==================+
+//  |   instructions   |  free  |    reloc info    |
+//  +==================+========+==================+
 //  ^
 //  |
 //  buffer
@@ -532,7 +525,6 @@ struct CodeDesc {
   int buffer_size;
   int instr_size;
   int reloc_size;
-  int constant_pool_size;
   Assembler* origin;
 };
 

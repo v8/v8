@@ -321,6 +321,9 @@ bool SafeStackFrameIterator::IsValidExitFrame(Address fp) const {
   if (!IsValidStackAddress(sp)) return false;
   StackFrame::State state;
   ExitFrame::FillState(fp, sp, &state);
+  if (!IsValidStackAddress(reinterpret_cast<Address>(state.pc_address))) {
+    return false;
+  }
   return *state.pc_address != NULL;
 }
 
@@ -382,8 +385,9 @@ static bool GcSafeCodeContains(HeapObject* object, Address addr);
 #endif
 
 
-void StackFrame::IteratePc(ObjectVisitor* v, Address* pc_address,
-                           Address* constant_pool_address, Code* holder) {
+void StackFrame::IteratePc(ObjectVisitor* v,
+                           Address* pc_address,
+                           Code* holder) {
   Address pc = *pc_address;
   DCHECK(GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
@@ -393,9 +397,6 @@ void StackFrame::IteratePc(ObjectVisitor* v, Address* pc_address,
     holder = reinterpret_cast<Code*>(code);
     pc = holder->instruction_start() + pc_offset;
     *pc_address = pc;
-    if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
-      *constant_pool_address = holder->constant_pool();
-    }
   }
 }
 
@@ -505,7 +506,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
-  if (FLAG_enable_embedded_constant_pool) {
+  if (FLAG_enable_ool_constant_pool) {
     state->constant_pool_address = reinterpret_cast<Address*>(
         fp() + ExitFrameConstants::kConstantPoolOffset);
   }
@@ -520,8 +521,11 @@ void ExitFrame::SetCallerFp(Address caller_fp) {
 void ExitFrame::Iterate(ObjectVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), LookupCode());
   v->VisitPointer(&code_slot());
+  if (FLAG_enable_ool_constant_pool) {
+    v->VisitPointer(&constant_pool_slot());
+  }
 }
 
 
@@ -549,11 +553,8 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->fp = fp;
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(sp - 1 * kPCOnStackSize));
-  // The constant pool recorded in the exit frame is not associated
-  // with the pc in this state (the return address into a C entry
-  // stub).  ComputeCallerState will retrieve the constant pool
-  // together with the associated caller pc.
-  state->constant_pool_address = NULL;
+  state->constant_pool_address =
+      reinterpret_cast<Address*>(fp + ExitFrameConstants::kConstantPoolOffset);
 }
 
 
@@ -662,7 +663,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   }
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), code);
+  IteratePc(v, pc_address(), code);
 
   // Visit the context in stub frame and JavaScript frame.
   // Visit the function in JavaScript frame.
@@ -1289,7 +1290,7 @@ void ArgumentsAdaptorFrame::Print(StringStream* accumulator,
 
 
 void EntryFrame::Iterate(ObjectVisitor* v) const {
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), LookupCode());
 }
 
 
@@ -1303,7 +1304,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
 
 void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), LookupCode());
 }
 
 
@@ -1311,7 +1312,7 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
   // Internal frames only have object pointers on the expression stack
   // as they never have any arguments.
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), LookupCode());
 }
 
 
@@ -1324,7 +1325,7 @@ void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
   const int offset = StandardFrameConstants::kLastObjectOffset;
   limit = &Memory::Object_at(fp() + offset) + 1;
   v->VisitPointers(base, limit);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), LookupCode());
 }
 
 

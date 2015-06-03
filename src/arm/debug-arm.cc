@@ -265,7 +265,7 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
          StandardFrameConstants::kConstantPoolOffset - kPointerSize));
 
   // Pop return address, frame and constant pool pointer (if
-  // FLAG_enable_embedded_constant_pool).
+  // FLAG_enable_ool_constant_pool).
   __ LeaveFrame(StackFrame::INTERNAL);
 
   { ConstantPoolUnavailableScope constant_pool_unavailable(masm);
