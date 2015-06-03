@@ -629,10 +629,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-  MarkBit map_mark_bit = Marking::MarkBitFrom(map);
-  if (Marking::IsWhite(map_mark_bit)) {
-    WhiteToGreyAndPush(map, map_mark_bit);
-  }
+  MarkObject(heap_, map);
 
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
