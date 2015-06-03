@@ -267,7 +267,7 @@ void FullCodeGenerator::Generate() {
     // new.target is parameter -2.
     int offset = 2 * kPointerSize +
                  (info_->scope()->num_parameters() + 1) * kPointerSize;
-    __ lw(v0, MemOperand(fp, offset));
+    __ ld(v0, MemOperand(fp, offset));
     SetVar(new_target_var, v0, a2, a3);
   }
 
