@@ -98,6 +98,15 @@ class Verifier::Visitor {
       FATAL(str.str().c_str());
     }
   }
+  void CheckOutput(Node* node, Node* use, int count, const char* kind) {
+    if (count <= 0) {
+      std::ostringstream str;
+      str << "GraphError: node #" << node->id() << ":" << *node->op()
+          << " does not produce " << kind << " output used by node #"
+          << use->id() << ":" << *use->op();
+      FATAL(str.str().c_str());
+    }
+  }
 };
 
 
@@ -128,7 +137,7 @@ void Verifier::Visitor::Check(Node* node) {
   // Verify all value inputs actually produce a value.
   for (int i = 0; i < value_count; ++i) {
     Node* value = NodeProperties::GetValueInput(node, i);
-    CHECK(value->op()->ValueOutputCount() > 0);
+    CheckOutput(value, node, value->op()->ValueOutputCount(), "value");
     CHECK(IsDefUseChainLinkPresent(value, node));
     CHECK(IsUseDefChainLinkPresent(value, node));
   }
@@ -136,7 +145,7 @@ void Verifier::Visitor::Check(Node* node) {
   // Verify all context inputs are value nodes.
   for (int i = 0; i < context_count; ++i) {
     Node* context = NodeProperties::GetContextInput(node);
-    CHECK(context->op()->ValueOutputCount() > 0);
+    CheckOutput(context, node, context->op()->ValueOutputCount(), "context");
     CHECK(IsDefUseChainLinkPresent(context, node));
     CHECK(IsUseDefChainLinkPresent(context, node));
   }
@@ -144,7 +153,7 @@ void Verifier::Visitor::Check(Node* node) {
   // Verify all effect inputs actually have an effect.
   for (int i = 0; i < effect_count; ++i) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    CHECK(effect->op()->EffectOutputCount() > 0);
+    CheckOutput(effect, node, effect->op()->EffectOutputCount(), "effect");
     CHECK(IsDefUseChainLinkPresent(effect, node));
     CHECK(IsUseDefChainLinkPresent(effect, node));
   }
@@ -152,7 +161,7 @@ void Verifier::Visitor::Check(Node* node) {
   // Verify all control inputs are control nodes.
   for (int i = 0; i < control_count; ++i) {
     Node* control = NodeProperties::GetControlInput(node, i);
-    CHECK(control->op()->ControlOutputCount() > 0);
+    CheckOutput(control, node, control->op()->ControlOutputCount(), "control");
     CHECK(IsDefUseChainLinkPresent(control, node));
     CHECK(IsUseDefChainLinkPresent(control, node));
   }
