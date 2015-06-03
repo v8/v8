@@ -346,6 +346,59 @@ MINIDUMP_CONTEXT_ARM = Descriptor([
                               MD_CONTEXT_ARM_FLOATING_POINT))
 ])
 
+
+MD_CONTEXT_ARM64 =  0x80000000
+MD_CONTEXT_ARM64_INTEGER = (MD_CONTEXT_ARM64 | 0x00000002)
+MD_CONTEXT_ARM64_FLOATING_POINT = (MD_CONTEXT_ARM64 | 0x00000004)
+MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT = 64
+
+MINIDUMP_FLOATING_SAVE_AREA_ARM = Descriptor([
+  ("fpscr", ctypes.c_uint64),
+  ("regs", ctypes.c_uint64 * MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT),
+])
+
+MINIDUMP_CONTEXT_ARM64 = Descriptor([
+  ("context_flags", ctypes.c_uint64),
+  # MD_CONTEXT_ARM64_INTEGER.
+  ("r0", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r1", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r2", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r3", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r4", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r5", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r6", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r7", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r8", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r9", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r10", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r11", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r12", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r13", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r14", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r15", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r16", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r17", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r18", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r19", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r20", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r21", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r22", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r23", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r24", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r25", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r26", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r27", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r28", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("fp", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("lr", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("sp", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("pc", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("cpsr", ctypes.c_uint32),
+  ("float_save", EnableOnFlag(MINIDUMP_FLOATING_SAVE_AREA_ARM.ctype,
+                              MD_CONTEXT_ARM64_FLOATING_POINT))
+])
+
+
 MD_CONTEXT_AMD64 = 0x00100000
 MD_CONTEXT_AMD64_CONTROL = (MD_CONTEXT_AMD64 | 0x00000001)
 MD_CONTEXT_AMD64_INTEGER = (MD_CONTEXT_AMD64 | 0x00000002)
@@ -514,6 +567,7 @@ MINIDUMP_RAW_SYSTEM_INFO = Descriptor([
 
 MD_CPU_ARCHITECTURE_X86 = 0
 MD_CPU_ARCHITECTURE_ARM = 5
+MD_CPU_ARCHITECTURE_ARM64 = 0x8003
 MD_CPU_ARCHITECTURE_AMD64 = 9
 
 class FuncSymbol:
@@ -568,6 +622,7 @@ class MinidumpReader(object):
         self.arch = system_info.processor_architecture
         assert self.arch in [MD_CPU_ARCHITECTURE_AMD64,
                              MD_CPU_ARCHITECTURE_ARM,
+                             MD_CPU_ARCHITECTURE_ARM64,
                              MD_CPU_ARCHITECTURE_X86]
     assert not self.arch is None
 
@@ -585,6 +640,9 @@ class MinidumpReader(object):
               self.minidump, self.exception.thread_context.rva)
         elif self.arch == MD_CPU_ARCHITECTURE_ARM:
           self.exception_context = MINIDUMP_CONTEXT_ARM.Read(
+              self.minidump, self.exception.thread_context.rva)
+        elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+          self.exception_context = MINIDUMP_CONTEXT_ARM64.Read(
               self.minidump, self.exception.thread_context.rva)
         DebugPrint(self.exception_context)
       elif d.stream_type == MD_THREAD_LIST_STREAM:
@@ -643,6 +701,8 @@ class MinidumpReader(object):
       return self.ReadU64(address)
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return self.ReadU32(address)
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.ReadU64(address)
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.ReadU32(address)
 
@@ -655,6 +715,8 @@ class MinidumpReader(object):
       return ctypes.c_uint64.from_buffer(self.minidump, location).value
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return ctypes.c_uint32.from_buffer(self.minidump, location).value
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return ctypes.c_uint64.from_buffer(self.minidump, location).value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return ctypes.c_uint32.from_buffer(self.minidump, location).value
 
@@ -782,6 +844,9 @@ class MinidumpReader(object):
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       arch = "arm"
       possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      arch = "arm64"
+      possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
     elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
       arch = "x64"
     results = [ disasm.GetDisasmLines(self.minidump_name,
@@ -803,6 +868,8 @@ class MinidumpReader(object):
       return self.exception_context.rip
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return self.exception_context.pc
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.exception_context.pc
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.eip
 
@@ -810,6 +877,8 @@ class MinidumpReader(object):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rsp
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return self.exception_context.sp
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
       return self.exception_context.sp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.esp
@@ -819,6 +888,8 @@ class MinidumpReader(object):
       return self.exception_context.rbp
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return None
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.exception_context.fp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.ebp
 
@@ -827,6 +898,8 @@ class MinidumpReader(object):
       return "%016x" % value
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return "%08x" % value
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return "%016x" % value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return "%08x" % value
 
@@ -835,6 +908,8 @@ class MinidumpReader(object):
       return 8
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return 4
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return 8
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return 4
 
@@ -1598,6 +1673,8 @@ class V8Heap(object):
       return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
       return (1 << 4) - 1
+    elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
       return (1 << 5) - 1
 
@@ -2275,7 +2352,7 @@ class InspectionWebFormatter(object):
       f.write(HTML_REG_FORMAT %
               (r, self.format_address(self.reader.Register(r))))
     # TODO(vitalyr): decode eflags.
-    if self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
+    if self.reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       f.write("<b>cpsr</b>: %s" % bin(self.reader.exception_context.cpsr)[2:])
     else:
       f.write("<b>eflags</b>: %s" %
@@ -3017,6 +3094,11 @@ CONTEXT_FOR_ARCH = {
     MD_CPU_ARCHITECTURE_ARM:
       ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
        'r10', 'r11', 'r12', 'sp', 'lr', 'pc'],
+    MD_CPU_ARCHITECTURE_ARM64:
+      ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
+       'r10', 'r11', 'r12', 'r13', 'r14', 'r15', 'r16', 'r17', 'r18', 'r19',
+       'r20', 'r21', 'r22', 'r23', 'r24', 'r25', 'r26', 'r27', 'r28',
+       'fp', 'lr', 'sp', 'pc'],
     MD_CPU_ARCHITECTURE_X86:
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
@@ -3064,7 +3146,7 @@ def AnalyzeMinidump(options, minidump_name):
     for r in CONTEXT_FOR_ARCH[reader.arch]:
       print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
     # TODO(vitalyr): decode eflags.
-    if reader.arch == MD_CPU_ARCHITECTURE_ARM:
+    if reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
     else:
       print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
@@ -3101,6 +3183,10 @@ def AnalyzeMinidump(options, minidump_name):
         disasm_bytes = full_range[1]
 
     lines = reader.GetDisasmLines(disasm_start, disasm_bytes)
+
+    if not lines:
+      print "Could not disassemble using %s." % OBJDUMP_BIN
+      print "Pass path to architecture specific objdump via --objdump?"
 
     for line in lines:
       print FormatDisasmLine(disasm_start, heap, line)
