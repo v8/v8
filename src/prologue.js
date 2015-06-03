@@ -164,6 +164,8 @@ function PostNatives(utils) {
     "InnerArrayJoin",
     "InnerArrayLastIndexOf",
     "InnerArrayMap",
+    "InnerArrayReduce",
+    "InnerArrayReduceRight",
     "InnerArrayReverse",
     "InnerArraySome",
     "InnerArraySort",

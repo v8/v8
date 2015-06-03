@@ -64,6 +64,8 @@ utils.Import(function(from) {
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
   InnerArrayMap = from.InnerArrayMap;
+  InnerArrayReduce = from.InnerArrayReduce;
+  InnerArrayReduceRight = from.InnerArrayReduceRight;
   InnerArrayReverse = from.InnerArrayReverse;
   InnerArraySome = from.InnerArraySome;
   InnerArraySort = from.InnerArraySort;
@@ -265,10 +267,12 @@ function TypedArrayToLocaleString() {
   return InnerArrayToLocaleString(this, length);
 }
 
+
 // ES6 section 22.2.3.28
 function TypedArrayToString() {
   return %_CallFunction(this, ArrayToString);
 }
+
 
 // ES6 section 22.2.3.14
 function TypedArrayJoin(separator) {
@@ -278,6 +282,28 @@ function TypedArrayJoin(separator) {
 
   return InnerArrayJoin(separator, this, length);
 }
+
+
+// ES6 draft 07-15-13, section 22.2.3.19
+function TypedArrayReduce(callback, current) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+  return InnerArrayReduce(callback, current, this, length,
+                          %_ArgumentsLength());
+}
+%FunctionSetLength(TypedArrayReduce, 1);
+
+
+// ES6 draft 07-15-13, section 22.2.3.19
+function TypedArrayReduceRight(callback, current) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+  return InnerArrayReduceRight(callback, current, this, length,
+                               %_ArgumentsLength());
+}
+%FunctionSetLength(TypedArrayReduceRight, 1);
 
 
 // ES6 draft 08-24-14, section 22.2.2.2
@@ -320,6 +346,8 @@ macro EXTEND_TYPED_ARRAY(NAME)
     "lastIndexOf", TypedArrayLastIndexOf,
     "forEach", TypedArrayForEach,
     "map", TypedArrayMap,
+    "reduce", TypedArrayReduce,
+    "reduceRight", TypedArrayReduceRight,
     "reverse", TypedArrayReverse,
     "some", TypedArraySome,
     "sort", TypedArraySort,
