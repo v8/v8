@@ -59,6 +59,7 @@ TEST(HeapMaps) {
   Heap* heap = CcTest::heap();
   CheckMap(heap->meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(heap->heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
+  CheckMap(heap->float32x4_map(), FLOAT32X4_TYPE, Float32x4::kSize);
   CheckMap(heap->fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   CheckMap(heap->string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
@@ -210,6 +211,60 @@ TEST(HeapObjects) {
   CheckNumber(isolate, 1.1, "1.1");
 
   CheckFindCodeObject(isolate);
+}
+
+
+template <typename T, typename LANE_TYPE, int LANES>
+static void CheckSimdLanes(T* value) {
+  // Get the original values, and check that all lanes can be set to new values
+  // without disturbing the other lanes.
+  LANE_TYPE lane_values[LANES];
+  for (int i = 0; i < LANES; i++) {
+    lane_values[i] = value->get_lane(i);
+  }
+  for (int i = 0; i < LANES; i++) {
+    lane_values[i] += 1;
+    value->set_lane(i, lane_values[i]);
+    for (int j = 0; j < LANES; j++) {
+      CHECK_EQ(lane_values[j], value->get_lane(j));
+    }
+  }
+}
+
+
+TEST(SimdObjects) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+
+  HandleScope sc(isolate);
+
+  Handle<Object> value = factory->NewFloat32x4(1, 2, 3, 4);
+  CHECK(value->IsFloat32x4());
+  CHECK(value->BooleanValue());  // SIMD values map to true.
+
+  Float32x4* float32x4 = *Handle<Float32x4>::cast(value);
+  CheckSimdLanes<Float32x4, float, 4>(float32x4);
+
+  // Check ToString for SIMD values.
+  // TODO(bbudge): Switch to Check* style function to test ToString().
+  value = factory->NewFloat32x4(1, 2, 3, 4);
+  float32x4 = *Handle<Float32x4>::cast(value);
+  std::ostringstream os;
+  float32x4->Float32x4Print(os);
+  CHECK_EQ("1, 2, 3, 4", os.str());
+
+  // Check unusual lane values.
+  float32x4->set_lane(0, 0);
+  CHECK_EQ(0, float32x4->get_lane(0));
+  float32x4->set_lane(1, -0.0);
+  CHECK_EQ(-0.0, float32x4->get_lane(1));
+  float quiet_NaN = std::numeric_limits<float>::quiet_NaN();
+  float signaling_NaN = std::numeric_limits<float>::signaling_NaN();
+  float32x4->set_lane(2, quiet_NaN);
+  CHECK(std::isnan(float32x4->get_lane(2)));
+  float32x4->set_lane(3, signaling_NaN);
+  CHECK(std::isnan(float32x4->get_lane(3)));
 }
 
 

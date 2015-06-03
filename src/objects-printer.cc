@@ -60,6 +60,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">";
       break;
+    case FLOAT32X4_TYPE:
+      Float32x4::cast(this)->Float32x4Print(os);
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;

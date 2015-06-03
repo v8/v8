@@ -1077,6 +1077,14 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
+Handle<Float32x4> Factory::NewFloat32x4(float w, float x, float y, float z,
+                                        PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateFloat32x4(w, x, y, z, pretenure),
+      Float32x4);
+}
+
+
 Handle<Object> Factory::NewError(const char* maker,
                                  MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,

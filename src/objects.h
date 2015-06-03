@@ -121,6 +121,7 @@
 //             - ExternalTwoByteInternalizedString
 //       - Symbol
 //     - HeapNumber
+//     - Float32x4
 //     - Cell
 //     - PropertyCell
 //     - Code
@@ -394,6 +395,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(HEAP_NUMBER_TYPE)                                           \
   V(MUTABLE_HEAP_NUMBER_TYPE)                                   \
+  V(FLOAT32X4_TYPE)                                             \
   V(FOREIGN_TYPE)                                               \
   V(BYTE_ARRAY_TYPE)                                            \
   V(FREE_SPACE_TYPE)                                            \
@@ -690,6 +692,7 @@ enum InstanceType {
   // objects.
   HEAP_NUMBER_TYPE,
   MUTABLE_HEAP_NUMBER_TYPE,
+  FLOAT32X4_TYPE,  // FIRST_SIMD_TYPE, LAST_SIMD_TYPE
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
   FREE_SPACE_TYPE,
@@ -782,6 +785,9 @@ enum InstanceType {
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
+  // Boundaries for testing for a SIMD type.
+  FIRST_SIMD_TYPE = FLOAT32X4_TYPE,
+  LAST_SIMD_TYPE = FLOAT32X4_TYPE,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_INT8_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE,
@@ -948,6 +954,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedFloat32Array)             \
   V(FixedFloat64Array)             \
   V(FixedUint8ClampedArray)        \
+  V(Float32x4)                     \
   V(ByteArray)                     \
   V(FreeSpace)                     \
   V(JSReceiver)                    \
@@ -1607,6 +1614,28 @@ class HeapNumber: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
+};
+
+
+// The Float32x4 class describes heap allocated SIMD values holding 4 32-bit
+// IEEE floats.
+class Float32x4 : public HeapObject {
+ public:
+  inline float get_lane(int lane) const;
+  inline void set_lane(int lane, float value);
+
+  DECLARE_CAST(Float32x4)
+
+  // Dispatched behavior.
+  void Float32x4Print(std::ostream& os);  // NOLINT
+  DECLARE_VERIFIER(Float32x4)
+
+  // Layout description.
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kSimd128Size;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Float32x4);
 };
 
 

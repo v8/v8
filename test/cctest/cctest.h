@@ -93,6 +93,7 @@ class TestHeap : public i::Heap {
   using i::Heap::AllocateByteArray;
   using i::Heap::AllocateFixedArray;
   using i::Heap::AllocateHeapNumber;
+  using i::Heap::AllocateFloat32x4;
   using i::Heap::AllocateJSObject;
   using i::Heap::AllocateJSObjectFromMap;
   using i::Heap::AllocateMap;

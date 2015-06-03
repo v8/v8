@@ -58,6 +58,9 @@ void HeapObject::HeapObjectVerify() {
     case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
+    case FLOAT32X4_TYPE:
+      Float32x4::cast(this)->Float32x4Verify();
+      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
@@ -212,6 +215,9 @@ void Symbol::SymbolVerify() {
 void HeapNumber::HeapNumberVerify() {
   CHECK(IsHeapNumber() || IsMutableHeapNumber());
 }
+
+
+void Float32x4::Float32x4Verify() { CHECK(IsFloat32x4()); }
 
 
 void ByteArray::ByteArrayVerify() {

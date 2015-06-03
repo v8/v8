@@ -361,6 +361,8 @@ class Factory final {
   Handle<HeapNumber> NewHeapNumber(double value,
                                    MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);
+  Handle<Float32x4> NewFloat32x4(float w, float x, float y, float z,
+                                 PretenureFlag pretenure = NOT_TENURED);
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.

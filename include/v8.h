@@ -1924,6 +1924,12 @@ class V8_EXPORT Value : public Data {
   bool IsFloat64Array() const;
 
   /**
+   * Returns true if this value is a SIMD Float32x4.
+   * This is an experimental feature.
+   */
+  bool IsFloat32x4() const;
+
+  /**
    * Returns true if this value is a DataView.
    * This is an experimental feature.
    */
@@ -6949,10 +6955,10 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsPartiallyDependentShift = 4;
 
-  static const int kJSObjectType = 0xbe;
+  static const int kJSObjectType = 0xbf;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
-  static const int kForeignType = 0x86;
+  static const int kForeignType = 0x87;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
