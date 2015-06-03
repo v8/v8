@@ -457,7 +457,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
 
 void AstNumberingVisitor::VisitObjectLiteralProperty(
     ObjectLiteralProperty* node) {
-  if (node->is_computed_name()) DisableOptimization(kComputedPropertyName);
+  if (node->is_computed_name()) DisableCrankshaft(kComputedPropertyName);
   Visit(node->key());
   Visit(node->value());
 }
