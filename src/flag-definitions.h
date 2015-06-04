@@ -1037,8 +1037,8 @@ DEFINE_INT(dump_allocations_digest_at_alloc, 0,
 #define FLAG FLAG_READONLY
 
 // assembler.h
-DEFINE_BOOL(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
-            "enable use of out-of-line constant pools (ARM only)")
+DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
+            "enable use of embedded constant pools (ARM/PPC only)")
 
 DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
             "enable in-object double fields unboxing (64-bit only)")

@@ -102,7 +102,9 @@ class MacroAssembler : public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
 
-  // Returns the size of a call in instructions.
+  // Returns the size of a call in instructions. Note, the value returned is
+  // only valid as long as no entries are added to the constant pool between
+  // checking the call size and emitting the actual call.
   static int CallSize(Register target);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSizeNotPredictableCodeSize(Address target,
@@ -1360,7 +1362,7 @@ class MacroAssembler : public Assembler {
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
-  // Retrieve/patch the relocated value (lis/ori pair).
+  // Retrieve/patch the relocated value (lis/ori pair or constant pool load).
   void GetRelocatedValue(Register location, Register result, Register scratch);
   void SetRelocatedValue(Register location, Register scratch,
                          Register new_value);
@@ -1448,6 +1450,19 @@ class MacroAssembler : public Assembler {
   // Jumps to found label if a prototype map has dictionary elements.
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
+
+  // Loads the constant pool pointer (kConstantPoolRegister).
+  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+      Register code_target_address);
+  void LoadConstantPoolPointerRegister();
+  void LoadConstantPoolPointerRegister(Register base, int code_entry_delta = 0);
+
+  void AbortConstantPoolBuilding() {
+#ifdef DEBUG
+    // Avoid DCHECK(!is_linked()) failure in ~Label()
+    bind(ConstantPoolPosition());
+#endif
+  }
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

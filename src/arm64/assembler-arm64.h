@@ -871,13 +871,10 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc,
-                                          ConstantPoolArray* constant_pool);
-  inline static void set_target_address_at(Address pc,
-                                           ConstantPoolArray* constant_pool,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED);
+  inline static Address target_address_at(Address pc, Address constant_pool);
+  inline static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code);
   static inline void set_target_address_at(Address pc,
                                            Code* code,
@@ -1767,6 +1764,8 @@ class Assembler : public AssemblerBase {
   // Required by V8.
   void dd(uint32_t data) { dc32(data); }
   void db(uint8_t data) { dc8(data); }
+  void dq(uint64_t data) { dc64(data); }
+  void dp(uintptr_t data) { dc64(data); }
 
   // Code generation helpers --------------------------------------------------
 
@@ -1909,11 +1908,12 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
-  // Allocate a constant pool of the correct size for the generated code.
-  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
+  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
+                                          ConstantPoolEntry::Access access,
+                                          ConstantPoolEntry::Type type) {
+    // No embedded constant pool support.
+    UNREACHABLE();
+  }
 
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.

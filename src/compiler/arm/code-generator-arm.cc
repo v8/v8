@@ -926,7 +926,7 @@ void CodeGenerator::AssemblePrologue() {
   int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     bool saved_pp;
-    if (FLAG_enable_ool_constant_pool) {
+    if (FLAG_enable_embedded_constant_pool) {
       __ Push(lr, fp, pp);
       // Adjust FP to point to saved FP.
       __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));

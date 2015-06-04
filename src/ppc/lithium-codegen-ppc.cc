@@ -50,8 +50,12 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::NONE);
 
-  return GeneratePrologue() && GenerateBody() && GenerateDeferredCode() &&
-         GenerateJumpTable() && GenerateSafepointTable();
+  bool rc = GeneratePrologue() && GenerateBody() && GenerateDeferredCode() &&
+            GenerateJumpTable() && GenerateSafepointTable();
+  if (FLAG_enable_embedded_constant_pool && !rc) {
+    masm()->AbortConstantPoolBuilding();
+  }
+  return rc;
 }
 
 

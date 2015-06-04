@@ -74,7 +74,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList object_regs,
                                           RegList non_object_regs) {
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     // Load padding words on stack.
     __ LoadSmiLiteral(ip, Smi::FromInt(LiveEdit::kFramePaddingValue));

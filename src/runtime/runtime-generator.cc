@@ -111,7 +111,7 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   int offset = generator_object->continuation();
   DCHECK(offset > 0);
   frame->set_pc(pc + offset);
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     frame->set_constant_pool(
         generator_object->function()->code()->constant_pool());
   }

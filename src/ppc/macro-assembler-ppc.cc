@@ -103,14 +103,15 @@ void MacroAssembler::CallJSEntry(Register target) {
 
 int MacroAssembler::CallSize(Address target, RelocInfo::Mode rmode,
                              Condition cond) {
-  return (2 + kMovInstructions) * kInstrSize;
+  Operand mov_operand = Operand(reinterpret_cast<intptr_t>(target), rmode);
+  return (2 + instructions_required_for_mov(ip, mov_operand)) * kInstrSize;
 }
 
 
 int MacroAssembler::CallSizeNotPredictableCodeSize(Address target,
                                                    RelocInfo::Mode rmode,
                                                    Condition cond) {
-  return (2 + kMovInstructions) * kInstrSize;
+  return (2 + kMovInstructionsNoConstantPool) * kInstrSize;
 }
 
 
@@ -513,19 +514,35 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 
 void MacroAssembler::PushFixedFrame(Register marker_reg) {
   mflr(r0);
-  if (marker_reg.is_valid()) {
-    Push(r0, fp, cp, marker_reg);
+  if (FLAG_enable_embedded_constant_pool) {
+    if (marker_reg.is_valid()) {
+      Push(r0, fp, kConstantPoolRegister, cp, marker_reg);
+    } else {
+      Push(r0, fp, kConstantPoolRegister, cp);
+    }
   } else {
-    Push(r0, fp, cp);
+    if (marker_reg.is_valid()) {
+      Push(r0, fp, cp, marker_reg);
+    } else {
+      Push(r0, fp, cp);
+    }
   }
 }
 
 
 void MacroAssembler::PopFixedFrame(Register marker_reg) {
-  if (marker_reg.is_valid()) {
-    Pop(r0, fp, cp, marker_reg);
+  if (FLAG_enable_embedded_constant_pool) {
+    if (marker_reg.is_valid()) {
+      Pop(r0, fp, kConstantPoolRegister, cp, marker_reg);
+    } else {
+      Pop(r0, fp, kConstantPoolRegister, cp);
+    }
   } else {
-    Pop(r0, fp, cp);
+    if (marker_reg.is_valid()) {
+      Pop(r0, fp, cp, marker_reg);
+    } else {
+      Pop(r0, fp, cp);
+    }
   }
   mtlr(r0);
 }
@@ -651,11 +668,37 @@ void MacroAssembler::ConvertDoubleToInt64(const DoubleRegister double_input,
 }
 
 
+void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+    Register code_target_address) {
+  lwz(kConstantPoolRegister,
+      MemOperand(code_target_address,
+                 Code::kConstantPoolOffset - Code::kHeaderSize));
+  add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
+}
+
+
+void MacroAssembler::LoadConstantPoolPointerRegister(Register base,
+                                                     int code_start_delta) {
+  add_label_offset(kConstantPoolRegister, base, ConstantPoolPosition(),
+                   code_start_delta);
+}
+
+
+void MacroAssembler::LoadConstantPoolPointerRegister() {
+  mov_label_addr(kConstantPoolRegister, ConstantPoolPosition());
+}
+
+
 void MacroAssembler::StubPrologue(int prologue_offset) {
   LoadSmiLiteral(r11, Smi::FromInt(StackFrame::STUB));
   PushFixedFrame(r11);
   // Adjust FP to point to saved FP.
   addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  if (FLAG_enable_embedded_constant_pool) {
+    // ip contains prologue address
+    LoadConstantPoolPointerRegister(ip, -prologue_offset);
+    set_constant_pool_available(true);
+  }
 }
 
 
@@ -688,13 +731,26 @@ void MacroAssembler::Prologue(bool code_pre_aging, int prologue_offset) {
       }
     }
   }
+  if (FLAG_enable_embedded_constant_pool) {
+    // ip contains prologue address
+    LoadConstantPoolPointerRegister(ip, -prologue_offset);
+    set_constant_pool_available(true);
+  }
 }
 
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
-  LoadSmiLiteral(ip, Smi::FromInt(type));
-  PushFixedFrame(ip);
+  if (FLAG_enable_embedded_constant_pool && load_constant_pool_pointer_reg) {
+    PushFixedFrame();
+    // This path should not rely on ip containing code entry.
+    LoadConstantPoolPointerRegister();
+    LoadSmiLiteral(ip, Smi::FromInt(type));
+    push(ip);
+  } else {
+    LoadSmiLiteral(ip, Smi::FromInt(type));
+    PushFixedFrame(ip);
+  }
   // Adjust FP to point to saved FP.
   addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
@@ -704,6 +760,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 
 
 int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
+  ConstantPoolUnavailableScope constant_pool_unavailable(this);
   // r3: preserved
   // r4: preserved
   // r5: preserved
@@ -713,6 +770,13 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   int frame_ends;
   LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadP(ip, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  if (FLAG_enable_embedded_constant_pool) {
+    const int exitOffset = ExitFrameConstants::kConstantPoolOffset;
+    const int standardOffset = StandardFrameConstants::kConstantPoolOffset;
+    const int offset =
+        ((type == StackFrame::EXIT) ? exitOffset : standardOffset);
+    LoadP(kConstantPoolRegister, MemOperand(fp, offset));
+  }
   mtlr(r0);
   frame_ends = pc_offset();
   Add(sp, fp, StandardFrameConstants::kCallerSPOffset + stack_adjustment, r0);
@@ -758,6 +822,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   if (emit_debug_code()) {
     li(r8, Operand::Zero());
     StoreP(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
+  }
+  if (FLAG_enable_embedded_constant_pool) {
+    StoreP(kConstantPoolRegister,
+           MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
   }
   mov(r8, Operand(CodeObject()));
   StoreP(r8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
@@ -828,6 +896,7 @@ int MacroAssembler::ActivationFrameAlignment() {
 void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
                                     bool restore_context,
                                     bool argument_count_is_length) {
+  ConstantPoolUnavailableScope constant_pool_unavailable(this);
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
@@ -3177,6 +3246,21 @@ void MacroAssembler::SetRelocatedValue(Register location, Register scratch,
                                        Register new_value) {
   lwz(scratch, MemOperand(location));
 
+  if (FLAG_enable_embedded_constant_pool) {
+    if (emit_debug_code()) {
+      // Check that the instruction sequence is a load from the constant pool
+      ExtractBitMask(scratch, scratch, 0x1f * B16);
+      cmpi(scratch, Operand(kConstantPoolRegister.code()));
+      Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
+      // Scratch was clobbered. Restore it.
+      lwz(scratch, MemOperand(location));
+    }
+    // Get the address of the constant and patch it.
+    andi(scratch, scratch, Operand(kImm16Mask));
+    StorePX(new_value, MemOperand(kConstantPoolRegister, scratch));
+    return;
+  }
+
   // This code assumes a FIXED_SEQUENCE for lis/ori
 
   // At this point scratch is a lis instruction.
@@ -3259,6 +3343,20 @@ void MacroAssembler::SetRelocatedValue(Register location, Register scratch,
 void MacroAssembler::GetRelocatedValue(Register location, Register result,
                                        Register scratch) {
   lwz(result, MemOperand(location));
+
+  if (FLAG_enable_embedded_constant_pool) {
+    if (emit_debug_code()) {
+      // Check that the instruction sequence is a load from the constant pool
+      ExtractBitMask(result, result, 0x1f * B16);
+      cmpi(result, Operand(kConstantPoolRegister.code()));
+      Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
+      lwz(result, MemOperand(location));
+    }
+    // Get the address of the constant and retrieve it.
+    andi(result, result, Operand(kImm16Mask));
+    LoadPX(result, MemOperand(kConstantPoolRegister, result));
+    return;
+  }
 
   // This code assumes a FIXED_SEQUENCE for lis/ori
   if (emit_debug_code()) {
@@ -3697,6 +3795,18 @@ void MacroAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
 
 void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
                                        Register scratch) {
+  if (FLAG_enable_embedded_constant_pool && is_constant_pool_available() &&
+      !(scratch.is(r0) && ConstantPoolAccessIsInOverflow())) {
+    ConstantPoolEntry::Access access = ConstantPoolAddEntry(value);
+    if (access == ConstantPoolEntry::OVERFLOWED) {
+      addis(scratch, kConstantPoolRegister, Operand::Zero());
+      lfd(result, MemOperand(scratch, 0));
+    } else {
+      lfd(result, MemOperand(kConstantPoolRegister, 0));
+    }
+    return;
+  }
+
   // avoid gcc strict aliasing error using union cast
   union {
     double dval;

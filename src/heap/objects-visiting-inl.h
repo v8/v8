@@ -137,8 +137,6 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedFloat64Array, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitConstantPoolArray, &VisitConstantPoolArray);
-
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
   table_.Register(kVisitAllocationSite, &VisitAllocationSite);
@@ -444,34 +442,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
     }
   }
   VisitSharedFunctionInfoStrongCode(heap, object);
-}
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
-    Map* map, HeapObject* object) {
-  Heap* heap = map->GetHeap();
-  ConstantPoolArray* array = ConstantPoolArray::cast(object);
-  ConstantPoolArray::Iterator code_iter(array, ConstantPoolArray::CODE_PTR);
-  while (!code_iter.is_finished()) {
-    Address code_entry = reinterpret_cast<Address>(
-        array->RawFieldOfElementAt(code_iter.next_index()));
-    StaticVisitor::VisitCodeEntry(heap, code_entry);
-  }
-
-  ConstantPoolArray::Iterator heap_iter(array, ConstantPoolArray::HEAP_PTR);
-  while (!heap_iter.is_finished()) {
-    Object** slot = array->RawFieldOfElementAt(heap_iter.next_index());
-    HeapObject* object = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, object);
-    bool is_weak_object =
-        (array->get_weak_object_state() ==
-             ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE &&
-         Code::IsWeakObjectInOptimizedCode(object));
-    if (!is_weak_object) {
-      StaticVisitor::MarkObject(heap, object);
-    }
-  }
 }
 
 
@@ -826,7 +796,6 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kDeoptimizationDataOffset);
   IteratePointer(v, kTypeFeedbackInfoOffset);
   IterateNextCodeLink(v, kNextCodeLinkOffset);
-  IteratePointer(v, kConstantPoolOffset);
 
   RelocIterator it(this, mode_mask);
   Isolate* isolate = this->GetIsolate();
@@ -863,8 +832,6 @@ void Code::CodeIterateBody(Heap* heap) {
       reinterpret_cast<Object**>(this->address() + kTypeFeedbackInfoOffset));
   StaticVisitor::VisitNextCodeLink(
       heap, reinterpret_cast<Object**>(this->address() + kNextCodeLinkOffset));
-  StaticVisitor::VisitPointer(
-      heap, reinterpret_cast<Object**>(this->address() + kConstantPoolOffset));
 
 
   RelocIterator it(this, mode_mask);
