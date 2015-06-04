@@ -48,33 +48,14 @@
   # https://code.google.com/p/v8/issues/detail?id=705
   'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
 
-  ###################### MISSING ES6 FEATURES #######################
-
-  # Array.fill (currently requires --harmony-arrays)
-  'built-ins/Array/prototype/fill/S22.1.3.6_T1': [FAIL],
-
   # Array.find (currently requires --harmony-arrays)
-  'built-ins/Array/of/S22.1.2.3_T1': [FAIL],
-  'built-ins/Array/of/S22.1.2.3_T2': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_empty-array-undefined': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_length-property': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_modify-after-start': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_non-returning-predicate': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_predicate-arguments': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_push-after-start': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_remove-after-start': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_return-found-value': [FAIL],
   'built-ins/Array/prototype/find/Array.prototype.find_skip-empty': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_this-defined': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_this-is-object': [FAIL],
   'built-ins/Array/prototype/find/Array.prototype.find_this-undefined': [FAIL],
 
-  # Array.from
-  'built-ins/Array/from/S22.1.2.1_T1': [FAIL],
-  'built-ins/Array/from/S22.1.2.1_T2': [FAIL],
+  ###################### MISSING ES6 FEATURES #######################
 
-  # Direct proxies
-  'built-ins/Array/prototype/find/Array.prototype.find_callable-predicate': [FAIL],
+  # Requires --harmony-sloppy
+  'built-ins/Array/prototype/concat/Array.prototype.concat_non-array': [FAIL],
 
   # --harmony-computed-property-names is not yet enabled
   'language/computed-property-names/class/accessor/getter': [FAIL],
@@ -197,8 +178,6 @@
   'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-1': [FAIL],
   'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-2': [FAIL],
   'built-ins/Array/prototype/find/Array.prototype.find_callable-arrowfunction': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_callable-forEach': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_this-global': [FAIL],
   'built-ins/Array/prototype/forEach/15.4.4.18-3-12': [FAIL],
   'built-ins/Array/prototype/forEach/15.4.4.18-3-25': [FAIL],
   'built-ins/Array/prototype/forEach/15.4.4.18-3-7': [FAIL],
@@ -456,29 +435,6 @@
   'language/generators/generator.expression.implicit-name': [FAIL],
 
   # Test 262 update 2015-03-31
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like-length-to-string-throws': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like-length-value-of-throws': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like-negative-length': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like-primitive-non-number-length': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like-string-length': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_array-like-to-length-throws': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_holey-sloppy-arguments': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_large-typed-array': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_length-throws': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_non-array': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_sloppy-arguments': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_sloppy-arguments-throws': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_sloppy-arguments-with-dupes': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_small-typed-array': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-boolean-wrapper': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-function': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-getter-throws': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-number-wrapper': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-reg-exp': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-sparse-object': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_spreadable-string-wrapper': [FAIL],
-  'built-ins/Array/prototype/concat/Array.prototype.concat_strict-arguments': [FAIL],
   'built-ins/Symbol/species/Symbol.species.builtin-getter-name': [FAIL],
   'built-ins/Symbol/species/Symbol.species.exists': [FAIL],
   'built-ins/Symbol/species/Symbol.species.in_Array': [FAIL],

@@ -184,7 +184,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                   \
   V(harmony_modules, "harmony modules")                         \
-  V(harmony_arrays, "harmony array methods")                    \
   V(harmony_array_includes, "harmony Array.prototype.includes") \
   V(harmony_regexps, "harmony regular expression extensions")   \
   V(harmony_arrow_functions, "harmony arrow functions")         \
@@ -198,12 +197,12 @@ DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                      \
+  V(harmony_arrays, "harmony array methods")                   \
   V(harmony_rest_parameters, "harmony rest parameters")        \
   V(harmony_spreadcalls, "harmony spread-calls")               \
   V(harmony_object, "harmony Object methods")                  \
   V(harmony_spread_arrays, "harmony spread in array literals") \
   V(harmony_tostring, "harmony toString")
-
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                                \
