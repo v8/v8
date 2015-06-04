@@ -2076,17 +2076,27 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
     get x() { return 2; }
   }
   class Derived extends Base {
-    eval() {
-      assertSame(super.x, eval('super.x'));
-      assertSame(super.m(), eval('super.m()'));
-      // Global eval.
+    evalM() {
+      assertEquals(1, eval('super.m()'));
+    }
+    evalX() {
+      assertEquals(2, eval('super.x'));
+    }
+    globalEval1() {
       assertThrows('super.x', SyntaxError);
       assertThrows('super.m()', SyntaxError);
-      return eval('super.m()');
+    }
+    globalEval2() {
+      super.x;
+      assertThrows('super.x', SyntaxError);
+      assertThrows('super.m()', SyntaxError);
     }
   }
   let d = new Derived();
-  assertSame(1, d.eval());
+  d.globalEval1();
+  d.globalEval2();
+  d.evalM();
+  d.evalX();
 })();
 
 

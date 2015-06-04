@@ -216,6 +216,7 @@ class FunctionEntry BASE_EMBEDDED {
     kPropertyCountIndex,
     kLanguageModeIndex,
     kUsesSuperPropertyIndex,
+    kCallsEvalIndex,
     kSize
   };
 
@@ -233,6 +234,7 @@ class FunctionEntry BASE_EMBEDDED {
     return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
   }
   bool uses_super_property() { return backing_[kUsesSuperPropertyIndex]; }
+  bool calls_eval() { return backing_[kCallsEvalIndex]; }
 
   bool is_valid() { return !backing_.is_empty(); }
 

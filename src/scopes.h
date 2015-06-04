@@ -317,9 +317,12 @@ class Scope: public ZoneObject {
   bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
-  // Does any inner scope access "super" property.
-  bool inner_uses_super_property() const {
-    return inner_scope_uses_super_property_;
+
+  bool NeedsHomeObject() const {
+    return scope_uses_super_property_ ||
+           (scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
+                                  IsAccessorFunction(function_kind()) ||
+                                  IsConstructor(function_kind())));
   }
 
   const Scope* NearestOuterEvalScope() const {
@@ -611,7 +614,6 @@ class Scope: public ZoneObject {
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
   bool inner_scope_uses_arguments_;
-  bool inner_scope_uses_super_property_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 

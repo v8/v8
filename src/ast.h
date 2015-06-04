@@ -2518,12 +2518,8 @@ class FunctionLiteral final : public Expression {
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   LanguageMode language_mode() const;
-  bool uses_super_property() const;
 
-  static bool NeedsHomeObject(Expression* literal) {
-    return literal != NULL && literal->IsFunctionLiteral() &&
-           literal->AsFunctionLiteral()->uses_super_property();
-  }
+  static bool NeedsHomeObject(Expression* expr);
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
@@ -2602,7 +2598,7 @@ class FunctionLiteral final : public Expression {
     bitfield_ = ShouldBeUsedOnceHintBit::update(bitfield_, kShouldBeUsedOnce);
   }
 
-  FunctionKind kind() { return FunctionKindBits::decode(bitfield_); }
+  FunctionKind kind() const { return FunctionKindBits::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }

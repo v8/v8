@@ -234,9 +234,10 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
-bool FunctionLiteral::uses_super_property() const {
-  DCHECK_NOT_NULL(scope());
-  return scope()->uses_super_property();
+bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
+  if (expr == nullptr || !expr->IsFunctionLiteral()) return false;
+  DCHECK_NOT_NULL(expr->AsFunctionLiteral()->scope());
+  return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
 }
 
 

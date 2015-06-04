@@ -563,6 +563,11 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   Variable* rest_parameter = scope->rest_parameter(&rest_index);
   BuildRestArgumentsArray(rest_parameter, rest_index);
 
+  if (scope->this_function_var() != nullptr ||
+      scope->new_target_var() != nullptr) {
+    SetStackOverflow();
+  }
+
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
     NewNode(javascript()->CallRuntime(Runtime::kTraceEnter, 0));

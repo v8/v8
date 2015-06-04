@@ -1624,9 +1624,13 @@ class PreParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-  // PreParser doesn't need to keep track of eval calls.
   static void CheckPossibleEvalCall(PreParserExpression expression,
-                                    Scope* scope) {}
+                                    Scope* scope) {
+    if (IsIdentifier(expression) && IsEval(AsIdentifier(expression))) {
+      scope->DeclarationScope()->RecordEvalCall();
+      scope->RecordEvalCall();
+    }
+  }
 
   static PreParserExpression MarkExpressionAsAssigned(
       PreParserExpression expression) {

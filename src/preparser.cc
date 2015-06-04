@@ -1106,7 +1106,7 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
   log_->LogFunction(body_start, body_end,
                     function_state_->materialized_literal_count(),
                     function_state_->expected_property_count(), language_mode(),
-                    scope_->uses_super_property());
+                    scope_->uses_super_property(), scope_->calls_eval());
 }
 
 

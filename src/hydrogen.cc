@@ -4513,6 +4513,11 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   if (rest) {
     return Bailout(kRestParameter);
   }
+
+  if (scope->this_function_var() != nullptr ||
+      scope->new_target_var() != nullptr) {
+    return Bailout(kSuperReference);
+  }
 }
 
 

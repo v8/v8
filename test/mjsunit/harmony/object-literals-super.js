@@ -141,16 +141,26 @@
   };
   var o = {
     __proto__: p,
-    eval() {
-      assertSame(super.x, eval('super.x'));
-      assertSame(super.m(), eval('super.m()'));
-      // Global eval.
+    evalM() {
+      assertEquals(1, eval('super.m()'));
+    },
+    evalX() {
+      assertEquals(2, eval('super.x'));
+    },
+    globalEval1() {
       assertThrows('super.x', SyntaxError);
       assertThrows('super.m()', SyntaxError);
-      return eval('super.m()');
+    },
+    globalEval2() {
+      super.x;
+      assertThrows('super.x', SyntaxError);
+      assertThrows('super.m()', SyntaxError);
     }
   };
-  assertSame(1, o.eval());
+  o.evalM();
+  o.evalX();
+  o.globalEval1();
+  o.globalEval2();
 })();
 
 

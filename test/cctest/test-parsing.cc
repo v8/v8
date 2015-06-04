@@ -976,6 +976,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
     SUPER_PROPERTY = 1 << 1,
     THIS = 1 << 2,
     INNER_ARGUMENTS = 1 << 3,
+    EVAL = 1 << 4
   };
 
   // clang-format off
@@ -1025,6 +1026,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
      "  let x; return { m() { return this + super.m() + arguments } }"
      "}",
      NONE},
+    {"eval(42)", EVAL},
+    {"if (1) { eval(42) }", EVAL},
+    {"eval('super.x')", EVAL},
+    {"eval('this.x')", EVAL},
+    {"eval('arguments')", EVAL},
   };
   // clang-format on
 
@@ -1089,6 +1095,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       }
       CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
                scope->inner_uses_arguments());
+      CHECK_EQ((source_data[i].expected & EVAL) != 0, scope->calls_eval());
     }
   }
 }

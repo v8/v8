@@ -16,6 +16,19 @@ class Derived extends Base {
   m() {
     return super.m();
   }
+  evalM() {
+    return eval('super.m()');
+  }
 }
 
 assertEquals(42, new Derived().m());
+assertEquals(42, new Derived().evalM());
+
+
+class LazyDerived extends Base {
+  constructor() {
+    eval('super()');
+  }
+}
+assertInstanceof(new LazyDerived(), LazyDerived);
+assertInstanceof(new LazyDerived(), Base);

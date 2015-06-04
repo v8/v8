@@ -4104,6 +4104,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
       *expected_property_count = entry.property_count();
       scope_->SetLanguageMode(entry.language_mode());
       if (entry.uses_super_property()) scope_->RecordSuperPropertyUsage();
+      if (entry.calls_eval()) scope_->RecordEvalCall();
       return;
     }
     cached_parse_data_->Reject();
@@ -4138,8 +4139,11 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
   scope_->SetLanguageMode(logger.language_mode());
-  if (logger.scope_uses_super_property()) {
+  if (logger.uses_super_property()) {
     scope_->RecordSuperPropertyUsage();
+  }
+  if (logger.calls_eval()) {
+    scope_->RecordEvalCall();
   }
   if (produce_cached_parse_data()) {
     DCHECK(log_);
@@ -4147,7 +4151,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
     int body_end = scanner()->location().end_pos;
     log_->LogFunction(function_block_pos, body_end, *materialized_literal_count,
                       *expected_property_count, scope_->language_mode(),
-                      scope_->uses_super_property());
+                      scope_->uses_super_property(), scope_->calls_eval());
   }
 }
 
