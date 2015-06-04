@@ -5786,7 +5786,7 @@ TEST(NewSpaceAllocationCounter) {
   CHECK_EQ(kSize, counter2 - counter1);
   heap->CollectGarbage(NEW_SPACE);
   size_t counter3 = heap->NewSpaceAllocationCounter();
-  CHECK_EQ(0, counter3 - counter2);
+  CHECK_EQ(0U, counter3 - counter2);
   // Test counter overflow.
   size_t max_counter = -1;
   heap->set_new_space_allocation_counter(max_counter - 10 * kSize);

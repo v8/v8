@@ -13392,7 +13392,7 @@ TEST(CreateDataProperty) {
     CHECK(arr->CreateDataProperty(env.local(), 1, v8::Integer::New(isolate, 23))
               .FromJust());
     CHECK(!try_catch.HasCaught());
-    CHECK_EQ(2, arr->Length());
+    CHECK_EQ(2U, arr->Length());
     v8::Local<v8::Value> val = arr->Get(env.local(), 1).ToLocalChecked();
     CHECK(val->IsNumber());
     CHECK_EQ(23.0, val->NumberValue(env.local()).FromJust());
@@ -13495,7 +13495,7 @@ TEST(DefineOwnProperty) {
     CHECK(arr->DefineOwnProperty(env.local(), v8_str("1"),
                                  v8::Integer::New(isolate, 23)).FromJust());
     CHECK(!try_catch.HasCaught());
-    CHECK_EQ(2, arr->Length());
+    CHECK_EQ(2U, arr->Length());
     v8::Local<v8::Value> val = arr->Get(env.local(), 1).ToLocalChecked();
     CHECK(val->IsNumber());
     CHECK_EQ(23.0, val->NumberValue(env.local()).FromJust());
@@ -21377,22 +21377,22 @@ TEST(Map) {
   CHECK(map->IsObject());
   CHECK(map->IsMap());
   CHECK(map->GetPrototype()->StrictEquals(CompileRun("Map.prototype")));
-  CHECK_EQ(0, map->Size());
+  CHECK_EQ(0U, map->Size());
 
   v8::Local<v8::Value> val = CompileRun("new Map([[1, 2], [3, 4]])");
   CHECK(val->IsMap());
   map = v8::Local<v8::Map>::Cast(val);
-  CHECK_EQ(2, map->Size());
+  CHECK_EQ(2U, map->Size());
 
   v8::Local<v8::Array> contents = map->AsArray();
-  CHECK_EQ(4, contents->Length());
+  CHECK_EQ(4U, contents->Length());
   CHECK_EQ(1, contents->Get(0).As<v8::Int32>()->Value());
   CHECK_EQ(2, contents->Get(1).As<v8::Int32>()->Value());
   CHECK_EQ(3, contents->Get(2).As<v8::Int32>()->Value());
   CHECK_EQ(4, contents->Get(3).As<v8::Int32>()->Value());
 
   map = v8::Map::FromArray(env.local(), contents).ToLocalChecked();
-  CHECK_EQ(2, map->Size());
+  CHECK_EQ(2U, map->Size());
 
   // Odd lengths result in a null MaybeLocal.
   contents = v8::Array::New(isolate, 41);
@@ -21409,18 +21409,18 @@ TEST(Set) {
   CHECK(set->IsObject());
   CHECK(set->IsSet());
   CHECK(set->GetPrototype()->StrictEquals(CompileRun("Set.prototype")));
-  CHECK_EQ(0, set->Size());
+  CHECK_EQ(0U, set->Size());
 
   v8::Local<v8::Value> val = CompileRun("new Set([1, 2])");
   CHECK(val->IsSet());
   set = v8::Local<v8::Set>::Cast(val);
-  CHECK_EQ(2, set->Size());
+  CHECK_EQ(2U, set->Size());
 
   v8::Local<v8::Array> keys = set->AsArray();
-  CHECK_EQ(2, keys->Length());
+  CHECK_EQ(2U, keys->Length());
   CHECK_EQ(1, keys->Get(0).As<v8::Int32>()->Value());
   CHECK_EQ(2, keys->Get(1).As<v8::Int32>()->Value());
 
   set = v8::Set::FromArray(env.local(), keys).ToLocalChecked();
-  CHECK_EQ(2, set->Size());
+  CHECK_EQ(2U, set->Size());
 }
