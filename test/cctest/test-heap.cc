@@ -3642,10 +3642,10 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
 
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
-  int expected_slots = 3;
+  int expected_slots = 2;
   CHECK_EQ(expected_slots, feedback_vector->ICSlots());
-  int slot1 = 1;
-  int slot2 = 2;
+  int slot1 = 0;
+  int slot2 = 1;
   CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsWeakCell());
   CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsWeakCell());
 
@@ -3768,14 +3768,14 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
               CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorIC(f, 1, MONOMORPHIC);
+  CheckVectorIC(f, 0, MONOMORPHIC);
   CHECK(ic_before->ic_state() == DEFAULT);
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorIC(f, 1, MONOMORPHIC);
+  CheckVectorIC(f, 0, MONOMORPHIC);
   CHECK(ic_after->ic_state() == DEFAULT);
 }
 
@@ -3800,7 +3800,7 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorIC(f, 1, MONOMORPHIC);
+  CheckVectorIC(f, 0, MONOMORPHIC);
   CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
@@ -3809,7 +3809,7 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorICCleared(f, 1);
+  CheckVectorICCleared(f, 0);
   CHECK(ic_after->ic_state() == DEFAULT);
 }
 
@@ -3841,7 +3841,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorIC(f, 1, POLYMORPHIC);
+  CheckVectorIC(f, 0, POLYMORPHIC);
   CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
@@ -3849,7 +3849,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   CcTest::heap()->CollectAllGarbage();
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorIC(f, 1, POLYMORPHIC);
+  CheckVectorIC(f, 0, POLYMORPHIC);
   CHECK(ic_after->ic_state() == DEFAULT);
 }
 
@@ -3881,7 +3881,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CheckVectorIC(f, 1, POLYMORPHIC);
+  CheckVectorIC(f, 0, POLYMORPHIC);
   CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
@@ -3889,7 +3889,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  CheckVectorICCleared(f, 1);
+  CheckVectorICCleared(f, 0);
   CHECK(ic_before->ic_state() == DEFAULT);
 }
 
@@ -5038,12 +5038,12 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     CompileRun("(testIC())");
   }
   heap->CollectAllGarbage();
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 1, MONOMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 1, MONOMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
 }
 
 
@@ -5074,12 +5074,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     CompileRun("(testIC())");
   }
   heap->CollectAllGarbage();
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 1, POLYMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 1, POLYMORPHIC);
+  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
 }
 
 

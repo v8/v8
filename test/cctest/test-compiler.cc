@@ -310,10 +310,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that we gathered feedback.
   int expected_slots = 0;
-  int expected_ic_slots = 2;
+  int expected_ic_slots = 1;
   CHECK_EQ(expected_slots, feedback_vector->Slots());
   CHECK_EQ(expected_ic_slots, feedback_vector->ICSlots());
-  FeedbackVectorICSlot slot_for_a(1);
+  FeedbackVectorICSlot slot_for_a(0);
   Object* object = feedback_vector->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());
@@ -362,7 +362,7 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
   // Now a feedback vector is allocated.
   CHECK(f->shared()->is_compiled());
   int expected_slots = 0;
-  int expected_ic_slots = 3;
+  int expected_ic_slots = 2;
   CHECK_EQ(expected_slots, f->shared()->feedback_vector()->Slots());
   CHECK_EQ(expected_ic_slots, f->shared()->feedback_vector()->ICSlots());
 }

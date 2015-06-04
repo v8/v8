@@ -167,8 +167,13 @@ void AstValue::Internalize(Isolate* isolate) {
       DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
-      DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
-      value_ = isolate->factory()->iterator_symbol();
+      if (symbol_name_[0] == 'i') {
+        DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
+        value_ = isolate->factory()->iterator_symbol();
+      } else {
+        DCHECK_EQ(0, strcmp(symbol_name_, "home_object_symbol"));
+        value_ = isolate->factory()->home_object_symbol();
+      }
       break;
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);

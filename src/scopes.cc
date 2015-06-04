@@ -159,7 +159,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   new_target_ = nullptr;
   function_ = nullptr;
   arguments_ = nullptr;
-  home_object_ = nullptr;
   this_function_ = nullptr;
   illegal_redecl_ = nullptr;
   scope_inside_with_ = false;
@@ -334,15 +333,6 @@ void Scope::Initialize() {
 
     if (IsConciseMethod(function_kind_) || IsConstructor(function_kind_) ||
         IsAccessorFunction(function_kind_)) {
-      DCHECK(!is_arrow_scope());
-      // Declare '.home_object' variable which exists in all methods.
-      // Note that it might never be accessed, in which case it won't be
-      // allocated during variable allocation.
-      variables_.Declare(this, ast_value_factory_->home_object_string(), CONST,
-                         Variable::NORMAL, kCreatedInitialized);
-    }
-
-    if (IsSubclassConstructor(function_kind_)) {
       DCHECK(!is_arrow_scope());
       variables_.Declare(this, ast_value_factory_->this_function_string(),
                          CONST, Variable::NORMAL, kCreatedInitialized);
@@ -1497,12 +1487,6 @@ void Scope::AllocateNonParameterLocals(Isolate* isolate) {
 
   if (rest_parameter_ != nullptr) {
     AllocateNonParameterLocal(isolate, rest_parameter_);
-  }
-
-  Variable* home_object_var =
-      LookupLocal(ast_value_factory_->home_object_string());
-  if (home_object_var != nullptr && MustAllocate(home_object_var)) {
-    home_object_ = home_object_var;
   }
 
   Variable* new_target_var =

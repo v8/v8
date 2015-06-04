@@ -759,12 +759,16 @@ Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
 Expression* ParserTraits::SuperPropertyReference(Scope* scope,
                                                  AstNodeFactory* factory,
                                                  int pos) {
-  VariableProxy* home_object_proxy = scope->NewUnresolved(
-      factory, parser_->ast_value_factory()->home_object_string(),
+  // this_function[home_object_symbol]
+  VariableProxy* this_function_proxy = scope->NewUnresolved(
+      factory, parser_->ast_value_factory()->this_function_string(),
       Variable::NORMAL, pos);
+  Expression* home_object_symbol_literal =
+      factory->NewSymbolLiteral("home_object_symbol", RelocInfo::kNoPosition);
+  Expression* home_object = factory->NewProperty(
+      this_function_proxy, home_object_symbol_literal, pos);
   return factory->NewSuperPropertyReference(
-      ThisExpression(scope, factory, pos)->AsVariableProxy(), home_object_proxy,
-      pos);
+      ThisExpression(scope, factory, pos)->AsVariableProxy(), home_object, pos);
 }
 
 

@@ -248,7 +248,6 @@ class AstValue : public ZoneObject {
   F(empty, "")                                                             \
   F(eval, "eval")                                                          \
   F(get_template_callsite, "$getTemplateCallSite")                         \
-  F(home_object, ".home_object")                                           \
   F(initialize_const_global, "initializeConstGlobal")                      \
   F(initialize_var_global, "initializeVarGlobal")                          \
   F(is_construct_call, "_IsConstructCall")                                 \
