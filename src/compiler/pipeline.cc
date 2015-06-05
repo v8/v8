@@ -569,7 +569,7 @@ struct TypedLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    LoadElimination load_elimination;
+    LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
     JSIntrinsicLowering intrinsic_lowering(
