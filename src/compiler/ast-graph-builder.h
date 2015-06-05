@@ -258,6 +258,9 @@ class AstGraphBuilder : public AstVisitor {
   // Builder to create an array of rest parameters if used
   Node* BuildRestArgumentsArray(Variable* rest, int index);
 
+  // Builder that assigns to the .this_function internal variable if needed.
+  Node* BuildThisFunctionVar(Variable* this_function_var);
+
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,
                                 Token::Value op, BailoutId bailout_id,
@@ -282,6 +285,16 @@ class AstGraphBuilder : public AstVisitor {
                         TypeFeedbackId id);
   Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value,
                         TypeFeedbackId id);
+
+  // Builders for super property loads and stores.
+  Node* BuildKeyedSuperStore(Node* receiver, Node* home_object, Node* key,
+                             Node* value, TypeFeedbackId id);
+  Node* BuildNamedSuperStore(Node* receiver, Node* home_object,
+                             Handle<Name> name, Node* value, TypeFeedbackId id);
+  Node* BuildNamedSuperLoad(Node* receiver, Node* home_object,
+                            Handle<Name> name, const VectorSlotPair& feedback);
+  Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
+                            const VectorSlotPair& feedback);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();
