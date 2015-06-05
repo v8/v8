@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --stack-limit=32
+// Flags: --allow-natives-syntax --stack-size=100
 
 function g() {}
 
@@ -13,7 +13,7 @@ function f() {
   } catch(e) {
     print(e.stack);
   }
-  if (count < 50) {
+  if (count < 100) {
     count++;
     %DebugGetLoadedScripts();
   }

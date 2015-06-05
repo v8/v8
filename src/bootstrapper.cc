@@ -2466,7 +2466,7 @@ bool Genesis::InstallExperimentalNatives() {
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
 
-  CallUtilsFunction(isolate(), "PostExperimentals");
+  if (!CallUtilsFunction(isolate(), "PostExperimentals")) return false;
 
   InstallExperimentalNativeFunctions();
   InstallExperimentalBuiltinFunctionIds();

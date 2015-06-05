@@ -945,16 +945,22 @@ void ReportBootstrappingException(Handle<Object> exception,
   // builtins, print the actual source here so that line numbers match.
   if (location->script()->source()->IsString()) {
     Handle<String> src(String::cast(location->script()->source()));
-    PrintF("Failing script:\n");
+    PrintF("Failing script:");
     int len = src->length();
-    int line_number = 1;
-    PrintF("%5d: ", line_number);
-    for (int i = 0; i < len; i++) {
-      uint16_t character = src->Get(i);
-      PrintF("%c", character);
-      if (character == '\n' && i < len - 2) {
-        PrintF("%5d: ", ++line_number);
+    if (len == 0) {
+      PrintF(" <not available>\n");
+    } else {
+      PrintF("\n");
+      int line_number = 1;
+      PrintF("%5d: ", line_number);
+      for (int i = 0; i < len; i++) {
+        uint16_t character = src->Get(i);
+        PrintF("%c", character);
+        if (character == '\n' && i < len - 2) {
+          PrintF("%5d: ", ++line_number);
+        }
       }
+      PrintF("\n");
     }
   }
 #endif

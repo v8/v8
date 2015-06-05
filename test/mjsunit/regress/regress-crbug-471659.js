@@ -4,21 +4,19 @@
 
 // Flags: --stack-size=100
 
-"a".replace(/a/g, "");
+var s = "0123456789ABCDEF";
+for (var i = 0; i < 16; i++) s += s;
 
 var count = 0;
-function test() {
-   try {
-     test();
-   } catch(e) {
-     if (count < 50) {
-       count++;
-       "b".replace(/(b)/g, new []);
-     }
-   }
+function f() {
+  try {
+    f();
+    if (count < 10) {
+      f();
+    }
+  } catch(e) {
+      s.replace("+", "-");
+  }
+  count++;
 }
-
-try {
-  test();
-} catch (e) {
-}
+f();

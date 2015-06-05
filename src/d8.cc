@@ -1018,6 +1018,10 @@ void Shell::InitializeDebugger(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   utility_context_.Reset(isolate,
                          Context::New(isolate, NULL, global_template));
+  if (utility_context_.IsEmpty()) {
+    printf("Failed to initialize debugger\n");
+    Shell::Exit(1);
+  }
 #endif  // !V8_SHARED
 }
 

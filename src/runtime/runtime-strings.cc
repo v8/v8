@@ -121,11 +121,13 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
 
   subject = String::Flatten(subject);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
-                                     kRecursionLimit));
-  return *result;
+  if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
+                                     kRecursionLimit).ToHandle(&result)) {
+    return *result;
+  }
+  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  // In case of empty handle and no pending exception we have stack overflow.
+  return isolate->StackOverflow();
 }
 
 

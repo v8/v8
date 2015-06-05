@@ -637,8 +637,8 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
     if (maybe_exception.ToHandle(&exception)) {
       isolate->set_pending_exception(*exception);
       MessageHandler::ReportMessage(isolate, NULL, message);
-      isolate->clear_pending_exception();
     }
+    DCHECK(!maybe_exception.is_null());
     return false;
   }
 
