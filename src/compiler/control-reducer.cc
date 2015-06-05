@@ -425,7 +425,7 @@ class ControlReducerImpl final : public AdvancedReducer {
 
 void ControlReducer::ReduceGraph(Zone* zone, JSGraph* jsgraph,
                                  int max_phis_for_select) {
-  GraphReducer graph_reducer(jsgraph->graph(), zone);
+  GraphReducer graph_reducer(zone, jsgraph->graph());
   ControlReducerImpl impl(&graph_reducer, zone, jsgraph);
   impl.max_phis_for_select_ = max_phis_for_select;
   graph_reducer.AddReducer(&impl);

@@ -130,7 +130,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     typer.Run();
     ChangeLowering change_lowering(&jsgraph);
     SelectLowering select_lowering(this->graph(), this->common());
-    GraphReducer reducer(this->graph(), this->zone());
+    GraphReducer reducer(this->zone(), this->graph());
     reducer.AddReducer(&change_lowering);
     reducer.AddReducer(&select_lowering);
     reducer.ReduceNode(change);

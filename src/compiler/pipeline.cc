@@ -410,6 +410,15 @@ class SourcePositionWrapper final : public Reducer {
 };
 
 
+class JSGraphReducer final : public GraphReducer {
+ public:
+  JSGraphReducer(JSGraph* jsgraph, Zone* zone)
+      : GraphReducer(zone, jsgraph->graph(), jsgraph->TheHoleConstant(),
+                     jsgraph->DeadControl()) {}
+  ~JSGraphReducer() final {}
+};
+
+
 void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
                 Reducer* reducer) {
   if (data->info()->is_source_positions_enabled()) {
@@ -488,7 +497,7 @@ struct ContextSpecializerPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSContextSpecializer spec(data->jsgraph());
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     AddReducer(data, &graph_reducer, &spec);
     graph_reducer.ReduceGraph();
   }
@@ -499,7 +508,7 @@ struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
                                           ? JSInliner::kGeneralInlining
                                           : JSInliner::kRestrictedInlining,
@@ -535,7 +544,7 @@ struct JSTypeFeedbackPhase {
     TypeFeedbackOracle oracle(data->isolate(), temp_zone,
                               data->info()->unoptimized_code(),
                               data->info()->feedback_vector(), native_context);
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     Handle<GlobalObject> global_object = Handle<GlobalObject>::null();
     if (data->info()->has_global_object()) {
       global_object =
@@ -559,7 +568,7 @@ struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     LoadElimination load_elimination;
     JSBuiltinReducer builtin_reducer(data->jsgraph());
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
@@ -589,7 +598,7 @@ struct SimplifiedLoweringPhase {
     ValueNumberingReducer vn_reducer(temp_zone);
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(data->jsgraph());
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -617,7 +626,7 @@ struct ChangeLoweringPhase {
     ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(data->jsgraph());
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
@@ -666,7 +675,7 @@ struct GenericLoweringPhase {
                               data->jsgraph());
     SelectLowering select(data->jsgraph()->graph(), data->jsgraph()->common());
     TailCallOptimization tco(data->common(), data->graph());
-    GraphReducer graph_reducer(data->graph(), temp_zone);
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     AddReducer(data, &graph_reducer, &generic);
     AddReducer(data, &graph_reducer, &select);
     // TODO(turbofan): TCO is currently limited to stubs.

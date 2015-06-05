@@ -60,7 +60,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     lowering.LowerAllNodes();
 
     ChangeLowering lowering(&jsgraph);
-    GraphReducer reducer(this->graph(), this->zone());
+    GraphReducer reducer(this->zone(), this->graph());
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
     Verifier::Run(this->graph());

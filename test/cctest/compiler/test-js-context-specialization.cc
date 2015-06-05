@@ -231,7 +231,7 @@ TEST(SpecializeToContext) {
     CheckEffectInput(load, effect_use);
 
     // Perform the reduction on the entire graph.
-    GraphReducer graph_reducer(t.graph(), t.main_zone());
+    GraphReducer graph_reducer(t.main_zone(), t.graph());
     graph_reducer.AddReducer(&spec);
     graph_reducer.ReduceGraph();
 

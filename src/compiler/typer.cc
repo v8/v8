@@ -439,7 +439,7 @@ void Typer::Run() {
   }
 
   Visitor visitor(this);
-  GraphReducer graph_reducer(graph(), zone());
+  GraphReducer graph_reducer(zone(), graph());
   graph_reducer.AddReducer(&visitor);
   graph_reducer.ReduceGraph();
 }

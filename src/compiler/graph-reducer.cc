@@ -25,8 +25,11 @@ enum class GraphReducer::State : uint8_t {
 };
 
 
-GraphReducer::GraphReducer(Graph* graph, Zone* zone)
+GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead_value,
+                           Node* dead_control)
     : graph_(graph),
+      dead_value_(dead_value),
+      dead_control_(dead_control),
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
@@ -212,7 +215,7 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
 
 void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
                                     Node* control) {
-  if (!effect && node->op()->EffectInputCount() > 0) {
+  if (effect == nullptr && node->op()->EffectInputCount() > 0) {
     effect = NodeProperties::GetEffectInput(node);
   }
   if (control == nullptr && node->op()->ControlInputCount() > 0) {
@@ -226,9 +229,11 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
       if (user->opcode() == IrOpcode::kIfSuccess) {
         Replace(user, control);
       } else if (user->opcode() == IrOpcode::kIfException) {
-        // TODO(titzer): replace with dead control from JSGraph, and
-        // require the control reducer to propagate it.
-        UNREACHABLE();
+        for (Edge e : user->use_edges()) {
+          if (NodeProperties::IsValueEdge(e)) e.UpdateTo(dead_value_);
+          if (NodeProperties::IsControlEdge(e)) e.UpdateTo(dead_control_);
+        }
+        user->Kill();
       } else {
         UNREACHABLE();
       }
