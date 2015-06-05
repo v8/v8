@@ -26,7 +26,9 @@ class JSBuiltinReducerTest : public TypedGraphTest {
                                    MachineOperatorBuilder::Flag::kNoFlags) {
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
-    JSBuiltinReducer reducer(&jsgraph);
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(zone(), graph());
+    JSBuiltinReducer reducer(&graph_reducer, &jsgraph);
     return reducer.Reduce(node);
   }
 
