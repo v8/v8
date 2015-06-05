@@ -416,5 +416,15 @@ RUNTIME_FUNCTION(Runtime_GetTypeFeedbackVector) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   return function->shared()->feedback_vector();
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
+  SealHandleScope shs(isolate);
+  StackFrameIterator it(isolate);
+  RUNTIME_ASSERT(it.frame()->type() == StackFrame::STUB);
+  it.Advance();
+  RUNTIME_ASSERT(it.frame()->type() == StackFrame::JAVA_SCRIPT);
+  return JavaScriptFrame::cast(it.frame())->function();
+}
 }  // namespace internal
 }  // namespace v8

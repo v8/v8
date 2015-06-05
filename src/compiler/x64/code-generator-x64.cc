@@ -626,6 +626,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchStackPointer:
       __ movq(i.OutputRegister(), rsp);
       break;
+    case kArchFramePointer:
+      __ movq(i.OutputRegister(), rbp);
+      break;
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);

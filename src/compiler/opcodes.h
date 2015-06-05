@@ -280,6 +280,7 @@
   V(Float64InsertLowWord32)     \
   V(Float64InsertHighWord32)    \
   V(LoadStackPointer)           \
+  V(LoadFramePointer)           \
   V(CheckedLoad)                \
   V(CheckedStore)
 

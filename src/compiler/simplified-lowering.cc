@@ -1038,6 +1038,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64InsertHighWord32:
         return VisitBinop(node, kMachFloat64, kMachInt32, kMachFloat64);
       case IrOpcode::kLoadStackPointer:
+      case IrOpcode::kLoadFramePointer:
         return VisitLeaf(node, kMachPtr);
       case IrOpcode::kStateValues:
         VisitStateValues(node);

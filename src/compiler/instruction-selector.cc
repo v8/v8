@@ -761,6 +761,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
+    case IrOpcode::kLoadFramePointer:
+      return VisitLoadFramePointer(node);
     case IrOpcode::kCheckedLoad: {
       MachineType rep = OpParameter<MachineType>(node);
       MarkAsRepresentation(rep, node);
@@ -788,6 +790,12 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
+}
+
+
+void InstructionSelector::VisitLoadFramePointer(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
 

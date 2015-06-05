@@ -2312,6 +2312,11 @@ Bounds Typer::Visitor::TypeLoadStackPointer(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeLoadFramePointer(Node* node) {
+  return Bounds(Type::Internal());
+}
+
+
 Bounds Typer::Visitor::TypeCheckedLoad(Node* node) {
   return Bounds::Unbounded(zone());
 }

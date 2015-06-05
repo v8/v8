@@ -197,6 +197,20 @@ FieldAccess AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector() {
           Handle<Name>(), Type::Any(), kMachAnyTagged};
 }
 
+
+// static
+FieldAccess AccessBuilder::ForFrameCallerFramePtr() {
+  return {kUntaggedBase, StandardFrameConstants::kCallerFPOffset,
+          MaybeHandle<Name>(), Type::Internal(), kMachPtr};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForFrameMarker() {
+  return {kUntaggedBase, StandardFrameConstants::kMarkerOffset,
+          MaybeHandle<Name>(), Type::Tagged(), kMachAnyTagged};
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

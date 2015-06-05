@@ -148,7 +148,8 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float32Min, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Max, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Min, Operator::kNoProperties, 2, 0, 1)                             \
-  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)
+  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
+  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)
 
 
 #define MACHINE_TYPE_LIST(V) \

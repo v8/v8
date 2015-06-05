@@ -225,6 +225,7 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // Access to the machine stack.
   const Operator* LoadStackPointer();
+  const Operator* LoadFramePointer();
 
   // checked-load heap, index, length
   const Operator* CheckedLoad(CheckedLoadRepresentation);

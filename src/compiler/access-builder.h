@@ -83,6 +83,12 @@ class AccessBuilder final : public AllStatic {
   // Provides access to the TypeFeedbackVector in SharedFunctionInfo.
   static FieldAccess ForSharedFunctionInfoTypeFeedbackVector();
 
+  // Provides access to the next frame pointer in a stack frame.
+  static FieldAccess ForFrameCallerFramePtr();
+
+  // Provides access to the marker in a stack frame.
+  static FieldAccess ForFrameMarker();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

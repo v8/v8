@@ -441,6 +441,7 @@ class RawMachineAssembler : public GraphBuilder {
 
   // Stack operations.
   Node* LoadStackPointer() { return NewNode(machine()->LoadStackPointer()); }
+  Node* LoadFramePointer() { return NewNode(machine()->LoadFramePointer()); }
 
   // Parameters.
   Node* Parameter(size_t index);

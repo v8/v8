@@ -45,6 +45,7 @@ namespace compiler {
   V(ArchDeoptimize)         \
   V(ArchRet)                \
   V(ArchStackPointer)       \
+  V(ArchFramePointer)       \
   V(ArchTruncateDoubleToI)  \
   V(CheckedLoadInt8)        \
   V(CheckedLoadUint8)       \
