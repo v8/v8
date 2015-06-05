@@ -48,8 +48,10 @@
   # https://code.google.com/p/v8/issues/detail?id=705
   'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
 
-  # Array.find (currently requires --harmony-arrays)
-  'built-ins/Array/prototype/find/Array.prototype.find_skip-empty': [FAIL],
+  ######################### HARNESS ISSUES ##########################
+  # These are failures due to our harness not working as supposed
+
+  # Uses [onlyStrict]
   'built-ins/Array/prototype/find/Array.prototype.find_this-undefined': [FAIL],
 
   ###################### MISSING ES6 FEATURES #######################
@@ -596,6 +598,8 @@
   'built-ins/Function/prototype/bind/15.3.4.5-21-4': [FAIL_OK],
   'built-ins/Function/prototype/bind/15.3.4.5-21-5': [FAIL_OK],
 
+  # This invalid test has been fixed upstream.
+  'built-ins/Array/prototype/find/Array.prototype.find_remove-after-start': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

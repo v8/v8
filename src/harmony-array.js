@@ -100,12 +100,10 @@ function InnerArrayFind(predicate, thisArg, array, length) {
   }
 
   for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      var newThisArg = needs_wrapper ? $toObject(thisArg) : thisArg;
-      if (%_CallFunction(newThisArg, element, i, array, predicate)) {
-        return element;
-      }
+    var element = array[i];
+    var newThisArg = needs_wrapper ? $toObject(thisArg) : thisArg;
+    if (%_CallFunction(newThisArg, element, i, array, predicate)) {
+      return element;
     }
   }
 
@@ -135,12 +133,10 @@ function InnerArrayFindIndex(predicate, thisArg, array, length) {
   }
 
   for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      var newThisArg = needs_wrapper ? $toObject(thisArg) : thisArg;
-      if (%_CallFunction(newThisArg, element, i, array, predicate)) {
-        return i;
-      }
+    var element = array[i];
+    var newThisArg = needs_wrapper ? $toObject(thisArg) : thisArg;
+    if (%_CallFunction(newThisArg, element, i, array, predicate)) {
+      return i;
     }
   }
 
