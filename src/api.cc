@@ -215,7 +215,9 @@ void i::FatalProcessOutOfMemory(const char* location) {
 void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   i::Isolate* isolate = i::Isolate::Current();
   char last_few_messages[Heap::kTraceRingBufferSize + 1];
+  char js_stacktrace[Heap::kStacktraceBufferSize + 1];
   memset(last_few_messages, 0, Heap::kTraceRingBufferSize + 1);
+  memset(js_stacktrace, 0, Heap::kStacktraceBufferSize + 1);
 
   i::HeapStats heap_stats;
   int start_marker;
@@ -259,6 +261,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   int os_error;
   heap_stats.os_error = &os_error;
   heap_stats.last_few_messages = last_few_messages;
+  heap_stats.js_stacktrace = js_stacktrace;
   int end_marker;
   heap_stats.end_marker = &end_marker;
   if (isolate->heap()->HasBeenSetUp()) {
@@ -269,6 +272,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
     if (first_newline == NULL || first_newline[1] == '\0')
       first_newline = last_few_messages;
     PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
+    PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
   }
   Utils::ApiCheck(false, location, "Allocation failed - process out of memory");
   // If the fatal error handler returns, we stop execution.

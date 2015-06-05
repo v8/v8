@@ -1155,6 +1155,7 @@ class Heap {
       256 * kPointerMultiplier;
 
   static const int kTraceRingBufferSize = 512;
+  static const int kStacktraceBufferSize = 512;
 
   // Calculates the allocation limit based on a given growing factor and a
   // given old generation size.
@@ -2316,7 +2317,8 @@ class HeapStats {
   int* size_per_type;                      // 18
   int* os_error;                           // 19
   char* last_few_messages;                 // 20
-  int* end_marker;                         // 21
+  char* js_stacktrace;                     // 21
+  int* end_marker;                         // 22
 };
 
 

@@ -5258,6 +5258,11 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   }
   if (stats->last_few_messages != NULL)
     GetFromRingBuffer(stats->last_few_messages);
+  if (stats->js_stacktrace != NULL) {
+    FixedStringAllocator fixed(stats->js_stacktrace, kStacktraceBufferSize - 1);
+    StringStream accumulator(&fixed);
+    isolate()->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+  }
 }
 
 

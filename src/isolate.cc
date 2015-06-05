@@ -705,7 +705,7 @@ static void PrintFrames(Isolate* isolate,
 void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   // The MentionedObjectCache is not GC-proof at the moment.
   DisallowHeapAllocation no_gc;
-  DCHECK(StringStream::IsMentionedObjectCacheClear(this));
+  DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
   if (c_entry_fp(thread_local_top()) == 0) return;
