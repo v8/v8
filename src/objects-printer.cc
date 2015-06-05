@@ -574,7 +574,7 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
     os << " - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    Vector<char> buf = Vector<char>::New(100);
+    ScopedVector<char> buf(100);
     SNPrintF(
         buf, " - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
         weekdays[weekday()->IsSmi() ? Smi::cast(weekday())->value() + 1 : 0],
