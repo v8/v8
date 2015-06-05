@@ -292,6 +292,8 @@ class JUnitTestProgressIndicator(ProgressIndicator):
         test.duration,
         fail_text)
 
+  def Heartbeat(self):
+    self.progress_indicator.Heartbeat()
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
@@ -363,6 +365,9 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "expected": list(test.outcomes or ["PASS"]),
       "duration": test.duration,
     })
+
+  def Heartbeat(self):
+    self.progress_indicator.Heartbeat()
 
 
 PROGRESS_INDICATORS = {
