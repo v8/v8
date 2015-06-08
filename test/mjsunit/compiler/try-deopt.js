@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mstarzinger): Add FLAG_turbo_exceptions once we want ClusterFuzz.
 // Flags: --allow-natives-syntax --turbo-deoptimization
 
 function DeoptFromTry(x) {
