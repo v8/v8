@@ -8901,62 +8901,18 @@ static void CalculateLineEndsImpl(Isolate* isolate,
                                   Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
-  bool exotic_newlines = false;
-  if (include_ending_line) {
-    // Initally assume reduction is 1, ie all line endings are in the array.
-    DCHECK_EQ(line_ends->length(), Script::kReductionIndex);
-    line_ends->Add(1);
-    // Write a placeholder for the number-of-lines indicator.
-    DCHECK_EQ(line_ends->length(), Script::kNumberOfLinesIndex);
-    line_ends->Add(0);
-    DCHECK_EQ(line_ends->length(), Script::kFirstLineEndIndex);
-    // There's a fictional newline just before the first character.  This
-    // simplifies a lot of things.
-    line_ends->Add(-1);
-  }
   UnicodeCache* cache = isolate->unicode_cache();
   for (int i = 0; i < src_len - 1; i++) {
     SourceChar current = src[i];
     SourceChar next = src[i + 1];
-    if (cache->IsLineTerminatorSequence(current, next)) {
-      if (current != '\n' && current != '\r') exotic_newlines = true;
-      line_ends->Add(i);
-    }
+    if (cache->IsLineTerminatorSequence(current, next)) line_ends->Add(i);
   }
 
-  int last_posn = src_len - 1;
-  if (last_posn >= 0 && cache->IsLineTerminatorSequence(src[last_posn], 0)) {
-    if (src[last_posn] != '\n' && src[last_posn] != '\r')
-      exotic_newlines = true;
-    line_ends->Add(last_posn);
+  if (src_len > 0 && cache->IsLineTerminatorSequence(src[src_len - 1], 0)) {
+    line_ends->Add(src_len - 1);
   } else if (include_ending_line) {
-    // Even if the last line misses a line end, it is counted. Because we
-    // sometimes use character positions that are one beyond the end of the
-    // source (see Rewriter::Rewrite) we set the newline one beyond that.
-    // This is used for substr calculations, which trims to string length,
-    // so it's harmless.
-    line_ends->Add(last_posn + 1);
-  }
-  if (include_ending_line) {
-    // Update number of lines in script.
-    int lines = line_ends->length() - (Script::kFirstLineEndIndex + 1);
-    line_ends->Set(Script::kNumberOfLinesIndex, lines);
-    // Abuse some flags. The bots will run with a good variety of these flags,
-    // giving better coverage for the reduction code.
-    bool always_reduce = FLAG_always_opt;
-    bool never_reduce = !FLAG_crankshaft;
-    if (!never_reduce && !exotic_newlines &&
-        (always_reduce ||
-         (line_ends->length() > 5 && line_ends->length() * 8 > src_len / 12))) {
-      // If the line-ends array (8 bytes per entry) is larger than about 8%
-      // of the source length, then we reduce it to save memory. This won't
-      // trigger if lines are > 100 characters on average. If it triggers, then
-      // the goal is for it to take only 3% of the source size.
-      int reduction =
-          always_reduce ? 2 : (line_ends->length() * 8 * 33 / src_len);
-      DCHECK(reduction > 1);
-      line_ends->Set(Script::kReductionIndex, reduction);
-    }
+    // Even if the last line misses a line end, it is counted.
+    line_ends->Add(src_len);
   }
 }
 
@@ -8985,30 +8941,12 @@ Handle<FixedArray> String::CalculateLineEnds(Handle<String> src,
                             include_ending_line);
     }
   }
-  if (include_ending_line) {
-    const int kReductionIndex = Script::kReductionIndex;
-    const int kFirstLineEndIndex = Script::kFirstLineEndIndex;
-    int line_count = line_ends.length() - kFirstLineEndIndex;
-    int reduction = line_ends[kReductionIndex];
-    int reduced_lines = (line_count + reduction - 1) / reduction;
-    Handle<FixedArray> array =
-        isolate->factory()->NewFixedArray(kFirstLineEndIndex + reduced_lines);
-    for (int i = 0; i < kFirstLineEndIndex; i++) {
-      array->set(i, Smi::FromInt(line_ends[i]));
-    }
-    int j = kFirstLineEndIndex;
-    for (int i = 0; i < line_count; i += reduction, ++j) {
-      array->set(j, Smi::FromInt(line_ends[i + kFirstLineEndIndex]));
-    }
-    return array;
-  } else {
-    Handle<FixedArray> array =
-        isolate->factory()->NewFixedArray(line_ends.length());
-    for (int i = 0; i < line_ends.length(); i++) {
-      array->set(i, Smi::FromInt(line_ends[i]));
-    }
-    return array;
+  int line_count = line_ends.length();
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(line_count);
+  for (int i = 0; i < line_count; i++) {
+    array->set(i, Smi::FromInt(line_ends[i]));
   }
+  return array;
 }
 
 
@@ -10366,113 +10304,41 @@ void Script::InitLineEnds(Handle<Script> script) {
 }
 
 
-static int CountForwardNNewlines(Handle<Script> script, int block_position,
-                                 int n) {
-  int position = block_position;
-  Handle<Object> source_object(script->source(), script->GetIsolate());
-  if (!source_object->IsString() || n == 0) return position;
-  Handle<String> source(Handle<String>::cast(source_object));
-  int length = source->length();
-  for (int i = position; i < length; i++) {
-    uc16 current = source->Get(i);
-    if (current == '\r') {
-      n--;
-      if (i + 1 < length && source->Get(i + 1) == '\n') i++;
-    } else if (current == '\n') {
-      n--;
-    }
-    if (n == 0) return i + 1;
-  }
-  if (n == 1 && length > 0) {
-    uc16 last = source->Get(length - 1);
-    if (last != '\n' && last != '\r') return length;
-  }
-  return -1;
-}
-
-
 int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
-  // Get zero-based line number.
   int line_number = GetLineNumber(script, code_pos);
   if (line_number == -1) return -1;
 
   DisallowHeapAllocation no_allocation;
   FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   line_number = line_number - script->line_offset()->value();
-  int reduction = Smi::cast(line_ends_array->get(kReductionIndex))->value();
-
-  int line_block_position =
-      Smi::cast(line_ends_array->get(line_number / reduction +
-                                     kFirstLineEndIndex))->value() +
-      1;
-
-  int line_position = CountForwardNNewlines(script, line_block_position,
-                                            line_number % reduction);
-  if (line_number == 0) line_position = -script->column_offset()->value();
-  return code_pos - line_position;
+  if (line_number == 0) return code_pos + script->column_offset()->value();
+  int prev_line_end_pos =
+      Smi::cast(line_ends_array->get(line_number - 1))->value();
+  return code_pos - (prev_line_end_pos + 1);
 }
 
 
-// Zero-based line number, calculated from UTF16 character position.
 int Script::GetLineNumberWithArray(int code_pos) {
   DisallowHeapAllocation no_allocation;
   DCHECK(line_ends()->IsFixedArray());
   FixedArray* line_ends_array = FixedArray::cast(line_ends());
   int line_ends_len = line_ends_array->length();
-  if (line_ends_len == 0) return -1;  // This happens if there is no source.
-  // There's always at least one line ending: A fictional newline just before
-  // the start.
-  DCHECK_GE(line_ends_len, kFirstLineEndIndex + 1);
-  int lower = kFirstLineEndIndex;
-  int upper = line_ends_len - 1;
+  if (line_ends_len == 0) return -1;
 
-  if (code_pos < 0) return -1;
-  int index = 0;
-
-  if (code_pos > Smi::cast(line_ends_array->get(upper))->value()) {
-    index = upper;
-  } else {
-    while (lower + 1 < upper) {
-      DCHECK_LE(Smi::cast(line_ends_array->get(lower))->value(), code_pos);
-      DCHECK_LE(code_pos, Smi::cast(line_ends_array->get(upper))->value());
-      int i = (lower + upper) >> 1;
-      DCHECK(lower != i && upper != i);
-      if ((Smi::cast(line_ends_array->get(i)))->value() >= code_pos) {
-        upper = i;
-      } else {
-        lower = i;
-      }
-    }
-    index = lower;
+  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos) {
+    return line_offset()->value();
   }
 
-  int reduction = Smi::cast(line_ends_array->get(kReductionIndex))->value();
-  int line_number = (index - kFirstLineEndIndex) * reduction;
-
-  // We only saved an nth of the line ends in the array, because there were so
-  // many.
-  int start_of_earlier_line =
-      Smi::cast(line_ends_array->get(index))->value() + 1;
-
-  if (reduction == 1 || !source()->IsString()) {
-    return line_number + line_offset()->value();
-  }
-  String* src = String::cast(source());
-  // This '>' would normally be a '>=', but due to {}-less 'with' statements in
-  // top-level code we sometimes encounter code positions that are one character
-  // after the end of the source. See comment in Rewriter::Rewrite.
-  if (code_pos > src->length()) return -1;
-  for (int i = start_of_earlier_line; i < src->length() && i < code_pos; i++) {
-    uc16 current = src->Get(i);
-    if (current == '\r') {
-      if (i < code_pos - 1 && i < src->length() - 1 && src->Get(i + 1) == '\n')
-        i++;
-      line_number++;
-    } else if (current == '\n') {
-      line_number++;
+  int left = 0;
+  int right = line_ends_len;
+  while (int half = (right - left) / 2) {
+    if ((Smi::cast(line_ends_array->get(left + half)))->value() > code_pos) {
+      right -= half;
+    } else {
+      left += half;
     }
   }
-  return line_number + line_offset()->value();
+  return right + line_offset()->value();
 }
 
 

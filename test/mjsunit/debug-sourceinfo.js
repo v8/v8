@@ -63,11 +63,11 @@ var comment_lines = 28;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 11591;
+var last_position = 11337;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 268;
-// This is the column of the last character (note: starting at 0) due to
-// final line having a trailing newline that is conceptually part of that line.
+var last_line = 265;
+// This is the last column of last line (note: starting at 0 and +1, due
+// to trailing <LF>).
 var last_column = 1;
 
 // This magic number is the length or the first line comment (actually number
@@ -250,10 +250,7 @@ assertEquals(158 + start_d, Debug.findFunctionSourceLocation(d, 17, 0).position)
 
 // Make sure invalid inputs work properly.
 assertEquals(0, script.locationFromPosition(-1).line);
-// We might expect last_position + 1 to be the first illegal position, but we
-// sometimes generate character positions that are one past the last character.
-// See Rewriter::Rewrite for details.
-assertEquals(null, script.locationFromPosition(last_position + 2));
+assertEquals(null, script.locationFromPosition(last_position + 1));
 
 // Test last position.
 assertEquals(last_position, script.locationFromPosition(last_position).position);

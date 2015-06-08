@@ -2552,7 +2552,8 @@ void Debug::OnCompileError(Handle<Script> script) {
 }
 
 
-void Debug::OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue) {
+void Debug::OnDebugBreak(Handle<Object> break_points_hit,
+                            bool auto_continue) {
   // The caller provided for DebugScope.
   AssertDebugContext();
   // Bail out if there is no listener for this event

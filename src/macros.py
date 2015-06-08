@@ -305,13 +305,6 @@ macro ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(tab
 # Must match OrderedHashTable::kNotFound.
 define NOT_FOUND = -1;
 
-# Line ends array constants - see v8::internal::Script
-define REDUCTION_INDEX = 0;
-define NUMBER_OF_LINES_INDEX = 1;
-define FIRST_LINE_END_INDEX = 2;
-define ASCII_NL = 10;
-define ASCII_CR = 13;
-
 # Check whether debug is active.
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
 macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));
