@@ -66,6 +66,10 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
                                               PropertyCellType::kNoCell);
         } else {
           JSObject* js_object = JSObject::cast(holder);
+          if (js_object->elements() == isolate()->heap()->empty_fixed_array()) {
+            return NOT_FOUND;
+          }
+
           ElementsAccessor* accessor = js_object->GetElementsAccessor();
           FixedArrayBase* backing_store = js_object->elements();
           number_ = accessor->GetIndexForKey(backing_store, index_);
