@@ -2404,11 +2404,10 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   const int header = TransitionArray::kProtoTransitionHeaderSize;
   int new_number_of_transitions = 0;
   for (int i = 0; i < number_of_transitions; i++) {
-    Object* cached_map = prototype_transitions->get(header + i);
-    if (IsMarked(cached_map)) {
+    Object* cell = prototype_transitions->get(header + i);
+    if (!WeakCell::cast(cell)->cleared()) {
       if (new_number_of_transitions != i) {
-        prototype_transitions->set(header + new_number_of_transitions,
-                                   cached_map, SKIP_WRITE_BARRIER);
+        prototype_transitions->set(header + new_number_of_transitions, cell);
       }
       new_number_of_transitions++;
     }

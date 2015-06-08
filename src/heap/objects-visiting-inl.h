@@ -571,13 +571,8 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
   if (!StaticVisitor::MarkObjectWithoutPush(heap, transitions)) return;
 
   if (transitions->HasPrototypeTransitions()) {
-    // Mark prototype transitions array but do not push it onto marking
-    // stack, this will make references from it weak. We will clean dead
-    // prototype transitions in ClearNonLiveReferences.
-    Object** slot = transitions->GetPrototypeTransitionsSlot();
-    HeapObject* obj = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-    StaticVisitor::MarkObjectWithoutPush(heap, obj);
+    StaticVisitor::VisitPointer(heap,
+                                transitions->GetPrototypeTransitionsSlot());
   }
 
   int num_transitions = TransitionArray::NumberOfTransitions(transitions);
