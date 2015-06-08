@@ -13,7 +13,8 @@ new BenchmarkSuite('Try-Catch', [1000], [
                 OnSuccessFinallyOnly, OnSuccessFinallyOnlySetup,
                 OnSuccessFinallyOnlyTearDown),
   new Benchmark('WithFinallyOnException', false, false, 0,
-                WithFinallyOnException, WithFinallyOnExceptionSetup, WithFinallyOnExceptionTearDown)
+                WithFinallyOnException, WithFinallyOnExceptionSetup,
+                WithFinallyOnExceptionTearDown)
 ]);
 
 var a;
@@ -23,9 +24,9 @@ var c;
 // ----------------------------------------------------------------------------
 
 function OnSuccessSetup() {
-  var a = 4;
-  var b = 6;
-  var c = 0;
+  a = 4;
+  b = 6;
+  c = 0;
 }
 
 function OnSuccess() {
@@ -33,6 +34,7 @@ function OnSuccess() {
     c = a + b;
   }
   catch (e) {
+    c++;
   }
 }
 
@@ -43,9 +45,9 @@ function OnSuccessTearDown() {
 // ----------------------------------------------------------------------------
 
 function OnExceptionSetup() {
-  var a = 4;
-  var b = 6;
-  var c = 0;
+  a = 4;
+  b = 6;
+  c = 0;
 }
 
 function OnException() {
@@ -64,9 +66,9 @@ function OnExceptionTearDown() {
 // ----------------------------------------------------------------------------
 
 function OnSuccessFinallyOnlySetup() {
-  var a = 4;
-  var b = 6;
-  var c = 0;
+  a = 4;
+  b = 6;
+  c = 0;
 }
 
 function OnSuccessFinallyOnly() {
@@ -85,9 +87,9 @@ function OnSuccessFinallyOnlyTearDown() {
 // ----------------------------------------------------------------------------
 
 function WithFinallyOnExceptionSetup() {
-  var a = 4;
-  var b = 6;
-  var c = 0;
+  a = 4;
+  b = 6;
+  c = 0;
 }
 
 function WithFinallyOnException() {
