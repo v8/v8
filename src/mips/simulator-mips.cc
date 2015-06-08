@@ -2454,9 +2454,8 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
   uint32_t cc, fcsr_cc;
   int64_t i64;
   fs = get_fpu_register_double(fs_reg);
-  if (instr->FunctionFieldRaw() != MOVF) {
-    ft = get_fpu_register_double(ft_reg);
-  }
+  ft = (instr->FunctionFieldRaw() != MOVF) ? get_fpu_register_double(ft_reg)
+                                           : 0.0;
   fd = get_fpu_register_double(fd_reg);
   int64_t ft_int = bit_cast<int64_t>(ft);
   int64_t fd_int = bit_cast<int64_t>(fd);
