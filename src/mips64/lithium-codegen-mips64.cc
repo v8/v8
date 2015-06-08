@@ -1889,6 +1889,17 @@ void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
 }
 
 
+void LCodeGen::DoAddE(LAddE* instr) {
+  LOperand* result = instr->result();
+  LOperand* left = instr->left();
+  LOperand* right = instr->right();
+
+  DCHECK(!instr->hydrogen()->CheckFlag(HValue::kCanOverflow));
+  DCHECK(right->IsRegister() || right->IsConstantOperand());
+  __ Daddu(ToRegister(result), ToRegister(left), ToOperand(right));
+}
+
+
 void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
@@ -1896,18 +1907,12 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
 
   if (!can_overflow) {
-    if (right->IsStackSlot()) {
-      Register right_reg = EmitLoadRegister(right, at);
-      __ Daddu(ToRegister(result), ToRegister(left), Operand(right_reg));
-    } else {
-      DCHECK(right->IsRegister() || right->IsConstantOperand());
-      __ Daddu(ToRegister(result), ToRegister(left), ToOperand(right));
-    }
+    DCHECK(right->IsRegister());
+    __ Daddu(ToRegister(result), ToRegister(left), ToOperand(right));
   } else {  // can_overflow.
     Register overflow = scratch0();
     Register scratch = scratch1();
-    if (right->IsStackSlot() ||
-        right->IsConstantOperand()) {
+    if (right->IsConstantOperand()) {
       Register right_reg = EmitLoadRegister(right, scratch);
       __ AdduAndCheckForOverflow(ToRegister(result),
                                  ToRegister(left),

@@ -1593,7 +1593,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     DCHECK(instr->left()->representation().Equals(instr->representation()));
     DCHECK(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
-    LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
+    LOperand* right = UseRegisterOrConstantAtStart(instr->BetterRightOperand());
     LAddI* add = new(zone()) LAddI(left, right);
     LInstruction* result = DefineAsRegister(add);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
@@ -1605,10 +1605,8 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     DCHECK(instr->right()->representation().IsInteger32());
     DCHECK(!instr->CheckFlag(HValue::kCanOverflow));
     LOperand* left = UseRegisterAtStart(instr->left());
-    LOperand* right = UseOrConstantAtStart(instr->right());
-    LAddI* add = new(zone()) LAddI(left, right);
-    LInstruction* result = DefineAsRegister(add);
-    return result;
+    LOperand* right = UseRegisterOrConstantAtStart(instr->right());
+    return DefineAsRegister(new (zone()) LAddE(left, right));
   } else if (instr->representation().IsDouble()) {
     if (kArchVariant == kMips64r2) {
       if (instr->left()->IsMul())

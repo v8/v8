@@ -20,6 +20,7 @@ class LCodeGen;
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V) \
   V(AccessArgumentsAt)                       \
   V(AddI)                                    \
+  V(AddE)                                    \
   V(Allocate)                                \
   V(AllocateBlockContext)                    \
   V(ApplyArguments)                          \
@@ -1418,6 +1419,21 @@ class LSeqStringSetChar final : public LTemplateInstruction<1, 4, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
   DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
+};
+
+
+class LAddE final : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LAddE(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(AddE, "add-e")
+  DECLARE_HYDROGEN_ACCESSOR(Add)
 };
 
 
