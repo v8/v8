@@ -32,6 +32,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineConstructDouble:
       return ReduceConstructDouble(node);
+    case Runtime::kInlineDateField:
+      return ReduceDateField(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineDoubleHi:
@@ -103,6 +105,24 @@ Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
                        high);
   ReplaceWithValue(node, value);
   return Replace(value);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceDateField(Node* node) {
+  Node* const value = NodeProperties::GetValueInput(node, 0);
+  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  NumberMatcher mindex(index);
+  if (mindex.Is(JSDate::kDateValue)) {
+    return Change(
+        node,
+        simplified()->LoadField(AccessBuilder::ForJSDateField(
+            static_cast<JSDate::FieldIndex>(static_cast<int>(mindex.Value())))),
+        value, effect, control);
+  }
+  // TODO(turbofan): Optimize more patterns.
+  return NoChange();
 }
 
 
