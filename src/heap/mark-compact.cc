@@ -52,7 +52,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       migration_slots_buffer_(NULL),
       heap_(heap),
       marking_deque_memory_(NULL),
-      marking_deque_memory_committed_(false),
+      marking_deque_memory_committed_(0),
       code_flusher_(NULL),
       have_code_to_deoptimize_(false) {
 }
@@ -226,7 +226,8 @@ static void VerifyEvacuation(Heap* heap) {
 
 void MarkCompactCollector::SetUp() {
   free_list_old_space_.Reset(new FreeList(heap_->old_space()));
-  EnsureMarkingDequeIsCommittedAndInitialize(256 * KB);
+  EnsureMarkingDequeIsReserved();
+  EnsureMarkingDequeIsCommitted(kMinMarkingDequeSize);
 }
 
 
@@ -336,6 +337,7 @@ void MarkCompactCollector::CollectGarbage() {
   DCHECK(state_ == PREPARE_GC);
 
   MarkLiveObjects();
+
   DCHECK(heap_->incremental_marking()->IsStopped());
 
   // ClearNonLiveReferences can deoptimize code in dependent code arrays.
@@ -2149,41 +2151,46 @@ void MarkCompactCollector::RetainMaps() {
 }
 
 
-void MarkCompactCollector::EnsureMarkingDequeIsCommittedAndInitialize(
-    size_t max_size) {
+void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
+  DCHECK(!marking_deque_.in_use());
+  if (marking_deque_memory_ == NULL) {
+    marking_deque_memory_ = new base::VirtualMemory(kMaxMarkingDequeSize);
+    marking_deque_memory_committed_ = 0;
+  }
+  if (marking_deque_memory_ == NULL) {
+    V8::FatalProcessOutOfMemory("EnsureMarkingDequeIsReserved");
+  }
+}
+
+
+void MarkCompactCollector::EnsureMarkingDequeIsCommitted(size_t max_size) {
   // If the marking deque is too small, we try to allocate a bigger one.
   // If that fails, make do with a smaller one.
-  for (size_t size = max_size; size >= 256 * KB; size >>= 1) {
+  CHECK(!marking_deque_.in_use());
+  for (size_t size = max_size; size >= kMinMarkingDequeSize; size >>= 1) {
     base::VirtualMemory* memory = marking_deque_memory_;
-    bool is_committed = marking_deque_memory_committed_;
+    size_t currently_committed = marking_deque_memory_committed_;
 
-    if (memory == NULL || memory->size() < size) {
-      // If we don't have memory or we only have small memory, then
-      // try to reserve a new one.
-      memory = new base::VirtualMemory(size);
-      is_committed = false;
+    if (currently_committed == size) return;
+
+    if (currently_committed > size) {
+      bool success = marking_deque_memory_->Uncommit(
+          reinterpret_cast<Address>(marking_deque_memory_->address()) + size,
+          currently_committed - size);
+      if (success) {
+        marking_deque_memory_committed_ = size;
+        return;
+      }
+      UNREACHABLE();
     }
-    if (is_committed) return;
-    if (memory->IsReserved() &&
-        memory->Commit(reinterpret_cast<Address>(memory->address()),
-                       memory->size(),
-                       false)) {  // Not executable.
-      if (marking_deque_memory_ != NULL && marking_deque_memory_ != memory) {
-        delete marking_deque_memory_;
-      }
-      marking_deque_memory_ = memory;
-      marking_deque_memory_committed_ = true;
-      InitializeMarkingDeque();
+
+    bool success = memory->Commit(
+        reinterpret_cast<Address>(memory->address()) + currently_committed,
+        size - currently_committed,
+        false);  // Not executable.
+    if (success) {
+      marking_deque_memory_committed_ = size;
       return;
-    } else {
-      // Commit failed, so we are under memory pressure.  If this was the
-      // previously reserved area we tried to commit, then remove references
-      // to it before deleting it and unreserving it.
-      if (marking_deque_memory_ == memory) {
-        marking_deque_memory_ = NULL;
-        marking_deque_memory_committed_ = false;
-      }
-      delete memory;  // Will also unreserve the virtual allocation.
     }
   }
   V8::FatalProcessOutOfMemory("EnsureMarkingDequeIsCommitted");
@@ -2191,23 +2198,37 @@ void MarkCompactCollector::EnsureMarkingDequeIsCommittedAndInitialize(
 
 
 void MarkCompactCollector::InitializeMarkingDeque() {
-  if (marking_deque_memory_committed_) {
-    Address addr = static_cast<Address>(marking_deque_memory_->address());
-    size_t size = marking_deque_memory_->size();
-    if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
-    marking_deque_.Initialize(addr, addr + size);
-  }
+  DCHECK(!marking_deque_.in_use());
+  DCHECK(marking_deque_memory_committed_ > 0);
+  Address addr = static_cast<Address>(marking_deque_memory_->address());
+  size_t size = marking_deque_memory_committed_;
+  if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
+  marking_deque_.Initialize(addr, addr + size);
 }
 
 
-void MarkCompactCollector::UncommitMarkingDeque() {
-  if (marking_deque_memory_committed_) {
-    bool success = marking_deque_memory_->Uncommit(
-        reinterpret_cast<Address>(marking_deque_memory_->address()),
-        marking_deque_memory_->size());
-    CHECK(success);
-    marking_deque_memory_committed_ = false;
+void MarkingDeque::Initialize(Address low, Address high) {
+  DCHECK(!in_use_);
+  HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
+  HeapObject** obj_high = reinterpret_cast<HeapObject**>(high);
+  array_ = obj_low;
+  mask_ = base::bits::RoundDownToPowerOfTwo32(
+              static_cast<uint32_t>(obj_high - obj_low)) -
+          1;
+  top_ = bottom_ = 0;
+  overflowed_ = false;
+  in_use_ = true;
+}
+
+
+void MarkingDeque::Uninitialize(bool aborting) {
+  if (!aborting) {
+    DCHECK(IsEmpty());
+    DCHECK(!overflowed_);
   }
+  DCHECK(in_use_);
+  top_ = bottom_ = 0xdecbad;
+  in_use_ = false;
 }
 
 
@@ -2228,7 +2249,9 @@ void MarkCompactCollector::MarkLiveObjects() {
   } else {
     // Abort any pending incremental activities e.g. incremental sweeping.
     incremental_marking->Abort();
-    InitializeMarkingDeque();
+    if (marking_deque_.in_use()) {
+      marking_deque_.Uninitialize(true);
+    }
   }
 
 #ifdef DEBUG
@@ -2236,7 +2259,8 @@ void MarkCompactCollector::MarkLiveObjects() {
   state_ = MARK_LIVE_OBJECTS;
 #endif
 
-  EnsureMarkingDequeIsCommittedAndInitialize();
+  EnsureMarkingDequeIsCommittedAndInitialize(
+      MarkCompactCollector::kMaxMarkingDequeSize);
 
   PrepareForCodeFlushing();
 

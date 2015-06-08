@@ -1233,9 +1233,17 @@ bool Heap::PerformGarbageCollection(
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
-  // Callbacks that fire after this point might trigger nested GCs and
-  // restart incremental marking, the assertion can't be moved down.
-  DCHECK(collector == SCAVENGER || incremental_marking()->IsStopped());
+  if (collector != SCAVENGER) {
+    // Callbacks that fire after this point might trigger nested GCs and
+    // restart incremental marking, the assertion can't be moved down.
+    DCHECK(incremental_marking()->IsStopped());
+
+    // We finished a marking cycle. We can uncommit the marking deque until
+    // we start marking again.
+    mark_compact_collector_.marking_deque()->Uninitialize();
+    mark_compact_collector_.EnsureMarkingDequeIsCommitted(
+        MarkCompactCollector::kMinMarkingDequeSize);
+  }
 
   gc_post_processing_depth_++;
   {
@@ -1258,9 +1266,6 @@ bool Heap::PerformGarbageCollection(
     SetOldGenerationAllocationLimit(
         PromotedSpaceSizeOfObjects(),
         tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
-    // We finished a marking cycle. We can uncommit the marking deque until
-    // we start marking again.
-    mark_compact_collector_.UncommitMarkingDeque();
   }
 
   {

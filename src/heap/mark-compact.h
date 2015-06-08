@@ -182,24 +182,23 @@ class Marking {
 class MarkingDeque {
  public:
   MarkingDeque()
-      : array_(NULL), top_(0), bottom_(0), mask_(0), overflowed_(false) {}
+      : array_(NULL),
+        top_(0),
+        bottom_(0),
+        mask_(0),
+        overflowed_(false),
+        in_use_(false) {}
 
-  void Initialize(Address low, Address high) {
-    HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
-    HeapObject** obj_high = reinterpret_cast<HeapObject**>(high);
-    array_ = obj_low;
-    mask_ = base::bits::RoundDownToPowerOfTwo32(
-                static_cast<uint32_t>(obj_high - obj_low)) -
-            1;
-    top_ = bottom_ = 0;
-    overflowed_ = false;
-  }
+  void Initialize(Address low, Address high);
+  void Uninitialize(bool aborting = false);
 
   inline bool IsFull() { return ((top_ + 1) & mask_) == bottom_; }
 
   inline bool IsEmpty() { return top_ == bottom_; }
 
   bool overflowed() const { return overflowed_; }
+
+  bool in_use() const { return in_use_; }
 
   void ClearOverflowed() { overflowed_ = false; }
 
@@ -242,7 +241,6 @@ class MarkingDeque {
 
   INLINE(void UnshiftGrey(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
-    DCHECK(Marking::IsGrey(Marking::MarkBitFrom(object)));
     if (IsFull()) {
       SetOverflowed();
     } else {
@@ -279,6 +277,7 @@ class MarkingDeque {
   int bottom_;
   int mask_;
   bool overflowed_;
+  bool in_use_;
 
   DISALLOW_COPY_AND_ASSIGN(MarkingDeque);
 };
@@ -720,11 +719,20 @@ class MarkCompactCollector {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
-  void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size = 4 * MB);
+  static const size_t kMaxMarkingDequeSize = 4 * MB;
+  static const size_t kMinMarkingDequeSize = 256 * KB;
+
+  void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size) {
+    if (!marking_deque_.in_use()) {
+      EnsureMarkingDequeIsCommitted(max_size);
+      InitializeMarkingDeque();
+    }
+  }
+
+  void EnsureMarkingDequeIsCommitted(size_t max_size);
+  void EnsureMarkingDequeIsReserved();
 
   void InitializeMarkingDeque();
-
-  void UncommitMarkingDeque();
 
   // The following four methods can just be called after marking, when the
   // whole transitive closure is known. They must be called before sweeping
@@ -954,7 +962,7 @@ class MarkCompactCollector {
 
   Heap* heap_;
   base::VirtualMemory* marking_deque_memory_;
-  bool marking_deque_memory_committed_;
+  size_t marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   bool have_code_to_deoptimize_;
