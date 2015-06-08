@@ -337,22 +337,33 @@ static SmartArrayPointer<Handle<Object> > GetCallerArguments(Isolate* isolate,
   frame->GetFunctions(&functions);
   if (functions.length() > 1) {
     int inlined_jsframe_index = functions.length() - 1;
-    JSFunction* inlined_function = functions[inlined_jsframe_index];
-    SlotRefValueBuilder slot_refs(
-        frame, inlined_jsframe_index,
-        inlined_function->shared()->internal_formal_parameter_count());
+    TranslatedState translated_values(frame);
+    translated_values.Prepare(false, frame->fp());
 
-    int args_count = slot_refs.args_length();
+    int argument_count = 0;
+    TranslatedFrame* translated_frame =
+        translated_values.GetArgumentsInfoFromJSFrameIndex(
+            inlined_jsframe_index, &argument_count);
+    TranslatedFrame::iterator iter = translated_frame->begin();
 
-    *total_argc = prefix_argc + args_count;
+    // Skip the receiver.
+    iter++;
+    argument_count--;
+
+    *total_argc = prefix_argc + argument_count;
     SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
-    slot_refs.Prepare(isolate);
-    for (int i = 0; i < args_count; i++) {
-      Handle<Object> val = slot_refs.GetNext(isolate, 0);
-      param_data[prefix_argc + i] = val;
+    bool should_deoptimize = false;
+    for (int i = 0; i < argument_count; i++) {
+      should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
+      Handle<Object> value = iter->GetValue();
+      param_data[prefix_argc + i] = value;
+      iter++;
     }
-    slot_refs.Finish(isolate);
+
+    if (should_deoptimize) {
+      translated_values.StoreMaterializedValuesAndDeopt();
+    }
 
     return param_data;
   } else {

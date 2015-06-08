@@ -624,7 +624,7 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       translation->BeginSetterStubFrame(closure_id);
       break;
     case STUB:
-      translation->BeginCompiledStubFrame();
+      translation->BeginCompiledStubFrame(translation_size);
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);

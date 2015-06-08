@@ -1116,21 +1116,37 @@ static Handle<Object> ArgumentsForInlinedFunction(
     int inlined_frame_index) {
   Isolate* isolate = inlined_function->GetIsolate();
   Factory* factory = isolate->factory();
-  SlotRefValueBuilder slot_refs(
-      frame, inlined_frame_index,
-      inlined_function->shared()->internal_formal_parameter_count());
 
-  int args_count = slot_refs.args_length();
+  TranslatedState translated_values(frame);
+  translated_values.Prepare(false, frame->fp());
+
+  int argument_count = 0;
+  TranslatedFrame* translated_frame =
+      translated_values.GetArgumentsInfoFromJSFrameIndex(inlined_frame_index,
+                                                         &argument_count);
+  TranslatedFrame::iterator iter = translated_frame->begin();
+
+  // Skip the receiver.
+  iter++;
+  argument_count--;
+
   Handle<JSObject> arguments =
-      factory->NewArgumentsObject(inlined_function, args_count);
-  Handle<FixedArray> array = factory->NewFixedArray(args_count);
-  slot_refs.Prepare(isolate);
-  for (int i = 0; i < args_count; ++i) {
-    Handle<Object> value = slot_refs.GetNext(isolate, 0);
+      factory->NewArgumentsObject(inlined_function, argument_count);
+  Handle<FixedArray> array = factory->NewFixedArray(argument_count);
+  bool should_deoptimize = false;
+  for (int i = 0; i < argument_count; ++i) {
+    // If we materialize any object, we should deopt because we might alias
+    // an object that was eliminated by escape analysis.
+    should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
+    Handle<Object> value = iter->GetValue();
     array->set(i, *value);
+    iter++;
   }
-  slot_refs.Finish(isolate);
   arguments->set_elements(*array);
+
+  if (should_deoptimize) {
+    translated_values.StoreMaterializedValuesAndDeopt();
+  }
 
   // Return the freshly allocated arguments object.
   return arguments;
