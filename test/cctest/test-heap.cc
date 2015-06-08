@@ -2521,8 +2521,7 @@ TEST(PrototypeTransitionClearing) {
       TransitionArray::GetPrototypeTransitions(baseObject->map());
   for (int i = initialTransitions; i < initialTransitions + transitions; i++) {
     int j = TransitionArray::kProtoTransitionHeaderSize + i;
-    CHECK(trans->get(j)->IsWeakCell());
-    CHECK(WeakCell::cast(trans->get(j))->value()->IsMap());
+    CHECK(trans->get(j)->IsMap());
   }
 
   // Make sure next prototype is placed on an old-space evacuation candidate.

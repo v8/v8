@@ -92,8 +92,9 @@ class TransitionArray: public FixedArray {
   //    0: finger - index of the first free cell in the cache
   //    1 + i: target map
   static const int kMaxCachedPrototypeTransitions = 256;
-  static void PutPrototypeTransition(Handle<Map> map, Handle<Object> prototype,
-                                     Handle<Map> target_map);
+  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype,
+                                            Handle<Map> target_map);
 
   static Handle<Map> GetPrototypeTransition(Handle<Map> map,
                                             Handle<Object> prototype);
