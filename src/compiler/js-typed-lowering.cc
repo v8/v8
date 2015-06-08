@@ -992,6 +992,63 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSLoadDynamicContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadDynamicContext, node->opcode());
+  DynamicContextAccess const& access = DynamicContextAccessOf(node->op());
+  ContextAccess const& context_access = access.context_access();
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  if (access.RequiresFullCheck()) return NoChange();
+
+  // Perform checks whether the fast mode applies, by looking for any extension
+  // object which might shadow the optimistic declaration.
+  uint32_t bitset = access.check_bitset();
+  Node* check_true = control;
+  Node* check_false = graph()->NewNode(common()->Merge(0));
+  for (int depth = 0; bitset != 0; bitset >>= 1, depth++) {
+    if ((bitset & 1) == 0) continue;
+    Node* load = graph()->NewNode(
+        javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
+        context, context, effect);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()),
+                                   load, jsgraph()->ZeroConstant());
+    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
+                                    check_true);
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    check_false->set_op(common()->Merge(check_false->InputCount() + 1));
+    check_false->AppendInput(graph()->zone(), if_false);
+    check_true = if_true;
+  }
+
+  // Fast case, because variable is not shadowed. Perform context slot load.
+  Node* fast =
+      graph()->NewNode(javascript()->LoadContext(context_access.depth(),
+                                                 context_access.index(), false),
+                       context, context, effect);
+
+  // Slow case, because variable potentially shadowed. Perform dynamic lookup.
+  uint32_t check_bitset = DynamicContextAccess::kFullCheckRequired;
+  Node* slow =
+      graph()->NewNode(javascript()->LoadDynamicContext(
+                           access.name(), check_bitset, context_access.depth(),
+                           context_access.index()),
+                       context, context, state, effect, check_false);
+
+  // Replace value, effect and control uses accordingly.
+  Node* new_control =
+      graph()->NewNode(common()->Merge(2), check_true, check_false);
+  Node* new_effect =
+      graph()->NewNode(common()->EffectPhi(2), fast, slow, new_control);
+  Node* new_value = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), fast,
+                                     slow, new_control);
+  ReplaceWithValue(node, new_value, new_effect, new_control);
+  return Changed(new_value);
+}
+
+
 Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
@@ -1501,6 +1558,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSStoreContext(node);
     case IrOpcode::kJSLoadDynamicGlobal:
       return ReduceJSLoadDynamicGlobal(node);
+    case IrOpcode::kJSLoadDynamicContext:
+      return ReduceJSLoadDynamicContext(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateLiteralArray:

@@ -931,6 +931,40 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
   }
 }
 
+
+// -----------------------------------------------------------------------------
+// JSLoadDynamicContext
+
+
+TEST_F(JSTypedLoweringTest, JSLoadDynamicContext) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<String> name = factory()->object_string();
+  for (int i = 0; i < DynamicContextAccess::kMaxCheckDepth; ++i) {
+    uint32_t bitset = 1 << i;  // Only single check.
+    Reduction r = Reduce(
+        graph()->NewNode(javascript()->LoadDynamicContext(name, bitset, 23, 42),
+                         context, context, frame_state, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsPhi(kMachAnyTagged,
+              IsLoadContext(ContextAccess(23, 42, false), context), _,
+              IsMerge(
+                  IsIfTrue(IsBranch(
+                      IsReferenceEqual(
+                          Type::Tagged(),
+                          IsLoadContext(
+                              ContextAccess(i, Context::EXTENSION_INDEX, false),
+                              context),
+                          IsNumberConstant(BitEq(0.0))),
+                      control)),
+                  _)));
+  }
+}
+
 #if V8_TURBOFAN_TARGET
 
 // -----------------------------------------------------------------------------

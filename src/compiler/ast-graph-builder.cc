@@ -2968,7 +2968,7 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
   EnumSet<int, uint32_t> check_depths;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
     if (s->num_heap_slots() <= 0) continue;
-    if (!s->calls_sloppy_eval()) continue;
+    if (!s->calls_sloppy_eval() && s != variable->scope()) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > DynamicContextAccess::kMaxCheckDepth) {
       return DynamicContextAccess::kFullCheckRequired;
@@ -3247,7 +3247,15 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
             name, check_bitset, depth, local->index());
         value = NewNode(op, current_context());
         PrepareFrameState(value, bailout_id, combine);
-        // TODO(mstarzinger): Hole checks are missing here when optimized.
+        VariableMode local_mode = local->mode();
+        if (local_mode == CONST_LEGACY) {
+          // Perform check for uninitialized legacy const variables.
+          Node* undefined = jsgraph()->UndefinedConstant();
+          value = BuildHoleCheckSilent(value, undefined, value);
+        } else if (local_mode == LET || local_mode == CONST) {
+          // Perform check for uninitialized let/const variables.
+          value = BuildHoleCheckThrow(value, local, value, bailout_id);
+        }
       } else if (mode == DYNAMIC) {
         uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
         const Operator* op = javascript()->LoadDynamicGlobal(
