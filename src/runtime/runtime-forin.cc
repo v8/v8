@@ -26,9 +26,13 @@ RUNTIME_FUNCTION(Runtime_ForInFilter) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   // TODO(turbofan): Fast case for array indices.
-  Handle<Name> name = Runtime::ToName(isolate, key).ToHandleChecked();
+  Handle<Name> name;
+  if (!Runtime::ToName(isolate, key).ToHandle(&name)) {
+    return isolate->heap()->exception();
+  }
   Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
-  if (result.IsJust() && result.FromJust()) return *name;
+  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.FromJust()) return *name;
   return isolate->heap()->undefined_value();
 }
 
@@ -47,9 +51,13 @@ RUNTIME_FUNCTION(Runtime_ForInNext) {
     return *key;
   }
   // TODO(turbofan): Fast case for array indices.
-  Handle<Name> name = Runtime::ToName(isolate, key).ToHandleChecked();
+  Handle<Name> name;
+  if (!Runtime::ToName(isolate, key).ToHandle(&name)) {
+    return isolate->heap()->exception();
+  }
   Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
-  if (result.IsJust() && result.FromJust()) return *name;
+  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.FromJust()) return *name;
   return isolate->heap()->undefined_value();
 }
 
