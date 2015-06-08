@@ -437,6 +437,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }
+  ReserveFeedbackSlots(node);
 }
 
 
