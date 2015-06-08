@@ -174,8 +174,11 @@ void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Generate_DebugBreakCallHelper(
-      masm, receiver.bit() | name.bit() | value.bit(), 0, false);
+  RegList regs = receiver.bit() | name.bit() | value.bit();
+  if (FLAG_vector_stores) {
+    regs |= VectorStoreICDescriptor::SlotRegister().bit();
+  }
+  Generate_DebugBreakCallHelper(masm, regs, 0, false);
 }
 
 
@@ -187,11 +190,7 @@ void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC store call (from ic-x64.cc).
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Generate_DebugBreakCallHelper(
-      masm, receiver.bit() | name.bit() | value.bit(), 0, false);
+  GenerateStoreICDebugBreak(masm);
 }
 
 
