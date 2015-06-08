@@ -6665,23 +6665,45 @@ size_t v8::TypedArray::Length() {
 }
 
 
-#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                       \
-  Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,      \
-                                      size_t byte_offset, size_t length) {   \
-    i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();    \
-    LOG_API(isolate,                                                         \
-            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)"); \
-    ENTER_V8(isolate);                                                       \
-    if (!Utils::ApiCheck(length <= static_cast<size_t>(i::Smi::kMaxValue),   \
-                         "v8::" #Type                                        \
-                         "Array::New(Handle<ArrayBuffer>, size_t, size_t)",  \
-                         "length exceeds max allowed value")) {              \
-      return Local<Type##Array>();                                           \
-    }                                                                        \
-    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);   \
-    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(    \
-        i::kExternal##Type##Array, buffer, byte_offset, length);             \
-    return Utils::ToLocal##Type##Array(obj);                                 \
+#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                         \
+  Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,        \
+                                      size_t byte_offset, size_t length) {     \
+    i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();      \
+    LOG_API(isolate,                                                           \
+            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");   \
+    ENTER_V8(isolate);                                                         \
+    if (!Utils::ApiCheck(length <= static_cast<size_t>(i::Smi::kMaxValue),     \
+                         "v8::" #Type                                          \
+                         "Array::New(Handle<ArrayBuffer>, size_t, size_t)",    \
+                         "length exceeds max allowed value")) {                \
+      return Local<Type##Array>();                                             \
+    }                                                                          \
+    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);     \
+    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(      \
+        i::kExternal##Type##Array, buffer, byte_offset, length);               \
+    return Utils::ToLocal##Type##Array(obj);                                   \
+  }                                                                            \
+  Local<Type##Array> Type##Array::New(                                         \
+      Handle<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,       \
+      size_t length) {                                                         \
+    CHECK(i::FLAG_harmony_sharedarraybuffer);                                  \
+    i::Isolate* isolate =                                                      \
+        Utils::OpenHandle(*shared_array_buffer)->GetIsolate();                 \
+    LOG_API(isolate, "v8::" #Type                                              \
+                     "Array::New(Handle<SharedArrayBuffer>, size_t, size_t)"); \
+    ENTER_V8(isolate);                                                         \
+    if (!Utils::ApiCheck(                                                      \
+            length <= static_cast<size_t>(i::Smi::kMaxValue),                  \
+            "v8::" #Type                                                       \
+            "Array::New(Handle<SharedArrayBuffer>, size_t, size_t)",           \
+            "length exceeds max allowed value")) {                             \
+      return Local<Type##Array>();                                             \
+    }                                                                          \
+    i::Handle<i::JSArrayBuffer> buffer =                                       \
+        Utils::OpenHandle(*shared_array_buffer);                               \
+    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(      \
+        i::kExternal##Type##Array, buffer, byte_offset, length);               \
+    return Utils::ToLocal##Type##Array(obj);                                   \
   }
 
 
@@ -6692,7 +6714,21 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
                               size_t byte_offset, size_t byte_length) {
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
   i::Isolate* isolate = buffer->GetIsolate();
-  LOG_API(isolate, "v8::DataView::New(void*, size_t, size_t)");
+  LOG_API(isolate, "v8::DataView::New(Handle<ArrayBuffer>, size_t, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSDataView> obj =
+      isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
+Local<DataView> DataView::New(Handle<SharedArrayBuffer> shared_array_buffer,
+                              size_t byte_offset, size_t byte_length) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*shared_array_buffer);
+  i::Isolate* isolate = buffer->GetIsolate();
+  LOG_API(isolate,
+          "v8::DataView::New(Handle<SharedArrayBuffer>, size_t, size_t)");
   ENTER_V8(isolate);
   i::Handle<i::JSDataView> obj =
       isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
@@ -6734,6 +6770,7 @@ size_t v8::SharedArrayBuffer::ByteLength() const {
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
                                                     size_t byte_length) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "v8::SharedArrayBuffer::New(size_t)");
   ENTER_V8(i_isolate);
@@ -6748,6 +6785,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     Isolate* isolate, void* data, size_t byte_length,
     ArrayBufferCreationMode mode) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "v8::SharedArrayBuffer::New(void*, size_t)");
   ENTER_V8(i_isolate);

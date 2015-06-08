@@ -94,6 +94,7 @@ class Primitive;
 class Promise;
 class RawOperationDescriptor;
 class Script;
+class SharedArrayBuffer;
 class Signature;
 class StartupData;
 class StackFrame;
@@ -3556,6 +3557,8 @@ class V8_EXPORT Uint8Array : public TypedArray {
  public:
   static Local<Uint8Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint8Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                               size_t byte_offset, size_t length);
   V8_INLINE static Uint8Array* Cast(Value* obj);
 
  private:
@@ -3572,6 +3575,9 @@ class V8_EXPORT Uint8ClampedArray : public TypedArray {
  public:
   static Local<Uint8ClampedArray> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint8ClampedArray> New(
+      Handle<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
+      size_t length);
   V8_INLINE static Uint8ClampedArray* Cast(Value* obj);
 
  private:
@@ -3587,6 +3593,8 @@ class V8_EXPORT Int8Array : public TypedArray {
  public:
   static Local<Int8Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Int8Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                              size_t byte_offset, size_t length);
   V8_INLINE static Int8Array* Cast(Value* obj);
 
  private:
@@ -3603,6 +3611,8 @@ class V8_EXPORT Uint16Array : public TypedArray {
  public:
   static Local<Uint16Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint16Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                size_t byte_offset, size_t length);
   V8_INLINE static Uint16Array* Cast(Value* obj);
 
  private:
@@ -3618,6 +3628,8 @@ class V8_EXPORT Uint16Array : public TypedArray {
 class V8_EXPORT Int16Array : public TypedArray {
  public:
   static Local<Int16Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  static Local<Int16Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Int16Array* Cast(Value* obj);
 
@@ -3635,6 +3647,8 @@ class V8_EXPORT Uint32Array : public TypedArray {
  public:
   static Local<Uint32Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint32Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                size_t byte_offset, size_t length);
   V8_INLINE static Uint32Array* Cast(Value* obj);
 
  private:
@@ -3650,6 +3664,8 @@ class V8_EXPORT Uint32Array : public TypedArray {
 class V8_EXPORT Int32Array : public TypedArray {
  public:
   static Local<Int32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  static Local<Int32Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Int32Array* Cast(Value* obj);
 
@@ -3667,6 +3683,8 @@ class V8_EXPORT Float32Array : public TypedArray {
  public:
   static Local<Float32Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Float32Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                 size_t byte_offset, size_t length);
   V8_INLINE static Float32Array* Cast(Value* obj);
 
  private:
@@ -3683,6 +3701,8 @@ class V8_EXPORT Float64Array : public TypedArray {
  public:
   static Local<Float64Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Float64Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                 size_t byte_offset, size_t length);
   V8_INLINE static Float64Array* Cast(Value* obj);
 
  private:
@@ -3698,6 +3718,8 @@ class V8_EXPORT Float64Array : public TypedArray {
 class V8_EXPORT DataView : public ArrayBufferView {
  public:
   static Local<DataView> New(Handle<ArrayBuffer> array_buffer,
+                             size_t byte_offset, size_t length);
+  static Local<DataView> New(Handle<SharedArrayBuffer> shared_array_buffer,
                              size_t byte_offset, size_t length);
   V8_INLINE static DataView* Cast(Value* obj);
 
