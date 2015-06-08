@@ -3665,7 +3665,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
     i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
     i::Handle<i::Object> key, i::LanguageMode language_mode) {
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the
     // characters of a string using [] notation.  In the case of a
@@ -3976,7 +3976,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   auto key_obj = Utils::OpenHandle(*key);
   Maybe<bool> maybe = Nothing<bool>();
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key_obj->ToArrayIndex(&index)) {
     maybe = i::JSReceiver::HasElement(self, index);
   } else {

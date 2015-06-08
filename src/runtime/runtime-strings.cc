@@ -139,7 +139,7 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  uint32_t start_index;
+  uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
@@ -190,7 +190,7 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  uint32_t start_index;
+  uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   uint32_t pat_length = pat->length();

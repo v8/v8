@@ -61,7 +61,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
   }
 
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     return GetElementOrCharAt(isolate, object, index);
   }
@@ -106,7 +106,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     // TODO(verwaest): Support non-JSObject receivers.
     if (!object->IsJSObject()) return value;
@@ -182,7 +182,7 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
                                                   PropertyAttributes attrs) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
     // of a string using [] notation.  We need to support this too in

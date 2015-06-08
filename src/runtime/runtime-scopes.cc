@@ -1063,7 +1063,7 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
 
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
-  uint32_t index;
+  uint32_t index = 0;
   if (raw_key->ToArrayIndex(&index) && index < n) {
     return frame->GetParameter(index);
   }
