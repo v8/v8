@@ -175,7 +175,7 @@
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87")', {
+        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
         'clang%': 1,
       }, {
         'clang%': 0,
