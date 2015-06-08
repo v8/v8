@@ -1399,6 +1399,13 @@ class MapWord BASE_EMBEDDED {
 };
 
 
+// The content of an heap object (except for the map pointer). kTaggedValues
+// objects can contain both heap pointers and Smis, kMixedValues can contain
+// heap pointers, Smis, and raw values (e.g. doubles or strings), and kRawValues
+// objects can contain raw values and Smis.
+enum class HeapObjectContents { kTaggedValues, kMixedValues, kRawValues };
+
+
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
 class HeapObject: public Object {
@@ -1450,9 +1457,8 @@ class HeapObject: public Object {
   // Returns the heap object's size in bytes
   inline int Size();
 
-  // Returns true if this heap object may contain raw values, i.e., values that
-  // look like pointers to heap objects.
-  inline bool MayContainRawValues();
+  // Indicates what type of values this heap object may contain.
+  inline HeapObjectContents ContentType();
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.

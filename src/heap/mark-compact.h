@@ -666,6 +666,10 @@ class MarkCompactCollector {
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space);
 
+  void MigrateObjectTagged(HeapObject* dst, HeapObject* src, int size);
+  void MigrateObjectMixed(HeapObject* dst, HeapObject* src, int size);
+  void MigrateObjectRaw(HeapObject* dst, HeapObject* src, int size);
+
   bool TryPromoteObject(HeapObject* object, int object_size);
 
   void InvalidateCode(Code* code);

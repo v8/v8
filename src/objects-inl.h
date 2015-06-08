@@ -1529,20 +1529,36 @@ int HeapObject::Size() {
 }
 
 
-bool HeapObject::MayContainRawValues() {
+HeapObjectContents HeapObject::ContentType() {
   InstanceType type = map()->instance_type();
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) {
-      return false;
+      return HeapObjectContents::kTaggedValues;
     }
     DCHECK(type < FIRST_NONSTRING_TYPE);
     // There are four string representations: sequential strings, external
     // strings, cons strings, and sliced strings.
     // Only the former two contain raw values and no heap pointers (besides the
     // map-word).
-    return ((type & kIsIndirectStringMask) != kIsIndirectStringTag);
+    if (((type & kIsIndirectStringMask) != kIsIndirectStringTag))
+      return HeapObjectContents::kRawValues;
+    else
+      return HeapObjectContents::kTaggedValues;
+#if 0
+  // TODO(jochen): Enable eventually.
+  } else if (type == JS_FUNCTION_TYPE) {
+    return HeapObjectContents::kMixedValues;
+#endif
+  } else if (type <= LAST_DATA_TYPE) {
+    // TODO(jochen): Why do we claim that Code and Map contain only raw values?
+    return HeapObjectContents::kRawValues;
+  } else {
+    if (FLAG_unbox_double_fields) {
+      LayoutDescriptorHelper helper(map());
+      if (!helper.all_fields_tagged()) return HeapObjectContents::kMixedValues;
+    }
+    return HeapObjectContents::kTaggedValues;
   }
-  return (type <= LAST_DATA_TYPE);
 }
 
 

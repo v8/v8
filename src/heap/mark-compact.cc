@@ -2729,37 +2729,23 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
   DCHECK(heap()->AllowedToBeMigrated(src, dest));
   DCHECK(dest != LO_SPACE && size <= Page::kMaxRegularHeapObjectSize);
   if (dest == OLD_SPACE) {
-    Address src_slot = src_addr;
-    Address dst_slot = dst_addr;
     DCHECK(IsAligned(size, kPointerSize));
+    switch (src->ContentType()) {
+      case HeapObjectContents::kTaggedValues:
+        MigrateObjectTagged(dst, src, size);
+        break;
 
-    bool may_contain_raw_values = src->MayContainRawValues();
-#if V8_DOUBLE_FIELDS_UNBOXING
-    LayoutDescriptorHelper helper(src->map());
-    bool has_only_tagged_fields = helper.all_fields_tagged();
-#endif
-    for (int remaining = size / kPointerSize; remaining > 0; remaining--) {
-      Object* value = Memory::Object_at(src_slot);
+      case HeapObjectContents::kMixedValues:
+        MigrateObjectMixed(dst, src, size);
+        break;
 
-      Memory::Object_at(dst_slot) = value;
-
-#if V8_DOUBLE_FIELDS_UNBOXING
-      if (!may_contain_raw_values &&
-          (has_only_tagged_fields ||
-           helper.IsTagged(static_cast<int>(src_slot - src_addr))))
-#else
-      if (!may_contain_raw_values)
-#endif
-      {
-        RecordMigratedSlot(value, dst_slot);
-      }
-
-      src_slot += kPointerSize;
-      dst_slot += kPointerSize;
+      case HeapObjectContents::kRawValues:
+        MigrateObjectRaw(dst, src, size);
+        break;
     }
 
     if (compacting_ && dst->IsJSFunction()) {
-      Address code_entry_slot = dst_addr + JSFunction::kCodeEntryOffset;
+      Address code_entry_slot = dst->address() + JSFunction::kCodeEntryOffset;
       Address code_entry = Memory::Address_at(code_entry_slot);
 
       if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
@@ -2781,6 +2767,54 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
   }
   heap()->OnMoveEvent(dst, src, size);
   Memory::Address_at(src_addr) = dst_addr;
+}
+
+
+void MarkCompactCollector::MigrateObjectTagged(HeapObject* dst, HeapObject* src,
+                                               int size) {
+  Address src_slot = src->address();
+  Address dst_slot = dst->address();
+  for (int remaining = size / kPointerSize; remaining > 0; remaining--) {
+    Object* value = Memory::Object_at(src_slot);
+    Memory::Object_at(dst_slot) = value;
+    RecordMigratedSlot(value, dst_slot);
+    src_slot += kPointerSize;
+    dst_slot += kPointerSize;
+  }
+}
+
+
+void MarkCompactCollector::MigrateObjectMixed(HeapObject* dst, HeapObject* src,
+                                              int size) {
+  if (FLAG_unbox_double_fields) {
+    Address dst_addr = dst->address();
+    Address src_addr = src->address();
+    Address src_slot = src_addr;
+    Address dst_slot = dst_addr;
+
+    LayoutDescriptorHelper helper(src->map());
+    DCHECK(!helper.all_fields_tagged());
+    for (int remaining = size / kPointerSize; remaining > 0; remaining--) {
+      Object* value = Memory::Object_at(src_slot);
+
+      Memory::Object_at(dst_slot) = value;
+
+      if (helper.IsTagged(static_cast<int>(src_slot - src_addr))) {
+        RecordMigratedSlot(value, dst_slot);
+      }
+
+      src_slot += kPointerSize;
+      dst_slot += kPointerSize;
+    }
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
+void MarkCompactCollector::MigrateObjectRaw(HeapObject* dst, HeapObject* src,
+                                            int size) {
+  heap()->MoveBlock(dst->address(), src->address(), size);
 }
 
 
@@ -3152,22 +3186,31 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
   // We don't need to check large objects' layout descriptor since it can't
   // contain in-object fields anyway.
   if (object != NULL) {
-    // TODO(ishell): This is a workaround for crbug/454297. We must not have
-    // slots in data objects at all. Remove this once we found the root cause.
-    InstanceType type = object->map()->instance_type();
-    // Slots in maps and code can't be invalid because they are never shrunk.
-    if (type == MAP_TYPE || type == CODE_TYPE) return true;
-    // Consider slots in objects that contain ONLY raw data as invalid.
-    if (object->MayContainRawValues()) return false;
-    if (FLAG_unbox_double_fields) {
-      // Filter out slots that happen to point to unboxed double fields.
-      LayoutDescriptorHelper helper(object->map());
-      bool has_only_tagged_fields = helper.all_fields_tagged();
-      if (!has_only_tagged_fields &&
-          !helper.IsTagged(static_cast<int>(slot - object->address()))) {
+    switch (object->ContentType()) {
+      case HeapObjectContents::kTaggedValues:
+        return true;
+
+      case HeapObjectContents::kRawValues: {
+        InstanceType type = object->map()->instance_type();
+        // Slots in maps and code can't be invalid because they are never
+        // shrunk.
+        if (type == MAP_TYPE || type == CODE_TYPE) return true;
+
+        // Consider slots in objects that contain ONLY raw data as invalid.
         return false;
       }
+
+      case HeapObjectContents::kMixedValues: {
+        if (FLAG_unbox_double_fields) {
+          // Filter out slots that happen to point to unboxed double fields.
+          LayoutDescriptorHelper helper(object->map());
+          DCHECK(!helper.all_fields_tagged());
+          return helper.IsTagged(static_cast<int>(slot - object->address()));
+        }
+        break;
+      }
     }
+    UNREACHABLE();
   }
 
   return true;
