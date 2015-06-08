@@ -70,7 +70,7 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   // TODO(titzer): record the specialization for sharing code across multiple
   // contexts that have the same value in the corresponding context slot.
   Node* constant = jsgraph_->Constant(value);
-  NodeProperties::ReplaceWithValue(node, constant);
+  ReplaceWithValue(node, constant);
   return Replace(constant);
 }
 

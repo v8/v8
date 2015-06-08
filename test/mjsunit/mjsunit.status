@@ -378,6 +378,7 @@
   'regress/regress-331444': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
   'regress/regress-crbug-217858': [PASS, SLOW],
+  'regress/regress-crbug-491062': [PASS, SLOW],
   'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],

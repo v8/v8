@@ -276,8 +276,8 @@ Reduction JSInliner::Reduce(Node* node) {
   // type feedback in the compiler.
   AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
   graph_builder.CreateGraph(true, false);
-  JSContextSpecializer context_specializer(&jsgraph);
   GraphReducer graph_reducer(local_zone_, &graph);
+  JSContextSpecializer context_specializer(&graph_reducer, &jsgraph);
   graph_reducer.AddReducer(&context_specializer);
   graph_reducer.ReduceGraph();
 

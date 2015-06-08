@@ -496,8 +496,8 @@ struct ContextSpecializerPhase {
   static const char* phase_name() { return "context specializing"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSContextSpecializer spec(data->jsgraph());
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    JSContextSpecializer spec(&graph_reducer, data->jsgraph());
     AddReducer(data, &graph_reducer, &spec);
     graph_reducer.ReduceGraph();
   }

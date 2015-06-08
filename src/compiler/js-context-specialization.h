@@ -15,9 +15,10 @@ namespace compiler {
 
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-class JSContextSpecializer : public Reducer {
+class JSContextSpecializer : public AdvancedReducer {
  public:
-  explicit JSContextSpecializer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  JSContextSpecializer(Editor* editor, JSGraph* jsgraph)
+      : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
   Reduction Reduce(Node* node) override;
 
