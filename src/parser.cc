@@ -336,7 +336,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
                                             int pos, int end_pos) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
-  int handler_count = 0;
   int parameter_count = 0;
   const AstRawString* name = ast_value_factory()->empty_string();
 
@@ -379,13 +378,12 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
 
     materialized_literal_count = function_state.materialized_literal_count();
     expected_property_count = function_state.expected_property_count();
-    handler_count = function_state.handler_count();
   }
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       name, ast_value_factory(), function_scope, body,
-      materialized_literal_count, expected_property_count, handler_count,
-      parameter_count, FunctionLiteral::kNoDuplicateParameters,
+      materialized_literal_count, expected_property_count, parameter_count,
+      FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
       FunctionLiteral::kShouldLazyCompile, kind, pos);
 
@@ -1070,8 +1068,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       result = factory()->NewFunctionLiteral(
           ast_value_factory()->empty_string(), ast_value_factory(), scope_,
           body, function_state.materialized_literal_count(),
-          function_state.expected_property_count(),
-          function_state.handler_count(), 0,
+          function_state.expected_property_count(), 0,
           FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
           FunctionLiteral::kShouldLazyCompile, FunctionKind::kNormalFunction,
@@ -3020,10 +3017,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL && finally_block != NULL) {
     // If we have both, create an inner try/catch.
     DCHECK(catch_scope != NULL && catch_variable != NULL);
-    int index = function_state_->NextHandlerIndex();
-    TryCatchStatement* statement = factory()->NewTryCatchStatement(
-        index, try_block, catch_scope, catch_variable, catch_block,
-        RelocInfo::kNoPosition);
+    TryCatchStatement* statement =
+        factory()->NewTryCatchStatement(try_block, catch_scope, catch_variable,
+                                        catch_block, RelocInfo::kNoPosition);
     try_block = factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
     try_block->AddStatement(statement, zone());
     catch_block = NULL;  // Clear to indicate it's been handled.
@@ -3033,14 +3029,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL) {
     DCHECK(finally_block == NULL);
     DCHECK(catch_scope != NULL && catch_variable != NULL);
-    int index = function_state_->NextHandlerIndex();
-    result = factory()->NewTryCatchStatement(
-        index, try_block, catch_scope, catch_variable, catch_block, pos);
+    result = factory()->NewTryCatchStatement(try_block, catch_scope,
+                                             catch_variable, catch_block, pos);
   } else {
     DCHECK(finally_block != NULL);
-    int index = function_state_->NextHandlerIndex();
-    result = factory()->NewTryFinallyStatement(
-        index, try_block, finally_block, pos);
+    result = factory()->NewTryFinallyStatement(try_block, finally_block, pos);
   }
 
   return result;
@@ -3883,7 +3876,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   ZoneList<Statement*>* body = NULL;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
-  int handler_count = 0;
   ExpressionClassifier formals_classifier;
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       parenthesized_function_ ? FunctionLiteral::kShouldEagerCompile
@@ -4020,7 +4012,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                     kind, CHECK_OK);
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      handler_count = function_state.handler_count();
 
       if (is_strong(language_mode()) && IsSubclassConstructor(kind)) {
         if (!function_state.super_location().IsValid()) {
@@ -4059,9 +4050,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, ast_value_factory(), scope, body,
-      materialized_literal_count, expected_property_count, handler_count,
-      num_parameters, duplicate_parameters, function_type,
-      FunctionLiteral::kIsFunction, eager_compile_hint, kind, pos);
+      materialized_literal_count, expected_property_count, num_parameters,
+      duplicate_parameters, function_type, FunctionLiteral::kIsFunction,
+      eager_compile_hint, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();

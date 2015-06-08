@@ -319,9 +319,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
+  cgen.PopulateHandlerTable(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_has_reloc_info_for_serialization(info->will_serialize());
-  code->set_handler_table(*cgen.handler_table());
   code->set_compiled_optimizable(info->IsOptimizable());
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
@@ -398,6 +398,32 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   info->set_ic_total_count(ic_total_count_);
   DCHECK(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
+}
+
+
+void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
+  int handler_table_size = static_cast<int>(handler_table_.size());
+  Handle<HandlerTable> table =
+      Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+          HandlerTable::LengthForRange(handler_table_size), TENURED));
+  for (int i = 0; i < handler_table_size; ++i) {
+    HandlerTable::CatchPrediction prediction =
+        handler_table_[i].try_catch_depth > 0 ? HandlerTable::CAUGHT
+                                              : HandlerTable::UNCAUGHT;
+    table->SetRangeStart(i, handler_table_[i].range_start);
+    table->SetRangeEnd(i, handler_table_[i].range_end);
+    table->SetRangeHandler(i, handler_table_[i].handler_offset, prediction);
+    table->SetRangeDepth(i, handler_table_[i].stack_depth);
+  }
+  code->set_handler_table(*table);
+}
+
+
+int FullCodeGenerator::NewHandlerTableEntry() {
+  int index = static_cast<int>(handler_table_.size());
+  HandlerTableEntry entry = {0, 0, 0, 0, 0};
+  handler_table_.push_back(entry);
+  return index;
 }
 
 
@@ -1229,11 +1255,12 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   __ bind(&try_entry);
 
   try_catch_depth_++;
-  EnterTryBlock(stmt->index(), &handler_entry);
+  int handler_index = NewHandlerTableEntry();
+  EnterTryBlock(handler_index, &handler_entry);
   { TryCatch try_body(this);
     Visit(stmt->try_block());
   }
-  ExitTryBlock(stmt->index());
+  ExitTryBlock(handler_index);
   try_catch_depth_--;
   __ bind(&exit);
 }
@@ -1286,11 +1313,12 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Set up try handler.
   __ bind(&try_entry);
-  EnterTryBlock(stmt->index(), &handler_entry);
+  int handler_index = NewHandlerTableEntry();
+  EnterTryBlock(handler_index, &handler_entry);
   { TryFinally try_body(this, &finally_entry);
     Visit(stmt->try_block());
   }
-  ExitTryBlock(stmt->index());
+  ExitTryBlock(handler_index);
   // Execute the finally block on the way out.  Clobber the unpredictable
   // value in the result register with one that's safe for GC because the
   // finally block will unconditionally preserve the result register on the
@@ -1451,18 +1479,18 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
-  handler_table()->SetRangeStart(index, masm()->pc_offset());
-  HandlerTable::CatchPrediction prediction =
-      try_catch_depth_ > 0 ? HandlerTable::CAUGHT : HandlerTable::UNCAUGHT;
-  handler_table()->SetRangeHandler(index, handler->pos(), prediction);
+void FullCodeGenerator::EnterTryBlock(int handler_index, Label* handler) {
+  HandlerTableEntry* entry = &handler_table_[handler_index];
+  entry->range_start = masm()->pc_offset();
+  entry->handler_offset = handler->pos();
+  entry->try_catch_depth = try_catch_depth_;
 
   // Determine expression stack depth of try statement.
   int stack_depth = info_->scope()->num_stack_slots();  // Include stack locals.
   for (NestedStatement* current = nesting_stack_; current != NULL; /*nop*/) {
     current = current->AccumulateDepth(&stack_depth);
   }
-  handler_table()->SetRangeDepth(index, stack_depth);
+  entry->stack_depth = stack_depth;
 
   // Push context onto operand stack.
   STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
@@ -1470,8 +1498,9 @@ void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
 }
 
 
-void FullCodeGenerator::ExitTryBlock(int index) {
-  handler_table()->SetRangeEnd(index, masm()->pc_offset());
+void FullCodeGenerator::ExitTryBlock(int handler_index) {
+  HandlerTableEntry* entry = &handler_table_[handler_index];
+  entry->range_end = masm()->pc_offset();
 
   // Drop context from operand stack.
   __ Drop(TryBlockConstant::kElementCount);

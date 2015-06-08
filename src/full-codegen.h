@@ -77,6 +77,7 @@ class FullCodeGenerator: public AstVisitor {
                              : 0,
                          info->zone()),
         back_edges_(2, info->zone()),
+        handler_table_(info->zone()),
         ic_total_count_(0) {
     DCHECK(!info->IsStub());
     Initialize();
@@ -750,13 +751,14 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
+  void PopulateHandlerTable(Handle<Code> code);
 
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
 
   void EmitLoadStoreICSlot(FeedbackVectorICSlot slot);
 
-  Handle<HandlerTable> handler_table() { return handler_table_; }
+  int NewHandlerTableEntry();
 
   struct BailoutEntry {
     BailoutId id;
@@ -767,6 +769,14 @@ class FullCodeGenerator: public AstVisitor {
     BailoutId id;
     unsigned pc;
     uint32_t loop_depth;
+  };
+
+  struct HandlerTableEntry {
+    unsigned range_start;
+    unsigned range_end;
+    unsigned handler_offset;
+    int stack_depth;
+    int try_catch_depth;
   };
 
   class ExpressionContext BASE_EMBEDDED {
@@ -974,8 +984,8 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BackEdgeEntry> back_edges_;
+  ZoneVector<HandlerTableEntry> handler_table_;
   int ic_total_count_;
-  Handle<HandlerTable> handler_table_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
 

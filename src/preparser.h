@@ -221,9 +221,6 @@ class ParserBase : public Traits {
       return next_materialized_literal_index_;
     }
 
-    int NextHandlerIndex() { return next_handler_index_++; }
-    int handler_count() { return next_handler_index_; }
-
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
@@ -264,9 +261,6 @@ class ParserBase : public Traits {
     // array literals.
     int next_materialized_literal_index_;
 
-    // Used to assign a per-function index to try and catch handlers.
-    int next_handler_index_;
-
     // Properties count estimation.
     int expected_property_count_;
 
@@ -305,21 +299,18 @@ class ParserBase : public Traits {
       function_state_ = parser->function_state_;
       next_materialized_literal_index_ =
           function_state_->next_materialized_literal_index_;
-      next_handler_index_ = function_state_->next_handler_index_;
       expected_property_count_ = function_state_->expected_property_count_;
     }
 
     void Restore() {
       function_state_->next_materialized_literal_index_ =
           next_materialized_literal_index_;
-      function_state_->next_handler_index_ = next_handler_index_;
       function_state_->expected_property_count_ = expected_property_count_;
     }
 
    private:
     FunctionState* function_state_;
     int next_materialized_literal_index_;
-    int next_handler_index_;
     int expected_property_count_;
   };
 
@@ -1487,7 +1478,7 @@ class PreParserFactory {
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, AstValueFactory* ast_value_factory,
       Scope* scope, PreParserStatementList body, int materialized_literal_count,
-      int expected_property_count, int handler_count, int parameter_count,
+      int expected_property_count, int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
@@ -2046,7 +2037,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack, Scope** scope_stack, Scope* scope,
     FunctionKind kind, typename Traits::Type::Factory* factory)
     : next_materialized_literal_index_(0),
-      next_handler_index_(0),
       expected_property_count_(0),
       this_location_(Scanner::Location::invalid()),
       return_location_(Scanner::Location::invalid()),
@@ -3055,9 +3045,6 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   }
   typename Traits::Type::YieldExpression yield =
       factory()->NewYield(generator_object, expression, kind, pos);
-  if (kind == Yield::kDelegating) {
-    yield->set_index(function_state_->NextHandlerIndex());
-  }
   return yield;
 }
 
@@ -3785,7 +3772,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
   int num_parameters = scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;
-  int handler_count = 0;
   Scanner::Location super_loc;
 
   {
@@ -3811,7 +3797,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
         materialized_literal_count =
             function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
-        handler_count = function_state.handler_count();
       }
     } else {
       // Single-expression body
@@ -3825,7 +3810,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       body->Add(factory()->NewReturnStatement(expression, pos), zone());
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      handler_count = function_state.handler_count();
     }
     super_loc = function_state.super_location();
 
@@ -3849,8 +3833,8 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       this->EmptyIdentifierString(), ast_value_factory(), scope, body,
-      materialized_literal_count, expected_property_count, handler_count,
-      num_parameters, FunctionLiteral::kNoDuplicateParameters,
+      materialized_literal_count, expected_property_count, num_parameters,
+      FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
       FunctionLiteral::kShouldLazyCompile, FunctionKind::kArrowFunction,
       scope->start_position());
