@@ -991,7 +991,7 @@ class Isolate {
   }
 
   Map* get_initial_js_array_map(ElementsKind kind,
-                                ObjectStrength strength = WEAK);
+                                Strength strength = Strength::WEAK);
 
   static const int kArrayProtectorValid = 1;
   static const int kArrayProtectorInvalid = 0;

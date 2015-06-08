@@ -52,7 +52,7 @@ BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
       isolate_(isolate) {
   op_ =
       static_cast<Token::Value>(FIRST_TOKEN + OpField::decode(extra_ic_state));
-  strong_ = StrongField::decode(extra_ic_state);
+  strong_ = StrengthField::decode(extra_ic_state);
   left_kind_ = LeftKindField::decode(extra_ic_state);
   right_kind_ = fixed_right_arg_.IsJust()
                     ? (Smi::IsValid(fixed_right_arg_.FromJust()) ? SMI : INT32)
@@ -66,8 +66,7 @@ BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
 ExtraICState BinaryOpICState::GetExtraICState() const {
   ExtraICState extra_ic_state =
       OpField::encode(op_ - FIRST_TOKEN) | LeftKindField::encode(left_kind_) |
-      ResultKindField::encode(result_kind_) |
-      StrongField::encode(strong_) |
+      ResultKindField::encode(result_kind_) | StrengthField::encode(strong_) |
       HasFixedRightArgField::encode(fixed_right_arg_.IsJust());
   if (fixed_right_arg_.IsJust()) {
     extra_ic_state = FixedRightArgValueField::update(
@@ -86,14 +85,14 @@ void BinaryOpICState::GenerateAheadOfTime(
 // expensive at runtime. When solved we should be able to add most binops to
 // the snapshot instead of hand-picking them.
 // Generated list of commonly used stubs
-#define GENERATE(op, left_kind, right_kind, result_kind)      \
-  do {                                                        \
-    BinaryOpICState state(isolate, op, LanguageMode::SLOPPY); \
-    state.left_kind_ = left_kind;                             \
-    state.fixed_right_arg_ = Nothing<int>();                  \
-    state.right_kind_ = right_kind;                           \
-    state.result_kind_ = result_kind;                         \
-    Generate(isolate, state);                                 \
+#define GENERATE(op, left_kind, right_kind, result_kind) \
+  do {                                                   \
+    BinaryOpICState state(isolate, op, Strength::WEAK);  \
+    state.left_kind_ = left_kind;                        \
+    state.fixed_right_arg_ = Nothing<int>();             \
+    state.right_kind_ = right_kind;                      \
+    state.result_kind_ = result_kind;                    \
+    Generate(isolate, state);                            \
   } while (false)
   GENERATE(Token::ADD, INT32, INT32, INT32);
   GENERATE(Token::ADD, INT32, INT32, NUMBER);
@@ -190,7 +189,7 @@ void BinaryOpICState::GenerateAheadOfTime(
 #undef GENERATE
 #define GENERATE(op, left_kind, fixed_right_arg_value, result_kind) \
   do {                                                              \
-    BinaryOpICState state(isolate, op, LanguageMode::SLOPPY);       \
+    BinaryOpICState state(isolate, op, Strength::WEAK);             \
     state.left_kind_ = left_kind;                                   \
     state.fixed_right_arg_ = Just(fixed_right_arg_value);           \
     state.right_kind_ = SMI;                                        \

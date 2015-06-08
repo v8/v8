@@ -952,7 +952,7 @@ TEST(Iteration) {
   // Allocate a JS array to OLD_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewJSArray(10);
   objs[next_objs_index++] =
-      factory->NewJSArray(10, FAST_HOLEY_ELEMENTS, WEAK, TENURED);
+      factory->NewJSArray(10, FAST_HOLEY_ELEMENTS, Strength::WEAK, TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewStringFromStaticChars("abcdefghij");
@@ -2530,8 +2530,8 @@ TEST(PrototypeTransitionClearing) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     SimulateFullSpace(space);
-    prototype =
-        factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, WEAK, TENURED);
+    prototype = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
+                                    Strength::WEAK, TENURED);
   }
 
   // Add a prototype on an evacuation candidate and verify that transition

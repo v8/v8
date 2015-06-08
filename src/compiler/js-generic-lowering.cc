@@ -65,13 +65,13 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 }
 
 
-#define REPLACE_BINARY_OP_IC_CALL(op, token)                            \
-  void JSGenericLowering::Lower##op(Node* node) {                       \
-    CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);       \
-    ReplaceWithStubCall(                                                \
-        node, CodeFactory::BinaryOpIC(isolate(), token,                 \
-                                      OpParameter<LanguageMode>(node)), \
-        CallDescriptor::kPatchableCallSiteWithNop | flags);             \
+#define REPLACE_BINARY_OP_IC_CALL(op, token)                                  \
+  void JSGenericLowering::Lower##op(Node* node) {                             \
+    CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);             \
+    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(                        \
+                                  isolate(), token,                           \
+                                  strength(OpParameter<LanguageMode>(node))), \
+                        CallDescriptor::kPatchableCallSiteWithNop | flags);   \
   }
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseXor, Token::BIT_XOR)
@@ -131,8 +131,8 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 
 
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
-  Callable callable =
-      CodeFactory::CompareIC(isolate(), token, OpParameter<LanguageMode>(node));
+  Callable callable = CodeFactory::CompareIC(
+      isolate(), token, strength(OpParameter<LanguageMode>(node)));
 
   // Create a new call node asking a CompareIC for help.
   NodeVector inputs(zone());

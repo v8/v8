@@ -1176,7 +1176,7 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
-  LanguageMode language_mode() { return hydrogen()->language_mode(); }
+  Strength strength() { return hydrogen()->strength(); }
 
   Token::Value op() const { return hydrogen()->token(); }
 };
@@ -1549,7 +1549,7 @@ class LArithmeticT final : public LTemplateInstruction<1, 3, 0> {
 
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 
-  LanguageMode language_mode() { return hydrogen()->language_mode(); }
+  Strength strength() { return hydrogen()->strength(); }
 
  private:
   Token::Value op_;

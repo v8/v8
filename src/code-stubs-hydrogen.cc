@@ -1361,19 +1361,16 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_leftisstring.If<HIsStringAndBranch>(left);
       if_leftisstring.Then();
       {
-        Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    Type::String(zone()), right_type,
-                    result_type, state.fixed_right_arg(),
-                    allocation_mode, state.language_mode()));
+        Push(BuildBinaryOperation(state.op(), left, right, Type::String(zone()),
+                                  right_type, result_type,
+                                  state.fixed_right_arg(), allocation_mode,
+                                  state.strength()));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode,
-                    state.language_mode()));
+            state.op(), left, right, left_type, right_type, result_type,
+            state.fixed_right_arg(), allocation_mode, state.strength()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -1382,28 +1379,24 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_rightisstring.If<HIsStringAndBranch>(right);
       if_rightisstring.Then();
       {
-        Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    left_type, Type::String(zone()),
-                    result_type, state.fixed_right_arg(),
-                    allocation_mode, state.language_mode()));
+        Push(BuildBinaryOperation(state.op(), left, right, left_type,
+                                  Type::String(zone()), result_type,
+                                  state.fixed_right_arg(), allocation_mode,
+                                  state.strength()));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode,
-                    state.language_mode()));
+            state.op(), left, right, left_type, right_type, result_type,
+            state.fixed_right_arg(), allocation_mode, state.strength()));
       }
       if_rightisstring.End();
       result = Pop();
     }
   } else {
     result = BuildBinaryOperation(
-            state.op(), left, right,
-            left_type, right_type, result_type,
-            state.fixed_right_arg(), allocation_mode, state.language_mode());
+        state.op(), left, right, left_type, right_type, result_type,
+        state.fixed_right_arg(), allocation_mode, state.strength());
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -1435,10 +1428,9 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
   Type* result_type = state.GetResultType(zone());
   HAllocationMode allocation_mode(allocation_site);
 
-  return BuildBinaryOperation(state.op(), left, right,
-                              left_type, right_type, result_type,
-                              state.fixed_right_arg(), allocation_mode,
-                              state.language_mode());
+  return BuildBinaryOperation(state.op(), left, right, left_type, right_type,
+                              result_type, state.fixed_right_arg(),
+                              allocation_mode, state.strength());
 }
 
 

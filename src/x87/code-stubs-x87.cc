@@ -1371,7 +1371,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Check for undefined.  undefined OP undefined is false even though
       // undefined == undefined.
       __ cmp(edx, isolate()->factory()->undefined_value());
-      if (strong()) {
+      if (is_strong(strength())) {
         // In strong mode, this comparison must throw, so call the runtime.
         __ j(equal, &runtime_call, Label::kFar);
       } else {
@@ -1397,7 +1397,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpb(ecx, static_cast<uint8_t>(SYMBOL_TYPE));
       __ j(equal, &runtime_call, Label::kFar);
-      if (strong()) {
+      if (is_strong(strength())) {
         // We have already tested for smis and heap numbers, so if both
         // arguments are not strings we must proceed to the slow case.
         __ test(ecx, Immediate(kIsNotStringMask));
@@ -1601,7 +1601,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cc == equal) {
     builtin = strict() ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
-    builtin = strong() ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+    builtin =
+        is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
     __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
   }
 
@@ -3307,7 +3308,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  CompareICStub stub(isolate(), op(), strong(), CompareICState::GENERIC,
+  CompareICStub stub(isolate(), op(), strength(), CompareICState::GENERIC,
                      CompareICState::GENERIC, CompareICState::GENERIC);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 

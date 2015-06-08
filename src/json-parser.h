@@ -525,7 +525,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
     fast_elements->set(i, *elements[i]);
   }
   Handle<Object> json_array = factory()->NewJSArrayWithElements(
-      fast_elements, FAST_ELEMENTS, WEAK, pretenure_);
+      fast_elements, FAST_ELEMENTS, Strength::WEAK, pretenure_);
   return scope.CloseAndEscape(json_array);
 }
 

@@ -95,17 +95,16 @@ Callable CodeFactory::KeyedStoreICInOptimizedCode(
 
 // static
 Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op,
-                                LanguageMode language_mode) {
-  Handle<Code> code =
-      CompareIC::GetUninitialized(isolate, op, is_strong(language_mode));
+                                Strength strength) {
+  Handle<Code> code = CompareIC::GetUninitialized(isolate, op, strength);
   return Callable(code, CompareDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
-                                 LanguageMode language_mode) {
-  BinaryOpICStub stub(isolate, op, language_mode);
+                                 Strength strength) {
+  BinaryOpICStub stub(isolate, op, strength);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

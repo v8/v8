@@ -56,9 +56,9 @@ std::ostream& operator<<(std::ostream& os, const CallICState& s);
 class BinaryOpICState final BASE_EMBEDDED {
  public:
   BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state);
-  BinaryOpICState(Isolate* isolate, Token::Value op, LanguageMode language_mode)
+  BinaryOpICState(Isolate* isolate, Token::Value op, Strength strength)
       : op_(op),
-        strong_(is_strong(language_mode)),
+        strong_(is_strong(strength)),
         left_kind_(NONE),
         right_kind_(NONE),
         result_kind_(NONE),
@@ -105,8 +105,8 @@ class BinaryOpICState final BASE_EMBEDDED {
     return Max(left_kind_, right_kind_) == GENERIC;
   }
 
-  LanguageMode language_mode() const {
-    return strong_ ? LanguageMode::STRONG : LanguageMode::SLOPPY;
+  Strength strength() const {
+    return strong_ ? Strength::STRONG : Strength::WEAK;
   }
 
   // Returns true if the IC should enable the inline smi code (i.e. if either
@@ -147,7 +147,7 @@ class BinaryOpICState final BASE_EMBEDDED {
   class OpField : public BitField<int, 0, 4> {};
   class ResultKindField : public BitField<Kind, 4, 3> {};
   class LeftKindField : public BitField<Kind, 7, 3> {};
-  class StrongField : public BitField<bool, 10, 1> {};
+  class StrengthField : public BitField<bool, 10, 1> {};
   // When fixed right arg is set, we don't need to store the right kind.
   // Thus the two fields can overlap.
   class HasFixedRightArgField : public BitField<bool, 11, 1> {};

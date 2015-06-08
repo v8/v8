@@ -1429,15 +1429,11 @@ class HGraphBuilder {
                         HValue** operand,
                         HValue** shift_amount);
 
-  HValue* BuildBinaryOperation(Token::Value op,
-                               HValue* left,
-                               HValue* right,
-                               Type* left_type,
-                               Type* right_type,
-                               Type* result_type,
-                               Maybe<int> fixed_right_arg,
+  HValue* BuildBinaryOperation(Token::Value op, HValue* left, HValue* right,
+                               Type* left_type, Type* right_type,
+                               Type* result_type, Maybe<int> fixed_right_arg,
                                HAllocationMode allocation_mode,
-                               LanguageMode language_mode);
+                               Strength strength);
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object,
                                            HValue *dependency = NULL);

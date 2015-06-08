@@ -3971,22 +3971,21 @@ bool HStoreKeyed::NeedsCanonicalization() {
 #define H_CONSTANT_DOUBLE(val) \
   HConstant::New(isolate, zone, context, static_cast<double>(val))
 
-#define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                     \
-  HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,   \
-                            HValue* left, HValue* right,                     \
-                            LanguageMode language_mode) {                    \
-    if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {  \
-      HConstant* c_left = HConstant::cast(left);                             \
-      HConstant* c_right = HConstant::cast(right);                           \
-      if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {         \
-        double double_res = c_left->DoubleValue() op c_right->DoubleValue(); \
-        if (IsInt32Double(double_res)) {                                     \
-          return H_CONSTANT_INT(double_res);                                 \
-        }                                                                    \
-        return H_CONSTANT_DOUBLE(double_res);                                \
-      }                                                                      \
-    }                                                                        \
-    return new (zone) HInstr(context, left, right, language_mode);           \
+#define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                      \
+  HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,    \
+                            HValue* left, HValue* right, Strength strength) { \
+    if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {   \
+      HConstant* c_left = HConstant::cast(left);                              \
+      HConstant* c_right = HConstant::cast(right);                            \
+      if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {          \
+        double double_res = c_left->DoubleValue() op c_right->DoubleValue();  \
+        if (IsInt32Double(double_res)) {                                      \
+          return H_CONSTANT_INT(double_res);                                  \
+        }                                                                     \
+        return H_CONSTANT_DOUBLE(double_res);                                 \
+      }                                                                       \
+    }                                                                         \
+    return new (zone) HInstr(context, left, right, strength);                 \
   }
 
 
@@ -3998,8 +3997,7 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 
 
 HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* left, HValue* right,
-                              LanguageMode language_mode,
+                              HValue* left, HValue* right, Strength strength,
                               PretenureFlag pretenure_flag,
                               StringAddFlags flags,
                               Handle<AllocationSite> allocation_site) {
@@ -4017,9 +4015,8 @@ HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new(zone) HStringAdd(
-      context, left, right, language_mode, pretenure_flag, flags,
-      allocation_site);
+  return new (zone) HStringAdd(context, left, right, strength, pretenure_flag,
+                               flags, allocation_site);
 }
 
 
@@ -4217,8 +4214,7 @@ HInstruction* HMathMinMax::New(Isolate* isolate, Zone* zone, HValue* context,
 
 
 HInstruction* HMod::New(Isolate* isolate, Zone* zone, HValue* context,
-                        HValue* left, HValue* right,
-                        LanguageMode language_mode) {
+                        HValue* left, HValue* right, Strength strength) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4237,13 +4233,12 @@ HInstruction* HMod::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new(zone) HMod(context, left, right, language_mode);
+  return new (zone) HMod(context, left, right, strength);
 }
 
 
 HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
-                        HValue* left, HValue* right,
-                        LanguageMode language_mode) {
+                        HValue* left, HValue* right, Strength strength) {
   // If left and right are constant values, try to return a constant value.
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
@@ -4262,13 +4257,13 @@ HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new(zone) HDiv(context, left, right, language_mode);
+  return new (zone) HDiv(context, left, right, strength);
 }
 
 
 HInstruction* HBitwise::New(Isolate* isolate, Zone* zone, HValue* context,
                             Token::Value op, HValue* left, HValue* right,
-                            LanguageMode language_mode) {
+                            Strength strength) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4293,22 +4288,21 @@ HInstruction* HBitwise::New(Isolate* isolate, Zone* zone, HValue* context,
       return H_CONSTANT_INT(result);
     }
   }
-  return new(zone) HBitwise(context, op, left, right, language_mode);
+  return new (zone) HBitwise(context, op, left, right, strength);
 }
 
 
-#define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                          \
-  HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,  \
-                            HValue* left, HValue* right,                    \
-                            LanguageMode language_mode) {                   \
-    if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) { \
-      HConstant* c_left = HConstant::cast(left);                            \
-      HConstant* c_right = HConstant::cast(right);                          \
-      if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {        \
-        return H_CONSTANT_INT(result);                                      \
-      }                                                                     \
-    }                                                                       \
-    return new (zone) HInstr(context, left, right, language_mode);          \
+#define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                            \
+  HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,    \
+                            HValue* left, HValue* right, Strength strength) { \
+    if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {   \
+      HConstant* c_left = HConstant::cast(left);                              \
+      HConstant* c_right = HConstant::cast(right);                            \
+      if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {          \
+        return H_CONSTANT_INT(result);                                        \
+      }                                                                       \
+    }                                                                         \
+    return new (zone) HInstr(context, left, right, strength);                 \
   }
 
 
@@ -4321,8 +4315,7 @@ c_left->NumberValueAsInteger32() << (c_right->NumberValueAsInteger32() & 0x1f))
 
 
 HInstruction* HShr::New(Isolate* isolate, Zone* zone, HValue* context,
-                        HValue* left, HValue* right,
-                        LanguageMode language_mode) {
+                        HValue* left, HValue* right, Strength strength) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4335,7 +4328,7 @@ HInstruction* HShr::New(Isolate* isolate, Zone* zone, HValue* context,
       return H_CONSTANT_INT(static_cast<uint32_t>(left_val) >> right_val);
     }
   }
-  return new(zone) HShr(context, left, right, language_mode);
+  return new (zone) HShr(context, left, right, strength);
 }
 
 

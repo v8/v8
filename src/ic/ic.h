@@ -652,7 +652,7 @@ class BinaryOpIC : public IC {
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op,
-                                               LanguageMode language_mode);
+                                               Strength strength);
 
   MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
                                  Handle<Object> left,
@@ -673,7 +673,7 @@ class CompareIC : public IC {
 
   // Factory method for getting an uninitialized compare stub.
   static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op,
-                                       bool strong);
+                                       Strength strength);
 
  private:
   static bool HasInlinedSmiCode(Address address);
@@ -682,7 +682,7 @@ class CompareIC : public IC {
   Condition GetCondition() const { return ComputeCondition(op_); }
 
   static Code* GetRawUninitialized(Isolate* isolate, Token::Value op,
-                                   bool strong);
+                                   Strength strength);
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     Address constant_pool);
