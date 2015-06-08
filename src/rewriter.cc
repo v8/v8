@@ -235,6 +235,9 @@ bool Rewriter::Rewrite(ParseInfo* info) {
       //   eval('with ({x:1}) x = 1');
       // the end position of the function generated for executing the eval code
       // coincides with the end of the with scope which is the position of '1'.
+      // Note that this may mean the position is outside the source code
+      // completely if there is no terminal newline, curly brace, or semicolon,
+      // often the case for 'eval'.
       int pos = function->end_position();
       VariableProxy* result_proxy =
           processor.factory()->NewVariableProxy(result, pos);

@@ -511,18 +511,9 @@ class CaptureStackTraceHelper {
       // line_number is already shifted by the script_line_offset.
       int relative_line_number = line_number - script_line_offset;
       if (!column_key_.is_null() && relative_line_number >= 0) {
-        Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-        int start = (relative_line_number == 0) ? 0 :
-            Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
-        int column_offset = position - start;
-        if (relative_line_number == 0) {
-          // For the case where the code is on the same line as the script
-          // tag.
-          column_offset += script->column_offset()->value();
-        }
+        int column = Script::GetColumnNumber(script, position);
         JSObject::AddProperty(stack_frame, column_key_,
-                              handle(Smi::FromInt(column_offset + 1), isolate_),
-                              NONE);
+                              handle(Smi::FromInt(column + 1), isolate_), NONE);
       }
       JSObject::AddProperty(stack_frame, line_key_,
                             handle(Smi::FromInt(line_number + 1), isolate_),

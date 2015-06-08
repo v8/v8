@@ -6540,6 +6540,11 @@ class Script: public Struct {
   static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
   static const int kSize = kSourceMappingUrlOffset + kPointerSize;
 
+  // Sync with constants in macros.py.
+  static const int kReductionIndex = 0;
+  static const int kNumberOfLinesIndex = 1;
+  static const int kFirstLineEndIndex = 2;
+
  private:
   int GetLineNumberWithArray(int code_pos);
 

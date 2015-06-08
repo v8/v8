@@ -14301,6 +14301,32 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
+void ChangeNewlines(int kind, char* dest, size_t dest_len, const char* source) {
+  if (kind == 0) {
+    for (size_t i = 0; i <= strlen(source); i++) {
+      dest[i] = source[i];
+    }
+  } else {
+    for (size_t i = 0; i <= strlen(source); i++) {
+      char c = source[i];
+      if (c == '\n') {
+        if (kind == 1) {
+          *dest++ = '\r';
+          *dest++ = '\n';
+        } else {
+          // UTF-8 version of 0x2028 newline.
+          *dest++ = '\xe2';
+          *dest++ = '\x80';
+          *dest++ = '\xa8';
+        }
+      } else {
+        *dest++ = c;
+      }
+    }
+  }
+}
+
+
 // Tests the C++ StackTrace API.
 // TODO(3074796): Reenable this as a THREADED_TEST once it passes.
 // THREADED_TEST(CaptureStackTrace) {
@@ -14314,50 +14340,61 @@ TEST(CaptureStackTrace) {
              v8::FunctionTemplate::New(isolate, AnalyzeStackInNativeCode));
   LocalContext context(0, templ);
 
-  // Test getting OVERVIEW information. Should ignore information that is not
-  // script name, function name, line number, and column offset.
-  const char *overview_source =
-    "function bar() {\n"
-    "  var y; AnalyzeStackInNativeCode(1);\n"
-    "}\n"
-    "function foo() {\n"
-    "\n"
-    "  bar();\n"
-    "}\n"
-    "var x;eval('new foo();');";
-  v8::Handle<v8::String> overview_src =
-      v8::String::NewFromUtf8(isolate, overview_source);
-  v8::ScriptCompiler::Source script_source(overview_src,
-                                           v8::ScriptOrigin(origin));
-  v8::Handle<Value> overview_result(
-      v8::ScriptCompiler::CompileUnbound(isolate, &script_source)
-          ->BindToCurrentContext()
-          ->Run());
-  CHECK(!overview_result.IsEmpty());
-  CHECK(overview_result->IsObject());
+  for (int i = 0; i < 3; i++) {
+    // Test getting OVERVIEW information. Should ignore information that is not
+    // script name, function name, line number, and column offset.
+    const char* overview_source =
+        "function bar() {\n"
+        "  var y; AnalyzeStackInNativeCode(1);\n"
+        "}\n"
+        "function foo() {\n"
+        "\n"
+        "  bar();\n"
+        "}\n"
+        "var x;eval('new foo();');";
+    size_t munged_length = strlen(overview_source) * 3 + 1;
+    char* overview_munged_source = new char[munged_length];
+    ChangeNewlines(i, overview_munged_source, munged_length, overview_source);
 
-  // Test getting DETAILED information.
-  const char *detailed_source =
-    "function bat() {AnalyzeStackInNativeCode(2);\n"
-    "}\n"
-    "\n"
-    "function baz() {\n"
-    "  bat();\n"
-    "}\n"
-    "eval('new baz();');";
-  v8::Handle<v8::String> detailed_src =
-      v8::String::NewFromUtf8(isolate, detailed_source);
-  // Make the script using a non-zero line and column offset.
-  v8::Handle<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
-  v8::Handle<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
-  v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
-  v8::ScriptCompiler::Source script_source2(detailed_src, detailed_origin);
-  v8::Handle<v8::UnboundScript> detailed_script(
-      v8::ScriptCompiler::CompileUnbound(isolate, &script_source2));
-  v8::Handle<Value> detailed_result(
-      detailed_script->BindToCurrentContext()->Run());
-  CHECK(!detailed_result.IsEmpty());
-  CHECK(detailed_result->IsObject());
+    v8::Handle<v8::String> overview_src =
+        v8::String::NewFromUtf8(isolate, overview_munged_source);
+    delete[] overview_munged_source;
+    v8::ScriptCompiler::Source script_source(overview_src,
+                                             v8::ScriptOrigin(origin));
+    v8::Handle<Value> overview_result(
+        v8::ScriptCompiler::CompileUnbound(isolate, &script_source)
+            ->BindToCurrentContext()
+            ->Run());
+    CHECK(!overview_result.IsEmpty());
+    CHECK(overview_result->IsObject());
+
+    // Test getting DETAILED information.
+    const char* detailed_source =
+        "function bat() {AnalyzeStackInNativeCode(2);\n"
+        "}\n"
+        "\n"
+        "function baz() {\n"
+        "  bat();\n"
+        "}\n"
+        "eval('new baz();');";
+    munged_length = strlen(detailed_source) * 3 + 1;
+    char* detailed_munged_source = new char[munged_length];
+    ChangeNewlines(i, detailed_munged_source, munged_length, detailed_source);
+    v8::Handle<v8::String> detailed_src =
+        v8::String::NewFromUtf8(isolate, detailed_munged_source);
+    delete[] detailed_munged_source;
+    // Make the script using a non-zero line and column offset.
+    v8::Handle<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
+    v8::Handle<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
+    v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+    v8::ScriptCompiler::Source script_source2(detailed_src, detailed_origin);
+    v8::Handle<v8::UnboundScript> detailed_script(
+        v8::ScriptCompiler::CompileUnbound(isolate, &script_source2));
+    v8::Handle<Value> detailed_result(
+        detailed_script->BindToCurrentContext()->Run());
+    CHECK(!detailed_result.IsEmpty());
+    CHECK(detailed_result->IsObject());
+  }
 }
 
 

@@ -40,6 +40,7 @@ var InternalArray = utils.InternalArray;
 var ObjectDefineProperty = utils.ObjectDefineProperty;
 
 var ArrayJoin;
+var MathFloor;
 var ObjectToString;
 var StringCharAt;
 var StringIndexOf;
@@ -47,6 +48,7 @@ var StringSubstring;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
+  MathFloor = from.MathFloor;
   ObjectToString = from.ObjectToString;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
@@ -203,41 +205,94 @@ function GetSourceLine(message) {
   return location.sourceText();
 }
 
+
+function Newlines(source, from, to, reduction) {
+  var newLines = new InternalArray();
+  if (!IS_STRING(source)) return newLines;
+
+  var length = source.length;
+  for (; from < to && from < length && newLines.length < reduction - 1
+       ; ++from) {
+    var c = %_StringCharCodeAt(source, from);
+    if (c == ASCII_CR) {
+      if (from < length - 1) {
+        var c2 = %_StringCharCodeAt(source, from + 1);
+        if (c2 == ASCII_NL) {
+          from++;  // CR-LF counts as one newline.
+        }
+      }
+      newLines.push(from);
+    } else if (c == ASCII_NL) {
+      newLines.push(from);
+    }
+  }
+  // End-of-file virtual end-of-line.
+  if (to >= length) {
+    var last = length != 0 ? %_StringCharCodeAt(source, length - 1) : 0;
+    if (last != ASCII_NL && last != ASCII_CR) newLines.push(source.length - 1);
+  }
+  return newLines;
+}
+
+
+function ScriptLineEnd(line) {
+  if (line < 0) return -1;
+  var source = this.source;
+  if (!IS_STRING(source)) return -1;
+  var line_ends = this.line_ends;
+  var reduction = line_ends[REDUCTION_INDEX];
+  var index = MathFloor(line / reduction) + FIRST_LINE_END_INDEX;
+  if (index >= line_ends.length) return -1;
+  var position = line_ends[index];
+  if (line % reduction == 0) return position;
+  var lines = Newlines(source, position + 1, source.length, reduction);
+  return lines[line % reduction - 1];
+}
+
+
 /**
  * Find a line number given a specific source position.
  * @param {number} position The source position.
- * @return {number} 0 if input too small, -1 if input too large,
-       else the line number.
+ * @return {number} -1 if position too large, else the 0-based line number.
  */
 function ScriptLineFromPosition(position) {
-  var lower = 0;
-  var upper = this.lineCount() - 1;
+  var source = this.source;
+  if (!IS_STRING(source)) return -1;
+
   var line_ends = this.line_ends;
+  var lower = FIRST_LINE_END_INDEX;
+  var upper = line_ends.length - 1;
 
-  // We'll never find invalid positions so bail right away.
-  if (position > line_ends[upper]) {
-    return -1;
-  }
+  var reduction = line_ends[REDUCTION_INDEX];
+  // This '>' would normally be a '>=', but due to {}-less 'with' statements in
+  // top-level code we sometimes encounter code positions that are one character
+  // after the end of the source. See comment in Rewriter::Rewrite.
+  if (position > source.length) return -1;
 
-  // This means we don't have to safe-guard indexing line_ends[i - 1].
-  if (position <= line_ends[0]) {
-    return 0;
-  }
+  var index = 0;
 
   // Binary search to find line # from position range.
-  while (upper >= 1) {
-    var i = (lower + upper) >> 1;
-
-    if (position > line_ends[i]) {
-      lower = i + 1;
-    } else if (position <= line_ends[i - 1]) {
-      upper = i - 1;
-    } else {
-      return i;
+  if (position > line_ends[upper]) {
+    index = upper;
+  } else {
+    // Invariant: position > line_ends[lower]
+    // Invariant: position <= line_ends[upper]
+    while (lower + 1 < upper) {
+      // Since they differ by at least 2, i must be different from both
+      // upper or lower.
+      var i = (lower + upper) >> 1;
+      if (position > line_ends[i]) {
+        lower = i;
+      } else {
+        upper = i;
+      }
     }
+    index = lower;
   }
 
-  return -1;
+  var line = (index - FIRST_LINE_END_INDEX) * reduction;
+  return line +
+      Newlines(source, line_ends[index] + 1, position, reduction).length;
 }
 
 /**
@@ -250,14 +305,19 @@ function ScriptLineFromPosition(position) {
  */
 function ScriptLocationFromPosition(position,
                                     include_resource_offset) {
+  // Get zero-based line number.
   var line = this.lineFromPosition(position);
   if (line == -1) return null;
 
   // Determine start, end and column.
-  var line_ends = this.line_ends;
-  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
-  var end = line_ends[line];
-  if (end > 0 && %_CallFunction(this.source, end - 1, StringCharAt) == '\r') {
+  var start = this.lineEnd(line) + 1;
+  // End will be used for substr, so make it non-inclusive.
+  var end = this.lineEnd(line + 1) + 1;
+  if (end > this.source.length) end = this.source.length;
+  // But trim the newline if there is one (there might not be at EOF).
+  while (end > start) {
+    var trim_char = %_CallFunction(this.source, end - 1, StringCharAt);
+    if (trim_char != '\n' && trim_char != '\r') break;
     end--;
   }
   var column = position - start;
@@ -317,7 +377,7 @@ function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
     }
 
     return this.locationFromPosition(
-        this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
+        this.lineEnd(offset_line + line) + 1 + column);  // line > 0 here.
   }
 }
 
@@ -351,15 +411,14 @@ function ScriptSourceSlice(opt_from_line, opt_to_line) {
     return null;
   }
 
-  var line_ends = this.line_ends;
-  var from_position = from_line == 0 ? 0 : line_ends[from_line - 1] + 1;
-  var to_position = to_line == 0 ? 0 : line_ends[to_line - 1] + 1;
+  var from_position = this.lineEnd(from_line) + 1;
+  var to_position = this.lineEnd(to_line) + 1;
 
   // Return a source slice with line numbers re-adjusted to the resource.
   return new SourceSlice(this,
                          from_line + this.line_offset,
                          to_line + this.line_offset,
-                          from_position, to_position);
+                         from_position, to_position);
 }
 
 
@@ -377,9 +436,8 @@ function ScriptSourceLine(opt_line) {
   }
 
   // Return the source line.
-  var line_ends = this.line_ends;
-  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
-  var end = line_ends[line];
+  var start = this.lineEnd(line) + 1;
+  var end = this.lineEnd(line + 1);
   return %_CallFunction(this.source, start, end, StringSubstring);
 }
 
@@ -391,7 +449,7 @@ function ScriptSourceLine(opt_line) {
  */
 function ScriptLineCount() {
   // Return number of source lines.
-  return this.line_ends.length;
+  return this.line_ends[NUMBER_OF_LINES_INDEX];
 }
 
 
@@ -426,7 +484,8 @@ utils.SetUpLockedPrototype(Script, [
     "sourceSlice", ScriptSourceSlice,
     "sourceLine", ScriptSourceLine,
     "lineCount", ScriptLineCount,
-    "nameOrSourceURL", ScriptNameOrSourceURL
+    "nameOrSourceURL", ScriptNameOrSourceURL,
+    "lineEnd", ScriptLineEnd
   ]
 );
 
