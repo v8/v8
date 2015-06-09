@@ -93,7 +93,7 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 
 DynamicGlobalAccess::DynamicGlobalAccess(const Handle<String>& name,
                                          uint32_t check_bitset,
-                                         const VectorSlotPair& feedback,
+                                         const ResolvedFeedbackSlot& feedback,
                                          ContextualMode mode)
     : name_(name),
       check_bitset_(check_bitset),
@@ -175,14 +175,13 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const* op) {
 }
 
 
-bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
-  return lhs.slot().ToInt() == rhs.slot().ToInt() &&
-         lhs.vector().is_identical_to(rhs.vector());
+bool operator==(ResolvedFeedbackSlot const& lhs,
+                ResolvedFeedbackSlot const& rhs) {
+  return lhs.slot().ToInt() == rhs.slot().ToInt();
 }
 
 
-size_t hash_value(VectorSlotPair const& p) {
-  // TODO(mvstanton): include the vector in the hash.
+size_t hash_value(ResolvedFeedbackSlot const& p) {
   base::hash<int> h;
   return h(p.slot().ToInt());
 }
@@ -458,25 +457,25 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 }
 
 
-const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
-                                             const VectorSlotPair& feedback,
-                                             ContextualMode contextual_mode) {
+const Operator* JSOperatorBuilder::LoadNamed(
+    const Unique<Name>& name, const ResolvedFeedbackSlot& feedback,
+    ContextualMode contextual_mode) {
   LoadNamedParameters parameters(name, feedback, contextual_mode);
   return new (zone()) Operator1<LoadNamedParameters>(   // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
-      1, 1, 1, 1, 1, 2,                                 // counts
+      2, 1, 1, 1, 1, 2,                                 // counts
       parameters);                                      // parameter
 }
 
 
 const Operator* JSOperatorBuilder::LoadProperty(
-    const VectorSlotPair& feedback) {
+    const ResolvedFeedbackSlot& feedback) {
   LoadPropertyParameters parameters(feedback);
   return new (zone()) Operator1<LoadPropertyParameters>(   // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name
-      2, 1, 1, 1, 1, 2,                                    // counts
+      3, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
 }
 
@@ -526,12 +525,12 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 
 const Operator* JSOperatorBuilder::LoadDynamicGlobal(
     const Handle<String>& name, uint32_t check_bitset,
-    const VectorSlotPair& feedback, ContextualMode mode) {
+    const ResolvedFeedbackSlot& feedback, ContextualMode mode) {
   DynamicGlobalAccess access(name, check_bitset, feedback, mode);
   return new (zone()) Operator1<DynamicGlobalAccess>(           // --
       IrOpcode::kJSLoadDynamicGlobal, Operator::kNoProperties,  // opcode
       "JSLoadDynamicGlobal",                                    // name
-      1, 1, 1, 1, 1, 2,                                         // counts
+      2, 1, 1, 1, 1, 2,                                         // counts
       access);                                                  // parameter
 }
 

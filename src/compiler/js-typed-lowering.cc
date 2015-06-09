@@ -936,6 +936,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadDynamicGlobal, node->opcode());
   DynamicGlobalAccess const& access = DynamicGlobalAccessOf(node->op());
+  Node* const vector = NodeProperties::GetValueInput(node, 0);
   Node* const context = NodeProperties::GetContextInput(node);
   Node* const state1 = NodeProperties::GetFrameStateInput(node, 0);
   Node* const state2 = NodeProperties::GetFrameStateInput(node, 1);
@@ -971,14 +972,14 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
       context, effect);
   Node* fast = graph()->NewNode(
       javascript()->LoadNamed(name, access.feedback(), access.mode()), global,
-      context, state1, state2, global, check_true);
+      vector, context, state1, state2, global, check_true);
 
   // Slow case, because variable potentially shadowed. Perform dynamic lookup.
   uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
   Node* slow = graph()->NewNode(
       javascript()->LoadDynamicGlobal(access.name(), check_bitset,
                                       access.feedback(), access.mode()),
-      context, context, state1, state2, effect, check_false);
+      vector, context, context, state1, state2, effect, check_false);
 
   // Replace value, effect and control uses accordingly.
   Node* new_control =

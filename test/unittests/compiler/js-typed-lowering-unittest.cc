@@ -648,8 +648,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
   double backing_store[kLength];
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
-  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
-                          FeedbackVectorICSlot::Invalid());
+  ResolvedFeedbackSlot feedback;
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, 0, kLength);
@@ -658,12 +657,13 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Node* key = Parameter(
         Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
     Node* base = HeapConstant(array);
+    Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
-                                          base, key, context, EmptyFrameState(),
-                                          EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->LoadProperty(feedback), base, key, vector, context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
 
     Matcher<Node*> offset_matcher =
         element_size == 1
@@ -687,8 +687,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
   double backing_store[kLength];
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
-  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
-                          FeedbackVectorICSlot::Invalid());
+  ResolvedFeedbackSlot feedback;
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, 0, kLength);
@@ -699,12 +698,13 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     if (min > max) std::swap(min, max);
     Node* key = Parameter(Type::Range(min, max, zone()));
     Node* base = HeapConstant(array);
+    Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
-                                          base, key, context, EmptyFrameState(),
-                                          EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->LoadProperty(feedback), base, key, vector, context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
@@ -878,9 +878,9 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
       IsNumberConstant(IsNaN())  // --
   };
 
-  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
-                          FeedbackVectorICSlot::Invalid());
+  ResolvedFeedbackSlot feedback;
   Node* global = Parameter(Type::GlobalObject());
+  Node* vector = UndefinedConstant();
   Node* context = UndefinedConstant();
   Node* effect = graph()->start();
   Node* control = graph()->start();
@@ -888,7 +888,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
   for (size_t i = 0; i < arraysize(names); i++) {
     Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadNamed(name, feedback), global, context,
+        javascript()->LoadNamed(name, feedback), global, vector, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
@@ -903,17 +903,17 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
 
 TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
   Node* const context = Parameter(Type::Any());
+  Node* const vector = UndefinedConstant();
   Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Handle<String> name = factory()->object_string();
-  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
-                          FeedbackVectorICSlot::Invalid());
+  ResolvedFeedbackSlot feedback;
   for (int i = 0; i < DynamicGlobalAccess::kMaxCheckDepth; ++i) {
     uint32_t bitset = 1 << i;  // Only single check.
     Reduction r = Reduce(graph()->NewNode(
         javascript()->LoadDynamicGlobal(name, bitset, feedback, NOT_CONTEXTUAL),
-        context, context, frame_state, frame_state, effect, control));
+        vector, context, context, frame_state, frame_state, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),

@@ -88,6 +88,7 @@ class AstGraphBuilder : public AstVisitor {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
+  SetOncePointer<Node> feedback_vector_;
 
   // Tracks how many try-blocks are currently entered.
   int try_catch_nesting_level_;
@@ -146,6 +147,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
+
+  // Get or create the node that represents the functions type feedback vector.
+  Node* GetFeedbackVector();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {
@@ -231,8 +235,9 @@ class AstGraphBuilder : public AstVisitor {
 
   Node** EnsureInputBufferSize(int size);
 
-  // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
+  // Named and keyed loads require a ResolvedFeedbackSlot for successful
+  // lowering.
+  ResolvedFeedbackSlot ResolveFeedbackSlot(FeedbackVectorICSlot slot) const;
 
   // Determine which contexts need to be checked for extension objects that
   // might shadow the optimistic declaration of dynamic lookup variables.
@@ -271,15 +276,15 @@ class AstGraphBuilder : public AstVisitor {
                             OutputFrameStateCombine framestate_combine);
   Node* BuildVariableLoad(Variable* variable, BailoutId bailout_id,
                           FrameStateBeforeAndAfter& states,
-                          const VectorSlotPair& feedback,
+                          const ResolvedFeedbackSlot& feedback,
                           OutputFrameStateCombine framestate_combine,
                           ContextualMode mode = CONTEXTUAL);
 
   // Builders for property loads and stores.
   Node* BuildKeyedLoad(Node* receiver, Node* key,
-                       const VectorSlotPair& feedback);
+                       const ResolvedFeedbackSlot& feedback);
   Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
-                       const VectorSlotPair& feedback,
+                       const ResolvedFeedbackSlot& feedback,
                        ContextualMode mode = NOT_CONTEXTUAL);
   Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
                         TypeFeedbackId id);
@@ -292,9 +297,10 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildNamedSuperStore(Node* receiver, Node* home_object,
                              Handle<Name> name, Node* value, TypeFeedbackId id);
   Node* BuildNamedSuperLoad(Node* receiver, Node* home_object,
-                            Handle<Name> name, const VectorSlotPair& feedback);
+                            Handle<Name> name,
+                            const ResolvedFeedbackSlot& feedback);
   Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
-                            const VectorSlotPair& feedback);
+                            const ResolvedFeedbackSlot& feedback);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();

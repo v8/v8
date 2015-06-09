@@ -112,23 +112,28 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 ContextAccess const& ContextAccessOf(Operator const*);
 
 
-class VectorSlotPair {
+// A ResolvedFeedbackSlot needs to query the type feedback vector to get it's
+// index in the vector.
+class ResolvedFeedbackSlot {
  public:
-  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
-      : vector_(vector), slot_(slot) {}
+  ResolvedFeedbackSlot(Handle<TypeFeedbackVector> vector,
+                       FeedbackVectorICSlot slot)
+      : slot_(slot),
+        index_(slot == FeedbackVectorICSlot::Invalid() ? -1 : vector->GetIndex(
+                                                                  slot)) {}
+  ResolvedFeedbackSlot() : slot_(FeedbackVectorICSlot::Invalid()), index_(-1) {}
 
-  Handle<TypeFeedbackVector> vector() const { return vector_; }
   FeedbackVectorICSlot slot() const { return slot_; }
-
-  int index() const { return vector_->GetIndex(slot_); }
+  int index() const { return index_; }
 
  private:
-  const Handle<TypeFeedbackVector> vector_;
   const FeedbackVectorICSlot slot_;
+  const int index_;
 };
 
 
-bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs);
+bool operator==(ResolvedFeedbackSlot const& lhs,
+                ResolvedFeedbackSlot const& rhs);
 
 
 // Defines the name for a dynamic variable lookup. The {check_bitset} allows to
@@ -137,11 +142,12 @@ bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs);
 class DynamicGlobalAccess final {
  public:
   DynamicGlobalAccess(const Handle<String>& name, uint32_t check_bitset,
-                      const VectorSlotPair& feedback, ContextualMode mode);
+                      const ResolvedFeedbackSlot& feedback,
+                      ContextualMode mode);
 
   const Handle<String>& name() const { return name_; }
   uint32_t check_bitset() const { return check_bitset_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
+  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
   ContextualMode mode() const { return mode_; }
 
   // Indicates that an inline check is disabled.
@@ -158,7 +164,7 @@ class DynamicGlobalAccess final {
  private:
   const Handle<String> name_;
   const uint32_t check_bitset_;
-  const VectorSlotPair feedback_;
+  const ResolvedFeedbackSlot feedback_;
   const ContextualMode mode_;
 };
 
@@ -215,18 +221,19 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 // used as a parameter by JSLoadNamed operators.
 class LoadNamedParameters final {
  public:
-  LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+  LoadNamedParameters(const Unique<Name>& name,
+                      const ResolvedFeedbackSlot& feedback,
                       ContextualMode contextual_mode)
       : name_(name), feedback_(feedback), contextual_mode_(contextual_mode) {}
 
   const Unique<Name>& name() const { return name_; }
   ContextualMode contextual_mode() const { return contextual_mode_; }
 
-  const VectorSlotPair& feedback() const { return feedback_; }
+  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
 
  private:
   const Unique<Name> name_;
-  const VectorSlotPair feedback_;
+  const ResolvedFeedbackSlot feedback_;
   const ContextualMode contextual_mode_;
 };
 
@@ -244,13 +251,13 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 // used as a parameter by JSLoadProperty operators.
 class LoadPropertyParameters final {
  public:
-  explicit LoadPropertyParameters(const VectorSlotPair& feedback)
+  explicit LoadPropertyParameters(const ResolvedFeedbackSlot& feedback)
       : feedback_(feedback) {}
 
-  const VectorSlotPair& feedback() const { return feedback_; }
+  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
 
  private:
-  const VectorSlotPair feedback_;
+  const ResolvedFeedbackSlot feedback_;
 };
 
 bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
@@ -361,9 +368,9 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* CallConstruct(int arguments);
 
-  const Operator* LoadProperty(const VectorSlotPair& feedback);
+  const Operator* LoadProperty(const ResolvedFeedbackSlot& feedback);
   const Operator* LoadNamed(const Unique<Name>& name,
-                            const VectorSlotPair& feedback,
+                            const ResolvedFeedbackSlot& feedback,
                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
   const Operator* StoreProperty(LanguageMode language_mode);
@@ -379,7 +386,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadDynamicGlobal(const Handle<String>& name,
                                     uint32_t check_bitset,
-                                    const VectorSlotPair& feedback,
+                                    const ResolvedFeedbackSlot& feedback,
                                     ContextualMode mode);
   const Operator* LoadDynamicContext(const Handle<String>& name,
                                      uint32_t check_bitset, size_t depth,

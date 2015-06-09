@@ -344,9 +344,7 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   Callable callable =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
@@ -357,9 +355,7 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
       isolate(), p.contextual_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
@@ -455,6 +451,7 @@ void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
   Node* projection = graph()->NewNode(common()->Projection(0), node);
   NodeProperties::ReplaceWithValue(node, projection, node, node);
   node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
+  node->RemoveInput(NodeProperties::FirstValueIndex(node));
   node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
   ReplaceWithRuntimeCall(node, function_id);
   projection->ReplaceInput(0, node);
