@@ -13,7 +13,7 @@ using namespace v8::internal::compiler;
 
 namespace {
 
-// Helper to determine inline count via JavaScriptFrame::GetInlineCount.
+// Helper to determine inline count via JavaScriptFrame::GetFunctions.
 // Note that a count of 1 indicates that no inlining has occured.
 void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
   StackTraceFrameIterator it(CcTest::i_isolate());
@@ -21,14 +21,17 @@ void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrame* topmost = it.frame();
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
+    List<JSFunction*> functions(2);
+    frame->GetFunctions(&functions);
     PrintF("%d %s, inline count: %d\n", frames_seen,
            frame->function()->shared()->DebugName()->ToCString().get(),
-           frame->GetInlineCount());
+           functions.length());
     frames_seen++;
     it.Advance();
   }
-  CHECK_EQ(args[0]->ToInt32(args.GetIsolate())->Value(),
-           topmost->GetInlineCount());
+  List<JSFunction*> functions(2);
+  topmost->GetFunctions(&functions);
+  CHECK_EQ(args[0]->ToInt32(args.GetIsolate())->Value(), functions.length());
 }
 
 

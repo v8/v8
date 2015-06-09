@@ -1013,30 +1013,6 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
 }
 
 
-int OptimizedFrame::GetInlineCount() {
-  DCHECK(is_optimized());
-
-  // Delegate to JS frame in absence of turbofan deoptimization.
-  // TODO(turbofan): Revisit once we support deoptimization across the board.
-  if (LookupCode()->is_turbofanned() && function()->shared()->asm_function() &&
-      !FLAG_turbo_asm_deoptimization) {
-    return JavaScriptFrame::GetInlineCount();
-  }
-
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
-
-  TranslationIterator it(data->TranslationByteArray(),
-                         data->TranslationIndex(deopt_index)->value());
-  Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
-  DCHECK(opcode == Translation::BEGIN);
-  USE(opcode);
-  it.Next();  // Drop frame count.
-  int jsframe_count = it.Next();
-  return jsframe_count;
-}
-
-
 void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
   DCHECK(functions->length() == 0);
   DCHECK(is_optimized());
