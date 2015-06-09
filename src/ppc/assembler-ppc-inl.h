@@ -96,8 +96,9 @@ Address RelocInfo::target_address_address() {
 
   if (FLAG_enable_embedded_constant_pool &&
       Assembler::IsConstantPoolLoadStart(pc_)) {
-    // We return the PC for ool constant pool since this function is used by the
-    // serializer and expects the address to reside within the code object.
+    // We return the PC for embedded constant pool since this function is used
+    // by the serializer and expects the address to reside within the code
+    // object.
     return reinterpret_cast<Address>(pc_);
   }
 

@@ -244,17 +244,9 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-#if V8_TARGET_ARCH_PPC64
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo64(m));
-#else
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
-#endif
-  // First ensure instruction alignment
-  while (pc_offset() & (kInstrSize - 1)) {
-    db(0);
-  }
-  // Then pad to requested alignedment with nops
-  while (pc_offset() & (m - 1)) {
+  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
+  while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
 }

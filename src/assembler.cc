@@ -1814,7 +1814,7 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
   if (!emitted) {
     // Mark start of constant pool.  Align if necessary.
-    if (!empty) assm->Align(kDoubleSize);
+    if (!empty) assm->DataAlign(kDoubleSize);
     assm->bind(&emitted_label_);
     if (!empty) {
       // Emit in groups based on access and type.
@@ -1822,7 +1822,7 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
       EmitGroup(assm, ConstantPoolEntry::REGULAR, ConstantPoolEntry::DOUBLE);
       EmitGroup(assm, ConstantPoolEntry::REGULAR, ConstantPoolEntry::INTPTR);
       if (info_[ConstantPoolEntry::DOUBLE].overflow()) {
-        assm->Align(kDoubleSize);
+        assm->DataAlign(kDoubleSize);
         EmitGroup(assm, ConstantPoolEntry::OVERFLOWED,
                   ConstantPoolEntry::DOUBLE);
       }
@@ -1870,6 +1870,14 @@ void Assembler::RecordDebugBreakSlot() {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
+}
+
+
+void Assembler::DataAlign(int m) {
+  DCHECK(m >= 2 && base::bits::IsPowerOfTwo32(m));
+  while ((pc_offset() & (m - 1)) != 0) {
+    db(0);
+  }
 }
 }  // namespace internal
 }  // namespace v8

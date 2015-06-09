@@ -707,8 +707,12 @@ void MacroAssembler::PopFixedFrame(Register marker_reg) {
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of contiguous register values starting with r0:
-  DCHECK(((1 << kNumSafepointSavedRegisters) - 1) == kSafepointSavedRegisters);
+  // Safepoints expect a block of contiguous register values starting with r0.
+  // except when FLAG_enable_embedded_constant_pool, which omits pp.
+  DCHECK(kSafepointSavedRegisters ==
+         (FLAG_enable_embedded_constant_pool
+              ? ((1 << (kNumSafepointSavedRegisters + 1)) - 1) & ~pp.bit()
+              : (1 << kNumSafepointSavedRegisters) - 1));
   // Safepoints expect a block of kNumSafepointRegisters values on the
   // stack, so adjust the stack for unsaved registers.
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
@@ -738,6 +742,10 @@ void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.
+  if (FLAG_enable_embedded_constant_pool && reg_code > pp.code()) {
+    // RegList omits pp.
+    reg_code -= 1;
+  }
   DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
   return reg_code;
 }

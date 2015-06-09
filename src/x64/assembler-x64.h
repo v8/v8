@@ -704,6 +704,9 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m, where m must be a power of 2.
   void Align(int m);
+  // Insert the smallest number of zero bytes possible to align the pc offset
+  // to a mulitple of m. m must be a power of 2 (>= 2).
+  void DataAlign(int m);
   void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();

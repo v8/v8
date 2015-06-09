@@ -1166,6 +1166,8 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ ldr(r1, FieldMemOperand(r0, Code::kDeoptimizationDataOffset));
 
   { ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+    __ add(r0, r0, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
+
     if (FLAG_enable_embedded_constant_pool) {
       __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r0);
     }
@@ -1175,10 +1177,8 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
     __ ldr(r1, FieldMemOperand(r1, FixedArray::OffsetOfElementAt(
         DeoptimizationInputData::kOsrPcOffsetIndex)));
 
-    // Compute the target address = code_obj + header_size + osr_offset
-    // <entry_addr> = <code_obj> + #header_size + <osr_offset>
-    __ add(r0, r0, Operand::SmiUntag(r1));
-    __ add(lr, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // Compute the target address = code start + osr_offset
+    __ add(lr, r0, Operand::SmiUntag(r1));
 
     // And "return" to the OSR entry point of the function.
     __ Ret();

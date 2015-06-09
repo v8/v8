@@ -1101,10 +1101,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(r1));
   __ mov(r2, Operand(pending_handler_offset_address));
   __ ldr(r2, MemOperand(r2));
+  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
   if (FLAG_enable_embedded_constant_pool) {
     __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r1);
   }
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ add(pc, r1, r2);
 }
 
@@ -1348,11 +1348,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ ldr(map_load_offset, MemOperand(map_load_offset));
     __ str(map, FieldMemOperand(map_load_offset, Cell::kValueOffset));
 
-    __ mov(r8, map);
+    __ mov(scratch, map);
     // |map_load_offset| points at the beginning of the cell. Calculate the
     // field containing the map.
     __ add(function, map_load_offset, Operand(Cell::kValueOffset - 1));
-    __ RecordWriteField(map_load_offset, Cell::kValueOffset, r8, function,
+    __ RecordWriteField(map_load_offset, Cell::kValueOffset, scratch, function,
                         kLRHasNotBeenSaved, kDontSaveFPRegs,
                         OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
@@ -2434,7 +2434,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // this position in a symbol (see static asserts in type-feedback-vector.h).
   Label check_allocation_site;
   Register feedback_map = r5;
-  Register weak_value = r8;
+  Register weak_value = r6;
   __ ldr(weak_value, FieldMemOperand(r4, WeakCell::kValueOffset));
   __ cmp(r1, weak_value);
   __ b(eq, &done);
@@ -4495,7 +4495,7 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register slot = LoadWithVectorDescriptor::SlotRegister();          // r0
   Register feedback = r4;
   Register receiver_map = r5;
-  Register scratch1 = r8;
+  Register scratch1 = r6;
 
   __ add(feedback, vector, Operand::PointerOffsetFromSmiKey(slot));
   __ ldr(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
@@ -4552,7 +4552,7 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register slot = LoadWithVectorDescriptor::SlotRegister();          // r0
   Register feedback = r4;
   Register receiver_map = r5;
-  Register scratch1 = r8;
+  Register scratch1 = r6;
 
   __ add(feedback, vector, Operand::PointerOffsetFromSmiKey(slot));
   __ ldr(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));

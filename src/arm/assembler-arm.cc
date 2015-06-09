@@ -494,6 +494,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
+  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
