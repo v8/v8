@@ -400,7 +400,6 @@ class CallSite {
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
-  T(UnexpectedNewTarget, "new.target expression is not allowed here")          \
   T(UnexpectedTemplateString, "Unexpected template string")                    \
   T(UnexpectedToken, "Unexpected token %")                                     \
   T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \

@@ -754,7 +754,6 @@ Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
                               Variable::THIS, pos, pos + 4);
 }
 
-
 Expression* ParserTraits::SuperPropertyReference(Scope* scope,
                                                  AstNodeFactory* factory,
                                                  int pos) {
@@ -782,16 +781,6 @@ Expression* ParserTraits::SuperCallReference(Scope* scope,
   return factory->NewSuperCallReference(
       ThisExpression(scope, factory, pos)->AsVariableProxy(), new_target_proxy,
       this_function_proxy, pos);
-}
-
-
-Expression* ParserTraits::NewTargetExpression(Scope* scope,
-                                              AstNodeFactory* factory,
-                                              int pos) {
-  static const int kNewTargetStringLength = 10;
-  return scope->NewUnresolved(
-      factory, parser_->ast_value_factory()->new_target_string(),
-      Variable::NORMAL, pos, pos + kNewTargetStringLength);
 }
 
 
@@ -919,7 +908,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_spreadcalls(FLAG_harmony_spreadcalls);
   set_allow_harmony_destructuring(FLAG_harmony_destructuring);
   set_allow_harmony_spread_arrays(FLAG_harmony_spread_arrays);
-  set_allow_harmony_new_target(FLAG_harmony_new_target);
   set_allow_strong_mode(FLAG_strong_mode);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -4289,22 +4277,26 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_ = new PreParser(zone(), &scanner_, ast_value_factory(),
                                         NULL, stack_limit_);
     reusable_preparser_->set_allow_lazy(true);
-#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
-    SET_ALLOW(natives);
-    SET_ALLOW(harmony_modules);
-    SET_ALLOW(harmony_arrow_functions);
-    SET_ALLOW(harmony_classes);
-    SET_ALLOW(harmony_object_literals);
-    SET_ALLOW(harmony_sloppy);
-    SET_ALLOW(harmony_unicode);
-    SET_ALLOW(harmony_computed_property_names);
-    SET_ALLOW(harmony_rest_params);
-    SET_ALLOW(harmony_spreadcalls);
-    SET_ALLOW(harmony_destructuring);
-    SET_ALLOW(harmony_spread_arrays);
-    SET_ALLOW(harmony_new_target);
-    SET_ALLOW(strong_mode);
-#undef SET_ALLOW
+    reusable_preparser_->set_allow_natives(allow_natives());
+    reusable_preparser_->set_allow_harmony_modules(allow_harmony_modules());
+    reusable_preparser_->set_allow_harmony_arrow_functions(
+        allow_harmony_arrow_functions());
+    reusable_preparser_->set_allow_harmony_classes(allow_harmony_classes());
+    reusable_preparser_->set_allow_harmony_object_literals(
+        allow_harmony_object_literals());
+    reusable_preparser_->set_allow_harmony_sloppy(allow_harmony_sloppy());
+    reusable_preparser_->set_allow_harmony_unicode(allow_harmony_unicode());
+    reusable_preparser_->set_allow_harmony_computed_property_names(
+        allow_harmony_computed_property_names());
+    reusable_preparser_->set_allow_harmony_rest_params(
+        allow_harmony_rest_params());
+    reusable_preparser_->set_allow_harmony_spreadcalls(
+        allow_harmony_spreadcalls());
+    reusable_preparser_->set_allow_harmony_destructuring(
+        allow_harmony_destructuring());
+    reusable_preparser_->set_allow_harmony_spread_arrays(
+        allow_harmony_spread_arrays());
+    reusable_preparser_->set_allow_strong_mode(allow_strong_mode());
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
       language_mode(), function_state_->kind(), logger, bookmark);

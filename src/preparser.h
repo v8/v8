@@ -97,36 +97,76 @@ class ParserBase : public Traits {
         allow_harmony_computed_property_names_(false),
         allow_harmony_rest_params_(false),
         allow_harmony_spreadcalls_(false),
-        allow_harmony_destructuring_(false),
-        allow_harmony_spread_arrays_(false),
-        allow_harmony_new_target_(false),
         allow_strong_mode_(false) {}
 
-#define ALLOW_ACCESSORS(name)                           \
-  bool allow_##name() const { return allow_##name##_; } \
-  void set_allow_##name(bool allow) { allow_##name##_ = allow; }
-
-  ALLOW_ACCESSORS(lazy);
-  ALLOW_ACCESSORS(natives);
-  ALLOW_ACCESSORS(harmony_arrow_functions);
-  ALLOW_ACCESSORS(harmony_object_literals);
-  ALLOW_ACCESSORS(harmony_sloppy);
-  ALLOW_ACCESSORS(harmony_computed_property_names);
-  ALLOW_ACCESSORS(harmony_rest_params);
-  ALLOW_ACCESSORS(harmony_spreadcalls);
-  ALLOW_ACCESSORS(harmony_destructuring);
-  ALLOW_ACCESSORS(harmony_spread_arrays);
-  ALLOW_ACCESSORS(harmony_new_target);
-  ALLOW_ACCESSORS(strong_mode);
-#undef ALLOW_ACCESSORS
-
+  // Getters that indicate whether certain syntactical constructs are
+  // allowed to be parsed by this instance of the parser.
+  bool allow_lazy() const { return allow_lazy_; }
+  bool allow_natives() const { return allow_natives_; }
+  bool allow_harmony_arrow_functions() const {
+    return allow_harmony_arrow_functions_;
+  }
   bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
   bool allow_harmony_classes() const { return scanner()->HarmonyClasses(); }
+  bool allow_harmony_object_literals() const {
+    return allow_harmony_object_literals_;
+  }
+  bool allow_harmony_sloppy() const { return allow_harmony_sloppy_; }
   bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
+  bool allow_harmony_computed_property_names() const {
+    return allow_harmony_computed_property_names_;
+  }
+  bool allow_harmony_rest_params() const {
+    return allow_harmony_rest_params_;
+  }
+  bool allow_harmony_spreadcalls() const { return allow_harmony_spreadcalls_; }
+  bool allow_harmony_destructuring() const {
+    return allow_harmony_destructuring_;
+  }
+  bool allow_harmony_spread_arrays() const {
+    return allow_harmony_spread_arrays_;
+  }
 
-  void set_allow_harmony_modules(bool a) { scanner()->SetHarmonyModules(a); }
-  void set_allow_harmony_classes(bool a) { scanner()->SetHarmonyClasses(a); }
-  void set_allow_harmony_unicode(bool a) { scanner()->SetHarmonyUnicode(a); }
+  bool allow_strong_mode() const { return allow_strong_mode_; }
+
+  // Setters that determine whether certain syntactical constructs are
+  // allowed to be parsed by this instance of the parser.
+  void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
+  void set_allow_natives(bool allow) { allow_natives_ = allow; }
+  void set_allow_harmony_arrow_functions(bool allow) {
+    allow_harmony_arrow_functions_ = allow;
+  }
+  void set_allow_harmony_modules(bool allow) {
+    scanner()->SetHarmonyModules(allow);
+  }
+  void set_allow_harmony_classes(bool allow) {
+    scanner()->SetHarmonyClasses(allow);
+  }
+  void set_allow_harmony_object_literals(bool allow) {
+    allow_harmony_object_literals_ = allow;
+  }
+  void set_allow_harmony_sloppy(bool allow) {
+    allow_harmony_sloppy_ = allow;
+  }
+  void set_allow_harmony_unicode(bool allow) {
+    scanner()->SetHarmonyUnicode(allow);
+  }
+  void set_allow_harmony_computed_property_names(bool allow) {
+    allow_harmony_computed_property_names_ = allow;
+  }
+  void set_allow_harmony_rest_params(bool allow) {
+    allow_harmony_rest_params_ = allow;
+  }
+  void set_allow_harmony_spreadcalls(bool allow) {
+    allow_harmony_spreadcalls_ = allow;
+  }
+  void set_allow_strong_mode(bool allow) { allow_strong_mode_ = allow; }
+  void set_allow_harmony_destructuring(bool allow) {
+    allow_harmony_destructuring_ = allow;
+  }
+  void set_allow_harmony_spread_arrays(bool allow) {
+    allow_harmony_spread_arrays_ = allow;
+  }
 
  protected:
   enum AllowRestrictedIdentifiers {
@@ -300,7 +340,7 @@ class ParserBase : public Traits {
   Scope* NewScope(Scope* parent, ScopeType scope_type, FunctionKind kind) {
     DCHECK(ast_value_factory());
     DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
-    DCHECK(!IsArrowFunction(kind) || scope_type == ARROW_SCOPE);
+    DCHECK(scope_type != ARROW_SCOPE || IsArrowFunction(kind));
     Scope* result = new (zone())
         Scope(zone(), parent, scope_type, ast_value_factory(), kind);
     result->Initialize();
@@ -863,7 +903,6 @@ class ParserBase : public Traits {
   void AddTemplateExpression(ExpressionT);
   ExpressionT ParseSuperExpression(bool is_new,
                                    ExpressionClassifier* classifier, bool* ok);
-  ExpressionT ParseNewTargetExpression(bool* ok);
   ExpressionT ParseStrongInitializationExpression(
       ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseStrongSuperCallExpression(ExpressionClassifier* classifier,
@@ -974,7 +1013,6 @@ class ParserBase : public Traits {
   bool allow_harmony_spreadcalls_;
   bool allow_harmony_destructuring_;
   bool allow_harmony_spread_arrays_;
-  bool allow_harmony_new_target_;
   bool allow_strong_mode_;
 };
 
@@ -1681,12 +1719,6 @@ class PreParserTraits {
   static PreParserExpression SuperCallReference(Scope* scope,
                                                 PreParserFactory* factory,
                                                 int pos) {
-    return PreParserExpression::Default();
-  }
-
-  static PreParserExpression NewTargetExpression(Scope* scope,
-                                                 PreParserFactory* factory,
-                                                 int pos) {
     return PreParserExpression::Default();
   }
 
@@ -3287,9 +3319,6 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
     ExpressionClassifier* classifier, bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
-  //
-  // NewTarget ::
-  //   'new' '.' 'target'
 
   // The grammar for new expressions is pretty warped. We can have several 'new'
   // keywords following each other, and then a MemberExpression. When we see '('
@@ -3313,8 +3342,6 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
     if (peek() == Token::SUPER) {
       const bool is_new = true;
       result = ParseSuperExpression(is_new, classifier, CHECK_OK);
-    } else if (allow_harmony_new_target() && peek() == Token::PERIOD) {
-      return ParseNewTargetExpression(CHECK_OK);
     } else {
       result = this->ParseMemberWithNewPrefixesExpression(classifier, CHECK_OK);
     }
@@ -3538,6 +3565,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
   Expect(Token::SUPER, CHECK_OK);
 
   Scope* scope = scope_->DeclarationScope();
+
   while (scope->is_eval_scope() || scope->is_arrow_scope()) {
     scope = scope->outer_scope();
     DCHECK_NOT_NULL(scope);
@@ -3571,31 +3599,6 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
   ReportMessageAt(scanner()->location(), MessageTemplate::kUnexpectedSuper);
   *ok = false;
   return this->EmptyExpression();
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
-  int pos = position();
-  Consume(Token::PERIOD);
-  ExpectContextualKeyword(CStrVector("target"), CHECK_OK);
-
-  Scope* scope = scope_->DeclarationScope();
-  while (scope->is_eval_scope() || scope->is_arrow_scope()) {
-    scope = scope->outer_scope();
-    DCHECK_NOT_NULL(scope);
-    scope = scope->DeclarationScope();
-  }
-
-  if (!scope->is_function_scope()) {
-    ReportMessageAt(scanner()->location(),
-                    MessageTemplate::kUnexpectedNewTarget);
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  return this->NewTargetExpression(scope_, factory(), pos);
 }
 
 

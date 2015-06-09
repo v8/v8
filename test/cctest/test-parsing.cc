@@ -1386,7 +1386,6 @@ enum ParserFlag {
   kAllowHarmonySpreadCalls,
   kAllowHarmonyDestructuring,
   kAllowHarmonySpreadArrays,
-  kAllowHarmonyNewTarget,
   kAllowStrongMode
 };
 
@@ -1420,7 +1419,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyDestructuring));
   parser->set_allow_harmony_spread_arrays(
       flags.Contains(kAllowHarmonySpreadArrays));
-  parser->set_allow_harmony_new_target(flags.Contains(kAllowHarmonyNewTarget));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
 }
 
@@ -6615,60 +6613,5 @@ TEST(SpreadArrayError) {
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonySpreadArrays};
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-}
-
-
-TEST(NewTarget) {
-  // clang-format off
-  const char* good_context_data[][2] = {
-    {"function f() {", "}"},
-    {"'use strict'; function f() {", "}"},
-    {"var f = function() {", "}"},
-    {"'use strict'; var f = function() {", "}"},
-    {"({m: function() {", "}})"},
-    {"'use strict'; ({m: function() {", "}})"},
-    {"({m() {", "}})"},
-    {"'use strict'; ({m() {", "}})"},
-    {"({get x() {", "}})"},
-    {"'use strict'; ({get x() {", "}})"},
-    {"({set x(_) {", "}})"},
-    {"'use strict'; ({set x(_) {", "}})"},
-    {"class C {m() {", "}}"},
-    {"class C {get x() {", "}}"},
-    {"class C {set x(_) {", "}}"},
-    {NULL}
-  };
-
-  const char* bad_context_data[][2] = {
-    {"", ""},
-    {"'use strict';", ""},
-    {NULL}
-  };
-
-  const char* data[] = {
-    "new.target",
-    "{ new.target }",
-    "() => { new.target }",
-    "() => new.target",
-    "if (1) { new.target }",
-    "if (1) {} else { new.target }",
-    "while (0) { new.target }",
-    "do { new.target } while (0)",
-    NULL
-  };
-
-  static const ParserFlag always_flags[] = {
-    kAllowHarmonyArrowFunctions,
-    kAllowHarmonyClasses,
-    kAllowHarmonyNewTarget,
-    kAllowHarmonyObjectLiterals,
-    kAllowHarmonySloppy,
-  };
-  // clang-format on
-
-  RunParserSyncTest(good_context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(bad_context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }

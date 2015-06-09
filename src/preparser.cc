@@ -110,8 +110,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   FunctionState top_state(&function_state_, &scope_, top_scope, kNormalFunction,
                           &top_factory);
   scope_->SetLanguageMode(language_mode);
-  Scope* function_scope = NewScope(
-      scope_, IsArrowFunction(kind) ? ARROW_SCOPE : FUNCTION_SCOPE, kind);
+  Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
   PreParserFactory function_factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &function_factory);
