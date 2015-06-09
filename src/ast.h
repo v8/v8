@@ -2872,9 +2872,6 @@ class RegExpDisjunction final : public RegExpTree {
   int max_match() override { return max_match_; }
   ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
  private:
-  bool SortConsecutiveAtoms(RegExpCompiler* compiler);
-  void RationalizeConsecutiveAtoms(RegExpCompiler* compiler);
-  void FixSingleCharacterDisjunctions(RegExpCompiler* compiler);
   ZoneList<RegExpTree*>* alternatives_;
   int min_match_;
   int max_match_;
