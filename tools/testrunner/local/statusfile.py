@@ -57,7 +57,8 @@ for var in ["debug", "release", "big", "little",
             "android_arm", "android_arm64", "android_ia32", "android_x87",
             "android_x64", "arm", "arm64", "ia32", "mips", "mipsel",
             "mips64el", "x64", "x87", "nacl_ia32", "nacl_x64", "ppc", "ppc64",
-            "macos", "windows", "linux", "aix"]:
+            "macos", "windows", "linux", "aix",
+            "strict", "sloppy"]:
   VARIABLES[var] = var
 
 
