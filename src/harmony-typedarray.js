@@ -49,6 +49,8 @@ var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var IsNaN;
+var MathMax;
+var MathMin;
 
 utils.Import(function(from) {
   ArrayFrom = from.ArrayFrom;
@@ -71,11 +73,13 @@ utils.Import(function(from) {
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   IsNaN = from.IsNaN;
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
 });
 
 // -------------------------------------------------------------------
 
-function ConstructTypedArray(constructor, array) {
+function ConstructTypedArray(constructor, arg) {
   // TODO(littledan): This is an approximation of the spec, which requires
   // that only real TypedArray classes should be accepted (22.2.2.1.1)
   if (!%IsConstructor(constructor) || IS_UNDEFINED(constructor.prototype) ||
@@ -88,13 +92,15 @@ function ConstructTypedArray(constructor, array) {
   // underlying size and element size, and elements are put in one by one.
   // By contrast, this would allow subclasses to make a radically different
   // constructor with different semantics.
-  return new constructor(array);
+  return new constructor(arg);
 }
 
-function ConstructTypedArrayLike(typedArray, arrayContents) {
+function ConstructTypedArrayLike(typedArray, arg) {
   // TODO(littledan): The spec requires that we actuallly use
   // typedArray.constructor[Symbol.species] (bug v8:4093)
-  return ConstructTypedArray(typedArray.constructor, arrayContents);
+  // Also, it should default to the default constructor from
+  // table 49 if typedArray.constructor doesn't exist.
+  return ConstructTypedArray(typedArray.constructor, arg);
 }
 
 function TypedArrayCopyWithin(target, start, end) {
@@ -306,6 +312,51 @@ function TypedArrayReduceRight(callback, current) {
 %FunctionSetLength(TypedArrayReduceRight, 1);
 
 
+function TypedArraySlice(start, end) {
+  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  var len = %_TypedArrayGetLength(this);
+
+  var relativeStart = TO_INTEGER(start);
+
+  var k;
+  if (relativeStart < 0) {
+    k = MathMax(len + relativeStart, 0);
+  } else {
+    k = MathMin(relativeStart, len);
+  }
+
+  var relativeEnd;
+  if (IS_UNDEFINED(end)) {
+    relativeEnd = len;
+  } else {
+    relativeEnd = TO_INTEGER(end);
+  }
+
+  var final;
+  if (relativeEnd < 0) {
+    final = MathMax(len + relativeEnd, 0);
+  } else {
+    final = MathMin(relativeEnd, len);
+  }
+
+  var count = MathMax(final - k, 0);
+  var array = ConstructTypedArrayLike(this, count);
+  // The code below is the 'then' branch; the 'else' branch species
+  // a memcpy. Because V8 doesn't canonicalize NaN, the difference is
+  // unobservable.
+  var n = 0;
+  while (k < final) {
+    var kValue = this[k];
+    // TODO(littledan): The spec says to throw on an error in setting;
+    // does this throw?
+    array[n] = kValue;
+    k++;
+    n++;
+  }
+  return array;
+}
+
+
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = %_ArgumentsLength();
@@ -349,6 +400,7 @@ macro EXTEND_TYPED_ARRAY(NAME)
     "reduce", TypedArrayReduce,
     "reduceRight", TypedArrayReduceRight,
     "reverse", TypedArrayReverse,
+    "slice", TypedArraySlice,
     "some", TypedArraySome,
     "sort", TypedArraySort,
     "toString", TypedArrayToString,
