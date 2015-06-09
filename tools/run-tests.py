@@ -610,14 +610,14 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # Run the tests, either locally or distributed on the network.
   start_time = time.time()
-  progress_indicator = progress.IndicatorNotifier()
-  progress_indicator.Register(progress.PROGRESS_INDICATORS[options.progress]())
+  progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
   if options.junitout:
-    progress_indicator.Register(progress.JUnitTestProgressIndicator(
-        options.junitout, options.junittestsuite))
+    progress_indicator = progress.JUnitTestProgressIndicator(
+        progress_indicator, options.junitout, options.junittestsuite)
   if options.json_test_results:
-    progress_indicator.Register(progress.JsonTestProgressIndicator(
-        options.json_test_results, arch, MODES[mode]["execution_mode"]))
+    progress_indicator = progress.JsonTestProgressIndicator(
+        progress_indicator, options.json_test_results, arch,
+        MODES[mode]["execution_mode"])
 
   run_networked = not options.no_network
   if not run_networked:

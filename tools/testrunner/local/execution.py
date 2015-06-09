@@ -82,7 +82,7 @@ class Runner(object):
         t.id = self.total
         self.total += 1
     self.indicator = progress_indicator
-    progress_indicator.SetRunner(self)
+    progress_indicator.runner = self
     self.context = context
     self.succeeded = 0
     self.remaining = self.total
