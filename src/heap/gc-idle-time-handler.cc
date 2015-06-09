@@ -51,6 +51,7 @@ void GCIdleTimeHandler::HeapState::Print() {
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
   PrintF("can_start_incremental_marking=%d ", can_start_incremental_marking);
   PrintF("sweeping_in_progress=%d ", sweeping_in_progress);
+  PrintF("has_low_allocation_rate=%d", has_low_allocation_rate);
   PrintF("mark_compact_speed=%" V8_PTR_PREFIX "d ",
          mark_compact_speed_in_bytes_per_ms);
   PrintF("incremental_marking_speed=%" V8_PTR_PREFIX "d ",
@@ -60,8 +61,6 @@ void GCIdleTimeHandler::HeapState::Print() {
   PrintF("new_space_capacity=%" V8_PTR_PREFIX "d ", new_space_capacity);
   PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          new_space_allocation_throughput_in_bytes_per_ms);
-  PrintF("current_allocation_throughput=%" V8_PTR_PREFIX "d",
-         current_allocation_throughput_in_bytes_per_ms);
 }
 
 

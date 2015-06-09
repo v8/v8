@@ -105,6 +105,7 @@ GCTracer::GCTracer(Heap* heap)
       allocation_duration_since_gc_(0.0),
       new_space_allocation_in_bytes_since_gc_(0),
       old_generation_allocation_in_bytes_since_gc_(0),
+      combined_mark_compact_speed_cache_(0.0),
       start_counter_(0) {
   current_ = Event(Event::START, NULL, NULL);
   current_.end_time = base::OS::TimeCurrentMillis();
@@ -226,12 +227,14 @@ void GCTracer::Stop(GarbageCollector collector) {
             .cumulative_pure_incremental_marking_duration;
     longest_incremental_marking_step_ = 0.0;
     incremental_mark_compactor_events_.push_front(current_);
+    combined_mark_compact_speed_cache_ = 0.0;
   } else {
     DCHECK(current_.incremental_marking_bytes == 0);
     DCHECK(current_.incremental_marking_duration == 0);
     DCHECK(current_.pure_incremental_marking_duration == 0);
     longest_incremental_marking_step_ = 0.0;
     mark_compactor_events_.push_front(current_);
+    combined_mark_compact_speed_cache_ = 0.0;
   }
 
   // TODO(ernstm): move the code below out of GCTracer.
@@ -292,10 +295,9 @@ void GCTracer::AddAllocation(double current_ms) {
   allocation_time_ms_ = current_ms;
   new_space_allocation_events_.push_front(AllocationEvent(
       allocation_duration_since_gc_, new_space_allocation_in_bytes_since_gc_));
-  allocation_events_.push_front(
+  old_generation_allocation_events_.push_front(
       AllocationEvent(allocation_duration_since_gc_,
-                      new_space_allocation_in_bytes_since_gc_ +
-                          old_generation_allocation_in_bytes_since_gc_));
+                      old_generation_allocation_in_bytes_since_gc_));
   allocation_duration_since_gc_ = 0;
   new_space_allocation_in_bytes_since_gc_ = 0;
   old_generation_allocation_in_bytes_since_gc_ = 0;
@@ -560,8 +562,8 @@ intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
@@ -576,8 +578,8 @@ intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond() const {
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
@@ -592,8 +594,8 @@ intptr_t GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
@@ -609,47 +611,77 @@ intptr_t GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
-size_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
+double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
+  if (combined_mark_compact_speed_cache_ > 0)
+    return combined_mark_compact_speed_cache_;
+  const double kEpsilon = 1;
+  double speed1 =
+      static_cast<double>(IncrementalMarkingSpeedInBytesPerMillisecond());
+  double speed2 = static_cast<double>(
+      FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+  if (speed1 + speed2 < kEpsilon) {
+    // No data for the incremental marking speed.
+    // Return the non-incremental mark-compact speed.
+    combined_mark_compact_speed_cache_ =
+        static_cast<double>(MarkCompactSpeedInBytesPerMillisecond());
+  } else {
+    // Combine the speed of incremental step and the speed of the final step.
+    // 1 / (1 / speed1 + 1 / speed2) = speed1 * speed2 / (speed1 + speed2).
+    combined_mark_compact_speed_cache_ = speed1 * speed2 / (speed1 + speed2);
+  }
+  return combined_mark_compact_speed_cache_;
+}
+
+
+size_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
+    double time_ms) const {
   size_t bytes = new_space_allocation_in_bytes_since_gc_;
   double durations = allocation_duration_since_gc_;
   AllocationEventBuffer::const_iterator iter =
       new_space_allocation_events_.begin();
   const size_t max_bytes = static_cast<size_t>(-1);
   while (iter != new_space_allocation_events_.end() &&
-         bytes < max_bytes - bytes) {
+         bytes < max_bytes - bytes && (time_ms == 0 || durations < time_ms)) {
     bytes += iter->allocation_in_bytes_;
     durations += iter->duration_;
     ++iter;
   }
 
   if (durations == 0.0) return 0;
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+}
 
-  return static_cast<size_t>(bytes / durations + 0.5);
+
+size_t GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
+    double time_ms) const {
+  size_t bytes = old_generation_allocation_in_bytes_since_gc_;
+  double durations = allocation_duration_since_gc_;
+  AllocationEventBuffer::const_iterator iter =
+      old_generation_allocation_events_.begin();
+  const size_t max_bytes = static_cast<size_t>(-1);
+  while (iter != old_generation_allocation_events_.end() &&
+         bytes < max_bytes - bytes && (time_ms == 0 || durations < time_ms)) {
+    bytes += iter->allocation_in_bytes_;
+    durations += iter->duration_;
+    ++iter;
+  }
+
+  if (durations == 0.0) return 0;
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
 size_t GCTracer::AllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
-  size_t bytes = new_space_allocation_in_bytes_since_gc_ +
-                 old_generation_allocation_in_bytes_since_gc_;
-  double durations = allocation_duration_since_gc_;
-  AllocationEventBuffer::const_iterator iter = allocation_events_.begin();
-  const size_t max_bytes = static_cast<size_t>(-1);
-  while (iter != allocation_events_.end() && bytes < max_bytes - bytes &&
-         durations < time_ms) {
-    bytes += iter->allocation_in_bytes_;
-    durations += iter->duration_;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-
-  return static_cast<size_t>(bytes / durations + 0.5);
+  return NewSpaceAllocationThroughputInBytesPerMillisecond(time_ms) +
+         OldGenerationAllocationThroughputInBytesPerMillisecond(time_ms);
 }
 
 

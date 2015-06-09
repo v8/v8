@@ -2142,9 +2142,11 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  bool HasLowAllocationRate(size_t allocaion_rate);
+  bool HasLowYoungGenerationAllocationRate();
+  bool HasLowOldGenerationAllocationRate();
+  bool HasLowAllocationRate();
 
-  void ReduceNewSpaceSize(size_t allocaion_rate);
+  void ReduceNewSpaceSize();
 
   bool TryFinalizeIdleIncrementalMarking(
       double idle_time_in_ms, size_t size_of_objects,

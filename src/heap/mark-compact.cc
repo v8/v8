@@ -677,9 +677,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   int total_live_bytes = 0;
 
   bool reduce_memory =
-      reduce_memory_footprint_ ||
-      heap()->HasLowAllocationRate(
-          heap()->tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
+      reduce_memory_footprint_ || heap()->HasLowAllocationRate();
   if (FLAG_manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
       Page* p = pages[i].second;

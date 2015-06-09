@@ -382,9 +382,20 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   intptr_t FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
+  // Compute the overall mark compact speed including incremental steps
+  // and the final mark-compact step.
+  double CombinedMarkCompactSpeedInBytesPerMillisecond();
+
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
-  size_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
+  size_t NewSpaceAllocationThroughputInBytesPerMillisecond(
+      double time_ms = 0) const;
+
+  // Allocation throughput in the old generation in bytes/millisecond in the
+  // last time_ms milliseconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t OldGenerationAllocationThroughputInBytesPerMillisecond(
+      double time_ms = 0) const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
@@ -466,7 +477,7 @@ class GCTracer {
 
   // RingBuffer for allocation events.
   AllocationEventBuffer new_space_allocation_events_;
-  AllocationEventBuffer allocation_events_;
+  AllocationEventBuffer old_generation_allocation_events_;
 
   // RingBuffer for context disposal events.
   ContextDisposalEventBuffer context_disposal_events_;
@@ -513,6 +524,8 @@ class GCTracer {
   double allocation_duration_since_gc_;
   size_t new_space_allocation_in_bytes_since_gc_;
   size_t old_generation_allocation_in_bytes_since_gc_;
+
+  double combined_mark_compact_speed_cache_;
 
   // Counts how many tracers were started without stopping.
   int start_counter_;

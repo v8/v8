@@ -470,7 +470,6 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
-  UpdateOldGenerationAllocationCounter();
 }
 
 
@@ -738,8 +737,7 @@ void Heap::GarbageCollectionEpilogue() {
   new_space_top_after_last_gc_ = new_space()->top();
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 
-  ReduceNewSpaceSize(
-      tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
+  ReduceNewSpaceSize();
 }
 
 
@@ -1214,18 +1212,19 @@ bool Heap::PerformGarbageCollection(
   }
 
   if (collector == MARK_COMPACTOR) {
+    UpdateOldGenerationAllocationCounter();
     // Perform mark-sweep with optional compaction.
     MarkCompact();
     sweep_generation_++;
     old_gen_exhausted_ = false;
     old_generation_size_configured_ = true;
+    // This should be updated before PostGarbageCollectionProcessing, which can
+    // cause another GC.
+    old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
   } else {
     Scavenge();
   }
 
-  // This should be updated before PostGarbageCollectionProcessing, which can
-  // cause another GC.
-  old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
 
   UpdateSurvivalStatistics(start_new_space_size);
   ConfigureInitialOldGenerationSize();
@@ -4509,15 +4508,38 @@ void Heap::MakeHeapIterable() {
 }
 
 
-bool Heap::HasLowAllocationRate(size_t allocation_rate) {
-  static const size_t kLowAllocationRate = 1000;
-  if (allocation_rate == 0) return false;
-  return allocation_rate < kLowAllocationRate;
+bool Heap::HasLowYoungGenerationAllocationRate() {
+  const double high_mutator_utilization = 0.995;
+  double mutator_speed = static_cast<double>(
+      tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
+  double gc_speed =
+      static_cast<double>(tracer()->ScavengeSpeedInBytesPerMillisecond());
+  if (mutator_speed == 0 || gc_speed == 0) return false;
+  double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
+  return mutator_utilization > high_mutator_utilization;
 }
 
 
-void Heap::ReduceNewSpaceSize(size_t allocation_rate) {
-  if (!FLAG_predictable && HasLowAllocationRate(allocation_rate)) {
+bool Heap::HasLowOldGenerationAllocationRate() {
+  const double high_mutator_utilization = 0.995;
+  double mutator_speed = static_cast<double>(
+      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
+  double gc_speed = static_cast<double>(
+      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
+  if (mutator_speed == 0 || gc_speed == 0) return false;
+  double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
+  return mutator_utilization > high_mutator_utilization;
+}
+
+
+bool Heap::HasLowAllocationRate() {
+  return HasLowYoungGenerationAllocationRate() &&
+         HasLowOldGenerationAllocationRate();
+}
+
+
+void Heap::ReduceNewSpaceSize() {
+  if (!FLAG_predictable && HasLowAllocationRate()) {
     new_space_.Shrink();
     UncommitFromSpace();
   }
@@ -4573,11 +4595,9 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
   heap_state.new_space_capacity = new_space_.Capacity();
   heap_state.new_space_allocation_throughput_in_bytes_per_ms =
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond();
-  heap_state.current_allocation_throughput_in_bytes_per_ms =
-      tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
+  heap_state.has_low_allocation_rate = HasLowAllocationRate();
   intptr_t limit = old_generation_allocation_limit_;
-  if (HasLowAllocationRate(
-          heap_state.current_allocation_throughput_in_bytes_per_ms)) {
+  if (heap_state.has_low_allocation_rate) {
     limit = idle_old_generation_allocation_limit_;
   }
   heap_state.can_start_incremental_marking =

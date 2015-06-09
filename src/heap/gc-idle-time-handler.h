@@ -181,6 +181,7 @@ class GCIdleTimeHandler {
     bool can_start_incremental_marking;
     bool sweeping_in_progress;
     bool sweeping_completed;
+    bool has_low_allocation_rate;
     size_t mark_compact_speed_in_bytes_per_ms;
     size_t incremental_marking_speed_in_bytes_per_ms;
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms;
@@ -188,7 +189,6 @@ class GCIdleTimeHandler {
     size_t used_new_space_size;
     size_t new_space_capacity;
     size_t new_space_allocation_throughput_in_bytes_per_ms;
-    size_t current_allocation_throughput_in_bytes_per_ms;
   };
 
   GCIdleTimeHandler()
