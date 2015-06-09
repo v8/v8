@@ -3805,11 +3805,9 @@ void ParserTraits::DeclareArrowFunctionParameters(
   parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
 
   bool is_rest = false;
-  bool is_duplicate = DeclareFormalParameter(scope, raw_name, is_rest);
-
-  if (is_duplicate && !duplicate_loc->IsValid()) {
-    *duplicate_loc = param_location;
-  }
+  ExpressionClassifier classifier;
+  DeclareFormalParameter(scope, raw_name, &classifier, is_rest);
+  *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
 }
 
 

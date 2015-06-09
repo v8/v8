@@ -1033,18 +1033,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &factory);
-  ExpressionClassifier formals_classifier;
+  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  ExpressionClassifier formals_classifier(&duplicate_finder);
 
   bool has_rest = false;
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
-  int num_parameters;
-  {
-    DuplicateFinder duplicate_finder(scanner()->unicode_cache());
-    num_parameters = ParseFormalParameterList(&duplicate_finder, &has_rest,
-                                              &formals_classifier, CHECK_OK);
-  }
+  int num_parameters = ParseFormalParameterList(nullptr, &has_rest,
+                                                &formals_classifier, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 

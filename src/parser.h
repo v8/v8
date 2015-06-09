@@ -754,19 +754,9 @@ class ParserTraits {
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
-  bool DeclareFormalParameter(Scope* scope, const AstRawString* name,
-                              bool is_rest) {
-    bool is_duplicate = false;
-    Variable* var = scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
-    if (is_sloppy(scope->language_mode())) {
-      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-      // conservative approximation necessary to account for parameters
-      // that are assigned via the arguments array.
-      var->set_maybe_assigned();
-    }
-    return is_duplicate;
-  }
-
+  V8_INLINE void DeclareFormalParameter(Scope* scope, const AstRawString* name,
+                                        ExpressionClassifier* classifier,
+                                        bool is_rest);
   void DeclareArrowFunctionParameters(Scope* scope, Expression* expr,
                                       const Scanner::Location& params_loc,
                                       Scanner::Location* duplicate_loc,
@@ -1281,6 +1271,25 @@ Expression* ParserTraits::SpreadCall(Expression* function,
 Expression* ParserTraits::SpreadCallNew(
     Expression* function, ZoneList<v8::internal::Expression*>* args, int pos) {
   return parser_->SpreadCallNew(function, args, pos);
+}
+
+
+void ParserTraits::DeclareFormalParameter(Scope* scope,
+                                          const AstRawString* name,
+                                          ExpressionClassifier* classifier,
+                                          bool is_rest) {
+  bool is_duplicate = false;
+  Variable* var = scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
+  if (is_sloppy(scope->language_mode())) {
+    // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+    // conservative approximation necessary to account for parameters
+    // that are assigned via the arguments array.
+    var->set_maybe_assigned();
+  }
+  if (is_duplicate) {
+    classifier->RecordDuplicateFormalParameterError(
+        parser_->scanner()->location());
+  }
 }
 } }  // namespace v8::internal
 

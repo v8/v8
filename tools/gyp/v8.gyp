@@ -616,6 +616,7 @@
         '../../src/elements.h',
         '../../src/execution.cc',
         '../../src/execution.h',
+        '../../src/expression-classifier.h',
         '../../src/extensions/externalize-string-extension.cc',
         '../../src/extensions/externalize-string-extension.h',
         '../../src/extensions/free-buffer-extension.cc',

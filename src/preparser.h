@@ -8,6 +8,7 @@
 #include "src/v8.h"
 
 #include "src/bailout-reason.h"
+#include "src/expression-classifier.h"
 #include "src/func-name-inferrer.h"
 #include "src/hashmap.h"
 #include "src/messages.h"
@@ -17,7 +18,6 @@
 
 namespace v8 {
 namespace internal {
-
 
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
@@ -54,7 +54,6 @@ namespace internal {
 //     typedef ExpressionList;
 //     typedef PropertyList;
 //     typedef FormalParameter;
-//     typedef FormalParameterScope;
 //     // For constructing objects returned by the traversing functions.
 //     typedef Factory;
 //   };
@@ -68,7 +67,6 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Expression ExpressionT;
   typedef typename Traits::Type::Identifier IdentifierT;
   typedef typename Traits::Type::FormalParameter FormalParameterT;
-  typedef typename Traits::Type::FormalParameterScope FormalParameterScopeT;
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
@@ -506,238 +504,8 @@ class ParserBase : public Traits {
   void ReportUnexpectedToken(Token::Value token);
   void ReportUnexpectedTokenAt(Scanner::Location location, Token::Value token);
 
-  class ExpressionClassifier {
-   public:
-    struct Error {
-      Error()
-          : location(Scanner::Location::invalid()),
-            message(MessageTemplate::kNone),
-            arg(nullptr) {}
 
-      Scanner::Location location;
-      MessageTemplate::Template message;
-      const char* arg;
-    };
-
-    enum TargetProduction {
-      ExpressionProduction = 1 << 0,
-      BindingPatternProduction = 1 << 1,
-      AssignmentPatternProduction = 1 << 2,
-      DistinctFormalParametersProduction = 1 << 3,
-      StrictModeFormalParametersProduction = 1 << 4,
-      StrongModeFormalParametersProduction = 1 << 5,
-      ArrowFormalParametersProduction = 1 << 6,
-
-      PatternProductions =
-          (BindingPatternProduction | AssignmentPatternProduction),
-      FormalParametersProductions = (DistinctFormalParametersProduction |
-                                     StrictModeFormalParametersProduction |
-                                     StrongModeFormalParametersProduction),
-      StandardProductions = ExpressionProduction | PatternProductions,
-      AllProductions = (StandardProductions | FormalParametersProductions |
-                        ArrowFormalParametersProduction)
-    };
-
-    ExpressionClassifier() : invalid_productions_(0) {}
-
-    bool is_valid(unsigned productions) const {
-      return (invalid_productions_ & productions) == 0;
-    }
-
-    bool is_valid_expression() const { return is_valid(ExpressionProduction); }
-
-    bool is_valid_binding_pattern() const {
-      return is_valid(BindingPatternProduction);
-    }
-
-    bool is_valid_assignment_pattern() const {
-      return is_valid(AssignmentPatternProduction);
-    }
-
-    bool is_valid_arrow_formal_parameters() const {
-      return is_valid(ArrowFormalParametersProduction);
-    }
-
-    bool is_valid_formal_parameter_list_without_duplicates() const {
-      return is_valid(DistinctFormalParametersProduction);
-    }
-
-    // Note: callers should also check
-    // is_valid_formal_parameter_list_without_duplicates().
-    bool is_valid_strict_mode_formal_parameters() const {
-      return is_valid(StrictModeFormalParametersProduction);
-    }
-
-    // Note: callers should also check is_valid_strict_mode_formal_parameters()
-    // and is_valid_formal_parameter_list_without_duplicates().
-    bool is_valid_strong_mode_formal_parameters() const {
-      return is_valid(StrongModeFormalParametersProduction);
-    }
-
-    const Error& expression_error() const { return expression_error_; }
-
-    const Error& binding_pattern_error() const {
-      return binding_pattern_error_;
-    }
-
-    const Error& assignment_pattern_error() const {
-      return assignment_pattern_error_;
-    }
-
-    const Error& arrow_formal_parameters_error() const {
-      return arrow_formal_parameters_error_;
-    }
-
-    const Error& duplicate_formal_parameter_error() const {
-      return duplicate_formal_parameter_error_;
-    }
-
-    const Error& strict_mode_formal_parameter_error() const {
-      return strict_mode_formal_parameter_error_;
-    }
-
-    const Error& strong_mode_formal_parameter_error() const {
-      return strong_mode_formal_parameter_error_;
-    }
-
-    void RecordExpressionError(const Scanner::Location& loc,
-                               MessageTemplate::Template message,
-                               const char* arg = nullptr) {
-      if (!is_valid_expression()) return;
-      invalid_productions_ |= ExpressionProduction;
-      expression_error_.location = loc;
-      expression_error_.message = message;
-      expression_error_.arg = arg;
-    }
-
-    void RecordBindingPatternError(const Scanner::Location& loc,
-                                   MessageTemplate::Template message,
-                                   const char* arg = nullptr) {
-      if (!is_valid_binding_pattern()) return;
-      invalid_productions_ |= BindingPatternProduction;
-      binding_pattern_error_.location = loc;
-      binding_pattern_error_.message = message;
-      binding_pattern_error_.arg = arg;
-    }
-
-    void RecordAssignmentPatternError(const Scanner::Location& loc,
-                                      MessageTemplate::Template message,
-                                      const char* arg = nullptr) {
-      if (!is_valid_assignment_pattern()) return;
-      invalid_productions_ |= AssignmentPatternProduction;
-      assignment_pattern_error_.location = loc;
-      assignment_pattern_error_.message = message;
-      assignment_pattern_error_.arg = arg;
-    }
-
-    void RecordArrowFormalParametersError(const Scanner::Location& loc,
-                                          MessageTemplate::Template message,
-                                          const char* arg = nullptr) {
-      if (!is_valid_arrow_formal_parameters()) return;
-      invalid_productions_ |= ArrowFormalParametersProduction;
-      arrow_formal_parameters_error_.location = loc;
-      arrow_formal_parameters_error_.message = message;
-      arrow_formal_parameters_error_.arg = arg;
-    }
-
-    void RecordDuplicateFormalParameterError(const Scanner::Location& loc) {
-      if (!is_valid_formal_parameter_list_without_duplicates()) return;
-      invalid_productions_ |= DistinctFormalParametersProduction;
-      duplicate_formal_parameter_error_.location = loc;
-      duplicate_formal_parameter_error_.message =
-          MessageTemplate::kStrictParamDupe;
-      duplicate_formal_parameter_error_.arg = nullptr;
-    }
-
-    // Record a binding that would be invalid in strict mode.  Confusingly this
-    // is not the same as StrictFormalParameterList, which simply forbids
-    // duplicate bindings.
-    void RecordStrictModeFormalParameterError(const Scanner::Location& loc,
-                                              MessageTemplate::Template message,
-                                              const char* arg = nullptr) {
-      if (!is_valid_strict_mode_formal_parameters()) return;
-      invalid_productions_ |= StrictModeFormalParametersProduction;
-      strict_mode_formal_parameter_error_.location = loc;
-      strict_mode_formal_parameter_error_.message = message;
-      strict_mode_formal_parameter_error_.arg = arg;
-    }
-
-    void RecordStrongModeFormalParameterError(const Scanner::Location& loc,
-                                              MessageTemplate::Template message,
-                                              const char* arg = nullptr) {
-      if (!is_valid_strong_mode_formal_parameters()) return;
-      invalid_productions_ |= StrongModeFormalParametersProduction;
-      strong_mode_formal_parameter_error_.location = loc;
-      strong_mode_formal_parameter_error_.message = message;
-      strong_mode_formal_parameter_error_.arg = arg;
-    }
-
-    void Accumulate(const ExpressionClassifier& inner,
-                    unsigned productions = StandardProductions) {
-      // Propagate errors from inner, but don't overwrite already recorded
-      // errors.
-      unsigned non_arrow_inner_invalid_productions =
-          inner.invalid_productions_ & ~ArrowFormalParametersProduction;
-      if (non_arrow_inner_invalid_productions == 0) return;
-      unsigned non_arrow_productions =
-          productions & ~ArrowFormalParametersProduction;
-      unsigned errors =
-          non_arrow_productions & non_arrow_inner_invalid_productions;
-      errors &= ~invalid_productions_;
-      if (errors != 0) {
-        invalid_productions_ |= errors;
-        if (errors & ExpressionProduction)
-          expression_error_ = inner.expression_error_;
-        if (errors & BindingPatternProduction)
-          binding_pattern_error_ = inner.binding_pattern_error_;
-        if (errors & AssignmentPatternProduction)
-          assignment_pattern_error_ = inner.assignment_pattern_error_;
-        if (errors & DistinctFormalParametersProduction)
-          duplicate_formal_parameter_error_ =
-              inner.duplicate_formal_parameter_error_;
-        if (errors & StrictModeFormalParametersProduction)
-          strict_mode_formal_parameter_error_ =
-              inner.strict_mode_formal_parameter_error_;
-        if (errors & StrongModeFormalParametersProduction)
-          strong_mode_formal_parameter_error_ =
-              inner.strong_mode_formal_parameter_error_;
-      }
-
-      // As an exception to the above, the result continues to be a valid arrow
-      // formal parameters if the inner expression is a valid binding pattern.
-      if (productions & ArrowFormalParametersProduction &&
-          is_valid_arrow_formal_parameters() &&
-          !inner.is_valid_binding_pattern()) {
-        invalid_productions_ |= ArrowFormalParametersProduction;
-        arrow_formal_parameters_error_ = inner.binding_pattern_error_;
-      }
-    }
-
-    void AccumulateReclassifyingAsPattern(const ExpressionClassifier& inner) {
-      Accumulate(inner, AllProductions & ~PatternProductions);
-      if (!inner.is_valid_expression()) {
-        if (is_valid_binding_pattern()) {
-          binding_pattern_error_ = inner.expression_error();
-        }
-        if (is_valid_assignment_pattern()) {
-          assignment_pattern_error_ = inner.expression_error();
-        }
-      }
-    }
-
-   private:
-    unsigned invalid_productions_;
-    Error expression_error_;
-    Error binding_pattern_error_;
-    Error assignment_pattern_error_;
-    Error arrow_formal_parameters_error_;
-    Error duplicate_formal_parameter_error_;
-    Error strict_mode_formal_parameter_error_;
-    Error strong_mode_formal_parameter_error_;
-  };
-
-  void ReportClassifierError(
-      const typename ExpressionClassifier::Error& error) {
+  void ReportClassifierError(const ExpressionClassifier::Error& error) {
     Traits::ReportMessageAt(error.location, error.message, error.arg,
                             kSyntaxError);
   }
@@ -890,9 +658,9 @@ class ParserBase : public Traits {
   ExpressionT ParseStrongSuperCallExpression(ExpressionClassifier* classifier,
                                              bool* ok);
 
-  void ParseFormalParameter(FormalParameterScopeT* scope, bool is_rest,
+  void ParseFormalParameter(Scope* scope, bool is_rest,
                             ExpressionClassifier* classifier, bool* ok);
-  int ParseFormalParameterList(FormalParameterScopeT* scope, bool* has_rest,
+  int ParseFormalParameterList(Scope* scope, bool* has_rest,
                                ExpressionClassifier* classifier, bool* ok);
   void CheckArityRestrictions(
       int param_count, FunctionLiteral::ArityRestriction arity_restriction,
@@ -1509,7 +1277,6 @@ class PreParserTraits {
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
     typedef PreParserIdentifier FormalParameter;
-    typedef DuplicateFinder FormalParameterScope;
     typedef PreParserStatementList StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -1788,9 +1555,8 @@ class PreParserTraits {
     return !tag.IsNoTemplateTag();
   }
 
-  V8_INLINE bool DeclareFormalParameter(DuplicateFinder* scope,
-                                        PreParserIdentifier param,
-                                        bool is_rest);
+  void DeclareFormalParameter(Scope* scope, PreParserIdentifier param,
+                              ExpressionClassifier* classifier, bool is_rest) {}
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 
@@ -1984,13 +1750,6 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
 }
 
 
-bool PreParserTraits::DeclareFormalParameter(
-    DuplicateFinder* duplicate_finder, PreParserIdentifier current_identifier,
-    bool is_rest) {
-  return pre_parser_->scanner()->FindSymbol(duplicate_finder, 1) != 0;
-}
-
-
 void PreParserTraits::ParseArrowFunctionFormalParameters(
     Scope* scope, PreParserExpression params,
     const Scanner::Location& params_loc, bool* is_rest,
@@ -2162,6 +1921,11 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
         classifier->RecordAssignmentPatternError(
             scanner()->location(), MessageTemplate::kStrongUndefined);
       }
+    }
+
+    if (classifier->duplicate_finder() != nullptr &&
+        scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
+      classifier->RecordDuplicateFormalParameterError(scanner()->location());
     }
     return name;
   } else if (is_sloppy(language_mode()) &&
@@ -3682,8 +3446,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
 
 
 template <class Traits>
-void ParserBase<Traits>::ParseFormalParameter(FormalParameterScopeT* scope,
-                                              bool is_rest,
+void ParserBase<Traits>::ParseFormalParameter(Scope* scope, bool is_rest,
                                               ExpressionClassifier* classifier,
                                               bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
@@ -3691,17 +3454,13 @@ void ParserBase<Traits>::ParseFormalParameter(FormalParameterScopeT* scope,
   IdentifierT name = ParseAndClassifyIdentifier(classifier, ok);
   if (!*ok) return;
 
-  bool was_declared = Traits::DeclareFormalParameter(scope, name, is_rest);
-  if (was_declared) {
-    classifier->RecordDuplicateFormalParameterError(scanner()->location());
-  }
+  Traits::DeclareFormalParameter(scope, name, classifier, is_rest);
 }
 
 
 template <class Traits>
 int ParserBase<Traits>::ParseFormalParameterList(
-    FormalParameterScopeT* scope, bool* is_rest,
-    ExpressionClassifier* classifier, bool* ok) {
+    Scope* scope, bool* is_rest, ExpressionClassifier* classifier, bool* ok) {
   // FormalParameters[Yield,GeneratorParameter] :
   //   [empty]
   //   FormalParameterList[?Yield, ?GeneratorParameter]
