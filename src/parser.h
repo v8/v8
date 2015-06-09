@@ -730,6 +730,8 @@ class ParserTraits {
                                      int pos);
   Expression* SuperCallReference(Scope* scope, AstNodeFactory* factory,
                                  int pos);
+  Expression* NewTargetExpression(Scope* scope, AstNodeFactory* factory,
+                                  int pos);
   Expression* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                  int end_pos);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
