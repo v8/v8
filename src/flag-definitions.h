@@ -186,7 +186,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_modules, "harmony modules")                         \
   V(harmony_array_includes, "harmony Array.prototype.includes") \
   V(harmony_regexps, "harmony regular expression extensions")   \
-  V(harmony_arrow_functions, "harmony arrow functions")         \
   V(harmony_proxies, "harmony proxies")                         \
   V(harmony_sloppy, "harmony features in sloppy mode")          \
   V(harmony_unicode_regexps, "harmony unicode regexps")         \
@@ -198,6 +197,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                      \
   V(harmony_arrays, "harmony array methods")                   \
+  V(harmony_arrow_functions, "harmony arrow functions")        \
   V(harmony_rest_parameters, "harmony rest parameters")        \
   V(harmony_spreadcalls, "harmony spread-calls")               \
   V(harmony_object, "harmony Object methods")                  \
