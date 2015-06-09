@@ -80,10 +80,6 @@ TEST(ThrowMessageIndirectly) {
 }
 
 
-// TODO(mstarzinger): Increase test coverage by having similar tests within the
-// mjsunit suite to also test integration with other components (e.g. OSR).
-
-
 TEST(Catch) {
   i::FLAG_turbo_try_catch = true;
   const char* src =
