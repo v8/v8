@@ -4817,10 +4817,200 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
 }
 
 
+int CompareFirstChar(RegExpTree* const* a, RegExpTree* const* b) {
+  RegExpAtom* atom1 = (*a)->AsAtom();
+  RegExpAtom* atom2 = (*b)->AsAtom();
+  uc16 character1 = atom1->data().at(0);
+  uc16 character2 = atom2->data().at(0);
+  if (character1 < character2) return -1;
+  if (character1 > character2) return 1;
+  return 0;
+}
+
+
+// We can stable sort runs of atoms, since the order does not matter if they
+// start with different characters.
+// Returns true if any consecutive atoms were found.
+bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  int length = alternatives->length();
+  bool found_consecutive_atoms = false;
+  for (int i = 0; i < length; i++) {
+    while (i < length) {
+      RegExpTree* alternative = alternatives->at(i);
+      if (alternative->IsAtom()) break;
+      i++;
+    }
+    // i is length or it is the index of an atom.
+    if (i == length) break;
+    int first_atom = i;
+    i++;
+    while (i < length) {
+      RegExpTree* alternative = alternatives->at(i);
+      if (!alternative->IsAtom()) break;
+      i++;
+    }
+    // Sort atoms to get ones with common prefixes together.
+    // This step is not valid if we are in a case-independent regexp,
+    // because it would change /is|I/ to /I|is/, and order matters when
+    // the regexp parts don't match only disjoint starting points. To fix
+    // this would need a version of CompareFirstChar that uses case-
+    // independent character classes for comparison.
+    if (!compiler->ignore_case()) {
+      DCHECK_LT(first_atom, alternatives->length());
+      DCHECK_LE(i, alternatives->length());
+      DCHECK_LE(first_atom, i);
+      alternatives->StableSort(CompareFirstChar, first_atom, i - first_atom);
+    }
+    if (i - first_atom > 1) found_consecutive_atoms = true;
+  }
+  return found_consecutive_atoms;
+}
+
+
+// Optimizes ab|ac|az to a(?:b|c|d).
+void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
+  Zone* zone = compiler->zone();
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  int length = alternatives->length();
+
+  int write_posn = 0;
+  int i = 0;
+  while (i < length) {
+    RegExpTree* alternative = alternatives->at(i);
+    if (!alternative->IsAtom()) {
+      alternatives->at(write_posn++) = alternatives->at(i);
+      i++;
+      continue;
+    }
+    RegExpAtom* atom = alternative->AsAtom();
+    uc16 common_prefix = atom->data().at(0);
+    int first_with_prefix = i;
+    int prefix_length = atom->length();
+    i++;
+    while (i < length) {
+      alternative = alternatives->at(i);
+      if (!alternative->IsAtom()) break;
+      atom = alternative->AsAtom();
+      if (atom->data().at(0) != common_prefix) break;
+      prefix_length = Min(prefix_length, atom->length());
+      i++;
+    }
+    if (i > first_with_prefix + 2) {
+      // Found worthwhile run of alternatives with common prefix of at least one
+      // character.  The sorting function above did not sort on more than one
+      // character for reasons of correctness, but there may still be a longer
+      // common prefix if the terms were similar or presorted in the input.
+      // Find out how long the common prefix is.
+      int run_length = i - first_with_prefix;
+      atom = alternatives->at(first_with_prefix)->AsAtom();
+      for (int j = 1; j < run_length && prefix_length > 1; j++) {
+        RegExpAtom* old_atom =
+            alternatives->at(j + first_with_prefix)->AsAtom();
+        for (int k = 1; k < prefix_length; k++) {
+          if (atom->data().at(k) != old_atom->data().at(k)) prefix_length = k;
+        }
+      }
+      RegExpAtom* prefix =
+          new (zone) RegExpAtom(atom->data().SubVector(0, prefix_length));
+      ZoneList<RegExpTree*>* pair = new (zone) ZoneList<RegExpTree*>(2, zone);
+      pair->Add(prefix, zone);
+      ZoneList<RegExpTree*>* suffixes =
+          new (zone) ZoneList<RegExpTree*>(run_length, zone);
+      for (int j = 0; j < run_length; j++) {
+        RegExpAtom* old_atom =
+            alternatives->at(j + first_with_prefix)->AsAtom();
+        int len = old_atom->length();
+        if (len == prefix_length) {
+          suffixes->Add(new (zone) RegExpEmpty(), zone);
+        } else {
+          RegExpTree* suffix = new (zone) RegExpAtom(
+              old_atom->data().SubVector(prefix_length, old_atom->length()));
+          suffixes->Add(suffix, zone);
+        }
+      }
+      pair->Add(new (zone) RegExpDisjunction(suffixes), zone);
+      alternatives->at(write_posn++) = new (zone) RegExpAlternative(pair);
+    } else {
+      // Just copy any non-worthwhile alternatives.
+      for (int j = first_with_prefix; j < i; j++) {
+        alternatives->at(write_posn++) = alternatives->at(j);
+      }
+    }
+  }
+  alternatives->Rewind(write_posn);  // Trim end of array.
+}
+
+
+// Optimizes b|c|z to [bcz].
+void RegExpDisjunction::FixSingleCharacterDisjunctions(
+    RegExpCompiler* compiler) {
+  Zone* zone = compiler->zone();
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  int length = alternatives->length();
+
+  int write_posn = 0;
+  int i = 0;
+  while (i < length) {
+    RegExpTree* alternative = alternatives->at(i);
+    if (!alternative->IsAtom()) {
+      alternatives->at(write_posn++) = alternatives->at(i);
+      i++;
+      continue;
+    }
+    RegExpAtom* atom = alternative->AsAtom();
+    if (atom->length() != 1) {
+      alternatives->at(write_posn++) = alternatives->at(i);
+      i++;
+      continue;
+    }
+    int first_in_run = i;
+    i++;
+    while (i < length) {
+      alternative = alternatives->at(i);
+      if (!alternative->IsAtom()) break;
+      atom = alternative->AsAtom();
+      if (atom->length() != 1) break;
+      i++;
+    }
+    if (i > first_in_run + 1) {
+      // Found non-trivial run of single-character alternatives.
+      int run_length = i - first_in_run;
+      ZoneList<CharacterRange>* ranges =
+          new (zone) ZoneList<CharacterRange>(2, zone);
+      for (int j = 0; j < run_length; j++) {
+        RegExpAtom* old_atom = alternatives->at(j + first_in_run)->AsAtom();
+        DCHECK_EQ(old_atom->length(), 1);
+        ranges->Add(CharacterRange::Singleton(old_atom->data().at(0)), zone);
+      }
+      alternatives->at(write_posn++) =
+          new (zone) RegExpCharacterClass(ranges, false);
+    } else {
+      // Just copy any trivial alternatives.
+      for (int j = first_in_run; j < i; j++) {
+        alternatives->at(write_posn++) = alternatives->at(j);
+      }
+    }
+  }
+  alternatives->Rewind(write_posn);  // Trim end of array.
+}
+
+
 RegExpNode* RegExpDisjunction::ToNode(RegExpCompiler* compiler,
                                       RegExpNode* on_success) {
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
+
+  if (alternatives->length() > 2) {
+    bool found_consecutive_atoms = SortConsecutiveAtoms(compiler);
+    if (found_consecutive_atoms) RationalizeConsecutiveAtoms(compiler);
+    FixSingleCharacterDisjunctions(compiler);
+    if (alternatives->length() == 1) {
+      return alternatives->at(0)->ToNode(compiler, on_success);
+    }
+  }
+
   int length = alternatives->length();
+
   ChoiceNode* result =
       new(compiler->zone()) ChoiceNode(length, compiler->zone());
   for (int i = 0; i < length; i++) {
