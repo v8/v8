@@ -1747,13 +1747,13 @@ TEST(TestSizeOfRegExpCode) {
 
   // Adjust source below and this check to match
   // RegExpImple::kRegExpTooLargeToOptimize.
-  DCHECK_EQ(i::RegExpImpl::kRegExpTooLargeToOptimize, 20 * KB);
+  DCHECK_EQ(i::RegExpImpl::kRegExpTooLargeToOptimize, 10 * KB);
 
   // Compile a regexp that is much larger if we are using regexp optimizations.
   CompileRun(
       "var reg_exp_source = '(?:a|bc|def|ghij|klmno|pqrstu)';"
       "var half_size_reg_exp;"
-      "while (reg_exp_source.length < 20 * 1024) {"
+      "while (reg_exp_source.length < 10 * 1024) {"
       "  half_size_reg_exp = reg_exp_source;"
       "  reg_exp_source = reg_exp_source + reg_exp_source;"
       "}"
