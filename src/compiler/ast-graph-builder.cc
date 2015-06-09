@@ -2429,7 +2429,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       }
     }
     Node* language = jsgraph()->Constant(language_mode());
-    Node* position = jsgraph()->Constant(info()->scope()->start_position());
+    Node* position = jsgraph()->Constant(current_scope()->start_position());
     const Operator* op =
         javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
     Node* pair =
