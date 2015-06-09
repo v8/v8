@@ -1907,7 +1907,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
 
   if (!can_overflow) {
-    DCHECK(right->IsRegister());
+    DCHECK(right->IsRegister() || right->IsConstantOperand());
     __ Daddu(ToRegister(result), ToRegister(left), ToOperand(right));
   } else {  // can_overflow.
     Register overflow = scratch0();
