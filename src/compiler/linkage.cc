@@ -124,7 +124,6 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
-    case Runtime::kSetProperty:  // TODO(jarin): Is it safe?
     case Runtime::kStringCompareRT:
     case Runtime::kStringEquals:
     case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?

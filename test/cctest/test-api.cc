@@ -19287,6 +19287,7 @@ void CheckCorrectThrow(const char* script) {
 
 TEST(AccessCheckThrows) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_turbo_try_catch = true;
   v8::V8::Initialize();
   v8::V8::SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
   v8::Isolate* isolate = CcTest::isolate();

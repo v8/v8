@@ -1744,7 +1744,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           Node* language = jsgraph()->Constant(SLOPPY);
           const Operator* op =
               javascript()->CallRuntime(Runtime::kSetProperty, 4);
-          NewNode(op, receiver, key, value, language);
+          Node* set_property = NewNode(op, receiver, key, value, language);
+          // SetProperty should not lazy deopt on an object literal.
+          PrepareFrameState(set_property, BailoutId::None());
           BuildSetHomeObject(value, receiver, property->value());
         }
         break;
