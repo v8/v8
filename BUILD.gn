@@ -52,7 +52,7 @@ config("internal_config") {
 
   include_dirs = [ "." ]
 
-  if (component_mode == "shared_library") {
+  if (is_component_build) {
     defines = [
       "V8_SHARED",
       "BUILDING_V8_SHARED",
@@ -1567,7 +1567,7 @@ if (current_toolchain == snapshot_toolchain) {
 # Public targets
 #
 
-if (component_mode == "shared_library") {
+if (is_component_build) {
   component("v8") {
     sources = [
       "src/v8dll-main.cc",
@@ -1576,6 +1576,8 @@ if (component_mode == "shared_library") {
     if (v8_use_snapshot && v8_use_external_startup_data) {
       deps = [
         ":v8_base",
+      ]
+      public_deps = [
         ":v8_external_snapshot",
       ]
     } else if (v8_use_snapshot) {
@@ -1672,7 +1674,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       sources += [ "src/d8-windows.cc" ]
     }
 
-    if (component_mode != "shared_library") {
+    if (!is_component_build) {
       sources += [
         "src/d8-debug.cc",
         "$target_gen_dir/d8-js.cc",
