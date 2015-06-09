@@ -975,7 +975,7 @@ class Instruction {
     return Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
   }
 
-  inline int32_t Imm26Value() const {
+  inline int64_t Imm26Value() const {
     DCHECK(InstructionType() == kJumpType);
     return Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }

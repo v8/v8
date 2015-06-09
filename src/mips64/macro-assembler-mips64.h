@@ -1702,6 +1702,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void BranchAndLinkShort(Label* L, Condition cond, Register rs,
                           const Operand& rt,
                           BranchDelaySlot bdslot = PROTECT);
+  void J(Label* L, BranchDelaySlot bdslot);
+  void Jal(Label* L, BranchDelaySlot bdslot);
   void Jr(Label* L, BranchDelaySlot bdslot);
   void Jalr(Label* L, BranchDelaySlot bdslot);
 

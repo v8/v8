@@ -521,6 +521,8 @@ class Assembler : public AssemblerBase {
   // Return the code target address of the patch debug break slot
   inline static Address break_address_from_return_address(Address pc);
 
+  static void JumpLabelToJumpRegister(Address pc);
+
   static void QuietNaN(HeapObject* nan);
 
   // This sets the branch destination (which gets loaded at the call address).
@@ -1447,13 +1449,13 @@ class Assembler : public AssemblerBase {
 
   int32_t get_trampoline_entry(int32_t pos);
   int unbound_labels_count_;
-  // If trampoline is emitted, generated code is becoming large. As this is
-  // already a slow case which can possibly break our code generation for the
-  // extreme case, we use this information to trigger different mode of
+  // After trampoline is emitted, long branches are used in generated code for
+  // the forward branches whose target offsets could be beyond reach of branch
+  // instruction. We use this information to trigger different mode of
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
-  static const int kTrampolineSlotsSize = 6 * kInstrSize;
+  static const int kTrampolineSlotsSize = 2 * kInstrSize;
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
 

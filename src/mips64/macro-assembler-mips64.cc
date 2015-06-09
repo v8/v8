@@ -1652,7 +1652,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
         c(UN, D, cmp1, cmp2);
         bc1f(&skip);
         nop();
-        Jr(nan, bd);
+        J(nan, bd);
         bind(&skip);
       } else {
         c(UN, D, cmp1, cmp2);
@@ -1671,7 +1671,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
         cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
         bc1eqz(&skip, kDoubleCompareReg);
         nop();
-        Jr(nan, bd);
+        J(nan, bd);
         bind(&skip);
       } else {
         cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
@@ -1690,7 +1690,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
       Label skip;
       Condition neg_cond = NegateFpuCondition(cond);
       BranchShortF(sizeField, &skip, neg_cond, cmp1, cmp2, bd);
-      Jr(target, bd);
+      J(target, bd);
       bind(&skip);
     } else {
       BranchShortF(sizeField, target, cond, cmp1, cmp2, bd);
@@ -2126,11 +2126,11 @@ void MacroAssembler::Branch(Label* L, BranchDelaySlot bdslot) {
     if (is_near(L)) {
       BranchShort(L, bdslot);
     } else {
-      Jr(L, bdslot);
+      J(L, bdslot);
     }
   } else {
     if (is_trampoline_emitted()) {
-      Jr(L, bdslot);
+      J(L, bdslot);
     } else {
       BranchShort(L, bdslot);
     }
@@ -2149,10 +2149,10 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        Jr(L, bdslot);
+        J(L, bdslot);
         bind(&skip);
       } else {
-        Jr(L, bdslot);
+        J(L, bdslot);
       }
     }
   } else {
@@ -2161,10 +2161,10 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        Jr(L, bdslot);
+        J(L, bdslot);
         bind(&skip);
       } else {
-        Jr(L, bdslot);
+        J(L, bdslot);
       }
     } else {
       BranchShort(L, cond, rs, rt, bdslot);
@@ -2730,11 +2730,11 @@ void MacroAssembler::BranchAndLink(Label* L, BranchDelaySlot bdslot) {
     if (is_near(L)) {
       BranchAndLinkShort(L, bdslot);
     } else {
-      Jalr(L, bdslot);
+      Jal(L, bdslot);
     }
   } else {
     if (is_trampoline_emitted()) {
-      Jalr(L, bdslot);
+      Jal(L, bdslot);
     } else {
       BranchAndLinkShort(L, bdslot);
     }
@@ -2752,7 +2752,7 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      Jalr(L, bdslot);
+      J(L, bdslot);
       bind(&skip);
     }
   } else {
@@ -2760,7 +2760,7 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      Jalr(L, bdslot);
+      Jal(L, bdslot);
       bind(&skip);
     } else {
       BranchAndLinkShort(L, cond, rs, rt, bdslot);
@@ -3185,6 +3185,40 @@ void MacroAssembler::Ret(Condition cond,
                          const Operand& rt,
                          BranchDelaySlot bd) {
   Jump(ra, cond, rs, rt, bd);
+}
+
+
+void MacroAssembler::J(Label* L, BranchDelaySlot bdslot) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  uint64_t imm28;
+  imm28 = jump_address(L);
+  {
+    BlockGrowBufferScope block_buf_growth(this);
+    // Buffer growth (and relocation) must be blocked for internal references
+    // until associated instructions are emitted and available to be patched.
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    j(imm28);
+  }
+  // Emit a nop in the branch delay slot if required.
+  if (bdslot == PROTECT) nop();
+}
+
+
+void MacroAssembler::Jal(Label* L, BranchDelaySlot bdslot) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  uint64_t imm28;
+  imm28 = jump_address(L);
+  {
+    BlockGrowBufferScope block_buf_growth(this);
+    // Buffer growth (and relocation) must be blocked for internal references
+    // until associated instructions are emitted and available to be patched.
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    jal(imm28);
+  }
+  // Emit a nop in the branch delay slot if required.
+  if (bdslot == PROTECT) nop();
 }
 
 

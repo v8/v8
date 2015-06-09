@@ -114,7 +114,14 @@ bool CodeRange::SetUp(size_t requested) {
   }
 
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
+#ifdef V8_TARGET_ARCH_MIPS64
+  // To use pseudo-relative jumps such as j/jal instructions which have 28-bit
+  // encoded immediate, the addresses have to be in range of 256Mb aligned
+  // region.
+  code_range_ = new base::VirtualMemory(requested, kMaximalCodeRangeSize);
+#else
   code_range_ = new base::VirtualMemory(requested);
+#endif
   CHECK(code_range_ != NULL);
   if (!code_range_->IsReserved()) {
     delete code_range_;
@@ -645,7 +652,14 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                                  base::OS::CommitPageSize());
     // Allocate executable memory either from code range or from the
     // OS.
+#ifdef V8_TARGET_ARCH_MIPS64
+    // Use code range only for large object space on mips64 to keep address
+    // range within 256-MB memory region.
+    if (isolate_->code_range() != NULL && isolate_->code_range()->valid() &&
+        commit_area_size > CodePageAreaSize()) {
+#else
     if (isolate_->code_range() != NULL && isolate_->code_range()->valid()) {
+#endif
       base = isolate_->code_range()->AllocateRawMemory(chunk_size, commit_size,
                                                        &chunk_size);
       DCHECK(

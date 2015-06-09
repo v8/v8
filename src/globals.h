@@ -148,7 +148,14 @@ const int kPointerSizeLog2 = 3;
 const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
 const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);
 const bool kRequiresCodeRange = true;
+#if V8_TARGET_ARCH_MIPS64
+// To use pseudo-relative jumps such as j/jal instructions which have 28-bit
+// encoded immediate, the addresses have to be in range of 256MB aligned
+// region. Used only for large object space.
+const size_t kMaximalCodeRangeSize = 256 * MB;
+#else
 const size_t kMaximalCodeRangeSize = 512 * MB;
+#endif
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
 const size_t kReservedCodeRangePages = 1;

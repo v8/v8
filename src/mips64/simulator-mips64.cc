@@ -4321,11 +4321,11 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
 // Type 3: instructions using a 26 bytes immediate. (e.g. j, jal).
 void Simulator::DecodeTypeJump(Instruction* instr) {
   // Get current pc.
-  int32_t current_pc = get_pc();
+  int64_t current_pc = get_pc();
   // Get unchanged bits of pc.
-  int32_t pc_high_bits = current_pc & 0xf0000000;
+  int64_t pc_high_bits = current_pc & 0xfffffffff0000000;
   // Next pc.
-  int32_t next_pc = pc_high_bits | (instr->Imm26Value() << 2);
+  int64_t next_pc = pc_high_bits | (instr->Imm26Value() << 2);
 
   // Execute branch delay slot.
   // We don't check for end_sim_pc. First it should not be met as the current pc
