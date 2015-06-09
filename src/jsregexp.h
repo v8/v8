@@ -212,7 +212,7 @@ class RegExpImpl {
   // and the total executable memory at any point.
   static const int kRegExpExecutableMemoryLimit = 16 * MB;
   static const int kRegExpCompiledLimit = 1 * MB;
-  static const int kRegExpTooLargeToOptimize = 10 * KB;
+  static const int kRegExpTooLargeToOptimize = 20 * KB;
 
  private:
   static bool CompileIrregexp(Handle<JSRegExp> re,
