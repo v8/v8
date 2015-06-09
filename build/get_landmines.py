@@ -21,7 +21,7 @@ def main():
   print 'Revert activation of MSVS 2013.'
   print 'Activating MSVS 2013 again.'
   print 'Clobber after ICU roll.'
-  print 'Clobber after change to src/messages.h.'
+  print 'Moar clobbering...'
   return 0
 
 
