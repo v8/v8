@@ -389,6 +389,34 @@
   'language/statements/const/syntax/without-initializer-label-statement': [PASS, ['sloppy', FAIL]],
   'language/statements/const/syntax/without-initializer-while-expression-statement': [PASS, ['sloppy', FAIL]],
 
+
+  ###########################  HARNESS ISSUES ############################
+  'built-ins/Math/acosh/acosh-length': [PASS, FAIL],
+  'built-ins/Math/acosh/acosh-specialVals': [PASS, FAIL],
+  'built-ins/Math/asinh/asinh-length': [PASS, FAIL],
+  'built-ins/Math/asinh/asinh-specialVals': [PASS, FAIL],
+  'built-ins/Math/atanh/atanh-length': [PASS, FAIL],
+  'built-ins/Math/atanh/atanh-specialVals': [PASS, FAIL],
+  'built-ins/Math/cbrt/cbrt-length': [PASS, FAIL],
+  'built-ins/Math/cbrt/cbrt-specialValues': [PASS, FAIL],
+  'built-ins/Math/cosh/cosh-length': [PASS, FAIL],
+  'built-ins/Math/cosh/cosh-specialVals': [PASS, FAIL],
+  'built-ins/Math/expm1/expm1-length': [PASS, FAIL],
+  'built-ins/Math/expm1/expm1-specialVals': [PASS, FAIL],
+  'built-ins/Math/imul/imul-length': [PASS, FAIL],
+  'built-ins/Math/log10/Log10-length': [PASS, FAIL],
+  'built-ins/Math/log10/Log10-specialVals': [PASS, FAIL],
+  'built-ins/Math/log1p/Log1p-length': [PASS, FAIL],
+  'built-ins/Math/log2/log2-length': [PASS, FAIL],
+  'built-ins/Math/sign/sign-length': [PASS, FAIL],
+  'built-ins/Math/sign/sign-specialVals': [PASS, FAIL],
+  'built-ins/Math/sinh/sinh-length': [PASS, FAIL],
+  'built-ins/Math/sinh/sinh-specialVals': [PASS, FAIL],
+  'built-ins/Math/tanh/tanh-length': [PASS, FAIL],
+  'built-ins/Math/tanh/tanh-specialVals': [PASS, FAIL],
+  'built-ins/Math/trunc/trunc-length': [PASS, FAIL],
+  'built-ins/Math/trunc/trunc-specialVals': [PASS, FAIL],
+
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
   'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
