@@ -884,93 +884,56 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
     return JavaScriptFrame::Summarize(frames);
   }
 
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
-  FixedArray* literal_array = data->LiteralArray();
-
-  // BUG(3243555): Since we don't have a lazy-deopt registered at
-  // throw-statements, we can't use the translation at the call-site of
-  // throw. An entry with no deoptimization index indicates a call-site
-  // without a lazy-deopt. As a consequence we are not allowed to inline
-  // functions containing throw.
-  DCHECK(deopt_index != Safepoint::kNoDeoptimizationIndex);
-
-  TranslationIterator it(data->TranslationByteArray(),
-                         data->TranslationIndex(deopt_index)->value());
-  Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
-  DCHECK(opcode == Translation::BEGIN);
-  it.Next();  // Drop frame count.
-  int jsframe_count = it.Next();
-
   // We create the summary in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
+  TranslatedState state(this);
   bool is_constructor = IsConstructor();
-  int i = jsframe_count;
-  while (i > 0) {
-    opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::JS_FRAME) {
-      i--;
-      BailoutId ast_id = BailoutId(it.Next());
-      JSFunction* function = LiteralAt(literal_array, it.Next());
-      it.Next();  // Skip height.
+  for (TranslatedFrame const& frame : state) {
+    switch (frame.kind()) {
+      case TranslatedFrame::kFunction: {
+        BailoutId const ast_id = frame.node_id();
+        JSFunction* const function = frame.raw_function();
 
-      // The translation commands are ordered and the receiver is always
-      // at the first position.
-      // If we are at a call, the receiver is always in a stack slot.
-      // Otherwise we are not guaranteed to get the receiver value.
-      opcode = static_cast<Translation::Opcode>(it.Next());
-      int index = it.Next();
-
-      // Get the correct receiver in the optimized frame.
-      Object* receiver = NULL;
-      if (opcode == Translation::LITERAL) {
-        receiver = data->LiteralArray()->get(index);
-      } else if (opcode == Translation::STACK_SLOT) {
-        // Positive index means the value is spilled to the locals
-        // area. Negative means it is stored in the incoming parameter
-        // area.
-        if (index >= 0) {
-          receiver = GetExpression(index);
-        } else {
-          // Index -1 overlaps with last parameter, -n with the first parameter,
-          // (-n - 1) with the receiver with n being the number of parameters
-          // of the outermost, optimized frame.
-          int parameter_count = ComputeParametersCount();
-          int parameter_index = index + parameter_count;
-          receiver = (parameter_index == -1)
-              ? this->receiver()
-              : this->GetParameter(parameter_index);
+        // Get the correct receiver in the optimized frame.
+        Object* receiver = frame.front().GetRawValue();
+        if (receiver == isolate()->heap()->arguments_marker()) {
+          // TODO(jarin): Materializing a captured object (or duplicated
+          // object) is hard, we return undefined for now. This breaks the
+          // produced stack trace, as constructor frames aren't marked as
+          // such anymore.
+          receiver = isolate()->heap()->undefined_value();
         }
-      } else {
-        // The receiver is not in a stack slot nor in a literal.  We give up.
-        // TODO(3029): Materializing a captured object (or duplicated
-        // object) is hard, we return undefined for now. This breaks the
-        // produced stack trace, as constructor frames aren't marked as
-        // such anymore.
-        receiver = isolate()->heap()->undefined_value();
+
+        Code* code = function->shared()->code();
+        DeoptimizationOutputData* output_data =
+            DeoptimizationOutputData::cast(code->deoptimization_data());
+        unsigned entry =
+            Deoptimizer::GetOutputInfo(output_data, ast_id, function->shared());
+        unsigned pc_offset =
+            FullCodeGenerator::PcField::decode(entry) + Code::kHeaderSize;
+        DCHECK(pc_offset > 0);
+
+        FrameSummary summary(receiver, function, code, pc_offset,
+                             is_constructor);
+        frames->Add(summary);
+        is_constructor = false;
+        break;
       }
 
-      Code* code = function->shared()->code();
-      DeoptimizationOutputData* output_data =
-          DeoptimizationOutputData::cast(code->deoptimization_data());
-      unsigned entry = Deoptimizer::GetOutputInfo(output_data,
-                                                  ast_id,
-                                                  function->shared());
-      unsigned pc_offset =
-          FullCodeGenerator::PcField::decode(entry) + Code::kHeaderSize;
-      DCHECK(pc_offset > 0);
+      case TranslatedFrame::kConstructStub: {
+        // The next encountered JS_FRAME will be marked as a constructor call.
+        DCHECK(!is_constructor);
+        is_constructor = true;
+        break;
+      }
 
-      FrameSummary summary(receiver, function, code, pc_offset, is_constructor);
-      frames->Add(summary);
-      is_constructor = false;
-    } else if (opcode == Translation::CONSTRUCT_STUB_FRAME) {
-      // The next encountered JS_FRAME will be marked as a constructor call.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
-      DCHECK(!is_constructor);
-      is_constructor = true;
-    } else {
-      // Skip over operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
+      case TranslatedFrame::kInvalid:
+        UNREACHABLE();
+      case TranslatedFrame::kArgumentsAdaptor:
+      case TranslatedFrame::kCompiledStub:
+      case TranslatedFrame::kGetter:
+      case TranslatedFrame::kSetter:
+        break;
     }
   }
   DCHECK(!is_constructor);
@@ -1024,30 +987,10 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
-  FixedArray* literal_array = data->LiteralArray();
-
-  TranslationIterator it(data->TranslationByteArray(),
-                         data->TranslationIndex(deopt_index)->value());
-  Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
-  DCHECK(opcode == Translation::BEGIN);
-  it.Next();  // Drop frame count.
-  int jsframe_count = it.Next();
-
-  // We insert the frames in reverse order because the frames
-  // in the deoptimization translation are ordered bottom-to-top.
-  while (jsframe_count > 0) {
-    opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::JS_FRAME) {
-      jsframe_count--;
-      it.Next();  // Skip ast id.
-      JSFunction* function = LiteralAt(literal_array, it.Next());
-      it.Next();  // Skip height.
-      functions->Add(function);
-    } else {
-      // Skip over operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
+  TranslatedState state(this);
+  for (TranslatedFrame const& frame : state) {
+    if (frame.kind() == TranslatedFrame::kFunction) {
+      functions->Add(frame.raw_function());
     }
   }
 }

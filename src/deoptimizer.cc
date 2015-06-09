@@ -2515,8 +2515,8 @@ TranslatedValue TranslatedValue::NewTagged(TranslatedState* container,
 
 
 // static
-TranslatedValue TranslatedValue::NewInvalid() {
-  return TranslatedValue(nullptr, kInvalid);
+TranslatedValue TranslatedValue::NewInvalid(TranslatedState* container) {
+  return TranslatedValue(container, kInvalid);
 }
 
 
@@ -2985,7 +2985,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
     case Translation::REGISTER: {
       int input_reg = iterator->Next();
-      if (registers == nullptr) return TranslatedValue::NewInvalid();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "0x%08" V8PRIxPTR " ; %s ", value,
@@ -2997,7 +2997,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
     case Translation::INT32_REGISTER: {
       int input_reg = iterator->Next();
-      if (registers == nullptr) return TranslatedValue::NewInvalid();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s ", value,
@@ -3008,7 +3008,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
     case Translation::UINT32_REGISTER: {
       int input_reg = iterator->Next();
-      if (registers == nullptr) return TranslatedValue::NewInvalid();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%" V8PRIuPTR " ; %s (uint)", value,
@@ -3020,7 +3020,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
     case Translation::BOOL_REGISTER: {
       int input_reg = iterator->Next();
-      if (registers == nullptr) return TranslatedValue::NewInvalid();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       intptr_t value = registers->GetRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s (bool)", value,
@@ -3031,7 +3031,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
-      if (registers == nullptr) return TranslatedValue::NewInvalid();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       double value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%e ; %s (bool)", value,

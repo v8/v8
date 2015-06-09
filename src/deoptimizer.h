@@ -67,7 +67,7 @@ class TranslatedValue BASE_EMBEDDED {
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
   static TranslatedValue NewBool(TranslatedState* container, uint32_t value);
   static TranslatedValue NewTagged(TranslatedState* container, Object* literal);
-  static TranslatedValue NewInvalid();
+  static TranslatedValue NewInvalid(TranslatedState* container);
 
   Isolate* isolate() const;
   void MaterializeSimple();
@@ -125,10 +125,10 @@ class TranslatedFrame {
   int GetValueCount();
 
   Kind kind() const { return kind_; }
-  BailoutId node_id() { return node_id_; }
-  JSFunction* raw_function() { return raw_function_; }
-  Handle<JSFunction> function() { return function_; }
-  int height() { return height_; }
+  BailoutId node_id() const { return node_id_; }
+  JSFunction* raw_function() const { return raw_function_; }
+  Handle<JSFunction> function() const { return function_; }
+  int height() const { return height_; }
 
   class iterator {
    public:
@@ -160,8 +160,13 @@ class TranslatedFrame {
     std::deque<TranslatedValue>::iterator position_;
   };
 
+  typedef TranslatedValue& reference;
+  typedef TranslatedValue const& const_reference;
+
   iterator begin() { return iterator(values_.begin()); }
   iterator end() { return iterator(values_.end()); }
+  reference front() { return values_.front(); }
+  const_reference front() const { return values_.front(); }
 
  private:
   friend class TranslatedState;
@@ -231,6 +236,10 @@ class TranslatedState {
 
   // Store newly materialized values into the isolate.
   void StoreMaterializedValuesAndDeopt();
+
+  typedef std::vector<TranslatedFrame>::const_iterator const_iterator;
+  const_iterator begin() const { return frames_.begin(); }
+  const_iterator end() const { return frames_.end(); }
 
   std::vector<TranslatedFrame>& frames() { return frames_; }
 
