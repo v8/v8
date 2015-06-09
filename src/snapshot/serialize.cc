@@ -2128,10 +2128,6 @@ int Serializer::ObjectSerializer::OutputRawData(
     if (is_code_object_) object_start = PrepareCode();
 
     const char* description = is_code_object_ ? "Code" : "Byte";
-#ifdef MEMORY_SANITIZER
-    // Object sizes are usually rounded up with uninitialized padding space.
-    MSAN_MEMORY_IS_INITIALIZED(object_start + base, bytes_to_output);
-#endif  // MEMORY_SANITIZER
     sink_->PutRaw(object_start + base, bytes_to_output, description);
   }
   if (to_skip != 0 && return_skip == kIgnoringReturn) {
@@ -2518,6 +2514,11 @@ Vector<const byte> SnapshotData::Payload() const {
 class Checksum {
  public:
   explicit Checksum(Vector<const byte> payload) {
+#ifdef MEMORY_SANITIZER
+    // Computing the checksum includes padding bytes for objects like strings.
+    // Mark every object as initialized in the code serializer.
+    MSAN_MEMORY_IS_INITIALIZED(payload.start(), payload.length());
+#endif  // MEMORY_SANITIZER
     // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
     uintptr_t a = 1;
     uintptr_t b = 0;
