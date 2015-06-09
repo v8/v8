@@ -2602,7 +2602,7 @@ Object* TranslatedValue::GetRawValue() const {
       if (uint32_value() == 0) {
         return isolate()->heap()->false_value();
       } else {
-        CHECK_EQ(1, uint32_value());
+        CHECK_EQ(1U, uint32_value());
         return isolate()->heap()->true_value();
       }
     }
