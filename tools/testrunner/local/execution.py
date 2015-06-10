@@ -219,23 +219,20 @@ class Runner(object):
   def _RunInternal(self, jobs):
     pool = Pool(jobs)
     test_map = {}
-    # TODO(machenbach): Instead of filling the queue completely before
-    # pool.imap_unordered, make this a generator that already starts testing
-    # while the queue is filled.
-    queue = []
-    queued_exception = None
-    for test in self.tests:
-      assert test.id >= 0
-      test_map[test.id] = test
-      try:
-        queue.append([self._GetJob(test)])
-      except Exception, e:
-        # If this failed, save the exception and re-raise it later (after
-        # all other tests have had a chance to run).
-        queued_exception = e
-        continue
+    queued_exception = [None]
+    def gen_tests():
+      for test in self.tests:
+        assert test.id >= 0
+        test_map[test.id] = test
+        try:
+          yield [self._GetJob(test)]
+        except Exception, e:
+          # If this failed, save the exception and re-raise it later (after
+          # all other tests have had a chance to run).
+          queued_exception[0] = e
+          continue
     try:
-      it = pool.imap_unordered(RunTest, queue)
+      it = pool.imap_unordered(RunTest, gen_tests())
       for result in it:
         if result.heartbeat:
           self.indicator.Heartbeat()
@@ -257,8 +254,8 @@ class Runner(object):
         # some files might still be open.
         print "Deleting perf test data due to db corruption."
         shutil.rmtree(self.datapath)
-    if queued_exception:
-      raise queued_exception
+    if queued_exception[0]:
+      raise queued_exception[0]
 
     # Make sure that any allocations were printed in predictable mode (if we
     # ran any tests).
