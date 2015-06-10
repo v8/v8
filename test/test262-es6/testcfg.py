@@ -136,7 +136,8 @@ class Test262TestSuite(testsuite.TestSuite):
     # archive files present.
     archive_files = [f for f in os.listdir(self.root)
                      if f.startswith("tc39-test262-")]
-    if len(archive_files) > 1 or archive_name not in archive_files:
+    if (len(archive_files) > 1 or
+        os.path.basename(archive_name) not in archive_files):
       print "Clobber outdated test archives ..."
       for f in archive_files:
         os.remove(os.path.join(self.root, f))
