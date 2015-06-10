@@ -458,7 +458,6 @@ class RawMachineAssembler : public GraphBuilder {
   }
 
   // Control flow.
-  Label* Exit();
   void Goto(Label* label);
   void Branch(Node* condition, Label* true_val, Label* false_val);
   void Switch(Node* index, Label* default_label, int32_t* case_values,
@@ -512,7 +511,6 @@ class RawMachineAssembler : public GraphBuilder {
   const MachineSignature* machine_sig_;
   CallDescriptor* call_descriptor_;
   Node** parameters_;
-  Label exit_label_;
   BasicBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
