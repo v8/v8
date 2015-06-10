@@ -3593,8 +3593,8 @@ TEST(ABS) {
   CHECK_EQ(test.b, std::numeric_limits<float>::max());
 
   // Testing smallest negative number
-  test.a = -std::numeric_limits<double>::lowest();
-  test.b = -std::numeric_limits<float>::lowest();
+  test.a = -std::numeric_limits<double>::max();  // lowest()
+  test.b = -std::numeric_limits<float>::max();   // lowest()
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max());
   CHECK_EQ(test.b, std::numeric_limits<float>::max());
@@ -3675,9 +3675,9 @@ TEST(ADD_FMT) {
   CHECK_EQ(test.fc, 5.0);
 
   test.a = std::numeric_limits<double>::max();
-  test.b = std::numeric_limits<double>::lowest();
+  test.b = -std::numeric_limits<double>::max();  // lowest()
   test.fa = std::numeric_limits<float>::max();
-  test.fb = std::numeric_limits<float>::lowest();
+  test.fb = -std::numeric_limits<float>::max();  // lowest()
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.c, 0.0);
   CHECK_EQ(test.fc, 0.0);
@@ -3845,7 +3845,7 @@ TEST(C_COND_FMT) {
     test.dOp1 = std::numeric_limits<double>::max();
     test.dOp2 = std::numeric_limits<double>::min();
     test.fOp1 = std::numeric_limits<float>::min();
-    test.fOp2 = std::numeric_limits<float>::lowest();
+    test.fOp2 = -std::numeric_limits<float>::max();  // lowest()
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
@@ -3864,8 +3864,8 @@ TEST(C_COND_FMT) {
     CHECK_EQ(test.fOle, 0U);
     CHECK_EQ(test.fUle, 0U);
 
-    test.dOp1 = std::numeric_limits<double>::lowest();
-    test.dOp2 = std::numeric_limits<double>::lowest();
+    test.dOp1 = -std::numeric_limits<double>::max();  // lowest()
+    test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
     test.fOp1 = std::numeric_limits<float>::max();
     test.fOp2 = std::numeric_limits<float>::max();
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -4053,7 +4053,7 @@ TEST(CMP_COND_FMT) {
     test.dOp1 = std::numeric_limits<double>::max();
     test.dOp2 = std::numeric_limits<double>::min();
     test.fOp1 = std::numeric_limits<float>::min();
-    test.fOp2 = std::numeric_limits<float>::lowest();
+    test.fOp2 = -std::numeric_limits<float>::max();  // lowest()
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
@@ -4075,8 +4075,8 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(bit_cast<uint32_t>(test.fOle), fFalse);
     CHECK_EQ(bit_cast<uint32_t>(test.fUle), fFalse);
 
-    test.dOp1 = std::numeric_limits<double>::lowest();
-    test.dOp2 = std::numeric_limits<double>::lowest();
+    test.dOp1 = -std::numeric_limits<double>::max();  // lowest()
+    test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
     test.fOp1 = std::numeric_limits<float>::max();
     test.fOp2 = std::numeric_limits<float>::max();
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -4270,16 +4270,16 @@ TEST(CVT) {
   CHECK_EQ(test.cvt_w_d_out, std::numeric_limits<int32_t>::max());
 
 
-  test.cvt_d_s_in = std::numeric_limits<float>::lowest();
-  test.cvt_d_w_in = std::numeric_limits<int32_t>::lowest();
-  test.cvt_d_l_in = std::numeric_limits<int64_t>::lowest();
-  test.cvt_l_s_in = std::numeric_limits<float>::lowest();
-  test.cvt_l_d_in = std::numeric_limits<double>::lowest();
-  test.cvt_s_d_in = std::numeric_limits<double>::lowest();
-  test.cvt_s_w_in = std::numeric_limits<int32_t>::lowest();
-  test.cvt_s_l_in = std::numeric_limits<int64_t>::lowest();
-  test.cvt_w_s_in = std::numeric_limits<float>::lowest();
-  test.cvt_w_d_in = std::numeric_limits<double>::lowest();
+  test.cvt_d_s_in = -std::numeric_limits<float>::max();   // lowest()
+  test.cvt_d_w_in = std::numeric_limits<int32_t>::min();  // lowest()
+  test.cvt_d_l_in = std::numeric_limits<int64_t>::min();  // lowest()
+  test.cvt_l_s_in = -std::numeric_limits<float>::max();   // lowest()
+  test.cvt_l_d_in = -std::numeric_limits<double>::max();  // lowest()
+  test.cvt_s_d_in = -std::numeric_limits<double>::max();  // lowest()
+  test.cvt_s_w_in = std::numeric_limits<int32_t>::min();  // lowest()
+  test.cvt_s_l_in = std::numeric_limits<int64_t>::min();  // lowest()
+  test.cvt_w_s_in = -std::numeric_limits<float>::max();   // lowest()
+  test.cvt_w_d_in = -std::numeric_limits<double>::max();  // lowest()
 
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
