@@ -453,6 +453,21 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
 }
 
 
+Node* AstGraphBuilder::GetFunctionClosureForContext() {
+  Scope* declaration_scope = current_scope()->DeclarationScope();
+  if (declaration_scope->is_script_scope() ||
+      declaration_scope->is_module_scope()) {
+    // Contexts nested in the native context have a canonical empty function as
+    // their closure, not the anonymous closure containing the global code.
+    // Pass a SMI sentinel and let the runtime look up the empty function.
+    return jsgraph()->SmiConstant(0);
+  } else {
+    DCHECK(declaration_scope->is_function_scope());
+    return GetFunctionClosure();
+  }
+}
+
+
 Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
     const Operator* op = common()->Parameter(
@@ -1191,7 +1206,7 @@ void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   VisitForValue(stmt->expression());
   Node* value = environment()->Pop();
   const Operator* op = javascript()->CreateWithContext();
-  Node* context = NewNode(op, value, GetFunctionClosure());
+  Node* context = NewNode(op, value, GetFunctionClosureForContext());
   PrepareFrameState(context, stmt->EntryId());
   ContextScope scope(this, stmt->scope(), context);
   Visit(stmt->statement());
@@ -1409,7 +1424,7 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Node* exception = try_control.GetExceptionNode();
   Unique<String> name = MakeUnique(stmt->variable()->name());
   const Operator* op = javascript()->CreateCatchContext(name);
-  Node* context = NewNode(op, exception, GetFunctionClosure());
+  Node* context = NewNode(op, exception, GetFunctionClosureForContext());
   PrepareFrameState(context, BailoutId::None());
   {
     ContextScope scope(this, stmt->scope(), context);
@@ -3069,12 +3084,12 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context,
 
 
 Node* AstGraphBuilder::BuildLocalScriptContext(Scope* scope) {
-  Node* closure = GetFunctionClosure();
+  DCHECK(scope->is_script_scope());
 
   // Allocate a new local context.
   const Operator* op = javascript()->CreateScriptContext();
   Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(isolate()));
-  Node* local_context = NewNode(op, closure, scope_info);
+  Node* local_context = NewNode(op, GetFunctionClosure(), scope_info);
   PrepareFrameState(local_context, BailoutId::FunctionEntry());
 
   return local_context;
@@ -3082,12 +3097,12 @@ Node* AstGraphBuilder::BuildLocalScriptContext(Scope* scope) {
 
 
 Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
-  Node* closure = GetFunctionClosure();
+  DCHECK(scope->is_block_scope());
 
   // Allocate a new local context.
   const Operator* op = javascript()->CreateBlockContext();
   Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(isolate()));
-  Node* local_context = NewNode(op, scope_info, closure);
+  Node* local_context = NewNode(op, scope_info, GetFunctionClosureForContext());
 
   return local_context;
 }
