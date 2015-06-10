@@ -572,9 +572,7 @@ class Deserializer: public SerializerDeserializer {
   Address Allocate(int space_index, int size);
 
   // Special handling for serialized code like hooking up internalized strings.
-  HeapObject* PostProcessNewObject(HeapObject* obj);
-
-  void RelinkAllocationSite(AllocationSite* obj);
+  HeapObject* PostProcessNewObject(HeapObject* obj, int space);
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
@@ -600,6 +598,7 @@ class Deserializer: public SerializerDeserializer {
   ExternalReferenceTable* external_reference_table_;
 
   List<HeapObject*> deserialized_large_objects_;
+  List<Code*> new_code_objects_;
 
   bool deserializing_user_code_;
 

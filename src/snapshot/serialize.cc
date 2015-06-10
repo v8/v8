@@ -516,10 +516,18 @@ void Deserializer::DecodeReservation(
 
 
 void Deserializer::FlushICacheForNewCodeObjects() {
-  PageIterator it(isolate_->heap()->code_space());
-  while (it.has_next()) {
-    Page* p = it.next();
-    CpuFeatures::FlushICache(p->area_start(), p->area_end() - p->area_start());
+  if (!deserializing_user_code_) {
+    // The entire isolate is newly deserialized. Simply flush all code pages.
+    PageIterator it(isolate_->heap()->code_space());
+    while (it.has_next()) {
+      Page* p = it.next();
+      CpuFeatures::FlushICache(p->area_start(),
+                               p->area_end() - p->area_start());
+    }
+  }
+  for (Code* code : new_code_objects_) {
+    CpuFeatures::FlushICache(code->instruction_start(),
+                             code->instruction_size());
   }
 }
 
@@ -612,9 +620,9 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   VisitPointer(&outdated_contexts);
   DeserializeDeferredObjects();
 
-  // There's no code deserialized here. If this assert fires
-  // then that's changed and logging should be added to notify
-  // the profiler et al of the new code.
+  // There's no code deserialized here. If this assert fires then that's
+  // changed and logging should be added to notify the profiler et al of the
+  // new code, which also has to be flushed from instruction cache.
   CHECK_EQ(start_address, code_space->top());
   CHECK(outdated_contexts->IsFixedArray());
   *outdated_contexts_out =
@@ -667,9 +675,8 @@ void Deserializer::DeserializeDeferredObjects() {
     Object** end = reinterpret_cast<Object**>(obj_address + size);
     bool filled = ReadData(start, end, space, obj_address);
     CHECK(filled);
-    if (object->IsAllocationSite()) {
-      RelinkAllocationSite(AllocationSite::cast(object));
-    }
+    DCHECK(CanBeDeferred(object));
+    PostProcessNewObject(object, space);
   }
 }
 
@@ -705,43 +712,52 @@ class StringTableInsertionKey : public HashTableKey {
 };
 
 
-HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj) {
-  DCHECK(deserializing_user_code());
-  if (obj->IsString()) {
-    String* string = String::cast(obj);
-    // Uninitialize hash field as the hash seed may have changed.
-    string->set_hash_field(String::kEmptyHashField);
-    if (string->IsInternalizedString()) {
-      DisallowHeapAllocation no_gc;
-      HandleScope scope(isolate_);
-      StringTableInsertionKey key(string);
-      String* canonical = *StringTable::LookupKey(isolate_, &key);
-      string->SetForwardedInternalizedString(canonical);
-      return canonical;
+HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
+  if (deserializing_user_code()) {
+    if (obj->IsString()) {
+      String* string = String::cast(obj);
+      // Uninitialize hash field as the hash seed may have changed.
+      string->set_hash_field(String::kEmptyHashField);
+      if (string->IsInternalizedString()) {
+        // Canonicalize the internalized string. If it already exists in the
+        // string table, set it to forward to the existing one.
+        DisallowHeapAllocation no_gc;
+        HandleScope scope(isolate_);
+        StringTableInsertionKey key(string);
+        String* canonical = *StringTable::LookupKey(isolate_, &key);
+        string->SetForwardedInternalizedString(canonical);
+        return canonical;
+      }
+    } else if (obj->IsScript()) {
+      // Assign a new script id to avoid collision.
+      Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
+    } else {
+      DCHECK(CanBeDeferred(obj));
     }
-  } else if (obj->IsScript()) {
-    Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
-  } else {
-    DCHECK(CanBeDeferred(obj));
+  }
+  if (obj->IsAllocationSite()) {
+    DCHECK(obj->IsAllocationSite());
+    // Allocation sites are present in the snapshot, and must be linked into
+    // a list at deserialization time.
+    AllocationSite* site = AllocationSite::cast(obj);
+    // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
+    // as a (weak) root. If this root is relocated correctly, this becomes
+    // unnecessary.
+    if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+      site->set_weak_next(isolate_->heap()->undefined_value());
+    } else {
+      site->set_weak_next(isolate_->heap()->allocation_sites_list());
+    }
+    isolate_->heap()->set_allocation_sites_list(site);
+  } else if (obj->IsCode()) {
+    // We flush all code pages after deserializing the startup snapshot. In that
+    // case, we only need to remember code objects in the large object space.
+    // When deserializing user code, remember each individual code object.
+    if (deserializing_user_code() || space == LO_SPACE) {
+      new_code_objects_.Add(Code::cast(obj));
+    }
   }
   return obj;
-}
-
-
-void Deserializer::RelinkAllocationSite(AllocationSite* obj) {
-  DCHECK(obj->IsAllocationSite());
-  // Allocation sites are present in the snapshot, and must be linked into
-  // a list at deserialization time.
-  AllocationSite* site = AllocationSite::cast(obj);
-  // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
-  // as a (weak) root. If this root is relocated correctly,
-  // RelinkAllocationSite() isn't necessary.
-  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
-    site->set_weak_next(isolate_->heap()->undefined_value());
-  } else {
-    site->set_weak_next(isolate_->heap()->allocation_sites_list());
-  }
-  isolate_->heap()->set_allocation_sites_list(site);
 }
 
 
@@ -803,11 +819,7 @@ void Deserializer::ReadObject(int space_number, Object** write_back) {
 
   if (ReadData(current, limit, space_number, address)) {
     // Only post process if object content has not been deferred.
-    if (obj->IsAllocationSite()) {
-      RelinkAllocationSite(AllocationSite::cast(obj));
-    }
-
-    if (deserializing_user_code()) obj = PostProcessNewObject(obj);
+    obj = PostProcessNewObject(obj, space_number);
   }
 
   Object* write_back_obj = obj;
