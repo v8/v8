@@ -69,6 +69,10 @@ class Vector {
     return Vector<T>(result, length_);
   }
 
+  void Sort(int (*cmp)(const T*, const T*), size_t s, size_t l) {
+    std::sort(start() + s, start() + s + l, RawComparer(cmp));
+  }
+
   void Sort(int (*cmp)(const T*, const T*)) {
     std::sort(start(), start() + length(), RawComparer(cmp));
   }
@@ -76,6 +80,16 @@ class Vector {
   void Sort() {
     std::sort(start(), start() + length());
   }
+
+  void StableSort(int (*cmp)(const T*, const T*), size_t s, size_t l) {
+    std::stable_sort(start() + s, start() + s + l, RawComparer(cmp));
+  }
+
+  void StableSort(int (*cmp)(const T*, const T*)) {
+    std::stable_sort(start(), start() + length(), RawComparer(cmp));
+  }
+
+  void StableSort() { std::stable_sort(start(), start() + length()); }
 
   void Truncate(int length) {
     DCHECK(length <= length_);

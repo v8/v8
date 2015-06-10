@@ -1747,13 +1747,13 @@ TEST(TestSizeOfRegExpCode) {
 
   // Adjust source below and this check to match
   // RegExpImple::kRegExpTooLargeToOptimize.
-  DCHECK_EQ(i::RegExpImpl::kRegExpTooLargeToOptimize, 10 * KB);
+  DCHECK_EQ(i::RegExpImpl::kRegExpTooLargeToOptimize, 20 * KB);
 
   // Compile a regexp that is much larger if we are using regexp optimizations.
   CompileRun(
       "var reg_exp_source = '(?:a|bc|def|ghij|klmno|pqrstu)';"
       "var half_size_reg_exp;"
-      "while (reg_exp_source.length < 10 * 1024) {"
+      "while (reg_exp_source.length < 20 * 1024) {"
       "  half_size_reg_exp = reg_exp_source;"
       "  reg_exp_source = reg_exp_source + reg_exp_source;"
       "}"
@@ -1784,7 +1784,11 @@ TEST(TestSizeOfRegExpCode) {
 
   int size_of_regexp_code = size_with_regexp - initial_size;
 
-  CHECK_LE(size_of_regexp_code, 1 * MB);
+  // On some platforms the debug-code flag causes huge amounts of regexp code
+  // to be emitted, breaking this test.
+  if (!FLAG_debug_code) {
+    CHECK_LE(size_of_regexp_code, 1 * MB);
+  }
 
   // Small regexp is half the size, but compiles to more than twice the code
   // due to the optimization steps.
