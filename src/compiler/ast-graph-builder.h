@@ -357,6 +357,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Visit statements.
   void VisitIfNotNull(Statement* stmt);
+  void VisitInScope(Statement* stmt, Scope* scope, Node* context);
 
   // Visit expressions.
   void Visit(Expression* expr);

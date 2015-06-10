@@ -1208,8 +1208,7 @@ void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   const Operator* op = javascript()->CreateWithContext();
   Node* context = NewNode(op, value, GetFunctionClosureForContext());
   PrepareFrameState(context, stmt->EntryId());
-  ContextScope scope(this, stmt->scope(), context);
-  Visit(stmt->statement());
+  VisitInScope(stmt->statement(), stmt->scope(), context);
 }
 
 
@@ -1401,6 +1400,8 @@ void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
 
 void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   TryCatchBuilder try_control(this);
+  ExternalReference message_object =
+      ExternalReference::address_of_pending_message_obj(isolate());
 
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting 'throw' control commands.
@@ -1414,24 +1415,18 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control.EndTry();
 
-  // Clear message object as we enter the catch block.
-  ExternalReference message_object =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  BuildStoreExternal(message_object, kMachAnyTagged, the_hole);
-
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
   Unique<String> name = MakeUnique(stmt->variable()->name());
   const Operator* op = javascript()->CreateCatchContext(name);
   Node* context = NewNode(op, exception, GetFunctionClosureForContext());
-  PrepareFrameState(context, BailoutId::None());
-  {
-    ContextScope scope(this, stmt->scope(), context);
-    DCHECK(stmt->scope()->declarations()->is_empty());
-    // Evaluate the catch-block.
-    Visit(stmt->catch_block());
-  }
+
+  // Clear message object as we enter the catch block.
+  Node* the_hole = jsgraph()->TheHoleConstant();
+  BuildStoreExternal(message_object, kMachAnyTagged, the_hole);
+
+  // Evaluate the catch-block.
+  VisitInScope(stmt->catch_block(), stmt->scope(), context);
   try_control.EndCatch();
 
   // TODO(mstarzinger): Remove bailout once everything works.
@@ -1441,7 +1436,6 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   TryFinallyBuilder try_control(this);
-
   ExternalReference message_object =
       ExternalReference::address_of_pending_message_obj(isolate());
 
@@ -2849,6 +2843,13 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
 
 void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
   if (stmt == NULL) return;
+  Visit(stmt);
+}
+
+
+void AstGraphBuilder::VisitInScope(Statement* stmt, Scope* s, Node* context) {
+  ContextScope scope(this, s, context);
+  DCHECK(s->declarations()->is_empty());
   Visit(stmt);
 }
 
