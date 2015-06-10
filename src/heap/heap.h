@@ -2112,13 +2112,19 @@ class Heap {
 
   void UpdateSurvivalStatistics(int start_new_space_size);
 
+  enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
+
   static const int kYoungSurvivalRateHighThreshold = 90;
+  static const int kYoungSurvivalRateLowThreshold = 10;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
 
   static const int kOldSurvivalRateLowThreshold = 10;
 
+  bool new_space_high_promotion_mode_active_;
   int high_survival_rate_period_length_;
   intptr_t promoted_objects_size_;
+  int low_survival_rate_period_length_;
+  double survival_rate_;
   double promotion_ratio_;
   double promotion_rate_;
   intptr_t semi_space_copied_object_size_;
@@ -2134,11 +2140,60 @@ class Heap {
   // of the allocation site.
   unsigned int maximum_size_scavenges_;
 
+  SurvivalRateTrend previous_survival_rate_trend_;
+  SurvivalRateTrend survival_rate_trend_;
+
+  void set_survival_rate_trend(SurvivalRateTrend survival_rate_trend) {
+    DCHECK(survival_rate_trend != FLUCTUATING);
+    previous_survival_rate_trend_ = survival_rate_trend_;
+    survival_rate_trend_ = survival_rate_trend;
+  }
+
+  SurvivalRateTrend survival_rate_trend() {
+    if (survival_rate_trend_ == STABLE) {
+      return STABLE;
+    } else if (previous_survival_rate_trend_ == STABLE) {
+      return survival_rate_trend_;
+    } else if (survival_rate_trend_ != previous_survival_rate_trend_) {
+      return FLUCTUATING;
+    } else {
+      return survival_rate_trend_;
+    }
+  }
+
+  bool IsStableOrIncreasingSurvivalTrend() {
+    switch (survival_rate_trend()) {
+      case STABLE:
+      case INCREASING:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool IsStableOrDecreasingSurvivalTrend() {
+    switch (survival_rate_trend()) {
+      case STABLE:
+      case DECREASING:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool IsIncreasingSurvivalTrend() {
+    return survival_rate_trend() == INCREASING;
+  }
+
+  bool IsLowSurvivalRate() { return low_survival_rate_period_length_ > 0; }
+
   // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
   // Re-visit incremental marking heuristics.
   bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
 
   void ConfigureInitialOldGenerationSize();
+
+  void ConfigureNewGenerationSize();
 
   void SelectScavengingVisitorsTable();
 
