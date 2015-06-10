@@ -2529,6 +2529,9 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   // Create node to perform the runtime call.
   Runtime::FunctionId functionId = function->function_id;
+  // TODO(mstarzinger): This bailout is a gigantic hack, the owner is ashamed.
+  if (functionId == Runtime::kInlineGeneratorNext) SetStackOverflow();
+  if (functionId == Runtime::kInlineGeneratorThrow) SetStackOverflow();
   const Operator* call = javascript()->CallRuntime(functionId, args->length());
   Node* value = ProcessArguments(call, args->length());
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());

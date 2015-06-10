@@ -195,7 +195,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   Node* booleanize = graph()->NewNode(op, compare, jsgraph()->ZeroConstant());
 
   // Finally patch the original node to select a boolean.
-  NodeProperties::ReplaceWithValue(node, node, compare);
+  NodeProperties::ReplaceUses(node, node, compare, compare, compare);
   // TODO(mstarzinger): Just a work-around because SelectLowering might
   // otherwise introduce a Phi without any uses, making Scheduler unhappy.
   if (node->UseCount() == 0) return;
@@ -449,7 +449,7 @@ void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
       (access.mode() == CONTEXTUAL) ? Runtime::kLoadLookupSlot
                                     : Runtime::kLoadLookupSlotNoReferenceError;
   Node* projection = graph()->NewNode(common()->Projection(0), node);
-  NodeProperties::ReplaceWithValue(node, projection, node, node);
+  NodeProperties::ReplaceUses(node, projection, node, node, node);
   node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
   node->RemoveInput(NodeProperties::FirstValueIndex(node));
   node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
@@ -461,7 +461,7 @@ void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
 void JSGenericLowering::LowerJSLoadDynamicContext(Node* node) {
   const DynamicContextAccess& access = DynamicContextAccessOf(node->op());
   Node* projection = graph()->NewNode(common()->Projection(0), node);
-  NodeProperties::ReplaceWithValue(node, projection, node, node);
+  NodeProperties::ReplaceUses(node, projection, node, node, node);
   node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
   ReplaceWithRuntimeCall(node, Runtime::kLoadLookupSlot);
   projection->ReplaceInput(0, node);
@@ -748,9 +748,14 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
       edge.UpdateTo(effect);
     } else if (NodeProperties::IsControlEdge(edge)) {
       Node* const use = edge.from();
-      DCHECK_EQ(IrOpcode::kIfSuccess, use->opcode());
-      use->ReplaceUses(control);
-      use->Kill();
+      if (use->opcode() == IrOpcode::kIfSuccess) {
+        use->ReplaceUses(control);
+        use->Kill();
+      } else if (use->opcode() == IrOpcode::kIfException) {
+        edge.UpdateTo(cache_type_true0);
+      } else {
+        UNREACHABLE();
+      }
     } else {
       Node* const use = edge.from();
       DCHECK(NodeProperties::IsValueEdge(edge));
@@ -805,9 +810,18 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
 
-  // Relax controls of {node}, i.e. make it free floating.
-  NodeProperties::ReplaceWithValue(node, node, ephi, merge);
+  // Wire the new diamond into the graph, {node} can still throw.
+  NodeProperties::ReplaceUses(node, node, ephi, node, node);
   NodeProperties::ReplaceEffectInput(ephi, efalse, 1);
+
+  // TODO(mstarzinger): This iteration cuts out the IfSuccess projection from
+  // the node and places it inside the diamond. Come up with a helper method!
+  for (Node* use : node->uses()) {
+    if (use->opcode() == IrOpcode::kIfSuccess) {
+      use->ReplaceUses(merge);
+      merge->ReplaceInput(1, use);
+    }
+  }
 
   // Turn the stack check into a runtime call.
   ReplaceWithRuntimeCall(node, Runtime::kStackGuard);

@@ -1270,7 +1270,7 @@ void SimplifiedLowering::DoLoadBuffer(Node* node, MachineType output_type,
     Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
 
     // Replace effect uses of {node} with the {ephi}.
-    NodeProperties::ReplaceWithValue(node, node, ephi);
+    NodeProperties::ReplaceUses(node, node, ephi);
 
     // Turn the {node} into a Phi.
     node->set_op(common()->Phi(output_type, 2));

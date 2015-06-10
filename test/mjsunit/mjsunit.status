@@ -118,6 +118,7 @@
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
   'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
   'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-323936': [PASS, NO_VARIANTS],
   'regress/regress-crbug-491943': [PASS, NO_VARIANTS],
   'regress/regress-325676': [PASS, NO_VARIANTS],
   'debug-evaluate-closure': [PASS, NO_VARIANTS],

@@ -169,26 +169,25 @@ void NodeProperties::MergeControlToEnd(Graph* graph,
 
 
 // static
-void NodeProperties::ReplaceWithValue(Node* node, Node* value, Node* effect,
-                                      Node* control) {
-  if (!effect && node->op()->EffectInputCount() > 0) {
-    effect = NodeProperties::GetEffectInput(node);
-  }
-  if (control == nullptr && node->op()->ControlInputCount() > 0) {
-    control = NodeProperties::GetControlInput(node);
-  }
-
+void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
+                                 Node* success, Node* exception) {
   // Requires distinguishing between value, effect and control edges.
   for (Edge edge : node->use_edges()) {
     if (IsControlEdge(edge)) {
-      DCHECK_EQ(IrOpcode::kIfSuccess, edge.from()->opcode());
-      DCHECK_NOT_NULL(control);
-      edge.from()->ReplaceUses(control);
-      edge.UpdateTo(NULL);
+      if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
+        DCHECK_NOT_NULL(success);
+        edge.UpdateTo(success);
+      } else if (edge.from()->opcode() == IrOpcode::kIfException) {
+        DCHECK_NOT_NULL(exception);
+        edge.UpdateTo(exception);
+      } else {
+        UNREACHABLE();
+      }
     } else if (IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);
       edge.UpdateTo(effect);
     } else {
+      DCHECK_NOT_NULL(value);
       edge.UpdateTo(value);
     }
   }

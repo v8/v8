@@ -1348,8 +1348,14 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
       Revisit(use);
     } else {
       if (NodeProperties::IsControlEdge(edge)) {
-        DCHECK_EQ(IrOpcode::kIfSuccess, use->opcode());
-        Replace(use, control);
+        if (use->opcode() == IrOpcode::kIfSuccess) {
+          Replace(use, control);
+        } else if (use->opcode() == IrOpcode::kIfException) {
+          edge.UpdateTo(cache_type_true0);
+          continue;
+        } else {
+          UNREACHABLE();
+        }
       } else {
         DCHECK(NodeProperties::IsValueEdge(edge));
         DCHECK_EQ(IrOpcode::kProjection, use->opcode());

@@ -10,70 +10,54 @@
 using testing::AnyOf;
 using testing::ElementsAre;
 using testing::IsNull;
-using testing::UnorderedElementsAre;
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef TestWithZone NodePropertiesTest;
-
+class NodePropertiesTest : public TestWithZone {
+ public:
+  Node* NewMockNode(const Operator* op, int input_count, Node** inputs) {
+    return Node::New(zone(), 0, op, input_count, inputs, false);
+  }
+};
 
 namespace {
 
 const Operator kMockOperator(IrOpcode::kDead, Operator::kNoProperties,
-                             "MockOperator", 0, 0, 0, 1, 0, 0);
-const Operator kMockOpEffect(IrOpcode::kDead, Operator::kNoProperties,
-                             "MockOpEffect", 0, 1, 0, 1, 1, 0);
-const Operator kMockOpControl(IrOpcode::kDead, Operator::kNoProperties,
-                              "MockOpControl", 0, 0, 1, 1, 0, 1);
+                             "MockOperator", 0, 0, 0, 1, 1, 2);
 const Operator kMockCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                                  "MockCallOperator", 0, 0, 0, 0, 0, 2);
 
 }  // namespace
 
 
-TEST_F(NodePropertiesTest, ReplaceWithValue_ValueUse) {
+TEST_F(NodePropertiesTest, ReplaceUses) {
   CommonOperatorBuilder common(zone());
-  Node* node = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  Node* use_value = Node::New(zone(), 0, common.Return(), 1, &node, false);
-  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  NodeProperties::ReplaceWithValue(node, replacement);
-  EXPECT_EQ(replacement, use_value->InputAt(0));
+  IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;
+  Node* node = NewMockNode(&kMockOperator, 0, nullptr);
+  Node* use_value = NewMockNode(common.Return(), 1, &node);
+  Node* use_effect = NewMockNode(common.EffectPhi(1), 1, &node);
+  Node* use_success = NewMockNode(common.IfSuccess(), 1, &node);
+  Node* use_exception = NewMockNode(common.IfException(kNoHint), 1, &node);
+  Node* r_value = NewMockNode(&kMockOperator, 0, nullptr);
+  Node* r_effect = NewMockNode(&kMockOperator, 0, nullptr);
+  Node* r_success = NewMockNode(&kMockOperator, 0, nullptr);
+  Node* r_exception = NewMockNode(&kMockOperator, 0, nullptr);
+  NodeProperties::ReplaceUses(node, r_value, r_effect, r_success, r_exception);
+  EXPECT_EQ(r_value, use_value->InputAt(0));
+  EXPECT_EQ(r_effect, use_effect->InputAt(0));
+  EXPECT_EQ(r_success, use_success->InputAt(0));
+  EXPECT_EQ(r_exception, use_exception->InputAt(0));
   EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(1, replacement->UseCount());
-  EXPECT_THAT(replacement->uses(), ElementsAre(use_value));
-}
-
-
-TEST_F(NodePropertiesTest, ReplaceWithValue_EffectUse) {
-  CommonOperatorBuilder common(zone());
-  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
-  Node* node = Node::New(zone(), 0, &kMockOpEffect, 1, &start, false);
-  Node* use_effect = Node::New(zone(), 0, common.EffectPhi(1), 1, &node, false);
-  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  NodeProperties::ReplaceWithValue(node, replacement);
-  EXPECT_EQ(start, use_effect->InputAt(0));
-  EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(2, start->UseCount());
-  EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_effect, node));
-}
-
-
-TEST_F(NodePropertiesTest, ReplaceWithValue_ControlUse) {
-  CommonOperatorBuilder common(zone());
-  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
-  Node* node = Node::New(zone(), 0, &kMockOpControl, 1, &start, false);
-  Node* success = Node::New(zone(), 0, common.IfSuccess(), 1, &node, false);
-  Node* use_control = Node::New(zone(), 0, common.Merge(1), 1, &success, false);
-  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  NodeProperties::ReplaceWithValue(node, replacement);
-  EXPECT_EQ(start, use_control->InputAt(0));
-  EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(2, start->UseCount());
-  EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_control, node));
+  EXPECT_EQ(1, r_value->UseCount());
+  EXPECT_EQ(1, r_effect->UseCount());
+  EXPECT_EQ(1, r_success->UseCount());
+  EXPECT_EQ(1, r_exception->UseCount());
+  EXPECT_THAT(r_value->uses(), ElementsAre(use_value));
+  EXPECT_THAT(r_effect->uses(), ElementsAre(use_effect));
+  EXPECT_THAT(r_success->uses(), ElementsAre(use_success));
+  EXPECT_THAT(r_exception->uses(), ElementsAre(use_exception));
 }
 
 
