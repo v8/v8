@@ -886,6 +886,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 
   // We create the summary in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
+  DisallowHeapAllocation no_gc;
   TranslatedState state(this);
   bool is_constructor = IsConstructor();
   for (TranslatedFrame const& frame : state) {
@@ -987,6 +988,7 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
+  DisallowHeapAllocation no_gc;
   TranslatedState state(this);
   for (TranslatedFrame const& frame : state) {
     if (frame.kind() == TranslatedFrame::kFunction) {
