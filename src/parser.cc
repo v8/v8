@@ -3759,9 +3759,9 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 }
 
 
-void ParserTraits::DeclareArrowFunctionParameters(
+void ParserTraits::ParseArrowFunctionFormalParameters(
     Scope* scope, Expression* expr, const Scanner::Location& params_loc,
-    Scanner::Location* duplicate_loc, bool* ok) {
+    bool* has_rest, Scanner::Location* duplicate_loc, bool* ok) {
   if (scope->num_parameters() >= Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
@@ -3769,15 +3769,18 @@ void ParserTraits::DeclareArrowFunctionParameters(
   }
 
   // ArrowFunctionFormals ::
-  //    Binary(Token::COMMA, ArrowFunctionFormals, VariableProxy)
+  //    Binary(Token::COMMA, NonTailArrowFunctionFormals, Tail)
+  //    Tail
+  // NonTailArrowFunctionFormals ::
+  //    Binary(Token::COMMA, NonTailArrowFunctionFormals, VariableProxy)
   //    VariableProxy
+  // Tail ::
+  //    VariableProxy
+  //    Spread(VariableProxy)
   //
   // As we need to visit the parameters in left-to-right order, we recurse on
   // the left-hand side of comma expressions.
   //
-  // Sadly, for the various malformed_arrow_function_parameter_list errors, we
-  // can't be more specific on the error message or on the location because we
-  // need to match the pre-parser's behavior.
   if (expr->IsBinaryOperation()) {
     BinaryOperation* binop = expr->AsBinaryOperation();
     // The classifier has already run, so we know that the expression is a valid
@@ -3785,13 +3788,21 @@ void ParserTraits::DeclareArrowFunctionParameters(
     DCHECK_EQ(binop->op(), Token::COMMA);
     Expression* left = binop->left();
     Expression* right = binop->right();
-    DeclareArrowFunctionParameters(scope, left, params_loc, duplicate_loc, ok);
+    ParseArrowFunctionFormalParameters(scope, left, params_loc, has_rest,
+                                       duplicate_loc, ok);
     if (!*ok) return;
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
 
-  // TODO(wingo): Support rest parameters.
+  // Only the right-most expression may be a rest parameter.
+  DCHECK(!*has_rest);
+
+  if (expr->IsSpread()) {
+    *has_rest = true;
+    expr = expr->AsSpread()->expression();
+  }
+
   DCHECK(expr->IsVariableProxy());
   DCHECK(!expr->AsVariableProxy()->is_this());
 
@@ -3804,17 +3815,11 @@ void ParserTraits::DeclareArrowFunctionParameters(
   // parse-time side-effect.
   parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
 
-  bool is_rest = false;
   ExpressionClassifier classifier;
-  DeclareFormalParameter(scope, raw_name, &classifier, is_rest);
-  *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
-}
-
-
-void ParserTraits::ParseArrowFunctionFormalParameters(
-    Scope* scope, Expression* params, const Scanner::Location& params_loc,
-    bool* is_rest, Scanner::Location* duplicate_loc, bool* ok) {
-  DeclareArrowFunctionParameters(scope, params, params_loc, duplicate_loc, ok);
+  DeclareFormalParameter(scope, raw_name, &classifier, *has_rest);
+  if (!duplicate_loc->IsValid()) {
+    *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
+  }
 }
 
 

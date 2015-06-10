@@ -1528,7 +1528,7 @@ class PreParserTraits {
 
   V8_INLINE void ParseArrowFunctionFormalParameters(
       Scope* scope, PreParserExpression expression,
-      const Scanner::Location& params_loc, bool* is_rest,
+      const Scanner::Location& params_loc, bool* has_rest,
       Scanner::Location* duplicate_loc, bool* ok);
 
   struct TemplateLiteralState {};
@@ -1752,7 +1752,7 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
 
 void PreParserTraits::ParseArrowFunctionFormalParameters(
     Scope* scope, PreParserExpression params,
-    const Scanner::Location& params_loc, bool* is_rest,
+    const Scanner::Location& params_loc, bool* has_rest,
     Scanner::Location* duplicate_loc, bool* ok) {
   // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
   // lists that are too long.
@@ -2159,6 +2159,24 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         bool has_rest = false;
         result = this->ParseArrowFunctionLiteral(scope, has_rest,
                                                  args_classifier, CHECK_OK);
+      } else if (allow_harmony_arrow_functions() &&
+                 allow_harmony_rest_params() && Check(Token::ELLIPSIS)) {
+        // (...x) => y
+        Scope* scope =
+            this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
+        scope->set_start_position(beg_pos);
+        ExpressionClassifier args_classifier;
+        const bool has_rest = true;
+        this->ParseFormalParameter(scope, has_rest, &args_classifier, CHECK_OK);
+        if (peek() == Token::COMMA) {
+          ReportMessageAt(scanner()->peek_location(),
+                          MessageTemplate::kParamAfterRest);
+          *ok = false;
+          return this->EmptyExpression();
+        }
+        Expect(Token::RPAREN, CHECK_OK);
+        result = this->ParseArrowFunctionLiteral(scope, has_rest,
+                                                 args_classifier, CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
         // seeing the call parentheses.
@@ -2239,11 +2257,29 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
       this->ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
   classifier->Accumulate(binding_classifier,
                          ExpressionClassifier::AllProductions);
+  bool seen_rest = false;
   while (peek() == Token::COMMA) {
-    Expect(Token::COMMA, CHECK_OK);
+    if (seen_rest) {
+      // At this point the production can't possibly be valid, but we don't know
+      // which error to signal.
+      classifier->RecordArrowFormalParametersError(
+          scanner()->peek_location(), MessageTemplate::kParamAfterRest);
+    }
+    Consume(Token::COMMA);
+    bool is_rest = false;
+    if (allow_harmony_rest_params() && peek() == Token::ELLIPSIS) {
+      // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
+      // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
+      // valid expression or binding pattern.
+      ExpressionUnexpectedToken(classifier);
+      BindingPatternUnexpectedToken(classifier);
+      Consume(Token::ELLIPSIS);
+      seen_rest = is_rest = true;
+    }
     int pos = position();
     ExpressionT right = this->ParseAssignmentExpression(
         accept_IN, &binding_classifier, CHECK_OK);
+    if (is_rest) right = factory()->NewSpread(right, pos);
     classifier->Accumulate(binding_classifier,
                            ExpressionClassifier::AllProductions);
     result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
@@ -2671,7 +2707,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   }
   ExpressionT expression = this->ParseConditionalExpression(
       accept_IN, &arrow_formals_classifier, CHECK_OK);
-  classifier->Accumulate(arrow_formals_classifier);
 
   if (allow_harmony_arrow_functions() && peek() == Token::ARROW) {
     checkpoint.Restore();
@@ -2679,11 +2714,11 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   CHECK_OK);
     Scanner::Location loc(lhs_location.beg_pos, scanner()->location().end_pos);
-    bool has_rest = false;
     Scope* scope =
         this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
     scope->set_start_position(lhs_location.beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
+    bool has_rest = false;
     this->ParseArrowFunctionFormalParameters(scope, expression, loc, &has_rest,
                                              &duplicate_loc, CHECK_OK);
     if (duplicate_loc.IsValid()) {
@@ -2698,7 +2733,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   // "expression" was not itself an arrow function parameter list, but it might
   // form part of one.  Propagate speculative formal parameter error locations.
   classifier->Accumulate(arrow_formals_classifier,
-                         ExpressionClassifier::FormalParametersProductions);
+                         ExpressionClassifier::StandardProductions |
+                             ExpressionClassifier::FormalParametersProductions);
 
   if (!Token::IsAssignmentOp(peek())) {
     if (fni_ != NULL) fni_->Leave();

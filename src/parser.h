@@ -757,13 +757,9 @@ class ParserTraits {
   V8_INLINE void DeclareFormalParameter(Scope* scope, const AstRawString* name,
                                         ExpressionClassifier* classifier,
                                         bool is_rest);
-  void DeclareArrowFunctionParameters(Scope* scope, Expression* expr,
-                                      const Scanner::Location& params_loc,
-                                      Scanner::Location* duplicate_loc,
-                                      bool* ok);
   void ParseArrowFunctionFormalParameters(Scope* scope, Expression* params,
                                           const Scanner::Location& params_loc,
-                                          bool* is_rest,
+                                          bool* has_rest,
                                           Scanner::Location* duplicate_loc,
                                           bool* ok);
 
