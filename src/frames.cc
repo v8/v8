@@ -863,16 +863,6 @@ void FrameSummary::Print() {
 }
 
 
-JSFunction* OptimizedFrame::LiteralAt(FixedArray* literal_array,
-                                      int literal_id) {
-  if (literal_id == Translation::kSelfLiteralId) {
-    return function();
-  }
-
-  return JSFunction::cast(literal_array->get(literal_id));
-}
-
-
 void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   DCHECK(frames->length() == 0);
   DCHECK(is_optimized());
@@ -889,14 +879,18 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   DisallowHeapAllocation no_gc;
   TranslatedState state(this);
   bool is_constructor = IsConstructor();
-  for (TranslatedFrame const& frame : state) {
+  for (TranslatedFrame& frame : state) {
     switch (frame.kind()) {
       case TranslatedFrame::kFunction: {
         BailoutId const ast_id = frame.node_id();
-        JSFunction* const function = frame.raw_function();
+        TranslatedFrame::iterator it = frame.begin();
+
+        // Get the correct function in the optimized frame.
+        JSFunction* function = JSFunction::cast(it->GetRawValue());
+        it++;
 
         // Get the correct receiver in the optimized frame.
-        Object* receiver = frame.front().GetRawValue();
+        Object* receiver = it->GetRawValue();
         if (receiver == isolate()->heap()->arguments_marker()) {
           // TODO(jarin): Materializing a captured object (or duplicated
           // object) is hard, we return undefined for now. This breaks the
@@ -992,7 +986,7 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
   TranslatedState state(this);
   for (TranslatedFrame const& frame : state) {
     if (frame.kind() == TranslatedFrame::kFunction) {
-      functions->Add(frame.raw_function());
+      functions->Add(JSFunction::cast(frame.front().GetRawValue()));
     }
   }
 }

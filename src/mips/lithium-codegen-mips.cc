@@ -598,34 +598,79 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
   int height = translation_size - environment->parameter_count();
 
   WriteTranslation(environment->outer(), translation);
-  bool has_closure_id = !info()->closure().is_null() &&
-      !info()->closure().is_identical_to(environment->closure());
-  int closure_id = has_closure_id
-      ? DefineDeoptimizationLiteral(environment->closure())
-      : Translation::kSelfLiteralId;
 
   switch (environment->frame_type()) {
-    case JS_FUNCTION:
-      translation->BeginJSFrame(environment->ast_id(), closure_id, height);
+    case JS_FUNCTION: {
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginJSFrame(environment->ast_id(), shared_id, height);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
       break;
-    case JS_CONSTRUCT:
-      translation->BeginConstructStubFrame(closure_id, translation_size);
+    }
+    case JS_CONSTRUCT: {
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginConstructStubFrame(shared_id, translation_size);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
       break;
-    case JS_GETTER:
+    }
+    case JS_GETTER: {
       DCHECK(translation_size == 1);
       DCHECK(height == 0);
-      translation->BeginGetterStubFrame(closure_id);
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginGetterStubFrame(shared_id);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
       break;
-    case JS_SETTER:
+    }
+    case JS_SETTER: {
       DCHECK(translation_size == 2);
       DCHECK(height == 0);
-      translation->BeginSetterStubFrame(closure_id);
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginSetterStubFrame(shared_id);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
       break;
+    }
+    case ARGUMENTS_ADAPTOR: {
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginArgumentsAdaptorFrame(shared_id, translation_size);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
+      break;
+    }
     case STUB:
       translation->BeginCompiledStubFrame(translation_size);
-      break;
-    case ARGUMENTS_ADAPTOR:
-      translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
       break;
   }
 
@@ -633,13 +678,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
   int dematerialized_index = 0;
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
-    AddToTranslation(environment,
-                     translation,
-                     value,
-                     environment->HasTaggedValueAt(i),
-                     environment->HasUint32ValueAt(i),
-                     &object_index,
-                     &dematerialized_index);
+    AddToTranslation(
+        environment, translation, value, environment->HasTaggedValueAt(i),
+        environment->HasUint32ValueAt(i), &object_index, &dematerialized_index);
   }
 }
 

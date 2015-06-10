@@ -1126,6 +1126,9 @@ static Handle<Object> ArgumentsForInlinedFunction(
                                                          &argument_count);
   TranslatedFrame::iterator iter = translated_frame->begin();
 
+  // Skip the function.
+  iter++;
+
   // Skip the receiver.
   iter++;
   argument_count--;

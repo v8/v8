@@ -35,6 +35,7 @@ class JSInliner final : public AdvancedReducer {
   JSGraph* jsgraph_;
 
   Node* CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
+                                         Handle<SharedFunctionInfo> shared_info,
                                          Zone* temp_zone);
 
   Reduction InlineCall(Node* call, Node* frame_state, Node* start, Node* end);

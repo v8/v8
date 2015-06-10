@@ -642,8 +642,6 @@ class OptimizedFrame : public JavaScriptFrame {
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 
  private:
-  JSFunction* LiteralAt(FixedArray* literal_array, int literal_id);
-
   friend class StackFrameIteratorBase;
 };
 

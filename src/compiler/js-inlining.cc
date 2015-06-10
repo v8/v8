@@ -211,11 +211,12 @@ Reduction JSInliner::InlineCall(Node* call, Node* frame_state, Node* start,
 }
 
 
-Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
-                                                  Zone* temp_zone) {
+Node* JSInliner::CreateArgumentsAdaptorFrameState(
+    JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info,
+    Zone* temp_zone) {
   const Operator* op = jsgraph_->common()->FrameState(
       FrameStateType::ARGUMENTS_ADAPTOR, BailoutId(-1),
-      OutputFrameStateCombine::Ignore());
+      OutputFrameStateCombine::Ignore(), shared_info);
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
   NodeVector params(temp_zone);
@@ -297,7 +298,8 @@ Reduction JSInliner::Reduce(Node* node) {
         call.formal_arguments() < inlinee_formal_parameters) {
       return NoChange();
     }
-    frame_state = CreateArgumentsAdaptorFrameState(&call, info.zone());
+    frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info(),
+                                                   info.zone());
   }
 
   return InlineCall(node, frame_state, start, end);

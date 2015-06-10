@@ -11378,16 +11378,17 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 
         case Translation::JS_FRAME: {
           int ast_id = iterator.Next();
-          int function_id = iterator.Next();
+          int shared_info_id = iterator.Next();
           unsigned height = iterator.Next();
-          os << "{ast_id=" << ast_id << ", function=";
-          if (function_id != Translation::kSelfLiteralId) {
-            Object* function = LiteralArray()->get(function_id);
-            os << Brief(JSFunction::cast(function)->shared()->DebugName());
-          } else {
-            os << "<self>";
-          }
-          os << ", height=" << height << "}";
+          Object* shared_info = LiteralArray()->get(shared_info_id);
+          os << "{ast_id=" << ast_id << ", function="
+             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << ", height=" << height << "}";
+          break;
+        }
+
+        case Translation::JS_FRAME_FUNCTION: {
+          os << "{function}";
           break;
         }
 
@@ -11399,21 +11400,21 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 
         case Translation::ARGUMENTS_ADAPTOR_FRAME:
         case Translation::CONSTRUCT_STUB_FRAME: {
-          int function_id = iterator.Next();
-          JSFunction* function =
-              JSFunction::cast(LiteralArray()->get(function_id));
+          int shared_info_id = iterator.Next();
+          Object* shared_info = LiteralArray()->get(shared_info_id);
           unsigned height = iterator.Next();
-          os << "{function=" << Brief(function->shared()->DebugName())
+          os << "{function="
+             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
              << ", height=" << height << "}";
           break;
         }
 
         case Translation::GETTER_STUB_FRAME:
         case Translation::SETTER_STUB_FRAME: {
-          int function_id = iterator.Next();
-          JSFunction* function =
-              JSFunction::cast(LiteralArray()->get(function_id));
-          os << "{function=" << Brief(function->shared()->DebugName()) << "}";
+          int shared_info_id = iterator.Next();
+          Object* shared_info = LiteralArray()->get(shared_info_id);
+          os << "{function=" << Brief(SharedFunctionInfo::cast(shared_info)
+                                          ->DebugName()) << "}";
           break;
         }
 

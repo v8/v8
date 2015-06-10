@@ -832,10 +832,11 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   int input_index = 0;
 
   BailoutId node_id = translated_frame->node_id();
-  JSFunction* function = translated_frame->raw_function();
   unsigned height =
       translated_frame->height() - 1;  // Do not count the context.
   unsigned height_in_bytes = height * kPointerSize;
+  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  value_iterator++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating frame ");
     function->PrintName(trace_scope_->file());
@@ -1071,9 +1072,10 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
-  JSFunction* function = translated_frame->raw_function();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  value_iterator++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
            "  translating arguments adaptor => height=%d\n", height_in_bytes);
@@ -1203,9 +1205,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
 
   Builtins* builtins = isolate_->builtins();
   Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
-  JSFunction* function = translated_frame->raw_function();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  value_iterator++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
            "  translating construct stub => height=%d\n", height_in_bytes);
@@ -1371,7 +1374,8 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
-  JSFunction* accessor = translated_frame->raw_function();
+  JSFunction* accessor = JSFunction::cast(value_iterator->GetRawValue());
+  value_iterator++;
   // The receiver (and the implicit return value, if any) are expected in
   // registers by the LoadIC/StoreIC, so they don't belong to the output stack
   // frame. This means that we have to use a height of 0.
@@ -1812,8 +1816,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
 
   TranslatedFrame* frame = &(translated_state_.frames()[frame_index]);
   CHECK(frame->kind() == TranslatedFrame::kFunction);
-  int frame_arg_count =
-      frame->function()->shared()->internal_formal_parameter_count();
+  int frame_arg_count = frame->shared_info()->internal_formal_parameter_count();
 
   // The height is #expressions + 1 for context.
   CHECK_EQ(expression_count + 1, frame->height());
@@ -1832,6 +1835,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
   }
 
   TranslatedFrame::iterator arg_iter = argument_frame->begin();
+  arg_iter++;  // Skip the function.
   arg_iter++;  // Skip the receiver.
   for (int i = 0; i < parameter_count; i++, arg_iter++) {
     if (!arg_iter->IsMaterializedObject()) {
@@ -1840,8 +1844,8 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
   }
 
   TranslatedFrame::iterator iter = frame->begin();
-  // Skip the arguments, receiver and context.
-  for (int i = 0; i < frame_arg_count + 2; i++, iter++) {
+  // Skip the function, receiver, context and arguments.
+  for (int i = 0; i < frame_arg_count + 3; i++, iter++) {
   }
 
   for (int i = 0; i < expression_count; i++, iter++) {
@@ -2236,8 +2240,15 @@ void Translation::StoreArgumentsObject(bool args_known,
 }
 
 
+void Translation::StoreJSFrameFunction() {
+  buffer_->Add(JS_FRAME_FUNCTION, zone());
+}
+
+
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
+    case JS_FRAME_FUNCTION:
+      return 0;
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case DUPLICATED_OBJECT:
@@ -2741,30 +2752,32 @@ void TranslatedValue::Handlify() {
 
 
 TranslatedFrame TranslatedFrame::JSFrame(BailoutId node_id,
-                                         JSFunction* function, int height) {
-  TranslatedFrame frame(kFunction, function->GetIsolate(), function, height);
+                                         SharedFunctionInfo* shared_info,
+                                         int height) {
+  TranslatedFrame frame(kFunction, shared_info->GetIsolate(), shared_info,
+                        height);
   frame.node_id_ = node_id;
   return frame;
 }
 
 
-TranslatedFrame TranslatedFrame::AccessorFrame(Kind kind,
-                                               JSFunction* function) {
+TranslatedFrame TranslatedFrame::AccessorFrame(
+    Kind kind, SharedFunctionInfo* shared_info) {
   DCHECK(kind == kSetter || kind == kGetter);
-  return TranslatedFrame(kind, function->GetIsolate(), function);
+  return TranslatedFrame(kind, shared_info->GetIsolate(), shared_info);
 }
 
 
-TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(JSFunction* function,
-                                                       int height) {
-  return TranslatedFrame(kArgumentsAdaptor, function->GetIsolate(), function,
-                         height);
+TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
+    SharedFunctionInfo* shared_info, int height) {
+  return TranslatedFrame(kArgumentsAdaptor, shared_info->GetIsolate(),
+                         shared_info, height);
 }
 
 
-TranslatedFrame TranslatedFrame::ConstructStubFrame(JSFunction* function,
-                                                    int height) {
-  return TranslatedFrame(kConstructStub, function->GetIsolate(), function,
+TranslatedFrame TranslatedFrame::ConstructStubFrame(
+    SharedFunctionInfo* shared_info, int height) {
+  return TranslatedFrame(kConstructStub, shared_info->GetIsolate(), shared_info,
                          height);
 }
 
@@ -2773,21 +2786,20 @@ int TranslatedFrame::GetValueCount() {
   switch (kind()) {
     case kFunction: {
       int parameter_count =
-          (raw_function_ == nullptr
-               ? function_->shared()->internal_formal_parameter_count()
-               : raw_function_->shared()->internal_formal_parameter_count()) +
-          1;
-      return height_ + parameter_count;
+          raw_shared_info_->internal_formal_parameter_count() + 1;
+      return height_ + parameter_count + 1;
     }
 
     case kGetter:
-      return 1;  // Receiver.
+      return 2;  // Function and receiver.
 
     case kSetter:
-      return 2;  // Receiver and the value to set.
+      return 3;  // Function, receiver and the value to set.
 
     case kArgumentsAdaptor:
     case kConstructStub:
+      return 1 + height_;
+
     case kCompiledStub:
       return height_;
 
@@ -2800,10 +2812,10 @@ int TranslatedFrame::GetValueCount() {
 }
 
 
-void TranslatedFrame::Handlify(Isolate* isolate) {
-  if (raw_function_ != nullptr) {
-    function_ = Handle<JSFunction>(raw_function_, isolate);
-    raw_function_ = nullptr;
+void TranslatedFrame::Handlify() {
+  if (raw_shared_info_ != nullptr) {
+    shared_info_ = Handle<SharedFunctionInfo>(raw_shared_info_);
+    raw_shared_info_ = nullptr;
   }
   for (auto& value : values_) {
     value.Handlify();
@@ -2819,67 +2831,63 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
   switch (opcode) {
     case Translation::JS_FRAME: {
       BailoutId node_id = BailoutId(iterator->Next());
-      int closure_id = iterator->Next();
-      JSFunction* function =
-          (closure_id == Translation::kSelfLiteralId)
-              ? frame_function
-              : JSFunction::cast(literal_array->get(closure_id));
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        PrintF(trace_file, "  reading input frame ");
-        function->PrintName(trace_file);
-        int arg_count =
-            function->shared()->internal_formal_parameter_count() + 1;
+        SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading input frame %s", name.get());
+        int arg_count = shared_info->internal_formal_parameter_count() + 1;
         PrintF(trace_file, " => node=%d, args=%d, height=%d; inputs:\n",
                arg_count, node_id.ToInt(), height);
       }
-      return TranslatedFrame::JSFrame(node_id, function, height);
+      return TranslatedFrame::JSFrame(node_id, shared_info, height);
     }
 
     case Translation::ARGUMENTS_ADAPTOR_FRAME: {
-      JSFunction* function =
-          JSFunction::cast(literal_array->get(iterator->Next()));
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        PrintF(trace_file, "  reading arguments adaptor frame");
-        function->PrintName(trace_file);
+        SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
-      return TranslatedFrame::ArgumentsAdaptorFrame(function, height);
+      return TranslatedFrame::ArgumentsAdaptorFrame(shared_info, height);
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
-      JSFunction* function =
-          JSFunction::cast(literal_array->get(iterator->Next()));
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        PrintF(trace_file, "  reading construct stub frame ");
-        function->PrintName(trace_file);
+        SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading construct stub frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
-      return TranslatedFrame::ConstructStubFrame(function, height);
+      return TranslatedFrame::ConstructStubFrame(shared_info, height);
     }
 
     case Translation::GETTER_STUB_FRAME: {
-      JSFunction* function =
-          JSFunction::cast(literal_array->get(iterator->Next()));
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        PrintF(trace_file, "  reading getter frame ");
-        function->PrintName(trace_file);
-        PrintF(trace_file, "; inputs:\n");
+        SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading getter frame %s; inputs:\n", name.get());
       }
-      return TranslatedFrame::AccessorFrame(TranslatedFrame::kGetter, function);
+      return TranslatedFrame::AccessorFrame(TranslatedFrame::kGetter,
+                                            shared_info);
     }
 
     case Translation::SETTER_STUB_FRAME: {
-      JSFunction* function =
-          JSFunction::cast(literal_array->get(iterator->Next()));
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        PrintF(trace_file, "  reading setter frame ");
-        function->PrintName(trace_file);
-        PrintF(trace_file, "; inputs:\n");
+        SmartArrayPointer<char> name = shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading setter frame %s; inputs:\n", name.get());
       }
-      return TranslatedFrame::AccessorFrame(TranslatedFrame::kSetter, function);
+      return TranslatedFrame::AccessorFrame(TranslatedFrame::kSetter,
+                                            shared_info);
     }
 
     case Translation::COMPILED_STUB_FRAME: {
@@ -2907,6 +2915,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case Translation::BOOL_STACK_SLOT:
     case Translation::DOUBLE_STACK_SLOT:
     case Translation::LITERAL:
+    case Translation::JS_FRAME_FUNCTION:
       break;
   }
   FATAL("We should never get here - unexpected deopt info.");
@@ -3103,6 +3112,16 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
       return TranslatedValue::NewTagged(this, value);
     }
+
+    case Translation::JS_FRAME_FUNCTION: {
+      int slot_offset = JavaScriptFrameConstants::kFunctionOffset;
+      intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "0x%08" V8PRIxPTR " ; (frame function) ", value);
+        reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
+      }
+      return TranslatedValue::NewTagged(this, reinterpret_cast<Object*>(value));
+    }
   }
 
   FATAL("We should never get here - unexpected deopt info.");
@@ -3207,9 +3226,7 @@ void TranslatedState::Init(Address input_frame_pointer,
 
 void TranslatedState::Prepare(bool has_adapted_arguments,
                               Address stack_frame_pointer) {
-  for (auto& frame : frames_) {
-    frame.Handlify(isolate_);
-  }
+  for (auto& frame : frames_) frame.Handlify();
 
   stack_frame_pointer_ = stack_frame_pointer;
   has_adapted_arguments_ = has_adapted_arguments;
@@ -3249,7 +3266,8 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           MaterializeAt(frame_index, value_index);
         }
       } else {
-        Handle<JSFunction> function = frame->function();
+        Handle<JSFunction> function =
+            Handle<JSFunction>::cast(frame->front().GetValue());
         arguments = isolate_->factory()->NewArgumentsObject(function, length);
         Handle<FixedArray> array = isolate_->factory()->NewFixedArray(length);
         DCHECK_EQ(array->length(), length);
@@ -3380,7 +3398,8 @@ bool TranslatedState::GetAdaptedArguments(Handle<JSObject>* result,
     // This is top level frame, so we need to go to the stack to get
     // this function's argument. (Note that this relies on not inlining
     // recursive functions!)
-    Handle<JSFunction> function = frames_[frame_index].function();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(frames_[frame_index].front().GetValue());
     *result = Handle<JSObject>::cast(Accessors::FunctionGetArguments(function));
     return true;
   } else {
@@ -3389,13 +3408,15 @@ bool TranslatedState::GetAdaptedArguments(Handle<JSObject>* result,
       return false;
     }
     // We get the adapted arguments from the parent translation.
-    int length = previous_frame->GetValueCount();
-    Handle<JSFunction> function = previous_frame->function();
+    int length = previous_frame->height();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(previous_frame->front().GetValue());
     Handle<JSObject> arguments =
         isolate_->factory()->NewArgumentsObject(function, length);
     Handle<FixedArray> array = isolate_->factory()->NewFixedArray(length);
     arguments->set_elements(*array);
     TranslatedFrame::iterator arg_iterator = previous_frame->begin();
+    arg_iterator++;  // Skip function.
     for (int i = 0; i < length; ++i) {
       Handle<Object> value = arg_iterator->GetValue();
       array->set(i, *value);
@@ -3422,8 +3443,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           return &(frames_[i - 1]);
         }
         *args_count =
-            frames_[i].function()->shared()->internal_formal_parameter_count() +
-            1;
+            frames_[i].shared_info()->internal_formal_parameter_count() + 1;
         return &(frames_[i]);
       }
     }
@@ -3475,8 +3495,9 @@ void TranslatedState::StoreMaterializedValuesAndDeopt() {
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
-    DCHECK(frames_[0].kind() == TranslatedFrame::kFunction);
-    Deoptimizer::DeoptimizeFunction(*(frames_[0].function()));
+    DCHECK_EQ(TranslatedFrame::kFunction, frames_[0].kind());
+    Object* const function = frames_[0].front().GetRawValue();
+    Deoptimizer::DeoptimizeFunction(JSFunction::cast(function));
   }
 }
 

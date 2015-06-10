@@ -498,28 +498,27 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
   }
   frame_state_offset += descriptor->outer_state()->GetTotalSize();
 
-  // TODO(bmeurer): Fix this special case here.
-  int id = Translation::kSelfLiteralId;
-  if (descriptor->outer_state() != nullptr) {
-    InstructionOperandConverter converter(this, instr);
-    Handle<HeapObject> function(converter.InputHeapObject(frame_state_offset));
-    id = DefineDeoptimizationLiteral(function);
+  Handle<SharedFunctionInfo> shared_info;
+  if (!descriptor->shared_info().ToHandle(&shared_info)) {
+    shared_info = info()->shared_info();
   }
+  int shared_info_id = DefineDeoptimizationLiteral(shared_info);
 
   switch (descriptor->type()) {
     case JS_FRAME:
       translation->BeginJSFrame(
-          descriptor->bailout_id(), id,
+          descriptor->bailout_id(), shared_info_id,
           static_cast<unsigned int>(descriptor->GetSize(state_combine) -
                                     (1 + descriptor->parameters_count())));
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(
-          id, static_cast<unsigned int>(descriptor->parameters_count()));
+          shared_info_id,
+          static_cast<unsigned int>(descriptor->parameters_count()));
       break;
   }
 
-  for (size_t i = 1; i < descriptor->GetSize(state_combine); i++) {
+  for (size_t i = 0; i < descriptor->GetSize(state_combine); i++) {
     OperandAndType op = TypedOperandForFrameState(
         descriptor, instr, frame_state_offset, i, state_combine);
     AddTranslationForOperand(translation, instr, op.operand, op.type);
@@ -609,8 +608,12 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       default:
         CHECK(false);
     }
-    int literal_id = DefineDeoptimizationLiteral(constant_object);
-    translation->StoreLiteral(literal_id);
+    if (constant_object.is_identical_to(info()->closure())) {
+      translation->StoreJSFrameFunction();
+    } else {
+      int literal_id = DefineDeoptimizationLiteral(constant_object);
+      translation->StoreLiteral(literal_id);
+    }
   } else {
     CHECK(false);
   }

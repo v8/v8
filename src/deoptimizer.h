@@ -126,8 +126,7 @@ class TranslatedFrame {
 
   Kind kind() const { return kind_; }
   BailoutId node_id() const { return node_id_; }
-  JSFunction* raw_function() const { return raw_function_; }
-  Handle<JSFunction> function() const { return function_; }
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   int height() const { return height_; }
 
   class iterator {
@@ -165,6 +164,7 @@ class TranslatedFrame {
 
   iterator begin() { return iterator(values_.begin()); }
   iterator end() { return iterator(values_.end()); }
+
   reference front() { return values_.front(); }
   const_reference front() const { return values_.front(); }
 
@@ -172,12 +172,14 @@ class TranslatedFrame {
   friend class TranslatedState;
 
   // Constructor static methods.
-  static TranslatedFrame JSFrame(BailoutId node_id, JSFunction* function,
-                                 int height);
-  static TranslatedFrame AccessorFrame(Kind kind, JSFunction* function);
-  static TranslatedFrame ArgumentsAdaptorFrame(JSFunction* function,
+  static TranslatedFrame JSFrame(BailoutId node_id,
+                                 SharedFunctionInfo* shared_info, int height);
+  static TranslatedFrame AccessorFrame(Kind kind,
+                                       SharedFunctionInfo* shared_info);
+  static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
-  static TranslatedFrame ConstructStubFrame(JSFunction* function, int height);
+  static TranslatedFrame ConstructStubFrame(SharedFunctionInfo* shared_info,
+                                            int height);
   static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
     return TranslatedFrame(kCompiledStub, isolate, nullptr, height);
   }
@@ -187,22 +189,22 @@ class TranslatedFrame {
 
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
-  TranslatedFrame(Kind kind, Isolate* isolate, JSFunction* function = nullptr,
-                  int height = 0)
+  TranslatedFrame(Kind kind, Isolate* isolate,
+                  SharedFunctionInfo* shared_info = nullptr, int height = 0)
       : kind_(kind),
         node_id_(BailoutId::None()),
-        raw_function_(function),
+        raw_shared_info_(shared_info),
         height_(height),
         isolate_(isolate) {}
 
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
-  void Handlify(Isolate* isolate);
+  void Handlify();
 
   Kind kind_;
   BailoutId node_id_;
-  JSFunction* raw_function_;
-  Handle<JSFunction> function_;
+  SharedFunctionInfo* raw_shared_info_;
+  Handle<SharedFunctionInfo> shared_info_;
   int height_;
   Isolate* isolate_;
 
@@ -236,6 +238,10 @@ class TranslatedState {
 
   // Store newly materialized values into the isolate.
   void StoreMaterializedValuesAndDeopt();
+
+  typedef std::vector<TranslatedFrame>::iterator iterator;
+  iterator begin() { return frames_.begin(); }
+  iterator end() { return frames_.end(); }
 
   typedef std::vector<TranslatedFrame>::const_iterator const_iterator;
   const_iterator begin() const { return frames_.begin(); }
@@ -1015,7 +1021,8 @@ class TranslationIterator BASE_EMBEDDED {
   V(UINT32_STACK_SLOT)             \
   V(BOOL_STACK_SLOT)               \
   V(DOUBLE_STACK_SLOT)             \
-  V(LITERAL)
+  V(LITERAL)                       \
+  V(JS_FRAME_FUNCTION)
 
 
 class Translation BASE_EMBEDDED {
@@ -1061,6 +1068,7 @@ class Translation BASE_EMBEDDED {
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreArgumentsObject(bool args_known, int args_index, int args_length);
+  void StoreJSFrameFunction();
 
   Zone* zone() const { return zone_; }
 
@@ -1069,9 +1077,6 @@ class Translation BASE_EMBEDDED {
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   static const char* StringFor(Opcode opcode);
 #endif
-
-  // A literal id which refers to the JSFunction itself.
-  static const int kSelfLiteralId = -239;
 
  private:
   TranslationBuffer* buffer_;
