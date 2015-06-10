@@ -77,7 +77,7 @@ class Runner(object):
 
   def _CommonInit(self, num_tests, progress_indicator, context):
     self.indicator = progress_indicator
-    progress_indicator.runner = self
+    progress_indicator.SetRunner(self)
     self.context = context
     self.succeeded = 0
     self.total = num_tests
