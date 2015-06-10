@@ -73,19 +73,15 @@ class Runner(object):
       for t in self.tests:
         t.duration = self.perfdata.FetchPerfData(t) or 1.0
       self.tests.sort(key=lambda t: t.duration, reverse=True)
-    self._CommonInit(suites, progress_indicator, context)
+    self._CommonInit(len(self.tests), progress_indicator, context)
 
-  def _CommonInit(self, suites, progress_indicator, context):
-    self.total = 0
-    for s in suites:
-      for t in s.tests:
-        t.id = self.total
-        self.total += 1
+  def _CommonInit(self, num_tests, progress_indicator, context):
     self.indicator = progress_indicator
     progress_indicator.runner = self
     self.context = context
     self.succeeded = 0
-    self.remaining = self.total
+    self.total = num_tests
+    self.remaining = num_tests
     self.failed = []
     self.crashed = 0
     self.reran_tests = 0
@@ -136,7 +132,6 @@ class Runner(object):
       test.run += 1
       pool.add([self._GetJob(test)])
       self.remaining += 1
-      self.total += 1
 
   def _ProcessTestNormal(self, test, result, pool):
     self.indicator.AboutToRun(test)

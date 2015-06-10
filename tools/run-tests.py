@@ -584,6 +584,7 @@ def Execute(arch, mode, args, options, suites, workspace):
   }
   all_tests = []
   num_tests = 0
+  test_id = 0
   for s in suites:
     s.ReadStatusFile(variables)
     s.ReadTestCases(ctx)
@@ -601,6 +602,9 @@ def Execute(arch, mode, args, options, suites, workspace):
                 for v in s.VariantFlags(t, variant_flags) ]
     s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
     num_tests += len(s.tests)
+    for t in s.tests:
+      t.id = test_id
+      test_id += 1
 
   if options.cat:
     return 0  # We're done here.
