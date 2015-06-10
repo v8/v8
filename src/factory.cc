@@ -1061,6 +1061,13 @@ Handle<Object> Factory::NewError(const char* maker,
                                  Handle<Object> arg2) {
   HandleScope scope(isolate());
   Handle<String> error_maker = InternalizeUtf8String(maker);
+  if (isolate()->bootstrapper()->IsActive()) {
+    // If this exception is being thrown during bootstrapping,
+    // js_builtins_object is unavailable. We return the error maker
+    // name's string as the exception since we have nothing better
+    // to do.
+    return scope.CloseAndEscape(error_maker);
+  }
   Handle<Object> fun_obj = Object::GetProperty(isolate()->js_builtins_object(),
                                                error_maker).ToHandleChecked();
 

@@ -937,6 +937,9 @@ void ReportBootstrappingException(Handle<Object> exception,
         "Extension or internal compilation error in %s at line %d.\n",
         String::cast(location->script()->name())->ToCString().get(),
         line_number);
+  } else if (exception->IsString()) {
+    base::OS::PrintError("Extension or internal compilation error: %s.\n",
+                         String::cast(*exception)->ToCString().get());
   } else {
     base::OS::PrintError("Extension or internal compilation error.\n");
   }
