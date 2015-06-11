@@ -1679,20 +1679,13 @@ class StringTableCleaner : public ObjectVisitor {
       if (o->IsHeapObject() &&
           Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(o)))) {
         if (finalize_external_strings) {
-          // We must never finalize a string that was copied (has a forwarding
-          // map).
-          CHECK(o->IsExternalString());
+          DCHECK(o->IsExternalString());
           heap_->FinalizeExternalString(String::cast(*p));
         } else {
           pointers_removed_++;
         }
         // Set the entry to the_hole_value (as deleted).
         *p = heap_->the_hole_value();
-      } else {
-        // Anything in the external string table has to be either a string or
-        // the hole.
-        CHECK(!finalize_external_strings || o->IsExternalString() ||
-              o->IsTheHole());
       }
     }
   }
