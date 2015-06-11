@@ -391,6 +391,59 @@ function assertAsyncDone(iteration) {
 })();
 
 (function() {
+  var p1 = Promise.accept(5)
+  var p2 = Promise.accept(p1)
+  var called = false
+  p2.then = function(onResolve, onReject) {
+    called = true;
+    return call(Promise.prototype.then, p2, onResolve, onReject)
+  }
+  var p3 = Promise.accept(p2)
+  p3.chain(
+    function(x) {
+      assertAsync(x === p2 && !called, "resolved/thenable-promise/chain")
+    },
+    assertUnreachable)
+  assertAsyncRan()
+})();
+
+(function() {
+  var p1 = Promise.accept(5)
+  var p2 = Promise.accept(p1)
+  var called = false
+  p2.then = function(onResolve, onReject) {
+    called = true
+    return call(Promise.prototype.then, p2, onResolve, onReject)
+  }
+  var p3 = Promise.accept(p2)
+  p3.then(
+    function(x) {
+      assertAsync(x === 5 && called, "resolved/thenable-promise/then")
+    },
+    assertUnreachable)
+  assertAsyncRan()
+})();
+
+(function() {
+  var p1 = Promise.accept(5)
+  var called = false
+  var p3 = p1.then(function(x) {
+    var p2 = Promise.accept(5)
+    p2.then = function(onResolve, onReject) {
+      called = true
+      throw 25
+    }
+    return p2
+  });
+  p3.then(
+    assertUnreachable,
+    function(x) {
+      assertAsync(called && x === 25, "thenable-promise/then-call-throw")
+    })
+  assertAsyncRan()
+})();
+
+(function() {
   var deferred = Promise.defer()
   var p1 = deferred.promise
   var p2 = Promise.accept(p1)
@@ -514,6 +567,106 @@ function assertAsyncDone(iteration) {
     assertUnreachable,
     function(x) { assertAsync(x === 5, "then/reject/thenable") }
   )
+  deferred.reject(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var deferred2 = Promise.defer()
+  var deferred3 = Promise.defer()
+
+  var p1 = deferred.promise
+  var p2 = deferred2.promise
+  var p3 = deferred3.promise
+
+  var called = false
+  p2.then = function(onResolve, onReject) {
+    called = true
+    return call(Promise.prototype.then, p2, onResolve, onReject)
+  }
+  p3.chain(
+    function(x) { assertAsync(x === p2 && !called,
+                              "chain/resolve/thenable-promise") },
+    assertUnreachable
+  )
+  deferred3.resolve(p2)
+  deferred2.resolve(p1)
+  deferred.resolve(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var deferred2 = Promise.defer()
+  var deferred3 = Promise.defer()
+
+  var p1 = deferred.promise
+  var p2 = deferred2.promise
+  var p3 = deferred3.promise
+
+  var called = false
+  p2.then = function(onResolve, onReject) {
+    called = true
+    return call(Promise.prototype.then, p2, onResolve, onReject)
+  }
+  p3.then(
+    function(x) { assertAsync(x === 5 && called,
+                              "then/resolve/thenable-promise") },
+    assertUnreachable
+  )
+  deferred3.resolve(p2)
+  deferred2.resolve(p1)
+  deferred.resolve(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var deferred2 = Promise.defer()
+  var deferred3 = Promise.defer()
+
+  var p1 = deferred.promise
+  var p2 = deferred2.promise
+  var p3 = deferred3.promise
+
+  var called = false
+  p2.then = function(onResolve, onReject) {
+    called = true
+    return call(Promise.prototype.then, p2, onResolve, onReject)
+  }
+  p3.chain(
+    function(x) { assertAsync(x === p2 && !called,
+                              "chain/reject/thenable-promise") },
+    assertUnreachable
+  )
+  deferred3.resolve(p2)
+  deferred2.resolve(p1)
+  deferred.reject(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var deferred2 = Promise.defer()
+  var deferred3 = Promise.defer()
+
+  var p1 = deferred.promise
+  var p2 = deferred2.promise
+  var p3 = deferred3.promise
+
+  var called = false
+  p2.then = function(onResolve, onReject) {
+    called = true
+    return call(Promise.prototype.then, p2, onResolve, onReject)
+  }
+  p3.then(
+    assertUnreachable,
+    function(x) { assertAsync(x === 5 && called,
+                              "then/reject/thenable-promise") }
+  )
+  deferred3.resolve(p2)
+  deferred2.resolve(p1)
   deferred.reject(5)
   assertAsyncRan()
 })();
