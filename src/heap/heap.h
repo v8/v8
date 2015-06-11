@@ -1211,10 +1211,6 @@ class Heap {
     kSmiRootsStart = kStringTableRootIndex + 1
   };
 
-  // Get the root list index for {object} if such a root list index exists.
-  bool GetRootListIndex(Handle<HeapObject> object,
-                        Heap::RootListIndex* index_return);
-
   Object* root(RootListIndex index) { return roots_[index]; }
 
   STATIC_ASSERT(kUndefinedValueRootIndex ==

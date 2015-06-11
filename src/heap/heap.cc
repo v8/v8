@@ -4920,20 +4920,6 @@ bool Heap::RootIsImmortalImmovable(int root_index) {
 }
 
 
-bool Heap::GetRootListIndex(Handle<HeapObject> object,
-                            Heap::RootListIndex* index_return) {
-  Object* ptr = *object;
-#define IMMORTAL_IMMOVABLE_ROOT(Name)            \
-  if (ptr == roots_[Heap::k##Name##RootIndex]) { \
-    *index_return = k##Name##RootIndex;          \
-    return true;                                 \
-  }
-  IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
-#undef IMMORTAL_IMMOVABLE_ROOT
-  return false;
-}
-
-
 #ifdef VERIFY_HEAP
 void Heap::Verify() {
   CHECK(HasBeenSetUp());
