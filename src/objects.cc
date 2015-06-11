@@ -6573,68 +6573,43 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
 
   // Make the lookup and include prototypes.
   uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    for (PrototypeIterator iter(isolate, object,
-                                PrototypeIterator::START_AT_RECEIVER);
-         !iter.IsAtEnd(); iter.Advance()) {
-      Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-      // Check access rights if needed.
-      if (current->IsAccessCheckNeeded() &&
-          !isolate->MayAccess(Handle<JSObject>::cast(current))) {
-        isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(current));
+  LookupIterator::Configuration c =
+      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR;
+  LookupIterator it = name->AsArrayIndex(&index)
+                          ? LookupIterator(isolate, object, index, c)
+                          : LookupIterator(object, name, c);
+
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
+
+      case LookupIterator::ACCESS_CHECK:
+        if (it.HasAccess()) continue;
+        isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
-      }
 
-      if (current->IsJSObject() &&
-          Handle<JSObject>::cast(current)->HasDictionaryElements()) {
-        JSObject* js_object = JSObject::cast(*current);
-        SeededNumberDictionary* dictionary = js_object->element_dictionary();
-        int entry = dictionary->FindEntry(index);
-        if (entry != SeededNumberDictionary::kNotFound) {
-          Object* element = dictionary->ValueAt(entry);
-          if (dictionary->DetailsAt(entry).type() == ACCESSOR_CONSTANT &&
-              element->IsAccessorPair()) {
-            return handle(AccessorPair::cast(element)->GetComponent(component),
-                          isolate);
-          }
-        }
-      }
-    }
-  } else {
-    LookupIterator it(object, name,
-                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-    for (; it.IsFound(); it.Next()) {
-      switch (it.state()) {
-        case LookupIterator::INTERCEPTOR:
-        case LookupIterator::NOT_FOUND:
-        case LookupIterator::TRANSITION:
-          UNREACHABLE();
+      case LookupIterator::JSPROXY:
+        return isolate->factory()->undefined_value();
 
-        case LookupIterator::ACCESS_CHECK:
-          if (it.HasAccess()) continue;
-          isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
-          RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-          return isolate->factory()->undefined_value();
-
-        case LookupIterator::JSPROXY:
-          return isolate->factory()->undefined_value();
-
-        case LookupIterator::INTEGER_INDEXED_EXOTIC:
-          return isolate->factory()->undefined_value();
-        case LookupIterator::DATA:
-          continue;
-        case LookupIterator::ACCESSOR: {
-          Handle<Object> maybe_pair = it.GetAccessors();
-          if (maybe_pair->IsAccessorPair()) {
-            return handle(
-                AccessorPair::cast(*maybe_pair)->GetComponent(component),
-                isolate);
-          }
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return isolate->factory()->undefined_value();
+      case LookupIterator::DATA:
+        continue;
+      case LookupIterator::ACCESSOR: {
+        Handle<Object> maybe_pair = it.GetAccessors();
+        if (maybe_pair->IsAccessorPair()) {
+          return handle(
+              AccessorPair::cast(*maybe_pair)->GetComponent(component),
+              isolate);
         }
       }
     }
   }
+
   return isolate->factory()->undefined_value();
 }
 
