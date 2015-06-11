@@ -626,8 +626,9 @@
   'built-ins/Function/prototype/bind/15.3.4.5-21-4': [FAIL_OK],
   'built-ins/Function/prototype/bind/15.3.4.5-21-5': [FAIL_OK],
 
-  # This invalid test has been fixed upstream.
+  # These invalid tests have been fixed upstream.
   'built-ins/Array/prototype/find/Array.prototype.find_remove-after-start': [FAIL],
+  'built-ins/Function/prototype/bind/15.3.4.5-15-2': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

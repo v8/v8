@@ -446,7 +446,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   JSObject::MigrateToMap(bound_function, bound_function_map);
   Handle<String> length_string = isolate->factory()->length_string();
   PropertyAttributes attr =
-      static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
                    bound_function, length_string, new_length, attr));
