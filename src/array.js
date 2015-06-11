@@ -1176,8 +1176,9 @@ function InnerArraySort(length, comparefn) {
 function ArraySort(comparefn) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.sort");
 
-  var length = TO_UINT32(this.length);
-  return %_CallFunction(this, length, comparefn, InnerArraySort);
+  var array = $toObject(this);
+  var length = TO_UINT32(array.length);
+  return %_CallFunction(array, length, comparefn, InnerArraySort);
 }
 
 
