@@ -174,6 +174,7 @@ function PostNatives(utils) {
     "MathMax",
     "MathMin",
     "ObjectIsFrozen",
+    "ObjectDefineProperty",
     "OwnPropertyKeys",
     "ToNameArray",
   ];

@@ -19,6 +19,7 @@ var GetMethod;
 var MathMax;
 var MathMin;
 var ObjectIsFrozen;
+var ObjectDefineProperty;
 
 utils.Import(function(from) {
   GetIterator = from.GetIterator;
@@ -26,6 +27,7 @@ utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
   ObjectIsFrozen = from.ObjectIsFrozen;
+  ObjectDefineProperty = from.ObjectDefineProperty;
 });
 
 // -------------------------------------------------------------------
@@ -191,6 +193,16 @@ function ArrayFill(value, start, end) {
   return InnerArrayFill(value, start, end, array, length);
 }
 
+function AddArrayElement(constructor, array, i, value) {
+  if (constructor === GlobalArray) {
+    %AddElement(array, i, value);
+  } else {
+    ObjectDefineProperty(array, i, {
+      value: value, writable: true, configurable: true, enumerable: true
+    });
+  }
+}
+
 // ES6, draft 10-14-14, section 22.1.2.1
 function ArrayFrom(arrayLike, mapfn, receiver) {
   var items = $toObject(arrayLike);
@@ -238,8 +250,8 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       } else {
         mappedValue = nextValue;
       }
-      // TODO(verwaest): This should redefine rather than adding.
-      %AddElement(result, k++, mappedValue);
+      AddArrayElement(this, result, k, mappedValue);
+      k++;
     }
   } else {
     var len = $toLength(items.length);
@@ -252,8 +264,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       } else {
         mappedValue = nextValue;
       }
-      // TODO(verwaest): This should redefine rather than adding.
-      %AddElement(result, k, mappedValue);
+      AddArrayElement(this, result, k, mappedValue);
     }
 
     result.length = k;
@@ -268,8 +279,7 @@ function ArrayOf() {
   // TODO: Implement IsConstructor (ES6 section 7.2.5)
   var array = %IsConstructor(constructor) ? new constructor(length) : [];
   for (var i = 0; i < length; i++) {
-    // TODO(verwaest): This should redefine rather than adding.
-    %AddElement(array, i, %_Arguments(i));
+    AddArrayElement(constructor, array, i, %_Arguments(i));
   }
   array.length = length;
   return array;
