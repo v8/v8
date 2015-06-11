@@ -4180,9 +4180,11 @@ MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
         }
 
         if (it->IsElement()) {
-          SetElementCallback(object, it->index(), new_data, attributes);
+          SetElementCallback(it->GetHolder<JSObject>(), it->index(), new_data,
+                             attributes);
         } else {
-          SetPropertyCallback(object, it->name(), new_data, attributes);
+          SetPropertyCallback(it->GetHolder<JSObject>(), it->name(), new_data,
+                              attributes);
         }
         if (is_observed) {
           RETURN_ON_EXCEPTION(
