@@ -6465,75 +6465,52 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
 MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
                                           Handle<AccessorInfo> info) {
   Isolate* isolate = object->GetIsolate();
-  Factory* factory = isolate->factory();
-  Handle<Name> name(Name::cast(info->name()));
-
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
-    isolate->ReportFailedAccessCheck(object);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return factory->undefined_value();
-  }
-
-  if (object->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return object;
-    DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return SetAccessor(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), info);
-  }
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
+  Handle<Name> name(Name::cast(info->name()));
   if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
   uint32_t index = 0;
-  bool is_element = name->AsArrayIndex(&index);
+  LookupIterator::Configuration c = LookupIterator::HIDDEN_SKIP_INTERCEPTOR;
+  LookupIterator it = name->AsArrayIndex(&index)
+                          ? LookupIterator(isolate, object, index, c)
+                          : LookupIterator(object, name, c);
 
-  if (is_element) {
-    if (object->IsJSArray()) return factory->undefined_value();
-
-    // Accessors overwrite previous callbacks (cf. with getters/setters).
-    switch (object->GetElementsKind()) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        break;
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
-      case EXTERNAL_##TYPE##_ELEMENTS:                                         \
-      case TYPE##_ELEMENTS:                                                    \
-
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-        // Ignore getters and setters on pixel and external array
-        // elements.
-        return factory->undefined_value();
-
-      case DICTIONARY_ELEMENTS:
-        break;
-      case SLOPPY_ARGUMENTS_ELEMENTS:
-        UNIMPLEMENTED();
-        break;
+  // Duplicate ACCESS_CHECK outside of GetPropertyAttributes for the case that
+  // the FailedAccessCheckCallbackFunction doesn't throw an exception.
+  //
+  // TODO(verwaest): Force throw an exception if the callback doesn't, so we can
+  // remove reliance on default return values.
+  if (it.state() == LookupIterator::ACCESS_CHECK) {
+    if (!it.HasAccess()) {
+      isolate->ReportFailedAccessCheck(object);
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return it.factory()->undefined_value();
     }
+    it.Next();
+  }
 
+  CHECK(GetPropertyAttributes(&it).IsJust());
+
+  // ES5 forbids turning a property into an accessor if it's not
+  // configurable. See 8.6.1 (Table 5).
+  if (it.IsFound() && (it.IsReadOnly() || !it.IsConfigurable())) {
+    return it.factory()->undefined_value();
+  }
+
+  // Ignore accessors on typed arrays.
+  if (it.IsElement() && (object->HasFixedTypedArrayElements() ||
+                         object->HasExternalArrayElements())) {
+    return it.factory()->undefined_value();
+  }
+
+  if (it.IsElement()) {
     SetElementCallback(object, index, info, info->property_attributes());
   } else {
-    // Lookup the name.
-    LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
-    CHECK(GetPropertyAttributes(&it).IsJust());
-    // ES5 forbids turning a property into an accessor if it's not
-    // configurable. See 8.6.1 (Table 5).
-    if (it.IsFound() && (it.IsReadOnly() || !it.IsConfigurable())) {
-      return factory->undefined_value();
-    }
-
     SetPropertyCallback(object, name, info, info->property_attributes());
   }
 
