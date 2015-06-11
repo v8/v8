@@ -16781,8 +16781,6 @@ void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
                                  Local<v8::Value> data) {
   CcTest::heap()->CollectAllGarbage();
-  CcTest::isolate()->ThrowException(
-      v8::Exception::Error(v8_str("cross context")));
 }
 
 
@@ -16813,42 +16811,28 @@ TEST(GCInFailedAccessCheckCallback) {
   LocalContext context1(NULL, global_template);
   context1->Global()->Set(v8_str("other"), global0);
 
-  v8::TryCatch try_catch(isolate);
-
   // Get property with failed access check.
-  CHECK(CompileRun("other.x").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectUndefined("other.x");
 
   // Get element with failed access check.
-  CHECK(CompileRun("other[0]").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectUndefined("other[0]");
 
   // Set property with failed access check.
-  CHECK(CompileRun("other.x = new Object()").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  v8::Handle<v8::Value> result = CompileRun("other.x = new Object()");
+  CHECK(result->IsObject());
 
   // Set element with failed access check.
-  CHECK(CompileRun("other[0] = new Object()").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  result = CompileRun("other[0] = new Object()");
+  CHECK(result->IsObject());
 
   // Get property attribute with failed access check.
-  CHECK(CompileRun("\'x\' in other").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectFalse("\'x\' in other");
 
   // Get property attribute for element with failed access check.
-  CHECK(CompileRun("0 in other").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectFalse("0 in other");
 
   // Delete property.
-  CHECK(CompileRun("delete other.x").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectFalse("delete other.x");
 
   // Delete element.
   CHECK_EQ(false, global0->Delete(0));
@@ -16858,25 +16842,15 @@ TEST(GCInFailedAccessCheckCallback) {
            global0->SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("x")));
 
   // Define JavaScript accessor.
-  CHECK(CompileRun(
-            "Object.prototype.__defineGetter__.call("
-            "    other, \'x\', function() { return 42; })").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectUndefined("Object.prototype.__defineGetter__.call("
+                  "    other, \'x\', function() { return 42; })");
 
   // LookupAccessor.
-  CHECK(CompileRun(
-            "Object.prototype.__lookupGetter__.call("
-            "    other, \'x\')").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectUndefined("Object.prototype.__lookupGetter__.call("
+                  "    other, \'x\')");
 
   // HasOwnElement.
-  CHECK(CompileRun(
-            "Object.prototype.hasOwnProperty.call("
-            "other, \'0\')").IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
+  ExpectFalse("Object.prototype.hasOwnProperty.call(other, \'0\')");
 
   CHECK_EQ(false, global0->HasRealIndexedProperty(0));
   CHECK_EQ(false, global0->HasRealNamedProperty(v8_str("x")));
