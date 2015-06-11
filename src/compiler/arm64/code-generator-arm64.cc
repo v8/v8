@@ -331,16 +331,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 
-#define ASSEMBLE_SHIFT(asm_instr, width)                                       \
-  do {                                                                         \
-    if (instr->InputAt(1)->IsRegister()) {                                     \
-      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0),       \
-                   i.InputRegister##width(1));                                 \
-    } else {                                                                   \
-      int imm =                                                                \
-          static_cast<int>(i.InputOperand##width(1).immediate().value());      \
-      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0), imm); \
-    }                                                                          \
+#define ASSEMBLE_SHIFT(asm_instr, width)                                    \
+  do {                                                                      \
+    if (instr->InputAt(1)->IsRegister()) {                                  \
+      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0),    \
+                   i.InputRegister##width(1));                              \
+    } else {                                                                \
+      uint32_t imm =                                                        \
+          static_cast<uint32_t>(i.InputOperand##width(1).ImmediateValue()); \
+      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0),    \
+                   imm % (width));                                          \
+    }                                                                       \
   } while (0)
 
 
