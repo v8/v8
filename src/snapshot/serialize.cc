@@ -1934,7 +1934,8 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
       if (current != start && root_index != RootIndexMap::kInvalidRootIndex &&
-          Heap::RootIsImmortalImmovable(root_index) &&
+          Heap::RootIsImmortalImmovable(
+              static_cast<Heap::RootListIndex>(root_index)) &&
           current_contents == current[-1]) {
         DCHECK(!serializer_->isolate()->heap()->InNewSpace(current_contents));
         int repeat_count = 1;

@@ -129,6 +129,11 @@ class Unique {
     return Unique<T>(reinterpret_cast<Address>(*handle), handle);
   }
 
+  T* GetRawAddress() const {
+    DCHECK(IsInitialized());
+    return reinterpret_cast<T*>(raw_address_);
+  }
+
   friend class UniqueSet<T>;  // Uses internal details for speed.
   template <class U>
   friend class Unique;  // For comparing raw_address values.

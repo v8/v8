@@ -324,60 +324,6 @@ namespace internal {
   V(to_string_tag_symbol, symbolToStringTag, Symbol.toStringTag) \
   V(unscopables_symbol, symbolUnscopables, Symbol.unscopables)
 
-// Heap roots that are known to be immortal immovable, for which we can safely
-// skip write barriers. This list is not complete and has omissions.
-#define IMMORTAL_IMMOVABLE_ROOT_LIST(V) \
-  V(ByteArrayMap)                       \
-  V(FreeSpaceMap)                       \
-  V(OnePointerFillerMap)                \
-  V(TwoPointerFillerMap)                \
-  V(UndefinedValue)                     \
-  V(TheHoleValue)                       \
-  V(NullValue)                          \
-  V(TrueValue)                          \
-  V(FalseValue)                         \
-  V(UninitializedValue)                 \
-  V(CellMap)                            \
-  V(GlobalPropertyCellMap)              \
-  V(SharedFunctionInfoMap)              \
-  V(MetaMap)                            \
-  V(HeapNumberMap)                      \
-  V(MutableHeapNumberMap)               \
-  V(Float32x4Map)                       \
-  V(NativeContextMap)                   \
-  V(FixedArrayMap)                      \
-  V(CodeMap)                            \
-  V(ScopeInfoMap)                       \
-  V(FixedCOWArrayMap)                   \
-  V(FixedDoubleArrayMap)                \
-  V(WeakCellMap)                        \
-  V(NoInterceptorResultSentinel)        \
-  V(HashTableMap)                       \
-  V(OrderedHashTableMap)                \
-  V(EmptyFixedArray)                    \
-  V(EmptyByteArray)                     \
-  V(EmptyDescriptorArray)               \
-  V(ArgumentsMarker)                    \
-  V(SymbolMap)                          \
-  V(SloppyArgumentsElementsMap)         \
-  V(FunctionContextMap)                 \
-  V(CatchContextMap)                    \
-  V(WithContextMap)                     \
-  V(BlockContextMap)                    \
-  V(ModuleContextMap)                   \
-  V(ScriptContextMap)                   \
-  V(UndefinedMap)                       \
-  V(TheHoleMap)                         \
-  V(NullMap)                            \
-  V(BooleanMap)                         \
-  V(UninitializedMap)                   \
-  V(ArgumentsMarkerMap)                 \
-  V(JSMessageObjectMap)                 \
-  V(ForeignMap)                         \
-  V(NeanderMap)                         \
-  V(empty_string)                       \
-  PRIVATE_SYMBOL_LIST(V)
-
 // Forward declarations.
 class HeapStats;
 class Isolate;
@@ -995,7 +941,6 @@ class Heap {
     return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
   }
 
-  static bool RootIsImmortalImmovable(int root_index);
   void CheckHandleCount();
 
 #ifdef VERIFY_HEAP
@@ -1187,7 +1132,7 @@ class Heap {
 
 #define STRING_INDEX_DECLARATION(name, str) k##name##RootIndex,
     INTERNALIZED_STRING_LIST(STRING_INDEX_DECLARATION)
-#undef STRING_DECLARATION
+#undef STRING_INDEX_DECLARATION
 
 #define SYMBOL_INDEX_DECLARATION(name) k##name##RootIndex,
     PRIVATE_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
@@ -1211,9 +1156,11 @@ class Heap {
     kSmiRootsStart = kStringTableRootIndex + 1
   };
 
+  // Check if {index} is the index of an immortal immovable root.
+  static bool RootIsImmortalImmovable(RootListIndex index);
+
   // Get the root list index for {object} if such a root list index exists.
-  bool GetRootListIndex(Handle<HeapObject> object,
-                        Heap::RootListIndex* index_return);
+  bool GetRootListIndex(Object* object, RootListIndex* index_return) const;
 
   Object* root(RootListIndex index) { return roots_[index]; }
 

@@ -220,8 +220,12 @@ bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
 
 bool CodeGenerator::IsMaterializableFromRoot(
     Handle<HeapObject> object, Heap::RootListIndex* index_return) {
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    return isolate()->heap()->GetRootListIndex(object, index_return);
+  Heap::RootListIndex index;
+  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall() &&
+      isolate()->heap()->GetRootListIndex(*object, &index) &&
+      !Heap::RootCanBeWrittenAfterInitialization(index)) {
+    *index_return = index;
+    return true;
   }
   return false;
 }

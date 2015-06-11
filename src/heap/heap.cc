@@ -4907,29 +4907,84 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 }
 
 
-bool Heap::RootIsImmortalImmovable(int root_index) {
-  switch (root_index) {
-#define CASE(name)               \
-  case Heap::k##name##RootIndex: \
-    return true;
-    IMMORTAL_IMMOVABLE_ROOT_LIST(CASE);
-#undef CASE
+// static
+bool Heap::RootIsImmortalImmovable(RootListIndex index) {
+  // Heap roots that are known to be immortal immovable, for which we can safely
+  // skip write barriers. This list is not complete and has omissions.
+  switch (index) {
+    case Heap::kByteArrayMapRootIndex:
+    case Heap::kFreeSpaceMapRootIndex:
+    case Heap::kOnePointerFillerMapRootIndex:
+    case Heap::kTwoPointerFillerMapRootIndex:
+    case Heap::kUndefinedValueRootIndex:
+    case Heap::kTheHoleValueRootIndex:
+    case Heap::kNullValueRootIndex:
+    case Heap::kTrueValueRootIndex:
+    case Heap::kFalseValueRootIndex:
+    case Heap::kUninitializedValueRootIndex:
+    case Heap::kCellMapRootIndex:
+    case Heap::kGlobalPropertyCellMapRootIndex:
+    case Heap::kSharedFunctionInfoMapRootIndex:
+    case Heap::kMetaMapRootIndex:
+    case Heap::kHeapNumberMapRootIndex:
+    case Heap::kMutableHeapNumberMapRootIndex:
+    case Heap::kFloat32x4MapRootIndex:
+    case Heap::kNativeContextMapRootIndex:
+    case Heap::kFixedArrayMapRootIndex:
+    case Heap::kCodeMapRootIndex:
+    case Heap::kScopeInfoMapRootIndex:
+    case Heap::kFixedCOWArrayMapRootIndex:
+    case Heap::kFixedDoubleArrayMapRootIndex:
+    case Heap::kWeakCellMapRootIndex:
+    case Heap::kNoInterceptorResultSentinelRootIndex:
+    case Heap::kHashTableMapRootIndex:
+    case Heap::kOrderedHashTableMapRootIndex:
+    case Heap::kEmptyFixedArrayRootIndex:
+    case Heap::kEmptyByteArrayRootIndex:
+    case Heap::kEmptyDescriptorArrayRootIndex:
+    case Heap::kArgumentsMarkerRootIndex:
+    case Heap::kSymbolMapRootIndex:
+    case Heap::kSloppyArgumentsElementsMapRootIndex:
+    case Heap::kFunctionContextMapRootIndex:
+    case Heap::kCatchContextMapRootIndex:
+    case Heap::kWithContextMapRootIndex:
+    case Heap::kBlockContextMapRootIndex:
+    case Heap::kModuleContextMapRootIndex:
+    case Heap::kScriptContextMapRootIndex:
+    case Heap::kUndefinedMapRootIndex:
+    case Heap::kTheHoleMapRootIndex:
+    case Heap::kNullMapRootIndex:
+    case Heap::kBooleanMapRootIndex:
+    case Heap::kUninitializedMapRootIndex:
+    case Heap::kArgumentsMarkerMapRootIndex:
+    case Heap::kJSMessageObjectMapRootIndex:
+    case Heap::kForeignMapRootIndex:
+    case Heap::kNeanderMapRootIndex:
+    case Heap::kempty_stringRootIndex:
+#define STRING_INDEX_DECLARATION(Name, str) case Heap::k##Name##RootIndex:
+      INTERNALIZED_STRING_LIST(STRING_INDEX_DECLARATION)
+#undef STRING_INDEX_DECLARATION
+#define SYMBOL_INDEX_DECLARATION(Name) case Heap::k##Name##RootIndex:
+      PRIVATE_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
+#undef SYMBOL_INDEX_DECLARATION
+#define STRING_TYPE_INDEX_DECLARATION(NAME, size, name, Name) \
+  case Heap::k##Name##MapRootIndex:
+      STRING_TYPE_LIST(STRING_TYPE_INDEX_DECLARATION)
+#undef STRING_TYPE_INDEX_DECLARATION
+      return true;
     default:
       return false;
   }
 }
 
 
-bool Heap::GetRootListIndex(Handle<HeapObject> object,
-                            Heap::RootListIndex* index_return) {
-  Object* ptr = *object;
-#define IMMORTAL_IMMOVABLE_ROOT(Name)            \
-  if (ptr == roots_[Heap::k##Name##RootIndex]) { \
-    *index_return = k##Name##RootIndex;          \
-    return true;                                 \
+bool Heap::GetRootListIndex(Object* object, RootListIndex* index_return) const {
+  for (size_t i = 0; i < arraysize(roots_); ++i) {
+    if (roots_[i] == object) {
+      *index_return = static_cast<RootListIndex>(i);
+      return true;
+    }
   }
-  IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
-#undef IMMORTAL_IMMOVABLE_ROOT
   return false;
 }
 
