@@ -1199,9 +1199,7 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
       LookupIterator* it);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithAccessor(
-      Handle<Object> receiver, Handle<Name> name, Handle<Object> value,
-      Handle<JSObject> holder, Handle<Object> structure,
-      LanguageMode language_mode);
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
       Handle<Object> receiver,
@@ -1215,10 +1213,6 @@ class Object {
       Isolate* isolate,
       Handle<Object> object,
       uint32_t index);
-
-  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithReceiver(
-      Isolate* isolate, Handle<Object> object, Handle<Object> receiver,
-      uint32_t index, Handle<Object> value, LanguageMode language_mode);
 
   static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
       Isolate* isolate, Handle<Object> receiver);
@@ -1649,16 +1643,6 @@ enum EnsureElementsMode {
 };
 
 
-// Indicates whether a property should be set or (re)defined.  Setting of a
-// property causes attributes to remain unchanged, writability to be checked
-// and callbacks to be called.  Defining of a property causes attributes to
-// be updated and callbacks to be overridden.
-enum SetPropertyMode {
-  SET_PROPERTY,
-  DEFINE_PROPERTY
-};
-
-
 // Indicator for one component of an AccessorPair.
 enum AccessorComponent {
   ACCESSOR_GETTER,
@@ -1674,7 +1658,7 @@ class JSReceiver: public HeapObject {
 
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
       Handle<JSReceiver> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, LanguageMode language_mode);
+      LanguageMode language_mode);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(
@@ -1857,20 +1841,23 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithInterceptor(
       LookupIterator* it, Handle<Object> value);
 
-  // SetLocalPropertyIgnoreAttributes converts callbacks to fields. We need to
-  // grant an exemption to ExecutableAccessor callbacks in some cases.
-  enum ExecutableAccessorInfoHandling {
-    DEFAULT_HANDLING,
-    DONT_FORCE_FIELD
-  };
-
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes,
-      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+      PropertyAttributes attributes);
+
+  MUST_USE_RESULT static MaybeHandle<Object> SetOwnElementIgnoreAttributes(
+      Handle<JSObject> object, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes);
+
+  MUST_USE_RESULT static MaybeHandle<Object> ReconfigureAsDataProperty(
+      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes);
 
   static void AddProperty(Handle<JSObject> object, Handle<Name> name,
                           Handle<Object> value, PropertyAttributes attributes);
+
+  MUST_USE_RESULT static MaybeHandle<Object> AddDataElement(
+      Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
@@ -1889,6 +1876,17 @@ class JSObject: public JSReceiver {
   static void SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
                                     Handle<Object> value,
                                     PropertyDetails details);
+  static void SetDictionaryElement(Handle<JSObject> object, uint32_t index,
+                                   Handle<Object> value,
+                                   PropertyAttributes attributes);
+  static void SetSloppyArgumentsElement(Handle<JSObject> object, uint32_t index,
+                                        Handle<Object> value,
+                                        PropertyAttributes attributes);
+
+  static void SetFastElement(Handle<JSObject> object, uint32_t index,
+                             Handle<Object> value);
+  static void SetFastDoubleElement(Handle<JSObject> object, uint32_t index,
+                                   Handle<Object> value);
 
   static void OptimizeAsPrototype(Handle<JSObject> object,
                                   PrototypeOptimizationMode mode);
@@ -2011,23 +2009,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnElementAccessorPair(
       Handle<JSObject> object, uint32_t index);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetFastElement(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      LanguageMode language_mode, bool check_prototype);
-
-  MUST_USE_RESULT static inline MaybeHandle<Object> SetOwnElement(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      LanguageMode language_mode);
-
-  MUST_USE_RESULT static MaybeHandle<Object> SetOwnElement(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, LanguageMode language_mode);
-
-  // Empty handle is returned if the element cannot be set to the given value.
-  MUST_USE_RESULT static MaybeHandle<Object> SetElement(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, LanguageMode language_mode,
-      bool check_prototype = true, SetPropertyMode set_mode = SET_PROPERTY);
+  static void UpdateAllocationSite(Handle<JSObject> object,
+                                   ElementsKind to_kind);
 
   enum SetFastElementsCapacitySmiMode {
     kAllowSmiElements,
@@ -2319,36 +2302,9 @@ class JSObject: public JSReceiver {
                                 Handle<Map> new_map,
                                 int expected_additional_properties);
 
-  static void UpdateAllocationSite(Handle<JSObject> object,
-                                   ElementsKind to_kind);
-
   // Used from Object::GetProperty().
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
       LookupIterator* it);
-
-  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithCallback(
-      Handle<Object> object, Handle<Object> structure, uint32_t index,
-      Handle<Object> value, Handle<JSObject> holder,
-      LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithInterceptor(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, LanguageMode language_mode,
-      bool check_prototype, SetPropertyMode set_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithoutInterceptor(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, LanguageMode language_mode,
-      bool check_prototype, SetPropertyMode set_mode);
-  MUST_USE_RESULT
-  static MaybeHandle<Object> SetElementWithCallbackSetterInPrototypes(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      bool* found, LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> SetDictionaryElement(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, LanguageMode language_mode,
-      bool check_prototype, SetPropertyMode set_mode = SET_PROPERTY);
-  MUST_USE_RESULT static MaybeHandle<Object> SetFastDoubleElement(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      LanguageMode language_mode, bool check_prototype = true);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
@@ -2453,6 +2409,9 @@ class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object* get(int index) const;
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<FixedArray> array, uint32_t index,
+                                 Handle<Object> value);
   static inline Handle<Object> get(Handle<FixedArray> array, int index);
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
@@ -2574,6 +2533,10 @@ class FixedDoubleArray: public FixedArrayBase {
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
   static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
+  // This accessor has to get a Number as |value|.
+  static Handle<Object> SetValue(Handle<JSObject> holder,
+                                 Handle<FixedDoubleArray> array, uint32_t index,
+                                 Handle<Object> value);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
 
@@ -5854,6 +5817,8 @@ class Map: public HeapObject {
   static Handle<Map> PrepareForDataProperty(Handle<Map> old_map,
                                             int descriptor_number,
                                             Handle<Object> value);
+  static Handle<Map> PrepareForDataElement(Handle<Map> old_map,
+                                           Handle<Object> value);
 
   static Handle<Map> Normalize(Handle<Map> map, PropertyNormalizationMode mode,
                                const char* reason);
@@ -9757,10 +9722,6 @@ class JSProxy: public JSReceiver {
  private:
   friend class JSReceiver;
 
-  MUST_USE_RESULT static inline MaybeHandle<Object> SetElementWithHandler(
-      Handle<JSProxy> proxy, Handle<JSReceiver> receiver, uint32_t index,
-      Handle<Object> value, LanguageMode language_mode);
-
   MUST_USE_RESULT static Maybe<bool> HasPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Name> name);
 
@@ -10348,7 +10309,7 @@ class ExecutableAccessorInfo: public AccessorInfo {
   static const int kDataOffset = kSetterOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
 
-  static inline void ClearSetter(Handle<ExecutableAccessorInfo> info);
+  static void ClearSetter(Handle<ExecutableAccessorInfo> info);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExecutableAccessorInfo);

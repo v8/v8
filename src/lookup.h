@@ -212,9 +212,9 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetAccessors() const;
   Handle<InterceptorInfo> GetInterceptor() const;
   Handle<Object> GetDataValue() const;
-  // Usually returns the value that was passed in, but may perform
-  // non-observable modifications on it, such as internalize strings.
-  void WriteDataValue(Handle<Object> value);
+  // Usually returns the value that was passed in. In case of typed array
+  // accesses it returns the converted value.
+  Handle<Object> WriteDataValue(Handle<Object> value);
   void InternalizeName();
 
  private:

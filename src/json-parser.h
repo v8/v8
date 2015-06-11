@@ -325,7 +325,8 @@ ParseElementResult JsonParser<seq_one_byte>::ParseElement(
       AdvanceSkipWhitespace();
       Handle<Object> value = ParseJsonValue();
       if (!value.is_null()) {
-        JSObject::SetOwnElement(json_object, index, value, SLOPPY).Assert();
+        JSObject::SetOwnElementIgnoreAttributes(json_object, index, value, NONE)
+            .Assert();
         return kElementFound;
       } else {
         return kNullHandle;

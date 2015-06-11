@@ -3485,8 +3485,8 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::Set()", bool);
   auto self = Utils::OpenHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception = i::JSObject::SetElement(
-      self, index, value_obj, NONE, i::SLOPPY).is_null();
+  has_pending_exception =
+      i::JSReceiver::SetElement(self, index, value_obj, i::SLOPPY).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3533,18 +3533,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     it.Next();
   }
 
-  if (it.state() == i::LookupIterator::DATA ||
-      it.state() == i::LookupIterator::ACCESSOR) {
-    if (!it.IsConfigurable()) return Just(false);
-
-    if (it.state() == i::LookupIterator::ACCESSOR) {
-      has_pending_exception = i::JSObject::SetOwnPropertyIgnoreAttributes(
-                                  self, key_obj, value_obj, NONE,
-                                  i::JSObject::DONT_FORCE_FIELD).is_null();
-      RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-      return Just(true);
-    }
-  }
+  if (it.IsFound() && !it.IsConfigurable()) return Just(false);
 
   has_pending_exception = i::Runtime::DefineObjectProperty(
                               self, key_obj, value_obj, NONE).is_null();

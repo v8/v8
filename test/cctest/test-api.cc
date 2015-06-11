@@ -13266,12 +13266,11 @@ TEST(ForceSet) {
   CHECK_EQ(3, global->Get(access_property)->Int32Value());
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(2, force_set_get_count);
-  // Forcing the property to be set should override the accessor without
-  // calling it
+  // ForceSet does not remove the accessors, but rather calls the setter.
   global->ForceSet(access_property, v8::Int32::New(isolate, 8));
-  CHECK_EQ(8, global->Get(access_property)->Int32Value());
-  CHECK_EQ(1, force_set_set_count);
-  CHECK_EQ(2, force_set_get_count);
+  CHECK_EQ(3, global->Get(access_property)->Int32Value());
+  CHECK_EQ(2, force_set_set_count);
+  CHECK_EQ(3, force_set_get_count);
 }
 
 

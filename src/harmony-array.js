@@ -238,7 +238,8 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       } else {
         mappedValue = nextValue;
       }
-      %AddElement(result, k++, mappedValue, NONE);
+      // TODO(verwaest): This should redefine rather than adding.
+      %AddElement(result, k++, mappedValue);
     }
   } else {
     var len = $toLength(items.length);
@@ -251,7 +252,8 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       } else {
         mappedValue = nextValue;
       }
-      %AddElement(result, k, mappedValue, NONE);
+      // TODO(verwaest): This should redefine rather than adding.
+      %AddElement(result, k, mappedValue);
     }
 
     result.length = k;
@@ -266,7 +268,8 @@ function ArrayOf() {
   // TODO: Implement IsConstructor (ES6 section 7.2.5)
   var array = %IsConstructor(constructor) ? new constructor(length) : [];
   for (var i = 0; i < length; i++) {
-    %AddElement(array, i, %_Arguments(i), NONE);
+    // TODO(verwaest): This should redefine rather than adding.
+    %AddElement(array, i, %_Arguments(i));
   }
   array.length = length;
   return array;

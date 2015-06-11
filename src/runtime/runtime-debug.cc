@@ -1885,9 +1885,9 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
       if (location.IsStepInLocation()) {
         Smi* position_value = Smi::FromInt(location.position());
         RETURN_FAILURE_ON_EXCEPTION(
-            isolate, JSObject::SetElement(
-                         array, index, Handle<Object>(position_value, isolate),
-                         NONE, SLOPPY));
+            isolate,
+            JSObject::SetElement(array, index, handle(position_value, isolate),
+                                 SLOPPY));
         index++;
       }
     }

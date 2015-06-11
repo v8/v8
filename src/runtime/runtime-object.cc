@@ -132,8 +132,8 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
       }
     }
 
-    MaybeHandle<Object> result = JSObject::SetElement(
-        js_object, index, value, NONE, language_mode, true, SET_PROPERTY);
+    MaybeHandle<Object> result =
+        JSObject::SetElement(js_object, index, value, language_mode);
     JSObject::ValidateElements(js_object);
 
     return result.is_null() ? result : value;
@@ -151,8 +151,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
               isolate, value, Execution::ToNumber(isolate, value), Object);
         }
       }
-      return JSObject::SetElement(js_object, index, value, NONE, language_mode,
-                                  true, SET_PROPERTY);
+      return JSObject::SetElement(js_object, index, value, language_mode);
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return Object::SetProperty(object, name, value, language_mode);
@@ -169,8 +168,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     // TODO(verwaest): Support non-JSObject receivers.
     if (!object->IsJSObject()) return value;
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    return JSObject::SetElement(js_object, index, value, NONE, language_mode,
-                                true, SET_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, language_mode);
   }
   return Object::SetProperty(object, name, value, language_mode);
 }
@@ -184,43 +182,26 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
   // Check if the given key is an array index.
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
-    // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
-    // of a string using [] notation.  We need to support this too in
-    // JavaScript.
-    // In the case of a String object we just need to redirect the assignment to
-    // the underlying string if the index is in range.  Since the underlying
-    // string does nothing with the assignment then we can ignore such
-    // assignments.
-    if (js_object->IsStringObjectWithCharacterAt(index)) {
-      return value;
-    }
-
-    return JSObject::SetElement(js_object, index, value, attrs, SLOPPY, false,
-                                DEFINE_PROPERTY);
+    return JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
+                                                   attrs);
   }
 
+  Handle<Name> name;
   if (key->IsName()) {
-    Handle<Name> name = Handle<Name>::cast(key);
-    if (name->AsArrayIndex(&index)) {
-      return JSObject::SetElement(js_object, index, value, attrs, SLOPPY, false,
-                                  DEFINE_PROPERTY);
-    } else {
-      if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-      return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
-                                                      attrs);
-    }
+    name = Handle<Name>::cast(key);
+  } else {
+    // Call-back into JavaScript to convert the key to a string.
+    Handle<Object> converted;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
+                               Execution::ToString(isolate, key), Object);
+    name = Handle<String>::cast(converted);
   }
-
-  // Call-back into JavaScript to convert the key to a string.
-  Handle<Object> converted;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
-                             Execution::ToString(isolate, key), Object);
-  Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return JSObject::SetElement(js_object, index, value, attrs, SLOPPY, false,
-                                DEFINE_PROPERTY);
+    return JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
+                                                   attrs);
   } else {
+    if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
     return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
                                                     attrs);
   }
@@ -624,14 +605,14 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   RUNTIME_ASSERT(args.length() == 4);
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
 #ifdef DEBUG
   uint32_t index = 0;
-  DCHECK(!key->ToArrayIndex(&index));
-  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  DCHECK(!name->ToArrayIndex(&index));
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
   RUNTIME_ASSERT(!it.IsFound());
@@ -640,8 +621,59 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::SetOwnPropertyIgnoreAttributes(object, key, value, attrs));
+      JSObject::SetOwnPropertyIgnoreAttributes(object, name, value, attrs));
   return *result;
+}
+
+
+// Adds an element to an array.
+// This is used to create an indexed data property into an array.
+RUNTIME_FUNCTION(Runtime_AddElement) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+
+  uint32_t index = 0;
+  CHECK(key->ToArrayIndex(&index));
+
+#ifdef DEBUG
+  LookupIterator it(isolate, object, index,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  RUNTIME_ASSERT(!it.IsFound());
+
+  if (object->IsJSArray()) {
+    Handle<JSArray> array = Handle<JSArray>::cast(object);
+    RUNTIME_ASSERT(!JSArray::WouldChangeReadOnlyLength(array, index));
+  }
+#endif
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::SetOwnElementIgnoreAttributes(object, index, value, NONE));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_AppendElement) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+
+  uint32_t index;
+  CHECK(array->length()->ToArrayIndex(&index));
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::AddDataElement(array, index, value, NONE));
+  return *array;
 }
 
 
@@ -660,45 +692,6 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
       isolate, result,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
   return *result;
-}
-
-
-// Adds an element to an array.
-// This is used to create an indexed data property into an array.
-RUNTIME_FUNCTION(Runtime_AddElement) {
-  HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 4);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
-
-  uint32_t index = 0;
-  key->ToArrayIndex(&index);
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::SetElement(object, index, value, attrs, SLOPPY,
-                                            false, DEFINE_PROPERTY));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_AppendElement) {
-  HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  int index = Smi::cast(array->length())->value();
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::SetElement(array, index, value, NONE, SLOPPY,
-                                            false, DEFINE_PROPERTY));
-  return *array;
 }
 
 
@@ -1373,19 +1366,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
       return isolate->heap()->undefined_value();
     }
     it.Next();
-  }
-
-  // Take special care when attributes are different and there is already
-  // a property.
-  if (it.state() == LookupIterator::ACCESSOR) {
-    // Use IgnoreAttributes version since a readonly property may be
-    // overridden and SetProperty does not allow this.
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            js_object, name, obj_value, attrs, JSObject::DONT_FORCE_FIELD));
-    return *result;
   }
 
   Handle<Object> result;

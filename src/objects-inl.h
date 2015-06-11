@@ -1197,17 +1197,6 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
-                                                   Handle<JSReceiver> receiver,
-                                                   uint32_t index,
-                                                   Handle<Object> value,
-                                                   LanguageMode language_mode) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return SetPropertyWithHandler(proxy, receiver, name, value, language_mode);
-}
-
-
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 
@@ -2213,14 +2202,6 @@ void JSObject::InitializeBody(Map* map,
 bool JSObject::HasFastProperties() {
   DCHECK(properties()->IsDictionary() == map()->is_dictionary_map());
   return !properties()->IsDictionary();
-}
-
-
-MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
-                                            uint32_t index,
-                                            Handle<Object> value,
-                                            LanguageMode language_mode) {
-  return JSObject::SetOwnElement(object, index, value, NONE, language_mode);
 }
 
 
@@ -6773,15 +6754,6 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   if (!receiver->IsJSObject()) return false;
   return FunctionTemplateInfo::cast(expected_receiver_type())
       ->IsTemplateFor(JSObject::cast(receiver)->map());
-}
-
-
-// static
-void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
-  auto foreign = info->GetIsolate()->factory()->NewForeign(
-      reinterpret_cast<v8::internal::Address>(
-          reinterpret_cast<intptr_t>(nullptr)));
-  info->set_setter(*foreign);
 }
 
 

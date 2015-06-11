@@ -101,7 +101,7 @@ RUNTIME_FUNCTION(Runtime_PushIfAbsent) {
 
   // Strict not needed. Used for cycle detection in Array join implementation.
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::SetFastElement(array, length, element, SLOPPY, true));
+      isolate, JSObject::AddDataElement(array, length, element, NONE));
   return isolate->heap()->true_value();
 }
 

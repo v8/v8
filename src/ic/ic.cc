@@ -1480,8 +1480,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        JSObject::SetElement(receiver, index, value, NONE, language_mode()),
-        Object);
+        JSObject::SetElement(receiver, index, value, language_mode()), Object);
     return value;
   }
 

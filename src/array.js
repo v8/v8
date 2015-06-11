@@ -243,7 +243,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
     for (var i = start_i; i < limit; ++i) {
       var current = array[i];
       if (!IS_UNDEFINED(current) || i in array) {
-        %AddElement(deleted_elements, i - start_i, current, NONE);
+        %AddElement(deleted_elements, i - start_i, current);
       }
     }
   } else {
@@ -254,7 +254,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
         if (key >= start_i) {
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
-            %AddElement(deleted_elements, key - start_i, current, NONE);
+            %AddElement(deleted_elements, key - start_i, current);
           }
         }
       }
@@ -336,7 +336,7 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
       var current = array[index];
       // The spec requires [[DefineOwnProperty]] here, %AddElement is close
       // enough (in that it ignores the prototype).
-      %AddElement(deleted_elements, i, current, NONE);
+      %AddElement(deleted_elements, i, current);
     }
   }
 }

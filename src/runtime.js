@@ -944,7 +944,7 @@ function SameValueZero(x, y) {
 function ConcatIterableToArray(target, iterable) {
    var index = target.length;
    for (var element of iterable) {
-     %AddElement(target, index++, element, NONE);
+     %AddElement(target, index++, element);
    }
    return target;
 }

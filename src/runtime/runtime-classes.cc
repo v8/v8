@@ -203,8 +203,8 @@ RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     RETURN_FAILURE_ON_EXCEPTION(
-        isolate,
-        JSObject::SetOwnElement(object, index, function, DONT_ENUM, STRICT));
+        isolate, JSObject::SetOwnElementIgnoreAttributes(object, index,
+                                                         function, DONT_ENUM));
   } else {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, JSObject::SetOwnPropertyIgnoreAttributes(object, name,
@@ -357,11 +357,12 @@ static Object* StoreElementToSuper(Isolate* isolate,
   Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
 
+  LookupIterator it(isolate, receiver, index, Handle<JSReceiver>::cast(proto));
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Object::SetElementWithReceiver(isolate, proto, receiver, index, value,
-                                     language_mode));
+      Object::SetSuperProperty(&it, value, language_mode,
+                               Object::MAY_BE_STORE_FROM_KEYED));
   return *result;
 }
 

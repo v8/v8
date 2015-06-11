@@ -28,7 +28,7 @@ void SetElementSloppy(Handle<JSObject> object,
   // Ignore return value from SetElement. It can only be a failure if there
   // are element setters causing exceptions and the debugger context has none
   // of these.
-  JSObject::SetElement(object, index, value, NONE, SLOPPY).Assert();
+  JSObject::SetElement(object, index, value, SLOPPY).Assert();
 }
 
 

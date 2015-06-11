@@ -541,17 +541,19 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       }
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
+
     if (boilerplate_value->IsTheHole()) {
       is_holey = true;
-    } else if (boilerplate_value->IsUninitialized()) {
-      is_simple = false;
-      JSObject::SetOwnElement(array, array_index,
-                              handle(Smi::FromInt(0), isolate),
-                              SLOPPY).Assert();
-    } else {
-      JSObject::SetOwnElement(array, array_index, boilerplate_value, SLOPPY)
-          .Assert();
+      continue;
     }
+
+    if (boilerplate_value->IsUninitialized()) {
+      boilerplate_value = handle(Smi::FromInt(0), isolate);
+      is_simple = false;
+    }
+
+    JSObject::AddDataElement(array, array_index, boilerplate_value, NONE)
+        .Assert();
   }
 
   if (array_index != values()->length()) {

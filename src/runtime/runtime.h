@@ -434,7 +434,7 @@ namespace internal {
   F(KeyedGetProperty, 2, 1)                          \
   F(AddNamedProperty, 4, 1)                          \
   F(SetProperty, 4, 1)                               \
-  F(AddElement, 4, 1)                                \
+  F(AddElement, 3, 1)                                \
   F(AppendElement, 2, 1)                             \
   F(DeleteProperty, 3, 1)                            \
   F(HasOwnProperty, 2, 1)                            \
