@@ -1060,11 +1060,11 @@ TARGET_TEST_F(SchedulerTest, CallException) {
   Node* c1 = graph()->NewNode(&kMockCall, start);
   Node* ok1 = graph()->NewNode(common()->IfSuccess(), c1);
   Node* ex1 = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), c1);
+      common()->IfException(IfExceptionHint::kLocallyUncaught), c1, c1);
   Node* c2 = graph()->NewNode(&kMockCall, ok1);
   Node* ok2 = graph()->NewNode(common()->IfSuccess(), c2);
   Node* ex2 = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), c2);
+      common()->IfException(IfExceptionHint::kLocallyUncaught), c2, c2);
   Node* hdl = graph()->NewNode(common()->Merge(2), ex1, ex2);
   Node* m = graph()->NewNode(common()->Merge(2), ok2, hdl);
   Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), c2, p0, m);

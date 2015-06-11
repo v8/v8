@@ -225,11 +225,11 @@ TEST_F(CommonOperatorTest, IfException) {
     EXPECT_EQ(IrOpcode::kIfException, op->opcode());
     EXPECT_EQ(Operator::kKontrol, op->properties());
     EXPECT_EQ(0, op->ValueInputCount());
-    EXPECT_EQ(0, op->EffectInputCount());
+    EXPECT_EQ(1, op->EffectInputCount());
     EXPECT_EQ(1, op->ControlInputCount());
-    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
     EXPECT_EQ(1, op->ValueOutputCount());
-    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(1, op->EffectOutputCount());
     EXPECT_EQ(1, op->ControlOutputCount());
   }
 }

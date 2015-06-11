@@ -931,7 +931,7 @@ void InstructionSelector::VisitParameter(Node* node) {
 
 void InstructionSelector::VisitIfException(Node* node) {
   OperandGenerator g(this);
-  Node* call = node->InputAt(0);
+  Node* call = node->InputAt(1);
   DCHECK_EQ(IrOpcode::kCall, call->opcode());
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(call);
   Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0),

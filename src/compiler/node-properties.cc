@@ -214,7 +214,9 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
   std::memset(projections, 0, sizeof(*projections) * projection_count);
 #endif
   size_t if_value_index = 0;
-  for (Node* const use : node->uses()) {
+  for (Edge const edge : node->use_edges()) {
+    if (!IsControlEdge(edge)) continue;
+    Node* use = edge.from();
     size_t index;
     switch (use->opcode()) {
       case IrOpcode::kIfTrue:

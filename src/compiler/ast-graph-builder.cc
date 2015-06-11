@@ -3845,8 +3845,10 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
         // Copy the environment for the success continuation.
         Environment* success_env = environment()->CopyForConditional();
         const Operator* op = common()->IfException(hint);
-        Node* on_exception = graph()->NewNode(op, result);
+        Node* effect = environment()->GetEffectDependency();
+        Node* on_exception = graph()->NewNode(op, effect, result);
         environment_->UpdateControlDependency(on_exception);
+        environment_->UpdateEffectDependency(on_exception);
         execution_control()->ThrowValue(on_exception);
         set_environment(success_env);
       }

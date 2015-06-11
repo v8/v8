@@ -230,7 +230,7 @@ struct CommonOperatorGlobalCache final {
         : Operator1<IfExceptionHint>(                      // --
               IrOpcode::kIfException, Operator::kKontrol,  // opcode
               "IfException",                               // name
-              0, 0, 1, 1, 0, 1,                            // counts
+              0, 1, 1, 1, 1, 1,                            // counts
               kCaughtLocally) {}                           // parameter
   };
   IfExceptionOperator<IfExceptionHint::kLocallyCaught> kIfExceptionCOperator;

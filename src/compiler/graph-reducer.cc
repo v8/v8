@@ -231,9 +231,10 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
       } else if (user->opcode() == IrOpcode::kIfException) {
         for (Edge e : user->use_edges()) {
           if (NodeProperties::IsValueEdge(e)) e.UpdateTo(dead_value_);
+          if (NodeProperties::IsEffectEdge(e)) e.UpdateTo(graph()->start());
           if (NodeProperties::IsControlEdge(e)) e.UpdateTo(dead_control_);
         }
-        user->Kill();
+        edge.UpdateTo(user);
       } else {
         UNREACHABLE();
       }
@@ -242,6 +243,7 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
       edge.UpdateTo(effect);
       Revisit(user);
     } else {
+      DCHECK_NOT_NULL(value);
       edge.UpdateTo(value);
       Revisit(user);
     }

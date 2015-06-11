@@ -340,10 +340,11 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse1) {
 TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse2) {
   CommonOperatorBuilder common(zone());
   Node* start = graph()->NewNode(common.Start(1));
+  Node* effect = graph()->NewNode(&kMockOperator);
   Node* dead = graph()->NewNode(&kMockOperator);
   Node* node = graph()->NewNode(&kMockOpControl, start);
   Node* success = graph()->NewNode(common.IfSuccess(), node);
-  Node* exception = graph()->NewNode(common.IfException(kNoHint), node);
+  Node* exception = graph()->NewNode(common.IfException(kNoHint), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* use_exception_control = graph()->NewNode(common.Merge(1), exception);
   Node* replacement = graph()->NewNode(&kMockOperator);
@@ -364,10 +365,11 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse2) {
 TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse3) {
   CommonOperatorBuilder common(zone());
   Node* start = graph()->NewNode(common.Start(1));
+  Node* effect = graph()->NewNode(&kMockOperator);
   Node* dead = graph()->NewNode(&kMockOperator);
   Node* node = graph()->NewNode(&kMockOpControl, start);
   Node* success = graph()->NewNode(common.IfSuccess(), node);
-  Node* exception = graph()->NewNode(common.IfException(kNoHint), node);
+  Node* exception = graph()->NewNode(common.IfException(kNoHint), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* use_exception_value = graph()->NewNode(common.Return(), exception);
   Node* replacement = graph()->NewNode(&kMockOperator);
