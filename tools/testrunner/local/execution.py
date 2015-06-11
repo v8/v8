@@ -277,10 +277,11 @@ class Runner(object):
       d8testflag = ["--test"]
     if utils.IsWindows():
       shell += ".exe"
+    if self.context.random_seed:
+      d8testflag += ["--random-seed=%s" % self.context.random_seed]
     cmd = (self.context.command_prefix +
            [os.path.abspath(os.path.join(self.context.shell_dir, shell))] +
            d8testflag +
-           ["--random-seed=%s" % self.context.random_seed] +
            test.suite.GetFlagsForTestCase(test, self.context) +
            self.context.extra_flags)
     return cmd
