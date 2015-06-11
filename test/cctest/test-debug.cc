@@ -115,9 +115,8 @@ class DebugLocalContext {
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
         factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("debug"));
-    v8::internal::JSObject::SetOwnPropertyIgnoreAttributes(
-        global, debug_string, handle(debug_context->global_proxy()), DONT_ENUM)
-        .Check();
+    v8::internal::Runtime::DefineObjectProperty(global, debug_string,
+        handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
   }
 
  private:

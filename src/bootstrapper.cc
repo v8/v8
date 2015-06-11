@@ -940,9 +940,8 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
 
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  JSObject::SetOwnPropertyIgnoreAttributes(builtins_global,
-                                           factory()->global_string(),
-                                           global_object, attributes).Assert();
+  Runtime::DefineObjectProperty(builtins_global, factory()->global_string(),
+                                global_object, attributes).Assert();
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(*global_object)->set_builtins(*builtins_global);
   TransferNamedProperties(global_object_from_snapshot, global_object);

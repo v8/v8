@@ -1226,7 +1226,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
     } else {
       int int_value = FastD2I(value);
       if (value == int_value && Smi::IsValid(int_value)) {
-        key = handle(Smi::FromInt(int_value), isolate);
+        key = Handle<Smi>(Smi::FromInt(int_value), isolate);
       }
     }
   } else if (key->IsUndefined()) {

@@ -3535,7 +3535,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
 
   if (it.IsFound() && !it.IsConfigurable()) return Just(false);
 
-  has_pending_exception = i::JSObject::SetOwnPropertyIgnoreAttributes(
+  has_pending_exception = i::Runtime::DefineObjectProperty(
                               self, key_obj, value_obj, NONE).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
@@ -3573,8 +3573,9 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     return Just(false);
   }
 
-  has_pending_exception = i::JSObject::SetOwnElementIgnoreAttributes(
-                              self, index, value_obj, NONE).is_null();
+  has_pending_exception = i::Runtime::DefineObjectProperty(
+                              self, isolate->factory()->Uint32ToString(index),
+                              value_obj, NONE).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3612,34 +3613,6 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
 }
 
 
-MUST_USE_RESULT
-static i::MaybeHandle<i::Object> DefineObjectProperty(
-    i::Handle<i::JSObject> js_object, i::Handle<i::Object> key,
-    i::Handle<i::Object> value, PropertyAttributes attrs) {
-  i::Isolate* isolate = js_object->GetIsolate();
-  // Check if the given key is an array index.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    return i::JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
-                                                      attrs);
-  }
-
-  i::Handle<i::Name> name;
-  if (key->IsName()) {
-    name = i::Handle<i::Name>::cast(key);
-  } else {
-    // Call-back into JavaScript to convert the key to a string.
-    i::Handle<i::Object> converted;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, converted,
-                                     i::Execution::ToString(isolate, key),
-                                     i::MaybeHandle<i::Object>());
-    name = i::Handle<i::String>::cast(converted);
-  }
-
-  return i::JSObject::DefinePropertyOrElement(js_object, name, value, attrs);
-}
-
-
 Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
                                  v8::Local<Value> key, v8::Local<Value> value,
                                  v8::PropertyAttribute attribs) {
@@ -3647,9 +3620,11 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception =
-      DefineObjectProperty(self, key_obj, value_obj,
-                           static_cast<PropertyAttributes>(attribs)).is_null();
+  has_pending_exception = i::Runtime::DefineObjectProperty(
+      self,
+      key_obj,
+      value_obj,
+      static_cast<PropertyAttributes>(attribs)).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3665,8 +3640,9 @@ bool v8::Object::ForceSet(v8::Handle<Value> key, v8::Handle<Value> value,
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   has_pending_exception =
-      DefineObjectProperty(self, key_obj, value_obj,
-                           static_cast<PropertyAttributes>(attribs)).is_null();
+      i::Runtime::DefineObjectProperty(self, key_obj, value_obj,
+                                       static_cast<PropertyAttributes>(attribs))
+          .is_null();
   EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false);
   return true;
 }
