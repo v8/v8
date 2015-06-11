@@ -423,7 +423,7 @@ DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
 DEFINE_BOOL(turbo_osr, true, "enable OSR in TurboFan")
-DEFINE_BOOL(turbo_try_catch, false, "enable try-catch support in TurboFan")
+DEFINE_BOOL(turbo_try_catch, true, "enable try-catch support in TurboFan")
 DEFINE_BOOL(turbo_try_finally, false, "enable try-finally support in TurboFan")
 DEFINE_BOOL(turbo_stress_loop_peeling, false,
             "stress loop peeling optimization")
