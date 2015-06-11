@@ -2872,9 +2872,20 @@ bool HConstant::ImmortalImmovable() const {
   Heap* heap = isolate()->heap();
   DCHECK(!object_.IsKnownGlobal(heap->minus_zero_value()));
   DCHECK(!object_.IsKnownGlobal(heap->nan_value()));
-  Heap::RootListIndex index;
-  return heap->GetRootListIndex(object_.GetRawAddress(), &index) &&
-         Heap::RootIsImmortalImmovable(index);
+  return
+#define IMMORTAL_IMMOVABLE_ROOT(name) \
+  object_.IsKnownGlobal(heap->root(Heap::k##name##RootIndex)) ||
+      IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
+#undef IMMORTAL_IMMOVABLE_ROOT
+#define INTERNALIZED_STRING(name, value) \
+      object_.IsKnownGlobal(heap->name()) ||
+      INTERNALIZED_STRING_LIST(INTERNALIZED_STRING)
+#undef INTERNALIZED_STRING
+#define STRING_TYPE(NAME, size, name, Name) \
+      object_.IsKnownGlobal(heap->name##_map()) ||
+      STRING_TYPE_LIST(STRING_TYPE)
+#undef STRING_TYPE
+      false;
 }
 
 
