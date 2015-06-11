@@ -105,21 +105,51 @@ function PromiseCoerce(constructor, x) {
   return x;
 }
 
-function PromiseHandle(value, handler, deferred) {
+function PromiseHandle(value, handler, deferred, thenable) {
   try {
     %DebugPushPromise(deferred.promise, PromiseHandle);
     DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
     var result = handler(value);
-    if (result === deferred.promise)
+    if (result === deferred.promise) {
       throw MakeTypeError(kPromiseCyclic, result);
-    else if (IsPromise(result))
+    } else if (IsPromise(result) && thenable) {
+      var then = result.then;
+      if (IS_SPEC_FUNCTION(then)) {
+        PromiseCallThenInSeparateTask(result, deferred, then);
+      } else {
+        deferred.resolve(result);
+      }
+    } else if (IsPromise(result)) {
       %_CallFunction(result, deferred.resolve, deferred.reject, PromiseChain);
-    else
+    } else {
       deferred.resolve(result);
+    }
   } catch (exception) {
     try { deferred.reject(exception); } catch (e) { }
   } finally {
     %DebugPopPromise();
+  }
+}
+
+function PromiseCallThenInSeparateTask(result, deferred, then) {
+  var id, name, instrumenting = DEBUG_IS_ACTIVE;
+  %EnqueueMicrotask(function() {
+    if (instrumenting) {
+      %DebugAsyncTaskEvent({ type: "willCall", id: id, name: name });
+    }
+    try {
+      %_CallFunction(result, deferred.resolve, deferred.reject, then);
+    } catch(exception) {
+      try { deferred.reject(exception); } catch (e) { }
+    }
+    if (instrumenting) {
+      %DebugAsyncTaskEvent({ type: "didCall", id: id, name: name });
+    }
+  });
+  if (instrumenting) {
+    id = ++lastMicrotaskId;
+    name = "Promise.prototype.then";
+    %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
   }
 }
 
@@ -129,8 +159,10 @@ function PromiseEnqueue(value, tasks, status) {
     if (instrumenting) {
       %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
     }
-    for (var i = 0; i < tasks.length; i += 2) {
-      PromiseHandle(value, tasks[i], tasks[i + 1])
+    for (var i = 0; i < tasks.length; i += 3) {
+      // tasks[i: i + 2] consists of the reaction handler, the associated
+      // deferred object and whether the thenable handling is required.
+      PromiseHandle(value, tasks[i], tasks[i + 1], tasks[i + 2])
     }
     if (instrumenting) {
       %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
@@ -141,6 +173,41 @@ function PromiseEnqueue(value, tasks, status) {
     name = status > 0 ? "Promise.resolve" : "Promise.reject";
     %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
   }
+}
+
+function PromiseChainInternal(onResolve, onReject, thenable) {
+  onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
+  onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
+  var deferred = %_CallFunction(this.constructor, PromiseDeferred);
+  switch (GET_PRIVATE(this, promiseStatus)) {
+    case UNDEFINED:
+      throw MakeTypeError(kNotAPromise, this);
+    case 0:  // Pending
+      GET_PRIVATE(this, promiseOnResolve).push(onResolve, deferred, thenable);
+      GET_PRIVATE(this, promiseOnReject).push(onReject, deferred, thenable);
+      break;
+    case +1:  // Resolved
+      PromiseEnqueue(GET_PRIVATE(this, promiseValue),
+                     [onResolve, deferred, thenable],
+                     +1);
+      break;
+    case -1:  // Rejected
+      if (!HAS_DEFINED_PRIVATE(this, promiseHasHandler)) {
+        // Promise has already been rejected, but had no handler.
+        // Revoke previously triggered reject event.
+        %PromiseRevokeReject(this);
+      }
+      PromiseEnqueue(GET_PRIVATE(this, promiseValue),
+                     [onReject, deferred, thenable],
+                     -1);
+      break;
+  }
+  // Mark this promise as having handler.
+  SET_PRIVATE(this, promiseHasHandler, true);
+  if (DEBUG_IS_ACTIVE) {
+    %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
+  }
+  return deferred.promise;
 }
 
 function PromiseIdResolveHandler(x) { return x }
@@ -224,38 +291,8 @@ function PromiseRejected(r) {
 // Simple chaining.
 
 function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
-  onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
-  onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
-  var deferred = %_CallFunction(this.constructor, PromiseDeferred);
-  switch (GET_PRIVATE(this, promiseStatus)) {
-    case UNDEFINED:
-      throw MakeTypeError(kNotAPromise, this);
-    case 0:  // Pending
-      GET_PRIVATE(this, promiseOnResolve).push(onResolve, deferred);
-      GET_PRIVATE(this, promiseOnReject).push(onReject, deferred);
-      break;
-    case +1:  // Resolved
-      PromiseEnqueue(GET_PRIVATE(this, promiseValue),
-                     [onResolve, deferred],
-                     +1);
-      break;
-    case -1:  // Rejected
-      if (!HAS_DEFINED_PRIVATE(this, promiseHasHandler)) {
-        // Promise has already been rejected, but had no handler.
-        // Revoke previously triggered reject event.
-        %PromiseRevokeReject(this);
-      }
-      PromiseEnqueue(GET_PRIVATE(this, promiseValue),
-                     [onReject, deferred],
-                     -1);
-      break;
-  }
-  // Mark this promise as having handler.
-  SET_PRIVATE(this, promiseHasHandler, true);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
-  }
-  return deferred.promise;
+  return %_CallFunction(this, onResolve, onReject, false,
+                        PromiseChainInternal);
 }
 
 function PromiseCatch(onReject) {
@@ -286,7 +323,8 @@ function PromiseThen(onResolve, onReject) {
       }
     },
     onReject,
-    PromiseChain
+    true,
+    PromiseChainInternal
   );
 }
 
@@ -348,7 +386,7 @@ function PromiseRace(iterable) {
 function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
   var queue = GET_PRIVATE(promise, promiseOnReject);
   if (IS_UNDEFINED(queue)) return false;
-  for (var i = 0; i < queue.length; i += 2) {
+  for (var i = 0; i < queue.length; i += 3) {
     if (queue[i] != PromiseIdRejectHandler) return true;
     if (PromiseHasUserDefinedRejectHandlerRecursive(queue[i + 1].promise)) {
       return true;
