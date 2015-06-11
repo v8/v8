@@ -231,11 +231,6 @@ void FullCodeGenerator::Generate() {
     }
   }
 
-  Variable* home_object_var = scope()->home_object_var();
-  if (home_object_var != nullptr) {
-    __ push(edi);
-  }
-
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
   Variable* this_function_var = scope()->this_function_var();
@@ -1915,7 +1910,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       VisitForStackValue(
           property->obj()->AsSuperPropertyReference()->this_var());
       VisitForAccumulatorValue(
-          property->obj()->AsSuperPropertyReference()->home_object_var());
+          property->obj()->AsSuperPropertyReference()->home_object());
       __ push(result_register());
       if (expr->is_compound()) {
         __ push(MemOperand(esp, kPointerSize));
@@ -1935,7 +1930,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       VisitForStackValue(
           property->obj()->AsSuperPropertyReference()->this_var());
       VisitForStackValue(
-          property->obj()->AsSuperPropertyReference()->home_object_var());
+          property->obj()->AsSuperPropertyReference()->home_object());
       VisitForAccumulatorValue(property->key());
       __ Push(result_register());
       if (expr->is_compound()) {
@@ -2562,7 +2557,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       __ push(eax);
       VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
       VisitForAccumulatorValue(
-          prop->obj()->AsSuperPropertyReference()->home_object_var());
+          prop->obj()->AsSuperPropertyReference()->home_object());
       // stack: value, this; eax: home_object
       Register scratch = ecx;
       Register scratch2 = edx;
@@ -2579,7 +2574,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       __ push(eax);
       VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
       VisitForStackValue(
-          prop->obj()->AsSuperPropertyReference()->home_object_var());
+          prop->obj()->AsSuperPropertyReference()->home_object());
       VisitForAccumulatorValue(prop->key());
       Register scratch = ecx;
       Register scratch2 = edx;
@@ -2803,7 +2798,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     } else {
       VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
       VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object_var());
+          expr->obj()->AsSuperPropertyReference()->home_object());
       EmitNamedSuperPropertyLoad(expr);
     }
   } else {
@@ -2816,7 +2811,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     } else {
       VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
       VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object_var());
+          expr->obj()->AsSuperPropertyReference()->home_object());
       VisitForStackValue(expr->key());
       EmitKeyedSuperPropertyLoad(expr);
     }
@@ -2875,7 +2870,7 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   DCHECK(!key->value()->IsSmi());
   // Load the function from the receiver.
   SuperPropertyReference* super_ref = prop->obj()->AsSuperPropertyReference();
-  VisitForStackValue(super_ref->home_object_var());
+  VisitForStackValue(super_ref->home_object());
   VisitForAccumulatorValue(super_ref->this_var());
   __ push(eax);
   __ push(eax);
@@ -2931,7 +2926,7 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   SetSourcePosition(prop->position());
   // Load the function from the receiver.
   SuperPropertyReference* super_ref = prop->obj()->AsSuperPropertyReference();
-  VisitForStackValue(super_ref->home_object_var());
+  VisitForStackValue(super_ref->home_object());
   VisitForAccumulatorValue(super_ref->this_var());
   __ push(eax);
   __ push(eax);
@@ -4822,7 +4817,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       case NAMED_SUPER_PROPERTY: {
         VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
         VisitForAccumulatorValue(
-            prop->obj()->AsSuperPropertyReference()->home_object_var());
+            prop->obj()->AsSuperPropertyReference()->home_object());
         __ push(result_register());
         __ push(MemOperand(esp, kPointerSize));
         __ push(result_register());
@@ -4833,7 +4828,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       case KEYED_SUPER_PROPERTY: {
         VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
         VisitForStackValue(
-            prop->obj()->AsSuperPropertyReference()->home_object_var());
+            prop->obj()->AsSuperPropertyReference()->home_object());
         VisitForAccumulatorValue(prop->key());
         __ push(result_register());
         __ push(MemOperand(esp, 2 * kPointerSize));
