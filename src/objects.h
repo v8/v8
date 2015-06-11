@@ -1176,9 +1176,6 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       Isolate* isolate, Handle<Object> reciever, Handle<Object> name,
       Handle<Object> value, LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyElement(
-      Isolate* isolate, Handle<Object> receiver, uint32_t index,
-      Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> RedefineNonconfigurableProperty(
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
       LanguageMode language_mode);
@@ -1840,6 +1837,12 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithInterceptor(
       LookupIterator* it, Handle<Object> value);
+
+  // Calls SetOwn[Property|Element]IgnoreAttributes depending on whether name is
+  // convertible to an index.
+  MUST_USE_RESULT static inline MaybeHandle<Object> DefinePropertyOrElement(
+      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+      PropertyAttributes attributes = NONE);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
@@ -4045,7 +4048,7 @@ class ScopeInfo : public FixedArray {
   FunctionKind function_kind();
 
   // Copies all the context locals into an object used to materialize a scope.
-  static bool CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
+  static void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
                                              Handle<Context> context,
                                              Handle<JSObject> scope_object);
 

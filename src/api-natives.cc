@@ -80,32 +80,24 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Instantiate(isolate, prop_data, key), Object);
 
+  uint32_t index = 0;
+  LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
+  LookupIterator it = key->AsArrayIndex(&index)
+                          ? LookupIterator(isolate, object, index, c)
+                          : LookupIterator(object, key, c);
+
 #ifdef DEBUG
-  bool duplicate;
-  if (key->IsName()) {
-    LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::OWN_SKIP_INTERCEPTOR);
-    Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-    DCHECK(maybe.IsJust());
-    duplicate = it.IsFound();
-  } else {
-    uint32_t index = 0;
-    key->ToArrayIndex(&index);
-    Maybe<bool> maybe = JSReceiver::HasOwnElement(object, index);
-    if (!maybe.IsJust()) return MaybeHandle<Object>();
-    duplicate = maybe.FromJust();
-  }
-  if (duplicate) {
+  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+  DCHECK(maybe.IsJust());
+  if (it.IsFound()) {
     THROW_NEW_ERROR(
         isolate, NewTypeError(MessageTemplate::kDuplicateTemplateProperty, key),
         Object);
   }
 #endif
 
-  RETURN_ON_EXCEPTION(
-      isolate, Runtime::DefineObjectProperty(object, key, value, attributes),
-      Object);
-  return object;
+  return Object::AddDataProperty(&it, value, attributes, STRICT,
+                                 Object::CERTAINLY_NOT_STORE_FROM_KEYED);
 }
 
 

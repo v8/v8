@@ -59,12 +59,10 @@ class LookupIterator final BASE_EMBEDDED {
         holder_map_(holder_->map(), isolate_),
         initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
-#if 0  // TODO(verwaest): Enable once blocking hacks are removed.
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
 #endif  // DEBUG
-#endif
     Next();
   }
 
@@ -85,12 +83,10 @@ class LookupIterator final BASE_EMBEDDED {
         holder_map_(holder_->map(), isolate_),
         initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
-#if 0  // TODO(verwaest): Enable once blocking hacks are removed.
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
 #endif  // DEBUG
-#endif
     Next();
   }
 
@@ -212,9 +208,7 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetAccessors() const;
   Handle<InterceptorInfo> GetInterceptor() const;
   Handle<Object> GetDataValue() const;
-  // Usually returns the value that was passed in. In case of typed array
-  // accesses it returns the converted value.
-  Handle<Object> WriteDataValue(Handle<Object> value);
+  void WriteDataValue(Handle<Object> value);
   void InternalizeName();
 
  private:

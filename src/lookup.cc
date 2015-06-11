@@ -419,12 +419,12 @@ Handle<Object> LookupIterator::GetDataValue() const {
 }
 
 
-Handle<Object> LookupIterator::WriteDataValue(Handle<Object> value) {
+void LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK_EQ(DATA, state_);
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
-    return accessor->Set(holder, index_, value);
+    accessor->Set(holder, index_, value);
   } else if (holder->IsGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
         handle(holder->global_dictionary());
@@ -439,7 +439,6 @@ Handle<Object> LookupIterator::WriteDataValue(Handle<Object> value) {
   } else {
     DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
   }
-  return value;
 }
 
 
