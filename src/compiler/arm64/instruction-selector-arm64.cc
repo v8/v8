@@ -37,31 +37,15 @@ class Arm64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
-  // Use the provided node if it has the required value, or create a
-  // TempImmediate otherwise.
-  InstructionOperand UseImmediateOrTemp(Node* node, int32_t value) {
-    if (GetIntegerConstantValue(node) == value) {
-      return UseImmediate(node);
-    }
-    return TempImmediate(value);
-  }
-
-  bool IsIntegerConstant(Node* node) {
-    return (node->opcode() == IrOpcode::kInt32Constant) ||
-           (node->opcode() == IrOpcode::kInt64Constant);
-  }
-
-  int64_t GetIntegerConstantValue(Node* node) {
-    if (node->opcode() == IrOpcode::kInt32Constant) {
-      return OpParameter<int32_t>(node);
-    }
-    DCHECK(node->opcode() == IrOpcode::kInt64Constant);
-    return OpParameter<int64_t>(node);
-  }
-
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
-    return IsIntegerConstant(node) &&
-           CanBeImmediate(GetIntegerConstantValue(node), mode);
+    int64_t value;
+    if (node->opcode() == IrOpcode::kInt32Constant)
+      value = OpParameter<int32_t>(node);
+    else if (node->opcode() == IrOpcode::kInt64Constant)
+      value = OpParameter<int64_t>(node);
+    else
+      return false;
+    return CanBeImmediate(value, mode);
   }
 
   bool CanBeImmediate(int64_t value, ImmediateMode mode) {
@@ -77,6 +61,10 @@ class Arm64OperandGenerator final : public OperandGenerator {
                                        &ignored, &ignored, &ignored);
       case kArithmeticImm:
         return Assembler::IsImmAddSub(value);
+      case kShift32Imm:
+        return 0 <= value && value < 32;
+      case kShift64Imm:
+        return 0 <= value && value < 64;
       case kLoadStoreImm8:
         return IsLoadStoreImmediate(value, LSByte);
       case kLoadStoreImm16:
@@ -87,12 +75,6 @@ class Arm64OperandGenerator final : public OperandGenerator {
         return IsLoadStoreImmediate(value, LSDoubleWord);
       case kNoImmediate:
         return false;
-      case kShift32Imm:  // Fall through.
-      case kShift64Imm:
-        // Shift operations only observe the bottom 5 or 6 bits of the value.
-        // All possible shifts can be encoded by discarding bits which have no
-        // effect.
-        return true;
     }
     return false;
   }
@@ -131,36 +113,47 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
 }
 
 
+template <typename Matcher>
+bool TryMatchShift(InstructionSelector* selector, Node* node,
+                   InstructionCode* opcode, IrOpcode::Value shift_opcode,
+                   ImmediateMode imm_mode, AddressingMode addressing_mode) {
+  if (node->opcode() != shift_opcode) return false;
+  Arm64OperandGenerator g(selector);
+  Matcher m(node);
+  if (g.CanBeImmediate(m.right().node(), imm_mode)) {
+    *opcode |= AddressingModeField::encode(addressing_mode);
+    return true;
+  }
+  return false;
+}
+
+
 bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
                       InstructionCode* opcode, bool try_ror) {
-  Arm64OperandGenerator g(selector);
-
-  if (node->InputCount() != 2) return false;
-  if (!g.IsIntegerConstant(node->InputAt(1))) return false;
-
-  switch (node->opcode()) {
-    case IrOpcode::kWord32Shl:
-    case IrOpcode::kWord64Shl:
-      *opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
-      return true;
-    case IrOpcode::kWord32Shr:
-    case IrOpcode::kWord64Shr:
-      *opcode |= AddressingModeField::encode(kMode_Operand2_R_LSR_I);
-      return true;
-    case IrOpcode::kWord32Sar:
-    case IrOpcode::kWord64Sar:
-      *opcode |= AddressingModeField::encode(kMode_Operand2_R_ASR_I);
-      return true;
-    case IrOpcode::kWord32Ror:
-    case IrOpcode::kWord64Ror:
-      if (try_ror) {
-        *opcode |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
-        return true;
-      }
-      return false;
-    default:
-      return false;
-  }
+  return TryMatchShift<Int32BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord32Shl, kShift32Imm,
+                                          kMode_Operand2_R_LSL_I) ||
+         TryMatchShift<Int32BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord32Shr, kShift32Imm,
+                                          kMode_Operand2_R_LSR_I) ||
+         TryMatchShift<Int32BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord32Sar, kShift32Imm,
+                                          kMode_Operand2_R_ASR_I) ||
+         (try_ror && TryMatchShift<Int32BinopMatcher>(
+                         selector, node, opcode, IrOpcode::kWord32Ror,
+                         kShift32Imm, kMode_Operand2_R_ROR_I)) ||
+         TryMatchShift<Int64BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord64Shl, kShift64Imm,
+                                          kMode_Operand2_R_LSL_I) ||
+         TryMatchShift<Int64BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord64Shr, kShift64Imm,
+                                          kMode_Operand2_R_LSR_I) ||
+         TryMatchShift<Int64BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord64Sar, kShift64Imm,
+                                          kMode_Operand2_R_ASR_I) ||
+         (try_ror && TryMatchShift<Int64BinopMatcher>(
+                         selector, node, opcode, IrOpcode::kWord64Ror,
+                         kShift64Imm, kMode_Operand2_R_ROR_I));
 }
 
 
@@ -555,20 +548,17 @@ void InstructionSelector::VisitWord32And(Node* node) {
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       Int32BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue()) {
-        // Any shift value can match; int32 shifts use `value % 32`.
-        uint32_t lsb = mleft.right().Value() & 0x1f;
-
+      if (mleft.right().IsInRange(0, 31)) {
         // Ubfx cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
         // still use ubfx with a smaller mask and the remaining bits will be
         // zeros.
+        uint32_t lsb = mleft.right().Value();
         if (lsb + mask_width > 32) mask_width = 32 - lsb;
 
         Emit(kArm64Ubfx32, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()),
-             g.UseImmediateOrTemp(mleft.right().node(), lsb),
-             g.TempImmediate(mask_width));
+             g.UseImmediate(mleft.right().node()), g.TempImmediate(mask_width));
         return;
       }
       // Other cases fall through to the normal And operation.
@@ -595,19 +585,17 @@ void InstructionSelector::VisitWord64And(Node* node) {
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       Int64BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue()) {
-        // Any shift value can match; int64 shifts use `value % 64`.
-        uint32_t lsb = static_cast<uint32_t>(mleft.right().Value() & 0x3f);
-
+      if (mleft.right().IsInRange(0, 63)) {
         // Ubfx cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
         // still use ubfx with a smaller mask and the remaining bits will be
         // zeros.
+        uint64_t lsb = mleft.right().Value();
         if (lsb + mask_width > 64) mask_width = 64 - lsb;
 
         Emit(kArm64Ubfx, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()),
-             g.UseImmediateOrTemp(mleft.right().node(), lsb),
+             g.UseImmediate(mleft.right().node()),
              g.TempImmediate(static_cast<int32_t>(mask_width)));
         return;
       }
@@ -736,21 +724,20 @@ bool TryEmitBitfieldExtract32(InstructionSelector* selector, Node* node) {
 
 void InstructionSelector::VisitWord32Shr(Node* node) {
   Int32BinopMatcher m(node);
-  if (m.left().IsWord32And() && m.right().HasValue()) {
-    uint32_t lsb = m.right().Value() & 0x1f;
+  if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
+    uint32_t lsb = m.right().Value();
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
+      uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint32_t mask_width = base::bits::CountPopulation32(mask);
+      uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
-      unsigned mask_width = base::bits::CountPopulation32(mask);
-      unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_msb + mask_width + lsb) == 32) {
         Arm64OperandGenerator g(this);
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(mask));
         Emit(kArm64Ubfx32, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()),
-             g.UseImmediateOrTemp(m.right().node(), lsb),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
              g.TempImmediate(mask_width));
         return;
       }
@@ -763,23 +750,23 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord64Shr(Node* node) {
+  Arm64OperandGenerator g(this);
   Int64BinopMatcher m(node);
-  if (m.left().IsWord64And() && m.right().HasValue()) {
-    uint32_t lsb = m.right().Value() & 0x3f;
+  if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
+    uint64_t lsb = m.right().Value();
     Int64BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
-      unsigned mask_width = base::bits::CountPopulation64(mask);
-      unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
+      uint64_t mask_width = base::bits::CountPopulation64(mask);
+      uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_msb + mask_width + lsb) == 64) {
-        Arm64OperandGenerator g(this);
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros64(mask));
         Emit(kArm64Ubfx, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()),
-             g.UseImmediateOrTemp(m.right().node(), lsb),
-             g.TempImmediate(mask_width));
+             g.TempImmediate(static_cast<int32_t>(lsb)),
+             g.TempImmediate(static_cast<int32_t>(mask_width)));
         return;
       }
     }

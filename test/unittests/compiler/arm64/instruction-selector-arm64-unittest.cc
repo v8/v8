@@ -642,9 +642,7 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
     if (shift.mi.machine_type != kMachInt32) continue;
     if (shift.mi.arch_opcode == kArm64Ror32) continue;
 
-    // The available shift operand range is `0 <= imm < 32`, but we also test
-    // that immediates outside this range are handled properly (modulo-32).
-    TRACED_FORRANGE(int, imm, -32, 63) {
+    TRACED_FORRANGE(int, imm, 0, 31) {
       StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return((m.Int32Add)(
           (m.*shift.mi.constructor)(m.Parameter(1), m.Int32Constant(imm)),
@@ -665,9 +663,7 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
     if (shift.mi.machine_type != kMachInt64) continue;
     if (shift.mi.arch_opcode == kArm64Ror) continue;
 
-    // The available shift operand range is `0 <= imm < 64`, but we also test
-    // that immediates outside this range are handled properly (modulo-64).
-    TRACED_FORRANGE(int, imm, -64, 127) {
+    TRACED_FORRANGE(int, imm, 0, 63) {
       StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
       m.Return((m.Int64Add)(
           (m.*shift.mi.constructor)(m.Parameter(1), m.Int64Constant(imm)),
@@ -2206,17 +2202,14 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
 
 
 TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
-  // The available shift operand range is `0 <= imm < 32`, but we also test
-  // that immediates outside this range are handled properly (modulo-32).
-  TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
       jnk >>= 32 - lsb;
       uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
-                           m.Int32Constant(shift)));
+                           m.Int32Constant(lsb)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
@@ -2225,15 +2218,14 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
       jnk >>= 32 - lsb;
       uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
-                           m.Int32Constant(shift)));
+                           m.Int32Constant(lsb)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
@@ -2246,10 +2238,7 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
 
 
 TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
-  // The available shift operand range is `0 <= imm < 64`, but we also test
-  // that immediates outside this range are handled properly (modulo-64).
-  TRACED_FORRANGE(int32_t, shift, -64, 127) {
-    int32_t lsb = shift & 0x3f;
+  TRACED_FORRANGE(int32_t, lsb, 1, 63) {
     TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
       uint64_t jnk = rng()->NextInt64();
       jnk >>= 64 - lsb;
@@ -2257,7 +2246,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
           ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64Shr(m.Word64And(m.Parameter(0), m.Int64Constant(msk)),
-                           m.Int64Constant(shift)));
+                           m.Int64Constant(lsb)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
@@ -2266,8 +2255,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
       EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, shift, -64, 127) {
-    int32_t lsb = shift & 0x3f;
+  TRACED_FORRANGE(int32_t, lsb, 1, 63) {
     TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
       uint64_t jnk = rng()->NextInt64();
       jnk >>= 64 - lsb;
@@ -2275,7 +2263,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
           ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(msk), m.Parameter(0)),
-                           m.Int64Constant(shift)));
+                           m.Int64Constant(lsb)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
@@ -2288,14 +2276,11 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
 
 
 TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
-  // The available shift operand range is `0 <= imm < 32`, but we also test
-  // that immediates outside this range are handled properly (modulo-32).
-  TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, kMachInt32, kMachInt32);
-      m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
+      m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb)),
                            m.Int32Constant(msk)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -2306,14 +2291,12 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
       EXPECT_EQ(actual_width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, kMachInt32, kMachInt32);
-      m.Return(
-          m.Word32And(m.Int32Constant(msk),
-                      m.Word32Shr(m.Parameter(0), m.Int32Constant(shift))));
+      m.Return(m.Word32And(m.Int32Constant(msk),
+                           m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
@@ -2327,14 +2310,11 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
 
 
 TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
-  // The available shift operand range is `0 <= imm < 64`, but we also test
-  // that immediates outside this range are handled properly (modulo-64).
-  TRACED_FORRANGE(int64_t, shift, -64, 127) {
-    int64_t lsb = shift & 0x3f;
+  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
     TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
-      m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(shift)),
+      m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb)),
                            m.Int64Constant(msk)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -2345,14 +2325,12 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
       EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int64_t, shift, -64, 127) {
-    int64_t lsb = shift & 0x3f;
+  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
     TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
-      m.Return(
-          m.Word64And(m.Int64Constant(msk),
-                      m.Word64Shr(m.Parameter(0), m.Int64Constant(shift))));
+      m.Return(m.Word64And(m.Int64Constant(msk),
+                           m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
