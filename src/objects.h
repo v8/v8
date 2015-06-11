@@ -2013,9 +2013,6 @@ class JSObject: public JSReceiver {
   }
 
   // These methods do not perform access checks!
-  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnElementAccessorPair(
-      Handle<JSObject> object, uint32_t index);
-
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
 
