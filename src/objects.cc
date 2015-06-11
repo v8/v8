@@ -4276,7 +4276,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     Handle<JSObject> object, uint32_t index, Handle<Object> value,
     PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
-  DCHECK(!object->HasExternalArrayElements());
   Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
