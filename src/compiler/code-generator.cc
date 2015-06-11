@@ -76,10 +76,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
-  for (auto frame_state_descriptor : code()->frame_state_descriptors()) {
-    Handle<SharedFunctionInfo> shared_info;
-    if (frame_state_descriptor->shared_info().ToHandle(&shared_info) &&
-        !shared_info.is_identical_to(info->shared_info())) {
+  for (auto shared_info : info->inlined_functions()) {
+    if (!shared_info.is_identical_to(info->shared_info())) {
       DefineDeoptimizationLiteral(shared_info);
     }
   }
