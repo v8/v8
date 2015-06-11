@@ -302,9 +302,6 @@ Reduction JSInliner::Reduce(Node* node) {
                                                    info.zone());
   }
 
-  // Remember that we inlined this function.
-  info_->AddInlinedFunction(info.shared_info());
-
   return InlineCall(node, frame_state, start, end);
 }
 

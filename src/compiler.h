@@ -384,14 +384,6 @@ class CompilationInfo {
 
   Handle<Code> GenerateCodeStub();
 
-  typedef ZoneVector<Handle<SharedFunctionInfo>> InlinedFunctionList;
-  InlinedFunctionList const& inlined_functions() const {
-    return inlined_functions_;
-  }
-  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function) {
-    inlined_functions_.push_back(inlined_function);
-  }
-
  protected:
   ParseInfo* parse_info_;
 
@@ -465,8 +457,6 @@ class CompilationInfo {
   List<OffsetRange>* no_frame_ranges_;
   std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
-
-  InlinedFunctionList inlined_functions_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.
