@@ -72,12 +72,8 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
 
           ElementsAccessor* accessor = js_object->GetElementsAccessor();
           FixedArrayBase* backing_store = js_object->elements();
-          number_ = accessor->GetIndexForKey(backing_store, index_);
+          number_ = accessor->GetIndexForKey(js_object, backing_store, index_);
           if (number_ == kMaxUInt32) return NOT_FOUND;
-          if (accessor->GetAttributes(js_object, index_, backing_store) ==
-              ABSENT) {
-            return NOT_FOUND;
-          }
           property_details_ = accessor->GetDetails(backing_store, number_);
         }
       } else if (holder->IsGlobalObject()) {
