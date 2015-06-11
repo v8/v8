@@ -360,10 +360,9 @@ void GCTracer::Print() const {
          static_cast<double>(current_.end_memory_size) / MB);
 
   int external_time = static_cast<int>(current_.scopes[Scope::EXTERNAL]);
-  if (external_time > 0) Output("%d / ", external_time);
-
   double duration = current_.end_time - current_.start_time;
-  Output("%.1f ms", duration);
+  Output("%.1f / %d ms", duration, external_time);
+
   if (current_.type == Event::SCAVENGER) {
     if (current_.incremental_marking_steps > 0) {
       Output(" (+ %.1f ms in %d steps since last GC)",
