@@ -745,6 +745,22 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   } else if (TryEmitBitfieldExtract32(this, node)) {
     return;
   }
+
+  if (m.left().IsUint32MulHigh() && m.right().HasValue() &&
+      CanCover(node, node->InputAt(0))) {
+    // Combine this shift with the multiply and shift that would be generated
+    // by Uint32MulHigh.
+    Arm64OperandGenerator g(this);
+    Node* left = m.left().node();
+    int shift = m.right().Value() & 0x1f;
+    InstructionOperand const smull_operand = g.TempRegister();
+    Emit(kArm64Umull, smull_operand, g.UseRegister(left->InputAt(0)),
+         g.UseRegister(left->InputAt(1)));
+    Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand,
+         g.TempImmediate(32 + shift));
+    return;
+  }
+
   VisitRRO(this, kArm64Lsr32, node, kShift32Imm);
 }
 
@@ -779,6 +795,23 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   if (TryEmitBitfieldExtract32(this, node)) {
     return;
   }
+
+  Int32BinopMatcher m(node);
+  if (m.left().IsInt32MulHigh() && m.right().HasValue() &&
+      CanCover(node, node->InputAt(0))) {
+    // Combine this shift with the multiply and shift that would be generated
+    // by Int32MulHigh.
+    Arm64OperandGenerator g(this);
+    Node* left = m.left().node();
+    int shift = m.right().Value() & 0x1f;
+    InstructionOperand const smull_operand = g.TempRegister();
+    Emit(kArm64Smull, smull_operand, g.UseRegister(left->InputAt(0)),
+         g.UseRegister(left->InputAt(1)));
+    Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand,
+         g.TempImmediate(32 + shift));
+    return;
+  }
+
   VisitRRO(this, kArm64Asr32, node, kShift32Imm);
 }
 
@@ -981,7 +1014,6 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
-  // TODO(arm64): Can we do better here?
   Arm64OperandGenerator g(this);
   InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Smull, smull_operand, g.UseRegister(node->InputAt(0)),
@@ -991,7 +1023,6 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
 
 
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
-  // TODO(arm64): Can we do better here?
   Arm64OperandGenerator g(this);
   InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Umull, smull_operand, g.UseRegister(node->InputAt(0)),
