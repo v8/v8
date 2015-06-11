@@ -594,85 +594,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 
   // The translation includes one command per value in the environment.
   int translation_size = environment->translation_size();
-  // The output frame height does not include the parameters.
-  int height = translation_size - environment->parameter_count();
 
   WriteTranslation(environment->outer(), translation);
-
-  switch (environment->frame_type()) {
-    case JS_FUNCTION: {
-      int shared_id = DefineDeoptimizationLiteral(
-          environment->entry() ? environment->entry()->shared()
-                               : info()->shared_info());
-      translation->BeginJSFrame(environment->ast_id(), shared_id, height);
-      if (info()->closure().is_identical_to(environment->closure())) {
-        translation->StoreJSFrameFunction();
-      } else {
-        int closure_id = DefineDeoptimizationLiteral(environment->closure());
-        translation->StoreLiteral(closure_id);
-      }
-      break;
-    }
-    case JS_CONSTRUCT: {
-      int shared_id = DefineDeoptimizationLiteral(
-          environment->entry() ? environment->entry()->shared()
-                               : info()->shared_info());
-      translation->BeginConstructStubFrame(shared_id, translation_size);
-      if (info()->closure().is_identical_to(environment->closure())) {
-        translation->StoreJSFrameFunction();
-      } else {
-        int closure_id = DefineDeoptimizationLiteral(environment->closure());
-        translation->StoreLiteral(closure_id);
-      }
-      break;
-    }
-    case JS_GETTER: {
-      DCHECK(translation_size == 1);
-      DCHECK(height == 0);
-      int shared_id = DefineDeoptimizationLiteral(
-          environment->entry() ? environment->entry()->shared()
-                               : info()->shared_info());
-      translation->BeginGetterStubFrame(shared_id);
-      if (info()->closure().is_identical_to(environment->closure())) {
-        translation->StoreJSFrameFunction();
-      } else {
-        int closure_id = DefineDeoptimizationLiteral(environment->closure());
-        translation->StoreLiteral(closure_id);
-      }
-      break;
-    }
-    case JS_SETTER: {
-      DCHECK(translation_size == 2);
-      DCHECK(height == 0);
-      int shared_id = DefineDeoptimizationLiteral(
-          environment->entry() ? environment->entry()->shared()
-                               : info()->shared_info());
-      translation->BeginSetterStubFrame(shared_id);
-      if (info()->closure().is_identical_to(environment->closure())) {
-        translation->StoreJSFrameFunction();
-      } else {
-        int closure_id = DefineDeoptimizationLiteral(environment->closure());
-        translation->StoreLiteral(closure_id);
-      }
-      break;
-    }
-    case ARGUMENTS_ADAPTOR: {
-      int shared_id = DefineDeoptimizationLiteral(
-          environment->entry() ? environment->entry()->shared()
-                               : info()->shared_info());
-      translation->BeginArgumentsAdaptorFrame(shared_id, translation_size);
-      if (info()->closure().is_identical_to(environment->closure())) {
-        translation->StoreJSFrameFunction();
-      } else {
-        int closure_id = DefineDeoptimizationLiteral(environment->closure());
-        translation->StoreLiteral(closure_id);
-      }
-      break;
-    }
-    case STUB:
-      translation->BeginCompiledStubFrame(translation_size);
-      break;
-  }
+  WriteTranslationFrame(environment, translation);
 
   int object_index = 0;
   int dematerialized_index = 0;
@@ -966,16 +890,6 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
     data->SetPc(i, Smi::FromInt(env->pc_offset()));
   }
   code->set_deoptimization_data(*data);
-}
-
-
-int LCodeGen::DefineDeoptimizationLiteral(Handle<Object> literal) {
-  int result = deoptimization_literals_.length();
-  for (int i = 0; i < deoptimization_literals_.length(); ++i) {
-    if (deoptimization_literals_[i].is_identical_to(literal)) return i;
-  }
-  deoptimization_literals_.Add(literal, zone());
-  return result;
 }
 
 

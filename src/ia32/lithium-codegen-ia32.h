@@ -29,7 +29,6 @@ class LCodeGen: public LCodeGenBase {
       : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
         jump_table_(4, info->zone()),
-        deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
         translations_(info->zone()),
@@ -221,7 +220,6 @@ class LCodeGen: public LCodeGenBase {
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
   void PopulateDeoptimizationData(Handle<Code> code);
-  int DefineDeoptimizationLiteral(Handle<Object> literal);
 
   void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
@@ -329,7 +327,6 @@ class LCodeGen: public LCodeGenBase {
 
   ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
-  ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;
   TranslationBuffer translations_;
