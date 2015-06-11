@@ -21445,21 +21445,35 @@ TEST(StrongObjectDelete) {
 }
 
 
+static void ExtrasExportsTestRuntimeFunction(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK_EQ(3, args[0]->Int32Value());
+  args.GetReturnValue().Set(v8_num(7));
+}
+
+
 TEST(ExtrasExportsObject) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext env;
 
   // standalone.gypi ensures we include the test-extra.js file, which should
-  // add the testExtraShouldReturnFive export
+  // export the tested functions.
   v8::Local<v8::Object> exports = env->GetExtrasExportsObject();
 
   auto func =
       exports->Get(v8_str("testExtraShouldReturnFive")).As<v8::Function>();
   auto undefined = v8::Undefined(isolate);
   auto result = func->Call(undefined, 0, {}).As<v8::Number>();
+  CHECK_EQ(5, result->Int32Value());
 
-  CHECK(result->Value() == 5.0);
+  v8::Handle<v8::FunctionTemplate> runtimeFunction =
+      v8::FunctionTemplate::New(isolate, ExtrasExportsTestRuntimeFunction);
+  exports->Set(v8_str("runtime"), runtimeFunction->GetFunction());
+  func =
+      exports->Get(v8_str("testExtraShouldCallToRuntime")).As<v8::Function>();
+  result = func->Call(undefined, 0, {}).As<v8::Number>();
+  CHECK_EQ(7, result->Int32Value());
 }
 
 

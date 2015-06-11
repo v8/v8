@@ -7,4 +7,8 @@
   exports.testExtraShouldReturnFive = function () {
     return 5;
   };
+
+  exports.testExtraShouldCallToRuntime = function() {
+    return exports.runtime(3);
+  };
 })
