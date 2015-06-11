@@ -174,16 +174,16 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
-                                                  Handle<Object> key,
-                                                  Handle<Object> value,
-                                                  PropertyAttributes attrs) {
+MaybeHandle<Object> Runtime::DefineObjectProperty(
+    Handle<JSObject> js_object, Handle<Object> key, Handle<Object> value,
+    PropertyAttributes attrs,
+    JSObject::ExecutableAccessorInfoHandling handling) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     return JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
-                                                   attrs);
+                                                   attrs, handling);
   }
 
   Handle<Name> name;
@@ -199,11 +199,11 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
 
   if (name->AsArrayIndex(&index)) {
     return JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
-                                                   attrs);
+                                                   attrs, handling);
   } else {
     if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
     return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
-                                                    attrs);
+                                                    attrs, handling);
   }
 }
 
@@ -1371,7 +1371,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::DefineObjectProperty(js_object, name, obj_value, attrs));
+      Runtime::DefineObjectProperty(js_object, name, obj_value, attrs,
+                                    JSObject::DONT_FORCE_FIELD));
   return *result;
 }
 

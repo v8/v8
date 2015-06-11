@@ -3535,8 +3535,9 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
 
   if (it.IsFound() && !it.IsConfigurable()) return Just(false);
 
-  has_pending_exception = i::Runtime::DefineObjectProperty(
-                              self, key_obj, value_obj, NONE).is_null();
+  has_pending_exception =
+      i::Runtime::DefineObjectProperty(self, key_obj, value_obj, NONE,
+                                       i::JSObject::DONT_FORCE_FIELD).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3573,9 +3574,10 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     return Just(false);
   }
 
-  has_pending_exception = i::Runtime::DefineObjectProperty(
-                              self, isolate->factory()->Uint32ToString(index),
-                              value_obj, NONE).is_null();
+  has_pending_exception =
+      i::Runtime::DefineObjectProperty(
+          self, isolate->factory()->Uint32ToString(index), value_obj, NONE,
+          i::JSObject::DONT_FORCE_FIELD).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }

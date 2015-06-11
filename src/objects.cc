@@ -4133,7 +4133,8 @@ void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
 
 
 MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
-    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes) {
+    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+    ExecutableAccessorInfoHandling handling) {
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool is_observed = object->map()->is_observed() &&
                      (it->IsElement() ||
@@ -4159,7 +4160,8 @@ MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
 
       // Special handling for ExecutableAccessorInfo, which behaves like a
       // data property.
-      if (accessors->IsExecutableAccessorInfo()) {
+      if (accessors->IsExecutableAccessorInfo() &&
+          handling == DONT_FORCE_FIELD) {
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION(
             it->isolate(), result,
@@ -4252,7 +4254,7 @@ MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
 // reconfigurable.
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (it.state() == LookupIterator::ACCESS_CHECK) {
@@ -4263,7 +4265,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
   }
 
   if (it.IsFound()) {
-    return ReconfigureAsDataProperty(&it, value, attributes);
+    return ReconfigureAsDataProperty(&it, value, attributes, handling);
   }
 
   return AddDataProperty(&it, value, attributes, STRICT,
@@ -4273,7 +4275,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
 MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     Handle<JSObject> object, uint32_t index, Handle<Object> value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
   DCHECK(!object->HasExternalArrayElements());
   Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index,
@@ -4286,7 +4288,7 @@ MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
   }
 
   if (it.IsFound()) {
-    return ReconfigureAsDataProperty(&it, value, attributes);
+    return ReconfigureAsDataProperty(&it, value, attributes, handling);
   }
 
   return AddDataProperty(&it, value, attributes, STRICT,
