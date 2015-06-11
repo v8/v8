@@ -36,6 +36,38 @@
   '11.2.3_b': [FAIL],
   '12.2.3_b': [FAIL],
 
+  # TODO(mstarzinger): The implicit JSToNumber and JSToString nodes inserted by
+  # JSTypedLowering are not properly connected to a surrounding exceptional
+  # continuation yet, hence exception are thrown out of the function body.
+  'S11.10.1_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.10.1_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.10.2_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.10.2_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.10.3_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.10.3_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.4.6_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.4.7_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.4.8_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.5.1_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.5.1_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.5.2_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.5.2_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.6.2_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.6.2_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.7.1_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.7.1_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.7.2_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.7.2_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.7.3_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.7.3_A2.3_T1': [PASS, NO_VARIANTS],
+  'S11.8.1_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.8.2_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.8.3_A2.2_T1': [PASS, NO_VARIANTS],
+  'S11.8.4_A2.2_T1': [PASS, NO_VARIANTS],
+  'S9.5_A3.1_T4': [PASS, NO_VARIANTS],
+  'S9.6_A3.1_T4': [PASS, NO_VARIANTS],
+  'S9.7_A3.1_T4': [PASS, NO_VARIANTS],
+
   ############################### ES6 ###################################
   # ES6 allows block-local functions.
   'Sbp_A1_T1': [PASS, FAIL_OK],
