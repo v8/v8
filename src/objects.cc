@@ -4127,7 +4127,8 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
 
 // static
 void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
-  info->set_setter(*v8::FromCData(info->GetIsolate(), nullptr));
+  Handle<Object> object = v8::FromCData(info->GetIsolate(), nullptr);
+  info->set_setter(*object);
 }
 
 
