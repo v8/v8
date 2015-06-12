@@ -36,5 +36,6 @@
 
   # Crankshaft compiler did not generate required source position for it:
   'overwritten-builtins': [SKIP],
+  'strong-object-set-proto': [SKIP],
 }],  # 'arch == x87'
 ]
