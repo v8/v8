@@ -197,11 +197,6 @@ class Genesis BASE_EMBEDDED {
   // other objects in the snapshot.
   void HookUpGlobalObject(Handle<GlobalObject> global_object,
                           Handle<FixedArray> outdated_contexts);
-  // The native context has a ScriptContextTable that store declarative bindings
-  // made in script scopes.  Add a "this" binding to that table pointing to the
-  // global proxy.
-  void InstallGlobalThisBinding();
-  void HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts);
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
@@ -819,41 +814,6 @@ void Genesis::CreateRoots() {
 }
 
 
-void Genesis::InstallGlobalThisBinding() {
-  Handle<ScriptContextTable> script_contexts(
-      native_context()->script_context_table());
-  Handle<ScopeInfo> scope_info = ScopeInfo::CreateGlobalThisBinding(isolate());
-  Handle<JSFunction> closure(native_context()->closure());
-  Handle<Context> context = factory()->NewScriptContext(closure, scope_info);
-
-  // Go ahead and hook it up while we're at it.
-  int slot = scope_info->ReceiverContextSlotIndex();
-  DCHECK_EQ(slot, Context::MIN_CONTEXT_SLOTS);
-  context->set(slot, native_context()->global_proxy());
-
-  Handle<ScriptContextTable> new_script_contexts =
-      ScriptContextTable::Extend(script_contexts, context);
-  native_context()->set_script_context_table(*new_script_contexts);
-}
-
-
-void Genesis::HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts) {
-  // One of these contexts should be the one that declares the global "this"
-  // binding.
-  for (int i = 0; i < outdated_contexts->length(); ++i) {
-    Context* context = Context::cast(outdated_contexts->get(i));
-    if (context->IsScriptContext()) {
-      ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
-      int slot = scope_info->ReceiverContextSlotIndex();
-      if (slot >= 0) {
-        DCHECK_EQ(slot, Context::MIN_CONTEXT_SLOTS);
-        context->set(slot, native_context()->global_proxy());
-      }
-    }
-  }
-}
-
-
 Handle<GlobalObject> Genesis::CreateNewGlobals(
     v8::Handle<v8::ObjectTemplate> global_proxy_template,
     Handle<JSGlobalProxy> global_proxy) {
@@ -1012,7 +972,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
   native_context()->set_script_context_table(*script_context_table);
-  InstallGlobalThisBinding();
 
   Handle<String> object_name = factory->Object_string();
   JSObject::AddProperty(
@@ -3127,7 +3086,6 @@ Genesis::Genesis(Isolate* isolate,
     HookUpGlobalObject(global_object, outdated_contexts);
     native_context()->builtins()->set_global_proxy(
         native_context()->global_proxy());
-    HookUpGlobalThisBinding(outdated_contexts);
 
     if (!ConfigureGlobalObjects(global_proxy_template)) return;
   } else {

@@ -4055,7 +4055,6 @@ class ScopeInfo : public FixedArray {
 
 
   static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope);
-  static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
   static ScopeInfo* Empty(Isolate* isolate);

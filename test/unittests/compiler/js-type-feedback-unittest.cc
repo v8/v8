@@ -83,7 +83,7 @@ class JSTypeFeedbackTest : public TypedGraphTest {
     Node* context = UndefinedConstant();
 
     Unique<Name> name = Unique<Name>::CreateUninitialized(
-        isolate()->factory()->InternalizeUtf8String(string));
+        isolate()->factory()->NewStringFromAsciiChecked(string));
     const Operator* op = javascript()->LoadNamed(name, feedback);
     Node* load = graph()->NewNode(op, global, vector, context);
     if (mode == JSTypeFeedbackSpecializer::kDeoptimizationEnabled) {
