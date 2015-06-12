@@ -26,8 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import os
 import subprocess
+import sys
 from threading import Timer
 
 from ..local import utils
@@ -73,7 +73,24 @@ def RunProcess(verbose, timeout, args, **rest):
   def kill_process(process, timeout_result):
     timeout_result[0] = True
     try:
-      process.kill()
+      if utils.IsWindows():
+        if verbose:
+          print "Attempting to kill process %d" % process.pid
+          sys.stdout.flush()
+        tk = subprocess.Popen(
+            'taskkill /T /F /PID %d' % process.pid,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = tk.communicate()
+        if verbose:
+          print "Taskkill results for %d" % process.pid
+          print stdout
+          print stderr
+          print "Return code: %d" % tk.returncode
+          sys.stdout.flush()
+      else:
+        process.kill()
     except OSError:
       sys.stderr.write('Error: Process %s already ended.\n' % process.pid)
 
