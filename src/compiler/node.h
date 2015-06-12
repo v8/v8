@@ -27,7 +27,7 @@ typedef uint32_t Mark;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef int32_t NodeId;
+typedef uint32_t NodeId;
 
 
 // A Node is the basic primitive of graphs. Nodes are chained together by

@@ -19,7 +19,7 @@ class Node;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef int32_t NodeId;
+typedef uint32_t NodeId;
 
 
 // Represents the result of trying to reduce a node in the graph.

@@ -44,7 +44,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
                                  Zone* tmp_zone, Node* dead,
                                  LoopTree* loop_tree, LoopTree::Loop* osr_loop,
                                  Node* osr_normal_entry, Node* osr_loop_entry) {
-  const int original_count = graph->NodeCount();
+  const size_t original_count = graph->NodeCount();
   AllNodes all(tmp_zone, graph);
   NodeVector tmp_inputs(tmp_zone);
   Node* sentinel = graph->NewNode(dead->op());

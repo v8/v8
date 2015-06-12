@@ -1085,7 +1085,7 @@ class RepresentationSelector {
 
  private:
   JSGraph* jsgraph_;
-  int count_;                       // number of nodes in the graph
+  size_t const count_;              // number of nodes in the graph
   NodeInfo* info_;                  // node id -> usage information
   NodeVector nodes_;                // collected nodes
   NodeVector replacements_;         // replacements to be done after lowering

@@ -140,7 +140,7 @@ void GraphReducer::ReduceTop() {
   }
 
   // Remember the max node id before reduction.
-  NodeId const max_id = graph()->NodeCount() - 1;
+  NodeId const max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
 
   // All inputs should be visited or on stack. Apply reductions to node.
   Reduction reduction = Reduce(node);

@@ -26,7 +26,7 @@ typedef uint32_t Mark;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef int32_t NodeId;
+typedef uint32_t NodeId;
 
 
 class Graph : public ZoneObject {
@@ -90,7 +90,7 @@ class Graph : public ZoneObject {
   void SetStart(Node* start) { start_ = start; }
   void SetEnd(Node* end) { end_ = end; }
 
-  int NodeCount() const { return next_node_id_; }
+  size_t NodeCount() const { return next_node_id_; }
 
   void Decorate(Node* node, bool incomplete);
   void AddDecorator(GraphDecorator* decorator);

@@ -236,6 +236,19 @@ int32_t SignedDiv32(int32_t lhs, int32_t rhs);
 int32_t SignedMod32(int32_t lhs, int32_t rhs);
 
 
+// UnsignedAddOverflow32(lhs,rhs,val) performs an unsigned summation of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the unsigned summation resulted in an overflow.
+inline bool UnsignedAddOverflow32(uint32_t lhs, uint32_t rhs, uint32_t* val) {
+#if V8_HAS_BUILTIN_SADD_OVERFLOW
+  return __builtin_uadd_overflow(lhs, rhs, val);
+#else
+  *val = lhs + rhs;
+  return *val < (lhs | rhs);
+#endif
+}
+
+
 // UnsignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
 // truncated to uint32. If |rhs| is zero, then zero is returned.
 inline uint32_t UnsignedDiv32(uint32_t lhs, uint32_t rhs) {

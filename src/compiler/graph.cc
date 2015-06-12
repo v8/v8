@@ -53,7 +53,7 @@ Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
 
 NodeId Graph::NextNodeId() {
   NodeId const id = next_node_id_;
-  CHECK(!base::bits::SignedAddOverflow32(id, 1, &next_node_id_));
+  CHECK(!base::bits::UnsignedAddOverflow32(id, 1, &next_node_id_));
   return id;
 }
 

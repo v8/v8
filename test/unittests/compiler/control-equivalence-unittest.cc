@@ -41,7 +41,7 @@ class ControlEquivalenceTest : public GraphTest {
   }
 
   bool IsEquivalenceClass(size_t length, Node** nodes) {
-    BitVector in_class(graph()->NodeCount(), zone());
+    BitVector in_class(static_cast<int>(graph()->NodeCount()), zone());
     size_t expected_class = classes_[nodes[0]->id()];
     for (size_t i = 0; i < length; ++i) {
       in_class.Add(nodes[i]->id());

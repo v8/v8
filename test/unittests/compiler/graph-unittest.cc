@@ -136,8 +136,8 @@ TEST_F(GraphTest, NewNode) {
   Node* n0 = graph()->NewNode(&kDummyOperator);
   Node* n1 = graph()->NewNode(&kDummyOperator);
   EXPECT_NE(n0, n1);
-  EXPECT_LT(0, n0->id());
-  EXPECT_LT(0, n1->id());
+  EXPECT_LT(0u, n0->id());
+  EXPECT_LT(0u, n1->id());
   EXPECT_NE(n0->id(), n1->id());
   EXPECT_EQ(&kDummyOperator, n0->op());
   EXPECT_EQ(&kDummyOperator, n1->op());

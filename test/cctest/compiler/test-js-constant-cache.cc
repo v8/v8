@@ -335,7 +335,7 @@ TEST(JSGraph_GetCachedNodes_int32) {
                          25, 15, 30,  31,  45,  46,  47,  48};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Int32Constant(constants[i]);
@@ -357,7 +357,7 @@ TEST(JSGraph_GetCachedNodes_float64) {
                         11,  11,   -33.3, -33.3, -22,  -11};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Float64Constant(constants[i]);
@@ -379,7 +379,7 @@ TEST(JSGraph_GetCachedNodes_int64) {
                          19,  20,  20, 21, 21, 22, 23,  24,  25};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Int64Constant(constants[i]);
@@ -401,7 +401,7 @@ TEST(JSGraph_GetCachedNodes_number) {
                         11,  11,   -33.3, -33.3, -22,  -11};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Constant(constants[i]);
@@ -428,7 +428,7 @@ TEST(JSGraph_GetCachedNodes_external) {
                                    ExternalReference::address_of_one_half()};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.ExternalConstant(constants[i]);
