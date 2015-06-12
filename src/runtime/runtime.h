@@ -822,12 +822,6 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       Handle<Object> value, LanguageMode language_mode);
 
-  MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
-      Handle<JSObject> object, Handle<Object> key, Handle<Object> value,
-      PropertyAttributes attr,
-      JSObject::ExecutableAccessorInfoHandling handling =
-          JSObject::DEFAULT_HANDLING);
-
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
 

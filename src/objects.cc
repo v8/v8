@@ -3232,17 +3232,6 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(
 }
 
 
-MaybeHandle<Object> Object::WriteToReadOnlyElement(Isolate* isolate,
-                                                   Handle<Object> receiver,
-                                                   uint32_t index,
-                                                   Handle<Object> value,
-                                                   LanguageMode language_mode) {
-  return WriteToReadOnlyProperty(isolate, receiver,
-                                 isolate->factory()->NewNumberFromUint(index),
-                                 value, language_mode);
-}
-
-
 MaybeHandle<Object> Object::RedefineNonconfigurableProperty(
     Isolate* isolate, Handle<Object> name, Handle<Object> value,
     LanguageMode language_mode) {
@@ -3271,11 +3260,12 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   MaybeHandle<Object> maybe_old;
   if (is_observed) maybe_old = it->GetDataValue();
 
+  Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
   if (it->IsElement() && (receiver->HasExternalArrayElements() ||
                           receiver->HasFixedTypedArrayElements())) {
     if (!value->IsNumber() && !value->IsUndefined()) {
-      ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), value,
+      ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), to_assign,
                                  Execution::ToNumber(it->isolate(), value),
                                  Object);
     }
@@ -3283,10 +3273,10 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
 
   // Possibly migrate to the most up-to-date map that will be able to store
   // |value| under it->name().
-  it->PrepareForDataProperty(value);
+  it->PrepareForDataProperty(to_assign);
 
   // Write the property value.
-  value = it->WriteDataValue(value);
+  it->WriteDataValue(to_assign);
 
   // Send the change record if there are observers.
   if (is_observed && !value->SameValue(*maybe_old.ToHandleChecked())) {
@@ -4267,7 +4257,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
   DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.isolate()->MayAccess(object)) {
+    if (!it.HasAccess()) {
       return SetPropertyWithFailedAccessCheck(&it, value, SLOPPY);
     }
     it.Next();
@@ -4289,7 +4279,7 @@ MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
   LookupIterator it(isolate, object, index,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!isolate->MayAccess(object)) {
+    if (!it.HasAccess()) {
       return SetPropertyWithFailedAccessCheck(&it, value, STRICT);
     }
     it.Next();

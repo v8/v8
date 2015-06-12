@@ -1197,6 +1197,22 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
 }
 
 
+MaybeHandle<Object> JSObject::DefinePropertyOrElement(
+    Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    return SetOwnElementIgnoreAttributes(object, index, value, attributes,
+                                         handling);
+  }
+
+  // TODO(verwaest): Is this necessary?
+  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
+  return SetOwnPropertyIgnoreAttributes(object, name, value, attributes,
+                                        handling);
+}
+
+
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 
