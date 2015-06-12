@@ -10197,12 +10197,11 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     if (var->IsUnallocated()) {
       Bailout(kDeleteWithGlobalVariable);
     } else if (var->IsStackAllocated() || var->IsContextSlot()) {
-      // Result of deleting non-global variables is false.  'this' is not
-      // really a variable, though we implement it as one.  The
-      // subexpression does not have side effects.
-      HValue* value = var->is_this()
-          ? graph()->GetConstantTrue()
-          : graph()->GetConstantFalse();
+      // Result of deleting non-global variables is false.  'this' is not really
+      // a variable, though we implement it as one.  The subexpression does not
+      // have side effects.
+      HValue* value = var->HasThisName(isolate()) ? graph()->GetConstantTrue()
+                                                  : graph()->GetConstantFalse();
       return ast_context()->ReturnValue(value);
     } else {
       Bailout(kDeleteWithNonGlobalVariable);

@@ -127,7 +127,8 @@ namespace internal {
   F(NotifyDeoptimized, 1, 1)            \
   F(CompileForOnStackReplacement, 1, 1) \
   F(TryInstallOptimizedCode, 1, 1)      \
-  F(CompileString, 2, 1)
+  F(CompileString, 2, 1)                \
+  F(ResolvePossiblyDirectEval, 5, 1)
 
 
 #define FOR_EACH_INTRINSIC_DATE(F) \
@@ -697,8 +698,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlot, 2, 2)                 \
-  F(LoadLookupSlotNoReferenceError, 2, 2) \
-  F(ResolvePossiblyDirectEval, 6, 2)
+  F(LoadLookupSlotNoReferenceError, 2, 2)
 
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
