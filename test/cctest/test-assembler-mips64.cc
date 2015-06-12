@@ -3121,9 +3121,8 @@ TEST(jump_tables1) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    int64_t res = reinterpret_cast<int64_t>(
-        CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
-    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    int res = reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], static_cast<int>(res));
   }
 }
@@ -3193,9 +3192,8 @@ TEST(jump_tables2) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    int64_t res = reinterpret_cast<int64_t>(
-        CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
-    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    int res = reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
 }

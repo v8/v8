@@ -404,8 +404,8 @@ class MemOperand : public Operand {
     offset_zero = 0
   };
 
-  explicit MemOperand(Register rn, int32_t offset = 0);
-  explicit MemOperand(Register rn, int32_t unit, int32_t multiplier,
+  explicit MemOperand(Register rn, int64_t offset = 0);
+  explicit MemOperand(Register rn, int64_t unit, int64_t multiplier,
                       OffsetAddend offset_addend = offset_zero);
   int32_t offset() const { return offset_; }
 
@@ -1138,9 +1138,7 @@ class Assembler : public AssemblerBase {
   inline bool overflow() const { return pc_ >= reloc_info_writer.pos() - kGap; }
 
   // Get the number of bytes available in the buffer.
-  inline intptr_t available_space() const {
-    return reloc_info_writer.pos() - pc_;
-  }
+  inline int available_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions.
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }

@@ -144,8 +144,7 @@ int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
   Simulator::current(Isolate::Current())->CallFP(FUNCTION_ADDR(func), from, 0.);
-  return static_cast<int32_t>(
-      Simulator::current(Isolate::Current())->get_register(v0.code()));
+  return Simulator::current(Isolate::Current())->get_register(v0.code());
 #else
   return (*func)(from);
 #endif

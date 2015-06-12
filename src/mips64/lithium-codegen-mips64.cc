@@ -489,8 +489,8 @@ int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
-int64_t LCodeGen::ToRepresentation_donotuse(LConstantOperand* op,
-                                            const Representation& r) const {
+int32_t LCodeGen::ToRepresentation_donotuse(LConstantOperand* op,
+                                   const Representation& r) const {
   HConstant* constant = chunk_->LookupConstant(op);
   int32_t value = constant->Integer32Value();
   if (r.IsInteger32()) return value;
