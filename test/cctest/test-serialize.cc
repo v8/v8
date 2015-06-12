@@ -493,7 +493,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
                                           &outdated_contexts).ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
-      CHECK_EQ(1, outdated_contexts->length());
+      CHECK_EQ(2, outdated_contexts->length());
     }
 
     Handle<Object> root2;

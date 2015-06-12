@@ -2799,21 +2799,17 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   }
 
   __ Ldr(x10, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  // Prepare to push the receiver of the enclosing function.
-  Variable* this_var = scope()->LookupThis();
-  DCHECK_NOT_NULL(this_var);
-  __ Ldr(x11, VarOperand(this_var, x11));
 
   // Prepare to push the language mode.
-  __ Mov(x12, Smi::FromInt(language_mode()));
+  __ Mov(x11, Smi::FromInt(language_mode()));
   // Prepare to push the start position of the scope the calls resides in.
-  __ Mov(x13, Smi::FromInt(scope()->start_position()));
+  __ Mov(x12, Smi::FromInt(scope()->start_position()));
 
   // Push.
-  __ Push(x9, x10, x11, x12, x13);
+  __ Push(x9, x10, x11, x12);
 
   // Do the runtime call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
 }
 
 
@@ -2845,9 +2841,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
   if (call_type == Call::POSSIBLY_EVAL_CALL) {
     // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
-    // to resolve the function we need to call and the receiver of the
-    // call.  Then we call the resolved function using the given
-    // arguments.
+    // to resolve the function we need to call.  Then we call the resolved
+    // function using the given arguments.
     ZoneList<Expression*>* args = expr->arguments();
     int arg_count = args->length();
 
@@ -2868,9 +2863,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ Push(x10);
       EmitResolvePossiblyDirectEval(arg_count);
 
-      // The runtime call returns a pair of values in x0 (function) and
-      // x1 (receiver). Touch up the stack with the right values.
-      __ PokePair(x1, x0, arg_count * kPointerSize);
+      // Touch up the stack with the resolved function.
+      __ Poke(x0, (arg_count + 1) * kPointerSize);
 
       PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
     }
@@ -4464,9 +4458,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         context()->Plug(x0);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
-        // Delete of an unqualified identifier is disallowed in strict mode
-        // but "delete this" is allowed.
-        DCHECK(is_sloppy(language_mode()) || var->is_this());
+        // Delete of an unqualified identifier is disallowed in strict mode but
+        // "delete this" is allowed.
+        bool is_this = var->HasThisName(isolate());
+        DCHECK(is_sloppy(language_mode()) || is_this);
         if (var->IsUnallocated()) {
           __ Ldr(x12, GlobalObjectMemOperand());
           __ Mov(x11, Operand(var->name()));
@@ -4477,7 +4472,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else if (var->IsStackAllocated() || var->IsContextSlot()) {
           // Result of deleting non-global, non-dynamic variables is false.
           // The subexpression does not have side effects.
-          context()->Plug(var->is_this());
+          context()->Plug(is_this);
         } else {
           // Non-global variable.  Call the runtime to try to delete from the
           // context where the variable was introduced.

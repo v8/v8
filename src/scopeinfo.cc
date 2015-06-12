@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/bootstrapper.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
 
@@ -188,6 +189,77 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   DCHECK(scope->num_heap_slots() == scope_info->ContextLength() ||
          (scope->num_heap_slots() == kVariablePartIndex &&
           scope_info->ContextLength() == 0));
+  return scope_info;
+}
+
+
+Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
+  DCHECK(isolate->bootstrapper()->IsActive());
+
+  const int stack_local_count = 0;
+  const int context_local_count = 1;
+  const int strong_mode_free_variable_count = 0;
+  const bool simple_parameter_list = true;
+  const VariableAllocationInfo receiver_info = CONTEXT;
+  const VariableAllocationInfo function_name_info = NONE;
+  const VariableMode function_variable_mode = VAR;
+  const bool has_function_name = false;
+  const bool has_receiver = true;
+  const int parameter_count = 0;
+  const int length = kVariablePartIndex + parameter_count +
+                     (1 + stack_local_count) + 2 * context_local_count +
+                     3 * strong_mode_free_variable_count +
+                     (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0);
+
+  Factory* factory = isolate->factory();
+  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
+
+  // Encode the flags.
+  int flags = ScopeTypeField::encode(SCRIPT_SCOPE) |
+              CallsEvalField::encode(false) |
+              LanguageModeField::encode(SLOPPY) |
+              ReceiverVariableField::encode(receiver_info) |
+              FunctionVariableField::encode(function_name_info) |
+              FunctionVariableMode::encode(function_variable_mode) |
+              AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
+              IsSimpleParameterListField::encode(simple_parameter_list) |
+              BlockScopeIsClassScopeField::encode(false) |
+              FunctionKindField::encode(FunctionKind::kNormalFunction);
+  scope_info->SetFlags(flags);
+  scope_info->SetParameterCount(parameter_count);
+  scope_info->SetStackLocalCount(stack_local_count);
+  scope_info->SetContextLocalCount(context_local_count);
+  scope_info->SetStrongModeFreeVariableCount(strong_mode_free_variable_count);
+
+  int index = kVariablePartIndex;
+  const int first_slot_index = 0;
+  DCHECK(index == scope_info->StackLocalFirstSlotIndex());
+  scope_info->set(index++, Smi::FromInt(first_slot_index));
+  DCHECK(index == scope_info->StackLocalEntriesIndex());
+
+  // Here we add info for context-allocated "this".
+  DCHECK(index == scope_info->ContextLocalNameEntriesIndex());
+  scope_info->set(index++, *isolate->factory()->this_string());
+  DCHECK(index == scope_info->ContextLocalInfoEntriesIndex());
+  const uint32_t value = ContextLocalMode::encode(CONST) |
+                         ContextLocalInitFlag::encode(kCreatedInitialized) |
+                         ContextLocalMaybeAssignedFlag::encode(kNotAssigned);
+  scope_info->set(index++, Smi::FromInt(value));
+
+  DCHECK(index == scope_info->StrongModeFreeVariableNameEntriesIndex());
+  DCHECK(index == scope_info->StrongModeFreeVariablePositionEntriesIndex());
+
+  // And here we record that this scopeinfo binds a receiver.
+  DCHECK(index == scope_info->ReceiverEntryIndex());
+  const int receiver_index = Context::MIN_CONTEXT_SLOTS + 0;
+  scope_info->set(index++, Smi::FromInt(receiver_index));
+
+  DCHECK(index == scope_info->FunctionNameEntryIndex());
+
+  DCHECK_EQ(index, scope_info->length());
+  DCHECK_EQ(scope_info->ParameterCount(), 0);
+  DCHECK_EQ(scope_info->ContextLength(), Context::MIN_CONTEXT_SLOTS + 1);
+
   return scope_info;
 }
 

@@ -77,8 +77,9 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
   CHECK(result->IsContext());
   // If the snapshot does not contain a custom script, we need to update
-  // the global object for exactly one context.
-  CHECK(EmbedsScript(isolate) || (*outdated_contexts_out)->length() == 1);
+  // the global object for exactly two contexts: the builtins context and the
+  // script context that has the global "this" binding.
+  CHECK(EmbedsScript(isolate) || (*outdated_contexts_out)->length() == 2);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();
