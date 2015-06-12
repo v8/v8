@@ -3638,7 +3638,8 @@ static i::MaybeHandle<i::Object> DefineObjectProperty(
     name = i::Handle<i::String>::cast(converted);
   }
 
-  return i::JSObject::DefinePropertyOrElement(js_object, name, value, attrs);
+  return i::JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name,
+                                                              value, attrs);
 }
 
 

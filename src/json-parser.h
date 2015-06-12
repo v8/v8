@@ -434,7 +434,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       // Commit the intermediate state to the object and stop transitioning.
       CommitStateToJsonObject(json_object, map, &properties);
 
-      JSObject::DefinePropertyOrElement(json_object, key, value).Check();
+      JSObject::DefinePropertyOrElementIgnoreAttributes(json_object, key, value)
+          .Check();
     } while (transitioning && MatchSkipWhiteSpace(','));
 
     // If we transitioned until the very end, transition the map now.
@@ -470,7 +471,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         value = ParseJsonValue();
         if (value.is_null()) return ReportUnexpectedCharacter();
 
-        JSObject::DefinePropertyOrElement(json_object, key, value).Check();
+        JSObject::DefinePropertyOrElementIgnoreAttributes(json_object, key,
+                                                          value).Check();
       }
     }
 

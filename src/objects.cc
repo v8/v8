@@ -536,10 +536,11 @@ static bool FindAllCanWriteHolder(LookupIterator* it) {
 
 
 MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
-    LookupIterator* it, Handle<Object> value, LanguageMode language_mode) {
+    LookupIterator* it, Handle<Object> value) {
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   if (FindAllCanWriteHolder(it)) {
-    return SetPropertyWithAccessor(it, value, language_mode);
+    // The supplied language-mode is ignored by SetPropertyWithAccessor.
+    return SetPropertyWithAccessor(it, value, SLOPPY);
   }
 
   it->isolate()->ReportFailedAccessCheck(checked);
@@ -3044,8 +3045,7 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
         if (it->HasAccess()) break;
         // Check whether it makes sense to reuse the lookup iterator. Here it
         // might still call into setters up the prototype chain.
-        return JSObject::SetPropertyWithFailedAccessCheck(it, value,
-                                                          language_mode);
+        return JSObject::SetPropertyWithFailedAccessCheck(it, value);
 
       case LookupIterator::JSPROXY:
         if (it->HolderIsReceiverOrHiddenPrototype()) {
@@ -3165,9 +3165,8 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
   for (; own_lookup.IsFound(); own_lookup.Next()) {
     switch (own_lookup.state()) {
       case LookupIterator::ACCESS_CHECK:
-        if (!it->isolate()->MayAccess(own_lookup.GetHolder<JSObject>())) {
-          return JSObject::SetPropertyWithFailedAccessCheck(&own_lookup, value,
-                                                            language_mode);
+        if (!own_lookup.HasAccess()) {
+          return JSObject::SetPropertyWithFailedAccessCheck(&own_lookup, value);
         }
         break;
 
@@ -3177,8 +3176,8 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
       case LookupIterator::DATA: {
         PropertyDetails details = own_lookup.property_details();
         if (details.IsConfigurable() || !details.IsReadOnly()) {
-          return JSObject::ReconfigureAsDataProperty(&own_lookup, value,
-                                                     details.attributes());
+          return JSObject::DefineOwnPropertyIgnoreAttributes(
+              &own_lookup, value, details.attributes());
         }
         return WriteToReadOnlyProperty(&own_lookup, value, language_mode);
       }
@@ -3186,8 +3185,8 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
       case LookupIterator::ACCESSOR: {
         PropertyDetails details = own_lookup.property_details();
         if (details.IsConfigurable()) {
-          return JSObject::ReconfigureAsDataProperty(&own_lookup, value,
-                                                     details.attributes());
+          return JSObject::DefineOwnPropertyIgnoreAttributes(
+              &own_lookup, value, details.attributes());
         }
 
         return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
@@ -4131,7 +4130,11 @@ void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
 }
 
 
-MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
+// Reconfigures a property to a data property with attributes, even if it is not
+// reconfigurable.
+// Requires a LookupIterator that does not look at the prototype chain beyond
+// hidden prototypes.
+MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     ExecutableAccessorInfoHandling handling) {
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
@@ -4139,54 +4142,81 @@ MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
                      (it->IsElement() ||
                       !it->isolate()->IsInternallyUsedPropertyName(it->name()));
 
-  switch (it->state()) {
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::JSPROXY:
-    case LookupIterator::NOT_FOUND:
-    case LookupIterator::TRANSITION:
-    case LookupIterator::ACCESS_CHECK:
-      UNREACHABLE();
+  for (; it->IsFound(); it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::JSPROXY:
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
 
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
-      return value;
-
-    case LookupIterator::ACCESSOR: {
-      PropertyDetails details = it->property_details();
-      // Ensure the context isn't changed after calling into accessors.
-      AssertNoContextChange ncc(it->isolate());
-
-      Handle<Object> accessors = it->GetAccessors();
-
-      // Special handling for ExecutableAccessorInfo, which behaves like a
-      // data property.
-      if (accessors->IsExecutableAccessorInfo() &&
-          handling == DONT_FORCE_FIELD) {
-        Handle<Object> result;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            it->isolate(), result,
-            JSObject::SetPropertyWithAccessor(it, value, STRICT), Object);
-        DCHECK(result->SameValue(*value));
-
-        if (details.attributes() == attributes) return value;
-
-        // Reconfigure the accessor if attributes mismatch.
-        Handle<ExecutableAccessorInfo> new_data = Accessors::CloneAccessor(
-            it->isolate(), Handle<ExecutableAccessorInfo>::cast(accessors));
-        new_data->set_property_attributes(attributes);
-        // By clearing the setter we don't have to introduce a lookup to
-        // the setter, simply make it unavailable to reflect the
-        // attributes.
-        if (attributes & READ_ONLY) {
-          ExecutableAccessorInfo::ClearSetter(new_data);
+      case LookupIterator::ACCESS_CHECK:
+        if (!it->HasAccess()) {
+          return SetPropertyWithFailedAccessCheck(it, value);
         }
+        break;
 
-        if (it->IsElement()) {
-          SetElementCallback(it->GetHolder<JSObject>(), it->index(), new_data,
-                             attributes);
+      // If there's an interceptor, try to store the property with the
+      // interceptor.
+      // In case of success, the attributes will have been reset to the default
+      // attributes of the interceptor, rather than the incoming attributes.
+      //
+      // TODO(verwaest): JSProxy afterwards verify the attributes that the
+      // JSProxy claims it has, and verifies that they are compatible. If not,
+      // they throw. Here we should do the same.
+      case LookupIterator::INTERCEPTOR:
+        if (handling == DONT_FORCE_FIELD) {
+          MaybeHandle<Object> maybe_result =
+              JSObject::SetPropertyWithInterceptor(it, value);
+          if (!maybe_result.is_null()) return maybe_result;
+          if (it->isolate()->has_pending_exception()) return maybe_result;
+        }
+        break;
+
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return value;
+
+      case LookupIterator::ACCESSOR: {
+        Handle<Object> accessors = it->GetAccessors();
+
+        // Special handling for ExecutableAccessorInfo, which behaves like a
+        // data property.
+        if (accessors->IsExecutableAccessorInfo() &&
+            handling == DONT_FORCE_FIELD) {
+          PropertyDetails details = it->property_details();
+          // Ensure the context isn't changed after calling into accessors.
+          AssertNoContextChange ncc(it->isolate());
+
+          Handle<Object> result;
+          ASSIGN_RETURN_ON_EXCEPTION(
+              it->isolate(), result,
+              JSObject::SetPropertyWithAccessor(it, value, STRICT), Object);
+          DCHECK(result->SameValue(*value));
+
+          if (details.attributes() == attributes) return value;
+
+          // Reconfigure the accessor if attributes mismatch.
+          Handle<ExecutableAccessorInfo> new_data = Accessors::CloneAccessor(
+              it->isolate(), Handle<ExecutableAccessorInfo>::cast(accessors));
+          new_data->set_property_attributes(attributes);
+          // By clearing the setter we don't have to introduce a lookup to
+          // the setter, simply make it unavailable to reflect the
+          // attributes.
+          if (attributes & READ_ONLY) {
+            ExecutableAccessorInfo::ClearSetter(new_data);
+          }
+
+          if (it->IsElement()) {
+            SetElementCallback(it->GetHolder<JSObject>(), it->index(), new_data,
+                               attributes);
+          } else {
+            SetPropertyCallback(it->GetHolder<JSObject>(), it->name(), new_data,
+                                attributes);
+          }
         } else {
-          SetPropertyCallback(it->GetHolder<JSObject>(), it->name(), new_data,
-                              attributes);
+          it->ReconfigureDataProperty(value, attributes);
+          it->WriteDataValue(value);
         }
+
         if (is_observed) {
           RETURN_ON_EXCEPTION(
               it->isolate(),
@@ -4194,81 +4224,56 @@ MaybeHandle<Object> JSObject::ReconfigureAsDataProperty(
                                   it->factory()->the_hole_value()),
               Object);
         }
+
         return value;
       }
-
-      it->ReconfigureDataProperty(value, attributes);
-      it->WriteDataValue(value);
-
-      if (is_observed) {
-        RETURN_ON_EXCEPTION(
-            it->isolate(),
-            EnqueueChangeRecord(object, "reconfigure", it->GetName(),
-                                it->factory()->the_hole_value()),
-            Object);
-      }
-
-      return value;
-    }
-
-    case LookupIterator::DATA: {
-      PropertyDetails details = it->property_details();
-      Handle<Object> old_value = it->factory()->the_hole_value();
-      // Regular property update if the attributes match.
-      if (details.attributes() == attributes) {
-        return SetDataProperty(it, value);
-      }
-
-      // Special case: properties of typed arrays cannot be reconfigured to
-      // non-writable nor to non-enumerable.
-      if (it->IsElement() && (object->HasExternalArrayElements() ||
-                              object->HasFixedTypedArrayElements())) {
-        return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, STRICT);
-      }
-
-      // Reconfigure the data property if the attributes mismatch.
-      if (is_observed) old_value = it->GetDataValue();
-
-      it->ReconfigureDataProperty(value, attributes);
-      it->WriteDataValue(value);
-
-      if (is_observed) {
-        if (old_value->SameValue(*value)) {
-          old_value = it->factory()->the_hole_value();
+      case LookupIterator::DATA: {
+        PropertyDetails details = it->property_details();
+        Handle<Object> old_value = it->factory()->the_hole_value();
+        // Regular property update if the attributes match.
+        if (details.attributes() == attributes) {
+          return SetDataProperty(it, value);
         }
-        RETURN_ON_EXCEPTION(it->isolate(),
-                            EnqueueChangeRecord(object, "reconfigure",
-                                                it->GetName(), old_value),
-                            Object);
+
+        // Special case: properties of typed arrays cannot be reconfigured to
+        // non-writable nor to non-enumerable.
+        if (it->IsElement() && (object->HasExternalArrayElements() ||
+                                object->HasFixedTypedArrayElements())) {
+          return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
+                                                 value, STRICT);
+        }
+
+        // Reconfigure the data property if the attributes mismatch.
+        if (is_observed) old_value = it->GetDataValue();
+
+        it->ReconfigureDataProperty(value, attributes);
+        it->WriteDataValue(value);
+
+        if (is_observed) {
+          if (old_value->SameValue(*value)) {
+            old_value = it->factory()->the_hole_value();
+          }
+          RETURN_ON_EXCEPTION(it->isolate(),
+                              EnqueueChangeRecord(object, "reconfigure",
+                                                  it->GetName(), old_value),
+                              Object);
+        }
+        return value;
       }
     }
   }
 
-  return value;
+  return AddDataProperty(it, value, attributes, STRICT,
+                         CERTAINLY_NOT_STORE_FROM_KEYED);
 }
 
 
-// Reconfigures a property to a data property with attributes, even if it is not
-// reconfigurable.
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
     PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
-  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.HasAccess()) {
-      return SetPropertyWithFailedAccessCheck(&it, value, SLOPPY);
-    }
-    it.Next();
-  }
-
-  if (it.IsFound()) {
-    return ReconfigureAsDataProperty(&it, value, attributes, handling);
-  }
-
-  return AddDataProperty(&it, value, attributes, STRICT,
-                         CERTAINLY_NOT_STORE_FROM_KEYED);
+  LookupIterator it(object, name, LookupIterator::OWN);
+  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
 }
 
 
@@ -4276,21 +4281,21 @@ MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     Handle<JSObject> object, uint32_t index, Handle<Object> value,
     PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.HasAccess()) {
-      return SetPropertyWithFailedAccessCheck(&it, value, STRICT);
-    }
-    it.Next();
-  }
+  LookupIterator it(isolate, object, index, LookupIterator::OWN);
+  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
+}
 
-  if (it.IsFound()) {
-    return ReconfigureAsDataProperty(&it, value, attributes, handling);
-  }
 
-  return AddDataProperty(&it, value, attributes, STRICT,
-                         MAY_BE_STORE_FROM_KEYED);
+MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
+    Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
+  Isolate* isolate = object->GetIsolate();
+  uint32_t index;
+  LookupIterator it =
+      name->AsArrayIndex(&index)
+          ? LookupIterator(isolate, object, index, LookupIterator::OWN)
+          : LookupIterator(object, name, LookupIterator::OWN);
+  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
 }
 
 

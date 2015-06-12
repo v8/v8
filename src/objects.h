@@ -1842,11 +1842,8 @@ class JSObject: public JSReceiver {
   // grant an exemption to ExecutableAccessor callbacks in some cases.
   enum ExecutableAccessorInfoHandling { DEFAULT_HANDLING, DONT_FORCE_FIELD };
 
-  // Calls SetOwn[Property|Element]IgnoreAttributes depending on whether name is
-  // convertible to an index.
-  MUST_USE_RESULT static inline MaybeHandle<Object> DefinePropertyOrElement(
-      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes = NONE,
+  MUST_USE_RESULT static MaybeHandle<Object> DefineOwnPropertyIgnoreAttributes(
+      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
@@ -1859,8 +1856,12 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
-  MUST_USE_RESULT static MaybeHandle<Object> ReconfigureAsDataProperty(
-      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+  // Equivalent to one of the above depending on whether |name| can be converted
+  // to an array index.
+  MUST_USE_RESULT static MaybeHandle<Object>
+  DefinePropertyOrElementIgnoreAttributes(
+      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+      PropertyAttributes attributes = NONE,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
   static void AddProperty(Handle<JSObject> object, Handle<Name> name,
@@ -2315,7 +2316,7 @@ class JSObject: public JSReceiver {
       LookupIterator* it);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
+      LookupIterator* it, Handle<Object> value);
 
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,

@@ -200,8 +200,9 @@ RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::DefinePropertyOrElement(
-                                           object, name, function, DONT_ENUM));
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              JSObject::DefinePropertyOrElementIgnoreAttributes(
+                                  object, name, function, DONT_ENUM));
   return isolate->heap()->undefined_value();
 }
 
