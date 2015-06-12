@@ -85,10 +85,6 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSArrayBuffer(
       heap,
       HeapObject::RawField(object, JSArrayBuffer::BodyDescriptor::kStartOffset),
       HeapObject::RawField(object, JSArrayBuffer::kSizeWithInternalFields));
-  if (!JSArrayBuffer::cast(object)->is_external()) {
-    heap->RegisterLiveArrayBuffer(true,
-                                  JSArrayBuffer::cast(object)->backing_store());
-  }
   return JSArrayBuffer::kSizeWithInternalFields;
 }
 
@@ -508,8 +504,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSArrayBuffer(
       HeapObject::RawField(object, JSArrayBuffer::BodyDescriptor::kStartOffset),
       HeapObject::RawField(object, JSArrayBuffer::kSizeWithInternalFields));
   if (!JSArrayBuffer::cast(object)->is_external()) {
-    heap->RegisterLiveArrayBuffer(heap->InNewSpace(object),
-                                  JSArrayBuffer::cast(object)->backing_store());
+    heap->RegisterLiveArrayBuffer(JSArrayBuffer::cast(object)->backing_store());
   }
 }
 
