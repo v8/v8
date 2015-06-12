@@ -3041,6 +3041,10 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
   AllocationResult allocation = old_space->AllocateRaw(object_size, alignment);
   if (allocation.To(&target)) {
     MigrateObject(target, object, object_size, old_space->identity());
+    // If we end up needing more special cases, we should factor this out.
+    if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
+      heap()->PromoteArrayBuffer(target);
+    }
     heap()->IncrementPromotedObjectsSize(object_size);
     return true;
   }
@@ -4367,7 +4371,6 @@ void MarkCompactCollector::SweepSpaces() {
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
-  heap()->FreeDeadArrayBuffers();
 
   MoveEvacuationCandidatesToEndOfPagesList();
 
@@ -4394,6 +4397,8 @@ void MarkCompactCollector::SweepSpaces() {
   }
 
   EvacuateNewSpaceAndCandidates();
+
+  heap()->FreeDeadArrayBuffers(false);
 
   // ClearNonLiveReferences depends on precise sweeping of map space to
   // detect whether unmarked map became dead in this collection or in one
