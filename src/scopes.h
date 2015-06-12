@@ -355,7 +355,8 @@ class Scope: public ZoneObject {
   // "this" (and no other variable) on the native context.  Script scopes then
   // will not have a "this" declaration.
   bool has_this_declaration() const {
-    return (is_function_scope() && !is_arrow_scope()) || is_module_scope();
+    return (is_function_scope() && !is_arrow_scope()) || is_module_scope() ||
+           is_script_scope();
   }
 
   // The variable corresponding to the 'new.target' value.

@@ -2420,17 +2420,37 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     // Create node to ask for help resolving potential eval call. This will
     // provide a fully resolved callee and the corresponding receiver.
     Node* function = GetFunctionClosure();
+    // TODO(wingo): ResolvePossibleDirectEval doesn't really need a receiver,
+    // now that eval scopes don't have "this" declarations.  Remove this hack
+    // once ResolvePossibleDirectEval changes.
+    Node* receiver;
+    {
+      Variable* variable = info()->scope()->LookupThis();
+      if (variable->IsStackAllocated()) {
+        receiver = environment()->Lookup(variable);
+      } else {
+        DCHECK(variable->IsContextSlot());
+        int depth = current_scope()->ContextChainLength(variable->scope());
+        bool immutable = variable->maybe_assigned() == kNotAssigned;
+        const Operator* op =
+            javascript()->LoadContext(depth, variable->index(), immutable);
+        receiver = NewNode(op, current_context());
+      }
+    }
     Node* language = jsgraph()->Constant(language_mode());
     Node* position = jsgraph()->Constant(current_scope()->start_position());
     const Operator* op =
-        javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
-    Node* new_callee =
-        NewNode(op, callee, source, function, language, position);
-    PrepareFrameState(new_callee, expr->EvalOrLookupId(),
+        javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 6);
+    Node* pair =
+        NewNode(op, callee, source, function, receiver, language, position);
+    PrepareFrameState(pair, expr->EvalOrLookupId(),
                       OutputFrameStateCombine::PokeAt(arg_count + 1));
+    Node* new_callee = NewNode(common()->Projection(0), pair);
+    Node* new_receiver = NewNode(common()->Projection(1), pair);
 
-    // Patch callee on the environment.
+    // Patch callee and receiver on the environment.
     environment()->Poke(arg_count + 1, new_callee);
+    environment()->Poke(arg_count + 0, new_receiver);
   }
 
   // Create node to perform the function call.
@@ -2853,9 +2873,7 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     // Delete of an unqualified identifier is only allowed in classic mode but
     // deleting "this" is allowed in all language modes.
     Variable* variable = expr->expression()->AsVariableProxy()->var();
-    // Delete of an unqualified identifier is disallowed in strict mode but
-    // "delete this" is allowed.
-    DCHECK(is_sloppy(language_mode()) || variable->HasThisName(isolate()));
+    DCHECK(is_sloppy(language_mode()) || variable->is_this());
     value = BuildVariableDelete(variable, expr->id(),
                                 ast_context()->GetStateCombine());
   } else if (expr->expression()->IsProperty()) {
@@ -3303,10 +3321,9 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
     }
     case Variable::PARAMETER:
     case Variable::LOCAL:
-    case Variable::CONTEXT: {
+    case Variable::CONTEXT:
       // Local var, const, or let variable or context variable.
-      return jsgraph()->BooleanConstant(variable->HasThisName(isolate()));
-    }
+      return jsgraph()->BooleanConstant(variable->is_this());
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Node* name = jsgraph()->Constant(variable->name());
