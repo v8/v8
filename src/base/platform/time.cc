@@ -111,7 +111,7 @@ TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
 struct mach_timespec TimeDelta::ToMachTimespec() const {
   struct mach_timespec ts;
   DCHECK(delta_ >= 0);
-  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<unsigned>(delta_ / Time::kMicrosecondsPerSecond);
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
   return ts;

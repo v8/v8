@@ -211,13 +211,14 @@ Operand::Operand(Handle<Object> handle) {
 }
 
 
-MemOperand::MemOperand(Register rm, int64_t offset) : Operand(rm) {
+MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
   offset_ = offset;
 }
 
 
-MemOperand::MemOperand(Register rm, int64_t unit, int64_t multiplier,
-                       OffsetAddend offset_addend) : Operand(rm) {
+MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
+                       OffsetAddend offset_addend)
+    : Operand(rm) {
   offset_ = unit * multiplier + offset_addend;
 }
 
@@ -290,7 +291,8 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
-  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->reloc_size =
+      static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
   desc->origin = this;
 }
 
@@ -741,7 +743,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     DCHECK((imm28 & 3) == 0);
 
     instr &= ~kImm26Mask;
-    uint32_t imm26 = imm28 >> 2;
+    uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
     DCHECK(is_uint26(imm26));
 
     instr_at_put(pos, instr | (imm26 & kImm26Mask));
@@ -1385,7 +1387,7 @@ void Assembler::j(int64_t target) {
     DCHECK(in_range && ((target & 3) == 0));
   }
 #endif
-  GenInstrJump(J, (target >> 2) & kImm26Mask);
+  GenInstrJump(J, static_cast<uint32_t>(target >> 2) & kImm26Mask);
 }
 
 
@@ -1414,7 +1416,7 @@ void Assembler::jal(int64_t target) {
   }
 #endif
   positions_recorder()->WriteRecordedPositions();
-  GenInstrJump(JAL, (target >> 2) & kImm26Mask);
+  GenInstrJump(JAL, static_cast<uint32_t>(target >> 2) & kImm26Mask);
 }
 
 
@@ -2901,7 +2903,8 @@ void Assembler::GrowBuffer() {
   desc.buffer = NewArray<byte>(desc.buffer_size);
 
   desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc.reloc_size =
+      static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
 
   // Copy the data.
   intptr_t pc_delta = desc.buffer - buffer_;

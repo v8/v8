@@ -57,14 +57,16 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   __ Branch(&miss, ne, name, Operand(at));
 
   // Check the map matches.
-  __ ld(at, MemOperand(base_addr, map_off_addr - key_off_addr));
+  __ ld(at, MemOperand(base_addr,
+                       static_cast<int32_t>(map_off_addr - key_off_addr)));
   __ ld(scratch2, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Branch(&miss, ne, at, Operand(scratch2));
 
   // Get the code entry from the cache.
   Register code = scratch2;
   scratch2 = no_reg;
-  __ ld(code, MemOperand(base_addr, value_off_addr - key_off_addr));
+  __ ld(code, MemOperand(base_addr,
+                         static_cast<int32_t>(value_off_addr - key_off_addr)));
 
   // Check that the flags match what we're looking for.
   Register flags_reg = base_addr;
