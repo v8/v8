@@ -7,6 +7,7 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/snapshot/serialize.h"  // TODO(turbofan): RootIndexMap
 
 namespace v8 {
 namespace internal {
@@ -238,15 +239,11 @@ bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
 bool CodeGenerator::IsMaterializableFromRoot(
     Handle<HeapObject> object, Heap::RootListIndex* index_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    // Check if {object} is one of the non-smi roots that cannot be written
-    // after initialization.
-    for (int i = 0; i < Heap::kSmiRootsStart; ++i) {
-      Heap::RootListIndex const index = static_cast<Heap::RootListIndex>(i);
-      if (!Heap::RootCanBeWrittenAfterInitialization(index) &&
-          *object == isolate()->heap()->root(index)) {
-        *index_return = index;
-        return true;
-      }
+    RootIndexMap map(isolate());
+    int root_index = map.Lookup(*object);
+    if (root_index != RootIndexMap::kInvalidRootIndex) {
+      *index_return = static_cast<Heap::RootListIndex>(root_index);
+      return true;
     }
   }
   return false;
