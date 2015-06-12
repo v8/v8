@@ -306,6 +306,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   // Check if the name is trivially convertible to an index and get the element
   // if so.
   uint32_t index;
+  // TODO(verwaest): Make sure DebugGetProperty can handle arrays, and remove
+  // this special case.
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = isolate->factory()->NewFixedArray(2);
     Handle<Object> element_or_char;

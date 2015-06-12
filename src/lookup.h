@@ -26,7 +26,8 @@ class LookupIterator final BASE_EMBEDDED {
     HIDDEN_SKIP_INTERCEPTOR = kHidden,
     HIDDEN = kHidden | kInterceptor,
     PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kHidden | kPrototypeChain,
-    PROTOTYPE_CHAIN = kHidden | kPrototypeChain | kInterceptor
+    PROTOTYPE_CHAIN = kHidden | kPrototypeChain | kInterceptor,
+    DEFAULT = PROTOTYPE_CHAIN
   };
 
   enum State {
@@ -44,7 +45,7 @@ class LookupIterator final BASE_EMBEDDED {
   };
 
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                 Configuration configuration = PROTOTYPE_CHAIN)
+                 Configuration configuration = DEFAULT)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         exotic_index_state_(ExoticIndexState::kUninitialized),
@@ -68,7 +69,7 @@ class LookupIterator final BASE_EMBEDDED {
 
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Handle<JSReceiver> holder,
-                 Configuration configuration = PROTOTYPE_CHAIN)
+                 Configuration configuration = DEFAULT)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         exotic_index_state_(ExoticIndexState::kUninitialized),
@@ -91,7 +92,7 @@ class LookupIterator final BASE_EMBEDDED {
   }
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
-                 Configuration configuration = PROTOTYPE_CHAIN)
+                 Configuration configuration = DEFAULT)
       : configuration_(configuration),
         state_(NOT_FOUND),
         exotic_index_state_(ExoticIndexState::kUninitialized),
@@ -112,7 +113,7 @@ class LookupIterator final BASE_EMBEDDED {
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
                  Handle<JSReceiver> holder,
-                 Configuration configuration = PROTOTYPE_CHAIN)
+                 Configuration configuration = DEFAULT)
       : configuration_(configuration),
         state_(NOT_FOUND),
         exotic_index_state_(ExoticIndexState::kUninitialized),
@@ -131,6 +132,29 @@ class LookupIterator final BASE_EMBEDDED {
     Next();
   }
 
+  static LookupIterator PropertyOrElement(
+      Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
+      Configuration configuration = DEFAULT) {
+    uint32_t index;
+    LookupIterator it =
+        name->AsArrayIndex(&index)
+            ? LookupIterator(isolate, receiver, index, configuration)
+            : LookupIterator(receiver, name, configuration);
+    it.name_ = name;
+    return it;
+  }
+
+  static LookupIterator PropertyOrElement(
+      Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
+      Handle<JSReceiver> holder, Configuration configuration = DEFAULT) {
+    uint32_t index;
+    LookupIterator it =
+        name->AsArrayIndex(&index)
+            ? LookupIterator(isolate, receiver, index, holder, configuration)
+            : LookupIterator(receiver, name, holder, configuration);
+    it.name_ = name;
+    return it;
+  }
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
 

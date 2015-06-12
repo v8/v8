@@ -6583,10 +6583,8 @@ String* String::GetForwardedInternalizedString() {
 
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
                                                  Handle<Name> name) {
-  uint32_t index;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(name->GetIsolate(), object, index)
-                          : LookupIterator(object, name);
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
   return GetProperty(&it);
 }
 
@@ -6619,21 +6617,16 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
-  uint32_t index = 0;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(name->GetIsolate(), object, index)
-                          : LookupIterator(object, name);
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
   return GetPropertyAttributes(&it);
 }
 
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
-  uint32_t index = 0;
-  LookupIterator::Configuration c = LookupIterator::HIDDEN;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(name->GetIsolate(), object, index, c)
-                          : LookupIterator(object, name, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      name->GetIsolate(), object, name, LookupIterator::HIDDEN);
   return GetPropertyAttributes(&it);
 }
 

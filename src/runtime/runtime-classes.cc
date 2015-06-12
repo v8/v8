@@ -307,6 +307,7 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
+  // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
     return LoadElementFromSuper(isolate, receiver, home_object, index);
   }
@@ -397,6 +398,7 @@ static Object* StoreKeyedToSuper(Isolate* isolate, Handle<JSObject> home_object,
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
+  // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
     return StoreElementToSuper(isolate, home_object, receiver, index, value,
                                language_mode);

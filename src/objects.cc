@@ -4290,11 +4290,8 @@ MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
     PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
   Isolate* isolate = object->GetIsolate();
-  uint32_t index;
-  LookupIterator it =
-      name->AsArrayIndex(&index)
-          ? LookupIterator(isolate, object, index, LookupIterator::OWN)
-          : LookupIterator(object, name, LookupIterator::OWN);
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
+                                                        LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
 }
 
@@ -5254,11 +5251,8 @@ MaybeHandle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
 MaybeHandle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
                                                Handle<Name> name,
                                                LanguageMode language_mode) {
-  uint32_t index;
-  LookupIterator::Configuration c = LookupIterator::HIDDEN;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(name->GetIsolate(), object, index, c)
-                          : LookupIterator(object, name, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      name->GetIsolate(), object, name, LookupIterator::HIDDEN);
   return JSObject::DeleteProperty(&it, language_mode);
 }
 
@@ -6409,11 +6403,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   // Try to flatten before operating on the string.
   if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
-  uint32_t index = 0;
-  LookupIterator::Configuration c = LookupIterator::HIDDEN_SKIP_INTERCEPTOR;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(isolate, object, index, c)
-                          : LookupIterator(object, name, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
 
   if (it.state() == LookupIterator::ACCESS_CHECK) {
     if (!it.HasAccess()) {
@@ -6438,7 +6429,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (it.IsElement()) {
-    DefineElementAccessor(it.GetStoreTarget(), index, getter, setter,
+    DefineElementAccessor(it.GetStoreTarget(), it.index(), getter, setter,
                           attributes);
   } else {
     DCHECK(getter->IsSpecFunction() || getter->IsUndefined() ||
@@ -6477,11 +6468,8 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   Handle<Name> name(Name::cast(info->name()));
   if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
-  uint32_t index = 0;
-  LookupIterator::Configuration c = LookupIterator::HIDDEN_SKIP_INTERCEPTOR;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(isolate, object, index, c)
-                          : LookupIterator(object, name, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
 
   // Duplicate ACCESS_CHECK outside of GetPropertyAttributes for the case that
   // the FailedAccessCheckCallbackFunction doesn't throw an exception.
@@ -6512,7 +6500,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   }
 
   if (it.IsElement()) {
-    SetElementCallback(object, index, info, info->property_attributes());
+    SetElementCallback(object, it.index(), info, info->property_attributes());
   } else {
     SetPropertyCallback(object, name, info, info->property_attributes());
   }
@@ -6530,13 +6518,8 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  // Make the lookup and include prototypes.
-  uint32_t index = 0;
-  LookupIterator::Configuration c =
-      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(isolate, object, index, c)
-                          : LookupIterator(object, name, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
 
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {

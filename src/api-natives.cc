@@ -67,7 +67,7 @@ MaybeHandle<Object> DefineAccessorProperty(
 
 MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
                                        Handle<JSObject> object,
-                                       Handle<Name> key,
+                                       Handle<Name> name,
                                        Handle<Object> prop_data,
                                        Smi* unchecked_attributes) {
   DCHECK((unchecked_attributes->value() &
@@ -78,20 +78,18 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
 
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Instantiate(isolate, prop_data, key), Object);
+                             Instantiate(isolate, prop_data, name), Object);
 
-  uint32_t index = 0;
-  LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-  LookupIterator it = key->AsArrayIndex(&index)
-                          ? LookupIterator(isolate, object, index, c)
-                          : LookupIterator(object, key, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
 
 #ifdef DEBUG
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   if (it.IsFound()) {
     THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kDuplicateTemplateProperty, key),
+        isolate,
+        NewTypeError(MessageTemplate::kDuplicateTemplateProperty, name),
         Object);
   }
 #endif

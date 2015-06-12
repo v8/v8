@@ -72,6 +72,8 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
 
   // Check if the name is trivially convertible to an index and get
   // the element if so.
+  // TODO(verwaest): Make sure GetProperty(LookupIterator*) can handle this, and
+  // remove the special casing here.
   if (name->AsArrayIndex(&index)) {
     return GetElementOrCharAt(isolate, object, index);
   } else {
@@ -102,23 +104,13 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   Handle<Name> name;
-  if (key->IsName()) {
-    name = Handle<Name>::cast(key);
-  } else {
-    // Call-back into JavaScript to convert the key to a string.
-    Handle<Object> converted;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
-                               Execution::ToString(isolate, key), Object);
-    name = Handle<String>::cast(converted);
-  }
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
 
-  if (name->AsArrayIndex(&index)) {
-    // TODO(verwaest): Support other objects as well.
-    if (!object->IsJSReceiver()) return value;
-    return JSReceiver::SetElement(Handle<JSReceiver>::cast(object), index,
-                                  value, language_mode);
-  }
-  return Object::SetProperty(object, name, value, language_mode);
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
+  // TODO(verwaest): Support other objects as well.
+  if (it.IsElement() && !object->IsJSReceiver()) return value;
+  return Object::SetProperty(&it, value, language_mode,
+                             Object::MAY_BE_STORE_FROM_KEYED);
 }
 
 
@@ -239,12 +231,9 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   PropertyAttributes attrs;
-  uint32_t index;
   // Get attributes.
-  LookupIterator it =
-      name->AsArrayIndex(&index)
-          ? LookupIterator(isolate, obj, index, LookupIterator::HIDDEN)
-          : LookupIterator(obj, name, LookupIterator::HIDDEN);
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name,
+                                                        LookupIterator::HIDDEN);
   Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
 
   if (!maybe.IsJust()) return MaybeHandle<Object>();
@@ -1274,23 +1263,17 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  uint32_t index = 0;
-  LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-  LookupIterator it = name->AsArrayIndex(&index)
-                          ? LookupIterator(isolate, object, index, c)
-                          : LookupIterator(object, name, c);
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
+                                                        LookupIterator::OWN);
   if (it.state() == LookupIterator::ACCESS_CHECK && !it.HasAccess()) {
     return isolate->heap()->undefined_value();
   }
 
   Handle<Object> result;
-  MaybeHandle<Object> maybe_result =
-      it.IsElement()
-          ? JSObject::SetOwnElementIgnoreAttributes(object, index, value, attrs,
-                                                    JSObject::DONT_FORCE_FIELD)
-          : JSObject::SetOwnPropertyIgnoreAttributes(
-                object, name, value, attrs, JSObject::DONT_FORCE_FIELD);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, maybe_result);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::DefineOwnPropertyIgnoreAttributes(
+                           &it, value, attrs, JSObject::DONT_FORCE_FIELD));
+
   return *result;
 }
 
