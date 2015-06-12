@@ -362,7 +362,8 @@ void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
          !isolate_->code_range()->contains(
              static_cast<Address>(reservation->address())));
   DCHECK(executable == NOT_EXECUTABLE || isolate_->code_range() == NULL ||
-         !isolate_->code_range()->valid());
+         !isolate_->code_range()->valid() || size <= Page::kPageSize);
+
   reservation->Release();
 }
 
@@ -656,7 +657,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
     // Use code range only for large object space on mips64 to keep address
     // range within 256-MB memory region.
     if (isolate_->code_range() != NULL && isolate_->code_range()->valid() &&
-        commit_area_size > CodePageAreaSize()) {
+        reserve_area_size > CodePageAreaSize()) {
 #else
     if (isolate_->code_range() != NULL && isolate_->code_range()->valid()) {
 #endif

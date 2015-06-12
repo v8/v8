@@ -3937,7 +3937,8 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   Code* code = Code::cast(result);
   DCHECK(IsAligned(bit_cast<intptr_t>(code->address()), kCodeAlignment));
   DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
-         isolate_->code_range()->contains(code->address()));
+         isolate_->code_range()->contains(code->address()) ||
+         object_size <= code_space()->AreaSize());
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
   return code;
@@ -3962,7 +3963,8 @@ AllocationResult Heap::CopyCode(Code* code) {
   // Relocate the copy.
   DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
   DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
-         isolate_->code_range()->contains(code->address()));
+         isolate_->code_range()->contains(code->address()) ||
+         obj_size <= code_space()->AreaSize());
   new_code->Relocate(new_addr - old_addr);
   return new_code;
 }
@@ -4008,7 +4010,9 @@ AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Relocate the copy.
   DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
   DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
-         isolate_->code_range()->contains(code->address()));
+         isolate_->code_range()->contains(code->address()) ||
+         new_obj_size <= code_space()->AreaSize());
+
   new_code->Relocate(new_addr - old_addr);
 
 #ifdef VERIFY_HEAP
