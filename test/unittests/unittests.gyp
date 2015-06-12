@@ -72,6 +72,8 @@
         'compiler/node-test-utils.h',
         'compiler/node-unittest.cc',
         'compiler/opcodes-unittest.cc',
+        'compiler/raw-machine-assembler.cc',
+        'compiler/raw-machine-assembler.h',
         'compiler/register-allocator-unittest.cc',
         'compiler/schedule-unittest.cc',
         'compiler/select-lowering-unittest.cc',
