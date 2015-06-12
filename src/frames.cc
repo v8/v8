@@ -424,10 +424,27 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // into the heap to determine the state. This is safe as long
     // as nobody tries to GC...
     if (!iterator->can_access_heap_objects_) return JAVA_SCRIPT;
-    Code::Kind kind = GetContainingCode(iterator->isolate(),
-                                        *(state->pc_address))->kind();
-    DCHECK(kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION);
-    return (kind == Code::OPTIMIZED_FUNCTION) ? OPTIMIZED : JAVA_SCRIPT;
+    Code* code_obj =
+        GetContainingCode(iterator->isolate(), *(state->pc_address));
+    switch (code_obj->kind()) {
+      case Code::FUNCTION:
+        return JAVA_SCRIPT;
+
+      case Code::HANDLER:
+#ifdef DEBUG
+        if (!code_obj->is_hydrogen_stub()) {
+          // There's currently no support for non-hydrogen stub handlers. If
+          // you this, you'll have to implement it yourself.
+          UNREACHABLE();
+        }
+#endif
+      case Code::OPTIMIZED_FUNCTION:
+        return OPTIMIZED;
+
+      default:
+        UNREACHABLE();
+        return JAVA_SCRIPT;
+    }
   }
   return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
 }
