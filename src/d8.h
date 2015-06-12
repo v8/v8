@@ -168,27 +168,6 @@ class SourceGroup {
 };
 
 
-class BinaryResource : public v8::String::ExternalOneByteStringResource {
- public:
-  BinaryResource(const char* string, int length)
-      : data_(string),
-        length_(length) { }
-
-  ~BinaryResource() {
-    delete[] data_;
-    data_ = NULL;
-    length_ = 0;
-  }
-
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
-};
-
-
 class ShellOptions {
  public:
   ShellOptions()
@@ -310,20 +289,6 @@ class Shell : public i::AllStatic {
     args.GetReturnValue().Set(ReadFromStdin(args.GetIsolate()));
   }
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Int8Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Uint8Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Int16Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Uint16Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Int32Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Uint32Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Float32Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Float64Array(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Uint8ClampedArray(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ArrayBufferSlice(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ArraySubArray(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ArraySet(const v8::FunctionCallbackInfo<v8::Value>& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -350,7 +315,6 @@ class Shell : public i::AllStatic {
   // with the current umask.  Intermediate directories are created if necessary.
   // An exception is not thrown if the directory already exists.  Analogous to
   // the "mkdir -p" command.
-  static void OSObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void System(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -386,8 +350,6 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
-  static Handle<FunctionTemplate> CreateArrayBufferTemplate(FunctionCallback);
-  static Handle<FunctionTemplate> CreateArrayTemplate(FunctionCallback);
 };
 
 
