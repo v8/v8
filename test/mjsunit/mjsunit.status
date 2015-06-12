@@ -62,11 +62,6 @@
   # from the deoptimizer to do that.
   'arguments-indirect': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): The implicit JSToNumber and JSToString nodes inserted by
-  # JSTypedLowering are not properly connected to a surrounding exceptional
-  # continuation yet, hence exception are thrown out of the function body.
-  'regress/regress-1327557': [PASS, NO_VARIANTS],
-
   # TODO(verwaest): Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],

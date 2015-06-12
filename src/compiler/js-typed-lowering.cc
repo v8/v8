@@ -107,17 +107,25 @@ class JSBinopReduction final {
     // already converted values from full code. This way we are sure that we
     // will not re-do any of the side effects.
 
-    Node* left_input =
-        left_type()->Is(Type::PlainPrimitive())
-            ? ConvertPlainPrimitiveToNumber(left())
-            : ConvertToNumber(left(),
-                              CreateFrameStateForLeftInput(frame_state));
+    Node* left_input = nullptr;
+    Node* right_input = nullptr;
+    bool left_is_primitive = left_type()->Is(Type::PlainPrimitive());
+    bool right_is_primitive = right_type()->Is(Type::PlainPrimitive());
+    bool handles_exception = NodeProperties::IsExceptionalCall(node_);
 
-    Node* right_input =
-        right_type()->Is(Type::PlainPrimitive())
-            ? ConvertPlainPrimitiveToNumber(right())
-            : ConvertToNumber(right(), CreateFrameStateForRightInput(
+    if (!left_is_primitive && !right_is_primitive && handles_exception) {
+      ConvertBothInputsToNumber(&left_input, &right_input, frame_state);
+    } else {
+      left_input = left_is_primitive
+                       ? ConvertPlainPrimitiveToNumber(left())
+                       : ConvertSingleInputToNumber(
+                             left(), CreateFrameStateForLeftInput(frame_state));
+      right_input = right_is_primitive
+                        ? ConvertPlainPrimitiveToNumber(right())
+                        : ConvertSingleInputToNumber(
+                              right(), CreateFrameStateForRightInput(
                                            frame_state, left_input));
+    }
 
     node_->ReplaceInput(0, left_input);
     node_->ReplaceInput(1, right_input);
@@ -226,6 +234,7 @@ class JSBinopReduction final {
   JSGraph* jsgraph() { return lowering_->jsgraph(); }
   JSOperatorBuilder* javascript() { return lowering_->javascript(); }
   MachineOperatorBuilder* machine() { return lowering_->machine(); }
+  CommonOperatorBuilder* common() { return jsgraph()->common(); }
   Zone* zone() const { return graph()->zone(); }
 
  private:
@@ -324,16 +333,61 @@ class JSBinopReduction final {
         jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());
   }
 
-  Node* ConvertToNumber(Node* node, Node* frame_state) {
-    if (NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive())) {
-      return ConvertPlainPrimitiveToNumber(node);
-    } else {
-      Node* const n =
-          graph()->NewNode(javascript()->ToNumber(), node, context(),
-                           frame_state, effect(), control());
-      update_effect(n);
-      return n;
+  Node* ConvertSingleInputToNumber(Node* node, Node* frame_state) {
+    DCHECK(!NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive()));
+    Node* const n = graph()->NewNode(javascript()->ToNumber(), node, context(),
+                                     frame_state, effect(), control());
+    NodeProperties::ReplaceUses(node_, node_, node_, n, n);
+    update_effect(n);
+    return n;
+  }
+
+  void ConvertBothInputsToNumber(Node** left_result, Node** right_result,
+                                 Node* frame_state) {
+    Node* projections[2];
+
+    // Find {IfSuccess} and {IfException} continuations of the operation.
+    NodeProperties::CollectControlProjections(node_, projections, 2);
+    IfExceptionHint hint = OpParameter<IfExceptionHint>(projections[1]);
+    Node* if_exception = projections[1];
+    Node* if_success = projections[0];
+
+    // Insert two ToNumber() operations that both potentially throw.
+    Node* left_state = CreateFrameStateForLeftInput(frame_state);
+    Node* left_conv =
+        graph()->NewNode(javascript()->ToNumber(), left(), context(),
+                         left_state, effect(), control());
+    Node* left_success = graph()->NewNode(common()->IfSuccess(), left_conv);
+    Node* right_state = CreateFrameStateForRightInput(frame_state, left_conv);
+    Node* right_conv =
+        graph()->NewNode(javascript()->ToNumber(), right(), context(),
+                         right_state, left_conv, left_success);
+    Node* left_exception =
+        graph()->NewNode(common()->IfException(hint), left_conv, left_conv);
+    Node* right_exception =
+        graph()->NewNode(common()->IfException(hint), right_conv, right_conv);
+    NodeProperties::ReplaceControlInput(if_success, right_conv);
+    update_effect(right_conv);
+
+    // Wire conversions to existing {IfException} continuation.
+    Node* exception_merge = if_exception;
+    Node* exception_value =
+        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), left_exception,
+                         right_exception, exception_merge);
+    Node* exception_effect =
+        graph()->NewNode(common()->EffectPhi(2), left_exception,
+                         right_exception, exception_merge);
+    for (Edge edge : exception_merge->use_edges()) {
+      if (NodeProperties::IsEffectEdge(edge)) edge.UpdateTo(exception_effect);
+      if (NodeProperties::IsValueEdge(edge)) edge.UpdateTo(exception_value);
     }
+    NodeProperties::RemoveBounds(exception_merge);
+    exception_merge->ReplaceInput(0, left_exception);
+    exception_merge->ReplaceInput(1, right_exception);
+    exception_merge->set_op(common()->Merge(2));
+
+    *left_result = left_conv;
+    *right_result = right_conv;
   }
 
   Node* ConvertToUI32(Node* node, Signedness signedness) {

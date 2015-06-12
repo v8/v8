@@ -120,8 +120,9 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 // static
 bool NodeProperties::IsExceptionalCall(Node* node) {
-  for (Node* const use : node->uses()) {
-    if (use->opcode() == IrOpcode::kIfException) return true;
+  for (Edge const edge : node->use_edges()) {
+    if (!NodeProperties::IsControlEdge(edge)) continue;
+    if (edge.from()->opcode() == IrOpcode::kIfException) return true;
   }
   return false;
 }
@@ -228,11 +229,11 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
         index = 1;
         break;
       case IrOpcode::kIfSuccess:
-        DCHECK_EQ(IrOpcode::kCall, node->opcode());
+        DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
         index = 0;
         break;
       case IrOpcode::kIfException:
-        DCHECK_EQ(IrOpcode::kCall, node->opcode());
+        DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
         index = 1;
         break;
       case IrOpcode::kIfValue:

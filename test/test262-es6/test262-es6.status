@@ -36,38 +36,6 @@
   # Unicode canonicalization is not available with i18n turned off.
   'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [['no_i18n', SKIP]],
 
-  # TODO(mstarzinger): The implicit JSToNumber and JSToString nodes inserted by
-  # JSTypedLowering are not properly connected to a surrounding exceptional
-  # continuation yet, hence exception are thrown out of the function body.
-  'built-ins/String/fromCharCode/S9.7_A3.1_T4': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-and/S11.10.1_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-and/S11.10.1_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-not/S11.4.8_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-not/S9.5_A3.1_T4': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-or/S11.10.3_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-or/S11.10.3_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-xor/S11.10.2_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/bitwise-xor/S11.10.2_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/division/S11.5.2_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/division/S11.5.2_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/greater-than-or-equal/S11.8.4_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/greater-than/S11.8.2_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/left-shift/S11.7.1_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/left-shift/S11.7.1_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/less-than-or-equal/S11.8.3_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/less-than/S11.8.1_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/multiplication/S11.5.1_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/multiplication/S11.5.1_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/right-shift/S11.7.2_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/right-shift/S11.7.2_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/subtraction/S11.6.2_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/subtraction/S11.6.2_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/unary-minus/S11.4.7_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/unary-plus/S11.4.6_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/unsigned-right-shift/S11.7.3_A2.2_T1': [PASS, NO_VARIANTS],
-  'language/expressions/unsigned-right-shift/S11.7.3_A2.3_T1': [PASS, NO_VARIANTS],
-  'language/expressions/unsigned-right-shift/S9.6_A3.1_T4': [PASS, NO_VARIANTS],
-
   ###################### NEEDS INVESTIGATION #######################
 
   # Possibly same cause as S8.5_A2.1, below: floating-point tests.
