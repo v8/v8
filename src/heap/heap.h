@@ -1567,28 +1567,10 @@ class Heap {
 
   bool deserialization_complete() const { return deserialization_complete_; }
 
-  // The following methods are used to track raw C++ pointers to externally
-  // allocated memory used as backing store in live array buffers.
-
-  // A new ArrayBuffer was created with |data| as backing store.
-  void RegisterNewArrayBuffer(bool in_new_space, void* data, size_t length);
-
-  // The backing store |data| is no longer owned by V8.
-  void UnregisterArrayBuffer(bool in_new_space, void* data);
-
-  // A live ArrayBuffer was discovered during marking/scavenge.
-  void RegisterLiveArrayBuffer(bool in_new_space, void* data);
-
-  // Frees all backing store pointers that weren't discovered in the previous
-  // marking or scavenge phase.
-  void FreeDeadArrayBuffers(bool in_new_space);
-
-  // Prepare for a new scavenge phase. A new marking phase is implicitly
-  // prepared by finishing the previous one.
-  void PrepareArrayBufferDiscoveryInNewSpace();
-
-  // An ArrayBuffer moved from new space to old space.
-  void PromoteArrayBuffer(Object* buffer);
+  void RegisterNewArrayBuffer(void* data, size_t length);
+  void UnregisterArrayBuffer(void* data);
+  void RegisterLiveArrayBuffer(void* data);
+  void FreeDeadArrayBuffers();
 
  protected:
   // Methods made available to tests.
@@ -2092,23 +2074,8 @@ class Heap {
   // the old space.
   void EvaluateOldSpaceLocalPretenuring(uint64_t size_of_objects_before_gc);
 
-  // Called on heap tear-down. Frees all remaining ArrayBuffer backing stores.
+  // Called on heap tear-down.
   void TearDownArrayBuffers();
-
-  // These correspond to the non-Helper versions.
-  void RegisterNewArrayBufferHelper(std::map<void*, size_t>& live_buffers,
-                                    void* data, size_t length);
-  void UnregisterArrayBufferHelper(
-      std::map<void*, size_t>& live_buffers,
-      std::map<void*, size_t>& not_yet_discovered_buffers, void* data);
-  void RegisterLiveArrayBufferHelper(
-      std::map<void*, size_t>& not_yet_discovered_buffers, void* data);
-  size_t FreeDeadArrayBuffersHelper(
-      Isolate* isolate, std::map<void*, size_t>& live_buffers,
-      std::map<void*, size_t>& not_yet_discovered_buffers);
-  void TearDownArrayBuffersHelper(
-      Isolate* isolate, std::map<void*, size_t>& live_buffers,
-      std::map<void*, size_t>& not_yet_discovered_buffers);
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
@@ -2352,9 +2319,7 @@ class Heap {
   bool concurrent_sweeping_enabled_;
 
   std::map<void*, size_t> live_array_buffers_;
-  std::map<void*, size_t> live_new_array_buffers_;
   std::map<void*, size_t> not_yet_discovered_array_buffers_;
-  std::map<void*, size_t> not_yet_discovered_new_array_buffers_;
 
   struct StrongRootsList;
   StrongRootsList* strong_roots_list_;

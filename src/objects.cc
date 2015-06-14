@@ -16470,8 +16470,7 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   void* backing_store =
       isolate->array_buffer_allocator()->AllocateUninitialized(
           fixed_typed_array->DataSize());
-  isolate->heap()->RegisterNewArrayBuffer(isolate->heap()->InNewSpace(*buffer),
-                                          backing_store,
+  isolate->heap()->RegisterNewArrayBuffer(backing_store,
                                           fixed_typed_array->DataSize());
   buffer->set_backing_store(backing_store);
   buffer->set_is_external(false);
