@@ -236,10 +236,6 @@ void FullCodeGenerator::Generate() {
   Variable* this_function_var = scope()->this_function_var();
   if (this_function_var != nullptr) {
     Comment cmnt(masm_, "[ This function");
-    if (!function_in_register) {
-      __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-      function_in_register = true;
-    }
     SetVar(this_function_var, edi, ebx, edx);
   }
 
