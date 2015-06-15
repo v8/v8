@@ -2562,6 +2562,8 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       return nullptr;
 
     case Token::THIS:
+      if (!FLAG_strong_this) break;
+      // Fall through.
     case Token::SUPER:
       if (is_strong(language_mode()) &&
           i::IsConstructor(function_state_->kind())) {

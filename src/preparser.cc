@@ -599,6 +599,8 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
       return Statement::Default();
 
     case Token::THIS:
+      if (!FLAG_strong_this) break;
+      // Fall through.
     case Token::SUPER:
       if (is_strong(language_mode()) &&
           i::IsConstructor(function_state_->kind())) {
