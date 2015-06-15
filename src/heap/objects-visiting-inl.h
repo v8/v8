@@ -302,7 +302,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(Map* map,
 
   // When map collection is enabled we have to mark through map's transitions
   // and back pointers in a special way to make these links weak.
-  if (FLAG_collect_maps && map_object->CanTransition()) {
+  if (map_object->CanTransition()) {
     MarkMapContents(heap, map_object);
   } else {
     StaticVisitor::VisitPointers(

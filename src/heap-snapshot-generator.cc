@@ -1294,7 +1294,7 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
         TransitionArray::cast(raw_transitions_or_prototype_info);
     int transitions_entry = GetEntry(transitions)->index();
 
-    if (FLAG_collect_maps && map->CanTransition()) {
+    if (map->CanTransition()) {
       if (transitions->HasPrototypeTransitions()) {
         FixedArray* prototype_transitions =
             transitions->GetPrototypeTransitions();

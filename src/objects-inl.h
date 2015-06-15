@@ -4867,7 +4867,6 @@ Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
 
 
 bool Code::IsWeakObjectInOptimizedCode(Object* object) {
-  if (!FLAG_collect_maps) return false;
   if (object->IsMap()) {
     return Map::cast(object)->CanTransition() &&
            FLAG_weak_embedded_maps_in_optimized_code;

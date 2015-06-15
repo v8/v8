@@ -345,7 +345,7 @@ void MarkCompactCollector::CollectGarbage() {
   // arrays are cleared or contain only live code objects.
   ProcessAndClearWeakCells();
 
-  if (FLAG_collect_maps) ClearNonLiveReferences();
+  ClearNonLiveReferences();
 
   ClearWeakCollections();
 
@@ -369,7 +369,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
   VerifyWeakEmbeddedObjectsInCode();
-  if (FLAG_collect_maps && FLAG_omit_map_checks_for_leaf_maps) {
+  if (FLAG_omit_map_checks_for_leaf_maps) {
     VerifyOmittedMapChecks();
   }
 #endif

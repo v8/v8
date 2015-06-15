@@ -3407,7 +3407,6 @@ TEST(TransitionArraySimpleToFull) {
 
 
 TEST(Regress2143a) {
-  i::FLAG_collect_maps = true;
   i::FLAG_incremental_marking = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3447,7 +3446,6 @@ TEST(Regress2143a) {
 
 
 TEST(Regress2143b) {
-  i::FLAG_collect_maps = true;
   i::FLAG_incremental_marking = true;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
