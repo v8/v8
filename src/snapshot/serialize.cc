@@ -714,20 +714,16 @@ class StringTableInsertionKey : public HashTableKey {
 
 HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   if (deserializing_user_code()) {
-    if (obj->IsString()) {
+    if (obj->IsInternalizedString()) {
+      // Canonicalize the internalized string. If it already exists in the
+      // string table, set it to forward to the existing one.
+      DisallowHeapAllocation no_gc;
       String* string = String::cast(obj);
-      // Uninitialize hash field as the hash seed may have changed.
-      string->set_hash_field(String::kEmptyHashField);
-      if (string->IsInternalizedString()) {
-        // Canonicalize the internalized string. If it already exists in the
-        // string table, set it to forward to the existing one.
-        DisallowHeapAllocation no_gc;
-        HandleScope scope(isolate_);
-        StringTableInsertionKey key(string);
-        String* canonical = *StringTable::LookupKey(isolate_, &key);
-        string->SetForwardedInternalizedString(canonical);
-        return canonical;
-      }
+      HandleScope scope(isolate_);
+      StringTableInsertionKey key(string);
+      String* canonical = *StringTable::LookupKey(isolate_, &key);
+      string->SetForwardedInternalizedString(canonical);
+      return canonical;
     } else if (obj->IsScript()) {
       // Assign a new script id to avoid collision.
       Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
@@ -2304,12 +2300,24 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
                                       HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
-  if (heap_object->IsInternalizedString()) num_internalized_strings_++;
+  int string_hash = String::kEmptyHashField;
+  if (heap_object->IsString()) {
+    String* string = String::cast(heap_object);
+    if (string->IsInternalizedString()) num_internalized_strings_++;
+    // Temporarily clear string hash.
+    string_hash = string->hash_field();
+    string->set_hash_field(String::kEmptyHashField);
+  }
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
+
+  if (string_hash != String::kEmptyHashField) {
+    // Restore string hash.
+    String::cast(heap_object)->set_hash_field(String::kEmptyHashField);
+  }
 }
 
 
