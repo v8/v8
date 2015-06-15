@@ -43,6 +43,8 @@ utils.Import(function(from) {
   MathMin = from.MathMin;
 });
 
+var InternalArray = utils.InternalArray;
+
 // --------------- Typed Arrays ---------------------
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
@@ -130,6 +132,24 @@ function NAMEConstructByArrayLike(obj, arrayLike) {
   }
 }
 
+function NAMEConstructByIterable(obj, iterable, iteratorFn) {
+  var list = new InternalArray();
+  // Reading the Symbol.iterator property of iterable twice would be
+  // observable with getters, so instead, we call the function which
+  // was already looked up, and wrap it in another iterable. The
+  // __proto__ of the new iterable is set to null to avoid any chance
+  // of modifications to Object.prototype being observable here.
+  var iterator = %_CallFunction(iterable, iteratorFn);
+  var newIterable = {
+    __proto__: null,
+    [symbolIterator]() { return iterator; }
+  };
+  for (var value of newIterable) {
+    list.push(value);
+  }
+  NAMEConstructByArrayLike(obj, list);
+}
+
 function NAMEConstructor(arg1, arg2, arg3) {
   if (%_IsConstructCall()) {
     if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
@@ -138,7 +158,12 @@ function NAMEConstructor(arg1, arg2, arg3) {
                IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
       NAMEConstructByLength(this, arg1);
     } else {
-      NAMEConstructByArrayLike(this, arg1);
+      var iteratorFn = arg1[symbolIterator];
+      if (IS_UNDEFINED(iteratorFn) || iteratorFn === $arrayValues) {
+        NAMEConstructByArrayLike(this, arg1);
+      } else {
+        NAMEConstructByIterable(this, arg1, iteratorFn);
+      }
     }
   } else {
     throw MakeTypeError(kConstructorNotFunction, "NAME")
