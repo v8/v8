@@ -1173,7 +1173,6 @@ class InstructionSequence final : public ZoneObject {
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrintableInstructionSequence& code);
 
-  typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
   typedef ZoneMap<const Instruction*, SourcePosition> SourcePositionMap;
 
   Isolate* isolate_;
