@@ -141,9 +141,11 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   // of modifications to Object.prototype being observable here.
   var iterator = %_CallFunction(iterable, iteratorFn);
   var newIterable = {
-    __proto__: null,
-    [symbolIterator]() { return iterator; }
+    __proto__: null
   };
+  // TODO(littledan): Computed properties don't work yet in nosnap.
+  // Rephrase when they do.
+  newIterable[symbolIterator] = function() { return iterator; }
   for (var value of newIterable) {
     list.push(value);
   }
