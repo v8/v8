@@ -326,57 +326,55 @@ class Simulator {
   inline int32_t SetDoubleLOW(double* addr);
 
   // functions called from DecodeTypeRegister
-  void DecodeTypeRegisterCOP1(Instruction* instr, const int32_t& rs_reg,
-                              const int64_t& rs, const uint64_t& rs_u,
-                              const int32_t& rt_reg, const int64_t& rt,
-                              const uint64_t& rt_u, const int32_t& rd_reg,
-                              const int32_t& fr_reg, const int32_t& fs_reg,
-                              const int32_t& ft_reg, const int32_t& fd_reg,
+  void DecodeTypeRegisterCOP1(Instruction* instr, const int32_t rs_reg,
+                              const int64_t rs, const uint64_t rs_u,
+                              const int32_t rt_reg, const int64_t rt,
+                              const uint64_t rt_u, const int32_t rd_reg,
+                              const int32_t fr_reg, const int32_t fs_reg,
+                              const int32_t ft_reg, const int32_t fd_reg,
                               int64_t& alu_out);
 
-  void DecodeTypeRegisterCOP1X(Instruction* instr, const int32_t& fr_reg,
-                               const int32_t& fs_reg, const int32_t& ft_reg,
-                               const int32_t& fd_reg);
+  void DecodeTypeRegisterCOP1X(Instruction* instr, const int32_t fr_reg,
+                               const int32_t fs_reg, const int32_t ft_reg,
+                               const int32_t fd_reg);
 
   void DecodeTypeRegisterSPECIAL(
-      Instruction* instr, const int64_t& rs_reg, const int64_t& rs,
-      const uint64_t& rs_u, const int64_t& rt_reg, const int64_t& rt,
-      const uint64_t& rt_u, const int64_t& rd_reg, const int32_t& fr_reg,
-      const int32_t& fs_reg, const int32_t& ft_reg, const int64_t& fd_reg,
-      int64_t& i64hilo, uint64_t& u64hilo, int64_t& alu_out, bool& do_interrupt,
-      int64_t& current_pc, int64_t& next_pc, int64_t& return_addr_reg,
-      int64_t& i128resultH, int64_t& i128resultL);
+      Instruction* instr, const int32_t rs_reg, const int64_t rs,
+      const uint64_t rs_u, const int32_t rt_reg, const int64_t rt,
+      const uint64_t rt_u, const int32_t rd_reg, const int32_t fr_reg,
+      const int32_t fs_reg, const int32_t ft_reg, const int32_t fd_reg,
+      const int64_t i64hilo, const uint64_t u64hilo, const int64_t alu_out,
+      const bool do_interrupt, const int64_t current_pc, const int64_t next_pc,
+      const int32_t return_addr_reg, const int64_t i128resultH,
+      const int64_t i128resultL);
 
-  void DecodeTypeRegisterSPECIAL2(Instruction* instr, const int64_t& rd_reg,
-                                  int64_t& alu_out);
 
-  void DecodeTypeRegisterSPECIAL3(Instruction* instr, const int64_t& rt_reg,
-                                  const int64_t& rd_reg, int64_t& alu_out);
+  void DecodeTypeRegisterSPECIAL2(Instruction* instr, const int32_t rd_reg,
+                                  const int64_t alu_out);
 
-  void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t& fs_reg,
-                                 const int32_t& ft_reg, const int32_t& fd_reg);
+  void DecodeTypeRegisterSPECIAL3(Instruction* instr, const int32_t rt_reg,
+                                  const int32_t rd_reg, const int64_t alu_out);
 
-  void DecodeTypeRegisterDRsType(Instruction* instr, const int32_t& fs_reg,
-                                 const int32_t& ft_reg, const int32_t& fd_reg);
+  void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t fs_reg,
+                                 const int32_t ft_reg, const int32_t fd_reg);
 
-  void DecodeTypeRegisterWRsType(Instruction* instr, const int32_t& fs_reg,
-                                 const int32_t& ft_reg, const int32_t& fd_reg,
+  void DecodeTypeRegisterDRsType(Instruction* instr, const int32_t fs_reg,
+                                 const int32_t ft_reg, const int32_t fd_reg);
+
+  void DecodeTypeRegisterWRsType(Instruction* instr, const int32_t fs_reg,
+                                 const int32_t ft_reg, const int32_t fd_reg,
                                  int64_t& alu_out);
 
-  void DecodeTypeRegisterLRsType(Instruction* instr, const int32_t& fs_reg,
-                                 const int32_t& fd_reg, const int32_t& ft_reg);
+  void DecodeTypeRegisterLRsType(Instruction* instr, const int32_t fs_reg,
+                                 const int32_t fd_reg, const int32_t ft_reg);
   // Executing is handled based on the instruction type.
   void DecodeTypeRegister(Instruction* instr);
 
   // Helper function for DecodeTypeRegister.
-  void ConfigureTypeRegister(Instruction* instr,
-                             int64_t* alu_out,
-                             int64_t* i64hilo,
-                             uint64_t* u64hilo,
-                             int64_t* next_pc,
-                             int64_t* return_addr_reg,
-                             bool* do_interrupt,
-                             int64_t* result128H,
+  void ConfigureTypeRegister(Instruction* instr, int64_t* alu_out,
+                             int64_t* i64hilo, uint64_t* u64hilo,
+                             int64_t* next_pc, int* return_addr_reg,
+                             bool* do_interrupt, int64_t* result128H,
                              int64_t* result128L);
 
   void DecodeTypeImmediate(Instruction* instr);
@@ -418,7 +416,7 @@ class Simulator {
   // ICache.
   static void CheckICache(v8::internal::HashMap* i_cache, Instruction* instr);
   static void FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
-                           int size);
+                           size_t size);
   static CachePage* GetCachePage(v8::internal::HashMap* i_cache, void* page);
 
   enum Exception {
@@ -498,12 +496,14 @@ class Simulator {
 
 #ifdef MIPS_ABI_N64
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-    Simulator::current(Isolate::Current())->Call( \
-        entry, 10, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8)
+  static_cast<int>(                                                           \
+      Simulator::current(Isolate::Current())                                  \
+          ->Call(entry, 10, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
 #else  // Must be O32 Abi.
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-    Simulator::current(Isolate::Current())->Call( \
-        entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
+  static_cast<int>(                                                           \
+      Simulator::current(Isolate::Current())                                  \
+          ->Call(entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
 #endif  // MIPS_ABI_N64
 
 

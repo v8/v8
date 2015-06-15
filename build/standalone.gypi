@@ -473,7 +473,8 @@
         ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64")', {
+          [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
+            or v8_target_arch=="mips64el")', {
             'cflags': [ '-Wshorten-64-to-32' ],
           }],
           [ 'host_arch=="ppc64" and OS!="aix"', {

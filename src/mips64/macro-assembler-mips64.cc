@@ -622,7 +622,7 @@ void MacroAssembler::Addu(Register rd, Register rs, const Operand& rt) {
     addu(rd, rs, rt.rm());
   } else {
     if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      addiu(rd, rs, rt.imm64_);
+      addiu(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -638,7 +638,7 @@ void MacroAssembler::Daddu(Register rd, Register rs, const Operand& rt) {
     daddu(rd, rs, rt.rm());
   } else {
     if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      daddiu(rd, rs, rt.imm64_);
+      daddiu(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -654,7 +654,8 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
     subu(rd, rs, rt.rm());
   } else {
     if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      addiu(rd, rs, -rt.imm64_);  // No subiu instr, use addiu(x, y, -imm).
+      addiu(rd, rs, static_cast<int32_t>(
+                        -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -670,7 +671,9 @@ void MacroAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
     dsubu(rd, rs, rt.rm());
   } else {
     if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      daddiu(rd, rs, -rt.imm64_);  // No subiu instr, use addiu(x, y, -imm).
+      daddiu(rd, rs,
+             static_cast<int32_t>(
+                 -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1067,7 +1070,7 @@ void MacroAssembler::And(Register rd, Register rs, const Operand& rt) {
     and_(rd, rs, rt.rm());
   } else {
     if (is_uint16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      andi(rd, rs, rt.imm64_);
+      andi(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1083,7 +1086,7 @@ void MacroAssembler::Or(Register rd, Register rs, const Operand& rt) {
     or_(rd, rs, rt.rm());
   } else {
     if (is_uint16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      ori(rd, rs, rt.imm64_);
+      ori(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1099,7 +1102,7 @@ void MacroAssembler::Xor(Register rd, Register rs, const Operand& rt) {
     xor_(rd, rs, rt.rm());
   } else {
     if (is_uint16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      xori(rd, rs, rt.imm64_);
+      xori(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1136,7 +1139,7 @@ void MacroAssembler::Slt(Register rd, Register rs, const Operand& rt) {
     slt(rd, rs, rt.rm());
   } else {
     if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      slti(rd, rs, rt.imm64_);
+      slti(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1152,7 +1155,7 @@ void MacroAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
     sltu(rd, rs, rt.rm());
   } else {
     if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      sltiu(rd, rs, rt.imm64_);
+      sltiu(rd, rs, static_cast<int32_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -2331,7 +2334,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         if (rt.imm64_ == 0) {
           bgez(rs, offset);
         } else if (is_int16(rt.imm64_)) {
-          slti(scratch, rs, rt.imm64_);
+          slti(scratch, rs, static_cast<int32_t>(rt.imm64_));
           beq(scratch, zero_reg, offset);
         } else {
           r2 = scratch;
@@ -2344,7 +2347,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         if (rt.imm64_ == 0) {
           bltz(rs, offset);
         } else if (is_int16(rt.imm64_)) {
-          slti(scratch, rs, rt.imm64_);
+          slti(scratch, rs, static_cast<int32_t>(rt.imm64_));
           bne(scratch, zero_reg, offset);
         } else {
           r2 = scratch;
@@ -2378,7 +2381,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         if (rt.imm64_ == 0) {
           b(offset);
         } else if (is_int16(rt.imm64_)) {
-          sltiu(scratch, rs, rt.imm64_);
+          sltiu(scratch, rs, static_cast<int32_t>(rt.imm64_));
           beq(scratch, zero_reg, offset);
         } else {
           r2 = scratch;
@@ -2392,7 +2395,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
           // No code needs to be emitted.
           return;
         } else if (is_int16(rt.imm64_)) {
-          sltiu(scratch, rs, rt.imm64_);
+          sltiu(scratch, rs, static_cast<int32_t>(rt.imm64_));
           bne(scratch, zero_reg, offset);
         } else {
           r2 = scratch;
@@ -2598,7 +2601,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
           offset = shifted_branch_offset(L, false);
           bgez(rs, offset);
         } else if (is_int16(rt.imm64_)) {
-          slti(scratch, rs, rt.imm64_);
+          slti(scratch, rs, static_cast<int32_t>(rt.imm64_));
           offset = shifted_branch_offset(L, false);
           beq(scratch, zero_reg, offset);
         } else {
@@ -2615,7 +2618,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
           offset = shifted_branch_offset(L, false);
           bltz(rs, offset);
         } else if (is_int16(rt.imm64_)) {
-          slti(scratch, rs, rt.imm64_);
+          slti(scratch, rs, static_cast<int32_t>(rt.imm64_));
           offset = shifted_branch_offset(L, false);
           bne(scratch, zero_reg, offset);
         } else {
@@ -2659,7 +2662,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
           offset = shifted_branch_offset(L, false);
           b(offset);
         } else if (is_int16(rt.imm64_)) {
-          sltiu(scratch, rs, rt.imm64_);
+          sltiu(scratch, rs, static_cast<int32_t>(rt.imm64_));
           offset = shifted_branch_offset(L, false);
           beq(scratch, zero_reg, offset);
         } else {
@@ -2676,7 +2679,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
           // No code needs to be emitted.
           return;
         } else if (is_int16(rt.imm64_)) {
-          sltiu(scratch, rs, rt.imm64_);
+          sltiu(scratch, rs, static_cast<int32_t>(rt.imm64_));
           offset = shifted_branch_offset(L, false);
           bne(scratch, zero_reg, offset);
         } else {
@@ -3456,7 +3459,7 @@ void MacroAssembler::Allocate(int object_size,
       Check(eq, kUnexpectedAllocationTop, result, Operand(t9));
     }
     // Load allocation limit into t9. Result already contains allocation top.
-    ld(t9, MemOperand(topaddr, limit - top));
+    ld(t9, MemOperand(topaddr, static_cast<int32_t>(limit - top)));
   }
 
   DCHECK(kPointerSize == kDoubleSize);
@@ -3532,7 +3535,7 @@ void MacroAssembler::Allocate(Register object_size,
       Check(eq, kUnexpectedAllocationTop, result, Operand(t9));
     }
     // Load allocation limit into t9. Result already contains allocation top.
-    ld(t9, MemOperand(topaddr, limit - top));
+    ld(t9, MemOperand(topaddr, static_cast<int32_t>(limit - top)));
   }
 
   DCHECK(kPointerSize == kDoubleSize);
@@ -4460,17 +4463,18 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst, Register left,
   } else {
     if (dst.is(left)) {
       mov(scratch, left);                    // Preserve left.
-      daddiu(dst, left, right.immediate());  // Left is overwritten.
+      daddiu(dst, left,
+             static_cast<int32_t>(right.immediate()));  // Left is overwritten.
       xor_(scratch, dst, scratch);           // Original left.
       // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, right.immediate());
+      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(overflow_dst, dst, t9);
       and_(overflow_dst, overflow_dst, scratch);
     } else {
-      daddiu(dst, left, right.immediate());
+      daddiu(dst, left, static_cast<int32_t>(right.immediate()));
       xor_(overflow_dst, dst, left);
       // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, right.immediate());
+      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(scratch, dst, t9);
       and_(overflow_dst, scratch, overflow_dst);
     }
@@ -4529,17 +4533,18 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst, Register left,
   } else {
     if (dst.is(left)) {
       mov(scratch, left);                       // Preserve left.
-      daddiu(dst, left, -(right.immediate()));  // Left is overwritten.
+      daddiu(dst, left,
+             static_cast<int32_t>(-right.immediate()));  // Left is overwritten.
       xor_(overflow_dst, dst, scratch);         // scratch is original left.
       // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, right.immediate());
+      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(scratch, scratch, t9);  // scratch is original left.
       and_(overflow_dst, scratch, overflow_dst);
     } else {
-      daddiu(dst, left, -(right.immediate()));
+      daddiu(dst, left, static_cast<int32_t>(-right.immediate()));
       xor_(overflow_dst, dst, left);
       // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, right.immediate());
+      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(scratch, left, t9);
       and_(overflow_dst, scratch, overflow_dst);
     }
@@ -4840,8 +4845,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
   ld(scratch,
      MemOperand(scratch,
                 Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
-  size_t offset = expected_kind * kPointerSize +
-      FixedArrayBase::kHeaderSize;
+  int offset = expected_kind * kPointerSize + FixedArrayBase::kHeaderSize;
   ld(at, FieldMemOperand(scratch, offset));
   Branch(no_map_match, ne, map_in_out, Operand(at));
 

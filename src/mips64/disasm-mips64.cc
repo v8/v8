@@ -272,7 +272,7 @@ void Decoder::PrintXImm21(Instruction* instr) {
 
 // Print 26-bit immediate value.
 void Decoder::PrintXImm26(Instruction* instr) {
-  uint32_t imm = instr->Imm26Value() << kImmFieldShift;
+  uint32_t imm = static_cast<uint32_t>(instr->Imm26Value()) << kImmFieldShift;
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
