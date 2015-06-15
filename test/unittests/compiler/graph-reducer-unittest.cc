@@ -596,12 +596,12 @@ TEST_F(GraphReducerTest, ReduceNew1) {
 TEST_F(GraphReducerTest, Wrapping1) {
   Node* end = graph()->NewNode(&kOpA0);
   graph()->SetEnd(end);
-  EXPECT_EQ(1, graph()->NodeCount());
+  EXPECT_EQ(1U, graph()->NodeCount());
 
   A0Wrapper r(graph());
 
   ReduceGraph(&r);
-  EXPECT_EQ(2, graph()->NodeCount());
+  EXPECT_EQ(2U, graph()->NodeCount());
 
   Node* nend = graph()->end();
   EXPECT_NE(end, nend);
@@ -614,12 +614,12 @@ TEST_F(GraphReducerTest, Wrapping1) {
 TEST_F(GraphReducerTest, Wrapping2) {
   Node* end = graph()->NewNode(&kOpB0);
   graph()->SetEnd(end);
-  EXPECT_EQ(1, graph()->NodeCount());
+  EXPECT_EQ(1U, graph()->NodeCount());
 
   B0Wrapper r(graph());
 
   ReduceGraph(&r);
-  EXPECT_EQ(3, graph()->NodeCount());
+  EXPECT_EQ(3U, graph()->NodeCount());
 
   Node* nend = graph()->end();
   EXPECT_NE(end, nend);

@@ -32,7 +32,7 @@ const Operator kOp2(kOpcode2, Operator::kNoProperties, "Op2", 2, 0, 0, 1, 0, 0);
 
 TEST_F(NodeTest, New) {
   Node* const node = Node::New(zone(), 1, &kOp0, 0, nullptr, false);
-  EXPECT_EQ(1, node->id());
+  EXPECT_EQ(1U, node->id());
   EXPECT_EQ(0, node->UseCount());
   EXPECT_TRUE(node->uses().empty());
   EXPECT_EQ(0, node->InputCount());
