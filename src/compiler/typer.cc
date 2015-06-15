@@ -26,6 +26,10 @@ namespace compiler {
   V(Float64)
 
 enum LazyCachedType {
+  kAnyFunc0,
+  kAnyFunc1,
+  kAnyFunc2,
+  kAnyFunc3,
   kNumberFunc0,
   kNumberFunc1,
   kNumberFunc2,
@@ -78,6 +82,15 @@ class LazyTypeCache final : public ZoneObject {
         return CreateNative(Type::Number(), Type::UntaggedFloat64());
       case kUint8Clamped:
         return Get(kUint8);
+      case kAnyFunc0:
+        return Type::Function(Type::Any(), zone());
+      case kAnyFunc1:
+        return Type::Function(Type::Any(), Type::Any(), zone());
+      case kAnyFunc2:
+        return Type::Function(Type::Any(), Type::Any(), Type::Any(), zone());
+      case kAnyFunc3:
+        return Type::Function(Type::Any(), Type::Any(), Type::Any(),
+                              Type::Any(), zone());
       case kNumberFunc0:
         return Type::Function(Type::Number(), zone());
       case kNumberFunc1:
@@ -2391,6 +2404,23 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
         return typer_->cache_->Get(kFloat32ArrayFunc);
       } else if (*value == native->float64_array_fun()) {
         return typer_->cache_->Get(kFloat64ArrayFunc);
+      }
+    }
+    int const arity =
+        JSFunction::cast(*value)->shared()->internal_formal_parameter_count();
+    switch (arity) {
+      case 0:
+        return typer_->cache_->Get(kAnyFunc0);
+      case 1:
+        return typer_->cache_->Get(kAnyFunc1);
+      case 2:
+        return typer_->cache_->Get(kAnyFunc2);
+      case 3:
+        return typer_->cache_->Get(kAnyFunc3);
+      default: {
+        Type** const params = zone()->NewArray<Type*>(arity);
+        std::fill(&params[0], &params[arity], Type::Any(zone()));
+        return Type::Function(Type::Any(zone()), arity, params, zone());
       }
     }
   } else if (value->IsJSTypedArray()) {

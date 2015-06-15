@@ -233,6 +233,7 @@ namespace internal {
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
   V(Object,              kDetectableObject | kUndetectable) \
   V(Receiver,            kObject | kProxy) \
+  V(ReceiverOrUndefined, kReceiver | kUndefined) \
   V(StringOrReceiver,    kString | kReceiver) \
   V(Unique,              kBoolean | kUniqueName | kNull | kUndefined | \
                          kReceiver) \
@@ -408,6 +409,14 @@ class TypeImpl : public Config::Base {
     function->InitParameter(0, param0);
     function->InitParameter(1, param1);
     function->InitParameter(2, param2);
+    return function;
+  }
+  static TypeHandle Function(TypeHandle result, int arity, TypeHandle* params,
+                             Region* region) {
+    FunctionHandle function = Function(result, Any(region), arity, region);
+    for (int i = 0; i < arity; ++i) {
+      function->InitParameter(i, params[i]);
+    }
     return function;
   }
 

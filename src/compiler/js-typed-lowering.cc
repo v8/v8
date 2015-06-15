@@ -1263,6 +1263,39 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  int const arity = static_cast<int>(p.arity() - 2);
+  Node* const function = NodeProperties::GetValueInput(node, 0);
+  Type* const function_type = NodeProperties::GetBounds(function).upper;
+  Node* const receiver = NodeProperties::GetValueInput(node, 1);
+  Type* const receiver_type = NodeProperties::GetBounds(receiver).upper;
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+
+  // Check that {function} is actually a JSFunction with the correct arity.
+  if (function_type->IsFunction() &&
+      function_type->AsFunction()->Arity() == arity) {
+    // Check that the {receiver} doesn't need to be wrapped.
+    if (receiver_type->Is(Type::ReceiverOrUndefined())) {
+      Node* const context = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
+          function, effect, control);
+      NodeProperties::ReplaceContextInput(node, context);
+      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+      if (is_strict(p.language_mode())) {
+        flags |= CallDescriptor::kSupportsTailCalls;
+      }
+      node->set_op(common()->Call(Linkage::GetJSCallDescriptor(
+          graph()->zone(), false, 1 + arity, flags)));
+      return Changed(node);
+    }
+  }
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::ReduceJSForInDone(Node* node) {
   DCHECK_EQ(IrOpcode::kJSForInDone, node->opcode());
   node->set_op(machine()->Word32Equal());
@@ -1631,6 +1664,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateWithContext(node);
     case IrOpcode::kJSCreateBlockContext:
       return ReduceJSCreateBlockContext(node);
+    case IrOpcode::kJSCallFunction:
+      return ReduceJSCallFunction(node);
     case IrOpcode::kJSForInDone:
       return ReduceJSForInDone(node);
     case IrOpcode::kJSForInNext:
