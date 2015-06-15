@@ -21087,6 +21087,58 @@ TEST(StreamingWithHarmonyScopes) {
 }
 
 
+TEST(CodeCache) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  const char* source = "Math.sqrt(4)";
+  const char* origin = "code cache test";
+  v8::ScriptCompiler::CachedData* cache;
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope iscope(isolate1);
+    v8::HandleScope scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope cscope(context);
+    v8::Local<v8::String> source_string = v8_str(source);
+    v8::ScriptOrigin script_origin(v8_str(origin));
+    v8::ScriptCompiler::Source source(source_string, script_origin);
+    v8::ScriptCompiler::CompileOptions option =
+        v8::ScriptCompiler::kProduceCodeCache;
+    v8::ScriptCompiler::Compile(context, &source, option).ToLocalChecked();
+    int length = source.GetCachedData()->length;
+    uint8_t* cache_data = new uint8_t[length];
+    memcpy(cache_data, source.GetCachedData()->data, length);
+    cache = new v8::ScriptCompiler::CachedData(
+        cache_data, length, v8::ScriptCompiler::CachedData::BufferOwned);
+  }
+  isolate1->Dispose();
+
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope cscope(context);
+    v8::Local<v8::String> source_string = v8_str(source);
+    v8::ScriptOrigin script_origin(v8_str(origin));
+    v8::ScriptCompiler::Source source(source_string, script_origin, cache);
+    v8::ScriptCompiler::CompileOptions option =
+        v8::ScriptCompiler::kConsumeCodeCache;
+    v8::Local<v8::Script> script;
+    {
+      i::DisallowCompilation no_compile(
+          reinterpret_cast<i::Isolate*>(isolate2));
+      script = v8::ScriptCompiler::Compile(context, &source, option)
+                   .ToLocalChecked();
+    }
+    CHECK_EQ(2, script->Run()->ToInt32(isolate2)->Int32Value());
+  }
+  isolate2->Dispose();
+}
+
+
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
   const char* garbage = "garbage garbage garbage garbage garbage garbage";
   const uint8_t* data = reinterpret_cast<const uint8_t*>(garbage);
