@@ -618,12 +618,12 @@ intptr_t GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()
 double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
   if (combined_mark_compact_speed_cache_ > 0)
     return combined_mark_compact_speed_cache_;
-  const double kEpsilon = 1;
+  const double kMinimumMarkingSpeed = 0.5;
   double speed1 =
       static_cast<double>(IncrementalMarkingSpeedInBytesPerMillisecond());
   double speed2 = static_cast<double>(
       FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
-  if (speed1 + speed2 < kEpsilon) {
+  if (speed1 < kMinimumMarkingSpeed || speed2 < kMinimumMarkingSpeed) {
     // No data for the incremental marking speed.
     // Return the non-incremental mark-compact speed.
     combined_mark_compact_speed_cache_ =
@@ -684,9 +684,11 @@ size_t GCTracer::AllocationThroughputInBytesPerMillisecond(
 }
 
 
-size_t GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
+size_t GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
+    const {
   static const double kThroughputTimeFrame = 5000;
-  return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrame);
+  return OldGenerationAllocationThroughputInBytesPerMillisecond(
+      kThroughputTimeFrame);
 }
 
 

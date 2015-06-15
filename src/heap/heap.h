@@ -1157,14 +1157,22 @@ class Heap {
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
 
+  static const double kMinHeapGrowingFactor;
+  static const double kMaxHeapGrowingFactor;
+  static const double kMaxHeapGrowingFactorMemoryConstrained;
+  static const double kMaxHeapGrowingFactorIdle;
+  static const double kTargetMutatorUtilization;
+
+  static double HeapGrowingFactor(double gc_speed, double mutator_speed);
+
   // Calculates the allocation limit based on a given growing factor and a
   // given old generation size.
   intptr_t CalculateOldGenerationAllocationLimit(double factor,
                                                  intptr_t old_gen_size);
 
   // Sets the allocation limit to trigger the next full garbage collection.
-  void SetOldGenerationAllocationLimit(intptr_t old_gen_size,
-                                       size_t current_allocation_throughput);
+  void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
+                                       double mutator_speed);
 
   // Indicates whether inline bump-pointer allocation has been disabled.
   bool inline_allocation_disabled() { return inline_allocation_disabled_; }

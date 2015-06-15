@@ -1242,7 +1242,9 @@ bool Heap::PerformGarbageCollection(
     old_gen_exhausted_ = false;
     old_generation_size_configured_ = true;
     // This should be updated before PostGarbageCollectionProcessing, which can
-    // cause another GC.
+    // cause another GC. Take into account the objects promoted during GC.
+    old_generation_allocation_counter_ +=
+        static_cast<size_t>(promoted_objects_size_);
     old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
   } else {
     Scavenge();
@@ -1285,9 +1287,12 @@ bool Heap::PerformGarbageCollection(
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
-    SetOldGenerationAllocationLimit(
-        PromotedSpaceSizeOfObjects(),
-        tracer()->CurrentAllocationThroughputInBytesPerMillisecond());
+    double gc_speed = tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
+    double mutator_speed = static_cast<double>(
+        tracer()
+            ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond());
+    intptr_t old_gen_size = PromotedSpaceSizeOfObjects();
+    SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   }
 
   {
@@ -5423,6 +5428,70 @@ int64_t Heap::PromotedExternalMemorySize() {
 }
 
 
+const double Heap::kMinHeapGrowingFactor = 1.1;
+const double Heap::kMaxHeapGrowingFactor = 4.0;
+const double Heap::kMaxHeapGrowingFactorMemoryConstrained = 2.0;
+const double Heap::kMaxHeapGrowingFactorIdle = 1.5;
+const double Heap::kTargetMutatorUtilization = 0.97;
+
+
+// Given GC speed in bytes per ms, the allocation throughput in bytes per ms
+// (mutator speed), this function returns the heap growing factor that will
+// achieve the kTargetMutatorUtilisation if the GC speed and the mutator speed
+// remain the same until the next GC.
+//
+// For a fixed time-frame T = TM + TG, the mutator utilization is the ratio
+// TM / (TM + TG), where TM is the time spent in the mutator and TG is the
+// time spent in the garbage collector.
+//
+// Let MU be kTargetMutatorUtilisation, the desired mutator utilization for the
+// time-frame from the end of the current GC to the end of the next GC. Based
+// on the MU we can compute the heap growing factor F as
+//
+// F = R * (1 - MU) / (R * (1 - MU) - MU), where R = gc_speed / mutator_speed.
+//
+// This formula can be derived as follows.
+//
+// F = Limit / Live by definition, where the Limit is the allocation limit,
+// and the Live is size of live objects.
+// Let’s assume that we already know the Limit. Then:
+//   TG = Limit / gc_speed
+//   TM = (TM + TG) * MU, by definition of MU.
+//   TM = TG * MU / (1 - MU)
+//   TM = Limit *  MU / (gc_speed * (1 - MU))
+// On the other hand, if the allocation throughput remains constant:
+//   Limit = Live + TM * allocation_throughput = Live + TM * mutator_speed
+// Solving it for TM, we get
+//   TM = (Limit - Live) / mutator_speed
+// Combining the two equation for TM:
+//   (Limit - Live) / mutator_speed = Limit * MU / (gc_speed * (1 - MU))
+//   (Limit - Live) = Limit * MU * mutator_speed / (gc_speed * (1 - MU))
+// substitute R = gc_speed / mutator_speed
+//   (Limit - Live) = Limit * MU  / (R * (1 - MU))
+// substitute F = Limit / Live
+//   F - 1 = F * MU  / (R * (1 - MU))
+//   F - F * MU / (R * (1 - MU)) = 1
+//   F * (1 - MU / (R * (1 - MU))) = 1
+//   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
+//   F = R * (1 - MU) / (R * (1 - MU) - MU)
+double Heap::HeapGrowingFactor(double gc_speed, double mutator_speed) {
+  if (gc_speed == 0 || mutator_speed == 0) return kMaxHeapGrowingFactor;
+
+  const double speed_ratio = gc_speed / mutator_speed;
+  const double mu = kTargetMutatorUtilization;
+
+  const double a = speed_ratio * (1 - mu);
+  const double b = speed_ratio * (1 - mu) - mu;
+
+  // The factor is a / b, but we need to check for small b first.
+  double factor =
+      (a < b * kMaxHeapGrowingFactor) ? a / b : kMaxHeapGrowingFactor;
+  factor = Min(factor, kMaxHeapGrowingFactor);
+  factor = Max(factor, kMinHeapGrowingFactor);
+  return factor;
+}
+
+
 intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
                                                      intptr_t old_gen_size) {
   CHECK(factor > 1.0);
@@ -5435,52 +5504,34 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
 }
 
 
-void Heap::SetOldGenerationAllocationLimit(
-    intptr_t old_gen_size, size_t current_allocation_throughput) {
-// Allocation throughput on Android devices is typically lower than on
-// non-mobile devices.
-#if V8_OS_ANDROID
-  const size_t kHighThroughput = 2500;
-  const size_t kLowThroughput = 250;
-#else
-  const size_t kHighThroughput = 10000;
-  const size_t kLowThroughput = 1000;
-#endif
-  const double min_scaling_factor = 1.1;
-  const double max_scaling_factor = 1.5;
-  double max_factor = 4;
-  const double idle_max_factor = 1.5;
+void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
+                                           double gc_speed,
+                                           double mutator_speed) {
+  double factor = HeapGrowingFactor(gc_speed, mutator_speed);
+
+  if (FLAG_trace_gc_verbose) {
+    PrintIsolate(isolate_,
+                 "Heap growing factor %.1f based on mu=%.3f, speed_ratio=%.f "
+                 "(gc=%.f, mutator=%.f)\n",
+                 factor, kTargetMutatorUtilization, gc_speed / mutator_speed,
+                 gc_speed, mutator_speed);
+  }
+
   // We set the old generation growing factor to 2 to grow the heap slower on
   // memory-constrained devices.
   if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice) {
-    max_factor = 2;
-  }
-
-  double factor;
-  double idle_factor;
-  if (current_allocation_throughput == 0 ||
-      current_allocation_throughput >= kHighThroughput) {
-    factor = max_factor;
-  } else if (current_allocation_throughput <= kLowThroughput) {
-    factor = min_scaling_factor;
-  } else {
-    // Compute factor using linear interpolation between points
-    // (kHighThroughput, max_scaling_factor) and (kLowThroughput, min_factor).
-    factor = min_scaling_factor +
-             (current_allocation_throughput - kLowThroughput) *
-                 (max_scaling_factor - min_scaling_factor) /
-                 (kHighThroughput - kLowThroughput);
+    factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
   if (FLAG_stress_compaction ||
       mark_compact_collector()->reduce_memory_footprint_) {
-    factor = min_scaling_factor;
+    factor = kMinHeapGrowingFactor;
   }
 
   // TODO(hpayer): Investigate if idle_old_generation_allocation_limit_ is still
   // needed after taking the allocation rate for the old generation limit into
   // account.
-  idle_factor = Min(factor, idle_max_factor);
+  double idle_factor = Min(factor, kMaxHeapGrowingFactorIdle);
 
   old_generation_allocation_limit_ =
       CalculateOldGenerationAllocationLimit(factor, old_gen_size);

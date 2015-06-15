@@ -402,10 +402,10 @@ class GCTracer {
   // Returns 0 if no allocation events have been recorded.
   size_t AllocationThroughputInBytesPerMillisecond(double time_ms) const;
 
-  // Allocation throughput in heap in bytes/milliseconds in
+  // Allocation throughput in old generation in bytes/milliseconds in
   // the last five seconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t CurrentAllocationThroughputInBytesPerMillisecond() const;
+  size_t CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
