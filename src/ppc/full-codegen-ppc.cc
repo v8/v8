@@ -248,6 +248,10 @@ void FullCodeGenerator::Generate() {
   Variable* this_function_var = scope()->this_function_var();
   if (this_function_var != nullptr) {
     Comment cmnt(masm_, "[ This function");
+    if (!function_in_register) {
+      __ LoadP(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+      function_in_register = true;
+    }
     SetVar(this_function_var, r4, r3, r5);
   }
 
