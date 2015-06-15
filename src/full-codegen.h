@@ -521,6 +521,7 @@ class FullCodeGenerator: public AstVisitor {
   F(IsSmi)                                \
   F(IsNonNegativeSmi)                     \
   F(IsArray)                              \
+  F(IsTypedArray)                         \
   F(IsRegExp)                             \
   F(IsJSProxy)                            \
   F(IsConstructCall)                      \

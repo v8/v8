@@ -339,7 +339,7 @@ function TypedArraySet(obj, offset) {
 }
 
 function TypedArrayGetToStringTag() {
-  if (!%IsTypedArray(this)) return;
+  if (!%_IsTypedArray(this)) return;
   var name = %_ClassOf(this);
   if (IS_UNDEFINED(name)) return;
   return name;

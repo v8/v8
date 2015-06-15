@@ -11758,6 +11758,16 @@ void HOptimizedGraphBuilder::GenerateIsArray(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateIsTypedArray(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HHasInstanceTypeAndBranch* result =
+      New<HHasInstanceTypeAndBranch>(value, JS_TYPED_ARRAY_TYPE);
+  return ast_context()->ReturnControl(result, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateIsRegExp(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

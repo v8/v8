@@ -2171,6 +2171,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 #define FOR_EACH_HYDROGEN_INTRINSIC(F) \
   F(IsSmi)                             \
   F(IsArray)                           \
+  F(IsTypedArray)                      \
   F(IsRegExp)                          \
   F(IsJSProxy)                         \
   F(IsConstructCall)                   \

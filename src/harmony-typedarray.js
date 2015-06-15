@@ -104,7 +104,7 @@ function ConstructTypedArrayLike(typedArray, arg) {
 }
 
 function TypedArrayCopyWithin(target, start, end) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -115,7 +115,7 @@ function TypedArrayCopyWithin(target, start, end) {
 
 // ES6 draft 05-05-15, section 22.2.3.7
 function TypedArrayEvery(f, receiver) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -125,7 +125,7 @@ function TypedArrayEvery(f, receiver) {
 
 // ES6 draft 08-24-14, section 22.2.3.12
 function TypedArrayForEach(f, receiver) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -135,7 +135,7 @@ function TypedArrayForEach(f, receiver) {
 
 // ES6 draft 04-05-14 section 22.2.3.8
 function TypedArrayFill(value, start, end) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -145,7 +145,7 @@ function TypedArrayFill(value, start, end) {
 
 // ES6 draft 07-15-13, section 22.2.3.9
 function TypedArrayFilter(predicate, thisArg) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
   var array = InnerArrayFilter(predicate, thisArg, this, length);
@@ -155,7 +155,7 @@ function TypedArrayFilter(predicate, thisArg) {
 
 // ES6 draft 07-15-13, section 22.2.3.10
 function TypedArrayFind(predicate, thisArg) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -165,7 +165,7 @@ function TypedArrayFind(predicate, thisArg) {
 
 // ES6 draft 07-15-13, section 22.2.3.11
 function TypedArrayFindIndex(predicate, thisArg) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -175,7 +175,7 @@ function TypedArrayFindIndex(predicate, thisArg) {
 
 // ES6 draft 05-18-15, section 22.2.3.21
 function TypedArrayReverse() {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -205,7 +205,7 @@ function TypedArrayComparefn(x, y) {
 
 // ES6 draft 05-18-15, section 22.2.3.25
 function TypedArraySort(comparefn) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -219,7 +219,7 @@ function TypedArraySort(comparefn) {
 
 // ES6 section 22.2.3.13
 function TypedArrayIndexOf(element, index) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -230,7 +230,7 @@ function TypedArrayIndexOf(element, index) {
 
 // ES6 section 22.2.3.16
 function TypedArrayLastIndexOf(element, index) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -242,7 +242,7 @@ function TypedArrayLastIndexOf(element, index) {
 
 // ES6 draft 07-15-13, section 22.2.3.18
 function TypedArrayMap(predicate, thisArg) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   // TODO(littledan): Preallocate rather than making an intermediate
   // InternalArray, for better performance.
@@ -255,7 +255,7 @@ function TypedArrayMap(predicate, thisArg) {
 
 // ES6 draft 05-05-15, section 22.2.3.24
 function TypedArraySome(f, receiver) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -266,7 +266,7 @@ function TypedArraySome(f, receiver) {
 
 // ES6 section 22.2.3.27
 function TypedArrayToLocaleString() {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -282,7 +282,7 @@ function TypedArrayToString() {
 
 // ES6 section 22.2.3.14
 function TypedArrayJoin(separator) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -292,7 +292,7 @@ function TypedArrayJoin(separator) {
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduce(callback, current) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduce(callback, current, this, length,
@@ -303,7 +303,7 @@ function TypedArrayReduce(callback, current) {
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduceRight(callback, current) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduceRight(callback, current, this, length,
@@ -313,7 +313,7 @@ function TypedArrayReduceRight(callback, current) {
 
 
 function TypedArraySlice(start, end) {
-  if (!%IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
   var len = %_TypedArrayGetLength(this);
 
   var relativeStart = TO_INTEGER(start);
