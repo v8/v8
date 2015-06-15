@@ -555,7 +555,7 @@ class ParserBase : public Traits {
                                      ExpressionT expr, bool* ok) {
     if (classifier->is_valid_binding_pattern()) {
       // A simple arrow formal parameter: IDENTIFIER => BODY.
-      if (!this->IsIdentifier(expr)) {
+      if (!allow_harmony_destructuring() && !this->IsIdentifier(expr)) {
         Traits::ReportMessageAt(scanner()->location(),
                                 MessageTemplate::kUnexpectedToken,
                                 Token::String(scanner()->current_token()));
@@ -1555,7 +1555,7 @@ class PreParserTraits {
     return !tag.IsNoTemplateTag();
   }
 
-  void DeclareFormalParameter(Scope* scope, PreParserIdentifier param,
+  void DeclareFormalParameter(Scope* scope, PreParserExpression pattern,
                               ExpressionClassifier* classifier, bool is_rest) {}
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
@@ -3487,10 +3487,21 @@ void ParserBase<Traits>::ParseFormalParameter(Scope* scope, bool is_rest,
                                               bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
-  IdentifierT name = ParseAndClassifyIdentifier(classifier, ok);
+
+  Token::Value next = peek();
+  ExpressionT pattern = ParsePrimaryExpression(classifier, ok);
   if (!*ok) return;
 
-  Traits::DeclareFormalParameter(scope, name, classifier, is_rest);
+  ValidateBindingPattern(classifier, ok);
+  if (!*ok) return;
+
+  if (!allow_harmony_destructuring() && !Traits::IsIdentifier(pattern)) {
+    ReportUnexpectedToken(next);
+    *ok = false;
+    return;
+  }
+
+  Traits::DeclareFormalParameter(scope, pattern, classifier, is_rest);
 }
 
 

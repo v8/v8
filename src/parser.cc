@@ -1183,13 +1183,19 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
       bool has_rest = false;
-      if (Check(Token::LPAREN)) {
-        // '(' StrictFormalParameters ')'
-        ParseFormalParameterList(scope, &has_rest, &formals_classifier, &ok);
-        if (ok) ok = Check(Token::RPAREN);
-      } else {
-        // BindingIdentifier
-        ParseFormalParameter(scope, has_rest, &formals_classifier, &ok);
+      {
+        // Parsing patterns as variable reference expression creates
+        // NewUnresolved references in current scope. Entrer arrow function
+        // scope for formal parameter parsing.
+        BlockState block_state(&scope_, scope);
+        if (Check(Token::LPAREN)) {
+          // '(' StrictFormalParameters ')'
+          ParseFormalParameterList(scope, &has_rest, &formals_classifier, &ok);
+          if (ok) ok = Check(Token::RPAREN);
+        } else {
+          // BindingIdentifier
+          ParseFormalParameter(scope, has_rest, &formals_classifier, &ok);
+        }
       }
 
       if (ok) {
@@ -3805,7 +3811,10 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     expr = expr->AsSpread()->expression();
   }
 
-  DCHECK(expr->IsVariableProxy());
+  if (!expr->IsVariableProxy()) {
+    // TODO(dslomov): support pattern desugaring
+    return;
+  }
   DCHECK(!expr->AsVariableProxy()->is_this());
 
   const AstRawString* raw_name = expr->AsVariableProxy()->raw_name();
@@ -3818,7 +3827,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
 
   ExpressionClassifier classifier;
-  DeclareFormalParameter(scope, raw_name, &classifier, *has_rest);
+  DeclareFormalParameter(scope, expr, &classifier, *has_rest);
   if (!duplicate_loc->IsValid()) {
     *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
   }

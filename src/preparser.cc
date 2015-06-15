@@ -549,7 +549,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
           ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
 
-      if (!FLAG_harmony_destructuring && !pattern.IsIdentifier()) {
+      if (!allow_harmony_destructuring() && !pattern.IsIdentifier()) {
         ReportUnexpectedToken(next);
         *ok = false;
         return Statement::Default();

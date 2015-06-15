@@ -754,7 +754,7 @@ class ParserTraits {
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
-  V8_INLINE void DeclareFormalParameter(Scope* scope, const AstRawString* name,
+  V8_INLINE void DeclareFormalParameter(Scope* scope, Expression* name,
                                         ExpressionClassifier* classifier,
                                         bool is_rest);
   void ParseArrowFunctionFormalParameters(Scope* scope, Expression* params,
@@ -1270,11 +1270,16 @@ Expression* ParserTraits::SpreadCallNew(
 }
 
 
-void ParserTraits::DeclareFormalParameter(Scope* scope,
-                                          const AstRawString* name,
+void ParserTraits::DeclareFormalParameter(Scope* scope, Expression* pattern,
                                           ExpressionClassifier* classifier,
                                           bool is_rest) {
   bool is_duplicate = false;
+  if (!pattern->IsVariableProxy()) {
+    // TODO(dslomov): implement.
+    DCHECK(parser_->allow_harmony_destructuring());
+    return;
+  }
+  auto name = pattern->AsVariableProxy()->raw_name();
   Variable* var = scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
   if (is_sloppy(scope->language_mode())) {
     // TODO(sigurds) Mark every parameter as maybe assigned. This is a

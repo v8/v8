@@ -6380,11 +6380,17 @@ TEST(StrongModeFreeVariablesNotDeclared) {
 
 TEST(DestructuringPositiveTests) {
   i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_arrow_functions = true;
   i::FLAG_harmony_computed_property_names = true;
 
   const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
                                    {"var ", " = {};"},
                                    {"'use strict'; const ", " = {};"},
+                                   {"function f(", ") {}"},
+                                   {"function f(argument1, ", ") {}"},
+                                   {"var f = (", ") => {};"},
+                                   {"var f = ", " => {};"},
+                                   {"var f = (argument1,", ") => {};"},
                                    {NULL, NULL}};
 
   // clang-format off
@@ -6424,9 +6430,9 @@ TEST(DestructuringPositiveTests) {
     "[a,,...rest]",
     NULL};
   // clang-format on
-  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
-                                            kAllowHarmonyComputedPropertyNames,
-                                            kAllowHarmonyDestructuring};
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyObjectLiterals, kAllowHarmonyComputedPropertyNames,
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -6434,15 +6440,21 @@ TEST(DestructuringPositiveTests) {
 
 TEST(DestructuringNegativeTests) {
   i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_arrow_functions = true;
   i::FLAG_harmony_computed_property_names = true;
-  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals,
-                                            kAllowHarmonyComputedPropertyNames,
-                                            kAllowHarmonyDestructuring};
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyObjectLiterals, kAllowHarmonyComputedPropertyNames,
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDestructuring};
 
   {  // All modes.
     const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
                                      {"var ", " = {};"},
                                      {"'use strict'; const ", " = {};"},
+                                     {"function f(", ") {}"},
+                                     {"function f(argument1, ", ") {}"},
+                                     {"var f = (", ") => {};"},
+                                     {"var f = ", " => {};"},
+                                     {"var f = (argument1,", ") => {};"},
                                      {NULL, NULL}};
 
     // clang-format off
@@ -6475,7 +6487,6 @@ TEST(DestructuringNegativeTests) {
         "a >>> a",
         "function a() {}",
         "a`bcd`",
-        "x => x",
         "this",
         "null",
         "true",
@@ -6483,7 +6494,6 @@ TEST(DestructuringNegativeTests) {
         "1",
         "'abc'",
         "class {}",
-        "() => x",
         "{+2 : x}",
         "{-2 : x}",
         "var",
@@ -6509,10 +6519,33 @@ TEST(DestructuringNegativeTests) {
                       arraysize(always_flags));
   }
 
-  {  // Strict mode.
+  {  // All modes.
     const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
+                                     {"var ", " = {};"},
                                      {"'use strict'; const ", " = {};"},
+                                     {"function f(", ") {}"},
+                                     {"function f(argument1, ", ") {}"},
+                                     {"var f = (", ") => {};"},
+                                     {"var f = (argument1,", ") => {};"},
                                      {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+        "x => x",
+        "() => x",
+        NULL};
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                      arraysize(always_flags));
+  }
+
+  {  // Strict mode.
+    const char* context_data[][2] = {
+        {"'use strict'; let ", " = {};"},
+        {"'use strict'; const ", " = {};"},
+        {"'use strict'; function f(", ") {}"},
+        {"'use strict'; function f(argument1, ", ") {}"},
+        {NULL, NULL}};
 
     // clang-format off
     const char* data[] = {
