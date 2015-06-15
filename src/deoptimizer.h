@@ -646,9 +646,16 @@ class Deoptimizer : public Malloced {
   void DoComputeCompiledStubFrame(TranslationIterator* iterator,
                                   int frame_index);
 
-  void WriteValueToOutput(TranslatedFrame::iterator* iterator, int* input_index,
-                          int frame_index, unsigned output_offset,
-                          Address output_address_for_materialization = nullptr);
+  void WriteTranslatedValueToOutput(
+      TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
+      unsigned output_offset, const char* debug_hint_string = nullptr,
+      Address output_address_for_materialization = nullptr);
+  void WriteValueToOutput(Object* value, int input_index, int frame_index,
+                          unsigned output_offset,
+                          const char* debug_hint_string);
+  void DebugPrintOutputSlot(intptr_t value, int frame_index,
+                            unsigned output_offset,
+                            const char* debug_hint_string);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;
