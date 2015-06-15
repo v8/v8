@@ -535,17 +535,9 @@ bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
   Type* ok_receiver = Type::Union(Type::Undefined(), Type::Receiver(), zone());
   if (!NodeProperties::GetBounds(receiver).upper->Is(ok_receiver)) return false;
 
-  int index = NodeProperties::FirstContextIndex(node);
-
-  // TODO(titzer): total hack to share function context constants.
-  // Remove this when the JSGraph canonicalizes heap constants.
-  Node* context = node->InputAt(index);
-  HeapObjectMatcher<Context> context_const(context);
-  if (!context_const.HasValue() ||
-      *(context_const.Value().handle()) != function->context()) {
-    context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
-  }
-  node->ReplaceInput(index, context);
+  // Update to the function context.
+  NodeProperties::ReplaceContextInput(
+      node, jsgraph()->HeapConstant(Handle<Context>(function->context())));
   CallDescriptor::Flags flags = FlagsForNode(node);
   if (is_strict(p.language_mode())) flags |= CallDescriptor::kSupportsTailCalls;
   CallDescriptor* desc =
