@@ -479,6 +479,8 @@
         '../../src/compiler/graph-visualizer.h',
         '../../src/compiler/graph.cc',
         '../../src/compiler/graph.h',
+        '../../src/compiler/greedy-allocator.cc',
+        '../../src/compiler/greedy-allocator.h',
         '../../src/compiler/instruction-codes.h',
         '../../src/compiler/instruction-selector-impl.h',
         '../../src/compiler/instruction-selector.cc',
