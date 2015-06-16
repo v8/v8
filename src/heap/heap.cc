@@ -530,7 +530,8 @@ void Heap::RepairFreeListsAfterDeserialization() {
 }
 
 
-void Heap::ProcessPretenuringFeedback() {
+bool Heap::ProcessPretenuringFeedback() {
+  bool trigger_deoptimization = false;
   if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
     int dont_tenure_decisions = 0;
@@ -551,7 +552,6 @@ void Heap::ProcessPretenuringFeedback() {
 
     int i = 0;
     Object* list_element = allocation_sites_list();
-    bool trigger_deoptimization = false;
     bool maximum_size_scavenge = MaximumSizeScavenge();
     while (use_scratchpad ? i < allocation_sites_scratchpad_length_
                           : list_element->IsAllocationSite()) {
@@ -603,6 +603,7 @@ void Heap::ProcessPretenuringFeedback() {
           dont_tenure_decisions);
     }
   }
+  return trigger_deoptimization;
 }
 
 
@@ -631,9 +632,6 @@ void Heap::GarbageCollectionEpilogue() {
   if (Heap::ShouldZapGarbage()) {
     ZapFromSpace();
   }
-
-  // Process pretenuring feedback and update allocation sites.
-  ProcessPretenuringFeedback();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -1250,9 +1248,14 @@ bool Heap::PerformGarbageCollection(
     Scavenge();
   }
 
-
+  bool deopted = ProcessPretenuringFeedback();
   UpdateSurvivalStatistics(start_new_space_size);
-  ConfigureNewGenerationSize();
+
+  // When pretenuring is collecting new feedback, we do not shrink the new space
+  // right away.
+  if (!deopted) {
+    ConfigureNewGenerationSize();
+  }
   ConfigureInitialOldGenerationSize();
 
   isolate_->counters()->objs_since_last_young()->Set(0);

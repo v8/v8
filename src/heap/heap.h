@@ -1865,7 +1865,7 @@ class Heap {
   // space evacuation. Note that between feedback collection and calling this
   // method object in old space must not move.
   // Right now we only process pretenuring feedback in high promotion mode.
-  void ProcessPretenuringFeedback();
+  bool ProcessPretenuringFeedback();
 
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
