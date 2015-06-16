@@ -241,6 +241,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
   CHECK(IsHeapObject() &&
         HeapObject::cast(this)->map()->instance_type() ==
             Traits::kInstanceType);
+  CHECK(base_pointer() == this);
 }
 
 

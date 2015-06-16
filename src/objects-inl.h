@@ -1538,6 +1538,9 @@ HeapObjectContents HeapObject::ContentType() {
   } else if (type == JS_FUNCTION_TYPE) {
     return HeapObjectContents::kMixedValues;
 #endif
+  } else if (type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
+             type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
+    return HeapObjectContents::kMixedValues;
   } else if (type <= LAST_DATA_TYPE) {
     // TODO(jochen): Why do we claim that Code and Map contain only raw values?
     return HeapObjectContents::kRawValues;
@@ -3875,6 +3878,9 @@ void ExternalFloat64Array::set(int index, double value) {
   double* ptr = static_cast<double*>(external_pointer());
   ptr[index] = value;
 }
+
+
+ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
 
 void* FixedTypedArrayBase::DataPtr() {
@@ -7158,6 +7164,19 @@ template<typename StaticVisitor>
 void Foreign::ForeignIterateBody() {
   StaticVisitor::VisitExternalReference(
       reinterpret_cast<Address*>(FIELD_ADDR(this, kForeignAddressOffset)));
+}
+
+
+void FixedTypedArrayBase::FixedTypedArrayBaseIterateBody(ObjectVisitor* v) {
+  v->VisitPointer(
+      reinterpret_cast<Object**>(FIELD_ADDR(this, kBasePointerOffset)));
+}
+
+
+template <typename StaticVisitor>
+void FixedTypedArrayBase::FixedTypedArrayBaseIterateBody() {
+  StaticVisitor::VisitPointer(
+      reinterpret_cast<Object**>(FIELD_ADDR(this, kBasePointerOffset)));
 }
 
 

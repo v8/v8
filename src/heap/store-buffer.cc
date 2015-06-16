@@ -498,7 +498,12 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
                 }
 
                 case HeapObjectContents::kMixedValues: {
-                  if (FLAG_unbox_double_fields) {
+                  if (heap_object->IsFixedTypedArrayBase()) {
+                    FindPointersToNewSpaceInRegion(
+                        obj_address + FixedTypedArrayBase::kBasePointerOffset,
+                        obj_address + FixedTypedArrayBase::kHeaderSize,
+                        slot_callback);
+                  } else if (FLAG_unbox_double_fields) {
                     LayoutDescriptorHelper helper(heap_object->map());
                     DCHECK(!helper.all_fields_tagged());
                     for (int offset = start_offset; offset < end_offset;) {

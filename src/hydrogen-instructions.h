@@ -5928,6 +5928,11 @@ class HObjectAccess final {
         Representation::Smi());
   }
 
+  static HObjectAccess ForFixedTypedArrayBaseBasePointer() {
+    return HObjectAccess(kInobject, FixedTypedArrayBase::kBasePointerOffset,
+                         Representation::Tagged());
+  }
+
   static HObjectAccess ForStringHashField() {
     return HObjectAccess(kInobject,
                          String::kHashFieldOffset,

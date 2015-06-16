@@ -1478,10 +1478,15 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case FREE_SPACE_TYPE:
       break;
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
-    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
-    case FIXED_##TYPE##_ARRAY_TYPE:                                            \
-      break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case EXTERNAL_##TYPE##_ARRAY_TYPE:                    \
+    break;                                              \
+                                                        \
+  case FIXED_##TYPE##_ARRAY_TYPE:                       \
+    reinterpret_cast<FixedTypedArrayBase*>(this)        \
+        ->FixedTypedArrayBaseIterateBody(v);            \
+    break;
+
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE

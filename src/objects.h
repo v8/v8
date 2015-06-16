@@ -4593,7 +4593,20 @@ class ExternalFloat64Array: public ExternalArray {
 
 class FixedTypedArrayBase: public FixedArrayBase {
  public:
+  // [base_pointer]: For now, points to the FixedTypedArrayBase itself.
+  DECL_ACCESSORS(base_pointer, Object)
+
+  // Dispatched behavior.
+  inline void FixedTypedArrayBaseIterateBody(ObjectVisitor* v);
+
+  template <typename StaticVisitor>
+  inline void FixedTypedArrayBaseIterateBody();
+
   DECLARE_CAST(FixedTypedArrayBase)
+
+  static const int kBasePointerOffset =
+      FixedArrayBase::kHeaderSize + kPointerSize;
+  static const int kHeaderSize = kBasePointerOffset + kPointerSize;
 
   static const int kDataOffset = DOUBLE_POINTER_ALIGN(kHeaderSize);
 

@@ -9916,6 +9916,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   Add<HStoreNamedField>(elements,
       HObjectAccess::ForFixedArrayLength(),
       length);
+  Add<HStoreNamedField>(
+      elements, HObjectAccess::ForFixedTypedArrayBaseBasePointer(), elements);
 
   HValue* filler = Add<HConstant>(static_cast<int32_t>(0));
 
