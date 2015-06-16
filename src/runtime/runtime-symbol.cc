@@ -26,22 +26,11 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
-  if (name->IsString()) symbol->set_name(*name);
-  return *symbol;
+  return *isolate->factory()->NewPrivateSymbol(name);
 }
 
 
-RUNTIME_FUNCTION(Runtime_CreatePrivateOwnSymbol) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  return *isolate->factory()->NewPrivateOwnSymbol(name);
-}
-
-
-RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateOwnSymbol) {
+RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
@@ -55,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateOwnSymbol) {
                                      Object::GetProperty(privates, name));
   if (!symbol->IsSymbol()) {
     DCHECK(symbol->IsUndefined());
-    symbol = isolate->factory()->NewPrivateOwnSymbol(name);
+    symbol = isolate->factory()->NewPrivateSymbol(name);
     JSObject::AddProperty(Handle<JSObject>::cast(privates), name, symbol, NONE);
   }
   return *symbol;

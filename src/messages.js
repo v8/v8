@@ -543,10 +543,10 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-var CallSiteReceiverKey = NEW_PRIVATE_OWN("CallSite#receiver");
-var CallSiteFunctionKey = NEW_PRIVATE_OWN("CallSite#function");
-var CallSitePositionKey = NEW_PRIVATE_OWN("CallSite#position");
-var CallSiteStrictModeKey = NEW_PRIVATE_OWN("CallSite#strict_mode");
+var CallSiteReceiverKey = NEW_PRIVATE("CallSite#receiver");
+var CallSiteFunctionKey = NEW_PRIVATE("CallSite#function");
+var CallSitePositionKey = NEW_PRIVATE("CallSite#position");
+var CallSiteStrictModeKey = NEW_PRIVATE("CallSite#strict_mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
   SET_PRIVATE(this, CallSiteReceiverKey, receiver);
@@ -863,7 +863,7 @@ function GetTypeName(receiver, requireConstructor) {
   return constructorName;
 }
 
-var formatted_stack_trace_symbol = NEW_PRIVATE_OWN("formatted stack trace");
+var formatted_stack_trace_symbol = NEW_PRIVATE("formatted stack trace");
 
 
 // Format the stack trace if not yet done, and return it.

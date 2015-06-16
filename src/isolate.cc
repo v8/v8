@@ -774,8 +774,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
 
 bool Isolate::IsInternallyUsedPropertyName(Handle<Object> name) {
   if (name->IsSymbol()) {
-    return Handle<Symbol>::cast(name)->is_private() &&
-           Handle<Symbol>::cast(name)->is_own();
+    return Handle<Symbol>::cast(name)->is_private();
   }
   return name.is_identical_to(factory()->hidden_string());
 }
@@ -783,7 +782,7 @@ bool Isolate::IsInternallyUsedPropertyName(Handle<Object> name) {
 
 bool Isolate::IsInternallyUsedPropertyName(Object* name) {
   if (name->IsSymbol()) {
-    return Symbol::cast(name)->is_private() && Symbol::cast(name)->is_own();
+    return Symbol::cast(name)->is_private();
   }
   return name == heap()->hidden_string();
 }

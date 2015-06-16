@@ -8581,8 +8581,8 @@ class Name: public HeapObject {
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
 
-  // Whether name can only name own properties.
-  inline bool IsOwn();
+  // If the name is private, it can only name own properties.
+  inline bool IsPrivate();
 
   DECLARE_CAST(Name)
 
@@ -8660,17 +8660,14 @@ class Name: public HeapObject {
 // ES6 symbols.
 class Symbol: public Name {
  public:
-  // [name]: the print name of a symbol, or undefined if none.
+  // [name]: The print name of a symbol, or undefined if none.
   DECL_ACCESSORS(name, Object)
 
   DECL_ACCESSORS(flags, Smi)
 
-  // [is_private]: whether this is a private symbol.
+  // [is_private]: Whether this is a private symbol.  Private symbols can only
+  // be used to designate own properties of objects.
   DECL_BOOLEAN_ACCESSORS(is_private)
-
-  // [is_own]: whether this is an own symbol, that is, only used to designate
-  // own properties of objects.
-  DECL_BOOLEAN_ACCESSORS(is_own)
 
   DECLARE_CAST(Symbol)
 
@@ -8689,7 +8686,6 @@ class Symbol: public Name {
 
  private:
   static const int kPrivateBit = 0;
-  static const int kOwnBit = 1;
 
   const char* PrivateSymbolToName() const;
 

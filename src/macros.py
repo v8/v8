@@ -159,10 +159,8 @@ macro SHOULD_CREATE_WRAPPER(functionName, receiver) = (!IS_SPEC_OBJECT(receiver)
 macro HAS_INDEX(array, index, is_array) = ((is_array && %_HasFastPackedElements(%IS_VAR(array))) ? (index < array.length) : (index in array));
 
 # Private names.
-# GET_PRIVATE should only be used if the property is known to exists on obj
-# itself (it should really use %GetOwnProperty, but that would be way slower).
-macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateOwnSymbol(name));
-macro NEW_PRIVATE_OWN(name) = (%CreatePrivateOwnSymbol(name));
+macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateSymbol(name));
+macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
 macro HAS_PRIVATE(obj, sym) = (%HasOwnProperty(obj, sym));
 macro HAS_DEFINED_PRIVATE(obj, sym) = (!IS_UNDEFINED(obj[sym]));

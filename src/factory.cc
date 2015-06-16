@@ -676,17 +676,9 @@ Handle<Symbol> Factory::NewSymbol() {
 }
 
 
-Handle<Symbol> Factory::NewPrivateSymbol() {
+Handle<Symbol> Factory::NewPrivateSymbol(Handle<Object> name) {
   Handle<Symbol> symbol = NewSymbol();
   symbol->set_is_private(true);
-  return symbol;
-}
-
-
-Handle<Symbol> Factory::NewPrivateOwnSymbol(Handle<Object> name) {
-  Handle<Symbol> symbol = NewSymbol();
-  symbol->set_is_private(true);
-  symbol->set_is_own(true);
   if (name->IsString()) {
     symbol->set_name(*name);
   } else {
