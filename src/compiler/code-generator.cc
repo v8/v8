@@ -97,29 +97,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
       if (FLAG_code_comments) {
         // TODO(titzer): these code comments are a giant memory leak.
         Vector<char> buffer = Vector<char>::New(200);
-        char* buffer_start = buffer.start();
-
-        int next = SNPrintF(
-            buffer, "-- B%d start%s%s%s%s", block->rpo_number().ToInt(),
-            block->IsDeferred() ? " (deferred)" : "",
-            block->needs_frame() ? "" : " (no frame)",
-            block->must_construct_frame() ? " (construct frame)" : "",
-            block->must_deconstruct_frame() ? " (deconstruct frame)" : "");
-
-        buffer = buffer.SubVector(next, buffer.length());
-
-        if (block->IsLoopHeader()) {
-          next =
-              SNPrintF(buffer, " (loop up to %d)", block->loop_end().ToInt());
-          buffer = buffer.SubVector(next, buffer.length());
-        }
-        if (block->loop_header().IsValid()) {
-          next =
-              SNPrintF(buffer, " (in loop %d)", block->loop_header().ToInt());
-          buffer = buffer.SubVector(next, buffer.length());
-        }
-        SNPrintF(buffer, " --");
-        masm()->RecordComment(buffer_start);
+        SNPrintF(buffer, "-- B%d start%s%s%s%s --", block->rpo_number().ToInt(),
+                 block->IsDeferred() ? " (deferred)" : "",
+                 block->needs_frame() ? "" : " (no frame)",
+                 block->must_construct_frame() ? " (construct frame)" : "",
+                 block->must_deconstruct_frame() ? " (deconstruct frame)" : "");
+        masm()->RecordComment(buffer.start());
       }
       masm()->bind(GetLabel(current_block_));
       for (int i = block->code_start(); i < block->code_end(); ++i) {
