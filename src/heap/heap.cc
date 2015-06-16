@@ -5019,6 +5019,20 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 }
 
 
+bool Heap::IsValidAllocationSpace(AllocationSpace space) {
+  switch (space) {
+    case NEW_SPACE:
+    case OLD_SPACE:
+    case CODE_SPACE:
+    case MAP_SPACE:
+    case LO_SPACE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+
 bool Heap::RootIsImmortalImmovable(int root_index) {
   switch (root_index) {
 #define CASE(name)               \

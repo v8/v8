@@ -955,6 +955,9 @@ class Heap {
   bool InSpace(Address addr, AllocationSpace space);
   bool InSpace(HeapObject* value, AllocationSpace space);
 
+  // Checks whether the space is valid.
+  static bool IsValidAllocationSpace(AllocationSpace space);
+
   // Checks whether the given object is allowed to be migrated from it's
   // current space into the given destination space. Used for debugging.
   inline bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
