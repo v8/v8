@@ -726,6 +726,21 @@ int DisassemblerX87::MemoryFPUInstruction(int escape_opcode,
         case 0:
           mnem = "fadd_d";
           break;
+        case 1:
+          mnem = "fmul_d";
+          break;
+        case 4:
+          mnem = "fsub_d";
+          break;
+        case 5:
+          mnem = "fsubr_d";
+          break;
+        case 6:
+          mnem = "fdiv_d";
+          break;
+        case 7:
+          mnem = "fdivr_d";
+          break;
         default:
           UnimplementedInstruction();
       }

@@ -21,6 +21,8 @@
 #include "src/compiler/x64/instruction-codes-x64.h"
 #elif V8_TARGET_ARCH_PPC
 #include "src/compiler/ppc/instruction-codes-ppc.h"
+#elif V8_TARGET_ARCH_X87
+#include "src/compiler/x87/instruction-codes-x87.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)

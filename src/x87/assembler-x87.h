@@ -273,6 +273,14 @@ inline Condition CommuteCondition(Condition cc) {
 }
 
 
+enum RoundingMode {
+  kRoundToNearest = 0x0,
+  kRoundDown = 0x1,
+  kRoundUp = 0x2,
+  kRoundToZero = 0x3
+};
+
+
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -620,11 +628,14 @@ class Assembler : public AssemblerBase {
   void mov_b(Register dst, const Operand& src);
   void mov_b(Register dst, int8_t imm8) { mov_b(Operand(dst), imm8); }
   void mov_b(const Operand& dst, int8_t imm8);
+  void mov_b(const Operand& dst, const Immediate& src);
   void mov_b(const Operand& dst, Register src);
 
   void mov_w(Register dst, const Operand& src);
   void mov_w(const Operand& dst, Register src);
   void mov_w(const Operand& dst, int16_t imm16);
+  void mov_w(const Operand& dst, const Immediate& src);
+
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
@@ -886,15 +897,21 @@ class Assembler : public AssemblerBase {
   void fadd_d(const Operand& adr);
   void fsub(int i);
   void fsub_i(int i);
+  void fsub_d(const Operand& adr);
+  void fsubr_d(const Operand& adr);
   void fmul(int i);
+  void fmul_d(const Operand& adr);
   void fmul_i(int i);
   void fdiv(int i);
+  void fdiv_d(const Operand& adr);
+  void fdivr_d(const Operand& adr);
   void fdiv_i(int i);
 
   void fisub_s(const Operand& adr);
 
   void faddp(int i = 1);
   void fsubp(int i = 1);
+  void fsubr(int i = 1);
   void fsubrp(int i = 1);
   void fmulp(int i = 1);
   void fdivp(int i = 1);

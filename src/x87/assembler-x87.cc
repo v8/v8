@@ -388,6 +388,14 @@ void Assembler::mov_b(Register dst, const Operand& src) {
 }
 
 
+void Assembler::mov_b(const Operand& dst, const Immediate& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xC6);
+  emit_operand(eax, dst);
+  EMIT(static_cast<int8_t>(src.x_));
+}
+
+
 void Assembler::mov_b(const Operand& dst, int8_t imm8) {
   EnsureSpace ensure_space(this);
   EMIT(0xC6);
@@ -427,6 +435,16 @@ void Assembler::mov_w(const Operand& dst, int16_t imm16) {
   emit_operand(eax, dst);
   EMIT(static_cast<int8_t>(imm16 & 0xff));
   EMIT(static_cast<int8_t>(imm16 >> 8));
+}
+
+
+void Assembler::mov_w(const Operand& dst, const Immediate& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0xC7);
+  emit_operand(eax, dst);
+  EMIT(static_cast<int8_t>(src.x_ & 0xff));
+  EMIT(static_cast<int8_t>(src.x_ >> 8));
 }
 
 
@@ -1698,6 +1716,20 @@ void Assembler::fsub_i(int i) {
 }
 
 
+void Assembler::fsubr_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(ebp, adr);
+}
+
+
+void Assembler::fsub_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(esp, adr);
+}
+
+
 void Assembler::fisub_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xDA);
@@ -1717,9 +1749,30 @@ void Assembler::fmul(int i) {
 }
 
 
+void Assembler::fmul_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(ecx, adr);
+}
+
+
 void Assembler::fdiv(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xF8, i);
+}
+
+
+void Assembler::fdiv_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(esi, adr);
+}
+
+
+void Assembler::fdivr_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(edi, adr);
 }
 
 

@@ -640,12 +640,6 @@
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
-['arch == x87', {
-  # Currently Turbofan is not supported by x87.
-  'compiler/opt-next-call-turbo': [SKIP],
-}],  # 'arch == x87'
-
-##############################################################################
 ['deopt_fuzzer == True', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
