@@ -37,8 +37,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-TEST_262_ARCHIVE_REVISION = "43acf61"  # This is the 2015-03-31 revision.
-TEST_262_ARCHIVE_MD5 = "a77a0352a0462be98e50522a15b7a3c4"
+TEST_262_ARCHIVE_REVISION = "488c0a7"  # This is the 2015-06-11 revision.
+TEST_262_ARCHIVE_MD5 = "f7d4ec9be81f1e1f10fd8a61c71baead"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
@@ -78,6 +78,16 @@ class Test262TestSuite(testsuite.TestSuite):
     return (testcase.flags + context.mode_flags + self.harness +
             self.GetIncludesForTest(testcase) + ["--harmony"] +
             [os.path.join(self.testroot, testcase.path + ".js")])
+
+  def VariantFlags(self, testcase, default_flags):
+    flags = super(Test262TestSuite, self).VariantFlags(testcase, default_flags)
+    test_record = self.GetTestRecord(testcase)
+    if "noStrict" in test_record:
+      return flags
+    strict_flags = [f + ["--use-strict"] for f in flags]
+    if "onlyStrict" in test_record:
+      return strict_flags
+    return flags + strict_flags
 
   def LoadParseTestRecord(self):
     if not self.ParseTestRecord:
