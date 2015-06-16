@@ -641,7 +641,7 @@ HValue* CodeStubGraphBuilder<CreateWeakCellStub>::BuildCodeStub() {
   HInstruction* value = GetParameter(CreateWeakCellDescriptor::kValueIndex);
   Add<HStoreNamedField>(object, HObjectAccess::ForWeakCellValue(), value);
   Add<HStoreNamedField>(object, HObjectAccess::ForWeakCellNext(),
-                        graph()->GetConstantUndefined());
+                        graph()->GetConstantHole());
 
   HInstruction* feedback_vector =
       GetParameter(CreateWeakCellDescriptor::kVectorIndex);

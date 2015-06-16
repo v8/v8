@@ -2637,7 +2637,7 @@ void MarkCompactCollector::AbortWeakCollections() {
 
 
 void MarkCompactCollector::ProcessAndClearWeakCells() {
-  HeapObject* undefined = heap()->undefined_value();
+  HeapObject* the_hole = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
   while (weak_cell_obj != Smi::FromInt(0)) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
@@ -2672,19 +2672,19 @@ void MarkCompactCollector::ProcessAndClearWeakCells() {
       RecordSlot(slot, slot, *slot);
     }
     weak_cell_obj = weak_cell->next();
-    weak_cell->set_next(undefined, SKIP_WRITE_BARRIER);
+    weak_cell->set_next(the_hole, SKIP_WRITE_BARRIER);
   }
   heap()->set_encountered_weak_cells(Smi::FromInt(0));
 }
 
 
 void MarkCompactCollector::AbortWeakCells() {
-  Object* undefined = heap()->undefined_value();
+  Object* the_hole = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
   while (weak_cell_obj != Smi::FromInt(0)) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     weak_cell_obj = weak_cell->next();
-    weak_cell->set_next(undefined, SKIP_WRITE_BARRIER);
+    weak_cell->set_next(the_hole, SKIP_WRITE_BARRIER);
   }
   heap()->set_encountered_weak_cells(Smi::FromInt(0));
 }
