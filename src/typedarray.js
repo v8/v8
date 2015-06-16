@@ -47,6 +47,44 @@ var InternalArray = utils.InternalArray;
 
 // --------------- Typed Arrays ---------------------
 
+function TypedArray() {
+  if (!%_IsConstructCall()) {
+    throw MakeTypeError(kConstructorNotFunction, "TypedArray")
+  }
+  // TODO(littledan): When the TypedArrays code is refactored to provide
+  // a common constructor entrypoint for v8:4182, call that here.
+}
+
+function TypedArray_GetBuffer() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver, "TypedArray.buffer", this);
+  }
+  return %TypedArrayGetBuffer(this);
+}
+
+function TypedArray_GetByteLength() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver, "TypedArray.byteLength",
+                        this);
+  }
+  return %_ArrayBufferViewGetByteLength(this);
+}
+
+function TypedArray_GetByteOffset() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver, "TypedArray.byteOffset",
+                        this);
+  }
+  return %_ArrayBufferViewGetByteOffset(this);
+}
+
+function TypedArray_GetLength() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver, "TypedArray.length", this);
+  }
+  return %_TypedArrayGetLength(this);
+}
+
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
@@ -170,34 +208,6 @@ function NAMEConstructor(arg1, arg2, arg3) {
   } else {
     throw MakeTypeError(kConstructorNotFunction, "NAME")
   }
-}
-
-function NAME_GetBuffer() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.buffer", this);
-  }
-  return %TypedArrayGetBuffer(this);
-}
-
-function NAME_GetByteLength() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteLength", this);
-  }
-  return %_ArrayBufferViewGetByteLength(this);
-}
-
-function NAME_GetByteOffset() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteOffset", this);
-  }
-  return %_ArrayBufferViewGetByteOffset(this);
-}
-
-function NAME_GetLength() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.length", this);
-  }
-  return %_TypedArrayGetLength(this);
 }
 
 function NAMESubArray(begin, end) {
@@ -347,29 +357,33 @@ function TypedArrayGetToStringTag() {
 
 // -------------------------------------------------------------------
 
+utils.InstallGetter(TypedArray.prototype, "buffer", TypedArray_GetBuffer);
+utils.InstallGetter(TypedArray.prototype, "byteOffset",
+                    TypedArray_GetByteOffset, DONT_ENUM);
+utils.InstallGetter(TypedArray.prototype, "byteLength",
+                    TypedArray_GetByteLength, DONT_ENUM);
+utils.InstallGetter(TypedArray.prototype, "length", TypedArray_GetLength,
+                    DONT_ENUM);
+utils.InstallGetter(TypedArray.prototype, symbolToStringTag,
+                    TypedArrayGetToStringTag, DONT_ENUM);
+utils.InstallFunctions(TypedArray.prototype, DONT_ENUM, [
+  "set", TypedArraySet
+]);
+
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %SetCode(GlobalNAME, NAMEConstructor);
-  %FunctionSetPrototype(GlobalNAME, new GlobalObject());
+  %InternalSetPrototype(GlobalNAME, TypedArray);
+  %FunctionSetPrototype(GlobalNAME, new TypedArray());
+  %AddNamedProperty(GlobalNAME.prototype,
+                    "BYTES_PER_ELEMENT", ELEMENT_SIZE,
+                    READ_ONLY | DONT_ENUM | DONT_DELETE);
 
   %AddNamedProperty(GlobalNAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
   %AddNamedProperty(GlobalNAME.prototype,
                     "constructor", global.NAME, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype,
-                    "BYTES_PER_ELEMENT", ELEMENT_SIZE,
-                    READ_ONLY | DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
-  utils.InstallGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "length", NAME_GetLength,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, symbolToStringTag,
-                      TypedArrayGetToStringTag);
   utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
-    "subarray", NAMESubArray,
-    "set", TypedArraySet
+    "subarray", NAMESubArray
   ]);
 endmacro
 

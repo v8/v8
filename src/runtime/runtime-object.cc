@@ -148,6 +148,7 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
 }
 
 
+// Set the [[Prototype]] internal slot of an object.
 RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

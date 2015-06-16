@@ -82,12 +82,7 @@ var functions = [
   // DataView,
   Date,
   Error,
-  Float32Array,
-  Float64Array,
   Function,
-  Int16Array,
-  Int32Array,
-  Int8Array,
   Map,
   Number,
   Object,
@@ -96,10 +91,6 @@ var functions = [
   Set,
   String,
   // Symbol, not constructible
-  Uint16Array,
-  Uint32Array,
-  Uint8Array,
-  Uint8ClampedArray,
   WeakMap,
   WeakSet,
 ];
@@ -107,6 +98,23 @@ var functions = [
 for (var f of functions) {
   assertPrototypeOf(f, Function.prototype);
   assertPrototypeOf(new f(), f.prototype);
+}
+
+var typedArrayConstructors = [
+  Float32Array,
+  Float64Array,
+  Int16Array,
+  Int32Array,
+  Int8Array,
+  Uint16Array,
+  Uint32Array,
+  Uint8Array,
+  Uint8ClampedArray,
+];
+
+for (var t of typedArrayConstructors) {
+  assertPrototypeOf(t, Uint8Array.__proto__);
+  assertPrototypeOf(new t(), t.prototype);
 }
 
 var p = new Promise(function() {});

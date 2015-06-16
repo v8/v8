@@ -171,6 +171,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 }
 
 
+// Set the "prototype" property of a constructor Function.
 RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
