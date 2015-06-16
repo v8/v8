@@ -3095,6 +3095,13 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         break;
       }
 
+      case Token::TEMPLATE_SPAN:
+      case Token::TEMPLATE_TAIL: {
+        BindingPatternUnexpectedToken(classifier);
+        result = ParseTemplateLiteral(result, position(), classifier, CHECK_OK);
+        break;
+      }
+
       default:
         return result;
     }
