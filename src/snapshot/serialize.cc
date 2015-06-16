@@ -753,8 +753,6 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       new_code_objects_.Add(Code::cast(obj));
     }
   }
-  // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
   return obj;
 }
 
@@ -771,14 +769,8 @@ HeapObject* Deserializer::GetBackReferencedObject(int space) {
     uint32_t chunk_index = back_reference.chunk_index();
     DCHECK_LE(chunk_index, current_chunk_[space]);
     uint32_t chunk_offset = back_reference.chunk_offset();
-    Address address = reservations_[space][chunk_index].start + chunk_offset;
-    if (next_alignment_ != kWordAligned) {
-      int padding = Heap::GetFillToAlign(address, next_alignment_);
-      next_alignment_ = kWordAligned;
-      DCHECK(padding == 0 || HeapObject::FromAddress(address)->IsFiller());
-      address += padding;
-    }
-    obj = HeapObject::FromAddress(address);
+    obj = HeapObject::FromAddress(reservations_[space][chunk_index].start +
+                                  chunk_offset);
   }
   if (deserializing_user_code() && obj->IsInternalizedString()) {
     obj = String::cast(obj)->GetForwardedInternalizedString();
@@ -796,25 +788,22 @@ HeapObject* Deserializer::GetBackReferencedObject(int space) {
 void Deserializer::ReadObject(int space_number, Object** write_back) {
   Address address;
   HeapObject* obj;
-  int size = source_.GetInt() << kObjectAlignmentBits;
+  int next_int = source_.GetInt();
 
-  if (next_alignment_ != kWordAligned) {
-    int reserved = size + Heap::GetMaximumFillToAlign(next_alignment_);
-    address = Allocate(space_number, reserved);
-    obj = HeapObject::FromAddress(address);
-    // If one of the following assertions fails, then we are deserializing an
-    // aligned object when the filler maps have not been deserialized yet.
-    // We require filler maps as padding to align the object.
-    Heap* heap = isolate_->heap();
-    DCHECK(heap->free_space_map()->IsMap());
-    DCHECK(heap->one_pointer_filler_map()->IsMap());
-    DCHECK(heap->two_pointer_filler_map()->IsMap());
-    obj = heap->AlignWithFiller(obj, size, reserved, next_alignment_);
+  bool double_align = false;
+#ifndef V8_HOST_ARCH_64_BIT
+  double_align = next_int == kDoubleAlignmentSentinel;
+  if (double_align) next_int = source_.GetInt();
+#endif
+
+  DCHECK_NE(kDoubleAlignmentSentinel, next_int);
+  int size = next_int << kObjectAlignmentBits;
+  int reserved_size = size + (double_align ? kPointerSize : 0);
+  address = Allocate(space_number, reserved_size);
+  obj = HeapObject::FromAddress(address);
+  if (double_align) {
+    obj = isolate_->heap()->DoubleAlignForDeserialization(obj, reserved_size);
     address = obj->address();
-    next_alignment_ = kWordAligned;
-  } else {
-    address = Allocate(space_number, size);
-    obj = HeapObject::FromAddress(address);
   }
 
   isolate_->heap()->OnAllocationEvent(obj, size);
@@ -1009,17 +998,14 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
   FOUR_CASES(byte_code + 8)               \
   FOUR_CASES(byte_code + 12)
 
-#define SINGLE_CASE(where, how, within, space) \
-  CASE_STATEMENT(where, how, within, space)    \
-  CASE_BODY(where, how, within, space)
-
       // Deserialize a new object and write a pointer to it to the current
       // object.
       ALL_SPACES(kNewObject, kPlain, kStartOfObject)
       // Support for direct instruction pointers in functions.  It's an inner
       // pointer because it points at the entry point, not at the start of the
       // code object.
-      SINGLE_CASE(kNewObject, kPlain, kInnerPointer, CODE_SPACE)
+      CASE_STATEMENT(kNewObject, kPlain, kInnerPointer, CODE_SPACE)
+      CASE_BODY(kNewObject, kPlain, kInnerPointer, CODE_SPACE)
       // Deserialize a new code object and write a pointer to its first
       // instruction to the current code object.
       ALL_SPACES(kNewObject, kFromCode, kInnerPointer)
@@ -1050,33 +1036,45 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       ALL_SPACES(kBackrefWithSkip, kPlain, kInnerPointer)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
-      SINGLE_CASE(kRootArray, kPlain, kStartOfObject, 0)
+      CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
+      CASE_BODY(kRootArray, kPlain, kStartOfObject, 0)
 #if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
     defined(V8_TARGET_ARCH_PPC) || V8_EMBEDDED_CONSTANT_POOL
       // Find an object in the roots array and write a pointer to it to in code.
-      SINGLE_CASE(kRootArray, kFromCode, kStartOfObject, 0)
+      CASE_STATEMENT(kRootArray, kFromCode, kStartOfObject, 0)
+      CASE_BODY(kRootArray, kFromCode, kStartOfObject, 0)
 #endif
       // Find an object in the partial snapshots cache and write a pointer to it
       // to the current object.
-      SINGLE_CASE(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
+      CASE_STATEMENT(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
+      CASE_BODY(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
       // Find an code entry in the partial snapshots cache and
       // write a pointer to it to the current object.
-      SINGLE_CASE(kPartialSnapshotCache, kPlain, kInnerPointer, 0)
+      CASE_STATEMENT(kPartialSnapshotCache, kPlain, kInnerPointer, 0)
+      CASE_BODY(kPartialSnapshotCache, kPlain, kInnerPointer, 0)
       // Find an external reference and write a pointer to it to the current
       // object.
-      SINGLE_CASE(kExternalReference, kPlain, kStartOfObject, 0)
+      CASE_STATEMENT(kExternalReference, kPlain, kStartOfObject, 0)
+      CASE_BODY(kExternalReference, kPlain, kStartOfObject, 0)
       // Find an external reference and write a pointer to it in the current
       // code object.
-      SINGLE_CASE(kExternalReference, kFromCode, kStartOfObject, 0)
+      CASE_STATEMENT(kExternalReference, kFromCode, kStartOfObject, 0)
+      CASE_BODY(kExternalReference, kFromCode, kStartOfObject, 0)
       // Find an object in the attached references and write a pointer to it to
       // the current object.
-      SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kAttachedReference, kPlain, kInnerPointer, 0)
-      SINGLE_CASE(kAttachedReference, kFromCode, kInnerPointer, 0)
+      CASE_STATEMENT(kAttachedReference, kPlain, kStartOfObject, 0)
+      CASE_BODY(kAttachedReference, kPlain, kStartOfObject, 0)
+      CASE_STATEMENT(kAttachedReference, kPlain, kInnerPointer, 0)
+      CASE_BODY(kAttachedReference, kPlain, kInnerPointer, 0)
+      CASE_STATEMENT(kAttachedReference, kFromCode, kInnerPointer, 0)
+      CASE_BODY(kAttachedReference, kFromCode, kInnerPointer, 0)
       // Find a builtin and write a pointer to it to the current object.
-      SINGLE_CASE(kBuiltin, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kBuiltin, kPlain, kInnerPointer, 0)
-      SINGLE_CASE(kBuiltin, kFromCode, kInnerPointer, 0)
+      CASE_STATEMENT(kBuiltin, kPlain, kStartOfObject, 0)
+      CASE_BODY(kBuiltin, kPlain, kStartOfObject, 0)
+      CASE_STATEMENT(kBuiltin, kPlain, kInnerPointer, 0)
+      CASE_BODY(kBuiltin, kPlain, kInnerPointer, 0)
+      CASE_STATEMENT(kBuiltin, kFromCode, kInnerPointer, 0)
+      CASE_BODY(kBuiltin, kFromCode, kInnerPointer, 0)
 
 #undef CASE_STATEMENT
 #undef CASE_BODY
@@ -1171,15 +1169,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         break;
       }
 
-      case kAlignmentPrefix:
-      case kAlignmentPrefix + 1:
-      case kAlignmentPrefix + 2: {
-        DCHECK_EQ(kWordAligned, next_alignment_);
-        next_alignment_ =
-            static_cast<AllocationAlignment>(data - (kAlignmentPrefix - 1));
-        break;
-      }
-
       STATIC_ASSERT(kNumberOfRootArrayConstants == Heap::kOldSpaceRoots);
       STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
       SIXTEEN_CASES(kRootArrayConstantsWithSkip)
@@ -1246,7 +1235,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
 #undef SIXTEEN_CASES
 #undef FOUR_CASES
-#undef SINGLE_CASE
 
       default:
         CHECK(false);
@@ -1574,7 +1562,6 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
         PrintF("\n");
       }
 
-      PutAlignmentPrefix(obj);
       AllocationSpace space = back_reference.space();
       if (skip == 0) {
         sink_->Put(kBackref + how_to_code + where_to_point + space, "BackRef");
@@ -1668,18 +1655,6 @@ void Serializer::PutBackReference(HeapObject* object, BackReference reference) {
 }
 
 
-int Serializer::PutAlignmentPrefix(HeapObject* object) {
-  AllocationAlignment alignment = object->RequiredAlignment();
-  if (alignment != kWordAligned) {
-    DCHECK(1 <= alignment && alignment <= 3);
-    byte prefix = (kAlignmentPrefix - 1) + alignment;
-    sink_->Put(prefix, "Alignment");
-    return Heap::GetMaximumFillToAlign(alignment);
-  }
-  return 0;
-}
-
-
 void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   if (obj->IsMap()) {
@@ -1761,10 +1736,21 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     }
     back_reference = serializer_->AllocateLargeObject(size);
   } else {
-    int fill = serializer_->PutAlignmentPrefix(object_);
-    back_reference = serializer_->Allocate(space, size + fill);
+    bool needs_double_align = false;
+    // TODO(bbudge): Generalize to other alignment constraints.
+    if (object_->RequiredAlignment() == kDoubleAligned) {
+      // Add wriggle room for double alignment padding.
+      back_reference = serializer_->Allocate(space, size + kPointerSize);
+      needs_double_align = true;
+    } else {
+      back_reference = serializer_->Allocate(space, size);
+    }
     sink_->Put(kNewObject + reference_representation_ + space, "NewObject");
-    sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+    if (needs_double_align)
+      sink_->PutInt(kDoubleAlignmentSentinel, "DoubleAlignSentinel");
+    int encoded_size = size >> kObjectAlignmentBits;
+    DCHECK_NE(kDoubleAlignmentSentinel, encoded_size);
+    sink_->PutInt(encoded_size, "ObjectSizeInWords");
   }
 
 #ifdef OBJECT_PRINT

@@ -324,14 +324,12 @@ class SerializerDeserializer: public ObjectVisitor {
     // 0x07        Unused (including 0x27, 0x47, 0x67).
     // 0x08..0x0c  Reference to previous object from space.
     kBackref = 0x08,
-    // 0x0d        Unused (including 0x2d, 0x4d, 0x6d).
     // 0x0e        Unused (including 0x2e, 0x4e, 0x6e).
     // 0x0f        Unused (including 0x2f, 0x4f, 0x6f).
     // 0x10..0x14  Reference to previous object from space after skip.
     kBackrefWithSkip = 0x10,
-    // 0x15        Unused (including 0x35, 0x55, 0x75).
     // 0x16        Unused (including 0x36, 0x56, 0x76).
-    // 0x17        Misc (including 0x37, 0x57, 0x77).
+    // 0x17        Unused (including 0x37, 0x57, 0x77).
     // 0x18        Root array item.
     kRootArray = 0x18,
     // 0x19        Object in the partial snapshot cache.
@@ -386,18 +384,14 @@ class SerializerDeserializer: public ObjectVisitor {
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
-  static const int kSynchronize = 0x17;
+  static const int kSynchronize = 0x5d;
   // Used for the source code of the natives, which is in the executable, but
   // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x37;
+  static const int kNativesStringResource = 0x5e;
   // Raw data of variable length.
-  static const int kVariableRawData = 0x57;
+  static const int kVariableRawData = 0x7d;
   // Repeats of variable length.
-  static const int kVariableRepeat = 0x77;
-  // Alignment prefixes 0x7d..0x7f
-  static const int kAlignmentPrefix = 0x7d;
-
-  // 0x5d..0x5f unused
+  static const int kVariableRepeat = 0x7e;
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -521,8 +515,7 @@ class Deserializer: public SerializerDeserializer {
         magic_number_(data->GetMagicNumber()),
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
-        deserializing_user_code_(false),
-        next_alignment_(kWordAligned) {
+        deserializing_user_code_(false) {
     DecodeReservation(data->Reservations());
   }
 
@@ -608,8 +601,6 @@ class Deserializer: public SerializerDeserializer {
   List<Code*> new_code_objects_;
 
   bool deserializing_user_code_;
-
-  AllocationAlignment next_alignment_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
@@ -714,9 +705,6 @@ class Serializer : public SerializerDeserializer {
                int skip);
 
   void PutBackReference(HeapObject* object, BackReference reference);
-
-  // Emit alignment prefix if necessary, return required padding space in bytes.
-  int PutAlignmentPrefix(HeapObject* object);
 
   // Returns true if the object was successfully serialized.
   bool SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,

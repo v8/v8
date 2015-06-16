@@ -3102,7 +3102,7 @@ AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   }
   result->set_map_no_write_barrier(weak_cell_map());
   WeakCell::cast(result)->initialize(value);
-  WeakCell::cast(result)->set_next(the_hole_value(), SKIP_WRITE_BARRIER);
+  WeakCell::cast(result)->set_next(undefined_value(), SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -3706,18 +3706,19 @@ AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
-  if (size == kPointerSize) {
-    filler->set_map_no_write_barrier(raw_unchecked_one_pointer_filler_map());
-  } else if (size == 2 * kPointerSize) {
-    filler->set_map_no_write_barrier(raw_unchecked_two_pointer_filler_map());
-  } else {
-    filler->set_map_no_write_barrier(raw_unchecked_free_space_map());
-    FreeSpace::cast(filler)->nobarrier_set_size(size);
-  }
   // At this point, we may be deserializing the heap from a snapshot, and
   // none of the maps have been created yet and are NULL.
-  DCHECK(filler->map() == NULL && !deserialization_complete_ ||
-         filler->map()->IsMap());
+  if (size == kPointerSize) {
+    filler->set_map_no_write_barrier(raw_unchecked_one_pointer_filler_map());
+    DCHECK(filler->map() == NULL || filler->map() == one_pointer_filler_map());
+  } else if (size == 2 * kPointerSize) {
+    filler->set_map_no_write_barrier(raw_unchecked_two_pointer_filler_map());
+    DCHECK(filler->map() == NULL || filler->map() == two_pointer_filler_map());
+  } else {
+    filler->set_map_no_write_barrier(raw_unchecked_free_space_map());
+    DCHECK(filler->map() == NULL || filler->map() == free_space_map());
+    FreeSpace::cast(filler)->nobarrier_set_size(size);
+  }
 }
 
 
