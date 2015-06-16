@@ -5210,13 +5210,16 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     Runtime::FunctionId function_id = Runtime::kForInFilter;
     key = Add<HCallRuntime>(isolate()->factory()->empty_string(),
                             Runtime::FunctionForId(function_id), 2);
+    Push(key);
+    Add<HSimulate>(stmt->FilterId());
+    key = Pop();
     Bind(each_var, key);
-    Add<HSimulate>(stmt->AssignmentId());
     IfBuilder if_undefined(this);
     if_undefined.If<HCompareObjectEqAndBranch>(key,
                                                graph()->GetConstantUndefined());
     if_undefined.ThenDeopt(Deoptimizer::kUndefined);
     if_undefined.End();
+    Add<HSimulate>(stmt->AssignmentId());
   }
 
   BreakAndContinueInfo break_info(stmt, scope(), 5);
