@@ -209,35 +209,12 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags) {
-  const Operator* old_op = node->op();
-  Operator::Properties properties = old_op->properties();
+  Operator::Properties properties = node->op()->properties();
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0, flags, properties);
-  const Operator* new_op = common()->Call(desc);
-
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
-  node->set_op(new_op);
-
-#if 0 && DEBUG
-    // Check for at most one framestate and that it's at the right position.
-  int where = -1;
-  for (int index = 0; index < node->InputCount(); index++) {
-    if (node->InputAt(index)->opcode() == IrOpcode::kFrameState) {
-      if (where >= 0) {
-        V8_Fatal(__FILE__, __LINE__,
-                 "node #%d:%s already has a framestate at index %d",
-                 node->id(), node->op()->mnemonic(), where);
-      }
-      where = index;
-      DCHECK_EQ(NodeProperties::FirstFrameStateIndex(node), where);
-      DCHECK(flags & CallDescriptor::kNeedsFrameState);
-    }
-  }
-  if (flags & CallDescriptor::kNeedsFrameState) {
-    DCHECK_GE(where, 0);  // should have found a frame state.
-  }
-#endif
+  node->set_op(common()->Call(desc));
 }
 
 
