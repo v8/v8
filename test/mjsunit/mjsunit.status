@@ -170,7 +170,7 @@
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
   'regexp-global': [PASS, NO_VARIANTS],
-  'third_party/regexp-pcre': [PASS, NO_VARIANTS],
+  'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
