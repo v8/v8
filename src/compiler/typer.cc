@@ -2410,6 +2410,9 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
     int const arity =
         JSFunction::cast(*value)->shared()->internal_formal_parameter_count();
     switch (arity) {
+      case SharedFunctionInfo::kDontAdaptArgumentsSentinel:
+        // Some smart optimization at work... &%$!&@+$!
+        return Type::Any(zone());
       case 0:
         return typer_->cache_->Get(kAnyFunc0);
       case 1:
@@ -2419,6 +2422,7 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
       case 3:
         return typer_->cache_->Get(kAnyFunc3);
       default: {
+        DCHECK_LT(3, arity);
         Type** const params = zone()->NewArray<Type*>(arity);
         std::fill(&params[0], &params[arity], Type::Any(zone()));
         return Type::Function(Type::Any(zone()), arity, params, zone());
