@@ -4459,7 +4459,7 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst, Register left,
       xor_(overflow_dst, dst, t9);
       and_(overflow_dst, overflow_dst, scratch);
     } else {
-      addiu(dst, left, right.immediate());
+      Addu(dst, left, right.immediate());
       xor_(overflow_dst, dst, left);
       // Load right since xori takes uint16 as immediate.
       Addu(t9, zero_reg, right);

@@ -1681,8 +1681,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
     } else {
       DCHECK(right->IsRegister() || right->IsConstantOperand());
       __ SubuAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                                 ToOperand(right),
-                                 overflow);  // Reg at also used as scratch.
+                                 ToOperand(right), overflow, scratch);
     }
     DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
                  Operand(zero_reg));
@@ -1878,8 +1877,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
     } else {
       DCHECK(right->IsRegister() || right->IsConstantOperand());
       __ AdduAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                                 ToOperand(right),
-                                 overflow);  // Reg at also used as scratch.
+                                 ToOperand(right), overflow, scratch);
     }
     DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
                  Operand(zero_reg));
