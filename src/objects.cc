@@ -2504,7 +2504,7 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
 
   ElementsKind from_kind = root_map->elements_kind();
   ElementsKind to_kind = old_map->elements_kind();
-  if (from_kind != to_kind &&
+  if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
       !(IsTransitionableFastElementsKind(from_kind) &&
         IsMoreGeneralElementsKindTransition(from_kind, to_kind))) {
     return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
@@ -2968,6 +2968,15 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
   // Check the state of the root map.
   Map* root_map = old_map->FindRootMap();
   if (!old_map->EquivalentToForTransition(root_map)) return MaybeHandle<Map>();
+
+  ElementsKind from_kind = root_map->elements_kind();
+  ElementsKind to_kind = old_map->elements_kind();
+  if (from_kind != to_kind) {
+    // Try to follow existing elements kind transitions.
+    root_map = root_map->LookupElementsTransitionMap(to_kind);
+    if (root_map == NULL) return MaybeHandle<Map>();
+    // From here on, use the map with correct elements kind as root map.
+  }
   int root_nof = root_map->NumberOfOwnDescriptors();
 
   int old_nof = old_map->NumberOfOwnDescriptors();

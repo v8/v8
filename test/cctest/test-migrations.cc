@@ -20,11 +20,6 @@
 using namespace v8::internal;
 
 
-// TODO(ishell): fix this once ReconfigureProperty supports "non equivalent"
-// transitions.
-const bool IS_NON_EQUIVALENT_TRANSITION_SUPPORTED = false;
-
-
 // TODO(ishell): fix this once TransitionToPrototype stops generalizing
 // all field representations (similar to crbug/448711 where elements kind
 // and observed transitions caused generalization of all field representations).
@@ -1597,7 +1592,14 @@ static void TestGeneralizeRepresentationWithSpecialTransition(
     CHECK(!new_map2->is_deprecated());
     CHECK(!new_map2->is_dictionary_map());
 
-    if (!IS_NON_EQUIVALENT_TRANSITION_SUPPORTED) {
+    Handle<Map> tmp_map;
+    if (Map::TryUpdate(map2).ToHandle(&tmp_map)) {
+      // If Map::TryUpdate() manages to succeed the result must match the result
+      // of Map::Update().
+      CHECK_EQ(*new_map2, *tmp_map);
+    }
+
+    if (config.is_non_equevalent_transition()) {
       // In case of non-equivalent transition currently we generalize all
       // representations.
       for (int i = 0; i < kPropCount; i++) {
@@ -1606,7 +1608,8 @@ static void TestGeneralizeRepresentationWithSpecialTransition(
       CHECK(new_map2->GetBackPointer()->IsUndefined());
       CHECK(expectations2.Check(*new_map2));
     } else {
-      CHECK(expectations.Check(*new_map2));
+      CHECK(!new_map2->GetBackPointer()->IsUndefined());
+      CHECK(expectations2.Check(*new_map2));
     }
   }
 
@@ -1638,6 +1641,7 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
+    bool is_non_equevalent_transition() const { return false; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1672,6 +1676,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
+    bool is_non_equevalent_transition() const { return false; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1694,6 +1699,7 @@ TEST(ForObservedTransitionFromMapOwningDescriptor) {
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
+    bool is_non_equevalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1727,6 +1733,7 @@ TEST(ForObservedTransitionFromMapNotOwningDescriptor) {
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
+    bool is_non_equevalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1760,6 +1767,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
     bool generalizes_representations() const {
       return !IS_PROTO_TRANS_ISSUE_FIXED;
     }
+    bool is_non_equevalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
@@ -1804,6 +1812,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
     bool generalizes_representations() const {
       return !IS_PROTO_TRANS_ISSUE_FIXED;
     }
+    bool is_non_equevalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeRepresentationWithSpecialTransition(
