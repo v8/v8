@@ -36,6 +36,7 @@
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;
+Debug.setListener(function(){});
 
 Date();
 RegExp();
@@ -103,3 +104,5 @@ assertEquals(Debug.ScriptType.Normal, debug_script.type);
 // Check a nonexistent script.
 var dummy_script = Debug.findScript('dummy.js');
 assertTrue(typeof dummy_script == 'undefined');
+
+Debug.setListener(null);

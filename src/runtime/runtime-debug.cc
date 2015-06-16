@@ -2183,7 +2183,7 @@ static bool IsPositionAlignmentCodeCorrect(int alignment) {
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-
+  RUNTIME_ASSERT(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_NUMBER_CHECKED(int32_t, statement_aligned_code, Int32, args[1]);
 
@@ -2211,6 +2211,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
 RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= function->shared()->start_position() &&
@@ -2235,6 +2236,7 @@ RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
 RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= 0);
@@ -2266,6 +2268,7 @@ RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
 RUNTIME_FUNCTION(Runtime_ClearBreakPoint) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 0);
 
   // Clear break point.
@@ -2363,6 +2366,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
 RUNTIME_FUNCTION(Runtime_ClearStepping) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
   isolate->debug()->ClearStepping();
   return isolate->heap()->undefined_value();
 }
@@ -2709,6 +2713,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
 
   Handle<FixedArray> instances;
   {
@@ -2976,6 +2981,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionCodePositionFromSource) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
   DCHECK(args.length() == 2);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
 
@@ -3117,6 +3123,8 @@ RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
 // built-in function such as Array.forEach to enable stepping into the callback.
 RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   DCHECK(args.length() == 1);
+  RUNTIME_ASSERT(isolate->debug()->is_active());
+
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return isolate->heap()->undefined_value();
 

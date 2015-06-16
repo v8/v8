@@ -58,6 +58,23 @@ static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
 }
 
 
+BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
+                             RelocInfo* original_rinfo, int position,
+                             int statement_position)
+    : debug_info_(debug_info),
+      pc_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
+      original_pc_offset_(static_cast<int>(
+          original_rinfo->pc() - debug_info->original_code()->entry())),
+      rmode_(rinfo->rmode()),
+      original_rmode_(original_rinfo->rmode()),
+      data_(rinfo->data()),
+      original_data_(original_rinfo->data()),
+      position_(position),
+      statement_position_(statement_position) {
+  DCHECK(debug_info_->GetIsolate()->debug()->is_active());
+}
+
+
 BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
                                   BreakLocatorType type)
     : debug_info_(debug_info),
@@ -502,6 +519,8 @@ int Debug::ArchiveSpacePerThread() {
 ScriptCache::ScriptCache(Isolate* isolate) : isolate_(isolate) {
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
+
+  DCHECK(isolate_->debug()->is_active());
 
   // Perform a GC to get rid of all unreferenced scripts.
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "ScriptCache");
@@ -2941,16 +2960,17 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
 
 
 void Debug::UpdateState() {
-  is_active_ = message_handler_ != NULL || !event_listener_.is_null();
-  if (is_active_ || in_debug_scope()) {
+  bool is_active = message_handler_ != NULL || !event_listener_.is_null();
+  if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    is_active_ = Load();
+    is_active = Load();
   } else if (is_loaded()) {
     isolate_->compilation_cache()->Enable();
     Unload();
   }
+  is_active_ = is_active;
 }
 
 

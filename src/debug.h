@@ -129,17 +129,8 @@ class BreakLocation {
 
  private:
   BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
-                RelocInfo* original_rinfo, int position, int statement_position)
-      : debug_info_(debug_info),
-        pc_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
-        original_pc_offset_(static_cast<int>(
-            original_rinfo->pc() - debug_info->original_code()->entry())),
-        rmode_(rinfo->rmode()),
-        original_rmode_(original_rinfo->rmode()),
-        data_(rinfo->data()),
-        original_data_(original_rinfo->data()),
-        position_(position),
-        statement_position_(statement_position) {}
+                RelocInfo* original_rinfo, int position,
+                int statement_position);
 
   class Iterator {
    public:
@@ -526,7 +517,8 @@ class Debug {
   static void RecordEvalCaller(Handle<Script> script);
 
   bool CheckExecutionState(int id) {
-    return !debug_context().is_null() && break_id() != 0 && break_id() == id;
+    return is_active() && !debug_context().is_null() && break_id() != 0 &&
+           break_id() == id;
   }
 
   // Flags and states.

@@ -575,6 +575,18 @@ static inline void SimulateIncrementalMarking(i::Heap* heap) {
 }
 
 
+static void DummyDebugEventListener(
+    const v8::Debug::EventDetails& event_details) {}
+
+
+static inline void EnableDebugger() {
+  v8::Debug::SetDebugEventListener(&DummyDebugEventListener);
+}
+
+
+static inline void DisableDebugger() { v8::Debug::SetDebugEventListener(NULL); }
+
+
 // Helper class for new allocations tracking and checking.
 // To use checking of JS allocations tracking in a test,
 // just create an instance of this class.

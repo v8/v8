@@ -20960,6 +20960,7 @@ TEST(StreamingWithDebuggingDoesNotProduceParserCache) {
   CompileRun("function break_here() { }");
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*env->Global()->Get(v8_str("break_here"))));
+  EnableDebugger();
   v8::internal::Debug* debug = CcTest::i_isolate()->debug();
   int position = 0;
   debug->SetBreakPoint(func, i::Handle<i::Object>(v8::internal::Smi::FromInt(1),
@@ -20980,6 +20981,7 @@ TEST(StreamingWithDebuggingDoesNotProduceParserCache) {
 
   // Check that we got no cached data.
   CHECK(source.GetCachedData() == NULL);
+  DisableDebugger();
 }
 
 

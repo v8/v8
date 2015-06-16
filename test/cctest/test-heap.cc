@@ -1382,8 +1382,10 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // disabled.
   int position = 0;
   Handle<Object> breakpoint_object(Smi::FromInt(0), isolate);
+  EnableDebugger();
   isolate->debug()->SetBreakPoint(function, breakpoint_object, &position);
   isolate->debug()->ClearAllBreakPoints();
+  DisableDebugger();
 
   // Force optimization now that code flushing is disabled.
   { v8::HandleScope scope(CcTest::isolate());
