@@ -1379,11 +1379,16 @@ void Debug::PrepareStep(StepAction step_action,
         Isolate* isolate = JSFunction::cast(fun)->GetIsolate();
         Code* apply = isolate->builtins()->builtin(Builtins::kFunctionApply);
         Code* call = isolate->builtins()->builtin(Builtins::kFunctionCall);
+        // Find target function on the expression stack for expression like
+        // Function.call.call...apply(...)
+        int i = 1;
         while (fun->IsJSFunction()) {
           Code* code = JSFunction::cast(fun)->shared()->code();
           if (code != apply && code != call) break;
-          fun = frame->GetExpression(
-              expressions_count - 1 - call_function_arg_count);
+          DCHECK(expressions_count - i - call_function_arg_count >= 0);
+          fun = frame->GetExpression(expressions_count - i -
+                                     call_function_arg_count);
+          i -= 1;
         }
       }
 
