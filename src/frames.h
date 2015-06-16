@@ -643,6 +643,8 @@ class OptimizedFrame : public JavaScriptFrame {
 
  private:
   friend class StackFrameIteratorBase;
+
+  Object* StackSlotAt(int index) const;
 };
 
 
