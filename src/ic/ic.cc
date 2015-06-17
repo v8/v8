@@ -2771,10 +2771,11 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
   LookupIterator it(receiver, name, holder, LookupIterator::OWN);
-  auto res = JSObject::GetPropertyWithInterceptor(&it);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  bool done;
   Handle<Object> result;
-  if (res.ToHandle(&result)) return *result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::GetPropertyWithInterceptor(&it, &done));
+  if (done) return *result;
   return isolate->heap()->no_interceptor_result_sentinel();
 }
 

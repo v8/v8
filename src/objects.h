@@ -1946,8 +1946,11 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<AccessorInfo> info);
 
+  // The result must be checked first for exceptions. If there's no exception,
+  // the output parameter |done| indicates whether the interceptor has a result
+  // or not.
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
-      LookupIterator* it);
+      LookupIterator* it, bool* done);
 
   // Accessors for hidden properties object.
   //

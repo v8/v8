@@ -137,10 +137,12 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
         return JSProxy::GetPropertyWithHandler(
             it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName());
       case LookupIterator::INTERCEPTOR: {
-        MaybeHandle<Object> maybe_result =
-            JSObject::GetPropertyWithInterceptor(it);
-        if (!maybe_result.is_null()) return maybe_result;
-        if (it->isolate()->has_pending_exception()) return maybe_result;
+        bool done;
+        Handle<Object> result;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            it->isolate(), result,
+            JSObject::GetPropertyWithInterceptor(it, &done), Object);
+        if (done) return result;
         break;
       }
       case LookupIterator::ACCESS_CHECK:
@@ -493,9 +495,11 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
       return GetPropertyWithAccessor(it);
     }
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
-    auto result = GetPropertyWithInterceptor(it);
-    if (it->isolate()->has_scheduled_exception()) break;
-    if (!result.is_null()) return result;
+    bool done;
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), result,
+                               GetPropertyWithInterceptor(it, &done), Object);
+    if (done) return result;
   }
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
@@ -13335,7 +13339,9 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 }
 
 
-MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it) {
+MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
+                                                         bool* done) {
+  *done = false;
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -13343,7 +13349,9 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it) {
 
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   Handle<InterceptorInfo> interceptor = it->GetInterceptor();
-  if (interceptor->getter()->IsUndefined()) return MaybeHandle<Object>();
+  if (interceptor->getter()->IsUndefined()) {
+    return isolate->factory()->undefined_value();
+  }
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   v8::Handle<v8::Value> result;
@@ -13361,7 +13369,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it) {
     Handle<Name> name = it->name();
 
     if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
-      return MaybeHandle<Object>();
+      return isolate->factory()->undefined_value();
     }
 
     v8::GenericNamedPropertyGetterCallback getter =
@@ -13373,9 +13381,10 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it) {
   }
 
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  if (result.IsEmpty()) return MaybeHandle<Object>();
+  if (result.IsEmpty()) return isolate->factory()->undefined_value();
   Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
   result_internal->VerifyApiCallResultType();
+  *done = true;
   // Rebox handle before return
   return handle(*result_internal, isolate);
 }
