@@ -598,20 +598,19 @@
 
   ############################ SKIPPED TESTS #############################
 
-  # These tests take a looong time to run.
-  'built-ins/decodeURI/S15.1.3.1_A1.10_T1': [SKIP],
-  'built-ins/decodeURI/S15.1.3.1_A1.11_T1': [SKIP],
-  'built-ins/decodeURI/S15.1.3.1_A1.11_T2': [SKIP],
-  'built-ins/decodeURI/S15.1.3.1_A1.12_T1': [SKIP],
-  'built-ins/decodeURI/S15.1.3.1_A1.12_T2': [SKIP],
-  'built-ins/decodeURIComponent/S15.1.3.2_A1.11_T1': [SKIP],
-  'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T1': [SKIP],
-  'built-ins/RegExp/S15.10.2.12_A3_T1': [SKIP],
-  'intl402/9.2.6_4_b': [SKIP],
-  'language/literals/regexp/S7.8.5_A1.1_T2': [SKIP],
-  'language/literals/regexp/S7.8.5_A1.4_T2': [SKIP],
-  'language/literals/regexp/S7.8.5_A2.1_T2': [SKIP],
-  'language/literals/regexp/S7.8.5_A2.4_T2': [SKIP],
+  # These tests take a looong time to run in debug mode.
+  'built-ins/decodeURI/S15.1.3.1_A1.11_T1': [PASS, ['mode == debug', SKIP]],
+  'built-ins/decodeURI/S15.1.3.1_A1.11_T2': [PASS, ['mode == debug', SKIP]],
+  'built-ins/decodeURI/S15.1.3.1_A1.12_T1': [PASS, ['mode == debug', SKIP]],
+  'built-ins/decodeURI/S15.1.3.1_A1.12_T2': [PASS, ['mode == debug', SKIP]],
+  'built-ins/decodeURI/S15.1.3.1_A2.5_T1': [PASS, ['mode == debug', SKIP]],
+  'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [PASS, ['mode == debug', SKIP]],
+  'built-ins/RegExp/S15.10.2.12_A3_T1': [PASS, ['mode == debug', SKIP]],
+  'intl402/9.2.6_4_b': [PASS, ['mode == debug', SKIP]],
+  'language/literals/regexp/S7.8.5_A1.1_T2': [PASS, ['mode == debug', SKIP]],
+  'language/literals/regexp/S7.8.5_A1.4_T2': [PASS, ['mode == debug', SKIP]],
+  'language/literals/regexp/S7.8.5_A2.1_T2': [PASS, ['mode == debug', SKIP]],
+  'language/literals/regexp/S7.8.5_A2.4_T2': [PASS, ['mode == debug', SKIP]],
   'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [PASS, ['mode == debug', SKIP], ['sloppy', SKIP]],
 }],  # ALWAYS
 
