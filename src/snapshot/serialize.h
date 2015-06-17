@@ -307,7 +307,7 @@ class SerializerDeserializer: public ObjectVisitor {
 
  protected:
   static bool CanBeDeferred(HeapObject* o) {
-    return !o->IsInternalizedString() && !o->IsScript();
+    return !o->IsString() && !o->IsScript();
   }
 
   // ---------- byte code range 0x00..0x7f ----------
