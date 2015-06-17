@@ -236,7 +236,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
         Handle<GlobalObject>::cast(receiver), name());
     DCHECK(cell->value()->IsTheHole());
     transition_ = cell;
-  } else if (transition->GetBackPointer()->IsMap()) {
+  } else if (!transition->is_dictionary_map()) {
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
   }

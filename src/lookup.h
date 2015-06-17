@@ -207,7 +207,8 @@ class LookupIterator final BASE_EMBEDDED {
   bool IsCacheableTransition() {
     if (state_ != TRANSITION) return false;
     return transition_->IsPropertyCell() ||
-           transition_map()->GetBackPointer()->IsMap();
+           (!transition_map()->is_dictionary_map() &&
+            transition_map()->GetBackPointer()->IsMap());
   }
   void ApplyTransitionToDataProperty();
   void ReconfigureDataProperty(Handle<Object> value,
