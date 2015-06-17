@@ -1566,7 +1566,7 @@ void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
 
 
 // Returns the number of characters in the equivalence class, omitting those
-// that cannot occur in the source string because it is ASCII.
+// that cannot occur in the source string because it is Latin1.
 static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
                                      bool one_byte_subject,
                                      unibrow::uchar* letters) {
@@ -1578,15 +1578,18 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
     letters[0] = character;
     length = 1;
   }
-  if (!one_byte_subject || character <= String::kMaxOneByteCharCode) {
-    return length;
+
+  if (one_byte_subject) {
+    int new_length = 0;
+    for (int i = 0; i < length; i++) {
+      if (letters[i] <= String::kMaxOneByteCharCode) {
+        letters[new_length++] = letters[i];
+      }
+    }
+    length = new_length;
   }
 
-  // The standard requires that non-ASCII characters cannot have ASCII
-  // character codes in their equivalence class.
-  // TODO(dcarney): issue 3550 this is not actually true for Latin1 anymore,
-  // is it?  For example, \u00C5 is equivalent to \u212B.
-  return 0;
+  return length;
 }
 
 
@@ -2525,22 +2528,17 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
         uc16 c = quarks[i];
-        if (c > char_mask) {
-          // If we expect a non-Latin1 character from an one-byte string,
-          // there is no way we can match. Not even case-independent
-          // matching can turn an Latin1 character into non-Latin1 or
-          // vice versa.
-          // TODO(dcarney): issue 3550.  Verify that this works as expected.
-          // For example, \u0178 is uppercase of \u00ff (y-umlaut).
-          details->set_cannot_match();
-          pos->determines_perfectly = false;
-          return;
-        }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
           int length = GetCaseIndependentLetters(isolate, c,
                                                  compiler->one_byte(), chars);
-          DCHECK(length != 0);  // Can only happen if c > char_mask (see above).
+          if (length == 0) {
+            // This can happen because all case variants are non-Latin1, but we
+            // know the input is Latin1.
+            details->set_cannot_match();
+            pos->determines_perfectly = false;
+            return;
+          }
           if (length == 1) {
             // This letter has no case equivalents, so it's nice and simple
             // and the mask-compare will determine definitely whether we have
@@ -2571,6 +2569,11 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           // Don't ignore case.  Nice simple case where the mask-compare will
           // determine definitely whether we have a match at this character
           // position.
+          if (c > char_mask) {
+            details->set_cannot_match();
+            pos->determines_perfectly = false;
+            return;
+          }
           pos->mask = char_mask;
           pos->value = c;
           pos->determines_perfectly = true;
