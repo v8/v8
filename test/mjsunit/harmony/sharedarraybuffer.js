@@ -87,14 +87,6 @@ function MakeSharedTypedArray(constr, numElements) {
   return new constr(sab);
 }
 
-function getPropertyDescriptor(object, field, expectedDepth) {
-  for (var depth = 0; depth < expectedDepth; depth++) {
-    assertFalse(Object.hasOwnProperty(object, field));
-    object = object.__proto__;
-  }
-  return Object.getOwnPropertyDescriptor(object, field);
-}
-
 function TestTypedArray(constr, elementSize, typicalElement) {
   assertSame(elementSize, constr.BYTES_PER_ELEMENT);
 
@@ -211,7 +203,8 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   var a = new constr(sab, 64*elementSize, 128);
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a));
-  var desc = getPropertyDescriptor(constr.prototype, Symbol.toStringTag, 1);
+  var desc = Object.getOwnPropertyDescriptor(
+      constr.prototype, Symbol.toStringTag);
   assertTrue(desc.configurable);
   assertFalse(desc.enumerable);
   assertFalse(!!desc.writable);
@@ -317,13 +310,17 @@ var typedArrayConstructors = [
 
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
-    var d = getPropertyDescriptor(constructor.prototype, name, 1);
+    var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
     var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = MakeSharedTypedArray(ctor, 10);
-      d.get.call(a); // shouldn't throw on any type
+      if (ctor === constructor) {
+        d.get.call(a); // shouldn't throw
+      } else {
+        assertThrows(function() {d.get.call(a);}, TypeError);
+      }
     }
   }
 

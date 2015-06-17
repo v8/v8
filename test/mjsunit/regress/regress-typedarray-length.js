@@ -71,6 +71,14 @@ assertEquals(undefined, get(a));
   assertEquals(undefined, get(a));
 })();
 
+// Ensure we cannot delete length, byteOffset, byteLength.
+assertTrue(Int32Array.prototype.hasOwnProperty("length"));
+assertTrue(Int32Array.prototype.hasOwnProperty("byteOffset"));
+assertTrue(Int32Array.prototype.hasOwnProperty("byteLength"));
+assertFalse(delete Int32Array.prototype.length);
+assertFalse(delete Int32Array.prototype.byteOffset);
+assertFalse(delete Int32Array.prototype.byteLength);
+
 a = new Int32Array(100);
 
 get = function(a) {
@@ -102,13 +110,3 @@ assertEquals(0, get(a));
 assertEquals(0, get(a));
 %OptimizeFunctionOnNextCall(get);
 assertEquals(0, get(a));
-
-// Ensure we can delete length, byteOffset, byteLength.
-for (var name of ['length', 'byteOffset', 'byteLength', 'buffer']) {
-  var property = Object.getOwnPropertyDescriptor(
-                     Int32Array.prototype.__proto__, name);
-  assertEquals("object", typeof property);
-  assertEquals(true, property.configurable);
-  assertEquals(false, property.enumerable);
-  assertEquals("function", typeof property.get);
-}

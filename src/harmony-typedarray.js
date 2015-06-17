@@ -11,21 +11,25 @@
 // -------------------------------------------------------------------
 // Imports
 
+macro TYPED_ARRAYS(FUNCTION)
+// arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
+FUNCTION(Uint8Array)
+FUNCTION(Int8Array)
+FUNCTION(Uint16Array)
+FUNCTION(Int16Array)
+FUNCTION(Uint32Array)
+FUNCTION(Int32Array)
+FUNCTION(Float32Array)
+FUNCTION(Float64Array)
+FUNCTION(Uint8ClampedArray)
+endmacro
 
 macro DECLARE_GLOBALS(NAME)
 var GlobalNAME = global.NAME;
 endmacro
 
+TYPED_ARRAYS(DECLARE_GLOBALS)
 DECLARE_GLOBALS(Array)
-DECLARE_GLOBALS(Uint8Array)
-DECLARE_GLOBALS(Int8Array)
-DECLARE_GLOBALS(Uint16Array)
-DECLARE_GLOBALS(Int16Array)
-DECLARE_GLOBALS(Uint32Array)
-DECLARE_GLOBALS(Int32Array)
-DECLARE_GLOBALS(Float32Array)
-DECLARE_GLOBALS(Float64Array)
-DECLARE_GLOBALS(Uint8ClampedArray)
 
 var ArrayFrom;
 var ArrayToString;
@@ -47,8 +51,6 @@ var InnerArrayToLocaleString;
 var IsNaN;
 var MathMax;
 var MathMin;
-var TypedArray = GlobalUint8Array.__proto__;
-var TypedArrayPrototype = GlobalUint8Array.prototype.__proto__;
 
 utils.Import(function(from) {
   ArrayFrom = from.ArrayFrom;
@@ -374,33 +376,38 @@ function TypedArrayFrom(source, mapfn, thisArg) {
 }
 %FunctionSetLength(TypedArrayFrom, 1);
 
+// TODO(littledan): Fix the TypedArray proto chain (bug v8:4085).
+macro EXTEND_TYPED_ARRAY(NAME)
   // Set up non-enumerable functions on the object.
-utils.InstallFunctions(TypedArray, DONT_ENUM | DONT_DELETE | READ_ONLY, [
-  "from", TypedArrayFrom,
-  "of", TypedArrayOf
-]);
+  utils.InstallFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+    "from", TypedArrayFrom,
+    "of", TypedArrayOf
+  ]);
 
-// Set up non-enumerable functions on the prototype object.
-utils.InstallFunctions(TypedArrayPrototype, DONT_ENUM, [
-  "copyWithin", TypedArrayCopyWithin,
-  "every", TypedArrayEvery,
-  "fill", TypedArrayFill,
-  "filter", TypedArrayFilter,
-  "find", TypedArrayFind,
-  "findIndex", TypedArrayFindIndex,
-  "indexOf", TypedArrayIndexOf,
-  "join", TypedArrayJoin,
-  "lastIndexOf", TypedArrayLastIndexOf,
-  "forEach", TypedArrayForEach,
-  "map", TypedArrayMap,
-  "reduce", TypedArrayReduce,
-  "reduceRight", TypedArrayReduceRight,
-  "reverse", TypedArrayReverse,
-  "slice", TypedArraySlice,
-  "some", TypedArraySome,
-  "sort", TypedArraySort,
-  "toString", TypedArrayToString,
-  "toLocaleString", TypedArrayToLocaleString
-]);
+  // Set up non-enumerable functions on the prototype object.
+  utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
+    "copyWithin", TypedArrayCopyWithin,
+    "every", TypedArrayEvery,
+    "fill", TypedArrayFill,
+    "filter", TypedArrayFilter,
+    "find", TypedArrayFind,
+    "findIndex", TypedArrayFindIndex,
+    "indexOf", TypedArrayIndexOf,
+    "join", TypedArrayJoin,
+    "lastIndexOf", TypedArrayLastIndexOf,
+    "forEach", TypedArrayForEach,
+    "map", TypedArrayMap,
+    "reduce", TypedArrayReduce,
+    "reduceRight", TypedArrayReduceRight,
+    "reverse", TypedArrayReverse,
+    "slice", TypedArraySlice,
+    "some", TypedArraySome,
+    "sort", TypedArraySort,
+    "toString", TypedArrayToString,
+    "toLocaleString", TypedArrayToLocaleString
+  ]);
+endmacro
+
+TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 
 })

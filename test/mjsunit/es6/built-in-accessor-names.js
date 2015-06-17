@@ -6,22 +6,14 @@
 
 'use strict';
 
-function getPropertyDescriptor(object, field, expectedDepth) {
-  for (var depth = 0; depth < expectedDepth; depth++) {
-    assertFalse(Object.hasOwnProperty(object, field));
-    object = object.__proto__;
-  }
-  return Object.getOwnPropertyDescriptor(object, field);
-}
-
-function assertGetterName(expected, object, name, expectedDepth) {
-  var descr = getPropertyDescriptor(object, name, expectedDepth);
+function assertGetterName(expected, object, name) {
+  var descr = Object.getOwnPropertyDescriptor(object, name);
   assertSame(expected, descr.get.name);
 }
 
 
-function assertSetterName(expected, object, name, indirect) {
-  var descr = getPropertyDescriptor(object, name);
+function assertSetterName(expected, object, name) {
+  var descr = Object.getOwnPropertyDescriptor(object, name);
   assertSame(expected, descr.set.name);
 }
 
@@ -44,11 +36,11 @@ let typedArrays = [
 ];
 
 for (let f of typedArrays) {
-  assertGetterName('get buffer', f.prototype, 'buffer', 1);
-  assertGetterName('get byteOffset', f.prototype, 'byteOffset', 1);
-  assertGetterName('get byteLength', f.prototype, 'byteLength', 1);
-  assertGetterName('get length', f.prototype, 'length', 1);
-  assertGetterName('get [Symbol.toStringTag]', f.prototype, Symbol.toStringTag, 1);
+  assertGetterName('get buffer', f.prototype, 'buffer');
+  assertGetterName('get byteOffset', f.prototype, 'byteOffset');
+  assertGetterName('get byteLength', f.prototype, 'byteLength');
+  assertGetterName('get length', f.prototype, 'length');
+  assertGetterName('get [Symbol.toStringTag]', f.prototype, Symbol.toStringTag);
 }
 
 

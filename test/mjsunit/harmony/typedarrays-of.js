@@ -15,16 +15,8 @@ var typedArrayConstructors = [
   Int32Array,
   Uint8ClampedArray,
   Float32Array,
-  Float64Array
-];
+  Float64Array];
 
-function getPropertyDescriptor(object, field, expectedDepth) {
-  for (var depth = 0; depth < expectedDepth; depth++) {
-    assertFalse(Object.hasOwnProperty(object, field));
-    object = object.__proto__;
-  }
-  return Object.getOwnPropertyDescriptor(object, field);
-}
 
 function TestTypedArrayOf(constructor) {
   // %TypedArray%.of basics.
@@ -119,7 +111,7 @@ function TestTypedArrayOf(constructor) {
   assertEquals("pass", status);
 
   // Check superficial features of %TypedArray%.of.
-  var desc = getPropertyDescriptor(constructor, "of", 1);
+  var desc = Object.getOwnPropertyDescriptor(constructor, "of");
 
   assertEquals(desc.configurable, false);
   assertEquals(desc.enumerable, false);
