@@ -3174,7 +3174,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   str(filler, MemOperand(start_offset, kPointerSize, PostIndex));
   bind(&entry);
   cmp(start_offset, end_offset);
-  b(lt, &loop);
+  b(lo, &loop);
 }
 
 
@@ -3402,7 +3402,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   if (ActivationFrameAlignment() > kPointerSize) {
     ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
-    add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
+    add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 }
 

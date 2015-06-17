@@ -453,7 +453,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // initial map and properties and elements are set to empty fixed array.
       // a1: constructor function
       // a2: initial map
-      // a3: object size (not including memento if create_memento)
+      // a3: object size (including memento if create_memento)
       // t0: JSObject (not tagged)
       __ LoadRoot(t2, Heap::kEmptyFixedArrayRootIndex);
       __ mov(t1, t0);
@@ -535,7 +535,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Daddu(t0, t0, Operand(kHeapObjectTag));
 
       // Check if a non-empty properties array is needed. Continue with
-      // allocated object if not fall through to runtime call if it is.
+      // allocated object if not; allocate and initialize a FixedArray if yes.
       // a1: constructor function
       // t0: JSObject
       // t1: start of next object (not tagged)
@@ -574,7 +574,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // a1: constructor
       // a3: number of elements in properties array (untagged)
       // t0: JSObject
-      // t1: start of next object
+      // t1: start of FixedArray (untagged)
       __ LoadRoot(t2, Heap::kFixedArrayMapRootIndex);
       __ mov(a2, t1);
       __ sd(t2, MemOperand(a2, JSObject::kMapOffset));
@@ -595,20 +595,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ dsll(a7, a3, kPointerSizeLog2);
       __ daddu(t2, a2, a7);  // End of object.
       DCHECK_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
-      { Label loop, entry;
-        if (!is_api_function || create_memento) {
-          __ LoadRoot(t3, Heap::kUndefinedValueRootIndex);
-        } else if (FLAG_debug_code) {
-          __ LoadRoot(a6, Heap::kUndefinedValueRootIndex);
-          __ Assert(eq, kUndefinedValueNotLoaded, t3, Operand(a6));
-        }
-        __ jmp(&entry);
-        __ bind(&loop);
-        __ sd(t3, MemOperand(a2));
-        __ daddiu(a2, a2, kPointerSize);
-        __ bind(&entry);
-        __ Branch(&loop, less, a2, Operand(t2));
+      if (!is_api_function || create_memento) {
+        __ LoadRoot(t3, Heap::kUndefinedValueRootIndex);
+      } else if (FLAG_debug_code) {
+        __ LoadRoot(a6, Heap::kUndefinedValueRootIndex);
+        __ Assert(eq, kUndefinedValueNotLoaded, t3, Operand(a6));
       }
+      __ InitializeFieldsWithFiller(a2, t2, t3);
 
       // Store the initialized FixedArray into the properties field of
       // the JSObject.

@@ -4570,7 +4570,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   addp(start_offset, Immediate(kPointerSize));
   bind(&entry);
   cmpp(start_offset, end_offset);
-  j(less, &loop);
+  j(below, &loop);
 }
 
 

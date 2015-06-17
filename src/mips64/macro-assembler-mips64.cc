@@ -3857,7 +3857,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   sd(filler, MemOperand(start_offset));
   Daddu(start_offset, start_offset, kPointerSize);
   bind(&entry);
-  Branch(&loop, lt, start_offset, Operand(end_offset));
+  Branch(&loop, ult, start_offset, Operand(end_offset));
 }
 
 

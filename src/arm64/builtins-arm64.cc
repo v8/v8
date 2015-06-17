@@ -522,7 +522,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Add(new_obj, new_obj, kHeapObjectTag);
 
       // Check if a non-empty properties array is needed. Continue with
-      // allocated object if not, or fall through to runtime call if it is.
+      // allocated object if not; allocate and initialize a FixedArray if yes.
       Register element_count = x3;
       __ Ldrb(element_count,
               FieldMemOperand(init_map, Map::kUnusedPropertyFieldsOffset));

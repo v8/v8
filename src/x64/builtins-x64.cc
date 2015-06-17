@@ -353,17 +353,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rdi: FixedArray
       // rax: start of next object
       // rdx: number of elements
-      { Label loop, entry;
-        __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-        __ leap(rcx, Operand(rdi, FixedArray::kHeaderSize));
-        __ jmp(&entry);
-        __ bind(&loop);
-        __ movp(Operand(rcx, 0), rdx);
-        __ addp(rcx, Immediate(kPointerSize));
-        __ bind(&entry);
-        __ cmpp(rcx, rax);
-        __ j(below, &loop);
-      }
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      __ leap(rcx, Operand(rdi, FixedArray::kHeaderSize));
+      __ InitializeFieldsWithFiller(rcx, rax, rdx);
 
       // Store the initialized FixedArray into the properties field of
       // the JSObject
