@@ -25,9 +25,6 @@ class ControlReducer {
   static void ReduceGraph(Zone* zone, JSGraph* graph,
                           int max_phis_for_select = 0);
 
-  // Trim nodes in the graph that are not reachable from end.
-  static void TrimGraph(Zone* zone, JSGraph* graph);
-
   // Reduces a single merge node and attached phis.
   static Node* ReduceMerge(JSGraph* graph, Node* node,
                            int max_phis_for_select = 0);

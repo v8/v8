@@ -34,11 +34,10 @@ class NodeMarkerBase {
     DCHECK_LT(node->mark(), mark_max_);
     node->set_mark(mark + mark_min_);
   }
-  void Reset(Graph* graph);
 
  private:
-  Mark mark_min_;
-  Mark mark_max_;
+  Mark const mark_min_;
+  Mark const mark_max_;
 
   DISALLOW_COPY_AND_ASSIGN(NodeMarkerBase);
 };

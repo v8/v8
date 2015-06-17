@@ -8,6 +8,7 @@
 #include "src/compiler/control-reducer.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/loop-analysis.h"
@@ -337,9 +338,12 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   Node* node = ControlReducer::ReduceMerge(jsgraph, osr_loop);
   if (node != osr_loop) osr_loop->ReplaceUses(node);
 
-  // Run the normal control reduction, which naturally trims away the dead
-  // parts of the graph.
+  // Run control reduction and graph trimming.
   ControlReducer::ReduceGraph(tmp_zone, jsgraph);
+  GraphTrimmer trimmer(tmp_zone, jsgraph->graph());
+  NodeVector roots(tmp_zone);
+  jsgraph->GetCachedNodes(&roots);
+  trimmer.TrimGraph(roots.begin(), roots.end());
 }
 
 
@@ -350,7 +354,6 @@ void OsrHelper::SetupFrame(Frame* frame) {
   // The frame needs to be adjusted by the number of unoptimized frame slots.
   frame->SetOsrStackSlotCount(static_cast<int>(UnoptimizedFrameSlots()));
 }
-
 
 }  // namespace compiler
 }  // namespace internal

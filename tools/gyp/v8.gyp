@@ -475,6 +475,8 @@
         '../../src/compiler/graph-reducer.h',
         '../../src/compiler/graph-replay.cc',
         '../../src/compiler/graph-replay.h',
+        '../../src/compiler/graph-trimmer.cc',
+        '../../src/compiler/graph-trimmer.h',
         '../../src/compiler/graph-visualizer.cc',
         '../../src/compiler/graph-visualizer.h',
         '../../src/compiler/graph.cc',

@@ -19,6 +19,7 @@
 #include "src/compiler/control-reducer.h"
 #include "src/compiler/frame-elider.h"
 #include "src/compiler/graph-replay.h"
+#include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/greedy-allocator.h"
 #include "src/compiler/instruction.h"
@@ -653,6 +654,28 @@ struct LateControlReductionPhase {
 };
 
 
+struct EarlyGraphTrimmingPhase {
+  static const char* phase_name() { return "early graph trimming"; }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+  }
+};
+
+
+struct LateGraphTrimmingPhase {
+  static const char* phase_name() { return "late graph trimming"; }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+  }
+};
+
+
 struct StressLoopPeelingPhase {
   static const char* phase_name() { return "stress loop peeling"; }
 
@@ -1024,6 +1047,9 @@ Handle<Code> Pipeline::GenerateCode() {
   Run<InliningPhase>();
   RunPrintAndVerify("Inlined", true);
 
+  Run<EarlyGraphTrimmingPhase>();
+  RunPrintAndVerify("Early trimmed", true);
+
   if (FLAG_print_turbo_replay) {
     // Print a replay of the initial graph.
     GraphReplayPrinter::PrintReplay(data.graph());
@@ -1089,6 +1115,10 @@ Handle<Code> Pipeline::GenerateCode() {
   Run<GenericLoweringPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
   RunPrintAndVerify("Lowered generic", true);
+
+  Run<LateGraphTrimmingPhase>();
+  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+  RunPrintAndVerify("Late trimmed", true);
 
   BeginPhaseKind("block building");
 

@@ -14,9 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-bool Reducer::Finish() { return true; }
-
-
 enum class GraphReducer::State : uint8_t {
   kUnvisited,
   kRevisit,
@@ -70,23 +67,7 @@ void GraphReducer::ReduceNode(Node* node) {
 }
 
 
-void GraphReducer::ReduceGraph() {
-  for (;;) {
-    ReduceNode(graph()->end());
-    // TODO(turbofan): Remove this once the dead node trimming is in the
-    // GraphReducer.
-    bool done = true;
-    for (Reducer* const reducer : reducers_) {
-      if (!reducer->Finish()) {
-        done = false;
-        break;
-      }
-    }
-    if (done) break;
-    // Reset all marks on the graph in preparation to re-reduce the graph.
-    state_.Reset(graph());
-  }
-}
+void GraphReducer::ReduceGraph() { ReduceNode(graph()->end()); }
 
 
 Reduction GraphReducer::Reduce(Node* const node) {

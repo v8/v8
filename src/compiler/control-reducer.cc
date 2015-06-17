@@ -21,26 +21,7 @@ namespace compiler {
     if (FLAG_trace_turbo_reduction) PrintF(__VA_ARGS__); \
   } while (false)
 
-enum VisitState { kUnvisited = 0, kOnStack = 1, kRevisit = 2, kVisited = 3 };
 enum Decision { kFalse, kUnknown, kTrue };
-
-class ReachabilityMarker : public NodeMarker<uint8_t> {
- public:
-  explicit ReachabilityMarker(Graph* graph) : NodeMarker<uint8_t>(graph, 8) {}
-  bool SetReachableFromEnd(Node* node) {
-    uint8_t before = Get(node);
-    Set(node, before | kFromEnd);
-    return before & kFromEnd;
-  }
-  bool IsReachableFromEnd(Node* node) { return Get(node) & kFromEnd; }
-  void Push(Node* node) { Set(node, Get(node) | kFwStack); }
-  void Pop(Node* node) { Set(node, Get(node) & ~kFwStack); }
-  bool IsOnStack(Node* node) { return Get(node) & kFwStack; }
-
- private:
-  enum Bit { kFromEnd = 1, kFwStack = 2 };
-};
-
 
 class ControlReducerImpl final : public AdvancedReducer {
  public:
@@ -57,83 +38,6 @@ class ControlReducerImpl final : public AdvancedReducer {
   Graph* graph() { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   Node* dead() { return jsgraph_->DeadControl(); }
-
-  // Finish reducing the graph by trimming nodes.
-  bool Finish() final {
-    // TODO(bmeurer): Move this to the GraphReducer.
-    Trim();
-    return true;
-  }
-
-  void AddNodesReachableFromRoots(ReachabilityMarker& marked,
-                                  NodeVector& nodes) {
-    jsgraph_->GetCachedNodes(&nodes);  // Consider cached nodes roots.
-    Node* end = graph()->end();
-    marked.SetReachableFromEnd(end);
-    if (!end->IsDead()) nodes.push_back(end);  // Consider end to be a root.
-    for (Node* node : nodes) marked.SetReachableFromEnd(node);
-    AddBackwardsReachableNodes(marked, nodes, 0);
-  }
-
-  void AddBackwardsReachableNodes(ReachabilityMarker& marked, NodeVector& nodes,
-                                  size_t cursor) {
-    while (cursor < nodes.size()) {
-      Node* node = nodes[cursor++];
-      for (Node* const input : node->inputs()) {
-        if (!marked.SetReachableFromEnd(input)) {
-          nodes.push_back(input);
-        }
-      }
-    }
-  }
-
-  void Trim() {
-    // Gather all nodes backwards-reachable from end through inputs.
-    ReachabilityMarker marked(graph());
-    NodeVector nodes(zone_);
-    jsgraph_->GetCachedNodes(&nodes);
-    AddNodesReachableFromRoots(marked, nodes);
-    TrimNodes(marked, nodes);
-  }
-
-  void TrimNodes(ReachabilityMarker& marked, NodeVector& nodes) {
-    // Remove dead->live edges.
-    for (size_t j = 0; j < nodes.size(); j++) {
-      Node* node = nodes[j];
-      for (Edge edge : node->use_edges()) {
-        Node* use = edge.from();
-        if (!marked.IsReachableFromEnd(use)) {
-          TRACE("DeadLink: #%d:%s(%d) -> #%d:%s\n", use->id(),
-                use->op()->mnemonic(), edge.index(), node->id(),
-                node->op()->mnemonic());
-          edge.UpdateTo(NULL);
-        }
-      }
-    }
-#if DEBUG
-    // Verify that no inputs to live nodes are NULL.
-    for (Node* node : nodes) {
-      for (int index = 0; index < node->InputCount(); index++) {
-        Node* input = node->InputAt(index);
-        if (input == nullptr) {
-          std::ostringstream str;
-          str << "GraphError: node #" << node->id() << ":" << *node->op()
-              << "(input @" << index << ") == null";
-          FATAL(str.str().c_str());
-        }
-        if (input->opcode() == IrOpcode::kDead) {
-          std::ostringstream str;
-          str << "GraphError: node #" << node->id() << ":" << *node->op()
-              << "(input @" << index << ") == dead";
-          FATAL(str.str().c_str());
-        }
-      }
-      for (Node* use : node->uses()) {
-        CHECK(marked.IsReachableFromEnd(use));
-      }
-    }
-#endif
-  }
 
   //===========================================================================
   // Reducer implementation: perform reductions on a node.
@@ -441,13 +345,6 @@ class DummyEditor final : public AdvancedReducer::Editor {
 };
 
 }  // namespace
-
-
-void ControlReducer::TrimGraph(Zone* zone, JSGraph* jsgraph) {
-  DummyEditor editor;
-  ControlReducerImpl impl(&editor, zone, jsgraph);
-  impl.Trim();
-}
 
 
 Node* ControlReducer::ReduceMerge(JSGraph* jsgraph, Node* node,
