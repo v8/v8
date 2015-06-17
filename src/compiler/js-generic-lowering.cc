@@ -196,9 +196,6 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
 
   // Finally patch the original node to select a boolean.
   NodeProperties::ReplaceUses(node, node, compare, compare, compare);
-  // TODO(mstarzinger): Just a work-around because SelectLowering might
-  // otherwise introduce a Phi without any uses, making Scheduler unhappy.
-  if (node->UseCount() == 0) return;
   node->TrimInputCount(3);
   node->ReplaceInput(0, booleanize);
   node->ReplaceInput(1, true_value);
