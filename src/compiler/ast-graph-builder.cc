@@ -3582,26 +3582,32 @@ Node* AstGraphBuilder::BuildStoreExternal(ExternalReference reference,
 
 
 Node* AstGraphBuilder::BuildToBoolean(Node* input) {
-  // TODO(titzer): This should be in a JSOperatorReducer.
+  // TODO(bmeurer, mstarzinger): Refactor this into a separate optimization
+  // method.
   switch (input->opcode()) {
-    case IrOpcode::kInt32Constant:
-      return jsgraph_->BooleanConstant(!Int32Matcher(input).Is(0));
-    case IrOpcode::kFloat64Constant:
-      return jsgraph_->BooleanConstant(!Float64Matcher(input).Is(0));
     case IrOpcode::kNumberConstant:
       return jsgraph_->BooleanConstant(!NumberMatcher(input).Is(0));
     case IrOpcode::kHeapConstant: {
       Handle<Object> object = HeapObjectMatcher<Object>(input).Value().handle();
       return jsgraph_->BooleanConstant(object->BooleanValue());
     }
+    case IrOpcode::kJSEqual:
+    case IrOpcode::kJSNotEqual:
+    case IrOpcode::kJSStrictEqual:
+    case IrOpcode::kJSStrictNotEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSUnaryNot:
+    case IrOpcode::kJSToBoolean:
+    case IrOpcode::kJSDeleteProperty:
+    case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSInstanceOf:
+      return input;
     default:
       break;
   }
-  if (NodeProperties::IsTyped(input)) {
-    Type* upper = NodeProperties::GetBounds(input).upper;
-    if (upper->Is(Type::Boolean())) return input;
-  }
-
   return NewNode(javascript()->ToBoolean(), input);
 }
 
