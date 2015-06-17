@@ -212,11 +212,6 @@ class ControlReducerImpl final : public AdvancedReducer {
       default:
         break;
     }
-    if (NodeProperties::IsTyped(cond)) {
-      // If the node has a range type, check whether the range excludes 0.
-      Type* type = NodeProperties::GetBounds(cond).upper;
-      if (type->IsRange() && (type->Min() > 0 || type->Max() < 0)) return kTrue;
-    }
     return kUnknown;
   }
 

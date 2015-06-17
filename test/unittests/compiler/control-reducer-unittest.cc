@@ -145,52 +145,6 @@ TEST_F(ControlReducerTest, PhiAsInputToBranch_unknown_true) {
 }
 
 
-TEST_F(ControlReducerTest, RangeAsInputToBranch_true1) {
-  Node* p0 = Parameter(Type::Range(1, 2, zone()), 0);
-  Node* branch1 = graph()->NewNode(common()->Branch(), p0, graph()->start());
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-  Node* merge1 = graph()->NewNode(common()->Merge(1), if_true1, if_false1);
-  Node* result = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                  jsgraph()->Int32Constant(11),
-                                  jsgraph()->Int32Constant(44), merge1);
-
-  Node* ret =
-      graph()->NewNode(common()->Return(), result, graph()->start(), merge1);
-  graph()->end()->ReplaceInput(0, ret);
-
-  ReduceGraph();
-
-  // Diamond should be folded away.
-  EXPECT_THAT(
-      graph()->end(),
-      IsEnd(IsReturn(IsInt32Constant(11), graph()->start(), graph()->start())));
-}
-
-
-TEST_F(ControlReducerTest, RangeAsInputToBranch_true2) {
-  Node* p0 = Parameter(Type::Range(-2, -1, zone()), 0);
-  Node* branch1 = graph()->NewNode(common()->Branch(), p0, graph()->start());
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-  Node* merge1 = graph()->NewNode(common()->Merge(1), if_true1, if_false1);
-  Node* result = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                  jsgraph()->Int32Constant(11),
-                                  jsgraph()->Int32Constant(44), merge1);
-
-  Node* ret =
-      graph()->NewNode(common()->Return(), result, graph()->start(), merge1);
-  graph()->end()->ReplaceInput(0, ret);
-
-  ReduceGraph();
-
-  // Diamond should be folded away.
-  EXPECT_THAT(
-      graph()->end(),
-      IsEnd(IsReturn(IsInt32Constant(11), graph()->start(), graph()->start())));
-}
-
-
 TEST_F(ControlReducerTest, SelectPhi) {
   Node* p0 = Parameter(0);
   const MachineType kType = kMachInt32;
