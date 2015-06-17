@@ -4682,11 +4682,11 @@ void Heap::MakeHeapIterable() {
 
 
 bool Heap::HasLowYoungGenerationAllocationRate() {
-  const double high_mutator_utilization = 0.995;
+  const double high_mutator_utilization = 0.993;
   double mutator_speed = static_cast<double>(
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
-  double gc_speed =
-      static_cast<double>(tracer()->ScavengeSpeedInBytesPerMillisecond());
+  double gc_speed = static_cast<double>(
+      tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects));
   if (mutator_speed == 0 || gc_speed == 0) return false;
   double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
   return mutator_utilization > high_mutator_utilization;
@@ -4694,7 +4694,7 @@ bool Heap::HasLowYoungGenerationAllocationRate() {
 
 
 bool Heap::HasLowOldGenerationAllocationRate() {
-  const double high_mutator_utilization = 0.995;
+  const double high_mutator_utilization = 0.993;
   double mutator_speed = static_cast<double>(
       tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
   double gc_speed = static_cast<double>(

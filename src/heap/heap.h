@@ -1277,6 +1277,10 @@ class Heap {
     semi_space_copied_object_size_ += object_size;
   }
 
+  inline intptr_t SurvivedNewSpaceObjectSize() {
+    return promoted_objects_size_ + semi_space_copied_object_size_;
+  }
+
   inline void IncrementNodesDiedInNewSpace() { nodes_died_in_new_space_++; }
 
   inline void IncrementNodesCopiedInNewSpace() { nodes_copied_in_new_space_++; }

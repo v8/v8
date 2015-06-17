@@ -184,6 +184,7 @@ void GCTracer::Stop(GarbageCollector collector) {
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();
   current_.end_holes_size = CountTotalHolesSize(heap_);
+  current_.survived_new_space_object_size = heap_->SurvivedNewSpaceObjectSize();
 
   AddAllocation(current_.end_time);
 
@@ -566,12 +567,14 @@ intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
 }
 
 
-intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond() const {
+intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond(
+    ScavengeSpeedMode mode) const {
   intptr_t bytes = 0;
   double durations = 0.0;
   EventBuffer::const_iterator iter = scavenger_events_.begin();
   while (iter != scavenger_events_.end()) {
-    bytes += iter->new_space_object_size;
+    bytes += mode == kForAllObjects ? iter->new_space_object_size
+                                    : iter->survived_new_space_object_size;
     durations += iter->end_time - iter->start_time;
     ++iter;
   }
