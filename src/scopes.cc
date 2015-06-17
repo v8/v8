@@ -283,11 +283,14 @@ bool Scope::Analyze(ParseInfo* info) {
   }
 
 #ifdef DEBUG
-  if (info->isolate()->bootstrapper()->IsActive()
-          ? FLAG_print_builtin_scopes
-          : FLAG_print_scopes) {
-    scope->Print();
+  bool native = info->isolate()->bootstrapper()->IsActive();
+  if (!info->shared_info().is_null()) {
+    Object* script = info->shared_info()->script();
+    native = script->IsScript() &&
+             Script::cast(script)->type()->value() == Script::TYPE_NATIVE;
   }
+
+  if (native ? FLAG_print_builtin_scopes : FLAG_print_scopes) scope->Print();
 #endif
 
   info->set_scope(scope);
