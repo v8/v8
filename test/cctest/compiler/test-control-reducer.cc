@@ -902,11 +902,9 @@ TEST(CBranchReduce_none2) {
 
 TEST(CBranchReduce_true) {
   ControlReducerTester R;
-  Node* true_values[] = {
-      R.one,                               R.jsgraph.Int32Constant(2),
-      R.jsgraph.Int32Constant(0x7fffffff), R.jsgraph.Constant(1.0),
-      R.jsgraph.Constant(22.1),            R.jsgraph.TrueConstant()};
-
+  Node* true_values[] = {R.jsgraph.Int32Constant(2),
+                         R.jsgraph.Int64Constant(0x7fffffff),
+                         R.jsgraph.TrueConstant()};
   for (size_t i = 0; i < arraysize(true_values); i++) {
     Diamond d(R, true_values[i]);
     R.ReduceBranch(kTrue, d.branch);
@@ -916,9 +914,9 @@ TEST(CBranchReduce_true) {
 
 TEST(CBranchReduce_false) {
   ControlReducerTester R;
-  Node* false_values[] = {R.zero, R.jsgraph.Constant(0.0),
-                          R.jsgraph.Constant(-0.0), R.jsgraph.FalseConstant()};
-
+  Node* false_values[] = {R.jsgraph.Int32Constant(0),
+                          R.jsgraph.Int64Constant(0),
+                          R.jsgraph.FalseConstant()};
   for (size_t i = 0; i < arraysize(false_values); i++) {
     Diamond d(R, false_values[i]);
     R.ReduceBranch(kFalse, d.branch);
@@ -928,22 +926,22 @@ TEST(CBranchReduce_false) {
 
 TEST(CDiamondReduce_true) {
   ControlReducerTester R;
-  Diamond d1(R, R.one);
+  Diamond d1(R, R.jsgraph.TrueConstant());
   R.ReduceMergeIterative(R.start, d1.merge);
 }
 
 
 TEST(CDiamondReduce_false) {
   ControlReducerTester R;
-  Diamond d2(R, R.zero);
+  Diamond d2(R, R.jsgraph.FalseConstant());
   R.ReduceMergeIterative(R.start, d2.merge);
 }
 
 
 TEST(CChainedDiamondsReduce_true_false) {
   ControlReducerTester R;
-  Diamond d1(R, R.one);
-  Diamond d2(R, R.zero);
+  Diamond d1(R, R.jsgraph.TrueConstant());
+  Diamond d2(R, R.jsgraph.FalseConstant());
   d2.chain(d1);
 
   R.ReduceMergeIterative(R.start, d2.merge);
@@ -953,7 +951,7 @@ TEST(CChainedDiamondsReduce_true_false) {
 TEST(CChainedDiamondsReduce_x_false) {
   ControlReducerTester R;
   Diamond d1(R, R.p0);
-  Diamond d2(R, R.zero);
+  Diamond d2(R, R.jsgraph.FalseConstant());
   d2.chain(d1);
 
   R.ReduceMergeIterative(R.start, d2.merge);
@@ -982,7 +980,8 @@ TEST(CChainedDiamondsReduce_phi1) {
 
 TEST(CChainedDiamondsReduce_phi2) {
   ControlReducerTester R;
-  Diamond d1(R, R.p0, R.one, R.one);  // redundant phi.
+  Diamond d1(R, R.p0, R.jsgraph.TrueConstant(),
+             R.jsgraph.TrueConstant());  // redundant phi.
   Diamond d2(R, d1.phi);
   d2.chain(d1);
 
@@ -992,8 +991,8 @@ TEST(CChainedDiamondsReduce_phi2) {
 
 TEST(CNestedDiamondsReduce_true_true_false) {
   ControlReducerTester R;
-  Diamond d1(R, R.one);
-  Diamond d2(R, R.zero);
+  Diamond d1(R, R.jsgraph.TrueConstant());
+  Diamond d2(R, R.jsgraph.FalseConstant());
   d2.nest(d1, true);
 
   R.ReduceMergeIterative(R.start, d1.merge);
@@ -1002,8 +1001,8 @@ TEST(CNestedDiamondsReduce_true_true_false) {
 
 TEST(CNestedDiamondsReduce_false_true_false) {
   ControlReducerTester R;
-  Diamond d1(R, R.one);
-  Diamond d2(R, R.zero);
+  Diamond d1(R, R.jsgraph.TrueConstant());
+  Diamond d2(R, R.jsgraph.FalseConstant());
   d2.nest(d1, false);
 
   R.ReduceMergeIterative(R.start, d1.merge);
@@ -1077,7 +1076,7 @@ TEST(Return1) {
 
 TEST(Return2) {
   ControlReducerTester R;
-  Diamond d(R, R.one);
+  Diamond d(R, R.jsgraph.TrueConstant());
   Node* ret = R.Return(R.half, R.start, d.merge);
   R.ReduceGraph();
 
@@ -1094,7 +1093,7 @@ TEST(Return2) {
 
 TEST(Return_true1) {
   ControlReducerTester R;
-  Diamond d(R, R.one, R.half, R.zero);
+  Diamond d(R, R.jsgraph.TrueConstant(), R.half, R.zero);
   Node* ret = R.Return(d.phi, R.start, d.merge);
   R.ReduceGraph();
 
@@ -1112,7 +1111,7 @@ TEST(Return_true1) {
 
 TEST(Return_false1) {
   ControlReducerTester R;
-  Diamond d(R, R.zero, R.one, R.half);
+  Diamond d(R, R.jsgraph.FalseConstant(), R.one, R.half);
   Node* ret = R.Return(d.phi, R.start, d.merge);
   R.ReduceGraph();
 
@@ -1130,7 +1129,7 @@ TEST(Return_false1) {
 
 TEST(Return_effect1) {
   ControlReducerTester R;
-  Diamond d(R, R.one);
+  Diamond d(R, R.jsgraph.TrueConstant());
   Node* e1 = R.jsgraph.Float64Constant(-100.1);
   Node* e2 = R.jsgraph.Float64Constant(+100.1);
   Node* effect = R.graph.NewNode(R.common.EffectPhi(2), e1, e2, d.merge);
@@ -1218,7 +1217,7 @@ TEST(Return_nested_diamonds1_dead2) {
 TEST(Return_nested_diamonds_true1) {
   ControlReducerTester R;
   Diamond d2(R, R.p0, R.one, R.zero);
-  Diamond d1(R, R.one, d2.phi, R.zero);
+  Diamond d1(R, R.jsgraph.TrueConstant(), d2.phi, R.zero);
   Diamond d3(R, R.p0);
 
   d2.nest(d1, true);
@@ -1263,8 +1262,8 @@ TEST(Return_nested_diamonds_false1) {
 
 TEST(Return_nested_diamonds_true_true1) {
   ControlReducerTester R;
-  Diamond d1(R, R.one, R.one, R.zero);
-  Diamond d2(R, R.one);
+  Diamond d1(R, R.jsgraph.TrueConstant(), R.one, R.zero);
+  Diamond d2(R, R.jsgraph.TrueConstant());
   Diamond d3(R, R.p0);
 
   d2.nest(d1, true);
@@ -1285,8 +1284,8 @@ TEST(Return_nested_diamonds_true_true1) {
 
 TEST(Return_nested_diamonds_true_false1) {
   ControlReducerTester R;
-  Diamond d1(R, R.one, R.one, R.zero);
-  Diamond d2(R, R.zero);
+  Diamond d1(R, R.jsgraph.TrueConstant(), R.one, R.zero);
+  Diamond d2(R, R.jsgraph.FalseConstant());
   Diamond d3(R, R.p0);
 
   d2.nest(d1, true);
@@ -1342,7 +1341,7 @@ TEST(Return_nested_diamonds_true2) {
 
   Diamond d2(R, R.p0, x2, y2);
   Diamond d3(R, R.p0, x3, y3);
-  Diamond d1(R, R.one, d2.phi, d3.phi);
+  Diamond d1(R, R.jsgraph.TrueConstant(), d2.phi, d3.phi);
 
   d2.nest(d1, true);
   d3.nest(d1, false);
@@ -1368,9 +1367,9 @@ TEST(Return_nested_diamonds_true_true2) {
   Node* x3 = R.jsgraph.Float64Constant(33.3);
   Node* y3 = R.jsgraph.Float64Constant(44.4);
 
-  Diamond d2(R, R.one, x2, y2);
+  Diamond d2(R, R.jsgraph.TrueConstant(), x2, y2);
   Diamond d3(R, R.p0, x3, y3);
-  Diamond d1(R, R.one, d2.phi, d3.phi);
+  Diamond d1(R, R.jsgraph.TrueConstant(), d2.phi, d3.phi);
 
   d2.nest(d1, true);
   d3.nest(d1, false);
@@ -1395,9 +1394,9 @@ TEST(Return_nested_diamonds_true_false2) {
   Node* x3 = R.jsgraph.Float64Constant(33.3);
   Node* y3 = R.jsgraph.Float64Constant(44.4);
 
-  Diamond d2(R, R.zero, x2, y2);
+  Diamond d2(R, R.jsgraph.FalseConstant(), x2, y2);
   Diamond d3(R, R.p0, x3, y3);
-  Diamond d1(R, R.one, d2.phi, d3.phi);
+  Diamond d1(R, R.jsgraph.TrueConstant(), d2.phi, d3.phi);
 
   d2.nest(d1, true);
   d3.nest(d1, false);

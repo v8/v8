@@ -93,8 +93,6 @@ class ControlReducerImpl final : public AdvancedReducer {
         return Int32Matcher(cond).Is(0) ? kFalse : kTrue;
       case IrOpcode::kInt64Constant:
         return Int64Matcher(cond).Is(0) ? kFalse : kTrue;
-      case IrOpcode::kNumberConstant:
-        return NumberMatcher(cond).Is(0) ? kFalse : kTrue;
       case IrOpcode::kHeapConstant: {
         Handle<Object> object =
             HeapObjectMatcher<Object>(cond).Value().handle();
