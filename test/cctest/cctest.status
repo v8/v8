@@ -64,10 +64,12 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
-  # This tests only the type system, so there is no point in running several
-  # variants.
+  # This tests only the type system, no point in running several variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
+
+  # This tests API threading, no point in running several variants.
+  'test-api/Threading*': [PASS, NO_VARIANTS],
 
   # The cpu profiler tests are notoriously flaky.
   # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
@@ -98,7 +100,6 @@
   # TurboFan compiler failures.
 
   # Some tests are just too slow to run for now.
-  'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
@@ -115,12 +116,6 @@
   'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
   'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
   'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
-
-  # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
-  'test-js-typed-lowering/OrderCompareEffects': [SKIP],
-
-  # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
-  'test-mark-compact/MarkingDeque': [SKIP],
 
   ############################################################################
   # Slow tests.
