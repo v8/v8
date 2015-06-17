@@ -195,10 +195,6 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   auto object = isolate->factory()->NewJSObject(cons);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, ConfigureInstance(isolate, object, info), JSFunction);
-  if (!constructor->IsUndefined()) {
-    RETURN_ON_EXCEPTION(
-        isolate, Execution::Call(isolate, cons, result, 0, nullptr), JSObject);
-  }
   // TODO(dcarney): is this necessary?
   JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
   return scope.CloseAndEscape(result);
