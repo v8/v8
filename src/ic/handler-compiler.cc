@@ -53,6 +53,16 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   while (true) {
     if (current_map->is_dictionary_map()) cache_name = name;
     if (current_map->prototype()->IsNull()) break;
+    if (name->IsPrivate()) {
+      // TODO(verwaest): Use nonexistent_private_symbol.
+      cache_name = name;
+      JSReceiver* prototype = JSReceiver::cast(current_map->prototype());
+      if (!prototype->map()->is_hidden_prototype() &&
+          !prototype->map()->IsGlobalObjectMap()) {
+        break;
+      }
+    }
+
     last = handle(JSObject::cast(current_map->prototype()));
     current_map = handle(last->map());
   }
@@ -428,8 +438,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   if (is_nonexistent) {
     // Find the top object.
     Handle<JSObject> last;
+    PrototypeIterator::WhereToEnd end =
+        name->IsPrivate() ? PrototypeIterator::END_AT_NON_HIDDEN
+                          : PrototypeIterator::END_AT_NULL;
     PrototypeIterator iter(isolate(), holder());
-    while (!iter.IsAtEnd()) {
+    while (!iter.IsAtEnd(end)) {
       last = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       iter.Advance();
     }
