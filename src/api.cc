@@ -3658,9 +3658,6 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
     name = i::Handle<i::String>::cast(converted);
   }
 
-  if (name->IsString()) {
-    name = i::String::Flatten(i::Handle<i::String>::cast(name));
-  }
   return i::JSReceiver::DeleteProperty(receiver, name, language_mode);
 }
 

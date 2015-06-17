@@ -3226,6 +3226,12 @@ Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
 }
 
 
+Handle<Name> Name::Flatten(Handle<Name> name, PretenureFlag pretenure) {
+  if (name->IsSymbol()) return name;
+  return String::Flatten(Handle<String>::cast(name));
+}
+
+
 uint16_t String::Get(int index) {
   DCHECK(index >= 0 && index < length());
   switch (StringShape(this).full_representation_tag()) {

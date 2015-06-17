@@ -52,7 +52,7 @@ class LookupIterator final BASE_EMBEDDED {
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
-        name_(name),
+        name_(Name::Flatten(name)),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
@@ -76,7 +76,7 @@ class LookupIterator final BASE_EMBEDDED {
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
-        name_(name),
+        name_(Name::Flatten(name)),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
@@ -135,6 +135,7 @@ class LookupIterator final BASE_EMBEDDED {
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
       Configuration configuration = DEFAULT) {
+    name = Name::Flatten(name);
     uint32_t index;
     LookupIterator it =
         name->AsArrayIndex(&index)
@@ -147,6 +148,7 @@ class LookupIterator final BASE_EMBEDDED {
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
       Handle<JSReceiver> holder, Configuration configuration = DEFAULT) {
+    name = Name::Flatten(name);
     uint32_t index;
     LookupIterator it =
         name->AsArrayIndex(&index)
@@ -155,6 +157,7 @@ class LookupIterator final BASE_EMBEDDED {
     it.name_ = name;
     return it;
   }
+
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
 
