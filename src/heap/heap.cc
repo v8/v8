@@ -1286,16 +1286,18 @@ bool Heap::PerformGarbageCollection(
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing(isolate_);
 
+  double gc_speed = tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
+  double mutator_speed = static_cast<double>(
+      tracer()
+          ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond());
+  intptr_t old_gen_size = PromotedSpaceSizeOfObjects();
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
-    double gc_speed = tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
-    double mutator_speed = static_cast<double>(
-        tracer()
-            ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond());
-    intptr_t old_gen_size = PromotedSpaceSizeOfObjects();
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
+  } else if (HasLowYoungGenerationAllocationRate()) {
+    DampenOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   }
 
   {
@@ -5574,6 +5576,24 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
         "d KB (%.1f), new idle limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
         old_gen_size / KB, old_generation_allocation_limit_ / KB, factor,
         idle_old_generation_allocation_limit_ / KB, idle_factor);
+  }
+}
+
+
+void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
+                                              double gc_speed,
+                                              double mutator_speed) {
+  double factor = HeapGrowingFactor(gc_speed, mutator_speed);
+  intptr_t limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size);
+  if (limit < old_generation_allocation_limit_) {
+    if (FLAG_trace_gc_verbose) {
+      PrintIsolate(isolate_, "Dampen: old size: %" V8_PTR_PREFIX
+                             "d KB, old limit: %" V8_PTR_PREFIX "d KB, \n",
+                   "new limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
+                   old_gen_size / KB, old_generation_allocation_limit_ / KB,
+                   limit / KB, factor);
+    }
+    old_generation_allocation_limit_ = limit;
   }
 }
 

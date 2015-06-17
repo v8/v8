@@ -1177,6 +1177,12 @@ class Heap {
   void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
                                        double mutator_speed);
 
+  // Decrease the allocation limit if the new limit based on the given
+  // parameters is lower than the current limit.
+  void DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
+                                          double gc_speed,
+                                          double mutator_speed);
+
   // Indicates whether inline bump-pointer allocation has been disabled.
   bool inline_allocation_disabled() { return inline_allocation_disabled_; }
 
