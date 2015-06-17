@@ -4447,7 +4447,6 @@ void MacroAssembler::ObjectToDoubleFPURegister(Register object,
 void MacroAssembler::SmiToDoubleFPURegister(Register smi,
                                             FPURegister value,
                                             Register scratch1) {
-  // dsra(scratch1, smi, kSmiTagSize);
   dsra32(scratch1, smi, 0);
   mtc1(scratch1, value);
   cvt_d_w(value, value);
@@ -4462,19 +4461,16 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst, Register left,
     AdduAndCheckForOverflow(dst, left, right.rm(), overflow_dst, scratch);
   } else {
     if (dst.is(left)) {
+      li(t9, right);                         // Load right.
       mov(scratch, left);                    // Preserve left.
-      daddiu(dst, left,
-             static_cast<int32_t>(right.immediate()));  // Left is overwritten.
+      addu(dst, left, t9);                   // Left is overwritten.
       xor_(scratch, dst, scratch);           // Original left.
-      // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(overflow_dst, dst, t9);
       and_(overflow_dst, overflow_dst, scratch);
     } else {
-      daddiu(dst, left, static_cast<int32_t>(right.immediate()));
+      li(t9, right);
+      addu(dst, left, t9);
       xor_(overflow_dst, dst, left);
-      // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(scratch, dst, t9);
       and_(overflow_dst, scratch, overflow_dst);
     }
@@ -4482,11 +4478,76 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst, Register left,
 }
 
 
-void MacroAssembler::AdduAndCheckForOverflow(Register dst,
-                                             Register left,
+void MacroAssembler::AdduAndCheckForOverflow(Register dst, Register left,
                                              Register right,
                                              Register overflow_dst,
                                              Register scratch) {
+  DCHECK(!dst.is(overflow_dst));
+  DCHECK(!dst.is(scratch));
+  DCHECK(!overflow_dst.is(scratch));
+  DCHECK(!overflow_dst.is(left));
+  DCHECK(!overflow_dst.is(right));
+
+  if (left.is(right) && dst.is(left)) {
+    DCHECK(!dst.is(t9));
+    DCHECK(!scratch.is(t9));
+    DCHECK(!left.is(t9));
+    DCHECK(!right.is(t9));
+    DCHECK(!overflow_dst.is(t9));
+    mov(t9, right);
+    right = t9;
+  }
+
+  if (dst.is(left)) {
+    mov(scratch, left);           // Preserve left.
+    addu(dst, left, right);       // Left is overwritten.
+    xor_(scratch, dst, scratch);  // Original left.
+    xor_(overflow_dst, dst, right);
+    and_(overflow_dst, overflow_dst, scratch);
+  } else if (dst.is(right)) {
+    mov(scratch, right);          // Preserve right.
+    addu(dst, left, right);       // Right is overwritten.
+    xor_(scratch, dst, scratch);  // Original right.
+    xor_(overflow_dst, dst, left);
+    and_(overflow_dst, overflow_dst, scratch);
+  } else {
+    addu(dst, left, right);
+    xor_(overflow_dst, dst, left);
+    xor_(scratch, dst, right);
+    and_(overflow_dst, scratch, overflow_dst);
+  }
+}
+
+
+void MacroAssembler::DadduAndCheckForOverflow(Register dst, Register left,
+                                              const Operand& right,
+                                              Register overflow_dst,
+                                              Register scratch) {
+  if (right.is_reg()) {
+    DadduAndCheckForOverflow(dst, left, right.rm(), overflow_dst, scratch);
+  } else {
+    if (dst.is(left)) {
+      li(t9, right);                // Load right.
+      mov(scratch, left);           // Preserve left.
+      daddu(dst, left, t9);         // Left is overwritten.
+      xor_(scratch, dst, scratch);  // Original left.
+      xor_(overflow_dst, dst, t9);
+      and_(overflow_dst, overflow_dst, scratch);
+    } else {
+      li(t9, right);  // Load right.
+      Daddu(dst, left, t9);
+      xor_(overflow_dst, dst, left);
+      xor_(scratch, dst, t9);
+      and_(overflow_dst, scratch, overflow_dst);
+    }
+  }
+}
+
+
+void MacroAssembler::DadduAndCheckForOverflow(Register dst, Register left,
+                                              Register right,
+                                              Register overflow_dst,
+                                              Register scratch) {
   DCHECK(!dst.is(overflow_dst));
   DCHECK(!dst.is(scratch));
   DCHECK(!overflow_dst.is(scratch));
@@ -4532,19 +4593,16 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst, Register left,
     SubuAndCheckForOverflow(dst, left, right.rm(), overflow_dst, scratch);
   } else {
     if (dst.is(left)) {
+      li(t9, right);                            // Load right.
       mov(scratch, left);                       // Preserve left.
-      daddiu(dst, left,
-             static_cast<int32_t>(-right.immediate()));  // Left is overwritten.
+      Subu(dst, left, t9);                      // Left is overwritten.
       xor_(overflow_dst, dst, scratch);         // scratch is original left.
-      // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(scratch, scratch, t9);  // scratch is original left.
       and_(overflow_dst, scratch, overflow_dst);
     } else {
-      daddiu(dst, left, static_cast<int32_t>(-right.immediate()));
+      li(t9, right);
+      subu(dst, left, t9);
       xor_(overflow_dst, dst, left);
-      // Load right since xori takes uint16 as immediate.
-      daddiu(t9, zero_reg, static_cast<int32_t>(right.immediate()));
       xor_(scratch, left, t9);
       and_(overflow_dst, scratch, overflow_dst);
     }
@@ -4552,11 +4610,76 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst, Register left,
 }
 
 
-void MacroAssembler::SubuAndCheckForOverflow(Register dst,
-                                             Register left,
+void MacroAssembler::SubuAndCheckForOverflow(Register dst, Register left,
                                              Register right,
                                              Register overflow_dst,
                                              Register scratch) {
+  DCHECK(!dst.is(overflow_dst));
+  DCHECK(!dst.is(scratch));
+  DCHECK(!overflow_dst.is(scratch));
+  DCHECK(!overflow_dst.is(left));
+  DCHECK(!overflow_dst.is(right));
+  DCHECK(!scratch.is(left));
+  DCHECK(!scratch.is(right));
+
+  // This happens with some crankshaft code. Since Subu works fine if
+  // left == right, let's not make that restriction here.
+  if (left.is(right)) {
+    mov(dst, zero_reg);
+    mov(overflow_dst, zero_reg);
+    return;
+  }
+
+  if (dst.is(left)) {
+    mov(scratch, left);                // Preserve left.
+    subu(dst, left, right);            // Left is overwritten.
+    xor_(overflow_dst, dst, scratch);  // scratch is original left.
+    xor_(scratch, scratch, right);     // scratch is original left.
+    and_(overflow_dst, scratch, overflow_dst);
+  } else if (dst.is(right)) {
+    mov(scratch, right);     // Preserve right.
+    subu(dst, left, right);  // Right is overwritten.
+    xor_(overflow_dst, dst, left);
+    xor_(scratch, left, scratch);  // Original right.
+    and_(overflow_dst, scratch, overflow_dst);
+  } else {
+    subu(dst, left, right);
+    xor_(overflow_dst, dst, left);
+    xor_(scratch, left, right);
+    and_(overflow_dst, scratch, overflow_dst);
+  }
+}
+
+
+void MacroAssembler::DsubuAndCheckForOverflow(Register dst, Register left,
+                                              const Operand& right,
+                                              Register overflow_dst,
+                                              Register scratch) {
+  if (right.is_reg()) {
+    DsubuAndCheckForOverflow(dst, left, right.rm(), overflow_dst, scratch);
+  } else {
+    if (dst.is(left)) {
+      li(t9, right);                     // Load right.
+      mov(scratch, left);                // Preserve left.
+      dsubu(dst, left, t9);              // Left is overwritten.
+      xor_(overflow_dst, dst, scratch);  // scratch is original left.
+      xor_(scratch, scratch, t9);        // scratch is original left.
+      and_(overflow_dst, scratch, overflow_dst);
+    } else {
+      li(t9, right);
+      dsubu(dst, left, t9);
+      xor_(overflow_dst, dst, left);
+      xor_(scratch, left, t9);
+      and_(overflow_dst, scratch, overflow_dst);
+    }
+  }
+}
+
+
+void MacroAssembler::DsubuAndCheckForOverflow(Register dst, Register left,
+                                              Register right,
+                                              Register overflow_dst,
+                                              Register scratch) {
   DCHECK(!dst.is(overflow_dst));
   DCHECK(!dst.is(scratch));
   DCHECK(!overflow_dst.is(scratch));
@@ -4592,7 +4715,6 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst,
     and_(overflow_dst, scratch, overflow_dst);
   }
 }
-
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments,

@@ -1527,14 +1527,17 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
       }
       right_op = UseRegister(right);
     }
-    LMulI* mul = new(zone()) LMulI(left_op, right_op);
+    LInstruction* result =
+        instr->representation().IsSmi()
+            ? DefineAsRegister(new (zone()) LMulS(left_op, right_op))
+            : DefineAsRegister(new (zone()) LMulI(left_op, right_op));
     if (right_op->IsConstantOperand()
             ? ((can_overflow && constant_value == -1) ||
                (bailout_on_minus_zero && constant_value <= 0))
             : (can_overflow || bailout_on_minus_zero)) {
-      AssignEnvironment(mul);
+      AssignEnvironment(result);
     }
-    return DefineAsRegister(mul);
+    return result;
 
   } else if (instr->representation().IsDouble()) {
     if (kArchVariant == kMips64r2) {
@@ -1564,9 +1567,11 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     DCHECK(instr->left()->representation().Equals(instr->representation()));
     DCHECK(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->left());
-    LOperand* right = UseOrConstantAtStart(instr->right());
-    LSubI* sub = new(zone()) LSubI(left, right);
-    LInstruction* result = DefineAsRegister(sub);
+    LOperand* right = UseRegisterOrConstantAtStart(instr->right());
+    LInstruction* result =
+        instr->representation().IsSmi()
+            ? DefineAsRegister(new (zone()) LSubS(left, right))
+            : DefineAsRegister(new (zone()) LSubI(left, right));
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
     }
@@ -1594,8 +1599,10 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     DCHECK(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseRegisterOrConstantAtStart(instr->BetterRightOperand());
-    LAddI* add = new(zone()) LAddI(left, right);
-    LInstruction* result = DefineAsRegister(add);
+    LInstruction* result =
+        instr->representation().IsSmi()
+            ? DefineAsRegister(new (zone()) LAddS(left, right))
+            : DefineAsRegister(new (zone()) LAddI(left, right));
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
     }

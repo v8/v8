@@ -1203,7 +1203,7 @@ class MacroAssembler: public Assembler {
 
   void AdduAndCheckForOverflow(Register dst, Register left,
                                const Operand& right, Register overflow_dst,
-                               Register scratch = at);
+                               Register scratch);
 
   void SubuAndCheckForOverflow(Register dst,
                                Register left,
@@ -1213,7 +1213,21 @@ class MacroAssembler: public Assembler {
 
   void SubuAndCheckForOverflow(Register dst, Register left,
                                const Operand& right, Register overflow_dst,
-                               Register scratch = at);
+                               Register scratch);
+
+  void DadduAndCheckForOverflow(Register dst, Register left, Register right,
+                                Register overflow_dst, Register scratch = at);
+
+  void DadduAndCheckForOverflow(Register dst, Register left,
+                                const Operand& right, Register overflow_dst,
+                                Register scratch);
+
+  void DsubuAndCheckForOverflow(Register dst, Register left, Register right,
+                                Register overflow_dst, Register scratch = at);
+
+  void DsubuAndCheckForOverflow(Register dst, Register left,
+                                const Operand& right, Register overflow_dst,
+                                Register scratch);
 
   void BranchOnOverflow(Label* label,
                         Register overflow_check,

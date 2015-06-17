@@ -2487,11 +2487,11 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     }
     case Token::ADD:
-      __ AdduAndCheckForOverflow(v0, left, right, scratch1);
+      __ DadduAndCheckForOverflow(v0, left, right, scratch1);
       __ BranchOnOverflow(&stub_call, scratch1);
       break;
     case Token::SUB:
-      __ SubuAndCheckForOverflow(v0, left, right, scratch1);
+      __ DsubuAndCheckForOverflow(v0, left, right, scratch1);
       __ BranchOnOverflow(&stub_call, scratch1);
       break;
     case Token::MUL: {
@@ -4506,7 +4506,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ lbu(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   __ JumpIfInstanceTypeIsNotSequentialOneByte(scratch1, scratch2, &bailout);
   __ ld(scratch1, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
-  __ AdduAndCheckForOverflow(string_length, string_length, scratch1, scratch3);
+  __ DadduAndCheckForOverflow(string_length, string_length, scratch1, scratch3);
   __ BranchOnOverflow(&bailout, scratch3);
   __ Branch(&loop, lt, element, Operand(elements_end));
 
@@ -5022,7 +5022,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     Register scratch1 = a1;
     Register scratch2 = a4;
     __ li(scratch1, Operand(Smi::FromInt(count_value)));
-    __ AdduAndCheckForOverflow(v0, v0, scratch1, scratch2);
+    __ DadduAndCheckForOverflow(v0, v0, scratch1, scratch2);
     __ BranchOnNoOverflow(&done, scratch2);
     // Call stub. Undo operation first.
     __ Move(v0, a0);
