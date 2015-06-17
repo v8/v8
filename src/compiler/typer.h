@@ -22,6 +22,8 @@ class Typer {
   ~Typer();
 
   void Run();
+  // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
+  void Run(const ZoneVector<Node*>& roots);
 
   Graph* graph() { return graph_; }
   MaybeHandle<Context> context() { return context_; }

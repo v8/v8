@@ -429,31 +429,14 @@ class Typer::Visitor : public Reducer {
 };
 
 
-void Typer::Run() {
-  {
-    // TODO(titzer): this is a hack. Reset types for interior nodes first.
-    NodeDeque deque(zone());
-    NodeMarker<bool> marked(graph(), 2);
-    deque.push_front(graph()->end());
-    marked.Set(graph()->end(), true);
-    while (!deque.empty()) {
-      Node* node = deque.front();
-      deque.pop_front();
-      // TODO(titzer): there shouldn't be a need to retype constants.
-      if (node->op()->ValueOutputCount() > 0)
-        NodeProperties::RemoveBounds(node);
-      for (Node* input : node->inputs()) {
-        if (!marked.Get(input)) {
-          marked.Set(input, true);
-          deque.push_back(input);
-        }
-      }
-    }
-  }
+void Typer::Run() { Run(NodeVector(zone())); }
 
+
+void Typer::Run(const NodeVector& roots) {
   Visitor visitor(this);
   GraphReducer graph_reducer(zone(), graph());
   graph_reducer.AddReducer(&visitor);
+  for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();
 }
 
