@@ -39,13 +39,13 @@ class GlobalHandles::Node {
 
   // Maps handle location (slot) to the containing node.
   static Node* FromLocation(Object** location) {
-    DCHECK(OFFSET_OF(Node, object_) == 0);
+    DCHECK(offsetof(Node, object_) == 0);
     return reinterpret_cast<Node*>(location);
   }
 
   Node() {
-    DCHECK(OFFSET_OF(Node, class_id_) == Internals::kNodeClassIdOffset);
-    DCHECK(OFFSET_OF(Node, flags_) == Internals::kNodeFlagsOffset);
+    DCHECK(offsetof(Node, class_id_) == Internals::kNodeClassIdOffset);
+    DCHECK(offsetof(Node, flags_) == Internals::kNodeFlagsOffset);
     STATIC_ASSERT(static_cast<int>(NodeState::kMask) ==
                   Internals::kNodeStateMask);
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);

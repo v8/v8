@@ -965,7 +965,7 @@ class Redirection {
   static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
     char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
     char* addr_of_redirection =
-        addr_of_swi - OFFSET_OF(Redirection, swi_instruction_);
+        addr_of_swi - offsetof(Redirection, swi_instruction_);
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 

@@ -490,7 +490,7 @@ class Redirection {
   static Redirection* FromHltInstruction(Instruction* redirect_call) {
     char* addr_of_hlt = reinterpret_cast<char*>(redirect_call);
     char* addr_of_redirection =
-        addr_of_hlt - OFFSET_OF(Redirection, redirect_call_);
+        addr_of_hlt - offsetof(Redirection, redirect_call_);
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
