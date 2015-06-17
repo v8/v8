@@ -1712,7 +1712,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
       __ Nop(padding_size);
     }
   }
-  MarkLazyDeoptSite();
 }
 
 #undef __
