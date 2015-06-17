@@ -5588,8 +5588,9 @@ void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
   if (limit < old_generation_allocation_limit_) {
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(isolate_, "Dampen: old size: %" V8_PTR_PREFIX
-                             "d KB, old limit: %" V8_PTR_PREFIX "d KB, \n",
-                   "new limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
+                             "d KB, old limit: %" V8_PTR_PREFIX
+                             "d KB, "
+                             "new limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
                    old_gen_size / KB, old_generation_allocation_limit_ / KB,
                    limit / KB, factor);
     }
