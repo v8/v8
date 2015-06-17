@@ -438,7 +438,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // Mark pointers in a Map and its TransitionArray together, possibly
   // treating transitions or back pointers weak.
   static void MarkMapContents(Heap* heap, Map* map);
-  static void MarkTransitionArray(Heap* heap, TransitionArray* transitions);
 
   // Code flushing support.
   INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));

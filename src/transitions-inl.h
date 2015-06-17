@@ -47,6 +47,12 @@ Object** TransitionArray::GetKeySlot(int transition_number) {
 }
 
 
+Object** TransitionArray::GetTargetSlot(int transition_number) {
+  DCHECK(transition_number < number_of_transitions());
+  return RawFieldOfElementAt(ToTargetIndex(transition_number));
+}
+
+
 Name* TransitionArray::GetKey(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
   return Name::cast(get(ToKeyIndex(transition_number)));
@@ -71,7 +77,8 @@ void TransitionArray::SetKey(int transition_number, Name* key) {
 
 Map* TransitionArray::GetTarget(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
-  return Map::cast(get(ToTargetIndex(transition_number)));
+  WeakCell* cell = GetTargetCell(transition_number);
+  return Map::cast(cell->value());
 }
 
 
@@ -86,7 +93,13 @@ Map* TransitionArray::GetTarget(Object* raw_transitions,
 }
 
 
-void TransitionArray::SetTarget(int transition_number, Map* value) {
+WeakCell* TransitionArray::GetTargetCell(int transition_number) {
+  DCHECK(transition_number < number_of_transitions());
+  return WeakCell::cast(get(ToTargetIndex(transition_number)));
+}
+
+
+void TransitionArray::SetTargetCell(int transition_number, WeakCell* value) {
   DCHECK(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);
 }
@@ -158,13 +171,9 @@ PropertyDetails TransitionArray::GetTargetDetails(Name* name, Map* target) {
 }
 
 
-void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
-                                                   Name* key,
-                                                   Map* target) {
-  FixedArray::NoIncrementalWriteBarrierSet(
-      this, ToKeyIndex(transition_number), key);
-  FixedArray::NoIncrementalWriteBarrierSet(
-      this, ToTargetIndex(transition_number), target);
+void TransitionArray::Set(int transition_number, Name* key, WeakCell* target) {
+  set(ToKeyIndex(transition_number), key);
+  set(ToTargetIndex(transition_number), target);
 }
 
 

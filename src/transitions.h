@@ -71,6 +71,11 @@ class TransitionArray: public FixedArray {
     DCHECK(raw_transition->IsWeakCell());
     return Map::cast(WeakCell::cast(raw_transition)->value());
   }
+  static inline WeakCell* GetSimpleTransitionCell(Object* raw_transition) {
+    DCHECK(IsSimpleTransition(raw_transition));
+    DCHECK(raw_transition->IsWeakCell());
+    return WeakCell::cast(raw_transition);
+  }
   static inline bool IsFullTransitionArray(Object* raw_transitions) {
     return raw_transitions->IsTransitionArray();
   }
@@ -135,6 +140,7 @@ class TransitionArray: public FixedArray {
   inline Name* GetKey(int transition_number);
   inline void SetKey(int transition_number, Name* value);
   inline Object** GetKeySlot(int transition_number);
+  inline Object** GetTargetSlot(int transition_number);
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
 
   Name* GetSortedKey(int transition_number) {
@@ -143,7 +149,9 @@ class TransitionArray: public FixedArray {
 
   static inline Map* GetTarget(Object* raw_transitions, int transition_number);
   inline Map* GetTarget(int transition_number);
-  inline void SetTarget(int transition_number, Map* target);
+
+  inline WeakCell* GetTargetCell(int transition_number);
+  inline void SetTargetCell(int transition_number, WeakCell* target);
 
   static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
 
@@ -283,14 +291,11 @@ class TransitionArray: public FixedArray {
                                    PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
-  inline void NoIncrementalWriteBarrierSet(int transition_number,
-                                           Name* key,
-                                           Map* target);
+  inline void Set(int transition_number, Name* key, WeakCell* target_cell);
 
   // Copy a single transition from the origin array.
-  inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
-                                                int origin_transition,
-                                                int target_transition);
+  inline void CopyFrom(TransitionArray* origin, int origin_transition,
+                       int target_transition);
 
 #ifdef DEBUG
   static void CheckNewTransitionsAreConsistent(Handle<Map> map,
