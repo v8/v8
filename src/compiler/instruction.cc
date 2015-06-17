@@ -403,7 +403,7 @@ void PhiInstruction::SetInput(size_t offset, int virtual_register) {
 
 InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
                                    RpoNumber loop_header, RpoNumber loop_end,
-                                   bool deferred)
+                                   bool deferred, bool handler)
     : successors_(zone),
       predecessors_(zone),
       phis_(zone),
@@ -414,6 +414,7 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       code_start_(-1),
       code_end_(-1),
       deferred_(deferred),
+      handler_(handler),
       needs_frame_(false),
       must_construct_frame_(false),
       must_deconstruct_frame_(false) {}
@@ -443,9 +444,11 @@ static RpoNumber GetLoopEndRpo(const BasicBlock* block) {
 
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
+  bool is_handler =
+      !block->empty() && block->front()->opcode() == IrOpcode::kIfException;
   InstructionBlock* instr_block = new (zone)
       InstructionBlock(zone, GetRpo(block), GetRpo(block->loop_header()),
-                       GetLoopEndRpo(block), block->deferred());
+                       GetLoopEndRpo(block), block->deferred(), is_handler);
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {

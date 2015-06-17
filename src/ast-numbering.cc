@@ -296,6 +296,7 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   IncrementNodeCount();
   DisableOptimization(kTryCatchStatement);
+  node->set_base_id(ReserveIdRange(TryCatchStatement::num_ids()));
   Visit(node->try_block());
   Visit(node->catch_block());
 }
@@ -304,6 +305,7 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
   DisableOptimization(kTryFinallyStatement);
+  node->set_base_id(ReserveIdRange(TryFinallyStatement::num_ids()));
   Visit(node->try_block());
   Visit(node->finally_block());
 }

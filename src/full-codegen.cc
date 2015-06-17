@@ -1226,8 +1226,9 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Label try_entry, handler_entry, exit;
   __ jmp(&try_entry);
   __ bind(&handler_entry);
-
+  PrepareForBailoutForId(stmt->HandlerId(), NO_REGISTERS);
   ClearPendingMessage();
+
   // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
@@ -1295,6 +1296,8 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Jump to try-handler setup and try-block code.
   __ jmp(&try_entry);
   __ bind(&handler_entry);
+  PrepareForBailoutForId(stmt->HandlerId(), NO_REGISTERS);
+
   // Exception handler code.  This code is only executed when an exception
   // is thrown.  The exception is in the result register, and must be
   // preserved by the finally block.  Call the finally block and then

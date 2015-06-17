@@ -27,47 +27,90 @@ static void InstallIsOptimizedHelper(v8::Isolate* isolate) {
 }
 
 
-TEST(TurboSimpleDeopt) {
+TEST(DeoptSimple) {
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
       "(function f(a) {"
-      "var b = 1;"
-      "if (!IsOptimized()) return 0;"
-      "%DeoptimizeFunction(f);"
-      "if (IsOptimized()) return 0;"
-      "return a + b; })");
+      "  var b = 1;"
+      "  if (!IsOptimized()) return 0;"
+      "  %DeoptimizeFunction(f);"
+      "  if (IsOptimized()) return 0;"
+      "  return a + b;"
+      "})");
 
   InstallIsOptimizedHelper(CcTest::isolate());
   T.CheckCall(T.Val(2), T.Val(1));
 }
 
 
-TEST(TurboSimpleDeoptInExpr) {
+TEST(DeoptSimpleInExpr) {
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
       "(function f(a) {"
-      "var b = 1;"
-      "var c = 2;"
-      "if (!IsOptimized()) return 0;"
-      "var d = b + (%DeoptimizeFunction(f), c);"
-      "if (IsOptimized()) return 0;"
-      "return d + a; })");
+      "  var b = 1;"
+      "  var c = 2;"
+      "  if (!IsOptimized()) return 0;"
+      "  var d = b + (%DeoptimizeFunction(f), c);"
+      "  if (IsOptimized()) return 0;"
+      "  return d + a;"
+      "})");
 
   InstallIsOptimizedHelper(CcTest::isolate());
   T.CheckCall(T.Val(6), T.Val(3));
 }
 
+
+TEST(DeoptExceptionHandlerCatch) {
+  FLAG_allow_natives_syntax = true;
+  FLAG_turbo_try_catch = true;
+
+  FunctionTester T(
+      "(function f() {"
+      "  var is_opt = IsOptimized;"
+      "  try {"
+      "    DeoptAndThrow(f);"
+      "  } catch (e) {"
+      "    return is_opt();"
+      "  }"
+      "})");
+
+  CompileRun("function DeoptAndThrow(f) { %DeoptimizeFunction(f); throw 0; }");
+  InstallIsOptimizedHelper(CcTest::isolate());
+  T.CheckCall(T.false_value());
+}
+
+
+TEST(DeoptExceptionHandlerFinally) {
+  FLAG_allow_natives_syntax = true;
+  FLAG_turbo_try_finally = true;
+
+  FunctionTester T(
+      "(function f() {"
+      "  var is_opt = IsOptimized;"
+      "  try {"
+      "    DeoptAndThrow(f);"
+      "  } finally {"
+      "    return is_opt();"
+      "  }"
+      "})");
+
+  CompileRun("function DeoptAndThrow(f) { %DeoptimizeFunction(f); throw 0; }");
+  InstallIsOptimizedHelper(CcTest::isolate());
+  T.CheckCall(T.false_value());
+}
+
 #endif
 
-TEST(TurboTrivialDeopt) {
+TEST(DeoptTrivial) {
   FLAG_allow_natives_syntax = true;
 
   FunctionTester T(
       "(function foo() {"
-      "%DeoptimizeFunction(foo);"
-      "return 1; })");
+      "  %DeoptimizeFunction(foo);"
+      "  return 1;"
+      "})");
 
   T.CheckCall(T.Val(1));
 }

@@ -92,6 +92,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
       }
       // Align loop headers on 16-byte boundaries.
       if (block->IsLoopHeader()) masm()->Align(16);
+      // Ensure lazy deopt doesn't patch handler entry points.
+      if (block->IsHandler()) EnsureSpaceForLazyDeopt();
       // Bind a label for a block.
       current_block_ = block->rpo_number();
       if (FLAG_code_comments) {

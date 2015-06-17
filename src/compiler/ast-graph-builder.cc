@@ -1415,15 +1415,20 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control.EndTry();
 
+  // TODO(mstarzinger): We are only using a runtime call to get a lazy bailout
+  // point, there is no need to really emit an actual call. Optimize this!
+  Node* guard = NewNode(javascript()->CallRuntime(Runtime::kMaxSmi, 0));
+  PrepareFrameState(guard, stmt->HandlerId());
+
+  // Clear message object as we enter the catch block.
+  Node* the_hole = jsgraph()->TheHoleConstant();
+  BuildStoreExternal(message_object, kMachAnyTagged, the_hole);
+
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
   Unique<String> name = MakeUnique(stmt->variable()->name());
   const Operator* op = javascript()->CreateCatchContext(name);
   Node* context = NewNode(op, exception, GetFunctionClosureForContext());
-
-  // Clear message object as we enter the catch block.
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  BuildStoreExternal(message_object, kMachAnyTagged, the_hole);
 
   // Evaluate the catch-block.
   VisitInScope(stmt->catch_block(), stmt->scope(), context);
@@ -1463,6 +1468,11 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     environment()->Pop();
   }
   try_control.EndTry(commands->GetFallThroughToken(), fallthrough_result);
+
+  // TODO(mstarzinger): We are only using a runtime call to get a lazy bailout
+  // point, there is no need to really emit an actual call. Optimize this!
+  Node* guard = NewNode(javascript()->CallRuntime(Runtime::kMaxSmi, 0));
+  PrepareFrameState(guard, stmt->HandlerId());
 
   // The result value semantics depend on how the block was entered:
   //  - ReturnStatement: It represents the return value being returned.
