@@ -15,7 +15,7 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
   explicit Decorator(SourcePositionTable* source_positions)
       : source_positions_(source_positions) {}
 
-  void Decorate(Node* node, bool incomplete) final {
+  void Decorate(Node* node) final {
     source_positions_->table_.Set(node, source_positions_->current_position_);
   }
 
