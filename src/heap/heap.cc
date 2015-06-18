@@ -1296,7 +1296,8 @@ bool Heap::PerformGarbageCollection(
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
-  } else if (HasLowYoungGenerationAllocationRate()) {
+  } else if (HasLowYoungGenerationAllocationRate() &&
+             old_generation_size_configured_) {
     DampenOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   }
 
