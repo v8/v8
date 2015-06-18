@@ -17,11 +17,11 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
                              Handle<Map> target, SimpleTransitionFlag flag) {
   Isolate* isolate = map->GetIsolate();
   target->SetBackPointer(*map);
-  Handle<WeakCell> cell = Map::WeakCellForMap(target);
 
   // If the map doesn't have any transitions at all yet, install the new one.
   if (CanStoreSimpleTransition(map->raw_transitions())) {
     if (flag == SIMPLE_PROPERTY_TRANSITION) {
+      Handle<WeakCell> cell = Map::WeakCellForMap(target);
       ReplaceTransitions(map, *cell);
       return;
     }
@@ -42,6 +42,7 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
     if (flag == SIMPLE_PROPERTY_TRANSITION && key->Equals(*name) &&
         old_details.kind() == new_details.kind() &&
         old_details.attributes() == new_details.attributes()) {
+      Handle<WeakCell> cell = Map::WeakCellForMap(target);
       ReplaceTransitions(map, *cell);
       return;
     }
@@ -50,8 +51,8 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
     // Re-read existing data; the allocation might have caused it to be cleared.
     if (IsSimpleTransition(map->raw_transitions())) {
       old_target = GetSimpleTransition(map->raw_transitions());
-      result->Set(0, GetSimpleTransitionKey(old_target),
-                  GetSimpleTransitionCell(map->raw_transitions()));
+      result->NoIncrementalWriteBarrierSet(
+          0, GetSimpleTransitionKey(old_target), old_target);
     } else {
       result->SetNumberOfTransitions(0);
     }
@@ -82,7 +83,7 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
                             &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
-      array->SetTargetCell(index, *cell);
+      array->SetTarget(index, *target);
       return;
     }
 
@@ -95,10 +96,10 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
       array->SetNumberOfTransitions(new_nof);
       for (index = number_of_transitions; index > insertion_index; --index) {
         array->SetKey(index, array->GetKey(index - 1));
-        array->SetTargetCell(index, array->GetTargetCell(index - 1));
+        array->SetTarget(index, array->GetTarget(index - 1));
       }
       array->SetKey(index, *name);
-      array->SetTargetCell(index, *cell);
+      array->SetTarget(index, *target);
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -144,11 +145,11 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
 
   DCHECK_NE(kNotFound, insertion_index);
   for (int i = 0; i < insertion_index; ++i) {
-    result->CopyFrom(array, i, i);
+    result->NoIncrementalWriteBarrierCopyFrom(array, i, i);
   }
-  result->Set(insertion_index, *name, *cell);
+  result->NoIncrementalWriteBarrierSet(insertion_index, *name, *target);
   for (int i = insertion_index; i < number_of_transitions; ++i) {
-    result->CopyFrom(array, i, i + 1);
+    result->NoIncrementalWriteBarrierCopyFrom(array, i, i + 1);
   }
 
   SLOW_DCHECK(result->IsSortedNoDuplicates());
@@ -348,10 +349,12 @@ Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
 }
 
 
-void TransitionArray::CopyFrom(TransitionArray* origin, int origin_transition,
-                               int target_transition) {
-  Set(target_transition, origin->GetKey(origin_transition),
-      origin->GetTargetCell(origin_transition));
+void TransitionArray::NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
+                                                        int origin_transition,
+                                                        int target_transition) {
+  NoIncrementalWriteBarrierSet(target_transition,
+                               origin->GetKey(origin_transition),
+                               origin->GetTarget(origin_transition));
 }
 
 
@@ -419,9 +422,9 @@ void TransitionArray::EnsureHasFullTransitionArray(Handle<Map> map) {
     result->Shrink(ToKeyIndex(0));
     result->SetNumberOfTransitions(0);
   } else if (nof == 1) {
-    WeakCell* target_cell = GetSimpleTransitionCell(raw_transitions);
-    Name* key = GetSimpleTransitionKey(Map::cast(target_cell->value()));
-    result->Set(0, key, target_cell);
+    Map* target = GetSimpleTransition(raw_transitions);
+    Name* key = GetSimpleTransitionKey(target);
+    result->NoIncrementalWriteBarrierSet(0, key, target);
   }
   ReplaceTransitions(map, *result);
 }

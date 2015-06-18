@@ -2468,39 +2468,25 @@ void MarkCompactCollector::ClearMapTransitions(Map* map, Map* dead_transition) {
 
   int transition_index = 0;
 
-  // This flag will be cleared if we find the live owner in the loop below.
-  bool descriptors_owner_died = true;
+  bool descriptors_owner_died = false;
 
   // Compact all live descriptors to the left.
-  if (TransitionArray::IsFullTransitionArray(transitions)) {
-    for (int i = 0; i < num_transitions; ++i) {
-      WeakCell* target_cell =
-          TransitionArray::cast(transitions)->GetTargetCell(i);
-      if (!target_cell->cleared()) {
-        if (Map::cast(target_cell->value())->instance_descriptors() ==
-            descriptors) {
-          descriptors_owner_died = false;
-        }
-        if (i != transition_index) {
-          TransitionArray* t = TransitionArray::cast(transitions);
-          Name* key = t->GetKey(i);
-          t->SetKey(transition_index, key);
-          Object** key_slot = t->GetKeySlot(transition_index);
-          RecordSlot(key_slot, key_slot, key);
-          WeakCell* target_cell = t->GetTargetCell(i);
-          t->SetTargetCell(transition_index, target_cell);
-          Object** target_slot = t->GetTargetSlot(transition_index);
-          RecordSlot(target_slot, target_slot, target_cell);
-        }
-        transition_index++;
+  for (int i = 0; i < num_transitions; ++i) {
+    Map* target = TransitionArray::GetTarget(transitions, i);
+    if (ClearMapBackPointer(target)) {
+      if (target->instance_descriptors() == descriptors) {
+        descriptors_owner_died = true;
       }
-    }
-  } else if (transitions->IsWeakCell()) {
-    WeakCell* target_cell = WeakCell::cast(transitions);
-    if (!target_cell->cleared()) {
-      if (Map::cast(target_cell->value())->instance_descriptors() ==
-          descriptors) {
-        descriptors_owner_died = false;
+    } else {
+      if (i != transition_index) {
+        DCHECK(TransitionArray::IsFullTransitionArray(transitions));
+        TransitionArray* t = TransitionArray::cast(transitions);
+        Name* key = t->GetKey(i);
+        t->SetKey(transition_index, key);
+        Object** key_slot = t->GetKeySlot(transition_index);
+        RecordSlot(key_slot, key_slot, key);
+        // Target slots do not need to be recorded since maps are not compacted.
+        t->SetTarget(transition_index, t->GetTarget(i));
       }
       transition_index++;
     }
