@@ -535,8 +535,7 @@ class AccessTester : public HandleAndZoneScope {
   E GetElement(int index) {
     BoundsCheck(index);
     if (tagged) {
-      E* raw = reinterpret_cast<E*>(tagged_array->GetDataStartAddress());
-      return raw[index];
+      return GetTaggedElement(index);
     } else {
       return untagged_array[index];
     }
@@ -569,7 +568,18 @@ class AccessTester : public HandleAndZoneScope {
     CHECK_LT(index, static_cast<int>(num_elements));
     CHECK_EQ(static_cast<int>(ByteSize()), tagged_array->length());
   }
+
+  E GetTaggedElement(int index) {
+    E* raw = reinterpret_cast<E*>(tagged_array->GetDataStartAddress());
+    return raw[index];
+  }
 };
+
+template <>
+double AccessTester<double>::GetTaggedElement(int index) {
+  return ReadDoubleValue(tagged_array->GetDataStartAddress() +
+                         index * sizeof(double));
+}
 
 
 template <typename E>
