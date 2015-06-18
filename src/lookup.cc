@@ -173,21 +173,17 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
     // TODO(verwaest): Clean up.
-    if (attributes == NONE && !holder->HasDictionaryElements() &&
-        !holder->HasDictionaryArgumentsElements()) {
-      ElementsAccessor* accessor = holder->GetElementsAccessor();
-      accessor->Set(holder, index(), value);
+    DCHECK(holder->HasFastElements() || holder->HasDictionaryElements() ||
+           holder->HasSloppyArgumentsElements());
+    DCHECK(attributes != NONE || !holder->HasFastElements());
+    Handle<SeededNumberDictionary> d = JSObject::NormalizeElements(holder);
+    // TODO(verwaest): Move this into NormalizeElements.
+    d->set_requires_slow_elements();
+    if (holder->HasDictionaryElements()) {
+      JSObject::SetDictionaryElement(holder, index(), value, attributes);
     } else {
-      DCHECK(holder->HasFastElements() || holder->HasDictionaryElements() ||
-             holder->HasSloppyArgumentsElements());
-      Handle<SeededNumberDictionary> d = JSObject::NormalizeElements(holder);
-      // TODO(verwaest): Move this into NormalizeElements.
-      d->set_requires_slow_elements();
-      if (holder->HasDictionaryElements()) {
-        JSObject::SetDictionaryElement(holder, index(), value, attributes);
-      } else {
-        JSObject::SetSloppyArgumentsElement(holder, index(), value, attributes);
-      }
+      JSObject::SetDictionaryArgumentsElement(holder, index(), value,
+                                              attributes);
     }
   } else if (holder_map_->is_dictionary_map()) {
     PropertyDetails details(attributes, v8::internal::DATA, 0,

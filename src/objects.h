@@ -1899,16 +1899,23 @@ class JSObject: public JSReceiver {
   static void SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
                                     Handle<Object> value,
                                     PropertyDetails details);
+  static void AddDictionaryElement(Handle<JSObject> object, uint32_t index,
+                                   Handle<Object> value,
+                                   PropertyAttributes attributes);
+  static void AddSloppyArgumentsElement(Handle<JSObject> object, uint32_t index,
+                                        Handle<Object> value,
+                                        PropertyAttributes attributes);
   static void SetDictionaryElement(Handle<JSObject> object, uint32_t index,
                                    Handle<Object> value,
                                    PropertyAttributes attributes);
-  static void SetSloppyArgumentsElement(Handle<JSObject> object, uint32_t index,
-                                        Handle<Object> value,
-                                        PropertyAttributes attributes);
+  static void SetDictionaryArgumentsElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            Handle<Object> value,
+                                            PropertyAttributes attributes);
 
-  static void SetFastElement(Handle<JSObject> object, uint32_t index,
+  static void AddFastElement(Handle<JSObject> object, uint32_t index,
                              Handle<Object> value);
-  static void SetFastDoubleElement(Handle<JSObject> object, uint32_t index,
+  static void AddFastDoubleElement(Handle<JSObject> object, uint32_t index,
                                    Handle<Object> value);
 
   static void OptimizeAsPrototype(Handle<JSObject> object,
