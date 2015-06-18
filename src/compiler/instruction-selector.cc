@@ -1037,12 +1037,6 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->opcode() == IrOpcode::kFrameState);
   DCHECK_EQ(kFrameStateInputCount, state->InputCount());
-  DCHECK_EQ(IrOpcode::kTypedStateValues,
-            state->InputAt(kFrameStateParametersInput)->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues,
-            state->InputAt(kFrameStateLocalsInput)->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues,
-            state->InputAt(kFrameStateStackInput)->opcode());
   FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
 
   int parameters = static_cast<int>(
@@ -1093,10 +1087,6 @@ void InstructionSelector::AddFrameStateInputs(
   Node* stack = state->InputAt(kFrameStateStackInput);
   Node* context = state->InputAt(kFrameStateContextInput);
   Node* function = state->InputAt(kFrameStateFunctionInput);
-
-  DCHECK_EQ(IrOpcode::kTypedStateValues, parameters->op()->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, locals->op()->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, stack->op()->opcode());
 
   DCHECK_EQ(descriptor->parameters_count(),
             StateValuesAccess(parameters).size());

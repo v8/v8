@@ -54,7 +54,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
         Node* test = graph()->NewNode(machine()->WordEqual(), condition,
                                       jsgraph()->TrueConstant());
         node->ReplaceInput(0, test);
-        break;
       }
       // Fall-through.
     default:
