@@ -3104,8 +3104,8 @@ MaybeHandle<Object> Object::SetPropertyInternal(LookupIterator* it,
         return SetPropertyWithAccessor(it, value, language_mode);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        done = true;
-        break;
+        // TODO(verwaest): We should throw an exception.
+        return value;
 
       case LookupIterator::DATA:
         if (it->IsReadOnly()) {
@@ -3180,7 +3180,8 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
         break;
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return result;
+        return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
+                                               value, language_mode);
 
       case LookupIterator::DATA: {
         PropertyDetails details = own_lookup.property_details();
@@ -3350,7 +3351,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     return WriteToReadOnlyProperty(it, value, language_mode);
   }
 
-  if (it->state() == LookupIterator::INTEGER_INDEXED_EXOTIC) return value;
+  DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, it->state());
 
   Handle<JSObject> receiver = it->GetStoreTarget();
 
@@ -4181,9 +4182,6 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
         }
         break;
 
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return value;
-
       case LookupIterator::ACCESSOR: {
         Handle<Object> accessors = it->GetAccessors();
 
@@ -4236,6 +4234,10 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 
         return value;
       }
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
+                                               value, STRICT);
+
       case LookupIterator::DATA: {
         PropertyDetails details = it->property_details();
         Handle<Object> old_value = it->factory()->the_hole_value();
