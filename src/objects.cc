@@ -12511,23 +12511,24 @@ void JSObject::AddFastElement(Handle<JSObject> object, uint32_t index,
     }
   }
 
-  // Convert to fast double elements if appropriate.
-  if (object->HasFastSmiElements() && !value->IsSmi() && value->IsNumber()) {
-    // Consider fixing the boilerplate as well if we have one.
-    ElementsKind to_kind = IsHoleyElementsKind(object->GetElementsKind())
-                               ? FAST_HOLEY_DOUBLE_ELEMENTS
-                               : FAST_DOUBLE_ELEMENTS;
-
-    UpdateAllocationSite(object, to_kind);
-
-    SetFastDoubleElementsCapacityAndLength(object, new_capacity, array_length);
-    FixedDoubleArray::cast(object->elements())->set(index, value->Number());
-    JSObject::ValidateElements(object);
-    return;
-  }
-
-  // Change elements kind from Smi-only to generic FAST if necessary.
   if (object->HasFastSmiElements() && !value->IsSmi()) {
+    // Convert to fast double elements if appropriate.
+    if (value->IsNumber()) {
+      // Consider fixing the boilerplate as well if we have one.
+      ElementsKind to_kind = IsHoleyElementsKind(object->GetElementsKind())
+                                 ? FAST_HOLEY_DOUBLE_ELEMENTS
+                                 : FAST_DOUBLE_ELEMENTS;
+
+      UpdateAllocationSite(object, to_kind);
+
+      SetFastDoubleElementsCapacityAndLength(object, new_capacity,
+                                             array_length);
+      FixedDoubleArray::cast(object->elements())->set(index, value->Number());
+      JSObject::ValidateElements(object);
+      return;
+    }
+
+    // Change elements kind from Smi-only to generic FAST if necessary.
     ElementsKind kind = object->HasFastHoleyElements()
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
@@ -12539,7 +12540,14 @@ void JSObject::AddFastElement(Handle<JSObject> object, uint32_t index,
   }
 
   // Increase backing store capacity if that's been decided previously.
-  if (new_capacity != capacity) {
+  // Otherwise, set the new element and length.
+  if (new_capacity == capacity) {
+    DCHECK(object->elements()->IsFixedArray());
+    backing_store->set(index, *value);
+    if (must_update_array_length) {
+      Handle<JSArray>::cast(object)->set_length(Smi::FromInt(array_length));
+    }
+  } else {
     SetFastElementsCapacitySmiMode smi_mode =
         value->IsSmi() && object->HasFastSmiElements()
             ? kAllowSmiElements
@@ -12549,14 +12557,6 @@ void JSObject::AddFastElement(Handle<JSObject> object, uint32_t index,
                                          smi_mode);
     new_elements->set(index, *value);
     JSObject::ValidateElements(object);
-    return;
-  }
-
-  // Finally, set the new element and length.
-  DCHECK(object->elements()->IsFixedArray());
-  backing_store->set(index, *value);
-  if (must_update_array_length) {
-    Handle<JSArray>::cast(object)->set_length(Smi::FromInt(array_length));
   }
 }
 
