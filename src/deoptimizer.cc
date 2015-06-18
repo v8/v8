@@ -2966,7 +2966,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
 
     case Translation::DOUBLE_STACK_SLOT: {
       int slot_offset = SlotOffsetFp(iterator->Next());
-      double value = *(reinterpret_cast<double*>(fp + slot_offset));
+      double value = ReadDoubleValue(fp + slot_offset);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%e ; (double) [fp %c %d] ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));

@@ -1708,6 +1708,41 @@ inline uintptr_t GetCurrentStackPosition() {
   return limit;
 }
 
+static inline double ReadDoubleValue(const void* p) {
+#ifndef V8_TARGET_ARCH_MIPS
+  return *reinterpret_cast<const double*>(p);
+#else   // V8_TARGET_ARCH_MIPS
+  // Prevent compiler from using load-double (mips ldc1) on (possibly)
+  // non-64-bit aligned address.
+  union conversion {
+    double d;
+    uint32_t u[2];
+  } c;
+  const uint32_t* ptr = reinterpret_cast<const uint32_t*>(p);
+  c.u[0] = *ptr;
+  c.u[1] = *(ptr + 1);
+  return c.d;
+#endif  // V8_TARGET_ARCH_MIPS
+}
+
+
+static inline void WriteDoubleValue(void* p, double value) {
+#ifndef V8_TARGET_ARCH_MIPS
+  *(reinterpret_cast<double*>(p)) = value;
+#else   // V8_TARGET_ARCH_MIPS
+  // Prevent compiler from using load-double (mips sdc1) on (possibly)
+  // non-64-bit aligned address.
+  union conversion {
+    double d;
+    uint32_t u[2];
+  } c;
+  c.d = value;
+  uint32_t* ptr = reinterpret_cast<uint32_t*>(p);
+  *ptr = c.u[0];
+  *(ptr + 1) = c.u[1];
+#endif  // V8_TARGET_ARCH_MIPS
+}
+
 }  // namespace internal
 }  // namespace v8
 
