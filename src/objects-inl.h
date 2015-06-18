@@ -4002,27 +4002,21 @@ Handle<Object> FixedTypedArray<Traits>::get(
 
 
 template <class Traits>
-void FixedTypedArray<Traits>::SetValue(Handle<JSObject> holder,
-                                       Handle<FixedTypedArray<Traits> > array,
+void FixedTypedArray<Traits>::SetValue(Handle<FixedTypedArray<Traits> > array,
                                        uint32_t index, Handle<Object> value) {
   ElementType cast_value = Traits::defaultValue();
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(array->length())) {
-      if (value->IsSmi()) {
-        int int_value = Handle<Smi>::cast(value)->value();
-        cast_value = from_int(int_value);
-      } else if (value->IsHeapNumber()) {
-        double double_value = Handle<HeapNumber>::cast(value)->value();
-        cast_value = from_double(double_value);
-      } else {
-        // Clamp undefined to the default value. All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      array->set(index, cast_value);
-    }
+  if (value->IsSmi()) {
+    int int_value = Handle<Smi>::cast(value)->value();
+    cast_value = from_int(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = Handle<HeapNumber>::cast(value)->value();
+    cast_value = from_double(double_value);
+  } else {
+    // Clamp undefined to the default value. All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
   }
+  array->set(index, cast_value);
 }
 
 

@@ -420,7 +420,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
-    accessor->Set(holder, index_, value);
+    accessor->Set(handle(holder->elements()), index_, value);
   } else if (holder->IsGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
         handle(holder->global_dictionary());

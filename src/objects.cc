@@ -14715,188 +14715,148 @@ size_t JSTypedArray::element_size() {
 }
 
 
-void FixedArray::SetValue(Handle<JSObject> holder, Handle<FixedArray> array,
-                          uint32_t index, Handle<Object> value) {
+void FixedArray::SetValue(Handle<FixedArray> array, uint32_t index,
+                          Handle<Object> value) {
   array->set(index, *value);
 }
 
 
-void FixedDoubleArray::SetValue(Handle<JSObject> holder,
-                                Handle<FixedDoubleArray> array, uint32_t index,
+void FixedDoubleArray::SetValue(Handle<FixedDoubleArray> array, uint32_t index,
                                 Handle<Object> value) {
   array->set(index, value->Number());
 }
 
 
 void ExternalUint8ClampedArray::SetValue(
-    Handle<JSObject> holder, Handle<ExternalUint8ClampedArray> array,
-    uint32_t index, Handle<Object> value) {
+    Handle<ExternalUint8ClampedArray> array, uint32_t index,
+    Handle<Object> value) {
   uint8_t clamped_value = 0;
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(array->length())) {
-      if (value->IsSmi()) {
-        int int_value = Handle<Smi>::cast(value)->value();
-        if (int_value < 0) {
-          clamped_value = 0;
-        } else if (int_value > 255) {
-          clamped_value = 255;
-        } else {
-          clamped_value = static_cast<uint8_t>(int_value);
-        }
-      } else if (value->IsHeapNumber()) {
-        double double_value = Handle<HeapNumber>::cast(value)->value();
-        if (!(double_value > 0)) {
-          // NaN and less than zero clamp to zero.
-          clamped_value = 0;
-        } else if (double_value > 255) {
-          // Greater than 255 clamp to 255.
-          clamped_value = 255;
-        } else {
-          // Other doubles are rounded to the nearest integer.
-          clamped_value = static_cast<uint8_t>(lrint(double_value));
-        }
-      } else {
-        // Clamp undefined to zero (default). All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      array->set(index, clamped_value);
+  if (value->IsSmi()) {
+    int int_value = Handle<Smi>::cast(value)->value();
+    if (int_value < 0) {
+      clamped_value = 0;
+    } else if (int_value > 255) {
+      clamped_value = 255;
+    } else {
+      clamped_value = static_cast<uint8_t>(int_value);
     }
+  } else if (value->IsHeapNumber()) {
+    double double_value = Handle<HeapNumber>::cast(value)->value();
+    if (!(double_value > 0)) {
+      // NaN and less than zero clamp to zero.
+      clamped_value = 0;
+    } else if (double_value > 255) {
+      // Greater than 255 clamp to 255.
+      clamped_value = 255;
+    } else {
+      // Other doubles are rounded to the nearest integer.
+      clamped_value = static_cast<uint8_t>(lrint(double_value));
+    }
+  } else {
+    // Clamp undefined to zero (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
   }
+  array->set(index, clamped_value);
 }
 
 
 template <typename ExternalArrayClass, typename ValueType>
-static void ExternalArrayIntSetter(Isolate* isolate, Handle<JSObject> holder,
-                                   Handle<ExternalArrayClass> receiver,
+static void ExternalArrayIntSetter(Handle<ExternalArrayClass> receiver,
                                    uint32_t index, Handle<Object> value) {
   ValueType cast_value = 0;
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(receiver->length())) {
-      if (value->IsSmi()) {
-        int int_value = Handle<Smi>::cast(value)->value();
-        cast_value = static_cast<ValueType>(int_value);
-      } else if (value->IsHeapNumber()) {
-        double double_value = Handle<HeapNumber>::cast(value)->value();
-        cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
-      } else {
-        // Clamp undefined to zero (default). All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      receiver->set(index, cast_value);
-    }
+  if (value->IsSmi()) {
+    int int_value = Handle<Smi>::cast(value)->value();
+    cast_value = static_cast<ValueType>(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = Handle<HeapNumber>::cast(value)->value();
+    cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
+  } else {
+    // Clamp undefined to zero (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
   }
+  receiver->set(index, cast_value);
 }
 
 
-void ExternalInt8Array::SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalInt8Array> array,
+void ExternalInt8Array::SetValue(Handle<ExternalInt8Array> array,
                                  uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalInt8Array, int8_t>(array->GetIsolate(), holder,
-                                                    array, index, value);
+  ExternalArrayIntSetter<ExternalInt8Array, int8_t>(array, index, value);
 }
 
 
-void ExternalUint8Array::SetValue(Handle<JSObject> holder,
-                                  Handle<ExternalUint8Array> array,
+void ExternalUint8Array::SetValue(Handle<ExternalUint8Array> array,
                                   uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(
-      array->GetIsolate(), holder, array, index, value);
+  ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(array, index, value);
 }
 
 
-void ExternalInt16Array::SetValue(Handle<JSObject> holder,
-                                  Handle<ExternalInt16Array> array,
+void ExternalInt16Array::SetValue(Handle<ExternalInt16Array> array,
                                   uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalInt16Array, int16_t>(
-      array->GetIsolate(), holder, array, index, value);
+  ExternalArrayIntSetter<ExternalInt16Array, int16_t>(array, index, value);
 }
 
 
-void ExternalUint16Array::SetValue(Handle<JSObject> holder,
-                                   Handle<ExternalUint16Array> array,
+void ExternalUint16Array::SetValue(Handle<ExternalUint16Array> array,
                                    uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(
-      array->GetIsolate(), holder, array, index, value);
+  ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(array, index, value);
 }
 
 
-void ExternalInt32Array::SetValue(Handle<JSObject> holder,
-                                  Handle<ExternalInt32Array> array,
+void ExternalInt32Array::SetValue(Handle<ExternalInt32Array> array,
                                   uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalInt32Array, int32_t>(
-      array->GetIsolate(), holder, array, index, value);
+  ExternalArrayIntSetter<ExternalInt32Array, int32_t>(array, index, value);
 }
 
 
-void ExternalUint32Array::SetValue(Handle<JSObject> holder,
-                                   Handle<ExternalUint32Array> array,
+void ExternalUint32Array::SetValue(Handle<ExternalUint32Array> array,
                                    uint32_t index, Handle<Object> value) {
   uint32_t cast_value = 0;
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(array->length())) {
-      if (value->IsSmi()) {
-        int int_value = Handle<Smi>::cast(value)->value();
-        cast_value = static_cast<uint32_t>(int_value);
-      } else if (value->IsHeapNumber()) {
-        double double_value = Handle<HeapNumber>::cast(value)->value();
-        cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
-      } else {
-        // Clamp undefined to zero (default). All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      array->set(index, cast_value);
-    }
+  if (value->IsSmi()) {
+    int int_value = Handle<Smi>::cast(value)->value();
+    cast_value = static_cast<uint32_t>(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = Handle<HeapNumber>::cast(value)->value();
+    cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
+  } else {
+    // Clamp undefined to zero (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
   }
+  array->set(index, cast_value);
 }
 
 
-void ExternalFloat32Array::SetValue(Handle<JSObject> holder,
-                                    Handle<ExternalFloat32Array> array,
+void ExternalFloat32Array::SetValue(Handle<ExternalFloat32Array> array,
                                     uint32_t index, Handle<Object> value) {
   float cast_value = std::numeric_limits<float>::quiet_NaN();
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(array->length())) {
-      if (value->IsSmi()) {
-        int int_value = Handle<Smi>::cast(value)->value();
-        cast_value = static_cast<float>(int_value);
-      } else if (value->IsHeapNumber()) {
-        double double_value = Handle<HeapNumber>::cast(value)->value();
-        cast_value = static_cast<float>(double_value);
-      } else {
-        // Clamp undefined to NaN (default). All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      array->set(index, cast_value);
-    }
+  if (value->IsSmi()) {
+    int int_value = Handle<Smi>::cast(value)->value();
+    cast_value = static_cast<float>(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = Handle<HeapNumber>::cast(value)->value();
+    cast_value = static_cast<float>(double_value);
+  } else {
+    // Clamp undefined to NaN (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
   }
+  array->set(index, cast_value);
 }
 
 
-void ExternalFloat64Array::SetValue(Handle<JSObject> holder,
-                                    Handle<ExternalFloat64Array> array,
+void ExternalFloat64Array::SetValue(Handle<ExternalFloat64Array> array,
                                     uint32_t index, Handle<Object> value) {
   double double_value = std::numeric_limits<double>::quiet_NaN();
-  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
-  if (!view->WasNeutered()) {
-    if (index < static_cast<uint32_t>(array->length())) {
-      if (value->IsNumber()) {
-        double_value = value->Number();
-      } else {
-        // Clamp undefined to NaN (default). All other types have been
-        // converted to a number type further up in the call chain.
-        DCHECK(value->IsUndefined());
-      }
-      array->set(index, double_value);
-    }
+  if (value->IsNumber()) {
+    double_value = value->Number();
+  } else {
+    // Clamp undefined to NaN (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
   }
+  array->set(index, double_value);
 }
 
 

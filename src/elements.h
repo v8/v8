@@ -43,10 +43,6 @@ class ElementsAccessor {
     return HasElement(holder, key, handle(holder->elements()));
   }
 
-  inline void Set(Handle<JSObject> holder, uint32_t key, Handle<Object> value) {
-    Set(holder, key, handle(holder->elements()), value);
-  }
-
   // Returns the element with the specified key or undefined if there is no such
   // element. This method doesn't iterate up the prototype chain.  The caller
   // can optionally pass in the backing store to use for the check, which must
@@ -179,8 +175,7 @@ class ElementsAccessor {
                                      uint32_t index) = 0;
   virtual bool HasIndex(FixedArrayBase* backing_store, uint32_t key) = 0;
 
-  virtual void Set(Handle<JSObject> holder, uint32_t key,
-                   Handle<FixedArrayBase> backing_store,
+  virtual void Set(Handle<FixedArrayBase> backing_store, uint32_t key,
                    Handle<Object> value) = 0;
 
  private:

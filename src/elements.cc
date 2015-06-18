@@ -613,18 +613,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual void Set(Handle<JSObject> holder, uint32_t key,
-                   Handle<FixedArrayBase> backing_store,
+  virtual void Set(Handle<FixedArrayBase> backing_store, uint32_t key,
                    Handle<Object> value) final {
-    ElementsAccessorSubclass::SetImpl(holder, key, backing_store, value);
+    ElementsAccessorSubclass::SetImpl(backing_store, key, value);
   }
 
-  static void SetImpl(Handle<JSObject> obj, uint32_t key,
-                      Handle<FixedArrayBase> backing_store,
+  static void SetImpl(Handle<FixedArrayBase> backing_store, uint32_t key,
                       Handle<Object> value) {
-    CHECK(key <
-          ElementsAccessorSubclass::GetCapacityImpl(*obj, *backing_store));
-    BackingStore::SetValue(obj, Handle<BackingStore>::cast(backing_store), key,
+    BackingStore::SetValue(Handle<BackingStore>::cast(backing_store), key,
                            value);
   }
 
@@ -1447,8 +1443,8 @@ class DictionaryElementsAccessor
     return isolate->factory()->the_hole_value();
   }
 
-  static void SetImpl(Handle<JSObject> obj, uint32_t key,
-                      Handle<FixedArrayBase> store, Handle<Object> value) {
+  static void SetImpl(Handle<FixedArrayBase> store, uint32_t key,
+                      Handle<Object> value) {
     Handle<SeededNumberDictionary> backing_store =
         Handle<SeededNumberDictionary>::cast(store);
     int entry = backing_store->FindEntry(key);
@@ -1544,8 +1540,8 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  static void SetImpl(Handle<JSObject> obj, uint32_t key,
-                      Handle<FixedArrayBase> store, Handle<Object> value) {
+  static void SetImpl(Handle<FixedArrayBase> store, uint32_t key,
+                      Handle<Object> value) {
     Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(store);
     Object* probe = GetParameterMapArg(*parameter_map, key);
     if (!probe->IsTheHole()) {
@@ -1555,7 +1551,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       context->set(context_index, *value);
     } else {
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      ElementsAccessor::ForArray(arguments)->Set(obj, key, arguments, value);
+      ElementsAccessor::ForArray(arguments)->Set(arguments, key, value);
     }
   }
 
