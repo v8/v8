@@ -24,19 +24,13 @@ void GraphTrimmer::TrimGraph() {
   MarkAsLive(graph()->end());
   // Compute transitive closure of live nodes.
   for (size_t i = 0; i < live_.size(); ++i) {
-    for (Node* const input : live_[i]->inputs()) {
-      DCHECK_EQ(IsLive(input),
-                std::find(live_.begin(), live_.end(), input) != live_.end());
-      MarkAsLive(input);
-    }
+    for (Node* const input : live_[i]->inputs()) MarkAsLive(input);
   }
   // Remove dead->live edges.
   for (Node* const live : live_) {
     DCHECK(IsLive(live));
     for (Edge edge : live->use_edges()) {
       Node* const user = edge.from();
-      DCHECK_EQ(IsLive(user),
-                std::find(live_.begin(), live_.end(), user) != live_.end());
       if (!IsLive(user)) {
         if (FLAG_trace_turbo_reduction) {
           OFStream os(stdout);
