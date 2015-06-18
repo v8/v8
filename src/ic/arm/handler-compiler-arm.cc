@@ -16,6 +16,30 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
+void NamedLoadHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
+  // Push receiver and key for runtime call.
+  __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
+
+  // The slow case calls into the runtime to complete the load without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kLoadIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
+}
+
+
+void ElementHandlerCompiler::GenerateLoadSlow(MacroAssembler* masm) {
+  // Push receiver and key for runtime call.
+  __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
+
+  // The slow case calls into the runtime to complete the load without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kKeyedLoadIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
+}
+
+
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
     int accessor_index, int expected_arguments, Register scratch) {

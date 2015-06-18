@@ -161,7 +161,8 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
                                   Register key, Register elements,
                                   Register scratch1, Register scratch2,
-                                  Register result, Label* slow) {
+                                  Register result, Label* slow,
+                                  LanguageMode language_mode) {
   // Register use:
   //
   // receiver - holds the receiver on entry.
@@ -183,7 +184,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   //
   // scratch2 - used to hold maps, prototypes, and the loaded value.
   Label check_prototypes, check_next_prototype;
-  Label done, in_bounds, return_undefined;
+  Label done, in_bounds, absent;
 
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ AssertFastElements(elements);
@@ -202,7 +203,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   __ ldr(scratch2, FieldMemOperand(scratch2, Map::kPrototypeOffset));
   // scratch2: current prototype
   __ CompareRoot(scratch2, Heap::kNullValueRootIndex);
-  __ b(eq, &return_undefined);
+  __ b(eq, &absent);
   __ ldr(elements, FieldMemOperand(scratch2, JSObject::kElementsOffset));
   __ ldr(scratch2, FieldMemOperand(scratch2, HeapObject::kMapOffset));
   // elements: elements of current prototype
@@ -217,9 +218,14 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   __ b(ne, slow);
   __ jmp(&check_next_prototype);
 
-  __ bind(&return_undefined);
-  __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
-  __ jmp(&done);
+  __ bind(&absent);
+  if (is_strong(language_mode)) {
+    // Strong mode accesses must throw in this case, so call the runtime.
+    __ jmp(slow);
+  } else {
+    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+    __ jmp(&done);
+  }
 
   __ bind(&in_bounds);
   // Fast case: Do the load.
@@ -278,7 +284,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Dictionary load failed, go slow (but don't miss).
   __ bind(&slow);
-  GenerateRuntimeGetProperty(masm);
+  GenerateSlow(masm);
 }
 
 
@@ -313,13 +319,17 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void LoadIC::GenerateSlow(MacroAssembler* masm) {
   // The return address is in lr.
 
   __ mov(LoadIC_TempRegister(), LoadDescriptor::ReceiverRegister());
   __ Push(LoadIC_TempRegister(), LoadDescriptor::NameRegister());
 
-  __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
+  // Perform tail call to the entry.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kLoadIC_Slow), masm->isolate());
+  int arg_count = 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
@@ -341,16 +351,21 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateSlow(MacroAssembler* masm) {
   // The return address is in lr.
 
   __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
 
-  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
+  // Perform tail call to the entry.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Slow), masm->isolate());
+  int arg_count = 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
-void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
+                                      LanguageMode language_mode) {
   // The return address is in lr.
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
@@ -374,7 +389,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Check the receiver's map to see if it has fast elements.
   __ CheckFastElements(r0, r3, &check_number_dictionary);
 
-  GenerateFastArrayLoad(masm, receiver, key, r0, r3, r4, r0, &slow);
+  GenerateFastArrayLoad(masm, receiver, key, r0, r3, r4, r0, &slow,
+                        language_mode);
   __ IncrementCounter(isolate->counters()->keyed_load_generic_smi(), 1, r4, r3);
   __ Ret();
 
@@ -396,7 +412,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ bind(&slow);
   __ IncrementCounter(isolate->counters()->keyed_load_generic_slow(), 1, r4,
                       r3);
-  GenerateRuntimeGetProperty(masm);
+  GenerateSlow(masm);
 
   __ bind(&check_name);
   GenerateKeyNameCheck(masm, key, r0, r3, &index_name, &slow);

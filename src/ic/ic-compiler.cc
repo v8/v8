@@ -88,7 +88,7 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
 
 
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
-    Handle<Map> receiver_map) {
+    Handle<Map> receiver_map, ExtraICState extra_ic_state) {
   Isolate* isolate = receiver_map->GetIsolate();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   ElementsKind elements_kind = receiver_map->elements_kind();
@@ -97,8 +97,8 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   // stub code needs to check that dynamically anyway.
   bool convert_hole_to_undefined =
       is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-      *receiver_map == isolate->get_initial_js_array_map(elements_kind);
-
+      *receiver_map == isolate->get_initial_js_array_map(elements_kind) &&
+      !(is_strong(LoadICState::GetLanguageMode(extra_ic_state)));
   Handle<Code> stub;
   if (receiver_map->has_indexed_interceptor()) {
     stub = LoadIndexedInterceptorStub(isolate).GetCode();
@@ -113,7 +113,8 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
     stub = LoadFastElementStub(isolate, is_js_array, elements_kind,
                                convert_hole_to_undefined).GetCode();
   } else {
-    stub = LoadDictionaryElementStub(isolate).GetCode();
+    stub = LoadDictionaryElementStub(isolate, LoadICState(extra_ic_state))
+               .GetCode();
   }
   return stub;
 }
@@ -221,7 +222,7 @@ Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
 
 
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
-    MapHandleList* receiver_maps) {
+    MapHandleList* receiver_maps, LanguageMode language_mode) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   DCHECK(KeyedLoadIC::GetKeyType(kNoExtraICState) == ELEMENT);
   Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, POLYMORPHIC);
@@ -232,7 +233,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
 
   CodeHandleList handlers(receiver_maps->length());
   ElementHandlerCompiler compiler(isolate);
-  compiler.CompileElementHandlers(receiver_maps, &handlers);
+  compiler.CompileElementHandlers(receiver_maps, &handlers, language_mode);
   PropertyICCompiler ic_compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code = ic_compiler.CompilePolymorphic(
       receiver_maps, &handlers, isolate->factory()->empty_string(),

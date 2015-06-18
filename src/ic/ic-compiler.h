@@ -32,12 +32,13 @@ class PropertyICCompiler : public PropertyAccessCompiler {
 
   // Keyed
   static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
-      Handle<Map> receiver_map);
+      Handle<Map> receiver_map, ExtraICState extra_ic_state);
 
   static Handle<Code> ComputeKeyedStoreMonomorphic(
       Handle<Map> receiver_map, LanguageMode language_mode,
       KeyedAccessStoreMode store_mode);
-  static Handle<Code> ComputeKeyedLoadPolymorphic(MapHandleList* receiver_maps);
+  static Handle<Code> ComputeKeyedLoadPolymorphic(MapHandleList* receiver_maps,
+                                                  LanguageMode language_mode);
   static Handle<Code> ComputeKeyedStorePolymorphic(
       MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
       LanguageMode language_mode);

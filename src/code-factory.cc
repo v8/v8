@@ -13,35 +13,44 @@ namespace internal {
 
 
 // static
-Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode) {
+Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode,
+                             LanguageMode language_mode) {
   return Callable(
-      LoadIC::initialize_stub(isolate, LoadICState(mode).GetExtraICState()),
+      LoadIC::initialize_stub(
+          isolate, LoadICState(mode, language_mode).GetExtraICState()),
       LoadDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(
-    Isolate* isolate, ContextualMode mode,
+    Isolate* isolate, ContextualMode mode, LanguageMode language_mode,
     InlineCacheState initialization_state) {
   auto code = LoadIC::initialize_stub_in_optimized_code(
-      isolate, LoadICState(mode).GetExtraICState(), initialization_state);
+      isolate, LoadICState(mode, language_mode).GetExtraICState(),
+      initialization_state);
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  return Callable(KeyedLoadIC::initialize_stub(isolate),
+Callable CodeFactory::KeyedLoadIC(Isolate* isolate,
+                                  LanguageMode language_mode) {
+  ExtraICState state =
+      is_strong(language_mode) ? LoadICState::kStrongModeState : 0;
+  return Callable(KeyedLoadIC::initialize_stub(isolate, state),
                   LoadDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::KeyedLoadICInOptimizedCode(
-    Isolate* isolate, InlineCacheState initialization_state) {
+    Isolate* isolate, LanguageMode language_mode,
+    InlineCacheState initialization_state) {
+  ExtraICState state =
+      is_strong(language_mode) ? LoadICState::kStrongModeState : 0;
   auto code = KeyedLoadIC::initialize_stub_in_optimized_code(
-      isolate, initialization_state);
+      isolate, initialization_state, state);
   if (initialization_state != MEGAMORPHIC) {
     return Callable(code, LoadWithVectorDescriptor(isolate));
   }
