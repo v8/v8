@@ -403,7 +403,7 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
 
     if (count >= 1) {
       // Add the frame state for after the operation.
-      DCHECK_EQ(IrOpcode::kDead,
+      DCHECK_EQ(IrOpcode::kDeadValue,
                 NodeProperties::GetFrameStateInput(node, 0)->opcode());
 
       Node* frame_state_after =
@@ -416,7 +416,7 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
 
     if (count >= 2) {
       // Add the frame state for before the operation.
-      DCHECK_EQ(IrOpcode::kDead,
+      DCHECK_EQ(IrOpcode::kDeadValue,
                 NodeProperties::GetFrameStateInput(node, 1)->opcode());
       NodeProperties::ReplaceFrameStateInput(node, 1, frame_state_before_);
     }
@@ -3759,8 +3759,7 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
                                         OutputFrameStateCombine combine) {
   if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-
-    DCHECK_EQ(IrOpcode::kDead,
+    DCHECK_EQ(IrOpcode::kDeadValue,
               NodeProperties::GetFrameStateInput(node, 0)->opcode());
     NodeProperties::ReplaceFrameStateInput(
         node, 0, environment()->Checkpoint(ast_id, combine));
@@ -3815,9 +3814,9 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     }
     for (int i = 0; i < frame_state_count; i++) {
       // The frame state will be inserted later. Here we misuse
-      // the {DeadControl} node as a sentinel to be later overwritten
+      // the {DeadValue} node as a sentinel to be later overwritten
       // with the real frame state.
-      *current_input++ = jsgraph()->DeadControl();
+      *current_input++ = jsgraph()->DeadValue();
     }
     if (has_effect) {
       *current_input++ = environment_->GetEffectDependency();

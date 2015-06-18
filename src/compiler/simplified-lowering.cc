@@ -497,7 +497,7 @@ class RepresentationSelector {
       // Common operators.
       //------------------------------------------------------------------
       case IrOpcode::kStart:
-      case IrOpcode::kDead:
+      case IrOpcode::kDeadControl:
         return VisitLeaf(node, 0);
       case IrOpcode::kParameter: {
         // TODO(titzer): use representation from linkage.

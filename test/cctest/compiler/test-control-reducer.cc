@@ -75,7 +75,7 @@ class ControlReducerTester : HandleAndZoneScope {
         one(jsgraph.OneConstant()),
         half(jsgraph.Constant(0.5)),
         self(graph.NewNode(common.Int32Constant(0xaabbccdd))),
-        dead(graph.NewNode(common.Dead())) {
+        dead(graph.NewNode(common.DeadControl())) {
     graph.SetEnd(end);
     graph.SetStart(start);
     leaf[0] = zero;
@@ -185,12 +185,16 @@ class ControlReducerTester : HandleAndZoneScope {
       if (use->opcode() == IrOpcode::kIfTrue) {
         Node* result = ControlReducer::ReduceIfNodeForTesting(&jsgraph, use);
         if (expected == kTrue) CHECK_EQ(control, result);
-        if (expected == kFalse) CHECK_EQ(IrOpcode::kDead, result->opcode());
+        if (expected == kFalse) {
+          CHECK_EQ(IrOpcode::kDeadControl, result->opcode());
+        }
         if (expected == kUnknown) CHECK_EQ(use, result);
       } else if (use->opcode() == IrOpcode::kIfFalse) {
         Node* result = ControlReducer::ReduceIfNodeForTesting(&jsgraph, use);
         if (expected == kFalse) CHECK_EQ(control, result);
-        if (expected == kTrue) CHECK_EQ(IrOpcode::kDead, result->opcode());
+        if (expected == kTrue) {
+          CHECK_EQ(IrOpcode::kDeadControl, result->opcode());
+        }
         if (expected == kUnknown) CHECK_EQ(use, result);
       } else {
         UNREACHABLE();
@@ -793,7 +797,7 @@ TEST(CMergeReduce_exhaustive_4) {
     int count = selector.count;
     if (count == 0) {
       // result should be dead.
-      CHECK_EQ(IrOpcode::kDead, result->opcode());
+      CHECK_EQ(IrOpcode::kDeadControl, result->opcode());
     } else if (count == 1) {
       // merge should be replaced with one of the controls.
       CHECK_EQ(controls[selector.single_index()], result);

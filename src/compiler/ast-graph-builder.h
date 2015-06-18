@@ -489,7 +489,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
     liveness_block_ = nullptr;
   }
   bool IsMarkedAsUnreachable() {
-    return GetControlDependency()->opcode() == IrOpcode::kDead;
+    return GetControlDependency()->opcode() == IrOpcode::kDeadControl;
   }
 
   // Merge another environment into this one.

@@ -253,7 +253,6 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
-      DECLARE_CASE(Dead)
       DECLARE_CASE(Loop)
       DECLARE_CASE(Branch)
       DECLARE_CASE(IfTrue)
@@ -269,6 +268,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Terminate)
       DECLARE_CASE(OsrNormalEntry)
       DECLARE_CASE(OsrLoopEntry)
+      DECLARE_CASE(DeadControl)
       DECLARE_CASE(Throw)
       DECLARE_CASE(End)
 #undef DECLARE_CASE
@@ -298,7 +298,6 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
-      DECLARE_CASE(Dead)
       DECLARE_CASE(Loop)
       DECLARE_CASE(Branch)
       DECLARE_CASE(IfTrue)
@@ -314,6 +313,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Terminate)
       DECLARE_CASE(OsrNormalEntry)
       DECLARE_CASE(OsrLoopEntry)
+      DECLARE_CASE(DeadControl)
       DECLARE_CASE(Throw)
       DECLARE_CASE(End)
 #undef DECLARE_CASE
@@ -739,6 +739,17 @@ Bounds Typer::Visitor::TypeValueEffect(Node* node) {
 
 Bounds Typer::Visitor::TypeFinish(Node* node) {
   return Operand(node, 0);
+}
+
+
+Bounds Typer::Visitor::TypeDeadValue(Node* node) {
+  return Bounds(Type::None(zone()), Type::Any(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeDeadEffect(Node* node) {
+  UNREACHABLE();
+  return Bounds();
 }
 
 

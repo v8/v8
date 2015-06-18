@@ -62,8 +62,8 @@ class JSCallFunctionAccessor {
 class CopyVisitor {
  public:
   CopyVisitor(Graph* source_graph, Graph* target_graph, Zone* temp_zone)
-      : sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, "Sentinel", 0, 0,
-                     0, 0, 0, 0),
+      : sentinel_op_(IrOpcode::kDeadControl, Operator::kNoProperties,
+                     "Sentinel", 0, 0, 0, 0, 0, 0),
         sentinel_(target_graph->NewNode(&sentinel_op_)),
         copies_(source_graph->NodeCount(), sentinel_, temp_zone),
         source_graph_(source_graph),

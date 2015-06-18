@@ -407,7 +407,7 @@ class SourcePositionWrapper final : public Reducer {
 class JSGraphReducer final : public GraphReducer {
  public:
   JSGraphReducer(JSGraph* jsgraph, Zone* zone)
-      : GraphReducer(zone, jsgraph->graph(), jsgraph->TheHoleConstant(),
+      : GraphReducer(zone, jsgraph->graph(), jsgraph->DeadValue(),
                      jsgraph->DeadControl()) {}
   ~JSGraphReducer() final {}
 };

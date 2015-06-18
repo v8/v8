@@ -192,7 +192,9 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
-    case IrOpcode::kDead:
+    case IrOpcode::kDeadValue:
+    case IrOpcode::kDeadEffect:
+    case IrOpcode::kDeadControl:
       // Dead is never connected to the graph.
       // TODO(mstarzinger): Make the GraphReducer immediately perform control
       // reduction in case control is killed. This will prevent {Dead} from

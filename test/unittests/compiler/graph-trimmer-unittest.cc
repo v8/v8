@@ -32,10 +32,10 @@ class GraphTrimmerTest : public GraphTest {
 
 namespace {
 
-const Operator kDead0(IrOpcode::kDead, Operator::kNoProperties, "Dead0", 0, 0,
-                      1, 0, 0, 0);
-const Operator kLive0(IrOpcode::kDead, Operator::kNoProperties, "Live0", 0, 0,
-                      1, 0, 0, 1);
+const Operator kDead0(IrOpcode::kDeadControl, Operator::kNoProperties, "Dead0",
+                      0, 0, 1, 0, 0, 0);
+const Operator kLive0(IrOpcode::kDeadControl, Operator::kNoProperties, "Live0",
+                      0, 0, 1, 0, 0, 1);
 
 }  // namespace
 

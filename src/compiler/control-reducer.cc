@@ -47,7 +47,7 @@ class ControlReducerImpl final : public AdvancedReducer {
         node->opcode() == IrOpcode::kLoop) {
       // If a node has only one control input and it is dead, replace with dead.
       Node* control = NodeProperties::GetControlInput(node);
-      if (control->opcode() == IrOpcode::kDead) {
+      if (control->opcode() == IrOpcode::kDeadControl) {
         TRACE("ControlDead: #%d:%s\n", node->id(), node->op()->mnemonic());
         return Replace(control);
       }
@@ -125,8 +125,10 @@ class ControlReducerImpl final : public AdvancedReducer {
     auto const inputs = node->inputs();
     for (auto it = inputs.begin(); n > 1; --n, ++it) {
       Node* input = *it;
-      if (input->opcode() == IrOpcode::kDead) continue;  // ignore dead inputs.
-      if (input != node && input != replacement) {       // non-redundant input.
+      // Ignore dead inputs.
+      if (input->opcode() == IrOpcode::kDeadControl) continue;
+      // Non-redundant input.
+      if (input != node && input != replacement) {
         if (replacement != NULL) return node;
         replacement = input;
       }
@@ -148,7 +150,7 @@ class ControlReducerImpl final : public AdvancedReducer {
     int live = 0;
     for (int index = 0; index < node->InputCount(); ++index) {
       // Skip dead inputs.
-      if (node->InputAt(index)->opcode() == IrOpcode::kDead) continue;
+      if (node->InputAt(index)->opcode() == IrOpcode::kDeadControl) continue;
       // Compact live inputs.
       if (index != live) node->ReplaceInput(live, node->InputAt(index));
       ++live;
@@ -174,7 +176,7 @@ class ControlReducerImpl final : public AdvancedReducer {
     int index = 0;
     int live_index = 0;
     for (Node* const input : node->inputs()) {
-      if (input->opcode() != IrOpcode::kDead) {
+      if (input->opcode() != IrOpcode::kDeadControl) {
         live++;
         live_index = index;
       }
@@ -288,7 +290,7 @@ class ControlReducerImpl final : public AdvancedReducer {
     int live = 0;
     for (int i = 0; i < merge->InputCount(); i++) {
       // skip dead inputs.
-      if (merge->InputAt(i)->opcode() == IrOpcode::kDead) continue;
+      if (merge->InputAt(i)->opcode() == IrOpcode::kDeadControl) continue;
       // compact live inputs.
       if (live != i) node->ReplaceInput(live, node->InputAt(i));
       live++;

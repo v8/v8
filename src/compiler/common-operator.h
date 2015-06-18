@@ -96,7 +96,6 @@ class CommonOperatorBuilder final : public ZoneObject {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
 
-  const Operator* Dead();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
@@ -110,6 +109,10 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Deoptimize();
   const Operator* Return();
   const Operator* Terminate();
+
+  const Operator* DeadValue();
+  const Operator* DeadEffect();
+  const Operator* DeadControl();
 
   const Operator* Start(int num_formal_parameters);
   const Operator* Loop(int control_input_count);
