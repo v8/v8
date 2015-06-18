@@ -135,6 +135,9 @@ void LoadIC::set_target(Code* code) {
   // The contextual mode must be preserved across IC patching.
   DCHECK(LoadICState::GetContextualMode(code->extra_ic_state()) ==
          LoadICState::GetContextualMode(target()->extra_ic_state()));
+  // Strongness must be preserved across IC patching.
+  DCHECK(LoadICState::GetLanguageMode(code->extra_ic_state()) ==
+         LoadICState::GetLanguageMode(target()->extra_ic_state()));
 
   IC::set_target(code);
 }

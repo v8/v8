@@ -123,7 +123,6 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   // Create the code object.
   CodeDesc desc;
   masm.GetCode(&desc);
-
   // Copy the generated code into a heap object.
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),

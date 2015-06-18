@@ -146,6 +146,8 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
                                              Handle<Map> map);
 
+  static void GenerateSlow(MacroAssembler* masm);
+
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
                                     Register receiver, Register holder,
                                     int accessor_index, int expected_arguments,
@@ -290,8 +292,10 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
   virtual ~ElementHandlerCompiler() {}
 
   void CompileElementHandlers(MapHandleList* receiver_maps,
-                              CodeHandleList* handlers);
+                              CodeHandleList* handlers,
+                              LanguageMode language_mode);
 
+  static void GenerateLoadSlow(MacroAssembler* masm);
   static void GenerateStoreSlow(MacroAssembler* masm);
 };
 }

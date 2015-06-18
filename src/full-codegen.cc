@@ -469,8 +469,10 @@ void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
 
 
 void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
+                                   LanguageMode language_mode,
                                    TypeFeedbackId id) {
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), contextual_mode).code();
+  Handle<Code> ic =
+      CodeFactory::LoadIC(isolate(), contextual_mode, language_mode).code();
   CallIC(ic, id);
 }
 

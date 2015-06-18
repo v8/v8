@@ -6392,8 +6392,9 @@ class HLoadNamedField final : public HTemplateInstruction<2> {
 
 class HLoadNamedGeneric final : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadNamedGeneric, HValue*,
-                                              Handle<Object>, InlineCacheState);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HLoadNamedGeneric, HValue*,
+                                              Handle<Object>, LanguageMode,
+                                              InlineCacheState);
 
   HValue* context() const { return OperandAt(0); }
   HValue* object() const { return OperandAt(1); }
@@ -6421,11 +6422,15 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric)
 
+  LanguageMode language_mode() const { return language_mode_; }
+
  private:
   HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name,
+                    LanguageMode language_mode,
                     InlineCacheState initialization_state)
       : name_(name),
         slot_(FeedbackVectorICSlot::Invalid()),
+        language_mode_(language_mode),
         initialization_state_(initialization_state) {
     SetOperandAt(0, context);
     SetOperandAt(1, object);
@@ -6436,6 +6441,7 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
   Handle<Object> name_;
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorICSlot slot_;
+  LanguageMode language_mode_;
   InlineCacheState initialization_state_;
 };
 
@@ -6675,8 +6681,9 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
 
 class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadKeyedGeneric, HValue*,
-                                              HValue*, InlineCacheState);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HLoadKeyedGeneric, HValue*,
+                                              HValue*, LanguageMode,
+                                              InlineCacheState);
   HValue* object() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
@@ -6708,11 +6715,15 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric)
 
+  LanguageMode language_mode() const { return language_mode_; }
+
  private:
   HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key,
+                    LanguageMode language_mode,
                     InlineCacheState initialization_state)
       : slot_(FeedbackVectorICSlot::Invalid()),
-        initialization_state_(initialization_state) {
+        initialization_state_(initialization_state),
+        language_mode_(language_mode) {
     set_representation(Representation::Tagged());
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
@@ -6723,6 +6734,7 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorICSlot slot_;
   InlineCacheState initialization_state_;
+  LanguageMode language_mode_;
 };
 
 
