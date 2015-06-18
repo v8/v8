@@ -22,10 +22,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ControlReducerTest : public TypedGraphTest {
+class ControlReducerTest : public GraphTest {
  public:
   ControlReducerTest()
-      : TypedGraphTest(1),
+      : GraphTest(1),
         machine_(zone()),
         javascript_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, &machine_) {}
@@ -51,98 +51,6 @@ class ControlReducerTest : public TypedGraphTest {
 
   JSGraph* jsgraph() { return &jsgraph_; }
 };
-
-
-TEST_F(ControlReducerTest, PhiAsInputToBranch_true) {
-  Node* p0 = Parameter(0);
-  Node* branch1 = graph()->NewNode(common()->Branch(), p0, graph()->start());
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-  Node* merge1 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-  Node* phi1 = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                jsgraph()->Int32Constant(1),
-                                jsgraph()->Int32Constant(2), merge1);
-
-  Node* branch2 = graph()->NewNode(common()->Branch(), phi1, merge1);
-  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-  Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-  Node* merge2 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
-  Node* result = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                  jsgraph()->Int32Constant(11),
-                                  jsgraph()->Int32Constant(22), merge2);
-
-  Node* ret =
-      graph()->NewNode(common()->Return(), result, graph()->start(), merge2);
-  graph()->end()->ReplaceInput(0, ret);
-
-  ReduceGraph();
-
-  // First diamond is not reduced.
-  EXPECT_THAT(merge1, IsMerge(IsIfTrue(branch1), IsIfFalse(branch1)));
-
-  // Second diamond should be folded away.
-  EXPECT_THAT(graph()->end(),
-              IsEnd(IsReturn(IsInt32Constant(11), graph()->start(), merge1)));
-}
-
-
-TEST_F(ControlReducerTest, PhiAsInputToBranch_false) {
-  Node* p0 = Parameter(0);
-  Node* branch1 = graph()->NewNode(common()->Branch(), p0, graph()->start());
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-  Node* merge1 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-  Node* phi1 = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                jsgraph()->Int32Constant(0),
-                                jsgraph()->BooleanConstant(false), merge1);
-
-  Node* branch2 = graph()->NewNode(common()->Branch(), phi1, merge1);
-  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-  Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-  Node* merge2 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
-  Node* result = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                  jsgraph()->Int32Constant(11),
-                                  jsgraph()->Int32Constant(22), merge2);
-
-  Node* ret =
-      graph()->NewNode(common()->Return(), result, graph()->start(), merge2);
-  graph()->end()->ReplaceInput(0, ret);
-
-  ReduceGraph();
-
-  // First diamond is not reduced.
-  EXPECT_THAT(merge1, IsMerge(IsIfTrue(branch1), IsIfFalse(branch1)));
-
-  // Second diamond should be folded away.
-  EXPECT_THAT(graph()->end(),
-              IsEnd(IsReturn(IsInt32Constant(22), graph()->start(), merge1)));
-}
-
-
-TEST_F(ControlReducerTest, PhiAsInputToBranch_unknown_true) {
-  Node* p0 = Parameter(0);
-  Node* phi0 = graph()->NewNode(common()->Phi(kMachInt32, 2), p0,
-                                jsgraph()->Int32Constant(1), graph()->start());
-  Node* branch1 = graph()->NewNode(common()->Branch(), phi0, graph()->start());
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-  Node* merge1 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-  Node* phi1 = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                jsgraph()->Int32Constant(111),
-                                jsgraph()->Int32Constant(222), merge1);
-
-  Node* ret =
-      graph()->NewNode(common()->Return(), phi1, graph()->start(), merge1);
-  graph()->end()->ReplaceInput(0, ret);
-
-  ReduceGraph();
-
-  // Branch should not be folded.
-  EXPECT_THAT(phi1,
-              IsPhi(kMachInt32, IsInt32Constant(111), IsInt32Constant(222),
-                    IsMerge(IsIfTrue(branch1), IsIfFalse(branch1))));
-  EXPECT_THAT(graph()->end(), IsEnd(IsReturn(phi1, graph()->start(), merge1)));
-}
 
 
 TEST_F(ControlReducerTest, SelectPhi) {
