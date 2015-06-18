@@ -201,6 +201,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_arrays, "harmony array methods")                   \
   V(harmony_rest_parameters, "harmony rest parameters")        \
   V(harmony_spreadcalls, "harmony spread-calls")               \
+  V(harmony_object, "harmony Object methods")                  \
   V(harmony_spread_arrays, "harmony spread in array literals") \
   V(harmony_tostring, "harmony toString")
 
@@ -211,7 +212,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_computed_property_names, "harmony computed property names")    \
   V(harmony_object_literals, "harmony object literal extensions")          \
   V(harmony_unicode, "harmony unicode escapes")                            \
-  V(harmony_object, "harmony Object methods")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
