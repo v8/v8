@@ -30,7 +30,6 @@ class ControlReducer {
                            int max_phis_for_select = 0);
 
   // Testing interface.
-  static Node* ReducePhiForTesting(JSGraph* graph, Node* node);
   static Node* ReduceIfNodeForTesting(JSGraph* graph, Node* node);
 };
 }

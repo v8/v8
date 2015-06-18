@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-reducer.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
@@ -69,13 +70,6 @@ class ControlReducerImpl final : public AdvancedReducer {
       case IrOpcode::kMerge:
         result = ReduceMerge(node);
         break;
-      case IrOpcode::kSelect:
-        result = ReduceSelect(node);
-        break;
-      case IrOpcode::kPhi:
-      case IrOpcode::kEffectPhi:
-        result = ReducePhi(node);
-        break;
       case IrOpcode::kEnd:
         result = ReduceEnd(node);
         break;
@@ -102,38 +96,6 @@ class ControlReducerImpl final : public AdvancedReducer {
         break;
     }
     return kUnknown;
-  }
-
-  // Reduce redundant selects.
-  Node* ReduceSelect(Node* const node) {
-    Node* const tvalue = node->InputAt(1);
-    Node* const fvalue = node->InputAt(2);
-    if (tvalue == fvalue) return tvalue;
-    Decision result = DecideCondition(node->InputAt(0));
-    if (result == kTrue) return tvalue;
-    if (result == kFalse) return fvalue;
-    return node;
-  }
-
-  // Reduce redundant phis.
-  Node* ReducePhi(Node* node) {
-    int n = node->InputCount();
-    if (n <= 1) return dead();            // No non-control inputs.
-    if (n == 2) return node->InputAt(0);  // Only one non-control input.
-
-    Node* replacement = NULL;
-    auto const inputs = node->inputs();
-    for (auto it = inputs.begin(); n > 1; --n, ++it) {
-      Node* input = *it;
-      // Ignore dead inputs.
-      if (input->opcode() == IrOpcode::kDeadControl) continue;
-      // Non-redundant input.
-      if (input != node && input != replacement) {
-        if (replacement != NULL) return node;
-        replacement = input;
-      }
-    }
-    return replacement == NULL ? dead() : replacement;
   }
 
   // Reduce branches.
@@ -312,9 +274,12 @@ class ControlReducerImpl final : public AdvancedReducer {
 void ControlReducer::ReduceGraph(Zone* zone, JSGraph* jsgraph,
                                  int max_phis_for_select) {
   GraphReducer graph_reducer(zone, jsgraph->graph());
+  CommonOperatorReducer common(&graph_reducer, jsgraph->graph(),
+                               jsgraph->common(), jsgraph->machine());
   ControlReducerImpl impl(&graph_reducer, zone, jsgraph);
   impl.max_phis_for_select_ = max_phis_for_select;
   graph_reducer.AddReducer(&impl);
+  graph_reducer.AddReducer(&common);
   graph_reducer.ReduceGraph();
 }
 
@@ -341,14 +306,6 @@ Node* ControlReducer::ReduceMerge(JSGraph* jsgraph, Node* node,
   ControlReducerImpl impl(&editor, &zone, jsgraph);
   impl.max_phis_for_select_ = max_phis_for_select;
   return impl.ReduceMerge(node);
-}
-
-
-Node* ControlReducer::ReducePhiForTesting(JSGraph* jsgraph, Node* node) {
-  Zone zone;
-  DummyEditor editor;
-  ControlReducerImpl impl(&editor, &zone, jsgraph);
-  return impl.ReducePhi(node);
 }
 
 

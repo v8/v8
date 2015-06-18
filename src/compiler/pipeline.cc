@@ -575,7 +575,8 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
-    CommonOperatorReducer common_reducer(data->jsgraph());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
     AddReducer(data, &graph_reducer, &builtin_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
@@ -593,10 +594,11 @@ struct SimplifiedLoweringPhase {
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
                                 data->source_positions());
     lowering.LowerAllNodes();
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     ValueNumberingReducer vn_reducer(temp_zone);
     MachineOperatorReducer machine_reducer(data->jsgraph());
-    CommonOperatorReducer common_reducer(data->jsgraph());
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -620,11 +622,12 @@ struct ChangeLoweringPhase {
   static const char* phase_name() { return "change lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     ValueNumberingReducer vn_reducer(temp_zone);
     ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
-    CommonOperatorReducer common_reducer(data->jsgraph());
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
