@@ -4002,9 +4002,9 @@ Handle<Object> FixedTypedArray<Traits>::get(
 
 
 template <class Traits>
-Handle<Object> FixedTypedArray<Traits>::SetValue(
-    Handle<JSObject> holder, Handle<FixedTypedArray<Traits> > array,
-    uint32_t index, Handle<Object> value) {
+void FixedTypedArray<Traits>::SetValue(Handle<JSObject> holder,
+                                       Handle<FixedTypedArray<Traits> > array,
+                                       uint32_t index, Handle<Object> value) {
   ElementType cast_value = Traits::defaultValue();
   Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
   if (!view->WasNeutered()) {
@@ -4023,7 +4023,6 @@ Handle<Object> FixedTypedArray<Traits>::SetValue(
       array->set(index, cast_value);
     }
   }
-  return Traits::ToHandle(array->GetIsolate(), cast_value);
 }
 
 

@@ -43,9 +43,8 @@ class ElementsAccessor {
     return HasElement(holder, key, handle(holder->elements()));
   }
 
-  inline Handle<Object> Set(Handle<JSObject> holder, uint32_t key,
-                            Handle<Object> value) {
-    return Set(holder, key, handle(holder->elements()), value);
+  inline void Set(Handle<JSObject> holder, uint32_t key, Handle<Object> value) {
+    Set(holder, key, handle(holder->elements()), value);
   }
 
   // Returns the element with the specified key or undefined if there is no such
@@ -180,9 +179,9 @@ class ElementsAccessor {
                                      uint32_t index) = 0;
   virtual bool HasIndex(FixedArrayBase* backing_store, uint32_t key) = 0;
 
-  virtual Handle<Object> Set(Handle<JSObject> holder, uint32_t key,
-                             Handle<FixedArrayBase> backing_store,
-                             Handle<Object> value) = 0;
+  virtual void Set(Handle<JSObject> holder, uint32_t key,
+                   Handle<FixedArrayBase> backing_store,
+                   Handle<Object> value) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;

@@ -613,19 +613,19 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual Handle<Object> Set(Handle<JSObject> holder, uint32_t key,
-                             Handle<FixedArrayBase> backing_store,
-                             Handle<Object> value) final {
-    return ElementsAccessorSubclass::SetImpl(holder, key, backing_store, value);
+  virtual void Set(Handle<JSObject> holder, uint32_t key,
+                   Handle<FixedArrayBase> backing_store,
+                   Handle<Object> value) final {
+    ElementsAccessorSubclass::SetImpl(holder, key, backing_store, value);
   }
 
-  static Handle<Object> SetImpl(Handle<JSObject> obj, uint32_t key,
-                                Handle<FixedArrayBase> backing_store,
-                                Handle<Object> value) {
+  static void SetImpl(Handle<JSObject> obj, uint32_t key,
+                      Handle<FixedArrayBase> backing_store,
+                      Handle<Object> value) {
     CHECK(key <
           ElementsAccessorSubclass::GetCapacityImpl(*obj, *backing_store));
-    return BackingStore::SetValue(
-        obj, Handle<BackingStore>::cast(backing_store), key, value);
+    BackingStore::SetValue(obj, Handle<BackingStore>::cast(backing_store), key,
+                           value);
   }
 
   virtual MaybeHandle<AccessorPair> GetAccessorPair(
@@ -1447,15 +1447,13 @@ class DictionaryElementsAccessor
     return isolate->factory()->the_hole_value();
   }
 
-  static Handle<Object> SetImpl(Handle<JSObject> obj, uint32_t key,
-                                Handle<FixedArrayBase> store,
-                                Handle<Object> value) {
+  static void SetImpl(Handle<JSObject> obj, uint32_t key,
+                      Handle<FixedArrayBase> store, Handle<Object> value) {
     Handle<SeededNumberDictionary> backing_store =
         Handle<SeededNumberDictionary>::cast(store);
     int entry = backing_store->FindEntry(key);
     DCHECK_NE(SeededNumberDictionary::kNotFound, entry);
     backing_store->ValueAtPut(entry, *value);
-    return value;
   }
 
   static MaybeHandle<AccessorPair> GetAccessorPairImpl(
@@ -1546,9 +1544,8 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  static Handle<Object> SetImpl(Handle<JSObject> obj, uint32_t key,
-                                Handle<FixedArrayBase> store,
-                                Handle<Object> value) {
+  static void SetImpl(Handle<JSObject> obj, uint32_t key,
+                      Handle<FixedArrayBase> store, Handle<Object> value) {
     Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(store);
     Object* probe = GetParameterMapArg(*parameter_map, key);
     if (!probe->IsTheHole()) {
@@ -1556,11 +1553,10 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       int context_index = Smi::cast(probe)->value();
       DCHECK(!context->get(context_index)->IsTheHole());
       context->set(context_index, *value);
-      return value;
+    } else {
+      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
+      ElementsAccessor::ForArray(arguments)->Set(obj, key, arguments, value);
     }
-    Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-    return ElementsAccessor::ForArray(arguments)
-        ->Set(obj, key, arguments, value);
   }
 
   static MaybeHandle<AccessorPair> GetAccessorPairImpl(

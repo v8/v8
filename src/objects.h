@@ -2439,9 +2439,8 @@ class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object* get(int index) const;
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<FixedArray> array, uint32_t index,
-                                 Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder, Handle<FixedArray> array,
+                       uint32_t index, Handle<Object> value);
   static inline Handle<Object> get(Handle<FixedArray> array, int index);
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
@@ -2564,9 +2563,8 @@ class FixedDoubleArray: public FixedArrayBase {
   inline uint64_t get_representation(int index);
   static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
   // This accessor has to get a Number as |value|.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<FixedDoubleArray> array, uint32_t index,
-                                 Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder, Handle<FixedDoubleArray> array,
+                       uint32_t index, Handle<Object> value);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
 
@@ -4401,9 +4399,9 @@ class ExternalUint8ClampedArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined and clamps the converted value between 0 and 255.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalUint8ClampedArray> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalUint8ClampedArray> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalUint8ClampedArray)
 
@@ -4425,9 +4423,8 @@ class ExternalInt8Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalInt8Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder, Handle<ExternalInt8Array> array,
+                       uint32_t index, Handle<Object> value);
 
   DECLARE_CAST(ExternalInt8Array)
 
@@ -4449,9 +4446,9 @@ class ExternalUint8Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalUint8Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalUint8Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalUint8Array)
 
@@ -4473,9 +4470,9 @@ class ExternalInt16Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalInt16Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalInt16Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalInt16Array)
 
@@ -4498,9 +4495,9 @@ class ExternalUint16Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalUint16Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalUint16Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalUint16Array)
 
@@ -4522,9 +4519,9 @@ class ExternalInt32Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalInt32Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalInt32Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalInt32Array)
 
@@ -4547,9 +4544,9 @@ class ExternalUint32Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalUint32Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalUint32Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalUint32Array)
 
@@ -4572,9 +4569,9 @@ class ExternalFloat32Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalFloat32Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalFloat32Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalFloat32Array)
 
@@ -4597,9 +4594,9 @@ class ExternalFloat64Array: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<ExternalFloat64Array> array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<ExternalFloat64Array> array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_CAST(ExternalFloat64Array)
 
@@ -4667,9 +4664,9 @@ class FixedTypedArray: public FixedTypedArrayBase {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  static Handle<Object> SetValue(Handle<JSObject> holder,
-                                 Handle<FixedTypedArray<Traits> > array,
-                                 uint32_t index, Handle<Object> value);
+  static void SetValue(Handle<JSObject> holder,
+                       Handle<FixedTypedArray<Traits> > array, uint32_t index,
+                       Handle<Object> value);
 
   DECLARE_PRINTER(FixedTypedArray)
   DECLARE_VERIFIER(FixedTypedArray)

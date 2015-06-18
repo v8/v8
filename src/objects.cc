@@ -14713,24 +14713,20 @@ size_t JSTypedArray::element_size() {
 }
 
 
-Handle<Object> FixedArray::SetValue(Handle<JSObject> holder,
-                                    Handle<FixedArray> array, uint32_t index,
-                                    Handle<Object> value) {
+void FixedArray::SetValue(Handle<JSObject> holder, Handle<FixedArray> array,
+                          uint32_t index, Handle<Object> value) {
   array->set(index, *value);
-  return value;
 }
 
 
-Handle<Object> FixedDoubleArray::SetValue(Handle<JSObject> holder,
-                                          Handle<FixedDoubleArray> array,
-                                          uint32_t index,
-                                          Handle<Object> value) {
+void FixedDoubleArray::SetValue(Handle<JSObject> holder,
+                                Handle<FixedDoubleArray> array, uint32_t index,
+                                Handle<Object> value) {
   array->set(index, value->Number());
-  return value;
 }
 
 
-Handle<Object> ExternalUint8ClampedArray::SetValue(
+void ExternalUint8ClampedArray::SetValue(
     Handle<JSObject> holder, Handle<ExternalUint8ClampedArray> array,
     uint32_t index, Handle<Object> value) {
   uint8_t clamped_value = 0;
@@ -14766,14 +14762,13 @@ Handle<Object> ExternalUint8ClampedArray::SetValue(
       array->set(index, clamped_value);
     }
   }
-  return handle(Smi::FromInt(clamped_value), array->GetIsolate());
 }
 
 
 template <typename ExternalArrayClass, typename ValueType>
-static Handle<Object> ExternalArrayIntSetter(
-    Isolate* isolate, Handle<JSObject> holder,
-    Handle<ExternalArrayClass> receiver, uint32_t index, Handle<Object> value) {
+static void ExternalArrayIntSetter(Isolate* isolate, Handle<JSObject> holder,
+                                   Handle<ExternalArrayClass> receiver,
+                                   uint32_t index, Handle<Object> value) {
   ValueType cast_value = 0;
   Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
   if (!view->WasNeutered()) {
@@ -14792,59 +14787,52 @@ static Handle<Object> ExternalArrayIntSetter(
       receiver->set(index, cast_value);
     }
   }
-  return isolate->factory()->NewNumberFromInt(cast_value);
 }
 
 
-Handle<Object> ExternalInt8Array::SetValue(Handle<JSObject> holder,
-                                           Handle<ExternalInt8Array> array,
-                                           uint32_t index,
-                                           Handle<Object> value) {
-  return ExternalArrayIntSetter<ExternalInt8Array, int8_t>(
+void ExternalInt8Array::SetValue(Handle<JSObject> holder,
+                                 Handle<ExternalInt8Array> array,
+                                 uint32_t index, Handle<Object> value) {
+  ExternalArrayIntSetter<ExternalInt8Array, int8_t>(array->GetIsolate(), holder,
+                                                    array, index, value);
+}
+
+
+void ExternalUint8Array::SetValue(Handle<JSObject> holder,
+                                  Handle<ExternalUint8Array> array,
+                                  uint32_t index, Handle<Object> value) {
+  ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(
       array->GetIsolate(), holder, array, index, value);
 }
 
 
-Handle<Object> ExternalUint8Array::SetValue(Handle<JSObject> holder,
-                                            Handle<ExternalUint8Array> array,
-                                            uint32_t index,
-                                            Handle<Object> value) {
-  return ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(
+void ExternalInt16Array::SetValue(Handle<JSObject> holder,
+                                  Handle<ExternalInt16Array> array,
+                                  uint32_t index, Handle<Object> value) {
+  ExternalArrayIntSetter<ExternalInt16Array, int16_t>(
       array->GetIsolate(), holder, array, index, value);
 }
 
 
-Handle<Object> ExternalInt16Array::SetValue(Handle<JSObject> holder,
-                                            Handle<ExternalInt16Array> array,
-                                            uint32_t index,
-                                            Handle<Object> value) {
-  return ExternalArrayIntSetter<ExternalInt16Array, int16_t>(
+void ExternalUint16Array::SetValue(Handle<JSObject> holder,
+                                   Handle<ExternalUint16Array> array,
+                                   uint32_t index, Handle<Object> value) {
+  ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(
       array->GetIsolate(), holder, array, index, value);
 }
 
 
-Handle<Object> ExternalUint16Array::SetValue(Handle<JSObject> holder,
-                                             Handle<ExternalUint16Array> array,
-                                             uint32_t index,
-                                             Handle<Object> value) {
-  return ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(
+void ExternalInt32Array::SetValue(Handle<JSObject> holder,
+                                  Handle<ExternalInt32Array> array,
+                                  uint32_t index, Handle<Object> value) {
+  ExternalArrayIntSetter<ExternalInt32Array, int32_t>(
       array->GetIsolate(), holder, array, index, value);
 }
 
 
-Handle<Object> ExternalInt32Array::SetValue(Handle<JSObject> holder,
-                                            Handle<ExternalInt32Array> array,
-                                            uint32_t index,
-                                            Handle<Object> value) {
-  return ExternalArrayIntSetter<ExternalInt32Array, int32_t>(
-      array->GetIsolate(), holder, array, index, value);
-}
-
-
-Handle<Object> ExternalUint32Array::SetValue(Handle<JSObject> holder,
-                                             Handle<ExternalUint32Array> array,
-                                             uint32_t index,
-                                             Handle<Object> value) {
+void ExternalUint32Array::SetValue(Handle<JSObject> holder,
+                                   Handle<ExternalUint32Array> array,
+                                   uint32_t index, Handle<Object> value) {
   uint32_t cast_value = 0;
   Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
   if (!view->WasNeutered()) {
@@ -14863,13 +14851,12 @@ Handle<Object> ExternalUint32Array::SetValue(Handle<JSObject> holder,
       array->set(index, cast_value);
     }
   }
-  return array->GetIsolate()->factory()->NewNumberFromUint(cast_value);
 }
 
 
-Handle<Object> ExternalFloat32Array::SetValue(
-    Handle<JSObject> holder, Handle<ExternalFloat32Array> array, uint32_t index,
-    Handle<Object> value) {
+void ExternalFloat32Array::SetValue(Handle<JSObject> holder,
+                                    Handle<ExternalFloat32Array> array,
+                                    uint32_t index, Handle<Object> value) {
   float cast_value = std::numeric_limits<float>::quiet_NaN();
   Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
   if (!view->WasNeutered()) {
@@ -14888,13 +14875,12 @@ Handle<Object> ExternalFloat32Array::SetValue(
       array->set(index, cast_value);
     }
   }
-  return array->GetIsolate()->factory()->NewNumber(cast_value);
 }
 
 
-Handle<Object> ExternalFloat64Array::SetValue(
-    Handle<JSObject> holder, Handle<ExternalFloat64Array> array, uint32_t index,
-    Handle<Object> value) {
+void ExternalFloat64Array::SetValue(Handle<JSObject> holder,
+                                    Handle<ExternalFloat64Array> array,
+                                    uint32_t index, Handle<Object> value) {
   double double_value = std::numeric_limits<double>::quiet_NaN();
   Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
   if (!view->WasNeutered()) {
@@ -14909,7 +14895,6 @@ Handle<Object> ExternalFloat64Array::SetValue(
       array->set(index, double_value);
     }
   }
-  return array->GetIsolate()->factory()->NewNumber(double_value);
 }
 
 
