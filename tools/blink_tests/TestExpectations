@@ -3,7 +3,3 @@
 # Turn off Slimming Paint tests on linux.
 [ Linux ] virtual/slimmingpaint/ [ Skip ]
 
-crbug.com/498689 [ Linux ] virtual/display_list_2d_canvas/canvas/philip/tests/ [ Skip ]
-crbug.com/498689 [ Linux ] virtual/gpu/canvas/philip/tests/ [ Skip ]
-crbug.com/498689 [ Linux ] canvas/philip/tests/ [ Skip ]
-
