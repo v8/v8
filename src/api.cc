@@ -6258,7 +6258,8 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   Utils::ApiCheck(!self->is_external(), "v8::ArrayBuffer::Externalize",
                   "ArrayBuffer already externalized");
   self->set_is_external(true);
-  isolate->heap()->UnregisterArrayBuffer(self->backing_store());
+  isolate->heap()->UnregisterArrayBuffer(isolate->heap()->InNewSpace(*self),
+                                         self->backing_store());
 
   return GetContents();
 }
