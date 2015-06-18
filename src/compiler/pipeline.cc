@@ -640,7 +640,7 @@ struct ChangeLoweringPhase {
 struct EarlyControlReductionPhase {
   static const char* phase_name() { return "early control reduction"; }
   void Run(PipelineData* data, Zone* temp_zone) {
-    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), 1);
+    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), 0);
   }
 };
 
