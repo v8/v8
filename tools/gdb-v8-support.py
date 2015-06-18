@@ -157,21 +157,29 @@ V8PrintObject()
 class FindAnywhere (gdb.Command):
   """Search memory for the given pattern."""
   MAPPING_RE = re.compile(r"^\s*\[\d+\]\s+0x([0-9A-Fa-f]+)->0x([0-9A-Fa-f]+)")
+  LIVE_MAPPING_RE = re.compile(r"^\s+0x([0-9A-Fa-f]+)\s+0x([0-9A-Fa-f]+)")
   def __init__ (self):
     super (FindAnywhere, self).__init__ ("find-anywhere", gdb.COMMAND_DATA)
+  def find (self, startAddr, endAddr, value):
+    try:
+      result = gdb.execute(
+          "find 0x%s, 0x%s, %s" % (startAddr, endAddr, value),
+          to_string = True)
+      if result.find("not found") == -1:
+        print result
+    except:
+      pass
+
   def invoke (self, value, from_tty):
     for l in gdb.execute("maint info sections", to_string = True).split('\n'):
       m = FindAnywhere.MAPPING_RE.match(l)
       if m is None:
         continue
-      startAddr = m.group(1)
-      endAddr = m.group(2)
-      try:
-        result = gdb.execute(
-            "find 0x%s, 0x%s, %s" % (startAddr, endAddr, value),
-            to_string = True)
-        if result.find("not found") == -1:
-          print result
-      except:
-        pass
+      self.find(m.group(1), m.group(2), value)
+    for l in gdb.execute("info proc mappings", to_string = True).split('\n'):
+      m = FindAnywhere.LIVE_MAPPING_RE.match(l)
+      if m is None:
+        continue
+      self.find(m.group(1), m.group(2), value)
+
 FindAnywhere()
