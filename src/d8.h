@@ -8,9 +8,7 @@
 #ifndef V8_SHARED
 #include "src/allocation.h"
 #include "src/hashmap.h"
-#include "src/list.h"
 #include "src/smart-pointers.h"
-#include "src/unbound-queue.h"
 #include "src/v8.h"
 #else
 #include "include/v8.h"
@@ -169,99 +167,6 @@ class SourceGroup {
   int end_offset_;
 };
 
-#ifndef V8_SHARED
-enum SerializationTag {
-  kSerializationTagUndefined,
-  kSerializationTagNull,
-  kSerializationTagTrue,
-  kSerializationTagFalse,
-  kSerializationTagNumber,
-  kSerializationTagString,
-  kSerializationTagArray,
-  kSerializationTagObject,
-  kSerializationTagArrayBuffer,
-  kSerializationTagTransferredArrayBuffer,
-  kSerializationTagTransferredSharedArrayBuffer,
-};
-
-
-class SerializationData {
- public:
-  SerializationData() {}
-  ~SerializationData();
-
-  void WriteTag(SerializationTag tag);
-  void WriteMemory(const void* p, int length);
-  void WriteArrayBufferContents(const ArrayBuffer::Contents& contents);
-  void WriteSharedArrayBufferContents(
-      const SharedArrayBuffer::Contents& contents);
-
-  template <typename T>
-  void Write(const T& data) {
-    WriteMemory(&data, sizeof(data));
-  }
-
-  SerializationTag ReadTag(int* offset) const;
-  void ReadMemory(void* p, int length, int* offset) const;
-  void ReadArrayBufferContents(ArrayBuffer::Contents* contents,
-                               int* offset) const;
-  void ReadSharedArrayBufferContents(SharedArrayBuffer::Contents* contents,
-                                     int* offset) const;
-
-  template <typename T>
-  T Read(int* offset) const {
-    T value;
-    ReadMemory(&value, sizeof(value), offset);
-    return value;
-  }
-
- private:
-  i::List<uint8_t> data;
-  i::List<ArrayBuffer::Contents> array_buffer_contents;
-  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents;
-};
-
-
-class Worker {
- public:
-  Worker();
-  ~Worker();
-
-  void StartExecuteInThread(Isolate* isolate, const char* function_string);
-  void PostMessage(SerializationData* data);
-  SerializationData* GetMessage();
-  void Terminate();
-
- private:
-  class WorkerThread : public base::Thread {
-   public:
-    explicit WorkerThread(Worker* worker)
-        : base::Thread(base::Thread::Options("WorkerThread")),
-          worker_(worker) {}
-
-    virtual void Run() { worker_->ExecuteInThread(); }
-
-   private:
-    Worker* worker_;
-  };
-
-  typedef i::UnboundQueue<SerializationData*> SerializationDataQueue;
-
-  void ExecuteInThread();
-  static void ClearQueue(SerializationDataQueue* queue);
-  void Cleanup();
-  static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  base::Mutex mutex_;
-  base::Semaphore in_semaphore_;
-  base::Semaphore out_semaphore_;
-  SerializationDataQueue in_queue_;
-  SerializationDataQueue out_queue_;
-  base::Thread* thread_;
-  char* script_;
-};
-#endif  // !V8_SHARED
-
 
 class ShellOptions {
  public:
@@ -341,17 +246,6 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
 
 #ifndef V8_SHARED
-  // TODO(binji): stupid implementation for now. Is there an easy way to hash an
-  // object for use in i::HashMap? By pointer?
-  typedef i::List<Handle<Object>> ObjectList;
-  static bool SerializeValue(Isolate* isolate, Handle<Value> value,
-                             const ObjectList& to_transfer,
-                             ObjectList* seen_objects,
-                             SerializationData* out_data);
-  static MaybeLocal<Value> DeserializeValue(Isolate* isolate,
-                                            const SerializationData& data,
-                                            int* offset);
-  static void CleanupWorkers();
   static Handle<Array> GetCompletions(Isolate* isolate,
                                       Handle<String> text,
                                       Handle<String> full);
@@ -395,11 +289,6 @@ class Shell : public i::AllStatic {
     args.GetReturnValue().Set(ReadFromStdin(args.GetIsolate()));
   }
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WorkerPostMessage(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -439,7 +328,6 @@ class Shell : public i::AllStatic {
 
   static const char* kPrompt;
   static ShellOptions options;
-  static ArrayBuffer::Allocator* array_buffer_allocator;
 
  private:
   static Persistent<Context> evaluation_context_;
@@ -453,8 +341,6 @@ class Shell : public i::AllStatic {
   static base::OS::MemoryMappedFile* counters_file_;
   static base::Mutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
-  static Worker worker_;
-  static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);
