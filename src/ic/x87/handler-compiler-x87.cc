@@ -16,39 +16,6 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-static void LoadIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-
-  DCHECK(!ebx.is(receiver) && !ebx.is(name));
-
-  __ pop(ebx);
-  __ push(receiver);
-  __ push(name);
-  __ push(ebx);
-}
-
-
-void NamedLoadHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  LoadIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(IC::kLoadIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
-}
-
-
-void ElementHandlerCompiler::GenerateLoadSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  LoadIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(IC::kKeyedLoadIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
     int accessor_index, int expected_arguments, Register scratch) {

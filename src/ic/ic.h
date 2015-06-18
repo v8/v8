@@ -18,8 +18,6 @@ namespace internal {
 #define IC_UTIL_LIST(ICU)              \
   ICU(LoadIC_Miss)                     \
   ICU(KeyedLoadIC_Miss)                \
-  ICU(LoadIC_Slow)                     \
-  ICU(KeyedLoadIC_Slow)                \
   ICU(CallIC_Miss)                     \
   ICU(CallIC_Customization_Miss)       \
   ICU(StoreIC_Miss)                    \
@@ -354,17 +352,12 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
-                                          LanguageMode language_mode) {
-    return LoadICState(contextual_mode, language_mode).GetExtraICState();
+  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
+    return LoadICState(contextual_mode).GetExtraICState();
   }
 
   ContextualMode contextual_mode() const {
     return LoadICState::GetContextualMode(extra_ic_state());
-  }
-
-  LanguageMode language_mode() const {
-    return LoadICState::GetLanguageMode(extra_ic_state());
   }
 
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
@@ -397,7 +390,7 @@ class LoadIC : public IC {
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateSlow(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
@@ -444,12 +437,11 @@ class LoadIC : public IC {
 class KeyedLoadIC : public LoadIC {
  public:
   // ExtraICState bits (building on IC)
-  class IcCheckTypeField : public BitField<IcCheckType, 2, 1> {};
+  class IcCheckTypeField : public BitField<IcCheckType, 1, 1> {};
 
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
-                                          LanguageMode language_mode,
                                           IcCheckType key_type) {
-    return LoadICState(contextual_mode, language_mode).GetExtraICState() |
+    return LoadICState(contextual_mode).GetExtraICState() |
            IcCheckTypeField::encode(key_type);
   }
 
@@ -469,10 +461,9 @@ class KeyedLoadIC : public LoadIC {
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateSlow(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  LanguageMode languageMode);
+  static void GenerateMegamorphic(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -481,12 +472,10 @@ class KeyedLoadIC : public LoadIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      ExtraICState extra_state);
+  static Handle<Code> initialize_stub(Isolate* isolate);
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, State initialization_state, ExtraICState extra_state);
-  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
-                                            ExtraICState extra_state);
+      Isolate* isolate, State initialization_state);
+  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 

@@ -47,8 +47,8 @@ function* g() {}
 (function LexicalBindings(global) {
   assertEquals('function', typeof f);
   assertEquals('function', typeof g);
-  assertFalse(global.hasOwnProperty("f"));
-  assertFalse(global.hasOwnProperty("g"));
+  assertEquals(undefined, global.f);
+  assertEquals(undefined, global.g);
 })(this);
 
 (function ImmutableBindings() {

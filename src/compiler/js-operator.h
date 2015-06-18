@@ -223,15 +223,10 @@ class LoadNamedParameters final {
  public:
   LoadNamedParameters(const Unique<Name>& name,
                       const ResolvedFeedbackSlot& feedback,
-                      LanguageMode language_mode,
                       ContextualMode contextual_mode)
-      : name_(name),
-        feedback_(feedback),
-        language_mode_(language_mode),
-        contextual_mode_(contextual_mode) {}
+      : name_(name), feedback_(feedback), contextual_mode_(contextual_mode) {}
 
   const Unique<Name>& name() const { return name_; }
-  LanguageMode language_mode() const { return language_mode_; }
   ContextualMode contextual_mode() const { return contextual_mode_; }
 
   const ResolvedFeedbackSlot& feedback() const { return feedback_; }
@@ -239,7 +234,6 @@ class LoadNamedParameters final {
  private:
   const Unique<Name> name_;
   const ResolvedFeedbackSlot feedback_;
-  const LanguageMode language_mode_;
   const ContextualMode contextual_mode_;
 };
 
@@ -257,17 +251,13 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 // used as a parameter by JSLoadProperty operators.
 class LoadPropertyParameters final {
  public:
-  explicit LoadPropertyParameters(const ResolvedFeedbackSlot& feedback,
-                                  LanguageMode language_mode)
-      : feedback_(feedback), language_mode_(language_mode) {}
+  explicit LoadPropertyParameters(const ResolvedFeedbackSlot& feedback)
+      : feedback_(feedback) {}
 
   const ResolvedFeedbackSlot& feedback() const { return feedback_; }
 
-  LanguageMode language_mode() const { return language_mode_; }
-
  private:
   const ResolvedFeedbackSlot feedback_;
-  const LanguageMode language_mode_;
 };
 
 bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
@@ -378,11 +368,9 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* CallConstruct(int arguments);
 
-  const Operator* LoadProperty(const ResolvedFeedbackSlot& feedback,
-                               LanguageMode language_mode);
+  const Operator* LoadProperty(const ResolvedFeedbackSlot& feedback);
   const Operator* LoadNamed(const Unique<Name>& name,
                             const ResolvedFeedbackSlot& feedback,
-                            LanguageMode language_mode,
                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
   const Operator* StoreProperty(LanguageMode language_mode);
