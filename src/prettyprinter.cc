@@ -433,10 +433,10 @@ PrettyPrinter::~PrettyPrinter() {
 
 
 void PrettyPrinter::VisitBlock(Block* node) {
-  if (!node->is_initializer_block()) Print("{ ");
+  if (!node->ignore_completion_value()) Print("{ ");
   PrintStatements(node->statements());
   if (node->statements()->length() > 0) Print(" ");
-  if (!node->is_initializer_block()) Print("}");
+  if (!node->ignore_completion_value()) Print("}");
 }
 
 
@@ -1146,7 +1146,8 @@ void AstPrinter::PrintArguments(ZoneList<Expression*>* arguments) {
 
 
 void AstPrinter::VisitBlock(Block* node) {
-  const char* block_txt = node->is_initializer_block() ? "BLOCK INIT" : "BLOCK";
+  const char* block_txt =
+      node->ignore_completion_value() ? "BLOCK NOCOMPLETIONS" : "BLOCK";
   IndentedScope indent(this, block_txt);
   PrintStatements(node->statements());
 }

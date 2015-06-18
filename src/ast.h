@@ -484,7 +484,7 @@ class Block final : public BreakableStatement {
   }
 
   ZoneList<Statement*>* statements() { return &statements_; }
-  bool is_initializer_block() const { return is_initializer_block_; }
+  bool ignore_completion_value() const { return ignore_completion_value_; }
 
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId DeclsId() const { return BailoutId(local_id(0)); }
@@ -499,10 +499,10 @@ class Block final : public BreakableStatement {
 
  protected:
   Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
-        bool is_initializer_block, int pos)
+        bool ignore_completion_value, int pos)
       : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos),
         statements_(capacity, zone),
-        is_initializer_block_(is_initializer_block),
+        ignore_completion_value_(ignore_completion_value),
         scope_(NULL) {}
   static int parent_num_ids() { return BreakableStatement::num_ids(); }
 
@@ -510,7 +510,7 @@ class Block final : public BreakableStatement {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   ZoneList<Statement*> statements_;
-  bool is_initializer_block_;
+  bool ignore_completion_value_;
   Scope* scope_;
 };
 
@@ -3286,12 +3286,10 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) ExportDeclaration(zone_, proxy, scope, pos);
   }
 
-  Block* NewBlock(ZoneList<const AstRawString*>* labels,
-                  int capacity,
-                  bool is_initializer_block,
-                  int pos) {
+  Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
+                  bool ignore_completion_value, int pos) {
     return new (zone_)
-        Block(zone_, labels, capacity, is_initializer_block, pos);
+        Block(zone_, labels, capacity, ignore_completion_value, pos);
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                     \
