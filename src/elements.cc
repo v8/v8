@@ -1704,107 +1704,87 @@ void ElementsAccessor::TearDown() {
 
 
 template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
-MUST_USE_RESULT
-MaybeHandle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
-                                         ElementsKindTraits>::
-    SetLengthImpl(Handle<JSObject> obj,
-                  Handle<Object> length,
-                  Handle<FixedArrayBase> backing_store) {
-  Isolate* isolate = obj->GetIsolate();
+MUST_USE_RESULT MaybeHandle<Object> ElementsAccessorBase<
+    ElementsAccessorSubclass,
+    ElementsKindTraits>::SetLengthImpl(Handle<JSObject> obj,
+                                       Handle<Object> length_obj,
+                                       Handle<FixedArrayBase> backing_store) {
   Handle<JSArray> array = Handle<JSArray>::cast(obj);
 
-  // Fast case: The new length fits into a Smi.
-  Handle<Object> smi_length;
+  uint32_t length = 0;
+  CHECK(length_obj->ToArrayLength(&length));
+  // Fast case: length fits in a smi.
+  if (length <= Smi::kMaxValue) {
+    Handle<Smi> smi(Smi::FromInt(length), obj->GetIsolate());
+    Handle<Object> new_length =
+        ElementsAccessorSubclass::SetLengthWithoutNormalize(backing_store,
+                                                            array, smi, length);
+    DCHECK(!new_length.is_null());
 
-  if (Object::ToSmi(isolate, length).ToHandle(&smi_length) &&
-      smi_length->IsSmi()) {
-    const int value = Handle<Smi>::cast(smi_length)->value();
-    if (value >= 0) {
-      Handle<Object> new_length = ElementsAccessorSubclass::
-          SetLengthWithoutNormalize(backing_store, array, smi_length, value);
-      DCHECK(!new_length.is_null());
-
-      // even though the proposed length was a smi, new_length could
-      // still be a heap number because SetLengthWithoutNormalize doesn't
-      // allow the array length property to drop below the index of
-      // non-deletable elements.
-      DCHECK(new_length->IsSmi() || new_length->IsHeapNumber() ||
-             new_length->IsUndefined());
-      if (new_length->IsSmi()) {
-        array->set_length(*Handle<Smi>::cast(new_length));
-        return array;
-      } else if (new_length->IsHeapNumber()) {
-        array->set_length(*new_length);
-        return array;
-      }
-    } else {
-      return ThrowArrayLengthRangeError(isolate);
+    // Even though the proposed length was a smi, new_length could
+    // still be a heap number because SetLengthWithoutNormalize doesn't
+    // allow the array length property to drop below the index of
+    // non-deletable elements.
+    DCHECK(new_length->IsSmi() || new_length->IsHeapNumber() ||
+           new_length->IsUndefined());
+    if (new_length->IsSmi()) {
+      array->set_length(*Handle<Smi>::cast(new_length));
+      return array;
+    } else if (new_length->IsHeapNumber()) {
+      array->set_length(*new_length);
+      return array;
     }
   }
 
   // Slow case: The new length does not fit into a Smi or conversion
   // to slow elements is needed for other reasons.
-  if (length->IsNumber()) {
-    uint32_t value;
-    if (length->ToArrayLength(&value)) {
-      Handle<SeededNumberDictionary> dictionary =
-          JSObject::NormalizeElements(array);
-      DCHECK(!dictionary.is_null());
+  Handle<SeededNumberDictionary> dictionary =
+      JSObject::NormalizeElements(array);
+  DCHECK(!dictionary.is_null());
 
-      Handle<Object> new_length = DictionaryElementsAccessor::
-          SetLengthWithoutNormalize(dictionary, array, length, value);
-      DCHECK(!new_length.is_null());
+  Handle<Object> new_length =
+      DictionaryElementsAccessor::SetLengthWithoutNormalize(dictionary, array,
+                                                            length_obj, length);
+  DCHECK(!new_length.is_null());
 
-      DCHECK(new_length->IsNumber());
-      array->set_length(*new_length);
-      return array;
-    } else {
-      return ThrowArrayLengthRangeError(isolate);
-    }
-  }
-
-  // Fall-back case: The new length is not a number so make the array
-  // size one and set only element to length.
-  Handle<FixedArray> new_backing_store = isolate->factory()->NewFixedArray(1);
-  new_backing_store->set(0, *length);
-  JSArray::SetContent(array, new_backing_store);
+  DCHECK(new_length->IsNumber());
+  array->set_length(*new_length);
   return array;
 }
 
 
 MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
                                                      Arguments* args) {
-  // Optimize the case where there is one argument and the argument is a
-  // small smi.
-  if (args->length() == 1) {
-    Handle<Object> obj = args->at<Object>(0);
-    if (obj->IsSmi()) {
-      int len = Handle<Smi>::cast(obj)->value();
-      if (len > 0 && len < JSObject::kInitialMaxFastElementArray) {
-        ElementsKind elements_kind = array->GetElementsKind();
-        JSArray::Initialize(array, len, len);
+  if (args->length() == 0) {
+    // Optimize the case where there are no parameters passed.
+    JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
+    return array;
 
-        if (!IsFastHoleyElementsKind(elements_kind)) {
-          elements_kind = GetHoleyElementsKind(elements_kind);
-          JSObject::TransitionElementsKind(array, elements_kind);
-        }
-        return array;
-      } else if (len == 0) {
-        JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
-        return array;
+  } else if (args->length() == 1 && args->at<Object>(0)->IsNumber()) {
+    uint32_t length;
+    if (!args->at<Object>(0)->ToArrayLength(&length)) {
+      return ThrowArrayLengthRangeError(array->GetIsolate());
+    }
+
+    // Optimize the case where there is one argument and the argument is a small
+    // smi.
+    if (length > 0 && length < JSObject::kInitialMaxFastElementArray) {
+      ElementsKind elements_kind = array->GetElementsKind();
+      JSArray::Initialize(array, length, length);
+
+      if (!IsFastHoleyElementsKind(elements_kind)) {
+        elements_kind = GetHoleyElementsKind(elements_kind);
+        JSObject::TransitionElementsKind(array, elements_kind);
       }
+      return array;
+    } else if (length == 0) {
+      JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
+      return array;
     }
 
     // Take the argument as the length.
     JSArray::Initialize(array, 0);
-
-    return JSArray::SetElementsLength(array, obj);
-  }
-
-  // Optimize the case where there are no parameters passed.
-  if (args->length() == 0) {
-    JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
-    return array;
+    return JSArray::SetElementsLength(array, args->at<Object>(0));
   }
 
   Factory* factory = array->GetIsolate()->factory();
