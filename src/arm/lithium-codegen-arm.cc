@@ -2826,37 +2826,41 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
 
   int call_size = CallCodeSize(stub.GetCode(), RelocInfo::CODE_TARGET);
   int additional_delta = (call_size / Assembler::kInstrSize) + 4;
-  // Make sure that code size is predicable, since we use specific constants
-  // offsets in the code to find embedded values..
-  PredictableCodeSizeScope predictable(
-      masm_, (additional_delta + 1) * Assembler::kInstrSize);
-  // Make sure we don't emit any additional entries in the constant pool before
-  // the call to ensure that the CallCodeSize() calculated the correct number of
-  // instructions for the constant pool load.
   {
-    ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
-    int map_check_delta =
-        masm_->InstructionsGeneratedSince(map_check) + additional_delta;
-    int bool_load_delta =
-        masm_->InstructionsGeneratedSince(bool_load) + additional_delta;
-    Label before_push_delta;
-    __ bind(&before_push_delta);
-    __ BlockConstPoolFor(additional_delta);
-    // r5 is used to communicate the offset to the location of the map check.
-    __ mov(r5, Operand(map_check_delta * kPointerSize));
-    // r6 is used to communicate the offset to the location of the bool load.
-    __ mov(r6, Operand(bool_load_delta * kPointerSize));
-    // The mov above can generate one or two instructions. The delta was
-    // computed for two instructions, so we need to pad here in case of one
-    // instruction.
-    while (masm_->InstructionsGeneratedSince(&before_push_delta) != 4) {
-      __ nop();
+    // Make sure that code size is predicable, since we use specific constants
+    // offsets in the code to find embedded values..
+    PredictableCodeSizeScope predictable(
+        masm_, additional_delta * Assembler::kInstrSize);
+    // The labels must be already bound since the code has predictabel size up
+    // to the call instruction.
+    DCHECK(map_check->is_bound());
+    DCHECK(bool_load->is_bound());
+    // Make sure we don't emit any additional entries in the constant pool
+    // before the call to ensure that the CallCodeSize() calculated the
+    // correct number of instructions for the constant pool load.
+    {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
+      int map_check_delta =
+          masm_->InstructionsGeneratedSince(map_check) + additional_delta;
+      int bool_load_delta =
+          masm_->InstructionsGeneratedSince(bool_load) + additional_delta;
+      Label before_push_delta;
+      __ bind(&before_push_delta);
+      __ BlockConstPoolFor(additional_delta);
+      // r5 is used to communicate the offset to the location of the map check.
+      __ mov(r5, Operand(map_check_delta * kPointerSize));
+      // r6 is used to communicate the offset to the location of the bool load.
+      __ mov(r6, Operand(bool_load_delta * kPointerSize));
+      // The mov above can generate one or two instructions. The delta was
+      // computed for two instructions, so we need to pad here in case of one
+      // instruction.
+      while (masm_->InstructionsGeneratedSince(&before_push_delta) != 4) {
+        __ nop();
+      }
     }
+    CallCodeGeneric(stub.GetCode(), RelocInfo::CODE_TARGET, instr,
+                    RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
   }
-  CallCodeGeneric(stub.GetCode(),
-                  RelocInfo::CODE_TARGET,
-                  instr,
-                  RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
   LEnvironment* env = instr->GetDeferredLazyDeoptimizationEnvironment();
   safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
   // Put the result value (r0) into the result register slot and
