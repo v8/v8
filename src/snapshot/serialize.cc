@@ -564,11 +564,15 @@ void Deserializer::Deserialize(Isolate* isolate) {
   DCHECK_NULL(isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
-  isolate_->heap()->IterateSmiRoots(this);
-  isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  isolate_->heap()->RepairFreeListsAfterDeserialization();
-  isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
-  DeserializeDeferredObjects();
+
+  {
+    DisallowHeapAllocation no_gc;
+    isolate_->heap()->IterateSmiRoots(this);
+    isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+    isolate_->heap()->RepairFreeListsAfterDeserialization();
+    isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
+    DeserializeDeferredObjects();
+  }
 
   isolate_->heap()->set_native_contexts_list(
       isolate_->heap()->undefined_value());
@@ -2431,10 +2435,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  // Eagerly expand string table to avoid allocations during deserialization.
-  StringTable::EnsureCapacityForDeserialization(isolate,
-                                                scd->NumInternalizedStrings());
-
   // Prepare and register list of attached objects.
   Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
   Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
@@ -2444,6 +2444,10 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     attached_objects[i + kCodeStubsBaseIndex] =
         CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
   }
+
+  // Eagerly expand string table to avoid allocations during deserialization.
+  StringTable::EnsureCapacityForDeserialization(isolate,
+                                                scd->NumInternalizedStrings());
 
   Deserializer deserializer(scd.get());
   deserializer.SetAttachedObjects(attached_objects);
