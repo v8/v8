@@ -12381,7 +12381,8 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
        !iter.IsAtEnd(); iter.Advance()) {
     if (JSReceiver::cast(iter.GetCurrent()) == *object) {
       // Cycle detected.
-      THROW_NEW_ERROR(isolate, NewError(MessageTemplate::kCyclicProto), Object);
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCyclicProto),
+                      Object);
     }
   }
 
