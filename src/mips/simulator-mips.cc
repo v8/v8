@@ -2169,6 +2169,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
   const uint32_t rt_u   = static_cast<uint32_t>(rt);
   const int32_t  rd_reg = instr->RdValue();
   const uint32_t sa     = instr->SaValue();
+  const uint8_t bp = instr->Bp2Value();
 
   const int32_t  fs_reg = instr->FsValue();
 
@@ -2411,28 +2412,58 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           *alu_out = (rs_u & (mask << lsb)) >> lsb;
           break;
         }
-        case BITSWAP: {  // Mips32r6 instruction
-          uint32_t input = static_cast<uint32_t>(rt);
-          uint32_t output = 0;
-          uint8_t i_byte, o_byte;
+        case BSHFL: {
+          int sa = instr->SaFieldRaw() >> kSaShift;
+          switch (sa) {
+            case BITSWAP: {
+              uint32_t input = static_cast<uint32_t>(rt);
+              uint32_t output = 0;
+              uint8_t i_byte, o_byte;
 
-          // Reverse the bit in byte for each individual byte
-          for (int i = 0; i < 4; i++) {
-            output = output >> 8;
-            i_byte = input & 0xff;
+              // Reverse the bit in byte for each individual byte
+              for (int i = 0; i < 4; i++) {
+                output = output >> 8;
+                i_byte = input & 0xff;
 
-            // Fast way to reverse bits in byte
-            // Devised by Sean Anderson, July 13, 2001
-            o_byte = static_cast<uint8_t>(((i_byte * 0x0802LU & 0x22110LU) |
-                                           (i_byte * 0x8020LU & 0x88440LU)) *
-                                              0x10101LU >>
-                                          16);
+                // Fast way to reverse bits in byte
+                // Devised by Sean Anderson, July 13, 2001
+                o_byte =
+                    static_cast<uint8_t>(((i_byte * 0x0802LU & 0x22110LU) |
+                                          (i_byte * 0x8020LU & 0x88440LU)) *
+                                             0x10101LU >>
+                                         16);
 
-            output = output | (static_cast<uint32_t>(o_byte << 24));
-            input = input >> 8;
+                output = output | (static_cast<uint32_t>(o_byte << 24));
+                input = input >> 8;
+              }
+
+              *alu_out = static_cast<int32_t>(output);
+              break;
+            }
+            case SEB:
+            case SEH:
+            case WSBH:
+              UNREACHABLE();
+              break;
+            default: {
+              sa >>= kBp2Bits;
+              switch (sa) {
+                case ALIGN: {
+                  if (bp == 0) {
+                    *alu_out = static_cast<int32_t>(rt);
+                  } else {
+                    uint32_t rt_hi = rt << (8 * bp);
+                    uint32_t rs_lo = rs >> (8 * (4 - bp));
+                    *alu_out = static_cast<int32_t>(rt_hi | rs_lo);
+                  }
+                  break;
+                }
+                default:
+                  UNREACHABLE();
+                  break;
+              }
+            }
           }
-
-          *alu_out = static_cast<int32_t>(output);
           break;
         }
         default:
@@ -3760,10 +3791,9 @@ void Simulator::DecodeTypeRegisterSPECIAL3(Instruction* instr,
       set_register(rt_reg, alu_out);
       break;
     case EXT:
-      // Ext instr leaves result in Rt, rather than Rd.
       set_register(rt_reg, alu_out);
       break;
-    case BITSWAP:
+    case BSHFL:
       set_register(rd_reg, alu_out);
       break;
     default:
@@ -3848,11 +3878,15 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
 void Simulator::DecodeTypeImmediate(Instruction* instr) {
   // Instruction fields.
   Opcode   op     = instr->OpcodeFieldRaw();
+  int32_t rs_reg = instr->RsValue();
   int32_t  rs     = get_register(instr->RsValue());
   uint32_t rs_u   = static_cast<uint32_t>(rs);
   int32_t  rt_reg = instr->RtValue();  // Destination register.
   int32_t  rt     = get_register(rt_reg);
   int16_t  imm16  = instr->Imm16Value();
+  int32_t imm19 = instr->Imm19Value();
+  int32_t imm21 = instr->Imm21Value();
+  int32_t imm26 = instr->Imm26Value();
 
   int32_t  ft_reg = instr->FtValue();  // Destination register.
   int64_t  ft;
@@ -3860,12 +3894,17 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   // Zero extended immediate.
   uint32_t  oe_imm16 = 0xffff & imm16;
   // Sign extended immediate.
-  int32_t   se_imm16 = imm16;
+  int32_t se_imm16 = imm16;
+  int32_t se_imm19 = imm19 | ((imm19 & 0x40000) ? 0xfff80000 : 0);
+  int32_t se_imm26 = imm26 | ((imm26 & 0x2000000) ? 0xfc000000 : 0);
+
 
   // Get current pc.
   int32_t current_pc = get_pc();
   // Next pc.
   int32_t next_pc = bad_ra;
+  // pc increment
+  int16_t pc_increment;
 
   // Used for conditional branch instructions.
   bool do_branch = false;
@@ -3979,6 +4018,33 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case BGTZ:
       do_branch = rs  > 0;
       break;
+    case POP66: {
+      if (rs_reg) {  // BEQZC
+        int32_t se_imm21 =
+            static_cast<int32_t>(imm21 << (kOpcodeBits + kRsBits));
+        se_imm21 = se_imm21 >> (kOpcodeBits + kRsBits);
+        if (rs == 0)
+          next_pc = current_pc + 4 + (se_imm21 << 2);
+        else
+          next_pc = current_pc + 4;
+      } else {  // JIC
+        next_pc = rt + imm16;
+      }
+      break;
+    }
+    case BC: {
+      next_pc = current_pc + 4 + (se_imm26 << 2);
+      set_pc(next_pc);
+      pc_modified_ = true;
+      break;
+    }
+    case BALC: {
+      set_register(31, current_pc + 4);
+      next_pc = current_pc + 4 + (se_imm26 << 2);
+      set_pc(next_pc);
+      pc_modified_ = true;
+      break;
+    }
     // ------------- Arithmetic instructions.
     case ADDI:
       if (HaveSameSign(rs, se_imm16)) {
@@ -4093,6 +4159,55 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case SDC1:
       addr = rs + se_imm16;
       break;
+    // ------------- JIALC and BNEZC instructions.
+    case POP76:
+      // Next pc.
+      next_pc = rt + se_imm16;
+      // The instruction after the jump is NOT executed.
+      pc_increment = Instruction::kInstrSize;
+      if (instr->IsLinkingInstruction()) {
+        set_register(31, current_pc + pc_increment);
+      }
+      set_pc(next_pc);
+      pc_modified_ = true;
+      break;
+    // ------------- PC-Relative instructions.
+    case PCREL: {
+      // rt field: checking 5-bits.
+      uint8_t rt = (imm21 >> kImm16Bits);
+      switch (rt) {
+        case ALUIPC:
+          addr = current_pc + (se_imm16 << 16);
+          alu_out = static_cast<int64_t>(~0x0FFFF) & addr;
+          break;
+        case AUIPC:
+          alu_out = current_pc + (se_imm16 << 16);
+          break;
+        default: {
+          // rt field: checking the most significant 2-bits.
+          rt = (imm21 >> kImm19Bits);
+          switch (rt) {
+            case LWPC: {
+              int32_t offset = imm19;
+              // Set sign.
+              offset <<= (kOpcodeBits + kRsBits + 2);
+              offset >>= (kOpcodeBits + kRsBits + 2);
+              addr = current_pc + (offset << 2);
+              uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
+              alu_out = *ptr;
+              break;
+            }
+            case ADDIUPC:
+              alu_out = current_pc + (se_imm19 << 2);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+        }
+      }
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -4170,6 +4285,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       addr = rs + se_imm16;
       WriteD(addr, get_fpu_register_double(ft_reg), instr);
       break;
+    case PCREL:
+      set_register(rs_reg, alu_out);
     default:
       break;
   }

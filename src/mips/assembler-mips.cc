@@ -959,6 +959,20 @@ void Assembler::GenInstrImmediate(Opcode opcode,
 }
 
 
+void Assembler::GenInstrImmediate(Opcode opcode, Register rs, int32_t j) {
+  DCHECK(rs.is_valid() && (is_uint21(j)));
+  Instr instr = opcode | (rs.code() << kRsShift) | (j & kImm21Mask);
+  emit(instr);
+}
+
+
+void Assembler::GenInstrImmediate(Opcode opcode, int32_t offset26) {
+  DCHECK(is_int26(offset26));
+  Instr instr = opcode | (offset26 & kImm26Mask);
+  emit(instr);
+}
+
+
 void Assembler::GenInstrJump(Opcode opcode,
                              uint32_t address) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -1153,6 +1167,19 @@ void Assembler::b(int16_t offset) {
 void Assembler::bal(int16_t offset) {
   positions_recorder()->WriteRecordedPositions();
   bgezal(zero_reg, offset);
+}
+
+
+void Assembler::bc(int32_t offset) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrImmediate(BC, offset);
+}
+
+
+void Assembler::balc(int32_t offset) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  positions_recorder()->WriteRecordedPositions();
+  GenInstrImmediate(BALC, offset);
 }
 
 
@@ -1355,7 +1382,7 @@ void Assembler::beqc(Register rs, Register rt, int16_t offset) {
 void Assembler::beqzc(Register rs, int32_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
-  Instr instr = BEQZC | (rs.code() << kRsShift) | offset;
+  Instr instr = POP66 | (rs.code() << kRsShift) | (offset & kImm21Mask);
   emit(instr);
 }
 
@@ -1370,7 +1397,7 @@ void Assembler::bnec(Register rs, Register rt, int16_t offset) {
 void Assembler::bnezc(Register rs, int32_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
-  Instr instr = BNEZC | (rs.code() << kRsShift) | offset;
+  Instr instr = POP76 | (rs.code() << kRsShift) | offset;
   emit(instr);
 }
 
@@ -1422,29 +1449,18 @@ void Assembler::jalr(Register rs, Register rd) {
 }
 
 
-void Assembler::j_or_jr(int32_t target, Register rs) {
-  // Get pc of delay slot.
-  uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
-                  (kImm26Bits + kImmFieldShift)) == 0;
-  if (in_range) {
-      j(target);
-  } else {
-      jr(t9);
-  }
+void Assembler::jic(Register rt, int16_t offset) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  Instr instr = POP66 | (JIC << kRsShift) | (rt.code() << kRtShift) |
+                (offset & kImm16Mask);
+  emit(instr);
 }
 
 
-void Assembler::jal_or_jalr(int32_t target, Register rs) {
-  // Get pc of delay slot.
-  uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
-                  (kImm26Bits+kImmFieldShift)) == 0;
-  if (in_range) {
-      jal(target);
-  } else {
-      jalr(t9);
-  }
+void Assembler::jialc(Register rt, int16_t offset) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  positions_recorder()->WriteRecordedPositions();
+  GenInstrImmediate(POP76, zero_reg, rt, offset);
 }
 
 
@@ -1757,8 +1773,43 @@ void Assembler::lui(Register rd, int32_t j) {
 void Assembler::aui(Register rs, Register rt, int32_t j) {
   // This instruction uses same opcode as 'lui'. The difference in encoding is
   // 'lui' has zero reg. for rs field.
+  DCHECK(!(rs.is(zero_reg)));
   DCHECK(is_uint16(j));
   GenInstrImmediate(LUI, rs, rt, j);
+}
+
+
+// ---------PC-Relative instructions-----------
+
+void Assembler::addiupc(Register rs, int32_t imm19) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(rs.is_valid() && is_int19(imm19));
+  int32_t imm21 = ADDIUPC << kImm19Bits | (imm19 & kImm19Mask);
+  GenInstrImmediate(PCREL, rs, imm21);
+}
+
+
+void Assembler::lwpc(Register rs, int32_t offset19) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(rs.is_valid() && is_int19(offset19));
+  int32_t imm21 = LWPC << kImm19Bits | (offset19 & kImm19Mask);
+  GenInstrImmediate(PCREL, rs, imm21);
+}
+
+
+void Assembler::auipc(Register rs, int16_t imm16) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(rs.is_valid() && is_int16(imm16));
+  int32_t imm21 = AUIPC << kImm16Bits | (imm16 & kImm16Mask);
+  GenInstrImmediate(PCREL, rs, imm21);
+}
+
+
+void Assembler::aluipc(Register rs, int16_t imm16) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(rs.is_valid() && is_int16(imm16));
+  int32_t imm21 = ALUIPC << kImm16Bits | (imm16 & kImm16Mask);
+  GenInstrImmediate(PCREL, rs, imm21);
 }
 
 
@@ -1937,8 +1988,8 @@ void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 
 
 void Assembler::bitswap(Register rd, Register rt) {
-  DCHECK(kArchVariant == kMips32r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, BITSWAP);
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, BSHFL);
 }
 
 
@@ -1948,6 +1999,14 @@ void Assembler::pref(int32_t hint, const MemOperand& rs) {
   Instr instr = PREF | (rs.rm().code() << kRsShift) | (hint << kRtShift)
       | (rs.offset_);
   emit(instr);
+}
+
+
+void Assembler::align(Register rd, Register rs, Register rt, uint8_t bp) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(is_uint3(bp));
+  uint16_t sa = (ALIGN << kBp2Bits) | bp;
+  GenInstrRegister(SPECIAL3, rs, rt, rd, sa, BSHFL);
 }
 
 

@@ -4262,10 +4262,12 @@ TEST(DIV_FMT) {
 
   __ jr(ra);
   __ nop();
+
   CodeDesc desc;
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
   F3 f = FUNCTION_CAST<F3>(code->entry());
 
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -4340,6 +4342,709 @@ TEST(DIV_FMT) {
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(true, std::isnan(test.dRes));
   CHECK_EQ(true, std::isnan(test.fRes));
+}
+
+
+uint32_t run_align(uint32_t rs_value, uint32_t rt_value, uint8_t bp) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ align(v0, a0, a1, bp);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, rs_value,
+                                                        rt_value,
+                                                        0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_align) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseAlign {
+      uint32_t  rs_value;
+      uint32_t  rt_value;
+      uint8_t   bp;
+      uint32_t  expected_res;
+    };
+
+    struct TestCaseAlign tc[] = {
+      // rs_value,    rt_value,    bp,  expected_res
+      { 0x11223344,   0xaabbccdd,   0,  0xaabbccdd },
+      { 0x11223344,   0xaabbccdd,   1,  0xbbccdd11 },
+      { 0x11223344,   0xaabbccdd,   2,  0xccdd1122 },
+      { 0x11223344,   0xaabbccdd,   3,  0xdd112233 },
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAlign);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      CHECK_EQ(tc[i].expected_res, run_align(tc[i].rs_value,
+                                             tc[i].rt_value, tc[i].bp));
+    }
+  }
+}
+
+uint32_t PC;  // The program counter.
+
+uint32_t run_aluipc(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ aluipc(v0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+  PC = (uint32_t) f;  // Set the program counter.
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_aluipc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseAluipc {
+      int16_t   offset;
+    };
+
+    struct TestCaseAluipc tc[] = {
+      // offset
+      { -32768 },   // 0x8000
+      {     -1 },   // 0xFFFF
+      {      0 },
+      {      1 },
+      {  32767 },   // 0x7FFF
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAluipc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      PC = 0;
+      uint32_t res = run_aluipc(tc[i].offset);
+      // Now, the program_counter (PC) is set.
+      uint32_t expected_res = ~0x0FFFF & (PC + (tc[i].offset << 16));
+      CHECK_EQ(expected_res, res);
+    }
+  }
+}
+
+
+uint32_t run_auipc(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ auipc(v0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+  PC = (uint32_t) f;  // Set the program counter.
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_auipc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseAuipc {
+      int16_t   offset;
+    };
+
+    struct TestCaseAuipc tc[] = {
+      // offset
+      { -32768 },   // 0x8000
+      {     -1 },   // 0xFFFF
+      {      0 },
+      {      1 },
+      {  32767 },   // 0x7FFF
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAuipc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      PC = 0;
+      uint32_t res = run_auipc(tc[i].offset);
+      // Now, the program_counter (PC) is set.
+      uint32_t expected_res = PC + (tc[i].offset << 16);
+      CHECK_EQ(expected_res, res);
+    }
+  }
+}
+
+
+uint32_t run_lwpc(int offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  // 256k instructions; 2^8k
+  // addiu t7, t0, 0xffff;  (0x250fffff)
+  // ...
+  // addiu t4, t0, 0x0000;  (0x250c0000)
+  uint32_t addiu_start_1 = 0x25000000;
+  for (int32_t i = 0xfffff; i >= 0xc0000; --i) {
+    uint32_t addiu_new = addiu_start_1 + i;
+    __ dd(addiu_new);
+  }
+
+  __ lwpc(t8, offset);         // offset 0; 0xef080000 (t8 register)
+  __ mov(v0, t8);
+
+  // 256k instructions; 2^8k
+  // addiu t0, t0, 0x0000;  (0x25080000)
+  // ...
+  // addiu t3, t0, 0xffff;  (0x250bffff)
+  uint32_t addiu_start_2 = 0x25000000;
+  for (int32_t i = 0x80000; i <= 0xbffff; ++i) {
+    uint32_t addiu_new = addiu_start_2 + i;
+    __ dd(addiu_new);
+  }
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_lwpc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseLwpc {
+      int      offset;
+      uint32_t expected_res;
+    };
+
+    struct TestCaseLwpc tc[] = {
+      // offset,   expected_res
+      { -262144,    0x250fffff },   // offset 0x40000
+      {      -4,    0x250c0003 },
+      {      -1,    0x250c0000 },
+      {       0,    0xef080000 },
+      {       1,    0x03001025 },   // mov(v0, t8)
+      {       2,    0x25080000 },
+      {       4,    0x25080002 },
+      {  262143,    0x250bfffd },   // offset 0x3ffff
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseLwpc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint32_t res = run_lwpc(tc[i].offset);
+      CHECK_EQ(tc[i].expected_res, res);
+    }
+  }
+}
+
+
+uint32_t run_jic(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  Label get_program_counter, stop_execution;
+  __ push(ra);
+  __ li(v0, 0);
+  __ li(t1, 0x66);
+
+  __ addiu(v0, v0, 0x1);        // <-- offset = -32
+  __ addiu(v0, v0, 0x2);
+  __ addiu(v0, v0, 0x10);
+  __ addiu(v0, v0, 0x20);
+  __ beq(v0, t1, &stop_execution);
+  __ nop();
+
+  __ bal(&get_program_counter);  // t0 <- program counter
+  __ nop();
+  __ jic(t0, offset);
+
+  __ addiu(v0, v0, 0x100);
+  __ addiu(v0, v0, 0x200);
+  __ addiu(v0, v0, 0x1000);
+  __ addiu(v0, v0, 0x2000);   // <--- offset = 16
+  __ pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&get_program_counter);
+  __ mov(t0, ra);
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&stop_execution);
+  __ pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_jic) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseJic {
+      // As rt will be used t0 register which will have value of
+      // the program counter for the jic instruction.
+      int16_t   offset;
+      uint32_t  expected_res;
+    };
+
+    struct TestCaseJic tc[] = {
+      // offset,   expected_result
+      {      16,            0x2033 },
+      {       4,            0x3333 },
+      {     -32,              0x66 },
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseJic);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint32_t res = run_jic(tc[i].offset);
+      CHECK_EQ(tc[i].expected_res, res);
+    }
+  }
+}
+
+
+uint64_t run_beqzc(int32_t value, int32_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  Label stop_execution;
+  __ li(v0, 0);
+  __ li(t1, 0x66);
+  __ push(ra);
+
+  __ addiu(v0, v0, 0x1);        // <-- offset = -32
+  __ addiu(v0, v0, 0x2);
+  __ addiu(v0, v0, 0x10);
+  __ addiu(v0, v0, 0x20);
+  __ beq(v0, t1, &stop_execution);
+  __ nop();
+
+  __ beqzc(a0, offset);         // BEQZC rs, offset
+
+  __ addiu(v0, v0,    0x1);
+  __ addiu(v0, v0,  0x100);
+  __ addiu(v0, v0,  0x200);
+  __ addiu(v0, v0, 0x1000);
+  __ addiu(v0, v0, 0x2000);   // <--- offset = 16
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&stop_execution);
+  __ pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, value, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_beqzc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseBeqzc {
+      uint32_t  value;
+      int32_t   offset;
+      uint32_t  expected_res;
+    };
+
+    struct TestCaseBeqzc tc[] = {
+      //    value,    offset,   expected_res
+      {       0x0,        -8,           0x66 },
+      {       0x0,         0,         0x3334 },
+      {       0x0,         1,         0x3333 },
+      {     0xabc,         1,         0x3334 },
+      {       0x0,         4,         0x2033 },
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBeqzc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint32_t res = run_beqzc(tc[i].value, tc[i].offset);
+      CHECK_EQ(tc[i].expected_res, res);
+    }
+  }
+}
+
+
+uint32_t run_jialc(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  Label main_block, get_program_counter;
+  __ push(ra);
+  __ li(v0, 0);
+  __ beq(v0, v0, &main_block);
+  __ nop();
+
+  // Block 1
+  __ addiu(v0, v0, 0x1);        // <-- offset = -40
+  __ addiu(v0, v0, 0x2);
+  __ jr(ra);
+  __ nop();
+
+  // Block 2
+  __ addiu(v0, v0, 0x10);        // <-- offset = -24
+  __ addiu(v0, v0, 0x20);
+  __ jr(ra);
+  __ nop();
+
+  // Block 3 (Main)
+  __ bind(&main_block);
+  __ bal(&get_program_counter);  // t0 <- program counter
+  __ nop();
+  __ jialc(t0, offset);
+  __ addiu(v0, v0, 0x4);
+  __ pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  // Block 4
+  __ addiu(v0, v0, 0x100);      // <-- offset = 20
+  __ addiu(v0, v0, 0x200);
+  __ jr(ra);
+  __ nop();
+
+  // Block 5
+  __ addiu(v0, v0, 0x1000);     // <--- offset = 36
+  __ addiu(v0, v0, 0x2000);
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&get_program_counter);
+  __ mov(t0, ra);
+  __ jr(ra);
+  __ nop();
+
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_jialc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseJialc {
+      int16_t   offset;
+      uint32_t  expected_res;
+    };
+
+    struct TestCaseJialc tc[] = {
+      // offset,   expected_res
+      {     -40,            0x7 },
+      {     -24,           0x34 },
+      {      20,          0x304 },
+      {      36,         0x3004 }
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseJialc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint32_t res = run_jialc(tc[i].offset);
+      CHECK_EQ(tc[i].expected_res, res);
+    }
+  }
+}
+
+
+uint64_t run_addiupc(int32_t imm19) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ addiupc(v0, imm19);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+  PC = (uint32_t) f;  // Set the program counter.
+
+  uint32_t rs =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, imm19, 0, 0, 0, 0));
+
+  return rs;
+}
+
+
+TEST(r6_addiupc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseAddiupc {
+      int32_t   imm19;
+    };
+
+    struct TestCaseAddiupc tc[] = {
+      //  imm19
+      { -262144 },   // 0x40000
+      {      -1 },   // 0x7FFFF
+      {       0 },
+      {       1 },   // 0x00001
+      {  262143 }    // 0x3FFFF
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAddiupc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      PC = 0;
+      uint32_t res = run_addiupc(tc[i].imm19);
+      // Now, the program_counter (PC) is set.
+      uint32_t expected_res = PC + (tc[i].imm19 << 2);
+      CHECK_EQ(expected_res, res);
+    }
+  }
+}
+
+
+int32_t run_bc(int32_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  Label continue_1, stop_execution;
+  __ push(ra);
+  __ li(v0, 0);
+  __ li(t8, 0);
+  __ li(t9, 2);   // A condition for stopping execution.
+
+  uint32_t instruction_addiu = 0x24420001;  // addiu v0, v0, 1
+  for (int32_t i = -100; i <= -11; ++i) {
+    __ dd(instruction_addiu);
+  }
+
+  __ addiu(t8, t8, 1);              // -10
+
+  __ beq(t8, t9, &stop_execution);  // -9
+  __ nop();                         // -8
+  __ beq(t8, t8, &continue_1);      // -7
+  __ nop();                         // -6
+
+  __ bind(&stop_execution);
+  __ pop(ra);                       // -5, -4
+  __ jr(ra);                        // -3
+  __ nop();                         // -2
+
+  __ bind(&continue_1);
+  __ bc(offset);                    // -1
+
+  for (int32_t i = 0; i <= 99; ++i) {
+    __ dd(instruction_addiu);
+  }
+
+  __ pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  int32_t res =
+      reinterpret_cast<int32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_bc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseBc {
+      int32_t   offset;
+      int32_t   expected_res;
+    };
+
+    struct TestCaseBc tc[] = {
+      //    offset,   expected_result
+      {       -100,   (abs(-100) - 10) * 2        },
+      {        -11,   (abs(-100) - 10 + 1)        },
+      {          0,   (abs(-100) - 10 + 1 + 99)   },
+      {          1,   (abs(-100) - 10 + 99)       },
+      {         99,   (abs(-100) - 10 + 1)        },
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      int32_t res = run_bc(tc[i].offset);
+      CHECK_EQ(tc[i].expected_res, res);
+    }
+  }
+}
+
+
+int32_t run_balc(int32_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  Label continue_1, stop_execution;
+  __ push(ra);
+  __ li(v0, 0);
+  __ li(t8, 0);
+  __ li(t9, 2);   // A condition for stopping execution.
+
+  __ beq(t8, t8, &continue_1);
+  __ nop();
+
+  uint32_t instruction_addiu = 0x24420001;  // addiu v0, v0, 1
+  for (int32_t i = -117; i <= -57; ++i) {
+    __ dd(instruction_addiu);
+  }
+  __ jr(ra);                        // -56
+  __ nop();                         // -55
+
+  for (int32_t i = -54; i <= -4; ++i) {
+    __ dd(instruction_addiu);
+  }
+  __ jr(ra);                        // -3
+  __ nop();                         // -2
+
+  __ bind(&continue_1);
+  __ balc(offset);                    // -1
+
+  __ pop(ra);                         // 0, 1
+  __ jr(ra);                          // 2
+  __ nop();                           // 3
+
+  for (int32_t i = 4; i <= 44; ++i) {
+    __ dd(instruction_addiu);
+  }
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  int32_t res =
+      reinterpret_cast<int32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_balc) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseBalc {
+      int32_t   offset;
+      int32_t   expected_res;
+    };
+
+    struct TestCaseBalc tc[] = {
+      //  offset,   expected_result
+      {     -117,   61  },
+      {      -54,   51  },
+      {        0,   0   },
+      {        4,   41  },
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBalc);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      int32_t res = run_balc(tc[i].offset);
+      CHECK_EQ(tc[i].expected_res, res);
+    }
+  }
 }
 
 

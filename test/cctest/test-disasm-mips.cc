@@ -217,12 +217,11 @@ TEST(Type0) {
     COMPARE(bnvc(a1, a0, -32768),
             "60a48000       bnvc  a1, a0, -32768");
 
-    COMPARE(beqzc(a0, 0),
-            "d8800000       beqzc   a0, 0x0");
-    COMPARE(beqzc(a0, 0xfffff),                   // 0x0fffff ==  1048575.
-            "d88fffff       beqzc   a0, 0xfffff");
-    COMPARE(beqzc(a0, 0x100000),                  // 0x100000 == -1048576.
-            "d8900000       beqzc   a0, 0x100000");
+    COMPARE(beqzc(a0, -1048576), "d8900000       beqzc   a0, -1048576");
+    COMPARE(beqzc(a0, -1), "d89fffff       beqzc   a0, -1");
+    COMPARE(beqzc(a0, 0), "d8800000       beqzc   a0, 0");
+    COMPARE(beqzc(a0, 1), "d8800001       beqzc   a0, 1");
+    COMPARE(beqzc(a0, 1048575), "d88fffff       beqzc   a0, 1048575");
 
     COMPARE(bnezc(a0, 0),
             "f8800000       bnezc   a0, 0x0");
@@ -230,6 +229,18 @@ TEST(Type0) {
             "f88fffff       bnezc   a0, 0xfffff");
     COMPARE(bnezc(a0, 0x100000),                  // 0x100000 == -1048576.
             "f8900000       bnezc   a0, 0x100000");
+
+    COMPARE(bc(-33554432), "ca000000       bc      -33554432");
+    COMPARE(bc(-1), "cbffffff       bc      -1");
+    COMPARE(bc(0), "c8000000       bc      0");
+    COMPARE(bc(1), "c8000001       bc      1");
+    COMPARE(bc(33554431), "c9ffffff       bc      33554431");
+
+    COMPARE(balc(-33554432), "ea000000       balc    -33554432");
+    COMPARE(balc(-1), "ebffffff       balc    -1");
+    COMPARE(balc(0), "e8000000       balc    0");
+    COMPARE(balc(1), "e8000001       balc    1");
+    COMPARE(balc(33554431), "e9ffffff       balc    33554431");
   }
 
   COMPARE(addiu(a0, a1, 0x0),
@@ -506,7 +517,7 @@ TEST(Type0) {
     }
   }
 
-  if (IsMipsArchVariant(kMips32r2)) {
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
     COMPARE(ins_(a0, a1, 31, 1),
             "7ca4ffc4       ins     a0, a1, 31, 1");
     COMPARE(ins_(s6, s7, 30, 2),
@@ -533,6 +544,59 @@ TEST(Type0) {
 
   COMPARE(div_s(f2, f4, f6), "46062083       div.s   f2, f4, f6");
   COMPARE(div_d(f2, f4, f6), "46262083       div.d   f2, f4, f6");
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(align(v0, a0, a1, 0), "7c851220       align  v0, a0, a1, 0");
+    COMPARE(align(v0, a0, a1, 1), "7c851260       align  v0, a0, a1, 1");
+    COMPARE(align(v0, a0, a1, 2), "7c8512a0       align  v0, a0, a1, 2");
+    COMPARE(align(v0, a0, a1, 3), "7c8512e0       align  v0, a0, a1, 3");
+  }
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(aluipc(v0, 0), "ec5f0000       aluipc  v0, 0");
+    COMPARE(aluipc(v0, 1), "ec5f0001       aluipc  v0, 1");
+    COMPARE(aluipc(v0, 32767), "ec5f7fff       aluipc  v0, 32767");
+    COMPARE(aluipc(v0, -32768), "ec5f8000       aluipc  v0, -32768");
+    COMPARE(aluipc(v0, -1), "ec5fffff       aluipc  v0, -1");
+  }
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(auipc(t8, 0), "ef1e0000       auipc   t8, 0");
+    COMPARE(auipc(t8, 1), "ef1e0001       auipc   t8, 1");
+    COMPARE(auipc(t8, 32767), "ef1e7fff       auipc   t8, 32767");
+    COMPARE(auipc(t8, -32768), "ef1e8000       auipc   t8, -32768");
+    COMPARE(auipc(t8, -1), "ef1effff       auipc   t8, -1");
+  }
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(lwpc(t1, 0), "ed280000       lwpc    t1, 0");
+    COMPARE(lwpc(t1, 4), "ed280004       lwpc    t1, 4");
+    COMPARE(lwpc(t1, -4), "ed2ffffc       lwpc    t1, -4");
+  }
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(jic(t0, -32768), "d8088000       jic     t0, -32768");
+    COMPARE(jic(t0, -1), "d808ffff       jic     t0, -1");
+    COMPARE(jic(t0, 0), "d8080000       jic     t0, 0");
+    COMPARE(jic(t0, 4), "d8080004       jic     t0, 4");
+    COMPARE(jic(t0, 32767), "d8087fff       jic     t0, 32767");
+  }
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(addiupc(a0, 262143), "ec83ffff       addiupc a0, 262143");
+    COMPARE(addiupc(a0, -1), "ec87ffff       addiupc a0, -1");
+    COMPARE(addiupc(v0, 0), "ec400000       addiupc v0, 0");
+    COMPARE(addiupc(s1, 1), "ee200001       addiupc s1, 1");
+    COMPARE(addiupc(a0, -262144), "ec840000       addiupc a0, -262144");
+  }
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(jialc(a0, -32768), "f8048000       jialc   a0, 0x8000");
+    COMPARE(jialc(a0, -1), "f804ffff       jialc   a0, 0xffff");
+    COMPARE(jialc(v0, 0), "f8020000       jialc   v0, 0x0");
+    COMPARE(jialc(s1, 1), "f8110001       jialc   s1, 0x1");
+    COMPARE(jialc(a0, 32767), "f8047fff       jialc   a0, 0x7fff");
+  }
 
   VERIFY_RUN();
 }

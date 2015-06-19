@@ -645,6 +645,10 @@ class Assembler : public AssemblerBase {
   void b(Label* L) { b(branch_offset(L, false)>>2); }
   void bal(int16_t offset);
   void bal(Label* L) { bal(branch_offset(L, false)>>2); }
+  void bc(int32_t offset);
+  void bc(Label* L) { bc(branch_offset(L, false) >> 2); }
+  void balc(int32_t offset);
+  void balc(Label* L) { balc(branch_offset(L, false) >> 2); }
 
   void beq(Register rs, Register rt, int16_t offset);
   void beq(Register rs, Register rt, Label* L) {
@@ -753,8 +757,8 @@ class Assembler : public AssemblerBase {
   void jal(int32_t target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
-  void j_or_jr(int32_t target, Register rs);
-  void jal_or_jalr(int32_t target, Register rs);
+  void jic(Register rt, int16_t offset);
+  void jialc(Register rt, int16_t offset);
 
 
   // -------Data-processing-instructions---------
@@ -819,6 +823,14 @@ class Assembler : public AssemblerBase {
   void swr(Register rd, const MemOperand& rs);
 
 
+  // ---------PC-Relative-instructions-----------
+
+  void addiupc(Register rs, int32_t imm19);
+  void lwpc(Register rs, int32_t offset19);
+  void auipc(Register rs, int16_t imm16);
+  void aluipc(Register rs, int16_t imm16);
+
+
   // ----------------Prefetch--------------------
 
   void pref(int32_t hint, const MemOperand& rs);
@@ -879,6 +891,7 @@ class Assembler : public AssemblerBase {
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void bitswap(Register rd, Register rt);
+  void align(Register rd, Register rs, Register rt, uint8_t bp);
 
   // --------Coprocessor-instructions----------------
 
@@ -1347,6 +1360,8 @@ class Assembler : public AssemblerBase {
                          Register r1,
                          FPURegister r2,
                          int32_t  j);
+  void GenInstrImmediate(Opcode opcode, Register rs, int32_t j);
+  void GenInstrImmediate(Opcode opcode, int32_t offset26);
 
 
   void GenInstrJump(Opcode opcode,
