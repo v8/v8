@@ -10449,6 +10449,52 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
 }
 
 
+MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+    FunctionLiteral* fun) {
+  if (shared_function_infos()->IsWeakFixedArray()) {
+    WeakFixedArray* array = WeakFixedArray::cast(shared_function_infos());
+    for (int i = 0; i < array->Length(); i++) {
+      Object* obj = array->Get(i);
+      if (!obj->IsSharedFunctionInfo()) continue;
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (fun->function_token_position() == shared->function_token_position() &&
+          fun->start_position() == shared->start_position() &&
+          fun->end_position() == shared->end_position()) {
+        return Handle<SharedFunctionInfo>(shared);
+      }
+    }
+  }
+  return MaybeHandle<SharedFunctionInfo>();
+}
+
+
+void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
+                                   Handle<Object> script_object) {
+  if (shared->script() == *script_object) return;
+  // Remove shared function info from old script's list.
+  if (shared->script()->IsScript()) {
+    Script* old_script = Script::cast(shared->script());
+    if (old_script->shared_function_infos()->IsWeakFixedArray()) {
+      WeakFixedArray* list =
+          WeakFixedArray::cast(old_script->shared_function_infos());
+      list->Remove(shared);
+    }
+  }
+  // Add shared function info to new script's list.
+  if (script_object->IsScript()) {
+    Handle<Script> script = Handle<Script>::cast(script_object);
+    bool found = false;
+    Handle<Object> list(script->shared_function_infos(), shared->GetIsolate());
+    list = WeakFixedArray::Add(list, shared, WeakFixedArray::kAddIfNotFound,
+                               &found);
+    CHECK(!found);
+    script->set_shared_function_infos(*list);
+  }
+  // Finally set new script.
+  shared->set_script(*script_object);
+}
+
+
 String* SharedFunctionInfo::DebugName() {
   Object* n = name();
   if (!n->IsString() || String::cast(n)->length() == 0) return inferred_name();

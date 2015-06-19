@@ -638,9 +638,8 @@ class Compiler : public AllStatic {
                                                           int source_length);
 
   // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
-                                                      Handle<Script> script,
-                                                      CompilationInfo* outer);
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
+      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
 
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 

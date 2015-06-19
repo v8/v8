@@ -563,10 +563,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> source = factory->NewStringFromStaticChars("() {}");
   Handle<Script> script = factory->NewScript(source);
   script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
-  empty_function->shared()->set_script(*script);
   empty_function->shared()->set_start_position(0);
   empty_function->shared()->set_end_position(source->length());
   empty_function->shared()->DontAdaptArguments();
+  SharedFunctionInfo::SetScript(handle(empty_function->shared()), script);
 
   // Set prototypes for the function maps.
   Handle<Map> sloppy_function_map(native_context()->sloppy_function_map(),

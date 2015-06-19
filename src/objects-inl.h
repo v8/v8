@@ -5148,6 +5148,7 @@ ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
+ACCESSORS(Script, shared_function_infos, Object, kSharedFunctionInfosOffset)
 ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)

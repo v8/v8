@@ -1390,7 +1390,7 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(expr, script(), info_);
+      Compiler::GetSharedFunctionInfo(expr, script(), info_);
   if (function_info.is_null()) {
     SetStackOverflow();
     return;
