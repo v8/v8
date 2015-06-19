@@ -621,8 +621,8 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   Object* root;
   Object* outdated_contexts;
   VisitPointer(&root);
-  VisitPointer(&outdated_contexts);
   DeserializeDeferredObjects();
+  VisitPointer(&outdated_contexts);
 
   // There's no code deserialized here. If this assert fires then that's
   // changed and logging should be added to notify the profiler et al of the
@@ -1399,8 +1399,8 @@ void PartialSerializer::Serialize(Object** o) {
     back_reference_map()->AddGlobalProxy(context->global_proxy());
   }
   VisitPointer(o);
-  SerializeOutdatedContextsAsFixedArray();
   SerializeDeferredObjects();
+  SerializeOutdatedContextsAsFixedArray();
   Pad();
 }
 
