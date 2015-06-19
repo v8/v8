@@ -69,7 +69,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   }
 
   void CheckHeapConstant(Node* n, HeapObject* expected) {
-    HeapObjectMatcher<HeapObject> m(n);
+    HeapObjectMatcher m(n);
     CHECK(m.HasValue());
     CHECK_EQ(expected, *m.Value().handle());
   }

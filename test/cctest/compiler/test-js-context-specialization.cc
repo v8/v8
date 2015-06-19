@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-context-specialization.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -91,7 +92,7 @@ TEST(ReduceJSLoadContext) {
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
-    HeapObjectMatcher<Context> match(new_context_input);
+    HeapObjectMatcher match(new_context_input);
     CHECK_EQ(*native, *match.Value().handle());
     ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
@@ -107,7 +108,7 @@ TEST(ReduceJSLoadContext) {
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
 
-    HeapObjectMatcher<Object> match(r.replacement());
+    HeapObjectMatcher match(r.replacement());
     CHECK(match.HasValue());
     CHECK_EQ(*expected, *match.Value().handle());
   }
@@ -170,7 +171,7 @@ TEST(ReduceJSStoreContext) {
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
-    HeapObjectMatcher<Context> match(new_context_input);
+    HeapObjectMatcher match(new_context_input);
     CHECK_EQ(*native, *match.Value().handle());
     ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
@@ -245,7 +246,7 @@ TEST(SpecializeToContext) {
     CHECK_EQ(other_load, other_use->InputAt(0));
 
     Node* replacement = value_use->InputAt(0);
-    HeapObjectMatcher<Object> match(replacement);
+    HeapObjectMatcher match(replacement);
     CHECK(match.HasValue());
     CHECK_EQ(*expected, *match.Value().handle());
   }

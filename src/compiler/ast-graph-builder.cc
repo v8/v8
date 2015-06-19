@@ -3590,7 +3590,7 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
     case IrOpcode::kNumberConstant:
       return jsgraph_->BooleanConstant(!NumberMatcher(input).Is(0));
     case IrOpcode::kHeapConstant: {
-      Handle<Object> object = HeapObjectMatcher<Object>(input).Value().handle();
+      Handle<HeapObject> object = HeapObjectMatcher(input).Value().handle();
       return jsgraph_->BooleanConstant(object->BooleanValue());
     }
     case IrOpcode::kJSEqual:

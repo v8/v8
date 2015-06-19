@@ -179,11 +179,12 @@ Reduction JSIntrinsicLowering::ReduceHeapObjectGetMap(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceIncrementStatsCounter(Node* node) {
   if (!FLAG_native_code_counters) return ChangeToUndefined(node);
-  HeapObjectMatcher<String> m(NodeProperties::GetValueInput(node, 0));
+  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
   if (!m.HasValue() || !m.Value().handle()->IsString()) {
     return ChangeToUndefined(node);
   }
-  SmartArrayPointer<char> name = m.Value().handle()->ToCString();
+  SmartArrayPointer<char> name =
+      Handle<String>::cast(m.Value().handle())->ToCString();
   StatsCounter counter(jsgraph()->isolate(), name.get());
   if (!counter.Enabled()) return ChangeToUndefined(node);
 

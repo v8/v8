@@ -275,7 +275,7 @@ TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellSmiWithDeoptimization) {
       access, CaptureEq(&cell_capture), graph()->start(), graph()->start());
   EXPECT_THAT(r.replacement(), load_field_match);
 
-  HeapObjectMatcher<PropertyCell> cell(cell_capture.value());
+  HeapObjectMatcher cell(cell_capture.value());
   EXPECT_TRUE(cell.HasValue());
   EXPECT_TRUE(cell.Value().handle()->IsPropertyCell());
 
@@ -327,7 +327,7 @@ TEST_F(JSTypeFeedbackTest,
       access, CaptureEq(&cell_capture), graph()->start(), graph()->start());
   EXPECT_THAT(r.replacement(), load_field_match);
 
-  HeapObjectMatcher<PropertyCell> cell(cell_capture.value());
+  HeapObjectMatcher cell(cell_capture.value());
   EXPECT_TRUE(cell.HasValue());
   EXPECT_TRUE(cell.Value().handle()->IsPropertyCell());
 

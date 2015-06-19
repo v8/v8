@@ -238,11 +238,12 @@ Reduction JSInliner::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
 
   JSCallFunctionAccessor call(node);
-  HeapObjectMatcher<JSFunction> match(call.jsfunction());
+  HeapObjectMatcher match(call.jsfunction());
   if (!match.HasValue()) return NoChange();
 
-  Handle<JSFunction> function = match.Value().handle();
-  if (!function->IsJSFunction()) return NoChange();
+  if (!match.Value().handle()->IsJSFunction()) return NoChange();
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(match.Value().handle());
   if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
     return NoChange();
   }
