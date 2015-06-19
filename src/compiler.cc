@@ -744,7 +744,6 @@ static bool Renumber(ParseInfo* parse_info) {
     shared_info->set_ast_node_count(lit->ast_node_count());
     MaybeDisableOptimization(shared_info, lit->dont_optimize_reason());
     shared_info->set_dont_crankshaft(lit->flags()->Contains(kDontCrankshaft));
-    shared_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   }
   return true;
 }
@@ -1175,10 +1174,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       // If caller is strict mode, the result must be in strict mode as well.
       DCHECK(is_sloppy(language_mode) ||
              is_strict(shared_info->language_mode()));
-      if (!shared_info->dont_cache()) {
-        compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                   scope_position);
-      }
+      compilation_cache->PutEval(source, outer_info, context, shared_info,
+                                 scope_position);
     }
   } else if (shared_info->ic_age() != isolate->heap()->global_ic_age()) {
     shared_info->ResetForNewContext(isolate->heap()->global_ic_age());
@@ -1239,7 +1236,6 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
               .ToHandle(&result)) {
         // Promote to per-isolate compilation cache.
-        DCHECK(!result->dont_cache());
         compilation_cache->PutScript(source, context, language_mode, result);
         return result;
       }
@@ -1294,7 +1290,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     parse_info.set_language_mode(
         static_cast<LanguageMode>(info.language_mode() | language_mode));
     result = CompileToplevel(&info);
-    if (extension == NULL && !result.is_null() && !result->dont_cache()) {
+    if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, context, language_mode, result);
       if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache) {

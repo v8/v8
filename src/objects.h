@@ -6852,9 +6852,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be compiled with Crankshaft.
   DECL_BOOLEAN_ACCESSORS(dont_crankshaft)
 
-  // Indicates that code for this function cannot be cached.
-  DECL_BOOLEAN_ACCESSORS(dont_cache)
-
   // Indicates that code for this function cannot be flushed.
   DECL_BOOLEAN_ACCESSORS(dont_flush)
 
@@ -7117,7 +7114,6 @@ class SharedFunctionInfo: public HeapObject {
     kNameShouldPrintAsAnonymous,
     kIsFunction,
     kDontCrankshaft,
-    kDontCache,
     kDontFlush,
     kIsArrow,
     kIsGenerator,

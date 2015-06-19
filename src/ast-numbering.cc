@@ -59,11 +59,6 @@ class AstNumberingVisitor final : public AstVisitor {
     dont_optimize_reason_ = reason;
     DisableSelfOptimization();
   }
-  void DisableCaching(BailoutReason reason) {
-    dont_optimize_reason_ = reason;
-    DisableSelfOptimization();
-    properties_.flags()->Add(kDontCache);
-  }
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {

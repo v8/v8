@@ -127,9 +127,8 @@ AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 
 
 // Typedef only introduced to avoid unreadable code.
-// Please do appreciate the required space in "> >".
-typedef ZoneList<Handle<String> > ZoneStringList;
-typedef ZoneList<Handle<Object> > ZoneObjectList;
+typedef ZoneList<Handle<String>> ZoneStringList;
+typedef ZoneList<Handle<Object>> ZoneObjectList;
 
 
 #define DECLARE_NODE_TYPE(type)                                          \
@@ -138,12 +137,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   friend class AstNodeFactory;
 
 
-enum AstPropertiesFlag {
-  kDontSelfOptimize,
-  kDontSoftInline,
-  kDontCrankshaft,
-  kDontCache
-};
+enum AstPropertiesFlag { kDontSelfOptimize, kDontCrankshaft };
 
 
 class FeedbackVectorRequirements {
