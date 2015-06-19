@@ -12018,9 +12018,9 @@ MaybeHandle<Object> JSArray::SetElementsLength(
           .Assert();
     }
 
-    SetProperty(deleted, isolate->factory()->length_string(),
-                isolate->factory()->NewNumberFromUint(delete_count),
-                STRICT).Assert();
+    ElementsAccessor* accessor = deleted->GetElementsAccessor();
+    accessor->SetLength(deleted, isolate->factory()->NewNumberFromUint(
+                                     delete_count)).Check();
   }
 
   RETURN_ON_EXCEPTION(
