@@ -613,15 +613,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual void Set(Handle<FixedArrayBase> backing_store, uint32_t key,
-                   Handle<Object> value) final {
+  virtual void Set(FixedArrayBase* backing_store, uint32_t key,
+                   Object* value) final {
     ElementsAccessorSubclass::SetImpl(backing_store, key, value);
   }
 
-  static void SetImpl(Handle<FixedArrayBase> backing_store, uint32_t key,
-                      Handle<Object> value) {
-    BackingStore::SetValue(Handle<BackingStore>::cast(backing_store), key,
-                           value);
+  static void SetImpl(FixedArrayBase* backing_store, uint32_t key,
+                      Object* value) {
+    BackingStore::cast(backing_store)->SetValue(key, value);
   }
 
   virtual MaybeHandle<AccessorPair> GetAccessorPair(
@@ -1443,13 +1442,11 @@ class DictionaryElementsAccessor
     return isolate->factory()->the_hole_value();
   }
 
-  static void SetImpl(Handle<FixedArrayBase> store, uint32_t key,
-                      Handle<Object> value) {
-    Handle<SeededNumberDictionary> backing_store =
-        Handle<SeededNumberDictionary>::cast(store);
+  static void SetImpl(FixedArrayBase* store, uint32_t key, Object* value) {
+    SeededNumberDictionary* backing_store = SeededNumberDictionary::cast(store);
     int entry = backing_store->FindEntry(key);
     DCHECK_NE(SeededNumberDictionary::kNotFound, entry);
-    backing_store->ValueAtPut(entry, *value);
+    backing_store->ValueAtPut(entry, value);
   }
 
   static MaybeHandle<AccessorPair> GetAccessorPairImpl(
@@ -1540,17 +1537,16 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  static void SetImpl(Handle<FixedArrayBase> store, uint32_t key,
-                      Handle<Object> value) {
-    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(store);
-    Object* probe = GetParameterMapArg(*parameter_map, key);
+  static void SetImpl(FixedArrayBase* store, uint32_t key, Object* value) {
+    FixedArray* parameter_map = FixedArray::cast(store);
+    Object* probe = GetParameterMapArg(parameter_map, key);
     if (!probe->IsTheHole()) {
       Context* context = Context::cast(parameter_map->get(0));
       int context_index = Smi::cast(probe)->value();
       DCHECK(!context->get(context_index)->IsTheHole());
-      context->set(context_index, *value);
+      context->set(context_index, value);
     } else {
-      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       ElementsAccessor::ForArray(arguments)->Set(arguments, key, value);
     }
   }

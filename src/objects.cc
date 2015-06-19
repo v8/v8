@@ -14715,24 +14715,18 @@ size_t JSTypedArray::element_size() {
 }
 
 
-void FixedArray::SetValue(Handle<FixedArray> array, uint32_t index,
-                          Handle<Object> value) {
-  array->set(index, *value);
+void FixedArray::SetValue(uint32_t index, Object* value) { set(index, value); }
+
+
+void FixedDoubleArray::SetValue(uint32_t index, Object* value) {
+  set(index, value->Number());
 }
 
 
-void FixedDoubleArray::SetValue(Handle<FixedDoubleArray> array, uint32_t index,
-                                Handle<Object> value) {
-  array->set(index, value->Number());
-}
-
-
-void ExternalUint8ClampedArray::SetValue(
-    Handle<ExternalUint8ClampedArray> array, uint32_t index,
-    Handle<Object> value) {
+void ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (value->IsSmi()) {
-    int int_value = Handle<Smi>::cast(value)->value();
+    int int_value = Smi::cast(value)->value();
     if (int_value < 0) {
       clamped_value = 0;
     } else if (int_value > 255) {
@@ -14741,7 +14735,7 @@ void ExternalUint8ClampedArray::SetValue(
       clamped_value = static_cast<uint8_t>(int_value);
     }
   } else if (value->IsHeapNumber()) {
-    double double_value = Handle<HeapNumber>::cast(value)->value();
+    double double_value = HeapNumber::cast(value)->value();
     if (!(double_value > 0)) {
       // NaN and less than zero clamp to zero.
       clamped_value = 0;
@@ -14757,19 +14751,19 @@ void ExternalUint8ClampedArray::SetValue(
     // converted to a number type further up in the call chain.
     DCHECK(value->IsUndefined());
   }
-  array->set(index, clamped_value);
+  set(index, clamped_value);
 }
 
 
 template <typename ExternalArrayClass, typename ValueType>
-static void ExternalArrayIntSetter(Handle<ExternalArrayClass> receiver,
-                                   uint32_t index, Handle<Object> value) {
+static void ExternalArrayIntSetter(ExternalArrayClass* receiver, uint32_t index,
+                                   Object* value) {
   ValueType cast_value = 0;
   if (value->IsSmi()) {
-    int int_value = Handle<Smi>::cast(value)->value();
+    int int_value = Smi::cast(value)->value();
     cast_value = static_cast<ValueType>(int_value);
   } else if (value->IsHeapNumber()) {
-    double double_value = Handle<HeapNumber>::cast(value)->value();
+    double double_value = HeapNumber::cast(value)->value();
     cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
   } else {
     // Clamp undefined to zero (default). All other types have been
@@ -14780,74 +14774,66 @@ static void ExternalArrayIntSetter(Handle<ExternalArrayClass> receiver,
 }
 
 
-void ExternalInt8Array::SetValue(Handle<ExternalInt8Array> array,
-                                 uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalInt8Array, int8_t>(array, index, value);
+void ExternalInt8Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalInt8Array, int8_t>(this, index, value);
 }
 
 
-void ExternalUint8Array::SetValue(Handle<ExternalUint8Array> array,
-                                  uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(array, index, value);
+void ExternalUint8Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(this, index, value);
 }
 
 
-void ExternalInt16Array::SetValue(Handle<ExternalInt16Array> array,
-                                  uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalInt16Array, int16_t>(array, index, value);
+void ExternalInt16Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalInt16Array, int16_t>(this, index, value);
 }
 
 
-void ExternalUint16Array::SetValue(Handle<ExternalUint16Array> array,
-                                   uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(array, index, value);
+void ExternalUint16Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(this, index, value);
 }
 
 
-void ExternalInt32Array::SetValue(Handle<ExternalInt32Array> array,
-                                  uint32_t index, Handle<Object> value) {
-  ExternalArrayIntSetter<ExternalInt32Array, int32_t>(array, index, value);
+void ExternalInt32Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalInt32Array, int32_t>(this, index, value);
 }
 
 
-void ExternalUint32Array::SetValue(Handle<ExternalUint32Array> array,
-                                   uint32_t index, Handle<Object> value) {
+void ExternalUint32Array::SetValue(uint32_t index, Object* value) {
   uint32_t cast_value = 0;
   if (value->IsSmi()) {
-    int int_value = Handle<Smi>::cast(value)->value();
+    int int_value = Smi::cast(value)->value();
     cast_value = static_cast<uint32_t>(int_value);
   } else if (value->IsHeapNumber()) {
-    double double_value = Handle<HeapNumber>::cast(value)->value();
+    double double_value = HeapNumber::cast(value)->value();
     cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
   } else {
     // Clamp undefined to zero (default). All other types have been
     // converted to a number type further up in the call chain.
     DCHECK(value->IsUndefined());
   }
-  array->set(index, cast_value);
+  set(index, cast_value);
 }
 
 
-void ExternalFloat32Array::SetValue(Handle<ExternalFloat32Array> array,
-                                    uint32_t index, Handle<Object> value) {
+void ExternalFloat32Array::SetValue(uint32_t index, Object* value) {
   float cast_value = std::numeric_limits<float>::quiet_NaN();
   if (value->IsSmi()) {
-    int int_value = Handle<Smi>::cast(value)->value();
+    int int_value = Smi::cast(value)->value();
     cast_value = static_cast<float>(int_value);
   } else if (value->IsHeapNumber()) {
-    double double_value = Handle<HeapNumber>::cast(value)->value();
+    double double_value = HeapNumber::cast(value)->value();
     cast_value = static_cast<float>(double_value);
   } else {
     // Clamp undefined to NaN (default). All other types have been
     // converted to a number type further up in the call chain.
     DCHECK(value->IsUndefined());
   }
-  array->set(index, cast_value);
+  set(index, cast_value);
 }
 
 
-void ExternalFloat64Array::SetValue(Handle<ExternalFloat64Array> array,
-                                    uint32_t index, Handle<Object> value) {
+void ExternalFloat64Array::SetValue(uint32_t index, Object* value) {
   double double_value = std::numeric_limits<double>::quiet_NaN();
   if (value->IsNumber()) {
     double_value = value->Number();
@@ -14856,7 +14842,7 @@ void ExternalFloat64Array::SetValue(Handle<ExternalFloat64Array> array,
     // converted to a number type further up in the call chain.
     DCHECK(value->IsUndefined());
   }
-  array->set(index, double_value);
+  set(index, double_value);
 }
 
 

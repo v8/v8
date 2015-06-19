@@ -4002,21 +4002,20 @@ Handle<Object> FixedTypedArray<Traits>::get(
 
 
 template <class Traits>
-void FixedTypedArray<Traits>::SetValue(Handle<FixedTypedArray<Traits> > array,
-                                       uint32_t index, Handle<Object> value) {
+void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   ElementType cast_value = Traits::defaultValue();
   if (value->IsSmi()) {
-    int int_value = Handle<Smi>::cast(value)->value();
+    int int_value = Smi::cast(value)->value();
     cast_value = from_int(int_value);
   } else if (value->IsHeapNumber()) {
-    double double_value = Handle<HeapNumber>::cast(value)->value();
+    double double_value = HeapNumber::cast(value)->value();
     cast_value = from_double(double_value);
   } else {
     // Clamp undefined to the default value. All other types have been
     // converted to a number type further up in the call chain.
     DCHECK(value->IsUndefined());
   }
-  array->set(index, cast_value);
+  set(index, cast_value);
 }
 
 
