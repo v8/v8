@@ -331,6 +331,7 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
                                                    Handle<String> arg0,
                                                    Handle<String> arg1,
                                                    Handle<String> arg2) {
+  static const int kMaxArgLength = 256;
   Isolate* isolate = arg0->GetIsolate();
   const char* template_string;
   switch (template_index) {
@@ -358,7 +359,17 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
         builder.AppendCharacter('%');
       } else {
         DCHECK(i < arraysize(args));
-        builder.AppendString(args[i++]);
+        Handle<String> arg = args[i++];
+        int length = arg->length();
+        if (length > kMaxArgLength) {
+          builder.AppendString(
+              isolate->factory()->NewSubString(arg, 0, kMaxArgLength - 6));
+          builder.AppendCString("...");
+          builder.AppendString(
+              isolate->factory()->NewSubString(arg, length - 3, length));
+        } else {
+          builder.AppendString(arg);
+        }
       }
     } else {
       builder.AppendCharacter(*c);
