@@ -1505,6 +1505,7 @@ struct Tests : Rep {
   void Union3() {
     // Monotonicity: T1->Is(T2) or T1->Is(T3) implies T1->Is(Union(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      HandleScope scope(isolate);
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = it2; it3 != T.types.end(); ++it3) {
           TypeHandle type1 = *it1;
@@ -1757,6 +1758,7 @@ struct Tests : Rep {
 
     // Monotonicity: T1->Is(T2) and T1->Is(T3) implies T1->Is(Intersect(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      HandleScope scope(isolate);
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
           TypeHandle type1 = *it1;
