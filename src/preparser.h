@@ -502,7 +502,9 @@ class ParserBase : public Traits {
   }
 
   void ReportUnexpectedToken(Token::Value token);
-  void ReportUnexpectedTokenAt(Scanner::Location location, Token::Value token);
+  void ReportUnexpectedTokenAt(
+      Scanner::Location location, Token::Value token,
+      MessageTemplate::Template message = MessageTemplate::kUnexpectedToken);
 
 
   void ReportClassifierError(const ExpressionClassifier::Error& error) {
@@ -1814,10 +1816,10 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
 }
 
 
-template<class Traits>
+template <class Traits>
 void ParserBase<Traits>::ReportUnexpectedTokenAt(
-    Scanner::Location source_location, Token::Value token) {
-
+    Scanner::Location source_location, Token::Value token,
+    MessageTemplate::Template message) {
   // Four of the tokens are treated specially
   switch (token) {
     case Token::EOS:
@@ -1850,8 +1852,7 @@ void ParserBase<Traits>::ReportUnexpectedTokenAt(
     default:
       const char* name = Token::String(token);
       DCHECK(name != NULL);
-      Traits::ReportMessageAt(source_location,
-                              MessageTemplate::kUnexpectedToken, name);
+      Traits::ReportMessageAt(source_location, message, name);
   }
 }
 
@@ -2152,6 +2153,13 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         classifier->RecordBindingPatternError(scanner()->location(),
                                               MessageTemplate::kUnexpectedToken,
                                               Token::String(Token::RPAREN));
+        // Give a good error to the user who might have typed e.g. "return();".
+        if (peek() != Token::ARROW) {
+          ReportUnexpectedTokenAt(scanner_->peek_location(), peek(),
+                                  MessageTemplate::kMissingArrow);
+          *ok = false;
+          return this->EmptyExpression();
+        }
         Scope* scope =
             this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
         scope->set_start_position(beg_pos);
