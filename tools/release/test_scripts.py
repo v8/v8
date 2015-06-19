@@ -1112,7 +1112,6 @@ deps = {
       Cmd("git describe --tags bad_tag", ""),
       Cmd("git describe --tags hash_234", "3.22.4"),
       Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git pull", "", cwd=TEST_CONFIG["CHROMIUM"]),
       Cmd("git describe --tags abcd123455", "3.22.4"),
       Cmd("git describe --tags hash_234", "3.22.4"),
       Cmd("git describe --tags hash_123", "3.22.3"),
@@ -1136,7 +1135,6 @@ deps = {
       Cmd("git describe --tags bad_tag", ""),
       Cmd("git describe --tags hash_234", "3.22.4"),
       Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git pull", "", cwd=TEST_CONFIG["CHROMIUM"]),
       Cmd("git describe --tags abcd123455", "3.22.3.1"),
       Cmd("git describe --tags hash_234", "3.22.4"),
     ])

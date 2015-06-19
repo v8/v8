@@ -48,9 +48,6 @@ class DetectLastRoll(Step):
         max_age=self._options.max_age * DAY_IN_SECONDS)
     assert revisions, "Didn't find any recent release."
 
-    # Update Chromium checkout before DEPS check to fix possible race-condition
-    self.GitPull(cwd=self._options.chromium)
-
     # Interpret the DEPS file to retrieve the v8 revision.
     # TODO(machenbach): This should be part or the roll-deps api of
     # depot_tools.
