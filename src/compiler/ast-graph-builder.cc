@@ -3455,7 +3455,7 @@ static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
 
 Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
                                       const ResolvedFeedbackSlot& feedback) {
-  const Operator* op = javascript()->LoadProperty(feedback, language_mode());
+  const Operator* op = javascript()->LoadProperty(feedback);
   return Record(js_type_feedback_,
                 NewNode(op, object, key, GetFeedbackVector()), feedback.slot());
 }
@@ -3464,8 +3464,8 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const ResolvedFeedbackSlot& feedback,
                                       ContextualMode mode) {
-  const Operator* op = javascript()->LoadNamed(MakeUnique(name), feedback,
-                                               language_mode(), mode);
+  const Operator* op =
+      javascript()->LoadNamed(MakeUnique(name), feedback, mode);
   return Record(js_type_feedback_, NewNode(op, object, GetFeedbackVector()),
                 feedback.slot());
 }
@@ -3490,9 +3490,8 @@ Node* AstGraphBuilder::BuildNamedSuperLoad(
     Node* receiver, Node* home_object, Handle<Name> name,
     const ResolvedFeedbackSlot& feedback) {
   Node* name_node = jsgraph()->Constant(name);
-  Node* language = jsgraph()->Constant(language_mode());
-  const Operator* op = javascript()->CallRuntime(Runtime::kLoadFromSuper, 4);
-  Node* value = NewNode(op, receiver, home_object, name_node, language);
+  const Operator* op = javascript()->CallRuntime(Runtime::kLoadFromSuper, 3);
+  Node* value = NewNode(op, receiver, home_object, name_node);
   return Record(js_type_feedback_, value, feedback.slot());
 }
 
@@ -3500,10 +3499,9 @@ Node* AstGraphBuilder::BuildNamedSuperLoad(
 Node* AstGraphBuilder::BuildKeyedSuperLoad(
     Node* receiver, Node* home_object, Node* key,
     const ResolvedFeedbackSlot& feedback) {
-  Node* language = jsgraph()->Constant(language_mode());
   const Operator* op =
-      javascript()->CallRuntime(Runtime::kLoadKeyedFromSuper, 4);
-  Node* value = NewNode(op, receiver, home_object, key, language);
+      javascript()->CallRuntime(Runtime::kLoadKeyedFromSuper, 3);
+  Node* value = NewNode(op, receiver, home_object, key);
   return Record(js_type_feedback_, value, feedback.slot());
 }
 

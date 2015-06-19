@@ -1275,12 +1275,17 @@ static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Slow(MacroAssembler* masm) {
-  NamedLoadHandlerCompiler::GenerateSlow(masm);
+  LoadIC::GenerateRuntimeGetProperty(masm);
+}
+
+
+static void Generate_KeyedLoadIC_Initialize(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateInitialize(masm);
 }
 
 
 static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
-  ElementHandlerCompiler::GenerateLoadSlow(masm);
+  KeyedLoadIC::GenerateRuntimeGetProperty(masm);
 }
 
 
@@ -1290,12 +1295,7 @@ static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm, SLOPPY);
-}
-
-
-static void Generate_KeyedLoadIC_Megamorphic_Strong(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm, STRONG);
+  KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
 

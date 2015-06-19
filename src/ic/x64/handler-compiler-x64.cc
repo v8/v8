@@ -261,39 +261,6 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
 }
 
 
-static void LoadIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-
-  DCHECK(!rbx.is(receiver) && !rbx.is(name));
-
-  __ PopReturnAddressTo(rbx);
-  __ Push(receiver);
-  __ Push(name);
-  __ PushReturnAddressFrom(rbx);
-}
-
-
-void NamedLoadHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  LoadIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(IC::kLoadIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
-}
-
-
-void ElementHandlerCompiler::GenerateLoadSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  LoadIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(IC::kKeyedLoadIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
     int accessor_index, int expected_arguments, Register scratch) {

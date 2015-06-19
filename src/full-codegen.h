@@ -683,7 +683,7 @@ class FullCodeGenerator: public AstVisitor {
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(ContextualMode mode, LanguageMode language_mode = SLOPPY,
+  void CallLoadIC(ContextualMode mode,
                   TypeFeedbackId id = TypeFeedbackId::None());
   void CallGlobalLoadIC(Handle<String> name);
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());

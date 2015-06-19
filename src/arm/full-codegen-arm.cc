@@ -2242,7 +2242,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ ldr(load_name, MemOperand(sp, 2 * kPointerSize));
       __ mov(LoadDescriptor::SlotRegister(),
              Operand(SmiFromSlot(expr->KeyedLoadFeedbackSlot())));
-      Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate(), SLOPPY).code();
+      Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
       CallIC(ic, TypeFeedbackId::None());
       __ mov(r1, r0);
       __ str(r1, MemOperand(sp, 2 * kPointerSize));
@@ -2423,7 +2423,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ mov(LoadDescriptor::NameRegister(), Operand(key->value()));
   __ mov(LoadDescriptor::SlotRegister(),
          Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
-  CallLoadIC(NOT_CONTEXTUAL, language_mode());
+  CallLoadIC(NOT_CONTEXTUAL);
 }
 
 
@@ -2435,14 +2435,13 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
   DCHECK(prop->IsSuperAccess());
 
   __ Push(key->value());
-  __ Push(Smi::FromInt(language_mode()));
-  __ CallRuntime(Runtime::kLoadFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadFromSuper, 3);
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate(), language_mode()).code();
+  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
   __ mov(LoadDescriptor::SlotRegister(),
          Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
   CallIC(ic);
@@ -2451,10 +2450,9 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
 void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   // Stack: receiver, home_object, key.
-  __ Push(Smi::FromInt(language_mode()));
   SetSourcePosition(prop->position());
 
-  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 3);
 }
 
 
@@ -3000,7 +2998,6 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   __ ldr(scratch, MemOperand(sp, kPointerSize * 2));
   __ Push(scratch);
   __ Push(key->value());
-  __ Push(Smi::FromInt(language_mode()));
 
   // Stack here:
   //  - home_object
@@ -3008,8 +3005,7 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   //  - this (receiver) <-- LoadFromSuper will pop here and below.
   //  - home_object
   //  - key
-  //  - language_mode
-  __ CallRuntime(Runtime::kLoadFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadFromSuper, 3);
 
   // Replace home_object with target function.
   __ str(r0, MemOperand(sp, kPointerSize));
@@ -3062,7 +3058,6 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   __ ldr(scratch, MemOperand(sp, kPointerSize * 2));
   __ Push(scratch);
   VisitForStackValue(prop->key());
-  __ Push(Smi::FromInt(language_mode()));
 
   // Stack here:
   //  - home_object
@@ -3070,8 +3065,7 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   //  - this (receiver) <-- LoadKeyedFromSuper will pop here and below.
   //  - home_object
   //  - key
-  //  - language_mode
-  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 3);
 
   // Replace home_object with target function.
   __ str(r0, MemOperand(sp, kPointerSize));

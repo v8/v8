@@ -1162,8 +1162,7 @@ class Object {
   MUST_USE_RESULT static inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
                                                        Handle<Object> object);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
-      LookupIterator* it, LanguageMode language_mode = SLOPPY);
+  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
 
   // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
@@ -1179,15 +1178,10 @@ class Object {
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode);
 
-  MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
-      LookupIterator* it, LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
-      LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
+      Isolate* isolate, Handle<Object> reciever, Handle<Object> name,
       Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> RedefineNonconfigurableProperty(
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
@@ -1198,17 +1192,16 @@ class Object {
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       LanguageMode language_mode, StoreFromKeyed store_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Handle<Object> object, Handle<Name> name,
-      LanguageMode language_mode = SLOPPY);
+      Handle<Object> object, Handle<Name> name);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Isolate* isolate, Handle<Object> object, const char* key,
-      LanguageMode language_mode = SLOPPY);
+      Isolate* isolate,
+      Handle<Object> object,
+      const char* key);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Handle<Object> object, Handle<Name> name,
-      LanguageMode language_mode = SLOPPY);
+      Handle<Object> object, Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
-      LookupIterator* it, LanguageMode language_mode);
+      LookupIterator* it);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithAccessor(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
 
@@ -1221,8 +1214,9 @@ class Object {
       Handle<Object> value);
 
   MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
-      Isolate* isolate, Handle<Object> object, uint32_t index,
-      LanguageMode language_mode = SLOPPY);
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
 
   static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
       Isolate* isolate, Handle<Object> receiver);
@@ -2338,7 +2332,7 @@ class JSObject: public JSReceiver {
 
   // Used from Object::GetProperty().
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
-      LookupIterator* it, LanguageMode language_mode);
+      LookupIterator* it);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
       LookupIterator* it, Handle<Object> value);

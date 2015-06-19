@@ -683,11 +683,6 @@ HConstant* HGraph::GetConstantMinus1() {
 }
 
 
-HConstant* HGraph::GetConstantBool(bool value) {
-  return value ? GetConstantTrue() : GetConstantFalse();
-}
-
-
 #define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value)            \
 HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
@@ -1672,9 +1667,10 @@ HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
 }
 
 
-HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
-    HValue* receiver, HValue* elements, HValue* key, HValue* hash,
-    LanguageMode language_mode) {
+HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
+                                                           HValue* elements,
+                                                           HValue* key,
+                                                           HValue* hash) {
   HValue* capacity =
       Add<HLoadKeyed>(elements, Add<HConstant>(NameDictionary::kCapacityIndex),
                       nullptr, FAST_ELEMENTS);
@@ -1716,10 +1712,10 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
   {
     // element == undefined means "not found". Call the runtime.
     // TODO(jkummerow): walk the prototype chain instead.
-    Add<HPushArguments>(receiver, key, Add<HConstant>(language_mode));
+    Add<HPushArguments>(receiver, key);
     Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
                            Runtime::FunctionForId(Runtime::kKeyedGetProperty),
-                           3));
+                           2));
   }
   if_undefined.Else();
   {
@@ -1776,10 +1772,10 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
     result_index->ClearFlag(HValue::kCanOverflow);
     Push(Add<HLoadKeyed>(elements, result_index, nullptr, FAST_ELEMENTS));
     details_compare.Else();
-    Add<HPushArguments>(receiver, key, Add<HConstant>(language_mode));
+    Add<HPushArguments>(receiver, key);
     Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
                            Runtime::FunctionForId(Runtime::kKeyedGetProperty),
-                           3));
+                           2));
     details_compare.End();
 
     found_key_match.Else();
@@ -6224,7 +6220,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (IsFound()) return IsLoad() || !IsReadOnly();
   if (IsIntegerIndexedExotic()) return false;
   if (!LookupInPrototypes()) return false;
-  if (IsLoad()) return !is_strong(builder_->function_language_mode());
+  if (IsLoad()) return true;
 
   if (IsAccessorConstant()) return true;
   LookupTransition(*map_, *name_, NONE);
@@ -7042,14 +7038,14 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // use a generic Keyed Load if we are using the type vector, because
       // it has to share information with full code.
       HConstant* key = Add<HConstant>(name);
-      HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
-          object, key, function_language_mode(), PREMONOMORPHIC);
+      HLoadKeyedGeneric* result =
+          New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
       result->SetVectorAndSlot(vector, slot);
       return result;
     }
 
-    HLoadNamedGeneric* result = New<HLoadNamedGeneric>(
-        object, name, function_language_mode(), PREMONOMORPHIC);
+    HLoadNamedGeneric* result =
+        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
     result->SetVectorAndSlot(vector, slot);
     return result;
   } else {
@@ -7068,8 +7064,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     HValue* value) {
   if (access_type == LOAD) {
     InlineCacheState initial_state = expr->AsProperty()->GetInlineCacheState();
-    HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
-        object, key, function_language_mode(), initial_state);
+    HLoadKeyedGeneric* result =
+        New<HLoadKeyedGeneric>(object, key, initial_state);
     // HLoadKeyedGeneric with vector ics benefits from being encoded as
     // MEGAMORPHIC because the vector/slot combo becomes unnecessary.
     if (initial_state != MEGAMORPHIC) {

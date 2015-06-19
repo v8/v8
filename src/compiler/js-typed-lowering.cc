@@ -1025,8 +1025,8 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true), context,
       context, effect);
   Node* fast = graph()->NewNode(
-      javascript()->LoadNamed(name, access.feedback(), SLOPPY, access.mode()),
-      global, vector, context, state1, state2, global, check_true);
+      javascript()->LoadNamed(name, access.feedback(), access.mode()), global,
+      vector, context, state1, state2, global, check_true);
 
   // Slow case, because variable potentially shadowed. Perform dynamic lookup.
   uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
