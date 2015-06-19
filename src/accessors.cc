@@ -173,21 +173,6 @@ Handle<AccessorInfo> Accessors::ArgumentsIteratorInfo(
 //
 
 
-// The helper function will 'flatten' Number objects.
-Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
-                                        Handle<Object> value) {
-  if (value->IsNumber() || !value->IsJSValue()) return value;
-  Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
-  DCHECK(wrapper->GetIsolate()->native_context()->number_function()->
-      has_initial_map());
-  if (wrapper->map() == isolate->number_function()->initial_map()) {
-    return handle(wrapper->value(), isolate);
-  }
-
-  return value;
-}
-
-
 void Accessors::ArrayLengthGetter(
     v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -200,44 +185,64 @@ void Accessors::ArrayLengthGetter(
 }
 
 
+// Tries to non-observably convert |value| to a valid array length.
+// Returns false if it fails.
+static bool FastAsArrayLength(Isolate* isolate, Handle<Object> value,
+                              uint32_t* length) {
+  if (value->ToArrayLength(length)) return true;
+  // We don't support AsArrayLength, so use AsArrayIndex for now. This just
+  // misses out on kMaxUInt32.
+  if (value->IsString()) return String::cast(*value)->AsArrayIndex(length);
+  if (!value->IsJSValue()) return false;
+  Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
+  DCHECK(wrapper->GetIsolate()
+             ->native_context()
+             ->number_function()
+             ->has_initial_map());
+  // Only support fast unwrapping for the initial map. Otherwise valueOf might
+  // have been overwritten, in which case unwrapping is invalid.
+  if (wrapper->map() != isolate->number_function()->initial_map()) return false;
+  return wrapper->value()->ToArrayIndex(length);
+}
+
+
 void Accessors::ArrayLengthSetter(
     v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // TODO(verwaest): Speed up.
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
+
   Handle<JSObject> object = Utils::OpenHandle(*info.This());
-  Handle<Object> value = Utils::OpenHandle(*val);
+  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  Handle<Object> length_obj = Utils::OpenHandle(*val);
 
-  value = FlattenNumber(isolate, value);
+  uint32_t length = 0;
+  if (!FastAsArrayLength(isolate, length_obj, &length)) {
+    Handle<Object> uint32_v;
+    if (!Execution::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
 
-  Handle<JSArray> array_handle = Handle<JSArray>::cast(object);
-  MaybeHandle<Object> maybe;
-  Handle<Object> uint32_v;
-  maybe = Execution::ToUint32(isolate, value);
-  if (!maybe.ToHandle(&uint32_v)) {
+    Handle<Object> number_v;
+    if (!Execution::ToNumber(isolate, length_obj).ToHandle(&number_v)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
+
+    if (uint32_v->Number() != number_v->Number()) {
+      Handle<Object> exception = isolate->factory()->NewRangeError(
+          MessageTemplate::kInvalidArrayLength);
+      return isolate->ScheduleThrow(*exception);
+    }
+
+    CHECK(uint32_v->ToArrayLength(&length));
+  }
+
+  if (JSArray::ObservableSetLength(array, length).is_null()) {
     isolate->OptionalRescheduleException(false);
-    return;
   }
-  Handle<Object> number_v;
-  maybe = Execution::ToNumber(isolate, value);
-  if (!maybe.ToHandle(&number_v)) {
-    isolate->OptionalRescheduleException(false);
-    return;
-  }
-
-  if (uint32_v->Number() == number_v->Number()) {
-    uint32_t new_length = 0;
-    CHECK(uint32_v->ToArrayLength(&new_length));
-    maybe = JSArray::ObservableSetLength(array_handle, new_length);
-    if (maybe.is_null()) isolate->OptionalRescheduleException(false);
-    return;
-  }
-
-  Handle<Object> exception =
-      isolate->factory()->NewRangeError(MessageTemplate::kInvalidArrayLength);
-  isolate->ScheduleThrow(*exception);
 }
 
 
