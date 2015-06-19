@@ -329,7 +329,10 @@ void LoadIC::GenerateSlow(MacroAssembler* masm) {
   __ mov(LoadIC_TempRegister(), LoadDescriptor::ReceiverRegister());
   __ Push(LoadIC_TempRegister(), LoadDescriptor::NameRegister());
 
-  __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kLoadIC_Slow), masm->isolate());
+  int arg_count = 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
@@ -357,7 +360,10 @@ void KeyedLoadIC::GenerateSlow(MacroAssembler* masm) {
 
   __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
 
-  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Slow), masm->isolate());
+  int arg_count = 2;
+  __ TailCallExternalReference(ref, arg_count, 1);
 }
 
 
