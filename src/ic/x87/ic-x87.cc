@@ -218,7 +218,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   __ bind(&absent);
   if (is_strong(language_mode)) {
     // Strong mode accesses must throw in this case, so call the runtime.
-    __jmp(slow);
+    __ jmp(slow);
   } else {
     __ mov(result, masm->isolate()->factory()->undefined_value());
     __ jmp(&done);
