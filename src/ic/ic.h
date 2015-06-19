@@ -444,7 +444,8 @@ class LoadIC : public IC {
 class KeyedLoadIC : public LoadIC {
  public:
   // ExtraICState bits (building on IC)
-  class IcCheckTypeField : public BitField<IcCheckType, 2, 1> {};
+  class IcCheckTypeField
+      : public BitField<IcCheckType, LoadICState::kNextBitFieldOffset, 1> {};
 
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
                                           LanguageMode language_mode,

@@ -203,11 +203,14 @@ class CompareICState {
 class LoadICState final BASE_EMBEDDED {
  private:
   class ContextualModeBits : public BitField<ContextualMode, 0, 1> {};
-  class LanguageModeBits : public BitField<LanguageMode, 1, 2> {};
+  class LanguageModeBits
+      : public BitField<LanguageMode, ContextualModeBits::kNext, 2> {};
   STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
   const ExtraICState state_;
 
  public:
+  static const uint32_t kNextBitFieldOffset = LanguageModeBits::kNext;
+
   static const ExtraICState kStrongModeState = STRONG
                                                << LanguageModeBits::kShift;
 
