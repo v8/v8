@@ -251,6 +251,7 @@ class LCodeGen: public LCodeGenBase {
                                    String::Encoding encoding);
 
   void EmitIntegerMathAbs(LMathAbs* instr);
+  void EmitSmiMathAbs(LMathAbs* instr);
 
   // Support for recording safepoint and position information.
   void RecordSafepoint(LPointerMap* pointers,

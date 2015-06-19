@@ -3774,8 +3774,22 @@ void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
   Label done;
   __ Branch(USE_DELAY_SLOT, &done, ge, input, Operand(zero_reg));
   __ mov(result, input);
-  __ dsubu(result, zero_reg, input);
+  __ subu(result, zero_reg, input);
   // Overflow if result is still negative, i.e. 0x80000000.
+  DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, result, Operand(zero_reg));
+  __ bind(&done);
+}
+
+
+void LCodeGen::EmitSmiMathAbs(LMathAbs* instr) {
+  Register input = ToRegister(instr->value());
+  Register result = ToRegister(instr->result());
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
+  Label done;
+  __ Branch(USE_DELAY_SLOT, &done, ge, input, Operand(zero_reg));
+  __ mov(result, input);
+  __ dsubu(result, zero_reg, input);
+  // Overflow if result is still negative, i.e. 0x80000000 00000000.
   DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, result, Operand(zero_reg));
   __ bind(&done);
 }
@@ -3801,8 +3815,10 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     FPURegister input = ToDoubleRegister(instr->value());
     FPURegister result = ToDoubleRegister(instr->result());
     __ abs_d(result, input);
-  } else if (r.IsSmiOrInteger32()) {
+  } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
+  } else if (r.IsSmi()) {
+    EmitSmiMathAbs(instr);
   } else {
     // Representation is tagged.
     DeferredMathAbsTaggedHeapNumber* deferred =
@@ -3811,7 +3827,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     // Smi check.
     __ JumpIfNotSmi(input, deferred->entry());
     // If smi, handle it directly.
-    EmitIntegerMathAbs(instr);
+    EmitSmiMathAbs(instr);
     __ bind(deferred->exit());
   }
 }
