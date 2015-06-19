@@ -1068,8 +1068,8 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     Handle<Object> argument_one = caller_args->at<Object>(0);
     if (argument_one->IsSmi()) {
       int value = Handle<Smi>::cast(argument_one)->value();
-      if (value < 0 || JSArray::SetElementsLengthWouldNormalize(isolate->heap(),
-                                                                argument_one)) {
+      if (value < 0 ||
+          JSArray::SetLengthWouldNormalize(isolate->heap(), value)) {
         // the array is a dictionary in this case.
         can_use_type_feedback = false;
       } else if (value != 0) {

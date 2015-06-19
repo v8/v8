@@ -445,15 +445,12 @@ BUILTIN(ArrayPop) {
     return CallJsBuiltin(isolate, "$arrayPop", args);
   }
 
-  ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length = len - 1;
   Handle<Object> element;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, element, Object::GetElement(isolate, array, new_length));
 
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate,
-      accessor->SetLength(array, handle(Smi::FromInt(new_length), isolate)));
+  JSArray::SetLength(array, new_length);
   return *element;
 }
 

@@ -204,6 +204,7 @@ void Accessors::ArrayLengthSetter(
     v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
+  // TODO(verwaest): Speed up.
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Handle<JSObject> object = Utils::OpenHandle(*info.This());
@@ -227,7 +228,9 @@ void Accessors::ArrayLengthSetter(
   }
 
   if (uint32_v->Number() == number_v->Number()) {
-    maybe = JSArray::SetElementsLength(array_handle, uint32_v);
+    uint32_t new_length = 0;
+    CHECK(uint32_v->ToArrayLength(&new_length));
+    maybe = JSArray::ObservableSetLength(array_handle, new_length);
     if (maybe.is_null()) isolate->OptionalRescheduleException(false);
     return;
   }

@@ -636,16 +636,13 @@ class ElementsAccessorBase : public ElementsAccessor {
     return MaybeHandle<AccessorPair>();
   }
 
-  MUST_USE_RESULT virtual MaybeHandle<Object> SetLength(
-      Handle<JSArray> array, Handle<Object> length) final {
-    return ElementsAccessorSubclass::SetLengthImpl(
-        array, length, handle(array->elements()));
+  virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
+    ElementsAccessorSubclass::SetLengthImpl(array, length,
+                                            handle(array->elements()));
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
-      Handle<JSObject> obj,
-      Handle<Object> length,
-      Handle<FixedArrayBase> backing_store);
+  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+                            Handle<FixedArrayBase> backing_store);
 
   virtual void SetCapacityAndLength(Handle<JSArray> array, int capacity,
                                     int length) final {
@@ -866,10 +863,8 @@ class FastElementsAccessor
   typedef typename KindTraits::BackingStore BackingStore;
 
   // Adjusts the length of the fast backing store.
-  static Handle<Object> SetLengthWithoutNormalize(
-      Handle<FixedArrayBase> backing_store,
-      Handle<JSArray> array,
-      Handle<Object> length_object,
+  static uint32_t SetLengthWithoutNormalize(
+      Handle<FixedArrayBase> backing_store, Handle<JSArray> array,
       uint32_t length) {
     Isolate* isolate = array->GetIsolate();
     uint32_t old_capacity = backing_store->length();
@@ -904,7 +899,7 @@ class FastElementsAccessor
           Handle<BackingStore>::cast(backing_store)->set_the_hole(i);
         }
       }
-      return length_object;
+      return length;
     }
 
     // Check whether the backing store should be expanded.
@@ -913,7 +908,7 @@ class FastElementsAccessor
     FastElementsAccessorSubclass::SetFastElementsCapacityAndLength(
         array, new_capacity, length);
     JSObject::ValidateElements(array);
-    return length_object;
+    return length;
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
@@ -1271,13 +1266,10 @@ class TypedElementsAccessor
     return PropertyDetails(DONT_DELETE, DATA, 0, PropertyCellType::kNoCell);
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
-      Handle<JSObject> obj,
-      Handle<Object> length,
-      Handle<FixedArrayBase> backing_store) {
+  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+                            Handle<FixedArrayBase> backing_store) {
     // External arrays do not support changing their length.
     UNREACHABLE();
-    return obj;
   }
 
   virtual void Delete(Handle<JSObject> obj, uint32_t key,
@@ -1327,20 +1319,35 @@ class DictionaryElementsAccessor
       : ElementsAccessorBase<DictionaryElementsAccessor,
                              ElementsKindTraits<DICTIONARY_ELEMENTS> >(name) {}
 
+  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+                            Handle<FixedArrayBase> backing_store) {
+    uint32_t new_length =
+        SetLengthWithoutNormalize(backing_store, array, length);
+    // SetLengthWithoutNormalize does not allow length to drop below the last
+    // non-deletable element.
+    DCHECK_GE(new_length, length);
+    if (new_length <= Smi::kMaxValue) {
+      array->set_length(Smi::FromInt(new_length));
+    } else {
+      Isolate* isolate = array->GetIsolate();
+      Handle<Object> length_obj =
+          isolate->factory()->NewNumberFromUint(new_length);
+      array->set_length(*length_obj);
+    }
+  }
+
   // Adjusts the length of the dictionary backing store and returns the new
   // length according to ES5 section 15.4.5.2 behavior.
-  static Handle<Object> SetLengthWithoutNormalize(
-      Handle<FixedArrayBase> store,
-      Handle<JSArray> array,
-      Handle<Object> length_object,
-      uint32_t length) {
+  static uint32_t SetLengthWithoutNormalize(Handle<FixedArrayBase> store,
+                                            Handle<JSArray> array,
+                                            uint32_t length) {
     Handle<SeededNumberDictionary> dict =
         Handle<SeededNumberDictionary>::cast(store);
     Isolate* isolate = array->GetIsolate();
     int capacity = dict->Capacity();
-    uint32_t new_length = length;
-    uint32_t old_length = static_cast<uint32_t>(array->length()->Number());
-    if (new_length < old_length) {
+    uint32_t old_length = 0;
+    CHECK(array->length()->ToArrayLength(&old_length));
+    if (length < old_length) {
       // Find last non-deletable element in range of elements to be
       // deleted and adjust range accordingly.
       for (int i = 0; i < capacity; i++) {
@@ -1348,18 +1355,15 @@ class DictionaryElementsAccessor
         Object* key = dict->KeyAt(i);
         if (key->IsNumber()) {
           uint32_t number = static_cast<uint32_t>(key->Number());
-          if (new_length <= number && number < old_length) {
+          if (length <= number && number < old_length) {
             PropertyDetails details = dict->DetailsAt(i);
-            if (!details.IsConfigurable()) new_length = number + 1;
+            if (!details.IsConfigurable()) length = number + 1;
           }
         }
       }
-      if (new_length != length) {
-        length_object = isolate->factory()->NewNumberFromUint(new_length);
-      }
     }
 
-    if (new_length == 0) {
+    if (length == 0) {
       // Flush the backing store.
       JSObject::ResetElements(array);
     } else {
@@ -1371,7 +1375,7 @@ class DictionaryElementsAccessor
         Object* key = dict->KeyAt(i);
         if (key->IsNumber()) {
           uint32_t number = static_cast<uint32_t>(key->Number());
-          if (new_length <= number && number < old_length) {
+          if (length <= number && number < old_length) {
             dict->SetEntry(i, the_hole_value, the_hole_value);
             removed_entries++;
           }
@@ -1381,7 +1385,7 @@ class DictionaryElementsAccessor
       // Update the number of elements.
       dict->ElementsRemoved(removed_entries);
     }
-    return length_object;
+    return length;
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
@@ -1566,14 +1570,10 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
-      Handle<JSObject> obj,
-      Handle<Object> length,
-      Handle<FixedArrayBase> parameter_map) {
-    // TODO(mstarzinger): This was never implemented but will be used once we
-    // correctly implement [[DefineOwnProperty]] on arrays.
-    UNIMPLEMENTED();
-    return obj;
+  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+                            Handle<FixedArrayBase> parameter_map) {
+    // Sloppy arguments objects are not arrays.
+    UNREACHABLE();
   }
 
   virtual void Delete(Handle<JSObject> obj, uint32_t key,
@@ -1704,52 +1704,26 @@ void ElementsAccessor::TearDown() {
 
 
 template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
-MUST_USE_RESULT MaybeHandle<Object> ElementsAccessorBase<
-    ElementsAccessorSubclass,
-    ElementsKindTraits>::SetLengthImpl(Handle<JSObject> obj,
-                                       Handle<Object> length_obj,
-                                       Handle<FixedArrayBase> backing_store) {
-  Handle<JSArray> array = Handle<JSArray>::cast(obj);
-
-  uint32_t length = 0;
-  CHECK(length_obj->ToArrayLength(&length));
-  // Fast case: length fits in a smi.
-  if (length <= Smi::kMaxValue) {
-    Handle<Smi> smi(Smi::FromInt(length), obj->GetIsolate());
-    Handle<Object> new_length =
-        ElementsAccessorSubclass::SetLengthWithoutNormalize(backing_store,
-                                                            array, smi, length);
-    DCHECK(!new_length.is_null());
-
-    // Even though the proposed length was a smi, new_length could
-    // still be a heap number because SetLengthWithoutNormalize doesn't
-    // allow the array length property to drop below the index of
-    // non-deletable elements.
-    DCHECK(new_length->IsSmi() || new_length->IsHeapNumber() ||
-           new_length->IsUndefined());
-    if (new_length->IsSmi()) {
-      array->set_length(*Handle<Smi>::cast(new_length));
-      return array;
-    } else if (new_length->IsHeapNumber()) {
-      array->set_length(*new_length);
-      return array;
-    }
+void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
+    SetLengthImpl(Handle<JSArray> array, uint32_t length,
+                  Handle<FixedArrayBase> backing_store) {
+  // Normalize if the length does not fit in a smi. Fast mode arrays only
+  // support smi length.
+  if (JSArray::SetLengthWouldNormalize(array->GetHeap(), length)) {
+    Handle<SeededNumberDictionary> dictionary =
+        JSObject::NormalizeElements(array);
+    DCHECK(!dictionary.is_null());
+    DictionaryElementsAccessor::SetLengthImpl(array, length, dictionary);
+  } else {
+#ifdef DEBUG
+    uint32_t max = Smi::kMaxValue;
+    DCHECK_LE(length, max);
+#endif
+    uint32_t new_length = ElementsAccessorSubclass::SetLengthWithoutNormalize(
+        backing_store, array, length);
+    DCHECK_EQ(length, new_length);
+    array->set_length(Smi::FromInt(new_length));
   }
-
-  // Slow case: The new length does not fit into a Smi or conversion
-  // to slow elements is needed for other reasons.
-  Handle<SeededNumberDictionary> dictionary =
-      JSObject::NormalizeElements(array);
-  DCHECK(!dictionary.is_null());
-
-  Handle<Object> new_length =
-      DictionaryElementsAccessor::SetLengthWithoutNormalize(dictionary, array,
-                                                            length_obj, length);
-  DCHECK(!new_length.is_null());
-
-  DCHECK(new_length->IsNumber());
-  array->set_length(*new_length);
-  return array;
 }
 
 
@@ -1776,15 +1750,14 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
         elements_kind = GetHoleyElementsKind(elements_kind);
         JSObject::TransitionElementsKind(array, elements_kind);
       }
-      return array;
     } else if (length == 0) {
       JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
-      return array;
+    } else {
+      // Take the argument as the length.
+      JSArray::Initialize(array, 0);
+      JSArray::SetLength(array, length);
     }
-
-    // Take the argument as the length.
-    JSArray::Initialize(array, 0);
-    return JSArray::SetElementsLength(array, args->at<Object>(0));
+    return array;
   }
 
   Factory* factory = array->GetIsolate()->factory();

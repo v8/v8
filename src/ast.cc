@@ -538,8 +538,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   }
 
   if (array_index != values()->length()) {
-    JSArray::SetElementsLength(
-        array, handle(Smi::FromInt(array_index), isolate)).Assert();
+    JSArray::SetLength(array, array_index);
   }
   Handle<FixedArrayBase> element_values(array->elements());
 

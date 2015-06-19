@@ -10193,15 +10193,15 @@ class JSArray: public JSObject {
 
   // If the JSArray has fast elements, and new_length would result in
   // normalization, returns true.
-  static inline bool SetElementsLengthWouldNormalize(
-      Heap* heap, Handle<Object> new_length_handle);
+  static inline bool SetLengthWouldNormalize(Heap* heap, uint32_t new_length);
 
   // Initializes the array to a certain length.
-  inline bool AllowsSetElementsLength();
-  // Can cause GC.
-  MUST_USE_RESULT static MaybeHandle<Object> SetElementsLength(
-      Handle<JSArray> array,
-      Handle<Object> length);
+  inline bool AllowsSetLength();
+
+  static void SetLength(Handle<JSArray> array, uint32_t length);
+  // Same as above but will also queue splice records if |array| is observed.
+  static MaybeHandle<Object> ObservableSetLength(Handle<JSArray> array,
+                                                 uint32_t length);
 
   // Set the content of the array to the content of storage.
   static inline void SetContent(Handle<JSArray> array,

@@ -785,7 +785,7 @@ TEST(JSArray) {
   JSArray::Initialize(array, 0);
 
   // Set array length to 0.
-  JSArray::SetElementsLength(array, handle(Smi::FromInt(0), isolate)).Check();
+  JSArray::SetLength(array, 0);
   CHECK_EQ(Smi::FromInt(0), array->length());
   // Must be in fast mode.
   CHECK(array->HasFastSmiOrObjectElements());
@@ -797,13 +797,11 @@ TEST(JSArray) {
   CHECK_EQ(*element, *name);
 
   // Set array length with larger than smi value.
-  Handle<Object> length =
-      factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  JSArray::SetElementsLength(array, length).Check();
+  JSArray::SetLength(array, static_cast<uint32_t>(Smi::kMaxValue) + 1);
 
   uint32_t int_length = 0;
-  CHECK(length->ToArrayIndex(&int_length));
-  CHECK_EQ(*length, array->length());
+  CHECK(array->length()->ToArrayIndex(&int_length));
+  CHECK_EQ(static_cast<uint32_t>(Smi::kMaxValue) + 1, int_length);
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.

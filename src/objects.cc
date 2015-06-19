@@ -11976,18 +11976,19 @@ static bool GetOldValue(Isolate* isolate,
   return true;
 }
 
-MaybeHandle<Object> JSArray::SetElementsLength(
-    Handle<JSArray> array,
-    Handle<Object> new_length_handle) {
-  if (array->HasFastElements() &&
-      SetElementsLengthWouldNormalize(array->GetHeap(), new_length_handle)) {
-    NormalizeElements(array);
-  }
 
+void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   // We should never end in here with a pixel or external array.
-  DCHECK(array->AllowsSetElementsLength());
+  DCHECK(array->AllowsSetLength());
+  array->GetElementsAccessor()->SetLength(array, new_length);
+}
+
+
+MaybeHandle<Object> JSArray::ObservableSetLength(Handle<JSArray> array,
+                                                 uint32_t new_length) {
   if (!array->map()->is_observed()) {
-    return array->GetElementsAccessor()->SetLength(array, new_length_handle);
+    SetLength(array, new_length);
+    return array;
   }
 
   Isolate* isolate = array->GetIsolate();
@@ -11996,8 +11997,6 @@ MaybeHandle<Object> JSArray::SetElementsLength(
   Handle<Object> old_length_handle(array->length(), isolate);
   uint32_t old_length = 0;
   CHECK(old_length_handle->ToArrayLength(&old_length));
-  uint32_t new_length = 0;
-  CHECK(new_length_handle->ToArrayLength(&new_length));
 
   static const PropertyAttributes kNoAttrFilter = NONE;
   int num_elements = array->NumberOfOwnElements(kNoAttrFilter);
@@ -12021,14 +12020,10 @@ MaybeHandle<Object> JSArray::SetElementsLength(
     }
   }
 
-  Handle<Object> hresult;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, hresult,
-      array->GetElementsAccessor()->SetLength(array, new_length_handle),
-      Object);
+  SetLength(array, new_length);
 
   CHECK(array->length()->ToArrayLength(&new_length));
-  if (old_length == new_length) return hresult;
+  if (old_length == new_length) return array;
 
   RETURN_ON_EXCEPTION(isolate, BeginPerformSplice(array), Object);
 
@@ -12043,6 +12038,7 @@ MaybeHandle<Object> JSArray::SetElementsLength(
             old_values[i]),
         Object);
   }
+
   RETURN_ON_EXCEPTION(isolate,
                       JSObject::EnqueueChangeRecord(
                           array, "update", isolate->factory()->length_string(),
@@ -12064,15 +12060,13 @@ MaybeHandle<Object> JSArray::SetElementsLength(
           .Assert();
     }
 
-    ElementsAccessor* accessor = deleted->GetElementsAccessor();
-    accessor->SetLength(deleted, isolate->factory()->NewNumberFromUint(
-                                     delete_count)).Check();
+    JSArray::SetLength(deleted, delete_count);
   }
 
   RETURN_ON_EXCEPTION(
       isolate, EnqueueSpliceRecord(array, index, deleted, add_count), Object);
 
-  return hresult;
+  return array;
 }
 
 

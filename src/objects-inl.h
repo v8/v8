@@ -6970,18 +6970,16 @@ void JSArray::set_length(Smi* length) {
 }
 
 
-bool JSArray::SetElementsLengthWouldNormalize(
-    Heap* heap, Handle<Object> new_length_handle) {
+bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
   // If the new array won't fit in a some non-trivial fraction of the max old
   // space size, then force it to go dictionary mode.
-  int max_fast_array_size =
-      static_cast<int>((heap->MaxOldGenerationSize() / kDoubleSize) / 4);
-  return new_length_handle->IsNumber() &&
-         NumberToInt32(*new_length_handle) >= max_fast_array_size;
+  uint32_t max_fast_array_size =
+      static_cast<uint32_t>((heap->MaxOldGenerationSize() / kDoubleSize) / 4);
+  return new_length >= max_fast_array_size;
 }
 
 
-bool JSArray::AllowsSetElementsLength() {
+bool JSArray::AllowsSetLength() {
   bool result = elements()->IsFixedArray() || elements()->IsFixedDoubleArray();
   DCHECK(result == !HasExternalArrayElements());
   return result;
