@@ -191,7 +191,6 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
       for (int i = 0; i < fixed_array_values->length(); i++) {
-        HandleScope scope(isolate);
         if (fixed_array_values->get(i)->IsFixedArray()) {
           // The value contains the constant_properties of a
           // simple object or array literal.

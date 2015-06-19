@@ -208,8 +208,6 @@ class HandleScope {
 
   Isolate* isolate() { return isolate_; }
 
-  static const int kCheckHandleThreshold = 16 * 1024;
-
  private:
   // Prevent heap allocation or illegal handle scopes.
   HandleScope(const HandleScope&);
