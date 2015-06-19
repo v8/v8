@@ -445,8 +445,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(oldobj, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(newobj, 3);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -472,8 +472,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -500,8 +500,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -528,8 +528,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -558,8 +558,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -588,8 +588,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -618,8 +618,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -648,8 +648,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
@@ -678,8 +678,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  DCHECK(sta->GetBuffer()->is_shared());
-  DCHECK(index < NumberToSize(isolate, sta->length()));
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
   void* buffer = sta->GetBuffer()->backing_store();
 
