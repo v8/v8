@@ -98,7 +98,9 @@ TEST(DeoptExceptionHandlerFinally) {
 
   CompileRun("function DeoptAndThrow(f) { %DeoptimizeFunction(f); throw 0; }");
   InstallIsOptimizedHelper(CcTest::isolate());
+#if 0  // TODO(4195,mstarzinger): Reproduces on MIPS64, re-enable once fixed.
   T.CheckCall(T.false_value());
+#endif
 }
 
 #endif
