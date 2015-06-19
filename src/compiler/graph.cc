@@ -51,6 +51,14 @@ Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
 }
 
 
+Node* Graph::CloneNode(const Node* node) {
+  DCHECK_NOT_NULL(node);
+  Node* const clone = Node::Clone(zone(), NextNodeId(), node);
+  Decorate(clone);
+  return clone;
+}
+
+
 NodeId Graph::NextNodeId() {
   NodeId const id = next_node_id_;
   CHECK(!base::bits::UnsignedAddOverflow32(id, 1, &next_node_id_));

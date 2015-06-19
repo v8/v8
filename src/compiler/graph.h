@@ -80,6 +80,9 @@ class Graph : public ZoneObject {
     return NewNode(op, arraysize(nodes), nodes);
   }
 
+  // Clone the {node}, and assign a new node id to the copy.
+  Node* CloneNode(const Node* node);
+
   template <class Visitor>
   inline void VisitNodeInputsFromEnd(Visitor* visitor);
 

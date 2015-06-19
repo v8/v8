@@ -50,7 +50,7 @@ void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
 
 
 Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
-                Node** inputs, bool has_extensible_inputs) {
+                Node* const* inputs, bool has_extensible_inputs) {
   Node** input_ptr;
   Use* use_ptr;
   Node* node;
@@ -103,6 +103,17 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
   }
   node->Verify();
   return node;
+}
+
+
+Node* Node::Clone(Zone* zone, NodeId id, const Node* node) {
+  int const input_count = node->InputCount();
+  Node* const* const inputs = node->has_inline_inputs()
+                                  ? node->inputs_.inline_
+                                  : node->inputs_.outline_->inputs_;
+  Node* const clone = New(zone, id, node->op(), input_count, inputs, false);
+  clone->set_bounds(node->bounds());
+  return clone;
 }
 
 
