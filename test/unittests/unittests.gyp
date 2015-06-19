@@ -44,7 +44,7 @@
         'compiler/compiler-test-utils.h',
         'compiler/control-equivalence-unittest.cc',
         'compiler/control-flow-optimizer-unittest.cc',
-        'compiler/control-reducer-unittest.cc',
+        'compiler/dead-code-elimination-unittest.cc',
         'compiler/diamond-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
         'compiler/graph-reducer-unittest.h',

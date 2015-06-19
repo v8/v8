@@ -33,6 +33,8 @@ class CommonOperatorReducer final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceBranch(Node* node);
+  Reduction ReduceMerge(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceSelect(Node* node);

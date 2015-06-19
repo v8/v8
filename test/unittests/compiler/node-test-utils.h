@@ -36,6 +36,7 @@ class Node;
 using ::testing::Matcher;
 
 
+Matcher<Node*> IsDead();
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher);
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
                      const Matcher<Node*>& control1_matcher);

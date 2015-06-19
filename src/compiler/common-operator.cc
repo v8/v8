@@ -116,9 +116,7 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 
 #define CACHED_OP_LIST(V)                                  \
-  V(DeadValue, Operator::kPure, 0, 0, 0, 1, 0, 0)          \
-  V(DeadEffect, Operator::kPure, 0, 0, 0, 0, 1, 0)         \
-  V(DeadControl, Operator::kFoldable, 0, 0, 0, 0, 0, 1)    \
+  V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)           \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \

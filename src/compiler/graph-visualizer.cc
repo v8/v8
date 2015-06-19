@@ -256,7 +256,7 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
   os_ << "    shape=\"record\"\n";
   switch (node->opcode()) {
     case IrOpcode::kEnd:
-    case IrOpcode::kDeadControl:
+    case IrOpcode::kDead:
     case IrOpcode::kStart:
       os_ << "    style=\"diagonals\"\n";
       break;

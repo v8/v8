@@ -32,7 +32,7 @@ class NodePropertiesTest : public TestWithZone {
 
 namespace {
 
-const Operator kMockOperator(IrOpcode::kDeadControl, Operator::kNoProperties,
+const Operator kMockOperator(IrOpcode::kDead, Operator::kNoProperties,
                              "MockOperator", 0, 0, 0, 1, 1, 2);
 const Operator kMockCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                                  "MockCallOperator", 0, 0, 0, 0, 0, 2);

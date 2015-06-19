@@ -26,7 +26,6 @@
   V(Terminate)             \
   V(OsrNormalEntry)        \
   V(OsrLoopEntry)          \
-  V(DeadControl)           \
   V(Throw)                 \
   V(End)
 
@@ -58,9 +57,7 @@
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
   INNER_OP_LIST(V)        \
-  V(DeadEffect)           \
-  V(DeadValue)
-
+  V(Dead)
 
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
@@ -321,7 +318,7 @@ class IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kStart <= value && value <= kDeadValue;
+    return kStart <= value && value <= kDead;
   }
 
   // Returns true if opcode for control operator.

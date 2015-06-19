@@ -117,7 +117,7 @@ int OperatorProperties::GetTotalInputCount(const Operator* op) {
 bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
   Operator::Opcode const opcode = op->opcode();
   return opcode == IrOpcode::kStart || opcode == IrOpcode::kEnd ||
-         opcode == IrOpcode::kDeadControl || opcode == IrOpcode::kLoop ||
+         opcode == IrOpcode::kDead || opcode == IrOpcode::kLoop ||
          opcode == IrOpcode::kMerge || opcode == IrOpcode::kIfTrue ||
          opcode == IrOpcode::kIfFalse || opcode == IrOpcode::kIfSuccess ||
          opcode == IrOpcode::kIfException || opcode == IrOpcode::kIfValue ||

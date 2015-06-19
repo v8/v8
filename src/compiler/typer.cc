@@ -268,7 +268,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Terminate)
       DECLARE_CASE(OsrNormalEntry)
       DECLARE_CASE(OsrLoopEntry)
-      DECLARE_CASE(DeadControl)
       DECLARE_CASE(Throw)
       DECLARE_CASE(End)
 #undef DECLARE_CASE
@@ -313,7 +312,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Terminate)
       DECLARE_CASE(OsrNormalEntry)
       DECLARE_CASE(OsrLoopEntry)
-      DECLARE_CASE(DeadControl)
       DECLARE_CASE(Throw)
       DECLARE_CASE(End)
 #undef DECLARE_CASE
@@ -742,17 +740,6 @@ Bounds Typer::Visitor::TypeFinish(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeDeadValue(Node* node) {
-  return Bounds(Type::None(zone()), Type::Any(zone()));
-}
-
-
-Bounds Typer::Visitor::TypeDeadEffect(Node* node) {
-  UNREACHABLE();
-  return Bounds();
-}
-
-
 Bounds Typer::Visitor::TypeFrameState(Node* node) {
   // TODO(rossberg): Ideally FrameState wouldn't have a value output.
   return Bounds(Type::None(zone()), Type::Internal(zone()));
@@ -776,6 +763,11 @@ Bounds Typer::Visitor::TypeCall(Node* node) {
 
 Bounds Typer::Visitor::TypeProjection(Node* node) {
   // TODO(titzer): use the output type of the input to determine the bounds.
+  return Bounds::Unbounded(zone());
+}
+
+
+Bounds Typer::Visitor::TypeDead(Node* node) {
   return Bounds::Unbounded(zone());
 }
 

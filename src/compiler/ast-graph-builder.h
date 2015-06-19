@@ -485,11 +485,11 @@ class AstGraphBuilder::Environment : public ZoneObject {
 
   // Mark this environment as being unreachable.
   void MarkAsUnreachable() {
-    UpdateControlDependency(builder()->jsgraph()->DeadControl());
+    UpdateControlDependency(builder()->jsgraph()->Dead());
     liveness_block_ = nullptr;
   }
   bool IsMarkedAsUnreachable() {
-    return GetControlDependency()->opcode() == IrOpcode::kDeadControl;
+    return GetControlDependency()->opcode() == IrOpcode::kDead;
   }
 
   // Merge another environment into this one.

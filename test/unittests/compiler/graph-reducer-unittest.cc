@@ -275,11 +275,11 @@ struct ReplaceWithValueReducer final : public AdvancedReducer {
   using AdvancedReducer::ReplaceWithValue;
 };
 
-const Operator kMockOperator(IrOpcode::kDeadControl, Operator::kNoProperties,
+const Operator kMockOperator(IrOpcode::kDead, Operator::kNoProperties,
                              "MockOperator", 0, 0, 0, 1, 0, 0);
-const Operator kMockOpEffect(IrOpcode::kDeadControl, Operator::kNoProperties,
+const Operator kMockOpEffect(IrOpcode::kDead, Operator::kNoProperties,
                              "MockOpEffect", 0, 1, 0, 1, 1, 0);
-const Operator kMockOpControl(IrOpcode::kDeadControl, Operator::kNoProperties,
+const Operator kMockOpControl(IrOpcode::kDead, Operator::kNoProperties,
                               "MockOpControl", 0, 0, 1, 1, 0, 1);
 
 const IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;

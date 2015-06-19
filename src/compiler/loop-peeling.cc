@@ -212,7 +212,7 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
       5 + (loop->TotalSize() + exits.size() + rets.size()) * 2;
   Peeling peeling(graph, tmp_zone, estimated_peeled_size, &iter->node_pairs_);
 
-  Node* dead = graph->NewNode(common->DeadControl());
+  Node* dead = graph->NewNode(common->Dead());
 
   // Map the loop header nodes to their entry values.
   for (Node* node : loop_tree->HeaderNodes(loop)) {

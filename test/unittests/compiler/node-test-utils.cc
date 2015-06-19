@@ -1378,6 +1378,11 @@ class IsUnopMatcher final : public NodeMatcher {
 }  // namespace
 
 
+Matcher<Node*> IsDead() {
+  return MakeMatcher(new NodeMatcher(IrOpcode::kDead));
+}
+
+
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher) {
   return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control0_matcher));
 }

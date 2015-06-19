@@ -4,7 +4,6 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/common-operator-reducer.h"
-#include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/machine-type.h"
 #include "src/compiler/operator.h"
@@ -28,7 +27,6 @@ class CommonOperatorReducerTest : public GraphTest {
   Reduction Reduce(
       AdvancedReducer::Editor* editor, Node* node,
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
-    JSOperatorBuilder javascript(zone());
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
     CommonOperatorReducer reducer(editor, graph(), common(), &machine);
     return reducer.Reduce(node);
@@ -63,6 +61,144 @@ const MachineType kMachineTypes[] = {
 const Operator kOp0(0, Operator::kNoProperties, "Op0", 0, 0, 0, 1, 1, 0);
 
 }  // namespace
+
+
+// -----------------------------------------------------------------------------
+// Branch
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithInt32ZeroConstant) {
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch =
+        graph()->NewNode(common()->Branch(hint), Int32Constant(0), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, Replace(if_true, IsDead()));
+    EXPECT_CALL(editor, Replace(if_false, control));
+    Reduction const r = Reduce(&editor, branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithInt32OneConstant) {
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch =
+        graph()->NewNode(common()->Branch(hint), Int32Constant(1), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, Replace(if_true, control));
+    EXPECT_CALL(editor, Replace(if_false, IsDead()));
+    Reduction const r = Reduce(&editor, branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithInt64ZeroConstant) {
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch =
+        graph()->NewNode(common()->Branch(hint), Int64Constant(0), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, Replace(if_true, IsDead()));
+    EXPECT_CALL(editor, Replace(if_false, control));
+    Reduction const r = Reduce(&editor, branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithInt64OneConstant) {
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch =
+        graph()->NewNode(common()->Branch(hint), Int64Constant(1), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, Replace(if_true, control));
+    EXPECT_CALL(editor, Replace(if_false, IsDead()));
+    Reduction const r = Reduce(&editor, branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithFalseConstant) {
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch =
+        graph()->NewNode(common()->Branch(hint), FalseConstant(), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, Replace(if_true, IsDead()));
+    EXPECT_CALL(editor, Replace(if_false, control));
+    Reduction const r = Reduce(&editor, branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithTrueConstant) {
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch =
+        graph()->NewNode(common()->Branch(hint), TrueConstant(), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, Replace(if_true, control));
+    EXPECT_CALL(editor, Replace(if_false, IsDead()));
+    Reduction const r = Reduce(&editor, branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Merge
+
+
+TEST_F(CommonOperatorReducerTest, MergeOfUnusedDiamond0) {
+  Node* const value = Parameter(0);
+  Node* const control = graph()->start();
+  Node* const branch = graph()->NewNode(common()->Branch(), value, control);
+  Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Reduction const r =
+      Reduce(graph()->NewNode(common()->Merge(2), if_true, if_false));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(control, r.replacement());
+  EXPECT_THAT(branch, IsDead());
+}
+
+
+TEST_F(CommonOperatorReducerTest, MergeOfUnusedDiamond1) {
+  Node* const value = Parameter(0);
+  Node* const control = graph()->start();
+  Node* const branch = graph()->NewNode(common()->Branch(), value, control);
+  Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Reduction const r =
+      Reduce(graph()->NewNode(common()->Merge(2), if_false, if_true));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(control, r.replacement());
+  EXPECT_THAT(branch, IsDead());
+}
 
 
 // -----------------------------------------------------------------------------
@@ -280,6 +416,50 @@ TEST_F(CommonOperatorReducerTest, SelectWithSameThenAndElse) {
       EXPECT_EQ(input, r.replacement());
     }
   }
+}
+
+
+TEST_F(CommonOperatorReducerTest, SelectWithInt32ZeroConstant) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* select = graph()->NewNode(common()->Select(kMachAnyTagged),
+                                  Int32Constant(0), p0, p1);
+  Reduction r = Reduce(select);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p1, r.replacement());
+}
+
+
+TEST_F(CommonOperatorReducerTest, SelectWithInt32OneConstant) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* select = graph()->NewNode(common()->Select(kMachAnyTagged),
+                                  Int32Constant(1), p0, p1);
+  Reduction r = Reduce(select);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p0, r.replacement());
+}
+
+
+TEST_F(CommonOperatorReducerTest, SelectWithInt64ZeroConstant) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* select = graph()->NewNode(common()->Select(kMachAnyTagged),
+                                  Int64Constant(0), p0, p1);
+  Reduction r = Reduce(select);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p1, r.replacement());
+}
+
+
+TEST_F(CommonOperatorReducerTest, SelectWithInt64OneConstant) {
+  Node* p0 = Parameter(0);
+  Node* p1 = Parameter(1);
+  Node* select = graph()->NewNode(common()->Select(kMachAnyTagged),
+                                  Int64Constant(1), p0, p1);
+  Reduction r = Reduce(select);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p0, r.replacement());
 }
 
 

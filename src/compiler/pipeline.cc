@@ -16,7 +16,7 @@
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
-#include "src/compiler/control-reducer.h"
+#include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/frame-elider.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
@@ -407,8 +407,8 @@ class SourcePositionWrapper final : public Reducer {
 class JSGraphReducer final : public GraphReducer {
  public:
   JSGraphReducer(JSGraph* jsgraph, Zone* zone)
-      : GraphReducer(zone, jsgraph->graph(), jsgraph->DeadValue(),
-                     jsgraph->DeadControl()) {}
+      : GraphReducer(zone, jsgraph->graph(), jsgraph->TheHoleConstant(),
+                     jsgraph->Dead()) {}
   ~JSGraphReducer() final {}
 };
 
@@ -640,7 +640,13 @@ struct ChangeLoweringPhase {
 struct EarlyControlReductionPhase {
   static const char* phase_name() { return "early control reduction"; }
   void Run(PipelineData* data, Zone* temp_zone) {
-    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), 0);
+    GraphReducer graph_reducer(temp_zone, data->graph());
+    DeadCodeElimination dce(&graph_reducer, data->graph(), data->common());
+    CommonOperatorReducer common(&graph_reducer, data->graph(), data->common(),
+                                 data->machine());
+    graph_reducer.AddReducer(&dce);
+    graph_reducer.AddReducer(&common);
+    graph_reducer.ReduceGraph();
   }
 };
 
@@ -648,7 +654,13 @@ struct EarlyControlReductionPhase {
 struct LateControlReductionPhase {
   static const char* phase_name() { return "late control reduction"; }
   void Run(PipelineData* data, Zone* temp_zone) {
-    ControlReducer::ReduceGraph(temp_zone, data->jsgraph(), 0);
+    GraphReducer graph_reducer(temp_zone, data->graph());
+    DeadCodeElimination dce(&graph_reducer, data->graph(), data->common());
+    CommonOperatorReducer common(&graph_reducer, data->graph(), data->common(),
+                                 data->machine());
+    graph_reducer.AddReducer(&dce);
+    graph_reducer.AddReducer(&common);
+    graph_reducer.ReduceGraph();
   }
 };
 

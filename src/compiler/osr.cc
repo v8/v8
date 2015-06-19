@@ -5,9 +5,11 @@
 #include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/control-reducer.h"
+#include "src/compiler/common-operator-reducer.h"
+#include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-graph.h"
@@ -317,7 +319,7 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   // Analyze the graph to determine how deeply nested the OSR loop is.
   LoopTree* loop_tree = LoopFinder::BuildLoopTree(graph, tmp_zone);
 
-  Node* dead = jsgraph->DeadControl();
+  Node* dead = jsgraph->Dead();
   LoopTree::Loop* loop = loop_tree->ContainingLoop(osr_loop);
   if (loop->depth() > 0) {
     PeelOuterLoopsForOsr(graph, common, tmp_zone, dead, loop_tree, loop,
@@ -331,16 +333,28 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   osr_loop_entry->ReplaceUses(graph->start());
   osr_loop_entry->Kill();
 
-  // Normally the control reducer removes loops whose first input is dead,
-  // but we need to avoid that because the osr_loop is reachable through
-  // the second input, so reduce it and its phis manually.
-  osr_loop->ReplaceInput(0, dead);
-  Node* node = ControlReducer::ReduceMerge(jsgraph, osr_loop);
-  if (node != osr_loop) osr_loop->ReplaceUses(node);
+  // Remove the first input to the {osr_loop}.
+  int const live_input_count = osr_loop->InputCount() - 1;
+  CHECK_NE(0, live_input_count);
+  for (Node* const use : osr_loop->uses()) {
+    if (NodeProperties::IsPhi(use)) {
+      use->set_op(common->ResizeMergeOrPhi(use->op(), live_input_count));
+      use->RemoveInput(0);
+    }
+  }
+  osr_loop->set_op(common->ResizeMergeOrPhi(osr_loop->op(), live_input_count));
+  osr_loop->RemoveInput(0);
 
   // Run control reduction and graph trimming.
-  ControlReducer::ReduceGraph(tmp_zone, jsgraph);
-  GraphTrimmer trimmer(tmp_zone, jsgraph->graph());
+  // TODO(bmeurer): The OSR deconstruction could be a regular reducer and play
+  // nice together with the rest, instead of having this custom stuff here.
+  GraphReducer graph_reducer(tmp_zone, graph);
+  DeadCodeElimination dce(&graph_reducer, graph, common);
+  CommonOperatorReducer cor(&graph_reducer, graph, common, jsgraph->machine());
+  graph_reducer.AddReducer(&dce);
+  graph_reducer.AddReducer(&cor);
+  graph_reducer.ReduceGraph();
+  GraphTrimmer trimmer(tmp_zone, graph);
   NodeVector roots(tmp_zone);
   jsgraph->GetCachedNodes(&roots);
   trimmer.TrimGraph(roots.begin(), roots.end());
