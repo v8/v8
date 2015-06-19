@@ -11978,6 +11978,9 @@ static bool GetOldValue(Isolate* isolate,
 void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   // We should never end in here with a pixel or external array.
   DCHECK(array->AllowsSetLength());
+  if (JSArray::SetLengthWouldNormalize(array->GetHeap(), new_length)) {
+    JSObject::NormalizeElements(array);
+  }
   array->GetElementsAccessor()->SetLength(array, new_length);
 }
 

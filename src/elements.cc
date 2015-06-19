@@ -862,55 +862,6 @@ class FastElementsAccessor
 
   typedef typename KindTraits::BackingStore BackingStore;
 
-  // Adjusts the length of the fast backing store.
-  static uint32_t SetLengthWithoutNormalize(
-      Handle<FixedArrayBase> backing_store, Handle<JSArray> array,
-      uint32_t length) {
-    Isolate* isolate = array->GetIsolate();
-    uint32_t old_capacity = backing_store->length();
-    Handle<Object> old_length(array->length(), isolate);
-    bool same_or_smaller_size = old_length->IsSmi() &&
-        static_cast<uint32_t>(Handle<Smi>::cast(old_length)->value()) >= length;
-    ElementsKind kind = array->GetElementsKind();
-
-    if (!same_or_smaller_size && IsFastElementsKind(kind) &&
-        !IsFastHoleyElementsKind(kind)) {
-      kind = GetHoleyElementsKind(kind);
-      JSObject::TransitionElementsKind(array, kind);
-    }
-
-    // Check whether the backing store should be shrunk.
-    if (length <= old_capacity) {
-      if (array->HasFastSmiOrObjectElements()) {
-        backing_store = JSObject::EnsureWritableFastElements(array);
-      }
-      if (2 * length <= old_capacity) {
-        // If more than half the elements won't be used, trim the array.
-        if (length == 0) {
-          array->initialize_elements();
-        } else {
-          isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
-              *backing_store, old_capacity - length);
-        }
-      } else {
-        // Otherwise, fill the unused tail with holes.
-        int old_length = FastD2IChecked(array->length()->Number());
-        for (int i = length; i < old_length; i++) {
-          Handle<BackingStore>::cast(backing_store)->set_the_hole(i);
-        }
-      }
-      return length;
-    }
-
-    // Check whether the backing store should be expanded.
-    uint32_t min = JSObject::NewElementsCapacity(old_capacity);
-    uint32_t new_capacity = length > min ? length : min;
-    FastElementsAccessorSubclass::SetFastElementsCapacityAndLength(
-        array, new_capacity, length);
-    JSObject::ValidateElements(array);
-    return length;
-  }
-
   static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
                            LanguageMode language_mode) {
     DCHECK(obj->HasFastSmiOrObjectElements() ||
@@ -1321,33 +1272,13 @@ class DictionaryElementsAccessor
 
   static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
                             Handle<FixedArrayBase> backing_store) {
-    uint32_t new_length =
-        SetLengthWithoutNormalize(backing_store, array, length);
-    // SetLengthWithoutNormalize does not allow length to drop below the last
-    // non-deletable element.
-    DCHECK_GE(new_length, length);
-    if (new_length <= Smi::kMaxValue) {
-      array->set_length(Smi::FromInt(new_length));
-    } else {
-      Isolate* isolate = array->GetIsolate();
-      Handle<Object> length_obj =
-          isolate->factory()->NewNumberFromUint(new_length);
-      array->set_length(*length_obj);
-    }
-  }
-
-  // Adjusts the length of the dictionary backing store and returns the new
-  // length according to ES5 section 15.4.5.2 behavior.
-  static uint32_t SetLengthWithoutNormalize(Handle<FixedArrayBase> store,
-                                            Handle<JSArray> array,
-                                            uint32_t length) {
     Handle<SeededNumberDictionary> dict =
-        Handle<SeededNumberDictionary>::cast(store);
+        Handle<SeededNumberDictionary>::cast(backing_store);
     Isolate* isolate = array->GetIsolate();
     int capacity = dict->Capacity();
     uint32_t old_length = 0;
     CHECK(array->length()->ToArrayLength(&old_length));
-    if (length < old_length) {
+    if (dict->requires_slow_elements() && length < old_length) {
       // Find last non-deletable element in range of elements to be
       // deleted and adjust range accordingly.
       for (int i = 0; i < capacity; i++) {
@@ -1385,7 +1316,14 @@ class DictionaryElementsAccessor
       // Update the number of elements.
       dict->ElementsRemoved(removed_entries);
     }
-    return length;
+
+    if (length <= Smi::kMaxValue) {
+      array->set_length(Smi::FromInt(length));
+    } else {
+      Isolate* isolate = array->GetIsolate();
+      Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
+      array->set_length(*length_obj);
+    }
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
@@ -1707,23 +1645,46 @@ template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
 void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
     SetLengthImpl(Handle<JSArray> array, uint32_t length,
                   Handle<FixedArrayBase> backing_store) {
-  // Normalize if the length does not fit in a smi. Fast mode arrays only
-  // support smi length.
-  if (JSArray::SetLengthWouldNormalize(array->GetHeap(), length)) {
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(array);
-    DCHECK(!dictionary.is_null());
-    DictionaryElementsAccessor::SetLengthImpl(array, length, dictionary);
-  } else {
-#ifdef DEBUG
-    uint32_t max = Smi::kMaxValue;
-    DCHECK_LE(length, max);
-#endif
-    uint32_t new_length = ElementsAccessorSubclass::SetLengthWithoutNormalize(
-        backing_store, array, length);
-    DCHECK_EQ(length, new_length);
-    array->set_length(Smi::FromInt(new_length));
+  DCHECK(!JSArray::SetLengthWouldNormalize(array->GetHeap(), length));
+  DCHECK(IsFastElementsKind(array->GetElementsKind()));
+  uint32_t old_length = 0;
+  CHECK(array->length()->ToArrayIndex(&old_length));
+
+  if (old_length < length) {
+    ElementsKind kind = array->GetElementsKind();
+    if (!IsFastHoleyElementsKind(kind)) {
+      kind = GetHoleyElementsKind(kind);
+      JSObject::TransitionElementsKind(array, kind);
+    }
   }
+
+  // Check whether the backing store should be shrunk.
+  uint32_t capacity = backing_store->length();
+  if (length == 0) {
+    array->initialize_elements();
+  } else if (length <= capacity) {
+    if (array->HasFastSmiOrObjectElements()) {
+      backing_store = JSObject::EnsureWritableFastElements(array);
+    }
+    if (2 * length <= capacity) {
+      // If more than half the elements won't be used, trim the array.
+      array->GetHeap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
+          *backing_store, capacity - length);
+    } else {
+      // Otherwise, fill the unused tail with holes.
+      for (uint32_t i = length; i < old_length; i++) {
+        BackingStore::cast(*backing_store)->set_the_hole(i);
+      }
+    }
+  } else {
+    // Check whether the backing store should be expanded.
+    capacity = Max(length, JSObject::NewElementsCapacity(capacity));
+    ElementsAccessorSubclass::SetFastElementsCapacityAndLength(array, capacity,
+                                                               length);
+  }
+
+  array->set_length(Smi::FromInt(length));
+  JSObject::ValidateElements(array);
 }
 
 

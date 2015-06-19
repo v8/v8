@@ -2037,7 +2037,7 @@ class JSObject: public JSReceiver {
   bool ShouldConvertToFastDoubleElements(bool* has_smi_only_elements);
 
   // Computes the new capacity when expanding the elements of a JSObject.
-  static int NewElementsCapacity(int old_capacity) {
+  static uint32_t NewElementsCapacity(uint32_t old_capacity) {
     // (old_capacity + 50%) + 16
     return old_capacity + (old_capacity >> 1) + 16;
   }
