@@ -12,13 +12,13 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "00af1a4e512477e48ba3d5efc97adbc95462685e",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "fa660d47fa1a6c649d5c29e001348447c55709e6",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "ecc8e253abac3b6186a97573871a084f4c0ca3ae",
   "v8/testing/gtest":
     Var("git_url") + "/external/googletest.git" + "@" + "23574bf2333f834ff665f894c97bef8a5b33a0a9",
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "29763965ab52f24565299976b936d1265cb6a271",  # from svn revision 501
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "d2b4eddd701ff0265124147bcb0a65f32273f06b",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "73ec8804ed395b0886d6edf82a9f33583f4a7902",
 }
 
 deps_os = {
