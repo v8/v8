@@ -154,9 +154,6 @@
 
   # BUG(v8:3434).
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
-
-  # BUG(v8:4200).
-  'test-spaces/SizeOfFirstPageIsLargeEnough': [PASS, FAIL],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
