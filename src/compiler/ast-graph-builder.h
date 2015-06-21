@@ -269,7 +269,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,
-                                Token::Value op, BailoutId bailout_id,
+                                Token::Value op,
+                                const ResolvedFeedbackSlot& slot,
+                                BailoutId bailout_id,
                                 FrameStateBeforeAndAfter& states,
                                 OutputFrameStateCombine framestate_combine =
                                     OutputFrameStateCombine::Ignore());
@@ -288,8 +290,10 @@ class AstGraphBuilder : public AstVisitor {
                        const ResolvedFeedbackSlot& feedback,
                        ContextualMode mode = NOT_CONTEXTUAL);
   Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
+                        const ResolvedFeedbackSlot& feedback,
                         TypeFeedbackId id);
   Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value,
+                        const ResolvedFeedbackSlot& feedback,
                         TypeFeedbackId id);
 
   // Builders for super property loads and stores.
@@ -321,7 +325,8 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.
-  Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr);
+  Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr,
+                           const ResolvedFeedbackSlot& slot);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
@@ -387,6 +392,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value,
+                            const ResolvedFeedbackSlot& slot,
                             BailoutId bailout_id);
 
   // Dispatched from VisitClassLiteral.

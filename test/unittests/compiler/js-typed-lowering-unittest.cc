@@ -739,8 +739,10 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
-                                    base, key, value, context);
+      ResolvedFeedbackSlot slot;
+      Node* node =
+          graph()->NewNode(javascript()->StoreProperty(language_mode, slot),
+                           base, key, value, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
         node->AppendInput(zone(), EmptyFrameState());
@@ -785,8 +787,10 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
-                                    base, key, value, context);
+      ResolvedFeedbackSlot slot;
+      Node* node =
+          graph()->NewNode(javascript()->StoreProperty(language_mode, slot),
+                           base, key, value, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
         node->AppendInput(zone(), EmptyFrameState());
@@ -844,8 +848,10 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
-                                    base, key, value, context);
+      ResolvedFeedbackSlot slot;
+      Node* node =
+          graph()->NewNode(javascript()->StoreProperty(language_mode, slot),
+                           base, key, value, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
         node->AppendInput(zone(), EmptyFrameState());

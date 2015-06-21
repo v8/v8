@@ -274,15 +274,19 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 // used as a parameter by JSStoreNamed operators.
 class StoreNamedParameters final {
  public:
-  StoreNamedParameters(LanguageMode language_mode, const Unique<Name>& name)
-      : language_mode_(language_mode), name_(name) {}
+  StoreNamedParameters(LanguageMode language_mode,
+                       const ResolvedFeedbackSlot& feedback,
+                       const Unique<Name>& name)
+      : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
+  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
   const Unique<Name>& name() const { return name_; }
 
  private:
   const LanguageMode language_mode_;
   const Unique<Name> name_;
+  const ResolvedFeedbackSlot feedback_;
 };
 
 bool operator==(StoreNamedParameters const&, StoreNamedParameters const&);
@@ -293,6 +297,32 @@ size_t hash_value(StoreNamedParameters const&);
 std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
 
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
+
+
+// Defines the property being stored to an object. This is used as a parameter
+// by JSStoreProperty operators.
+class StorePropertyParameters final {
+ public:
+  StorePropertyParameters(LanguageMode language_mode,
+                          const ResolvedFeedbackSlot& feedback)
+      : language_mode_(language_mode), feedback_(feedback) {}
+
+  LanguageMode language_mode() const { return language_mode_; }
+  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
+
+ private:
+  const LanguageMode language_mode_;
+  const ResolvedFeedbackSlot feedback_;
+};
+
+bool operator==(StorePropertyParameters const&, StorePropertyParameters const&);
+bool operator!=(StorePropertyParameters const&, StorePropertyParameters const&);
+
+size_t hash_value(StorePropertyParameters const&);
+
+std::ostream& operator<<(std::ostream&, StorePropertyParameters const&);
+
+const StorePropertyParameters& StorePropertyParametersOf(const Operator* op);
 
 
 // Defines shared information for the closure that should be created. This is
@@ -373,9 +403,11 @@ class JSOperatorBuilder final : public ZoneObject {
                             const ResolvedFeedbackSlot& feedback,
                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
-  const Operator* StoreProperty(LanguageMode language_mode);
+  const Operator* StoreProperty(LanguageMode language_mode,
+                                const ResolvedFeedbackSlot& feedback);
   const Operator* StoreNamed(LanguageMode language_mode,
-                             const Unique<Name>& name);
+                             const Unique<Name>& name,
+                             const ResolvedFeedbackSlot& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
 

@@ -1424,13 +1424,22 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
     __ CallRuntime(Runtime::kDefineClass, 6);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
-    EmitClassDefineProperties(lit);
+
+    int store_slot_index = 0;
+    EmitClassDefineProperties(lit, &store_slot_index);
 
     if (lit->scope() != NULL) {
       DCHECK_NOT_NULL(lit->class_variable_proxy());
+      FeedbackVectorICSlot slot = FLAG_vector_stores
+                                      ? lit->GetNthSlot(store_slot_index++)
+                                      : FeedbackVectorICSlot::Invalid();
       EmitVariableAssignment(lit->class_variable_proxy()->var(),
-                             Token::INIT_CONST);
+                             Token::INIT_CONST, slot);
     }
+
+    // Verify that compilation exactly consumed the number of store ic slots
+    // that the ClassLiteral node had to offer.
+    DCHECK(!FLAG_vector_stores || store_slot_index == lit->slot_count());
   }
 
   context()->Plug(result_register());

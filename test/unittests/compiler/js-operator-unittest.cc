@@ -201,7 +201,6 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
     SHARED(Multiply, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Divide, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Modulus, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(StoreProperty, Operator::kNoProperties, 3, 2, 1, 1, 0, 1, 2),
 #undef SHARED
 };
 

@@ -248,7 +248,8 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op) {
 
 bool operator==(StoreNamedParameters const& lhs,
                 StoreNamedParameters const& rhs) {
-  return lhs.language_mode() == rhs.language_mode() && lhs.name() == rhs.name();
+  return lhs.language_mode() == rhs.language_mode() &&
+         lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback();
 }
 
 
@@ -259,7 +260,7 @@ bool operator!=(StoreNamedParameters const& lhs,
 
 
 size_t hash_value(StoreNamedParameters const& p) {
-  return base::hash_combine(p.language_mode(), p.name());
+  return base::hash_combine(p.language_mode(), p.name(), p.feedback());
 }
 
 
@@ -271,6 +272,35 @@ std::ostream& operator<<(std::ostream& os, StoreNamedParameters const& p) {
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSStoreNamed, op->opcode());
   return OpParameter<StoreNamedParameters>(op);
+}
+
+
+bool operator==(StorePropertyParameters const& lhs,
+                StorePropertyParameters const& rhs) {
+  return lhs.language_mode() == rhs.language_mode() &&
+         lhs.feedback() == rhs.feedback();
+}
+
+
+bool operator!=(StorePropertyParameters const& lhs,
+                StorePropertyParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(StorePropertyParameters const& p) {
+  return base::hash_combine(p.language_mode(), p.feedback());
+}
+
+
+std::ostream& operator<<(std::ostream& os, StorePropertyParameters const& p) {
+  return os << p.language_mode();
+}
+
+
+const StorePropertyParameters& StorePropertyParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSStoreProperty, op->opcode());
+  return OpParameter<StorePropertyParameters>(op);
 }
 
 
@@ -348,8 +378,7 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
   V(Subtract, Operator::kNoProperties, 2, 1)           \
   V(Multiply, Operator::kNoProperties, 2, 1)           \
   V(Divide, Operator::kNoProperties, 2, 1)             \
-  V(Modulus, Operator::kNoProperties, 2, 1)            \
-  V(StoreProperty, Operator::kNoProperties, 3, 0)
+  V(Modulus, Operator::kNoProperties, 2, 1)
 
 
 struct JSOperatorGlobalCache final {
@@ -480,14 +509,26 @@ const Operator* JSOperatorBuilder::LoadProperty(
 }
 
 
-const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
-                                              const Unique<Name>& name) {
-  StoreNamedParameters parameters(language_mode, name);
+const Operator* JSOperatorBuilder::StoreNamed(
+    LanguageMode language_mode, const Unique<Name>& name,
+    const ResolvedFeedbackSlot& feedback) {
+  StoreNamedParameters parameters(language_mode, feedback, name);
   return new (zone()) Operator1<StoreNamedParameters>(   // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
       2, 1, 1, 0, 1, 2,                                  // counts
       parameters);                                       // parameter
+}
+
+
+const Operator* JSOperatorBuilder::StoreProperty(
+    LanguageMode language_mode, const ResolvedFeedbackSlot& feedback) {
+  StorePropertyParameters parameters(language_mode, feedback);
+  return new (zone()) Operator1<StorePropertyParameters>(   // --
+      IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
+      "JSStoreProperty",                                    // name
+      3, 1, 1, 0, 1, 2,                                     // counts
+      parameters);                                          // parameter
 }
 
 

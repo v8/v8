@@ -615,7 +615,7 @@ class FullCodeGenerator: public AstVisitor {
   // Adds the properties to the class (function) object and to its prototype.
   // Expects the class (function) in the accumulator. The class (function) is
   // in the accumulator after installing all the properties.
-  void EmitClassDefineProperties(ClassLiteral* lit);
+  void EmitClassDefineProperties(ClassLiteral* lit, int* used_store_slots);
 
   // Pushes the property key as a Name on the stack.
   void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
@@ -634,14 +634,12 @@ class FullCodeGenerator: public AstVisitor {
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator. slot is only used if FLAG_vector_stores
   // is true.
-  void EmitAssignment(Expression* expr, FeedbackVectorICSlot slot =
-                                            FeedbackVectorICSlot::Invalid());
+  void EmitAssignment(Expression* expr, FeedbackVectorICSlot slot);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
-  void EmitVariableAssignment(
-      Variable* var, Token::Value op,
-      FeedbackVectorICSlot slot = FeedbackVectorICSlot::Invalid());
+  void EmitVariableAssignment(Variable* var, Token::Value op,
+                              FeedbackVectorICSlot slot);
 
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,

@@ -1365,7 +1365,9 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
       test_value.Else();
       {
         // Bind value and do loop body.
-        VisitForInAssignment(stmt->each(), value, stmt->AssignmentId());
+        ResolvedFeedbackSlot slot =
+            ResolveFeedbackSlot(stmt->EachFeedbackSlot());
+        VisitForInAssignment(stmt->each(), value, slot, stmt->AssignmentId());
         VisitIterationBody(stmt, &for_loop);
       }
       test_value.End();
@@ -1586,6 +1588,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   environment()->Push(proto);
 
   // Create nodes to store method values into the literal.
+  int store_slot_index = 0;
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     environment()->Push(property->is_static() ? literal : proto);
@@ -1608,7 +1611,9 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
     Node* receiver = environment()->Pop();
-    BuildSetHomeObject(value, receiver, property->value());
+    ResolvedFeedbackSlot slot = ResolveFeedbackSlot(
+        expr->SlotForHomeObject(property->value(), &store_slot_index));
+    BuildSetHomeObject(value, receiver, property->value(), slot);
 
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
@@ -1648,8 +1653,11 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     DCHECK_NOT_NULL(expr->class_variable_proxy());
     Variable* var = expr->class_variable_proxy()->var();
     FrameStateBeforeAndAfter states(this, BailoutId::None());
-    BuildVariableAssignment(var, literal, Token::INIT_CONST, BailoutId::None(),
-                            states);
+    ResolvedFeedbackSlot slot = ResolveFeedbackSlot(
+        FLAG_vector_stores ? expr->GetNthSlot(store_slot_index++)
+                           : FeedbackVectorICSlot::Invalid());
+    BuildVariableAssignment(var, literal, Token::INIT_CONST, slot,
+                            BailoutId::None(), states);
   }
 
   ast_context()->ProduceValue(literal);
@@ -1727,6 +1735,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Create nodes to store computed values into the literal.
   int property_index = 0;
+  int store_slot_index = 0;
   AccessorTable accessor_table(zone());
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
@@ -1749,11 +1758,17 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             FrameStateBeforeAndAfter states(this, property->value()->id());
             Node* value = environment()->Pop();
             Handle<Name> name = key->AsPropertyName();
-            Node* store =
-                BuildNamedStore(literal, name, value, TypeFeedbackId::None());
+            ResolvedFeedbackSlot slot =
+                FLAG_vector_stores
+                    ? ResolveFeedbackSlot(expr->GetNthSlot(store_slot_index++))
+                    : ResolvedFeedbackSlot();
+            Node* store = BuildNamedStore(literal, name, value, slot,
+                                          TypeFeedbackId::None());
             states.AddToNode(store, key->id(),
                              OutputFrameStateCombine::Ignore());
-            BuildSetHomeObject(value, literal, property->value());
+            ResolvedFeedbackSlot home_slot = ResolveFeedbackSlot(
+                expr->SlotForHomeObject(property->value(), &store_slot_index));
+            BuildSetHomeObject(value, literal, property->value(), home_slot);
           } else {
             VisitForEffect(property->value());
           }
@@ -1772,7 +1787,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           Node* set_property = NewNode(op, receiver, key, value, language);
           // SetProperty should not lazy deopt on an object literal.
           PrepareFrameState(set_property, BailoutId::None());
-          BuildSetHomeObject(value, receiver, property->value());
+          ResolvedFeedbackSlot home_slot = ResolveFeedbackSlot(
+              expr->SlotForHomeObject(property->value(), &store_slot_index));
+          BuildSetHomeObject(value, receiver, property->value(), home_slot);
         }
         break;
       }
@@ -1808,9 +1825,15 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
        it != accessor_table.end(); ++it) {
     VisitForValue(it->first);
     VisitForValueOrNull(it->second->getter);
-    BuildSetHomeObject(environment()->Top(), literal, it->second->getter);
+    ResolvedFeedbackSlot slot_getter = ResolveFeedbackSlot(
+        expr->SlotForHomeObject(it->second->getter, &store_slot_index));
+    BuildSetHomeObject(environment()->Top(), literal, it->second->getter,
+                       slot_getter);
     VisitForValueOrNull(it->second->setter);
-    BuildSetHomeObject(environment()->Top(), literal, it->second->setter);
+    ResolvedFeedbackSlot slot_setter = ResolveFeedbackSlot(
+        expr->SlotForHomeObject(it->second->getter, &store_slot_index));
+    BuildSetHomeObject(environment()->Top(), literal, it->second->setter,
+                       slot_setter);
     Node* setter = environment()->Pop();
     Node* getter = environment()->Pop();
     Node* name = environment()->Pop();
@@ -1855,8 +1878,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* value = environment()->Pop();
     Node* key = environment()->Pop();
     Node* receiver = environment()->Pop();
-    BuildSetHomeObject(value, receiver, property->value());
-
+    ResolvedFeedbackSlot slot = ResolveFeedbackSlot(
+        expr->SlotForHomeObject(property->value(), &store_slot_index));
+    BuildSetHomeObject(value, receiver, property->value(), slot);
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::COMPUTED:
@@ -1897,6 +1921,10 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     NewNode(op, literal);
   }
 
+  // Verify that compilation exactly consumed the number of store ic slots that
+  // the ObjectLiteral node had to offer.
+  DCHECK(!FLAG_vector_stores || store_slot_index == expr->slot_count());
+
   ast_context()->ProduceValue(environment()->Pop());
 }
 
@@ -1935,7 +1963,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       Node* value = environment()->Pop();
       Node* index = jsgraph()->Constant(array_index);
       Node* store =
-          BuildKeyedStore(literal, index, value, TypeFeedbackId::None());
+          BuildKeyedStore(literal, index, value, ResolvedFeedbackSlot(),
+                          TypeFeedbackId::None());
       states.AddToNode(store, expr->GetIdForElement(array_index),
                        OutputFrameStateCombine::Ignore());
     }
@@ -1979,6 +2008,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
+                                           const ResolvedFeedbackSlot& slot,
                                            BailoutId bailout_id) {
   DCHECK(expr->IsValidReferenceExpression());
 
@@ -1991,7 +2021,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
     case VARIABLE: {
       Variable* var = expr->AsVariableProxy()->var();
       FrameStateBeforeAndAfter states(this, BailoutId::None());
-      BuildVariableAssignment(var, value, Token::ASSIGN, bailout_id, states);
+      BuildVariableAssignment(var, value, Token::ASSIGN, slot, bailout_id,
+                              states);
       break;
     }
     case NAMED_PROPERTY: {
@@ -2002,7 +2033,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       value = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store =
-          BuildNamedStore(object, name, value, TypeFeedbackId::None());
+          BuildNamedStore(object, name, value, slot, TypeFeedbackId::None());
       states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
       break;
     }
@@ -2014,7 +2045,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       value = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value, TypeFeedbackId::None());
+      Node* store =
+          BuildKeyedStore(object, key, value, slot, TypeFeedbackId::None());
       states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
       break;
     }
@@ -2176,18 +2208,19 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   FrameStateBeforeAndAfter store_states(this, before_store_id);
   // Store the value.
   Node* value = environment()->Pop();
+  ResolvedFeedbackSlot slot = ResolveFeedbackSlot(expr->AssignmentSlot());
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
-      BuildVariableAssignment(variable, value, expr->op(), expr->id(),
+      BuildVariableAssignment(variable, value, expr->op(), slot, expr->id(),
                               store_states, ast_context()->GetStateCombine());
       break;
     }
     case NAMED_PROPERTY: {
       Node* object = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store =
-          BuildNamedStore(object, name, value, expr->AssignmentFeedbackId());
+      Node* store = BuildNamedStore(object, name, value, slot,
+                                    expr->AssignmentFeedbackId());
       store_states.AddToNode(store, expr->id(),
                              ast_context()->GetStateCombine());
       break;
@@ -2195,8 +2228,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store =
-          BuildKeyedStore(object, key, value, expr->AssignmentFeedbackId());
+      Node* store = BuildKeyedStore(object, key, value, slot,
+                                    expr->AssignmentFeedbackId());
       store_states.AddToNode(store, expr->id(),
                              ast_context()->GetStateCombine());
       break;
@@ -2647,20 +2680,21 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   }
 
   // Store the value.
+  ResolvedFeedbackSlot slot = ResolveFeedbackSlot(expr->CountSlot());
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->expression()->AsVariableProxy()->var();
       environment()->Push(value);
-      BuildVariableAssignment(variable, value, expr->op(), expr->AssignmentId(),
-                              store_states);
+      BuildVariableAssignment(variable, value, expr->op(), slot,
+                              expr->AssignmentId(), store_states);
       environment()->Pop();
       break;
     }
     case NAMED_PROPERTY: {
       Node* object = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store =
-          BuildNamedStore(object, name, value, expr->CountStoreFeedbackId());
+      Node* store = BuildNamedStore(object, name, value, slot,
+                                    expr->CountStoreFeedbackId());
       environment()->Push(value);
       store_states.AddToNode(store, expr->AssignmentId(),
                              OutputFrameStateCombine::Ignore());
@@ -2670,8 +2704,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store =
-          BuildKeyedStore(object, key, value, expr->CountStoreFeedbackId());
+      Node* store = BuildKeyedStore(object, key, value, slot,
+                                    expr->CountStoreFeedbackId());
       environment()->Push(value);
       store_states.AddToNode(store, expr->AssignmentId(),
                              OutputFrameStateCombine::Ignore());
@@ -3112,8 +3146,9 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(arguments, object, Token::ASSIGN, BailoutId::None(),
-                          states);
+  ResolvedFeedbackSlot slot;
+  BuildVariableAssignment(arguments, object, Token::ASSIGN, slot,
+                          BailoutId::None(), states);
 
   return object;
 }
@@ -3131,7 +3166,8 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(rest, object, Token::ASSIGN, BailoutId::None(),
+  ResolvedFeedbackSlot slot;
+  BuildVariableAssignment(rest, object, Token::ASSIGN, slot, BailoutId::None(),
                           states);
 
   return object;
@@ -3143,8 +3179,9 @@ Node* AstGraphBuilder::BuildThisFunctionVar(Variable* this_function_var) {
 
   Node* this_function = GetFunctionClosure();
   FrameStateBeforeAndAfter states(this, BailoutId::None());
+  ResolvedFeedbackSlot slot;
   BuildVariableAssignment(this_function_var, this_function, Token::INIT_CONST,
-                          BailoutId::None(), states);
+                          slot, BailoutId::None(), states);
   return this_function;
 }
 
@@ -3329,7 +3366,8 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
 
 
 Node* AstGraphBuilder::BuildVariableAssignment(
-    Variable* variable, Node* value, Token::Value op, BailoutId bailout_id,
+    Variable* variable, Node* value, Token::Value op,
+    const ResolvedFeedbackSlot& slot, BailoutId bailout_id,
     FrameStateBeforeAndAfter& states, OutputFrameStateCombine combine) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
@@ -3339,7 +3377,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
       Node* store =
-          BuildNamedStore(global, name, value, TypeFeedbackId::None());
+          BuildNamedStore(global, name, value, slot, TypeFeedbackId::None());
       states.AddToNode(store, bailout_id, combine);
       return store;
     }
@@ -3472,16 +3510,19 @@ Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
 
 
 Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
+                                       const ResolvedFeedbackSlot& feedback,
                                        TypeFeedbackId id) {
-  const Operator* op = javascript()->StoreProperty(language_mode());
+  const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
   return Record(js_type_feedback_, NewNode(op, object, key, value), id);
 }
 
 
 Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
-                                       Node* value, TypeFeedbackId id) {
+                                       Node* value,
+                                       const ResolvedFeedbackSlot& feedback,
+                                       TypeFeedbackId id) {
   const Operator* op =
-      javascript()->StoreNamed(language_mode(), MakeUnique(name));
+      javascript()->StoreNamed(language_mode(), MakeUnique(name), feedback);
   return Record(js_type_feedback_, NewNode(op, object, value), id);
 }
 
@@ -3626,12 +3667,13 @@ Node* AstGraphBuilder::BuildToObject(Node* input, BailoutId bailout_id) {
 
 
 Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
-                                          Expression* expr) {
+                                          Expression* expr,
+                                          const ResolvedFeedbackSlot& slot) {
   if (!FunctionLiteral::NeedsHomeObject(expr)) return value;
   Handle<Name> name = isolate()->factory()->home_object_symbol();
   FrameStateBeforeAndAfter states(this, BailoutId::None());
   Node* store =
-      BuildNamedStore(value, name, home_object, TypeFeedbackId::None());
+      BuildNamedStore(value, name, home_object, slot, TypeFeedbackId::None());
   states.AddToNode(store, BailoutId::None(), OutputFrameStateCombine::Ignore());
   return store;
 }

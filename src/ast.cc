@@ -289,6 +289,10 @@ FeedbackVectorRequirements ClassLiteral::ComputeFeedbackRequirements(
     if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
   }
 
+  if (scope() != NULL && class_variable_proxy()->var()->IsUnallocated()) {
+    ic_slots++;
+  }
+
 #ifdef DEBUG
   // FullCodeGenerator::VisitClassLiteral verifies that it consumes slot_count_
   // slots.
