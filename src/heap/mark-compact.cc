@@ -898,6 +898,11 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
         shared->ShortPrint();
         PrintF(" - age: %d]\n", code->GetAge());
       }
+      // Always flush the optimized code map if requested by flag.
+      if (FLAG_cache_optimized_code && FLAG_flush_optimized_code_cache &&
+          !shared->optimized_code_map()->IsSmi()) {
+        shared->ClearOptimizedCodeMap();
+      }
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
     } else {
@@ -940,6 +945,11 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
         PrintF("[code-flushing clears: ");
         candidate->ShortPrint();
         PrintF(" - age: %d]\n", code->GetAge());
+      }
+      // Always flush the optimized code map if requested by flag.
+      if (FLAG_cache_optimized_code && FLAG_flush_optimized_code_cache &&
+          !candidate->optimized_code_map()->IsSmi()) {
+        candidate->ClearOptimizedCodeMap();
       }
       candidate->set_code(lazy_compile);
     }

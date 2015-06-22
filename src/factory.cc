@@ -1392,6 +1392,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     if (literals != NULL) result->set_literals(literals);
     Code* code = info->GetCodeFromOptimizedCodeMap(index);
     DCHECK(!code->marked_for_deoptimization());
+    DCHECK(result->shared()->is_compiled());
     result->ReplaceCode(code);
   }
 

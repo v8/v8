@@ -705,7 +705,10 @@ MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
       }
       FixedArray* literals = shared->GetLiteralsFromOptimizedCodeMap(index);
       if (literals != NULL) function->set_literals(literals);
-      return Handle<Code>(shared->GetCodeFromOptimizedCodeMap(index));
+      Code* code = shared->GetCodeFromOptimizedCodeMap(index);
+      DCHECK(!code->marked_for_deoptimization());
+      DCHECK(function->shared()->is_compiled());
+      return Handle<Code>(code);
     }
   }
   return MaybeHandle<Code>();
