@@ -280,9 +280,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
       }
     }
   }
-  JSArray::EnsureSize(stack_, length + 1);
+  JSArray::SetLength(stack_, length + 1);
   FixedArray::cast(stack_->elements())->set(length, *object);
-  stack_->set_length(Smi::FromInt(length + 1));
   return SUCCESS;
 }
 

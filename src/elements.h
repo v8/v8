@@ -76,17 +76,6 @@ class ElementsAccessor {
   // element that is non-deletable.
   virtual void SetLength(Handle<JSArray> holder, uint32_t new_length) = 0;
 
-  // Modifies both the length and capacity of a JSArray, resizing the underlying
-  // backing store as necessary. This method does NOT honor the semantics of
-  // EcmaScript 5.1 15.4.5.2, arrays can be shrunk beyond non-deletable
-  // elements. This method should only be called for array expansion OR by
-  // runtime JavaScript code that use InternalArrays and don't care about
-  // EcmaScript 5.1 semantics.
-  virtual void SetCapacityAndLength(
-      Handle<JSArray> array,
-      int capacity,
-      int length) = 0;
-
   // Deletes an element in an object.
   virtual void Delete(Handle<JSObject> holder, uint32_t key,
                       LanguageMode language_mode) = 0;

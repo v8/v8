@@ -11928,12 +11928,6 @@ void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
 }
 
 
-void JSArray::Expand(Handle<JSArray> array, int required_size) {
-  ElementsAccessor* accessor = array->GetElementsAccessor();
-  accessor->SetCapacityAndLength(array, required_size, required_size);
-}
-
-
 // Returns false if the passed-in index is marked non-configurable, which will
 // cause the truncation operation to halt, and thus no further old values need
 // be collected.

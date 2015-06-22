@@ -624,8 +624,8 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
                                              int32_t* match) {
   DCHECK(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
-  JSArray::EnsureSize(last_match_info,
-                      capture_register_count + kLastMatchOverhead);
+  JSArray::SetLength(last_match_info,
+                     capture_register_count + kLastMatchOverhead);
   DisallowHeapAllocation no_allocation;
   FixedArray* array = FixedArray::cast(last_match_info->elements());
   if (match != NULL) {

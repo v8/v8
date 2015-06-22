@@ -644,16 +644,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
                             Handle<FixedArrayBase> backing_store);
 
-  virtual void SetCapacityAndLength(Handle<JSArray> array, int capacity,
-                                    int length) final {
-    ElementsAccessorSubclass::
-        SetFastElementsCapacityAndLength(array, capacity, length);
-  }
-
-  static void SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      int capacity,
-      int length) {
+  static void GrowCapacityAndConvert(Handle<JSObject> obj, int capacity) {
     UNIMPLEMENTED();
   }
 
@@ -1021,7 +1012,7 @@ class FastSmiOrObjectElementsAccessor
         break;
       case SLOPPY_ARGUMENTS_ELEMENTS: {
         // TODO(verwaest): This is a temporary hack to support extending
-        // SLOPPY_ARGUMENTS_ELEMENTS in SetFastElementsCapacityAndLength.
+        // SLOPPY_ARGUMENTS_ELEMENTS in GrowCapacityAndConvert.
         // This case should be UNREACHABLE().
         FixedArray* parameter_map = FixedArray::cast(from);
         FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
@@ -1040,16 +1031,12 @@ class FastSmiOrObjectElementsAccessor
   }
 
 
-  static void SetFastElementsCapacityAndLength(
-      Handle<JSObject> obj,
-      uint32_t capacity,
-      uint32_t length) {
+  static void GrowCapacityAndConvert(Handle<JSObject> obj, uint32_t capacity) {
     JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
         obj->HasFastSmiElements()
             ? JSObject::kAllowSmiElements
             : JSObject::kDontAllowSmiElements;
-    JSObject::SetFastElementsCapacityAndLength(
-        obj, capacity, length, set_capacity_mode);
+    JSObject::SetFastElementsCapacity(obj, capacity, set_capacity_mode);
   }
 };
 
@@ -1111,10 +1098,8 @@ class FastDoubleElementsAccessor
       : FastElementsAccessor<FastElementsAccessorSubclass,
                              KindTraits>(name) {}
 
-  static void SetFastElementsCapacityAndLength(Handle<JSObject> obj,
-                                               uint32_t capacity,
-                                               uint32_t length) {
-    JSObject::SetFastDoubleElementsCapacityAndLength(obj, capacity, length);
+  static void GrowCapacityAndConvert(Handle<JSObject> obj, uint32_t capacity) {
+    JSObject::SetFastDoubleElementsCapacity(obj, capacity);
   }
 
  protected:
@@ -1679,8 +1664,7 @@ void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
   } else {
     // Check whether the backing store should be expanded.
     capacity = Max(length, JSObject::NewElementsCapacity(capacity));
-    ElementsAccessorSubclass::SetFastElementsCapacityAndLength(array, capacity,
-                                                               length);
+    ElementsAccessorSubclass::GrowCapacityAndConvert(array, capacity);
   }
 
   array->set_length(Smi::FromInt(length));
