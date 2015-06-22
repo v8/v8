@@ -121,6 +121,9 @@ class ElementsAccessor {
       *from_holder, 0, from_kind, to, 0, kCopyToEndAndInitializeToHole);
   }
 
+  virtual void GrowCapacityAndConvert(Handle<JSObject> object,
+                                      uint32_t capacity) = 0;
+
   virtual Handle<FixedArray> AddElementsToFixedArray(
       Handle<JSObject> receiver, Handle<FixedArray> to,
       FixedArray::KeyFilter filter) = 0;

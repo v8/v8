@@ -11874,49 +11874,14 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
 }
 
 
-Handle<FixedArrayBase> JSObject::SetFastDoubleElementsCapacity(
-    Handle<JSObject> object, int capacity) {
-  // We should never end in here with a pixel or external array.
-  DCHECK(!object->HasExternalArrayElements());
-
-  Handle<FixedArrayBase> elems =
-      object->GetIsolate()->factory()->NewFixedDoubleArray(capacity);
-
-  ElementsKind elements_kind = object->GetElementsKind();
-  CHECK(elements_kind != SLOPPY_ARGUMENTS_ELEMENTS);
-  ElementsKind new_elements_kind = elements_kind;
-  if (IsHoleyElementsKind(elements_kind)) {
-    new_elements_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
-  } else {
-    new_elements_kind = FAST_DOUBLE_ELEMENTS;
-  }
-
-  Handle<Map> new_map = GetElementsTransitionMap(object, new_elements_kind);
-
-  Handle<FixedArrayBase> old_elements(object->elements());
+void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
+                                                      int capacity,
+                                                      int length) {
   ElementsAccessor* accessor = ElementsAccessor::ForKind(FAST_DOUBLE_ELEMENTS);
-  accessor->CopyElements(object, elems, elements_kind);
-
-  JSObject::ValidateElements(object);
-  JSObject::SetMapAndElements(object, new_map, elems);
-
-  if (FLAG_trace_elements_transitions) {
-    PrintElementsTransition(stdout, object, elements_kind, old_elements,
-                            object->GetElementsKind(), elems);
-  }
-
-  return elems;
-}
-
-
-Handle<FixedArrayBase> JSObject::SetFastDoubleElementsCapacityAndLength(
-    Handle<JSObject> object, int capacity, int length) {
-  Handle<FixedArrayBase> new_elements =
-      SetFastDoubleElementsCapacity(object, capacity);
+  accessor->GrowCapacityAndConvert(object, capacity);
   if (object->IsJSArray()) {
     Handle<JSArray>::cast(object)->set_length(Smi::FromInt(length));
   }
-  return new_elements;
 }
 
 

@@ -644,8 +644,14 @@ class ElementsAccessorBase : public ElementsAccessor {
   static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
                             Handle<FixedArrayBase> backing_store);
 
-  static void GrowCapacityAndConvert(Handle<JSObject> obj, int capacity) {
+  static void GrowCapacityAndConvertImpl(Handle<JSObject> obj,
+                                         uint32_t capacity) {
     UNIMPLEMENTED();
+  }
+
+  virtual void GrowCapacityAndConvert(Handle<JSObject> object,
+                                      uint32_t capacity) final {
+    ElementsAccessorSubclass::GrowCapacityAndConvertImpl(object, capacity);
   }
 
   virtual void Delete(Handle<JSObject> obj, uint32_t key,
@@ -1031,7 +1037,8 @@ class FastSmiOrObjectElementsAccessor
   }
 
 
-  static void GrowCapacityAndConvert(Handle<JSObject> obj, uint32_t capacity) {
+  static void GrowCapacityAndConvertImpl(Handle<JSObject> obj,
+                                         uint32_t capacity) {
     JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
         obj->HasFastSmiElements()
             ? JSObject::kAllowSmiElements
@@ -1098,8 +1105,32 @@ class FastDoubleElementsAccessor
       : FastElementsAccessor<FastElementsAccessorSubclass,
                              KindTraits>(name) {}
 
-  static void GrowCapacityAndConvert(Handle<JSObject> obj, uint32_t capacity) {
-    JSObject::SetFastDoubleElementsCapacity(obj, capacity);
+  static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
+                                         uint32_t capacity) {
+    Handle<FixedArrayBase> elements =
+        object->GetIsolate()->factory()->NewFixedDoubleArray(capacity);
+    ElementsKind from_kind = object->GetElementsKind();
+    ElementsKind to_kind = IsHoleyElementsKind(from_kind)
+                               ? FAST_HOLEY_DOUBLE_ELEMENTS
+                               : FAST_DOUBLE_ELEMENTS;
+
+    Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
+
+    Handle<FixedArrayBase> old_elements(object->elements());
+    int packed = kPackedSizeNotKnown;
+    if (IsFastPackedElementsKind(from_kind) && object->IsJSArray()) {
+      packed = Smi::cast(JSArray::cast(*object)->length())->value();
+    }
+    CopyElementsImpl(*old_elements, 0, *elements, from_kind, 0, packed,
+                     ElementsAccessor::kCopyToEndAndInitializeToHole);
+
+    JSObject::SetMapAndElements(object, new_map, elements);
+    JSObject::ValidateElements(object);
+
+    if (FLAG_trace_elements_transitions) {
+      JSObject::PrintElementsTransition(stdout, object, from_kind, old_elements,
+                                        to_kind, elements);
+    }
   }
 
  protected:
@@ -1664,7 +1695,7 @@ void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
   } else {
     // Check whether the backing store should be expanded.
     capacity = Max(length, JSObject::NewElementsCapacity(capacity));
-    ElementsAccessorSubclass::GrowCapacityAndConvert(array, capacity);
+    ElementsAccessorSubclass::GrowCapacityAndConvertImpl(array, capacity);
   }
 
   array->set_length(Smi::FromInt(length));

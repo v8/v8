@@ -1258,16 +1258,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     }
 
     uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
-    ElementsKind kind = object->GetElementsKind();
-    if (IsFastDoubleElementsKind(kind)) {
-      JSObject::SetFastDoubleElementsCapacity(object, new_capacity);
-    } else {
-      JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
-          object->HasFastSmiElements() ? JSObject::kAllowSmiElements
-                                       : JSObject::kDontAllowSmiElements;
-      JSObject::SetFastElementsCapacity(object, new_capacity,
-                                        set_capacity_mode);
-    }
+    object->GetElementsAccessor()->GrowCapacityAndConvert(object, new_capacity);
   }
 
   // On success, return the fixed array elements.

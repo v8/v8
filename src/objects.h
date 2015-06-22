@@ -2049,8 +2049,6 @@ class JSObject: public JSReceiver {
   static Handle<FixedArray> SetFastElementsCapacity(
       Handle<JSObject> object, int capacity,
       SetFastElementsCapacitySmiMode smi_mode);
-  static Handle<FixedArrayBase> SetFastDoubleElementsCapacity(
-      Handle<JSObject> object, int capacity);
 
   // Replace the elements' backing store with fast elements of the given
   // capacity.  Update the length for JSArrays.  Returns the new backing
@@ -2060,8 +2058,8 @@ class JSObject: public JSReceiver {
       int capacity,
       int length,
       SetFastElementsCapacitySmiMode smi_mode);
-  static Handle<FixedArrayBase> SetFastDoubleElementsCapacityAndLength(
-      Handle<JSObject> object, int capacity, int length);
+  static void SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
+                                                     int capacity, int length);
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
