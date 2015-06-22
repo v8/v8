@@ -408,6 +408,7 @@
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
+  'regress/regress-1132': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
