@@ -5977,7 +5977,7 @@ void Heap::PrintHandles() {
 class CheckHandleCountVisitor : public ObjectVisitor {
  public:
   CheckHandleCountVisitor() : handle_count_(0) {}
-  ~CheckHandleCountVisitor() { CHECK(handle_count_ < 2000); }
+  ~CheckHandleCountVisitor() { CHECK_LT(handle_count_, 2000); }
   void VisitPointers(Object** start, Object** end) {
     handle_count_ += end - start;
   }
