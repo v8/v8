@@ -424,6 +424,79 @@ inline Object* DoExchange(Isolate* isolate, void* buffer, size_t index,
   return ToObject<T>(isolate, FromAtomic<T>(result));
 }
 
+
+// Uint8Clamped functions
+
+uint8_t ClampToUint8(int32_t value) {
+  if (value < 0) return 0;
+  if (value > 255) return 255;
+  return value;
+}
+
+
+inline Object* DoCompareExchangeUint8Clamped(Isolate* isolate, void* buffer,
+                                             size_t index,
+                                             Handle<Object> oldobj,
+                                             Handle<Object> newobj) {
+  typedef int32_t convert_type;
+  typedef uint8_t atomic_type;
+  atomic_type oldval = ClampToUint8(FromObject<convert_type>(oldobj));
+  atomic_type newval = ClampToUint8(FromObject<convert_type>(newobj));
+  atomic_type result = CompareExchangeSeqCst(
+      static_cast<atomic_type*>(buffer) + index, oldval, newval);
+  return ToObject<uint8_t>(isolate, FromAtomic<uint8_t>(result));
+}
+
+
+inline Object* DoStoreUint8Clamped(Isolate* isolate, void* buffer, size_t index,
+                                   Handle<Object> obj) {
+  typedef int32_t convert_type;
+  typedef uint8_t atomic_type;
+  atomic_type value = ClampToUint8(FromObject<convert_type>(obj));
+  StoreSeqCst(static_cast<atomic_type*>(buffer) + index, value);
+  return *obj;
+}
+
+
+#define DO_UINT8_CLAMPED_OP(name, op)                                        \
+  inline Object* Do##name##Uint8Clamped(Isolate* isolate, void* buffer,      \
+                                        size_t index, Handle<Object> obj) {  \
+    typedef int32_t convert_type;                                            \
+    typedef uint8_t atomic_type;                                             \
+    atomic_type* p = static_cast<atomic_type*>(buffer) + index;              \
+    convert_type operand = FromObject<convert_type>(obj);                    \
+    atomic_type expected;                                                    \
+    atomic_type result;                                                      \
+    do {                                                                     \
+      expected = *p;                                                         \
+      result = ClampToUint8(static_cast<convert_type>(expected) op operand); \
+    } while (CompareExchangeSeqCst(p, expected, result) != expected);        \
+    return ToObject<uint8_t>(isolate, expected);                             \
+  }
+
+DO_UINT8_CLAMPED_OP(Add, +)
+DO_UINT8_CLAMPED_OP(Sub, -)
+DO_UINT8_CLAMPED_OP(And, &)
+DO_UINT8_CLAMPED_OP(Or, | )
+DO_UINT8_CLAMPED_OP(Xor, ^)
+
+#undef DO_UINT8_CLAMPED_OP
+
+
+inline Object* DoExchangeUint8Clamped(Isolate* isolate, void* buffer,
+                                      size_t index, Handle<Object> obj) {
+  typedef int32_t convert_type;
+  typedef uint8_t atomic_type;
+  atomic_type* p = static_cast<atomic_type*>(buffer) + index;
+  atomic_type result = ClampToUint8(FromObject<convert_type>(obj));
+  atomic_type expected;
+  do {
+    expected = *p;
+  } while (CompareExchangeSeqCst(p, expected, result) != expected);
+  return ToObject<uint8_t>(isolate, expected);
+}
+
+
 }  // anonymous namespace
 
 // Duplicated from objects.h
@@ -434,8 +507,7 @@ inline Object* DoExchange(Isolate* isolate, void* buffer, size_t index,
   V(Uint16, uint16, UINT16, uint16_t, 2) \
   V(Int16, int16, INT16, int16_t, 2)     \
   V(Uint32, uint32, UINT32, uint32_t, 4) \
-  V(Int32, int32, INT32, int32_t, 4)     \
-  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1)
+  V(Int32, int32, INT32, int32_t, 4)
 
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
@@ -455,8 +527,18 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   case kExternal##Type##Array:                              \
     return DoCompareExchange<ctype>(isolate, buffer, index, oldobj, newobj);
 
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+    case kExternalFloat32Array:
+      return DoCompareExchange<float>(isolate, buffer, index, oldobj, newobj);
+
+    case kExternalFloat64Array:
+      return DoCompareExchange<double>(isolate, buffer, index, oldobj, newobj);
+
+    case kExternalUint8ClampedArray:
+      return DoCompareExchangeUint8Clamped(isolate, buffer, index, oldobj,
+                                           newobj);
 
     default:
       break;
@@ -510,8 +592,17 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore) {
   case kExternal##Type##Array:                              \
     return DoStore<ctype>(isolate, buffer, index, value);
 
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+    case kExternalFloat32Array:
+      return DoStore<float>(isolate, buffer, index, value);
+
+    case kExternalFloat64Array:
+      return DoStore<double>(isolate, buffer, index, value);
+
+    case kExternalUint8ClampedArray:
+      return DoStoreUint8Clamped(isolate, buffer, index, value);
 
     default:
       break;
@@ -540,6 +631,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+    case kExternalUint8ClampedArray:
+      return DoAddUint8Clamped(isolate, buffer, index, value);
 
     case kExternalFloat32Array:
     case kExternalFloat64Array:
@@ -571,6 +665,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
+    case kExternalUint8ClampedArray:
+      return DoSubUint8Clamped(isolate, buffer, index, value);
+
     case kExternalFloat32Array:
     case kExternalFloat64Array:
     default:
@@ -600,6 +697,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+    case kExternalUint8ClampedArray:
+      return DoAndUint8Clamped(isolate, buffer, index, value);
 
     case kExternalFloat32Array:
     case kExternalFloat64Array:
@@ -631,6 +731,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
+    case kExternalUint8ClampedArray:
+      return DoOrUint8Clamped(isolate, buffer, index, value);
+
     case kExternalFloat32Array:
     case kExternalFloat64Array:
     default:
@@ -661,6 +764,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
+    case kExternalUint8ClampedArray:
+      return DoXorUint8Clamped(isolate, buffer, index, value);
+
     case kExternalFloat32Array:
     case kExternalFloat64Array:
     default:
@@ -690,6 +796,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+    case kExternalUint8ClampedArray:
+      return DoExchangeUint8Clamped(isolate, buffer, index, value);
 
     case kExternalFloat32Array:
     case kExternalFloat64Array:
