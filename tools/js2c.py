@@ -32,7 +32,7 @@
 # library.
 
 import os, re, sys, string
-import argparse
+import optparse
 import jsmin
 import bz2
 import textwrap
@@ -576,25 +576,25 @@ def JS2C(sources, target, native_type, raw_file, startup_blob, emit_js):
 
 
 def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("out.cc",
-                      help="output filename")
-  parser.add_argument("type",
-                      help="type parameter for NativesCollection template " +
-                           "(see NativeType enum)")
-  parser.add_argument("sources.js",
-                      help="JS internal sources or macros.py.",
-                      nargs="*")
-  parser.add_argument("--raw",
-                      help="file to write the processed sources array to.")
-  parser.add_argument("--startup_blob",
-                      help="file to write the startup blob to.")
-  parser.add_argument("--js",
-                      help="writes a JS file output instead of a C file",
-                      action="store_true")
-
-  args = vars(parser.parse_args())
-  JS2C(args["sources.js"], args["out.cc"], args["type"], args["raw"], args["startup_blob"], args["js"])
+  parser = optparse.OptionParser()
+  parser.add_option("--raw",
+                    help="file to write the processed sources array to.")
+  parser.add_option("--startup_blob",
+                    help="file to write the startup blob to.")
+  parser.add_option("--js",
+                    help="writes a JS file output instead of a C file",
+                    action="store_true")
+  parser.set_usage("""js2c out.cc type sources.js ...
+        out.cc: C code to be generated.
+        type: type parameter for NativesCollection template.
+        sources.js: JS internal sources or macros.py.""")
+  (options, args) = parser.parse_args()
+  JS2C(args[2:],
+       args[0],
+       args[1],
+       options.raw,
+       options.startup_blob,
+       options.js)
 
 
 if __name__ == "__main__":
