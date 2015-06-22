@@ -221,12 +221,16 @@ namespace internal {
   V(Integral32,          kSigned32 | kUnsigned32) \
   V(PlainNumber,         kIntegral32 | kOtherNumber) \
   V(OrderedNumber,       kPlainNumber | kMinusZero) \
+  V(MinusZeroOrNaN,      kMinusZero | kNaN) \
   V(Number,              kOrderedNumber | kNaN) \
   V(String,              kInternalizedString | kOtherString) \
   V(UniqueName,          kSymbol | kInternalizedString) \
   V(Name,                kSymbol | kString) \
+  V(BooleanOrNumber,     kBoolean | kNumber) \
+  V(NullOrUndefined,     kNull | kUndefined) \
   V(NumberOrString,      kNumber | kString) \
-  V(PlainPrimitive,      kNumberOrString | kBoolean | kNull | kUndefined) \
+  V(NumberOrUndefined,   kNumber | kUndefined) \
+  V(PlainPrimitive,      kNumberOrString | kBoolean | kNullOrUndefined) \
   V(Primitive,           kSymbol | kPlainPrimitive) \
   V(DetectableObject,    kGlobalObject | kOtherObject) \
   V(DetectableReceiver,  kDetectableObject | kProxy) \

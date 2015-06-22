@@ -25,44 +25,31 @@ class Typer {
   // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
   void Run(const ZoneVector<Node*>& roots);
 
-  Graph* graph() { return graph_; }
-  MaybeHandle<Context> context() { return context_; }
-  Zone* zone() { return graph_->zone(); }
-  Isolate* isolate() { return isolate_; }
-
  private:
   class Visitor;
   class Decorator;
 
-  Isolate* isolate_;
-  Graph* graph_;
-  MaybeHandle<Context> context_;
+  Graph* graph() const { return graph_; }
+  MaybeHandle<Context> context() const { return context_; }
+  Zone* zone() const { return graph()->zone(); }
+  Isolate* isolate() const { return isolate_; }
+
+  Isolate* const isolate_;
+  Graph* const graph_;
+  MaybeHandle<Context> const context_;
   Decorator* decorator_;
 
-  Zone* zone_;
-  Type* boolean_or_number;
-  Type* undefined_or_null;
-  Type* undefined_or_number;
-  Type* negative_signed32;
-  Type* non_negative_signed32;
-  Type* singleton_false;
-  Type* singleton_true;
-  Type* singleton_zero;
-  Type* singleton_one;
-  Type* zero_or_one;
-  Type* zeroish;
-  Type* signed32ish;
-  Type* unsigned32ish;
-  Type* falsish;
-  Type* truish;
-  Type* integer;
-  Type* weakint;
-  Type* number_fun0_;
-  Type* number_fun1_;
-  Type* number_fun2_;
-  Type* weakint_fun1_;
-  Type* random_fun_;
-  LazyTypeCache* cache_;
+  Type* singleton_false_;
+  Type* singleton_true_;
+  Type* singleton_zero_;
+  Type* singleton_one_;
+  Type* zero_or_one_;
+  Type* zeroish_;
+  Type* signed32ish_;
+  Type* unsigned32ish_;
+  Type* falsish_;
+  Type* truish_;
+  LazyTypeCache* const cache_;
 
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };

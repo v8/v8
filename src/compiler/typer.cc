@@ -26,6 +26,10 @@ namespace compiler {
   V(Float64)
 
 enum LazyCachedType {
+  kInteger,
+  kWeakint,
+  kWeakintFunc1,
+  kRandomFunc0,
   kAnyFunc0,
   kAnyFunc1,
   kAnyFunc2,
@@ -53,9 +57,9 @@ class LazyTypeCache final : public ZoneObject {
     memset(cache_, 0, sizeof(cache_));
   }
 
-  inline Type* Get(LazyCachedType type) {
-    int index = static_cast<int>(type);
-    DCHECK(index < kNumLazyCachedTypes);
+  V8_INLINE Type* Get(LazyCachedType type) {
+    int const index = static_cast<int>(type);
+    DCHECK_LT(index, kNumLazyCachedTypes);
     if (cache_[index] == NULL) cache_[index] = Create(type);
     return cache_[index];
   }
@@ -82,6 +86,14 @@ class LazyTypeCache final : public ZoneObject {
         return CreateNative(Type::Number(), Type::UntaggedFloat64());
       case kUint8Clamped:
         return Get(kUint8);
+      case kInteger:
+        return CreateRange(-V8_INFINITY, V8_INFINITY);
+      case kWeakint:
+        return Type::Union(Get(kInteger), Type::MinusZeroOrNaN(), zone());
+      case kWeakintFunc1:
+        return Type::Function(Get(kWeakint), Type::Number(), zone());
+      case kRandomFunc0:
+        return Type::Function(Type::OrderedNumber(), zone());
       case kAnyFunc0:
         return Type::Function(Type::Any(), zone());
       case kAnyFunc1:
@@ -171,47 +183,30 @@ Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
       decorator_(NULL),
       cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())) {
   Zone* zone = this->zone();
-  Factory* f = isolate->factory();
+  Factory* const factory = isolate->factory();
 
-  Handle<Object> infinity = f->NewNumber(+V8_INFINITY);
-  Handle<Object> minusinfinity = f->NewNumber(-V8_INFINITY);
-
-  Type* number = Type::Number();
-  Type* signed32 = Type::Signed32();
-  Type* unsigned32 = Type::Unsigned32();
-  Type* nan_or_minuszero = Type::Union(Type::NaN(), Type::MinusZero(), zone);
+  Type* infinity = Type::Constant(factory->infinity_value(), zone);
+  Type* minus_infinity = Type::Constant(factory->minus_infinity_value(), zone);
   Type* truncating_to_zero =
-      Type::Union(Type::Union(Type::Constant(infinity, zone),
-                              Type::Constant(minusinfinity, zone), zone),
-                  nan_or_minuszero, zone);
+      Type::Union(Type::Union(infinity, minus_infinity, zone),
+                  Type::MinusZeroOrNaN(), zone);
 
-  boolean_or_number = Type::Union(Type::Boolean(), Type::Number(), zone);
-  undefined_or_null = Type::Union(Type::Undefined(), Type::Null(), zone);
-  undefined_or_number = Type::Union(Type::Undefined(), Type::Number(), zone);
-  singleton_false = Type::Constant(f->false_value(), zone);
-  singleton_true = Type::Constant(f->true_value(), zone);
-  singleton_zero = Type::Range(0.0, 0.0, zone);
-  singleton_one = Type::Range(1.0, 1.0, zone);
-  zero_or_one = Type::Union(singleton_zero, singleton_one, zone);
-  zeroish = Type::Union(singleton_zero, nan_or_minuszero, zone);
-  signed32ish = Type::Union(signed32, truncating_to_zero, zone);
-  unsigned32ish = Type::Union(unsigned32, truncating_to_zero, zone);
-  falsish = Type::Union(Type::Undetectable(),
-                        Type::Union(Type::Union(singleton_false, zeroish, zone),
-                                    undefined_or_null, zone),
-                        zone);
-  truish = Type::Union(
-      singleton_true,
+  singleton_false_ = Type::Constant(factory->false_value(), zone);
+  singleton_true_ = Type::Constant(factory->true_value(), zone);
+  singleton_zero_ = Type::Range(0.0, 0.0, zone);
+  singleton_one_ = Type::Range(1.0, 1.0, zone);
+  zero_or_one_ = Type::Range(0.0, 1.0, zone);
+  zeroish_ = Type::Union(singleton_zero_, Type::MinusZeroOrNaN(), zone);
+  signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
+  unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
+  falsish_ =
+      Type::Union(Type::Undetectable(),
+                  Type::Union(Type::Union(singleton_false_, zeroish_, zone),
+                              Type::NullOrUndefined(), zone),
+                  zone);
+  truish_ = Type::Union(
+      singleton_true_,
       Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone), zone);
-  integer = Type::Range(-V8_INFINITY, V8_INFINITY, zone);
-  weakint = Type::Union(integer, nan_or_minuszero, zone);
-
-  number_fun0_ = Type::Function(number, zone);
-  number_fun1_ = Type::Function(number, number, zone);
-  number_fun2_ = Type::Function(number, number, number, zone);
-
-  weakint_fun1_ = Type::Function(weakint, number, zone);
-  random_fun_ = Type::Function(Type::OrderedNumber(), zone);
 
   decorator_ = new (zone) Decorator(this);
   graph_->AddDecorator(decorator_);
@@ -500,8 +495,8 @@ Bounds Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
 Type* Typer::Visitor::Invert(Type* type, Typer* t) {
   DCHECK(type->Is(Type::Boolean()));
   DCHECK(type->IsInhabited());
-  if (type->Is(t->singleton_false)) return t->singleton_true;
-  if (type->Is(t->singleton_true)) return t->singleton_false;
+  if (type->Is(t->singleton_false_)) return t->singleton_true_;
+  if (type->Is(t->singleton_true_)) return t->singleton_false_;
   return type;
 }
 
@@ -520,17 +515,17 @@ Type* Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
   if ((outcome & kComparisonFalse) != 0 ||
       (outcome & kComparisonUndefined) != 0) {
     return (outcome & kComparisonTrue) != 0 ? Type::Boolean()
-                                            : t->singleton_false;
+                                            : t->singleton_false_;
   }
   // Type should be non empty, so we know it should be true.
   DCHECK((outcome & kComparisonTrue) != 0);
-  return t->singleton_true;
+  return t->singleton_true_;
 }
 
 
 Type* Typer::Visitor::Rangify(Type* type, Typer* t) {
   if (type->IsRange()) return type;        // Shortcut.
-  if (!type->Is(t->integer) && !type->Is(Type::Integral32())) {
+  if (!type->Is(t->cache_->Get(kInteger))) {
     return type;  // Give up on non-integer types.
   }
   double min = type->Min();
@@ -558,10 +553,10 @@ Type* Typer::Visitor::ToPrimitive(Type* type, Typer* t) {
 
 Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
   if (type->Is(Type::Boolean())) return type;
-  if (type->Is(t->falsish)) return t->singleton_false;
-  if (type->Is(t->truish)) return t->singleton_true;
+  if (type->Is(t->falsish_)) return t->singleton_false_;
+  if (type->Is(t->truish_)) return t->singleton_true_;
   if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
-    return t->singleton_true;  // Ruled out nan, -0 and +0.
+    return t->singleton_true_;  // Ruled out nan, -0 and +0.
   }
   return Type::Boolean();
 }
@@ -569,21 +564,21 @@ Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
 
 Type* Typer::Visitor::ToNumber(Type* type, Typer* t) {
   if (type->Is(Type::Number())) return type;
-  if (type->Is(Type::Null())) return t->singleton_zero;
-  if (type->Is(Type::Undefined())) return Type::NaN();
-  if (type->Is(t->undefined_or_null)) {
-    return Type::Union(Type::NaN(), t->singleton_zero, t->zone());
+  if (type->Is(Type::NullOrUndefined())) {
+    if (type->Is(Type::Null())) return t->singleton_zero_;
+    if (type->Is(Type::Undefined())) return Type::NaN();
+    return Type::Union(Type::NaN(), t->singleton_zero_, t->zone());
   }
-  if (type->Is(t->undefined_or_number)) {
+  if (type->Is(Type::NumberOrUndefined())) {
     return Type::Union(Type::Intersect(type, Type::Number(), t->zone()),
                        Type::NaN(), t->zone());
   }
-  if (type->Is(t->singleton_false)) return t->singleton_zero;
-  if (type->Is(t->singleton_true)) return t->singleton_one;
-  if (type->Is(Type::Boolean())) return t->zero_or_one;
-  if (type->Is(t->boolean_or_number)) {
+  if (type->Is(t->singleton_false_)) return t->singleton_zero_;
+  if (type->Is(t->singleton_true_)) return t->singleton_one_;
+  if (type->Is(Type::Boolean())) return t->zero_or_one_;
+  if (type->Is(Type::BooleanOrNumber())) {
     return Type::Union(Type::Intersect(type, Type::Number(), t->zone()),
-                       t->zero_or_one, t->zone());
+                       t->zero_or_one_, t->zone());
   }
   return Type::Number();
 }
@@ -598,9 +593,9 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
   // TODO(neis): DCHECK(type->Is(Type::Number()));
   if (type->Is(Type::Signed32())) return type;
-  if (type->Is(t->zeroish)) return t->singleton_zero;
-  if (type->Is(t->signed32ish)) {
-    return Type::Intersect(Type::Union(type, t->singleton_zero, t->zone()),
+  if (type->Is(t->zeroish_)) return t->singleton_zero_;
+  if (type->Is(t->signed32ish_)) {
+    return Type::Intersect(Type::Union(type, t->singleton_zero_, t->zone()),
                            Type::Signed32(), t->zone());
   }
   return Type::Signed32();
@@ -610,9 +605,9 @@ Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
 Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
   // TODO(neis): DCHECK(type->Is(Type::Number()));
   if (type->Is(Type::Unsigned32())) return type;
-  if (type->Is(t->zeroish)) return t->singleton_zero;
-  if (type->Is(t->unsigned32ish)) {
-    return Type::Intersect(Type::Union(type, t->singleton_zero, t->zone()),
+  if (type->Is(t->zeroish_)) return t->singleton_zero_;
+  if (type->Is(t->unsigned32ish_)) {
+    return Type::Intersect(Type::Union(type, t->singleton_zero_, t->zone()),
                            Type::Unsigned32(), t->zone());
   }
   return Type::Unsigned32();
@@ -776,19 +771,19 @@ Bounds Typer::Visitor::TypeDead(Node* node) {
 
 
 Type* Typer::Visitor::JSEqualTyper(Type* lhs, Type* rhs, Typer* t) {
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return t->singleton_false;
-  if (lhs->Is(t->undefined_or_null) && rhs->Is(t->undefined_or_null)) {
-    return t->singleton_true;
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return t->singleton_false_;
+  if (lhs->Is(Type::NullOrUndefined()) && rhs->Is(Type::NullOrUndefined())) {
+    return t->singleton_true_;
   }
   if (lhs->Is(Type::Number()) && rhs->Is(Type::Number()) &&
       (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
-      return t->singleton_false;
+    return t->singleton_false_;
   }
   if (lhs->IsConstant() && rhs->Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     // TODO(neis): Extend this to Range(x,x), MinusZero, ...?
-    return t->singleton_true;
+    return t->singleton_true_;
   }
   return Type::Boolean();
 }
@@ -812,16 +807,16 @@ static Type* JSType(Type* type) {
 
 
 Type* Typer::Visitor::JSStrictEqualTyper(Type* lhs, Type* rhs, Typer* t) {
-  if (!JSType(lhs)->Maybe(JSType(rhs))) return t->singleton_false;
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return t->singleton_false;
+  if (!JSType(lhs)->Maybe(JSType(rhs))) return t->singleton_false_;
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return t->singleton_false_;
   if (lhs->Is(Type::Number()) && rhs->Is(Type::Number()) &&
       (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
-      return t->singleton_false;
+    return t->singleton_false_;
   }
   if (lhs->IsConstant() && rhs->Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
-    return t->singleton_true;
+    return t->singleton_true_;
   }
   return Type::Boolean();
 }
@@ -1162,13 +1157,13 @@ Type* Typer::Visitor::JSMultiplyRanger(Type::RangeType* lhs,
   // the discontinuity makes it too complicated.  Note that even if none of the
   // "results" above is nan, the actual result may still be, so we have to do a
   // different check:
-  bool maybe_nan = (lhs->Maybe(t->singleton_zero) &&
+  bool maybe_nan = (lhs->Maybe(t->singleton_zero_) &&
                     (rmin == -V8_INFINITY || rmax == +V8_INFINITY)) ||
-                   (rhs->Maybe(t->singleton_zero) &&
+                   (rhs->Maybe(t->singleton_zero_) &&
                     (lmin == -V8_INFINITY || lmax == +V8_INFINITY));
-  if (maybe_nan) return t->weakint;  // Giving up.
-  bool maybe_minuszero = (lhs->Maybe(t->singleton_zero) && rmin < 0) ||
-                         (rhs->Maybe(t->singleton_zero) && lmin < 0);
+  if (maybe_nan) return t->cache_->Get(kWeakint);  // Giving up.
+  bool maybe_minuszero = (lhs->Maybe(t->singleton_zero_) && rmin < 0) ||
+                         (rhs->Maybe(t->singleton_zero_) && lmin < 0);
   Type* range =
       Type::Range(array_min(results, 4), array_max(results, 4), t->zone());
   return maybe_minuszero ? Type::Union(range, Type::MinusZero(), t->zone())
@@ -1194,7 +1189,7 @@ Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
   // Division is tricky, so all we do is try ruling out nan.
   // TODO(neis): try ruling out -0 as well?
   bool maybe_nan =
-      lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
+      lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish_) ||
       ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
        (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
   return maybe_nan ? Type::Number() : Type::OrderedNumber();
@@ -1239,7 +1234,7 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
   rhs = ToNumber(rhs, t);
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
 
-  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish) ||
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(t->zeroish_) ||
       lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
     // Result maybe NaN.
     return Type::Number();
@@ -1367,15 +1362,14 @@ Type* Typer::Visitor::Weaken(Node* node, Type* current_type,
   STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   // If the types have nothing to do with integers, return the types.
-  if (!previous_type->Maybe(typer_->integer)) {
+  Type* const integer = typer_->cache_->Get(kInteger);
+  if (!previous_type->Maybe(integer)) {
     return current_type;
   }
-  DCHECK(current_type->Maybe(typer_->integer));
+  DCHECK(current_type->Maybe(integer));
 
-  Type* current_integer =
-      Type::Intersect(current_type, typer_->integer, zone());
-  Type* previous_integer =
-      Type::Intersect(previous_type, typer_->integer, zone());
+  Type* current_integer = Type::Intersect(current_type, integer, zone());
+  Type* previous_integer = Type::Intersect(previous_type, integer, zone());
 
   // Once we start weakening a node, we should always weaken.
   if (!IsWeakened(node->id())) {
@@ -1396,7 +1390,7 @@ Type* Typer::Visitor::Weaken(Node* node, Type* current_type,
   // Find the closest lower entry in the list of allowed
   // minima (or negative infinity if there is no such entry).
   if (current_min != previous_integer->Min()) {
-    new_min = typer_->integer->AsRange()->Min();
+    new_min = -V8_INFINITY;
     for (double const min : kWeakenMinLimits) {
       if (min <= current_min) {
         new_min = min;
@@ -1410,7 +1404,7 @@ Type* Typer::Visitor::Weaken(Node* node, Type* current_type,
   // Find the closest greater entry in the list of allowed
   // maxima (or infinity if there is no such entry).
   if (current_max != previous_integer->Max()) {
-    new_max = typer_->integer->AsRange()->Max();
+    new_max = V8_INFINITY;
     for (double const max : kWeakenMaxLimits) {
       if (max >= current_max) {
         new_max = max;
@@ -2336,13 +2330,11 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
     if (JSFunction::cast(*value)->shared()->HasBuiltinFunctionId()) {
       switch (JSFunction::cast(*value)->shared()->builtin_function_id()) {
         case kMathRandom:
-          return typer_->random_fun_;
+          return typer_->cache_->Get(kRandomFunc0);
         case kMathFloor:
-          return typer_->weakint_fun1_;
         case kMathRound:
-          return typer_->weakint_fun1_;
         case kMathCeil:
-          return typer_->weakint_fun1_;
+          return typer_->cache_->Get(kWeakintFunc1);
         // Unary math functions.
         case kMathAbs:  // TODO(rossberg): can't express overloading
         case kMathLog:
