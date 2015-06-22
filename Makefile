@@ -250,7 +250,7 @@ NACL_ARCHES = nacl_ia32 nacl_x64
 GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
 	   build/shim_headers.gypi build/features.gypi build/standalone.gypi \
 	   build/toolchain.gypi build/all.gyp build/mac/asan.gyp \
-	   build/android.gypi test/cctest/cctest.gyp \
+	   test/cctest/cctest.gyp \
 	   test/unittests/unittests.gyp tools/gyp/v8.gyp \
 	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
 	   buildtools/third_party/libc++abi/libc++abi.gyp \
@@ -315,7 +315,7 @@ native: $(OUTDIR)/Makefile.native
 
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
-$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
+$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) \
                    must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \

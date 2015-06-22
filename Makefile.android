@@ -46,29 +46,29 @@ else
 endif
 
 ifeq ($(ARCH), android_arm)
-  DEFINES  = target_arch=arm v8_target_arch=arm android_target_arch=arm android_target_platform=21
+  DEFINES  = OS=android target_arch=arm v8_target_arch=arm android_target_arch=arm android_target_platform=21
   DEFINES += arm_neon=0 arm_version=7
   TOOLCHAIN_ARCH = arm-linux-androideabi
   TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
 else ifeq ($(ARCH), android_arm64)
-  DEFINES  = target_arch=arm64 v8_target_arch=arm64 android_target_arch=arm64 android_target_platform=21
+  DEFINES  = OS=android target_arch=arm64 v8_target_arch=arm64 android_target_arch=arm64 android_target_platform=21
   TOOLCHAIN_ARCH = aarch64-linux-android
   TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
 else ifeq ($(ARCH), android_mipsel)
-  DEFINES  = target_arch=mipsel v8_target_arch=mipsel android_target_platform=21
+  DEFINES  = OS=android target_arch=mipsel v8_target_arch=mipsel android_target_platform=21
   DEFINES += android_target_arch=mips mips_arch_variant=mips32r2
   TOOLCHAIN_ARCH = mipsel-linux-android
   TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
 else ifeq ($(ARCH), android_ia32)
-  DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86 android_target_platform=21
+  DEFINES = OS=android target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86 android_target_platform=21
   TOOLCHAIN_ARCH = x86
   TOOLCHAIN_PREFIX = i686-linux-android
 else ifeq ($(ARCH), android_x64)
-  DEFINES = target_arch=x64 v8_target_arch=x64 android_target_arch=x86_64 android_target_platform=21
+  DEFINES = OS=android target_arch=x64 v8_target_arch=x64 android_target_arch=x86_64 android_target_platform=21
   TOOLCHAIN_ARCH = x86_64
   TOOLCHAIN_PREFIX = x86_64-linux-android
 else ifeq ($(ARCH), android_x87)
-  DEFINES = target_arch=x87 v8_target_arch=x87 android_target_arch=x86 android_target_platform=21
+  DEFINES = OS=android target_arch=x87 v8_target_arch=x87 android_target_arch=x86 android_target_platform=21
   TOOLCHAIN_ARCH = x86
   TOOLCHAIN_PREFIX = i686-linux-android
 else
@@ -111,5 +111,5 @@ $(ANDROID_MAKEFILES):
 	CXX="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_PREFIX}-g++" \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
+	              -Ibuild/standalone.gypi --depth=. \
 	              -S$(suffix $(basename $@))$(suffix $@) ${GYPFLAGS}
