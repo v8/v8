@@ -17,23 +17,56 @@ class Operator;
 struct JSOperatorGlobalCache;
 
 
+// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorICSlot}, which
+// is used to access the type feedback for a certain {Node}.
+class VectorSlotPair {
+ public:
+  VectorSlotPair() : slot_(FeedbackVectorICSlot::Invalid()) {}
+  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : vector_(vector), slot_(slot) {}
+
+  bool IsValid() const { return !vector_.is_null(); }
+
+  MaybeHandle<TypeFeedbackVector> vector() const { return vector_; }
+  FeedbackVectorICSlot slot() const { return slot_; }
+
+  int index() const {
+    Handle<TypeFeedbackVector> vector;
+    return vector_.ToHandle(&vector) ? vector->GetIndex(slot_) : -1;
+  }
+
+ private:
+  const MaybeHandle<TypeFeedbackVector> vector_;
+  const FeedbackVectorICSlot slot_;
+};
+
+bool operator==(VectorSlotPair const&, VectorSlotPair const&);
+bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
+
+size_t hash_value(VectorSlotPair const&);
+
+
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
  public:
   CallFunctionParameters(size_t arity, CallFunctionFlags flags,
-                         LanguageMode language_mode)
+                         LanguageMode language_mode,
+                         VectorSlotPair const& feedback)
       : bit_field_(ArityField::encode(arity) | FlagsField::encode(flags) |
-                   LanguageModeField::encode(language_mode)) {}
+                   LanguageModeField::encode(language_mode)),
+        feedback_(feedback) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
   CallFunctionFlags flags() const { return FlagsField::decode(bit_field_); }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(bit_field_);
   }
+  VectorSlotPair const& feedback() const { return feedback_; }
 
   bool operator==(CallFunctionParameters const& that) const {
-    return this->bit_field_ == that.bit_field_;
+    return this->bit_field_ == that.bit_field_ &&
+           this->feedback_ == that.feedback_;
   }
   bool operator!=(CallFunctionParameters const& that) const {
     return !(*this == that);
@@ -41,7 +74,7 @@ class CallFunctionParameters final {
 
  private:
   friend size_t hash_value(CallFunctionParameters const& p) {
-    return p.bit_field_;
+    return base::hash_combine(p.bit_field_, p.feedback_);
   }
 
   typedef BitField<size_t, 0, 28> ArityField;
@@ -49,6 +82,7 @@ class CallFunctionParameters final {
   typedef BitField<LanguageMode, 30, 2> LanguageModeField;
 
   const uint32_t bit_field_;
+  const VectorSlotPair feedback_;
 };
 
 size_t hash_value(CallFunctionParameters const&);
@@ -112,42 +146,17 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 ContextAccess const& ContextAccessOf(Operator const*);
 
 
-// A ResolvedFeedbackSlot needs to query the type feedback vector to get it's
-// index in the vector.
-class ResolvedFeedbackSlot {
- public:
-  ResolvedFeedbackSlot(Handle<TypeFeedbackVector> vector,
-                       FeedbackVectorICSlot slot)
-      : slot_(slot),
-        index_(slot == FeedbackVectorICSlot::Invalid() ? -1 : vector->GetIndex(
-                                                                  slot)) {}
-  ResolvedFeedbackSlot() : slot_(FeedbackVectorICSlot::Invalid()), index_(-1) {}
-
-  FeedbackVectorICSlot slot() const { return slot_; }
-  int index() const { return index_; }
-
- private:
-  const FeedbackVectorICSlot slot_;
-  const int index_;
-};
-
-
-bool operator==(ResolvedFeedbackSlot const& lhs,
-                ResolvedFeedbackSlot const& rhs);
-
-
 // Defines the name for a dynamic variable lookup. The {check_bitset} allows to
 // inline checks whether the lookup yields in a global variable. This is used as
 // a parameter by JSLoadDynamicGlobal and JSStoreDynamicGlobal operators.
 class DynamicGlobalAccess final {
  public:
   DynamicGlobalAccess(const Handle<String>& name, uint32_t check_bitset,
-                      const ResolvedFeedbackSlot& feedback,
-                      ContextualMode mode);
+                      const VectorSlotPair& feedback, ContextualMode mode);
 
   const Handle<String>& name() const { return name_; }
   uint32_t check_bitset() const { return check_bitset_; }
-  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
   ContextualMode mode() const { return mode_; }
 
   // Indicates that an inline check is disabled.
@@ -164,7 +173,7 @@ class DynamicGlobalAccess final {
  private:
   const Handle<String> name_;
   const uint32_t check_bitset_;
-  const ResolvedFeedbackSlot feedback_;
+  const VectorSlotPair feedback_;
   const ContextualMode mode_;
 };
 
@@ -221,19 +230,18 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 // used as a parameter by JSLoadNamed operators.
 class LoadNamedParameters final {
  public:
-  LoadNamedParameters(const Unique<Name>& name,
-                      const ResolvedFeedbackSlot& feedback,
+  LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
                       ContextualMode contextual_mode)
       : name_(name), feedback_(feedback), contextual_mode_(contextual_mode) {}
 
   const Unique<Name>& name() const { return name_; }
   ContextualMode contextual_mode() const { return contextual_mode_; }
 
-  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
 
  private:
   const Unique<Name> name_;
-  const ResolvedFeedbackSlot feedback_;
+  const VectorSlotPair feedback_;
   const ContextualMode contextual_mode_;
 };
 
@@ -251,13 +259,13 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 // used as a parameter by JSLoadProperty operators.
 class LoadPropertyParameters final {
  public:
-  explicit LoadPropertyParameters(const ResolvedFeedbackSlot& feedback)
+  explicit LoadPropertyParameters(const VectorSlotPair& feedback)
       : feedback_(feedback) {}
 
-  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
 
  private:
-  const ResolvedFeedbackSlot feedback_;
+  const VectorSlotPair feedback_;
 };
 
 bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
@@ -275,18 +283,17 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 class StoreNamedParameters final {
  public:
   StoreNamedParameters(LanguageMode language_mode,
-                       const ResolvedFeedbackSlot& feedback,
-                       const Unique<Name>& name)
+                       const VectorSlotPair& feedback, const Unique<Name>& name)
       : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
-  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
   const Unique<Name>& name() const { return name_; }
 
  private:
   const LanguageMode language_mode_;
   const Unique<Name> name_;
-  const ResolvedFeedbackSlot feedback_;
+  const VectorSlotPair feedback_;
 };
 
 bool operator==(StoreNamedParameters const&, StoreNamedParameters const&);
@@ -304,15 +311,15 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
 class StorePropertyParameters final {
  public:
   StorePropertyParameters(LanguageMode language_mode,
-                          const ResolvedFeedbackSlot& feedback)
+                          const VectorSlotPair& feedback)
       : language_mode_(language_mode), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
-  const ResolvedFeedbackSlot& feedback() const { return feedback_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
 
  private:
   const LanguageMode language_mode_;
-  const ResolvedFeedbackSlot feedback_;
+  const VectorSlotPair feedback_;
 };
 
 bool operator==(StorePropertyParameters const&, StorePropertyParameters const&);
@@ -392,22 +399,23 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* CreateLiteralArray(int literal_flags);
   const Operator* CreateLiteralObject(int literal_flags);
 
-  const Operator* CallFunction(size_t arity, CallFunctionFlags flags,
-                               LanguageMode language_mode);
+  const Operator* CallFunction(
+      size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
+      VectorSlotPair const& feedback = VectorSlotPair());
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
 
   const Operator* CallConstruct(int arguments);
 
-  const Operator* LoadProperty(const ResolvedFeedbackSlot& feedback);
+  const Operator* LoadProperty(const VectorSlotPair& feedback);
   const Operator* LoadNamed(const Unique<Name>& name,
-                            const ResolvedFeedbackSlot& feedback,
+                            const VectorSlotPair& feedback,
                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
   const Operator* StoreProperty(LanguageMode language_mode,
-                                const ResolvedFeedbackSlot& feedback);
+                                const VectorSlotPair& feedback);
   const Operator* StoreNamed(LanguageMode language_mode,
                              const Unique<Name>& name,
-                             const ResolvedFeedbackSlot& feedback);
+                             const VectorSlotPair& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
 
@@ -418,7 +426,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadDynamicGlobal(const Handle<String>& name,
                                     uint32_t check_bitset,
-                                    const ResolvedFeedbackSlot& feedback,
+                                    const VectorSlotPair& feedback,
                                     ContextualMode mode);
   const Operator* LoadDynamicContext(const Handle<String>& name,
                                      uint32_t check_bitset, size_t depth,

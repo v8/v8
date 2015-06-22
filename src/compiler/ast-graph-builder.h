@@ -236,9 +236,8 @@ class AstGraphBuilder : public AstVisitor {
 
   Node** EnsureInputBufferSize(int size);
 
-  // Named and keyed loads require a ResolvedFeedbackSlot for successful
-  // lowering.
-  ResolvedFeedbackSlot ResolveFeedbackSlot(FeedbackVectorICSlot slot) const;
+  // Named and keyed loads require a VectorSlotPair for successful lowering.
+  VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
 
   // Determine which contexts need to be checked for extension objects that
   // might shadow the optimistic declaration of dynamic lookup variables.
@@ -269,8 +268,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,
-                                Token::Value op,
-                                const ResolvedFeedbackSlot& slot,
+                                Token::Value op, const VectorSlotPair& slot,
                                 BailoutId bailout_id,
                                 FrameStateBeforeAndAfter& states,
                                 OutputFrameStateCombine framestate_combine =
@@ -279,22 +277,20 @@ class AstGraphBuilder : public AstVisitor {
                             OutputFrameStateCombine framestate_combine);
   Node* BuildVariableLoad(Variable* variable, BailoutId bailout_id,
                           FrameStateBeforeAndAfter& states,
-                          const ResolvedFeedbackSlot& feedback,
+                          const VectorSlotPair& feedback,
                           OutputFrameStateCombine framestate_combine,
                           ContextualMode mode = CONTEXTUAL);
 
   // Builders for property loads and stores.
   Node* BuildKeyedLoad(Node* receiver, Node* key,
-                       const ResolvedFeedbackSlot& feedback);
+                       const VectorSlotPair& feedback);
   Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
-                       const ResolvedFeedbackSlot& feedback,
+                       const VectorSlotPair& feedback,
                        ContextualMode mode = NOT_CONTEXTUAL);
   Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
-                        const ResolvedFeedbackSlot& feedback,
-                        TypeFeedbackId id);
+                        const VectorSlotPair& feedback, TypeFeedbackId id);
   Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value,
-                        const ResolvedFeedbackSlot& feedback,
-                        TypeFeedbackId id);
+                        const VectorSlotPair& feedback, TypeFeedbackId id);
 
   // Builders for super property loads and stores.
   Node* BuildKeyedSuperStore(Node* receiver, Node* home_object, Node* key,
@@ -302,10 +298,9 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildNamedSuperStore(Node* receiver, Node* home_object,
                              Handle<Name> name, Node* value, TypeFeedbackId id);
   Node* BuildNamedSuperLoad(Node* receiver, Node* home_object,
-                            Handle<Name> name,
-                            const ResolvedFeedbackSlot& feedback);
+                            Handle<Name> name, const VectorSlotPair& feedback);
   Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
-                            const ResolvedFeedbackSlot& feedback);
+                            const VectorSlotPair& feedback);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();
@@ -326,7 +321,7 @@ class AstGraphBuilder : public AstVisitor {
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.
   Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr,
-                           const ResolvedFeedbackSlot& slot);
+                           const VectorSlotPair& feedback);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
@@ -392,7 +387,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value,
-                            const ResolvedFeedbackSlot& slot,
+                            const VectorSlotPair& feedback,
                             BailoutId bailout_id);
 
   // Dispatched from VisitClassLiteral.

@@ -648,7 +648,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
   double backing_store[kLength];
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
-  ResolvedFeedbackSlot feedback;
+  VectorSlotPair feedback;
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, 0, kLength);
@@ -687,7 +687,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
   double backing_store[kLength];
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, sizeof(backing_store));
-  ResolvedFeedbackSlot feedback;
+  VectorSlotPair feedback;
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, 0, kLength);
@@ -739,9 +739,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      ResolvedFeedbackSlot slot;
+      VectorSlotPair feedback;
       Node* node =
-          graph()->NewNode(javascript()->StoreProperty(language_mode, slot),
+          graph()->NewNode(javascript()->StoreProperty(language_mode, feedback),
                            base, key, value, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
@@ -787,9 +787,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      ResolvedFeedbackSlot slot;
+      VectorSlotPair feedback;
       Node* node =
-          graph()->NewNode(javascript()->StoreProperty(language_mode, slot),
+          graph()->NewNode(javascript()->StoreProperty(language_mode, feedback),
                            base, key, value, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
@@ -848,9 +848,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      ResolvedFeedbackSlot slot;
+      VectorSlotPair feedback;
       Node* node =
-          graph()->NewNode(javascript()->StoreProperty(language_mode, slot),
+          graph()->NewNode(javascript()->StoreProperty(language_mode, feedback),
                            base, key, value, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
@@ -884,7 +884,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
       IsNumberConstant(IsNaN())  // --
   };
 
-  ResolvedFeedbackSlot feedback;
+  VectorSlotPair feedback;
   Node* global = Parameter(Type::GlobalObject());
   Node* vector = UndefinedConstant();
   Node* context = UndefinedConstant();
@@ -914,7 +914,7 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Handle<String> name = factory()->object_string();
-  ResolvedFeedbackSlot feedback;
+  VectorSlotPair feedback;
   for (int i = 0; i < DynamicGlobalAccess::kMaxCheckDepth; ++i) {
     uint32_t bitset = 1 << i;  // Only single check.
     Reduction r = Reduce(graph()->NewNode(

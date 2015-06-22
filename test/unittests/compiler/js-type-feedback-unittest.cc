@@ -77,7 +77,7 @@ class JSTypeFeedbackTest : public TypedGraphTest {
   Node* ReturnLoadNamedFromGlobal(
       const char* string, Node* effect, Node* control,
       JSTypeFeedbackSpecializer::DeoptimizationMode mode) {
-    ResolvedFeedbackSlot feedback;
+    VectorSlotPair feedback;
     Node* global = Parameter(Type::GlobalObject());
     Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();

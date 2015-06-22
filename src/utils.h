@@ -1047,23 +1047,31 @@ template <int dummy_parameter>
 class VectorSlot {
  public:
   explicit VectorSlot(int id) : id_(id) {}
+
   int ToInt() const { return id_; }
 
   static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
   VectorSlot next() const {
-    DCHECK(id_ != kInvalidSlot);
+    DCHECK_NE(kInvalidSlot, id_);
     return VectorSlot(id_ + 1);
   }
 
-  bool operator==(const VectorSlot& other) const { return id_ == other.id_; }
+  bool operator==(VectorSlot that) const { return this->id_ == that.id_; }
+  bool operator!=(VectorSlot that) const { return !(*this == that); }
 
  private:
   static const int kInvalidSlot = -1;
 
   int id_;
 };
+
+
+template <int dummy_parameter>
+size_t hash_value(VectorSlot<dummy_parameter> slot) {
+  return slot.ToInt();
+}
 
 
 typedef VectorSlot<0> FeedbackVectorSlot;

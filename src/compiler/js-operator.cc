@@ -14,6 +14,21 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
+  return lhs.slot() == rhs.slot() && lhs.vector() == rhs.vector();
+}
+
+
+bool operator!=(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(VectorSlotPair const& p) {
+  return base::hash_combine(p.slot(), p.vector());
+}
+
+
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
   return os << p.arity() << ", " << p.flags() << ", " << p.language_mode();
 }
@@ -93,7 +108,7 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 
 DynamicGlobalAccess::DynamicGlobalAccess(const Handle<String>& name,
                                          uint32_t check_bitset,
-                                         const ResolvedFeedbackSlot& feedback,
+                                         const VectorSlotPair& feedback,
                                          ContextualMode mode)
     : name_(name),
       check_bitset_(check_bitset),
@@ -172,18 +187,6 @@ std::ostream& operator<<(std::ostream& os, DynamicContextAccess const& access) {
 DynamicContextAccess const& DynamicContextAccessOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kJSLoadDynamicContext, op->opcode());
   return OpParameter<DynamicContextAccess>(op);
-}
-
-
-bool operator==(ResolvedFeedbackSlot const& lhs,
-                ResolvedFeedbackSlot const& rhs) {
-  return lhs.slot().ToInt() == rhs.slot().ToInt();
-}
-
-
-size_t hash_value(ResolvedFeedbackSlot const& p) {
-  base::hash<int> h;
-  return h(p.slot().ToInt());
 }
 
 
@@ -452,10 +455,10 @@ CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 #undef CACHED_WITH_LANGUAGE_MODE
 
 
-const Operator* JSOperatorBuilder::CallFunction(size_t arity,
-                                                CallFunctionFlags flags,
-                                                LanguageMode language_mode) {
-  CallFunctionParameters parameters(arity, flags, language_mode);
+const Operator* JSOperatorBuilder::CallFunction(
+    size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
+    VectorSlotPair const& feedback) {
+  CallFunctionParameters parameters(arity, flags, language_mode, feedback);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode
       "JSCallFunction",                                    // name
@@ -486,9 +489,9 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 }
 
 
-const Operator* JSOperatorBuilder::LoadNamed(
-    const Unique<Name>& name, const ResolvedFeedbackSlot& feedback,
-    ContextualMode contextual_mode) {
+const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
+                                             const VectorSlotPair& feedback,
+                                             ContextualMode contextual_mode) {
   LoadNamedParameters parameters(name, feedback, contextual_mode);
   return new (zone()) Operator1<LoadNamedParameters>(   // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
@@ -499,7 +502,7 @@ const Operator* JSOperatorBuilder::LoadNamed(
 
 
 const Operator* JSOperatorBuilder::LoadProperty(
-    const ResolvedFeedbackSlot& feedback) {
+    const VectorSlotPair& feedback) {
   LoadPropertyParameters parameters(feedback);
   return new (zone()) Operator1<LoadPropertyParameters>(   // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
@@ -509,9 +512,9 @@ const Operator* JSOperatorBuilder::LoadProperty(
 }
 
 
-const Operator* JSOperatorBuilder::StoreNamed(
-    LanguageMode language_mode, const Unique<Name>& name,
-    const ResolvedFeedbackSlot& feedback) {
+const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
+                                              const Unique<Name>& name,
+                                              const VectorSlotPair& feedback) {
   StoreNamedParameters parameters(language_mode, feedback, name);
   return new (zone()) Operator1<StoreNamedParameters>(   // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
@@ -522,7 +525,7 @@ const Operator* JSOperatorBuilder::StoreNamed(
 
 
 const Operator* JSOperatorBuilder::StoreProperty(
-    LanguageMode language_mode, const ResolvedFeedbackSlot& feedback) {
+    LanguageMode language_mode, const VectorSlotPair& feedback) {
   StorePropertyParameters parameters(language_mode, feedback);
   return new (zone()) Operator1<StorePropertyParameters>(   // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
@@ -566,7 +569,7 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 
 const Operator* JSOperatorBuilder::LoadDynamicGlobal(
     const Handle<String>& name, uint32_t check_bitset,
-    const ResolvedFeedbackSlot& feedback, ContextualMode mode) {
+    const VectorSlotPair& feedback, ContextualMode mode) {
   DynamicGlobalAccess access(name, check_bitset, feedback, mode);
   return new (zone()) Operator1<DynamicGlobalAccess>(           // --
       IrOpcode::kJSLoadDynamicGlobal, Operator::kNoProperties,  // opcode

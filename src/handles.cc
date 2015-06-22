@@ -9,7 +9,6 @@
 namespace v8 {
 namespace internal {
 
-
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   int n = impl->blocks()->length();
