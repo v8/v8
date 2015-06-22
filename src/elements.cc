@@ -1336,7 +1336,6 @@ class DictionaryElementsAccessor
     if (length <= Smi::kMaxValue) {
       array->set_length(Smi::FromInt(length));
     } else {
-      Isolate* isolate = array->GetIsolate();
       Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
       array->set_length(*length_obj);
     }
