@@ -846,7 +846,7 @@ function StringFromCharCode(code) {
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
-  return TO_STRING_INLINE(str).replace(/"/g, "&quot;");
+  return %_CallFunction(TO_STRING_INLINE(str), /"/g, "&quot;", StringReplace);
 }
 
 

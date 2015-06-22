@@ -192,3 +192,10 @@ assertEquals(String.prototype.sup.length, 0);
     assertEquals(1, calls);
   }
 })();
+
+
+(function TestDeleteStringRelace() {
+  assertEquals('<a name="n">s</a>', 's'.anchor('n'));
+  assertTrue(delete String.prototype.replace);
+  assertEquals('<a name="n">s</a>', 's'.anchor('n'));
+})();
