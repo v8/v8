@@ -265,33 +265,33 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 
 
 void JSGenericLowering::LowerJSUnaryNot(Node* node) {
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   Callable callable = CodeFactory::ToBoolean(
       isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }
 
 
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
-  Callable callable = CodeFactory::Typeof(isolate());
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::Typeof(isolate());
   ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   Callable callable =
       CodeFactory::ToBoolean(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }
 
 
 void JSGenericLowering::LowerJSToNumber(Node* node) {
-  Callable callable = CodeFactory::ToNumber(isolate());
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::ToNumber(isolate());
   ReplaceWithStubCall(node, callable, flags);
 }
 
@@ -365,17 +365,12 @@ void JSGenericLowering::LowerJSHasProperty(Node* node) {
 
 
 void JSGenericLowering::LowerJSInstanceOf(Node* node) {
-  InstanceofStub::Flags flags = static_cast<InstanceofStub::Flags>(
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  InstanceofStub::Flags stub_flags = static_cast<InstanceofStub::Flags>(
       InstanceofStub::kReturnTrueFalseObject |
       InstanceofStub::kArgsInRegisters);
-  InstanceofStub stub(isolate(), flags);
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor::Flags desc_flags = AdjustFrameStatesForCall(node);
-  CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(isolate(), zone(), d, 0, desc_flags);
-  Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
-  node->InsertInput(zone(), 0, stub_code);
-  node->set_op(common()->Call(desc));
+  Callable callable = CodeFactory::Instanceof(isolate(), stub_flags);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 

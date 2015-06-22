@@ -110,6 +110,14 @@ Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
 
 
 // static
+Callable CodeFactory::Instanceof(Isolate* isolate,
+                                 InstanceofStub::Flags flags) {
+  InstanceofStub stub(isolate, flags);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::ToBoolean(Isolate* isolate,
                                 ToBooleanStub::ResultMode mode,
                                 ToBooleanStub::Types types) {

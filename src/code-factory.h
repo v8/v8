@@ -56,6 +56,8 @@ class CodeFactory final {
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
+  static Callable Instanceof(Isolate* isolate, InstanceofStub::Flags flags);
+
   static Callable ToBoolean(
       Isolate* isolate, ToBooleanStub::ResultMode mode,
       ToBooleanStub::Types types = ToBooleanStub::Types());
