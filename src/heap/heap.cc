@@ -1863,9 +1863,11 @@ void Heap::TearDownArrayBuffersHelper(
 void Heap::RegisterNewArrayBuffer(bool in_new_space, void* data,
                                   size_t length) {
   if (!data) return;
-  RegisterNewArrayBufferHelper(
-      in_new_space ? live_new_array_buffers_ : live_array_buffers_, data,
-      length);
+  RegisterNewArrayBufferHelper(live_array_buffers_, data, length);
+  if (in_new_space) {
+    RegisterNewArrayBufferHelper(live_array_buffers_for_scavenge_, data,
+                                 length);
+  }
   reinterpret_cast<v8::Isolate*>(isolate_)
       ->AdjustAmountOfExternalAllocatedMemory(length);
 }
@@ -1873,29 +1875,46 @@ void Heap::RegisterNewArrayBuffer(bool in_new_space, void* data,
 
 void Heap::UnregisterArrayBuffer(bool in_new_space, void* data) {
   if (!data) return;
-  UnregisterArrayBufferHelper(
-      in_new_space ? live_new_array_buffers_ : live_array_buffers_,
-      in_new_space ? not_yet_discovered_new_array_buffers_
-                   : not_yet_discovered_array_buffers_,
+  UnregisterArrayBufferHelper(live_array_buffers_,
+                              not_yet_discovered_array_buffers_, data);
+  if (in_new_space) {
+    UnregisterArrayBufferHelper(live_array_buffers_for_scavenge_,
+                                not_yet_discovered_array_buffers_for_scavenge_,
+                                data);
+  }
+}
+
+
+void Heap::RegisterLiveArrayBuffer(bool from_scavenge, void* data) {
+  // ArrayBuffer might be in the middle of being constructed.
+  if (data == undefined_value()) return;
+  RegisterLiveArrayBufferHelper(
+      from_scavenge ? not_yet_discovered_array_buffers_for_scavenge_
+                    : not_yet_discovered_array_buffers_,
       data);
 }
 
 
-void Heap::RegisterLiveArrayBuffer(bool in_new_space, void* data) {
-  // ArrayBuffer might be in the middle of being constructed.
-  if (data == undefined_value()) return;
-  RegisterLiveArrayBufferHelper(in_new_space
-                                    ? not_yet_discovered_new_array_buffers_
-                                    : not_yet_discovered_array_buffers_,
-                                data);
-}
-
-
-void Heap::FreeDeadArrayBuffers(bool in_new_space) {
+void Heap::FreeDeadArrayBuffers(bool from_scavenge) {
+  if (from_scavenge) {
+    for (auto& buffer : not_yet_discovered_array_buffers_for_scavenge_) {
+      not_yet_discovered_array_buffers_.erase(buffer.first);
+      live_array_buffers_.erase(buffer.first);
+    }
+  } else {
+    for (auto& buffer : not_yet_discovered_array_buffers_) {
+      // Scavenge can't happend during evacuation, so we only need to update
+      // live_array_buffers_for_scavenge_.
+      // not_yet_discovered_array_buffers_for_scanvenge_ will be reset before
+      // the next scavenge run in PrepareArrayBufferDiscoveryInNewSpace.
+      live_array_buffers_for_scavenge_.erase(buffer.first);
+    }
+  }
   size_t freed_memory = FreeDeadArrayBuffersHelper(
-      isolate_, in_new_space ? live_new_array_buffers_ : live_array_buffers_,
-      in_new_space ? not_yet_discovered_new_array_buffers_
-                   : not_yet_discovered_array_buffers_);
+      isolate_,
+      from_scavenge ? live_array_buffers_for_scavenge_ : live_array_buffers_,
+      from_scavenge ? not_yet_discovered_array_buffers_for_scavenge_
+                    : not_yet_discovered_array_buffers_);
   if (freed_memory) {
     reinterpret_cast<v8::Isolate*>(isolate_)
         ->AdjustAmountOfExternalAllocatedMemory(
@@ -1907,13 +1926,12 @@ void Heap::FreeDeadArrayBuffers(bool in_new_space) {
 void Heap::TearDownArrayBuffers() {
   TearDownArrayBuffersHelper(isolate_, live_array_buffers_,
                              not_yet_discovered_array_buffers_);
-  TearDownArrayBuffersHelper(isolate_, live_new_array_buffers_,
-                             not_yet_discovered_new_array_buffers_);
 }
 
 
 void Heap::PrepareArrayBufferDiscoveryInNewSpace() {
-  not_yet_discovered_new_array_buffers_ = live_new_array_buffers_;
+  not_yet_discovered_array_buffers_for_scavenge_ =
+      live_array_buffers_for_scavenge_;
 }
 
 
@@ -1924,10 +1942,10 @@ void Heap::PromoteArrayBuffer(Object* obj) {
   if (!data) return;
   // ArrayBuffer might be in the middle of being constructed.
   if (data == undefined_value()) return;
-  DCHECK(live_new_array_buffers_.count(data) > 0);
-  live_array_buffers_[data] = live_new_array_buffers_[data];
-  live_new_array_buffers_.erase(data);
-  not_yet_discovered_new_array_buffers_.erase(data);
+  DCHECK(live_array_buffers_for_scavenge_.count(data) > 0);
+  DCHECK(live_array_buffers_.count(data) > 0);
+  live_array_buffers_for_scavenge_.erase(data);
+  not_yet_discovered_array_buffers_for_scavenge_.erase(data);
 }
 
 
