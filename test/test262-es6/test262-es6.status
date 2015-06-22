@@ -272,11 +272,29 @@
 
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
   'language/class/*': [PASS, ['sloppy', FAIL]],
-  'language/computed-property-names/class/*': [PASS, ['sloppy', FAIL]],
-  'language/computed-property-names/to-name-side-effects/class': [PASS, ['sloppy', FAIL]],
-  'language/computed-property-names/to-name-side-effects/numbers-class': [PASS, ['sloppy', FAIL]],
+
+  # The order of adding the name property is wrong
+  # https://code.google.com/p/v8/issues/detail?id=4199
+  'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
+
+  # https://code.google.com/p/v8/issues/detail?id=3305
+  'language/computed-property-names/to-name-side-effects/class': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/to-name-side-effects/numbers-class': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/accessor/*': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/method/*': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/generator-constructor': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/generator-prototype': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/getter-constructor': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/getter-prototype': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/method-constructor': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/method-prototype': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/setter-constructor': [PASS, FAIL_SLOPPY],
+  'language/computed-property-names/class/static/setter-prototype': [PASS, FAIL_SLOPPY],
 
   # new.target
+  # https://code.google.com/p/v8/issues/detail?id=3887
   'language/expressions/arrow-function/lexical-new.target': [FAIL],
   'language/expressions/arrow-function/lexical-new.target-closure-returned': [FAIL],
 

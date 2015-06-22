@@ -33,6 +33,7 @@ import sys
 import tarfile
 import imp
 
+from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
@@ -135,6 +136,13 @@ class Test262TestSuite(testsuite.TestSuite):
     if output.exit_code != 0:
       return True
     return "FAILED!" in output.stdout
+
+  def HasUnexpectedOutput(self, testcase):
+    outcome = self.GetOutcome(testcase)
+    if (statusfile.FAIL_SLOPPY in testcase.outcomes and
+        "--use-strict" not in testcase.flags):
+      return outcome != statusfile.FAIL
+    return not outcome in (testcase.outcomes or [statusfile.PASS])
 
   def DownloadData(self):
     revision = TEST_262_ARCHIVE_REVISION
