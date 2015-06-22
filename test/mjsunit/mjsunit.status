@@ -295,6 +295,9 @@
   'regress/regress-3717': [SKIP],
   # Issue 478788.
   'es7/object-observe': [SKIP],
+
+  # BUG(v8:4237)
+  'regress/regress-3976': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
