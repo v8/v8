@@ -439,7 +439,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // initial map and properties and elements are set to empty fixed array.
       // r4: constructor function
       // r5: initial map
-      // r6: object size (not including memento if create_memento)
+      // r6: object size (including memento if create_memento)
       // r7: JSObject (not tagged)
       __ LoadRoot(r9, Heap::kEmptyFixedArrayRootIndex);
       __ mr(r8, r7);
@@ -516,7 +516,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ addi(r7, r7, Operand(kHeapObjectTag));
 
       // Check if a non-empty properties array is needed. Continue with
-      // allocated object if not fall through to runtime call if it is.
+      // allocated object if not; allocate and initialize a FixedArray if yes.
       // r4: constructor function
       // r7: JSObject
       // r8: start of next object (not tagged)
