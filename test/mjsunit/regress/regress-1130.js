@@ -35,6 +35,6 @@ try {
   eval("(function() { const x; var x })")();
 } catch (e) {
   exception = true;
-  assertTrue(e instanceof SyntaxError);
+  assertTrue(e instanceof TypeError);
 }
 assertTrue(exception);

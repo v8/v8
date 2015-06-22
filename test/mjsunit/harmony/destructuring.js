@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-destructuring --harmony-computed-property-names
-// Flags: --harmony-arrow-functions
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y } = { x : 1, y : 2 };
@@ -686,45 +685,4 @@
   }
   assertEquals('ab', sx);
   assertEquals('12', sy);
-}());
-
-
-(function TestParameters() {
-  function f({a, b}) { return a - b; }
-  assertEquals(1, f({a : 6, b : 5}));
-
-  function f1(c, {a, b}) { return c + a - b; }
-  assertEquals(8, f1(7, {a : 6, b : 5}));
-
-  function f2({c, d}, {a, b}) { return c - d + a - b; }
-  assertEquals(7, f2({c : 7, d : 1}, {a : 6, b : 5}));
-
-  function f3([{a, b}]) { return a - b; }
-  assertEquals(1, f3([{a : 6, b : 5}]));
-
-  var g = ({a, b}) => { return a - b; };
-  assertEquals(1, g({a : 6, b : 5}));
-
-  var g1 = (c, {a, b}) => { return c + a - b; };
-  assertEquals(8, g1(7, {a : 6, b : 5}));
-
-  var g2 = ({c, d}, {a, b}) => { return c - d + a - b; };
-  assertEquals(7, g2({c : 7, d : 1}, {a : 6, b : 5}));
-
-  var g3 = ([{a, b}]) => { return a - b; };
-  assertEquals(1, g3([{a : 6, b : 5}]));
-}());
-
-
-(function TestDuplicatesInParameters() {
-  assertThrows("'use strict';function f(x,x){}", SyntaxError);
-  assertThrows("'use strict';function f({x,x}){}", SyntaxError);
-  assertThrows("'use strict';function f(x, {x}){}", SyntaxError);
-  assertThrows("'use strict';var f = (x,x) => {};", SyntaxError);
-  assertThrows("'use strict';var f = ({x,x}) => {};", SyntaxError);
-  assertThrows("'use strict';var f = (x, {x}) => {};", SyntaxError);
-
-  function ok(x) { var x; }; ok();
-  assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
-  assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
 }());

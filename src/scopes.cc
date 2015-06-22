@@ -466,22 +466,15 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
                                   bool is_rest, bool* is_duplicate) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
-
-  Variable* var;
-  if (!name->IsEmpty()) {
-    var = variables_.Declare(this, name, mode, Variable::NORMAL,
-                             kCreatedInitialized);
-    // TODO(wingo): Avoid O(n^2) check.
-    *is_duplicate = IsDeclaredParameter(name);
-  } else {
-    var = new (zone())
-        Variable(this, name, TEMPORARY, Variable::NORMAL, kCreatedInitialized);
-  }
+  Variable* var = variables_.Declare(this, name, mode, Variable::NORMAL,
+                                     kCreatedInitialized);
   if (is_rest) {
     DCHECK_NULL(rest_parameter_);
     rest_parameter_ = var;
     rest_index_ = num_parameters();
   }
+  // TODO(wingo): Avoid O(n^2) check.
+  *is_duplicate = IsDeclaredParameter(name);
   params_.Add(var, zone());
   return var;
 }
