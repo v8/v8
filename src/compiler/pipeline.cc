@@ -651,20 +651,6 @@ struct EarlyControlReductionPhase {
 };
 
 
-struct LateControlReductionPhase {
-  static const char* phase_name() { return "late control reduction"; }
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph());
-    DeadCodeElimination dce(&graph_reducer, data->graph(), data->common());
-    CommonOperatorReducer common(&graph_reducer, data->graph(), data->common(),
-                                 data->machine());
-    graph_reducer.AddReducer(&dce);
-    graph_reducer.AddReducer(&common);
-    graph_reducer.ReduceGraph();
-  }
-};
-
-
 struct EarlyGraphTrimmingPhase {
   static const char* phase_name() { return "early graph trimming"; }
   void Run(PipelineData* data, Zone* temp_zone) {
@@ -706,13 +692,20 @@ struct GenericLoweringPhase {
   static const char* phase_name() { return "generic lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSGenericLowering generic(data->info()->is_typing_enabled(),
-                              data->jsgraph());
-    SelectLowering select(data->jsgraph()->graph(), data->jsgraph()->common());
-    TailCallOptimization tco(data->common(), data->graph());
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    AddReducer(data, &graph_reducer, &generic);
-    AddReducer(data, &graph_reducer, &select);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
+    JSGenericLowering generic_lowering(data->info()->is_typing_enabled(),
+                                       data->jsgraph());
+    SelectLowering select_lowering(data->jsgraph()->graph(),
+                                   data->jsgraph()->common());
+    TailCallOptimization tco(data->common(), data->graph());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &generic_lowering);
+    AddReducer(data, &graph_reducer, &select_lowering);
     // TODO(turbofan): TCO is currently limited to stubs.
     if (data->info()->IsStub()) AddReducer(data, &graph_reducer, &tco);
     graph_reducer.ReduceGraph();
@@ -1113,9 +1106,6 @@ Handle<Code> Pipeline::GenerateCode() {
     Run<ChangeLoweringPhase>();
     // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
     RunPrintAndVerify("Lowered changes", true);
-
-    Run<LateControlReductionPhase>();
-    RunPrintAndVerify("Late Control reduced");
   } else {
     if (info()->is_osr()) {
       Run<OsrDeconstructionPhase>();
