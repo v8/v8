@@ -105,6 +105,13 @@ var a = new Array();
 assertEquals(Object(12), a.length = new Number(12));
 assertEquals(12, a.length);
 
+Number.prototype.valueOf = function() { return 10; }
+var n = new Number(100);
+assertEquals(n, a.length = n);
+assertEquals(10, a.length);
+n.valueOf = function() { return 20; }
+assertEquals(n, a.length = n);
+assertEquals(20, a.length);
 
 var o = { length: -23 };
 Array.prototype.pop.apply(o);

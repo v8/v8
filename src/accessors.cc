@@ -193,16 +193,7 @@ static bool FastAsArrayLength(Isolate* isolate, Handle<Object> value,
   // We don't support AsArrayLength, so use AsArrayIndex for now. This just
   // misses out on kMaxUInt32.
   if (value->IsString()) return String::cast(*value)->AsArrayIndex(length);
-  if (!value->IsJSValue()) return false;
-  Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
-  DCHECK(wrapper->GetIsolate()
-             ->native_context()
-             ->number_function()
-             ->has_initial_map());
-  // Only support fast unwrapping for the initial map. Otherwise valueOf might
-  // have been overwritten, in which case unwrapping is invalid.
-  if (wrapper->map() != isolate->number_function()->initial_map()) return false;
-  return wrapper->value()->ToArrayIndex(length);
+  return false;
 }
 
 
