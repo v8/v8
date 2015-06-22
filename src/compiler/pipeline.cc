@@ -486,27 +486,25 @@ struct GraphBuilderPhase {
 };
 
 
-struct ContextSpecializerPhase {
-  static const char* phase_name() { return "context specializing"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    JSContextSpecializer spec(&graph_reducer, data->jsgraph());
-    AddReducer(data, &graph_reducer, &spec);
-    graph_reducer.ReduceGraph();
-  }
-};
-
-
 struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
+    JSContextSpecializer context_specializer(&graph_reducer, data->jsgraph());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
                                           ? JSInliner::kGeneralInlining
                                           : JSInliner::kRestrictedInlining,
                       temp_zone, data->info(), data->jsgraph());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &common_reducer);
+    if (data->info()->is_context_specializing()) {
+      AddReducer(data, &graph_reducer, &context_specializer);
+    }
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
   }
@@ -637,8 +635,8 @@ struct ChangeLoweringPhase {
 };
 
 
-struct EarlyControlReductionPhase {
-  static const char* phase_name() { return "early control reduction"; }
+struct LateControlReductionPhase {
+  static const char* phase_name() { return "late control reduction"; }
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph());
     DeadCodeElimination dce(&graph_reducer, data->graph(), data->common());
@@ -1039,18 +1037,11 @@ Handle<Code> Pipeline::GenerateCode() {
   if (data.compilation_failed()) return Handle<Code>::null();
   RunPrintAndVerify("Initial untyped", true);
 
-  Run<EarlyControlReductionPhase>();
-  RunPrintAndVerify("Early Control reduced", true);
-
-  if (info()->is_context_specializing()) {
-    // Specialize the code to the context as aggressively as possible.
-    Run<ContextSpecializerPhase>();
-    RunPrintAndVerify("Context specialized", true);
-  }
-
+  // Perform context specialization and inlining (if enabled).
   Run<InliningPhase>();
   RunPrintAndVerify("Inlined", true);
 
+  // Remove dead->live edges from the graph.
   Run<EarlyGraphTrimmingPhase>();
   RunPrintAndVerify("Early trimmed", true);
 
