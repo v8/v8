@@ -127,7 +127,8 @@ class CompilationInfo {
     kSplittingEnabled = 1 << 13,
     kTypeFeedbackEnabled = 1 << 14,
     kDeoptimizationEnabled = 1 << 15,
-    kSourcePositionsEnabled = 1 << 16
+    kSourcePositionsEnabled = 1 << 16,
+    kNewScript = 1 << 17,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -244,6 +245,10 @@ class CompilationInfo {
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
 
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
+
+  void MarkAsNewScript() { SetFlag(kNewScript); }
+
+  bool is_new_script() const { return GetFlag(kNewScript); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&

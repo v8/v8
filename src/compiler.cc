@@ -1078,6 +1078,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
     }
 
+    info->MarkAsNewScript();
+
     FunctionLiteral* lit = info->function();
     LiveEditFunctionTracker live_edit_tracker(isolate, lit);
 
@@ -1338,8 +1340,13 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
     CompilationInfo* outer_info) {
   // Precondition: code has been parsed and scopes have been analyzed.
-  MaybeHandle<SharedFunctionInfo> maybe_existing =
-      script->FindSharedFunctionInfo(literal);
+  MaybeHandle<SharedFunctionInfo> maybe_existing;
+  if (outer_info->is_new_script()) {
+    // There is no existing shared function info when compiling a new script.
+    DCHECK(script->FindSharedFunctionInfo(literal).is_null());
+  } else {
+    maybe_existing = script->FindSharedFunctionInfo(literal);
+  }
   // We found an existing shared function info. If it's already compiled,
   // don't worry about compiling it, and simply return it. If it's not yet
   // compiled, continue to decide whether to eagerly compile.
@@ -1355,6 +1362,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
+  if (outer_info->is_new_script()) info.MarkAsNewScript();
 
   Isolate* isolate = info.isolate();
   Factory* factory = isolate->factory();

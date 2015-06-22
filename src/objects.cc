@@ -10436,8 +10436,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
       if (!obj->IsSharedFunctionInfo()) continue;
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
       if (fun->function_token_position() == shared->function_token_position() &&
-          fun->start_position() == shared->start_position() &&
-          fun->end_position() == shared->end_position()) {
+          fun->start_position() == shared->start_position()) {
         return Handle<SharedFunctionInfo>(shared);
       }
     }
@@ -10461,11 +10460,15 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   // Add shared function info to new script's list.
   if (script_object->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_object);
-    bool found = false;
     Handle<Object> list(script->shared_function_infos(), shared->GetIsolate());
+#ifdef DEBUG
+    bool found = false;
     list = WeakFixedArray::Add(list, shared, WeakFixedArray::kAddIfNotFound,
                                &found);
     CHECK(!found);
+#else
+    list = WeakFixedArray::Add(list, shared, WeakFixedArray::kAlwaysAdd);
+#endif  // DEBUG
     script->set_shared_function_infos(*list);
   }
   // Finally set new script.
