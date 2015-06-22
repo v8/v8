@@ -33,9 +33,39 @@
   'variables': {
     # Location of Android NDK.
     'variables': {
-      'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
-      'android_toolchain%': '<!(/bin/echo -n $ANDROID_TOOLCHAIN)',
+      'variables': {
+        # The Android toolchain needs to use the absolute path to the NDK
+        # because it is used at different levels in the GYP files.
+        'android_ndk_root%': '<!(cd <(DEPTH) && pwd -P)/third_party/android_tools/ndk/',
+        'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
+        'host_os%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')",
+      },
+
+      # Copy conditionally-set variables out one scope.
+      'android_ndk_root%': '<(android_ndk_root)',
+
+      'conditions': [
+        ['target_arch == "ia32"', {
+          'android_toolchain%': '<(android_ndk_root)/toolchains/x86-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+        }],
+        ['target_arch == "x64"', {
+          'android_toolchain%': '<(android_ndk_root)/toolchains/x86_64-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+        }],
+        ['target_arch=="arm"', {
+          'android_toolchain%': '<(android_ndk_root)/toolchains/arm-linux-androideabi-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+        }],
+        ['target_arch == "arm64"', {
+          'android_toolchain%': '<(android_ndk_root)/toolchains/aarch64-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+        }],
+        ['target_arch == "mipsel"', {
+          'android_toolchain%': '<(android_ndk_root)/toolchains/mipsel-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+        }],
+        ['target_arch == "mips64el"', {
+          'android_toolchain%': '<(android_ndk_root)/toolchains/mips64el-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+        }],
+      ],
     },
+
     'conditions': [
       ['android_ndk_root==""', {
         'variables': {

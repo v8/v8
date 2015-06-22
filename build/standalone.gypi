@@ -317,7 +317,7 @@
   'conditions': [
     ['os_posix==1 and OS!="mac"', {
       'target_defaults': {
-       'conditions': [
+        'conditions': [
           # Common options for AddressSanitizer, LeakSanitizer,
           # ThreadSanitizer and MemorySanitizer.
           ['asan==1 or lsan==1 or tsan==1 or msan==1', {
