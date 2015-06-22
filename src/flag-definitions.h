@@ -199,7 +199,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                      \
   V(harmony_arrays, "harmony array methods")                   \
-  V(harmony_rest_parameters, "harmony rest parameters")        \
   V(harmony_tostring, "harmony toString")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -211,7 +210,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_spreadcalls, "harmony spread-calls")                           \
   V(harmony_spread_arrays, "harmony spread in array literals")             \
   V(harmony_unicode, "harmony unicode escapes")                            \
-  V(harmony_object, "harmony Object methods")
+  V(harmony_object, "harmony Object methods")                              \
+  V(harmony_rest_parameters, "harmony rest parameters")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
