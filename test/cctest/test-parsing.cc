@@ -6389,7 +6389,6 @@ TEST(DestructuringPositiveTests) {
                                    {"function f(", ") {}"},
                                    {"function f(argument1, ", ") {}"},
                                    {"var f = (", ") => {};"},
-                                   {"var f = ", " => {};"},
                                    {"var f = (argument1,", ") => {};"},
                                    {NULL, NULL}};
 
@@ -6417,6 +6416,7 @@ TEST(DestructuringPositiveTests) {
     "{42 : x = 42}",
     "{42e-2 : x}",
     "{42e-2 : x = 42}",
+    "{x : y, x : z}",
     "{'hi' : x}",
     "{'hi' : x = 42}",
     "{var: x}",
@@ -6601,6 +6601,115 @@ TEST(DestructuringDisallowPatternsInForVarIn) {
     NULL};
   // clang-format on
   RunParserSyncTest(context_data, success_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(DestructuringDuplicateParams) {
+  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_arrow_functions = true;
+  i::FLAG_harmony_computed_property_names = true;
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyObjectLiterals, kAllowHarmonyComputedPropertyNames,
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDestructuring};
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function outer() { 'use strict';", "}"},
+                                   {nullptr, nullptr}};
+
+
+  // clang-format off
+  const char* error_data[] = {
+    "function f(x,x){}",
+    "function f(x, {x : x}){}",
+    "function f(x, {x}){}",
+    "function f({x,x}) {}",
+    "function f([x,x]) {}",
+    "function f(x, [y,{z:x}]) {}",
+    "function f([x,{y:x}]) {}",
+    // non-simple parameter list causes duplicates to be errors in sloppy mode.
+    "function f(x, x, {a}) {}",
+    nullptr};
+  // clang-format on
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(DestructuringDuplicateParamsSloppy) {
+  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_arrow_functions = true;
+  i::FLAG_harmony_computed_property_names = true;
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyObjectLiterals, kAllowHarmonyComputedPropertyNames,
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDestructuring};
+  const char* context_data[][2] = {
+      {"", ""}, {"function outer() {", "}"}, {nullptr, nullptr}};
+
+
+  // clang-format off
+  const char* error_data[] = {
+    // non-simple parameter list causes duplicates to be errors in sloppy mode.
+    "function f(x, {x : x}){}",
+    "function f(x, {x}){}",
+    "function f({x,x}) {}",
+    "function f(x, x, {a}) {}",
+    nullptr};
+  // clang-format on
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(DestructuringDisallowPatternsInSingleParamArrows) {
+  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_arrow_functions = true;
+  i::FLAG_harmony_computed_property_names = true;
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyObjectLiterals, kAllowHarmonyComputedPropertyNames,
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDestructuring};
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function outer() { 'use strict';", "}"},
+                                   {"", ""},
+                                   {"function outer() { ", "}"},
+                                   {nullptr, nullptr}};
+
+  // clang-format off
+  const char* error_data[] = {
+    "var f = {x} => {};",
+    "var f = {x,y} => {};",
+    nullptr};
+  // clang-format on
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(DestructuringDisallowPatternsInRestParams) {
+  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_arrow_functions = true;
+  i::FLAG_harmony_rest_parameters = true;
+  i::FLAG_harmony_computed_property_names = true;
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyObjectLiterals, kAllowHarmonyComputedPropertyNames,
+      kAllowHarmonyArrowFunctions, kAllowHarmonyRestParameters,
+      kAllowHarmonyDestructuring};
+  const char* context_data[][2] = {{"'use strict';", ""},
+                                   {"function outer() { 'use strict';", "}"},
+                                   {"", ""},
+                                   {"function outer() { ", "}"},
+                                   {nullptr, nullptr}};
+
+  // clang-format off
+  const char* error_data[] = {
+    "function(...{}) {}",
+    "function(...{x}) {}",
+    "function(...[x]) {}",
+    "(...{}) => {}",
+    "(...{x}) => {}",
+    "(...[x]) => {}",
+    nullptr};
+  // clang-format on
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
 
