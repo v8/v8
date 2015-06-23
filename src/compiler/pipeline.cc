@@ -407,8 +407,7 @@ class SourcePositionWrapper final : public Reducer {
 class JSGraphReducer final : public GraphReducer {
  public:
   JSGraphReducer(JSGraph* jsgraph, Zone* zone)
-      : GraphReducer(zone, jsgraph->graph(), jsgraph->TheHoleConstant(),
-                     jsgraph->Dead()) {}
+      : GraphReducer(zone, jsgraph->graph(), jsgraph->Dead()) {}
   ~JSGraphReducer() final {}
 };
 
@@ -565,6 +564,8 @@ struct TypedLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
     LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
@@ -575,6 +576,7 @@ struct TypedLoweringPhase {
             : JSIntrinsicLowering::kDeoptimizationDisabled);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &builtin_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
@@ -593,10 +595,13 @@ struct SimplifiedLoweringPhase {
                                 data->source_positions());
     lowering.LowerAllNodes();
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
     ValueNumberingReducer vn_reducer(temp_zone);
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -621,29 +626,18 @@ struct ChangeLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
     ValueNumberingReducer vn_reducer(temp_zone);
     ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &vn_reducer);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
-    graph_reducer.ReduceGraph();
-  }
-};
-
-
-struct LateControlReductionPhase {
-  static const char* phase_name() { return "late control reduction"; }
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph());
-    DeadCodeElimination dce(&graph_reducer, data->graph(), data->common());
-    CommonOperatorReducer common(&graph_reducer, data->graph(), data->common(),
-                                 data->machine());
-    graph_reducer.AddReducer(&dce);
-    graph_reducer.AddReducer(&common);
     graph_reducer.ReduceGraph();
   }
 };

@@ -132,31 +132,18 @@ Reduction JSIntrinsicLowering::ReduceDateField(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   if (mode() != kDeoptimizationEnabled) return NoChange();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
 
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(), frame_state, effect, control);
+  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
-  // We are making the continuation after the call dead. To
-  // model this, we generate if (true) statement with deopt
-  // in the true branch and continuation in the false branch.
-  Node* branch =
-      graph()->NewNode(common()->Branch(), jsgraph()->TrueConstant(), control);
-
-  // False branch - the original continuation.
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect, if_false);
-
-  // True branch: deopt.
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* deopt =
-      graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_true);
-
-  // Connect the deopt to the merge exiting the graph.
-  NodeProperties::MergeControlToEnd(graph(), common(), deopt);
-
-  return Changed(deopt);
+  node->set_op(common()->Dead());
+  node->TrimInputCount(0);
+  return Changed(node);
 }
 
 
