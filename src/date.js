@@ -747,12 +747,12 @@ function PadInt(n, digits) {
 }
 
 
-// ECMA 262 - 15.9.5.43
+// ECMA 262 - 20.3.4.36
 function DateToISOString() {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) throw MakeRangeError(kInvalidTimeValue);
-  var year = this.getUTCFullYear();
+  var year = UTC_YEAR(this);
   var year_string;
   if (year >= 0 && year <= 9999) {
     year_string = PadInt(year, 4);
@@ -764,12 +764,12 @@ function DateToISOString() {
     }
   }
   return year_string +
-      '-' + PadInt(this.getUTCMonth() + 1, 2) +
-      '-' + PadInt(this.getUTCDate(), 2) +
-      'T' + PadInt(this.getUTCHours(), 2) +
-      ':' + PadInt(this.getUTCMinutes(), 2) +
-      ':' + PadInt(this.getUTCSeconds(), 2) +
-      '.' + PadInt(this.getUTCMilliseconds(), 3) +
+      '-' + PadInt(UTC_MONTH(this) + 1, 2) +
+      '-' + PadInt(UTC_DAY(this), 2) +
+      'T' + PadInt(UTC_HOUR(this), 2) +
+      ':' + PadInt(UTC_MIN(this), 2) +
+      ':' + PadInt(UTC_SEC(this), 2) +
+      '.' + PadInt(UTC_MS(this), 3) +
       'Z';
 }
 
