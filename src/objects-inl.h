@@ -2913,6 +2913,7 @@ bool SeededNumberDictionary::requires_slow_elements() {
       (Smi::cast(max_index_object)->value() & kRequiresSlowElementsMask);
 }
 
+
 uint32_t SeededNumberDictionary::max_number_key() {
   DCHECK(!requires_slow_elements());
   Object* max_index_object = get(kMaxNumberKeyIndex);
@@ -2920,6 +2921,7 @@ uint32_t SeededNumberDictionary::max_number_key() {
   uint32_t value = static_cast<uint32_t>(Smi::cast(max_index_object)->value());
   return value >> kRequiresSlowElementsTagSize;
 }
+
 
 void SeededNumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));

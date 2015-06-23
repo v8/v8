@@ -989,11 +989,12 @@ class FastElementsAccessor
     if (length == 0) return;  // nothing to do!
     DisallowHeapAllocation no_gc;
     Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
-    for (int i = 0; i < length; i++) {
-      DCHECK((!IsFastSmiElementsKind(KindTraits::Kind) ||
-              BackingStore::get(backing_store, i)->IsSmi()) ||
-             (IsFastHoleyElementsKind(KindTraits::Kind) ==
-              backing_store->is_the_hole(i)));
+    if (IsFastSmiElementsKind(KindTraits::Kind)) {
+      for (int i = 0; i < length; i++) {
+        DCHECK(BackingStore::get(backing_store, i)->IsSmi() ||
+               (IsFastHoleyElementsKind(KindTraits::Kind) &&
+                backing_store->is_the_hole(i)));
+      }
     }
 #endif
   }
@@ -1345,12 +1346,8 @@ class DictionaryElementsAccessor
       dict->ElementsRemoved(removed_entries);
     }
 
-    if (length <= Smi::kMaxValue) {
-      array->set_length(Smi::FromInt(length));
-    } else {
-      Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
-      array->set_length(*length_obj);
-    }
+    Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
+    array->set_length(*length_obj);
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t key,
