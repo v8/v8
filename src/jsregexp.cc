@@ -618,14 +618,20 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
 }
 
 
+static void EnsureSize(Handle<JSArray> array, uint32_t minimum_size) {
+  if (static_cast<uint32_t>(array->elements()->length()) < minimum_size) {
+    JSArray::SetLength(array, minimum_size);
+  }
+}
+
+
 Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
                                              Handle<String> subject,
                                              int capture_count,
                                              int32_t* match) {
   DCHECK(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
-  JSArray::SetLength(last_match_info,
-                     capture_register_count + kLastMatchOverhead);
+  EnsureSize(last_match_info, capture_register_count + kLastMatchOverhead);
   DisallowHeapAllocation no_allocation;
   FixedArray* array = FixedArray::cast(last_match_info->elements());
   if (match != NULL) {
