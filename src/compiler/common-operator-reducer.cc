@@ -68,21 +68,20 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   Decision const decision = DecideCondition(cond);
   if (decision == Decision::kUnknown) return NoChange();
   Node* const control = node->InputAt(1);
-  node->set_op(common()->Dead());
-  node->TrimInputCount(0);
+  if (!dead_.is_set()) dead_.set(graph()->NewNode(common()->Dead()));
   for (Node* const use : node->uses()) {
     switch (use->opcode()) {
       case IrOpcode::kIfTrue:
-        Replace(use, (decision == Decision::kTrue) ? control : node);
+        Replace(use, (decision == Decision::kTrue) ? control : dead_.get());
         break;
       case IrOpcode::kIfFalse:
-        Replace(use, (decision == Decision::kFalse) ? control : node);
+        Replace(use, (decision == Decision::kFalse) ? control : dead_.get());
         break;
       default:
         UNREACHABLE();
     }
   }
-  return Changed(node);
+  return Replace(dead_.get());
 }
 
 

@@ -49,6 +49,7 @@ class CommonOperatorReducer final : public AdvancedReducer {
   Graph* const graph_;
   CommonOperatorBuilder* const common_;
   MachineOperatorBuilder* const machine_;
+  SetOncePointer<Node> dead_;
 };
 
 }  // namespace compiler
