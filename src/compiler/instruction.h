@@ -877,7 +877,9 @@ class FrameStateDescriptor : public ZoneObject {
   size_t stack_count() const { return stack_count_; }
   MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
-  bool HasContext() const { return type_ == JS_FRAME; }
+  bool HasContext() const {
+    return type_ == FrameStateType::kJavaScriptFunction;
+  }
 
   size_t GetSize(OutputFrameStateCombine combine =
                      OutputFrameStateCombine::Ignore()) const;

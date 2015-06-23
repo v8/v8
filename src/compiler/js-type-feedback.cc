@@ -362,7 +362,7 @@ Node* JSTypeFeedbackSpecializer::GetFrameStateBefore(Node* node) {
   if (count == 2) {
     Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
     if (frame_state->opcode() == IrOpcode::kFrameState) {
-      BailoutId id = OpParameter<FrameStateCallInfo>(node).bailout_id();
+      BailoutId id = OpParameter<FrameStateInfo>(node).bailout_id();
       if (id != BailoutId::None()) return frame_state;
     }
   }

@@ -79,10 +79,10 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     Node* locals = graph.NewNode(common.StateValues(0));
     Node* stack = graph.NewNode(common.StateValues(0));
 
-    Node* state_node =
-        graph.NewNode(common.FrameState(JS_FRAME, BailoutId::None(),
-                                        OutputFrameStateCombine::Ignore()),
-                      parameters, locals, stack, context, UndefinedConstant());
+    Node* state_node = graph.NewNode(
+        common.FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                          nullptr),
+        parameters, locals, stack, context, UndefinedConstant());
 
     return state_node;
   }

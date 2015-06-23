@@ -110,6 +110,9 @@ class AstGraphBuilder : public AstVisitor {
   // Analyzer of local variable liveness.
   LivenessAnalyzer liveness_analyzer_;
 
+  // Function info for frame state construction.
+  const FrameStateFunctionInfo* const frame_state_function_info_;
+
   // Type feedback table.
   JSTypeFeedbackTable* js_type_feedback_;
 
@@ -133,6 +136,9 @@ class AstGraphBuilder : public AstVisitor {
   Scope* current_scope() const;
   Node* current_context() const;
   LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
+  const FrameStateFunctionInfo* frame_state_function_info() const {
+    return frame_state_function_info_;
+  }
 
   void set_environment(Environment* env) { environment_ = env; }
   void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }

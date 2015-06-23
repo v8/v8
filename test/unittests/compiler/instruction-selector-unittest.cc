@@ -148,6 +148,15 @@ bool InstructionSelectorTest::Stream::IsUsedAtStart(
 }
 
 
+const FrameStateFunctionInfo*
+InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
+    int parameter_count, int local_count) {
+  return common()->CreateFrameStateFunctionInfo(
+      FrameStateType::kJavaScriptFunction, parameter_count, local_count,
+      Handle<SharedFunctionInfo>());
+}
+
+
 // -----------------------------------------------------------------------------
 // Return.
 
@@ -362,11 +371,11 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   Node* stack = m.NewNode(m.common()->TypedStateValues(&empty_types));
   Node* context_dummy = m.Int32Constant(0);
 
-  Node* state_node =
-      m.NewNode(m.common()->FrameState(JS_FRAME, bailout_id,
-                                       OutputFrameStateCombine::Push()),
-                parameters, locals, stack, context_dummy, function_node,
-                m.UndefinedConstant());
+  Node* state_node = m.NewNode(
+      m.common()->FrameState(bailout_id, OutputFrameStateCombine::Push(),
+                             m.GetFrameStateFunctionInfo(1, 0)),
+      parameters, locals, stack, context_dummy, function_node,
+      m.UndefinedConstant());
   Node* call = m.CallJS0(function_node, receiver, context, state_node);
   m.Return(call);
 
@@ -411,11 +420,11 @@ TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
                           m.UndefinedConstant());
 
   Node* context_sentinel = m.Int32Constant(0);
-  Node* frame_state_before =
-      m.NewNode(m.common()->FrameState(JS_FRAME, bailout_id_before,
-                                       OutputFrameStateCombine::Push()),
-                parameters, locals, stack, context_sentinel, function_node,
-                m.UndefinedConstant());
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
+                             m.GetFrameStateFunctionInfo(1, 1)),
+      parameters, locals, stack, context_sentinel, function_node,
+      m.UndefinedConstant());
 
   // Build the call.
   Node* call = m.CallFunctionStub0(function_node, receiver, context,
@@ -506,8 +515,9 @@ TARGET_TEST_F(InstructionSelectorTest,
   Node* stack =
       m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(65));
   Node* frame_state_parent = m.NewNode(
-      m.common()->FrameState(JS_FRAME, bailout_id_parent,
-                             OutputFrameStateCombine::Ignore()),
+      m.common()->FrameState(bailout_id_parent,
+                             OutputFrameStateCombine::Ignore(),
+                             m.GetFrameStateFunctionInfo(1, 1)),
       parameters, locals, stack, context, function_node, m.UndefinedConstant());
 
   Node* context2 = m.Int32Constant(46);
@@ -517,11 +527,11 @@ TARGET_TEST_F(InstructionSelectorTest,
                             m.Float64Constant(0.25));
   Node* stack2 = m.NewNode(m.common()->TypedStateValues(&int32x2_type),
                            m.Int32Constant(44), m.Int32Constant(45));
-  Node* frame_state_before =
-      m.NewNode(m.common()->FrameState(JS_FRAME, bailout_id_before,
-                                       OutputFrameStateCombine::Push()),
-                parameters2, locals2, stack2, context2, function_node,
-                frame_state_parent);
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
+                             m.GetFrameStateFunctionInfo(1, 1)),
+      parameters2, locals2, stack2, context2, function_node,
+      frame_state_parent);
 
   // Build the call.
   Node* call = m.CallFunctionStub0(function_node, receiver, context2,

@@ -252,8 +252,7 @@ class JSBinopReduction final {
   }
 
   Node* CreateFrameStateForLeftInput(Node* frame_state) {
-    FrameStateCallInfo state_info =
-        OpParameter<FrameStateCallInfo>(frame_state);
+    FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
 
     if (state_info.bailout_id() == BailoutId::None()) {
       // Dummy frame state => just leave it as is.
@@ -270,8 +269,8 @@ class JSBinopReduction final {
     // the stack top. This is the slot that full code uses to store the
     // left operand.
     const Operator* op = jsgraph()->common()->FrameState(
-        state_info.type(), state_info.bailout_id(),
-        OutputFrameStateCombine::PokeAt(1), state_info.shared_info());
+        state_info.bailout_id(), OutputFrameStateCombine::PokeAt(1),
+        state_info.function_info());
 
     return graph()->NewNode(op,
                             frame_state->InputAt(kFrameStateParametersInput),
@@ -283,8 +282,7 @@ class JSBinopReduction final {
   }
 
   Node* CreateFrameStateForRightInput(Node* frame_state, Node* converted_left) {
-    FrameStateCallInfo state_info =
-        OpParameter<FrameStateCallInfo>(frame_state);
+    FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
 
     if (state_info.bailout_id() == BailoutId::None()) {
       // Dummy frame state => just leave it as is.
@@ -294,8 +292,8 @@ class JSBinopReduction final {
     // Create a frame state that stores the result of the operation to the
     // top of the stack (i.e., the slot used for the right operand).
     const Operator* op = jsgraph()->common()->FrameState(
-        state_info.type(), state_info.bailout_id(),
-        OutputFrameStateCombine::PokeAt(0), state_info.shared_info());
+        state_info.bailout_id(), OutputFrameStateCombine::PokeAt(0),
+        state_info.function_info());
 
     // Change the left operand {converted_left} on the expression stack.
     Node* stack = frame_state->InputAt(2);

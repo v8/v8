@@ -77,6 +77,9 @@ class InstructionSelectorTest : public TestWithContext,
                  InstructionSelector::SourcePositionMode source_position_mode =
                      InstructionSelector::kAllSourcePositions);
 
+    const FrameStateFunctionInfo* GetFrameStateFunctionInfo(int parameter_count,
+                                                            int local_count);
+
    private:
     MachineSignature* MakeMachineSignature(Zone* zone,
                                            MachineType return_type) {

@@ -214,9 +214,13 @@ Reduction JSInliner::InlineCall(Node* call, Node* frame_state, Node* start,
 Node* JSInliner::CreateArgumentsAdaptorFrameState(
     JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info,
     Zone* temp_zone) {
+  const FrameStateFunctionInfo* state_info =
+      jsgraph_->common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kArgumentsAdaptor,
+          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info);
+
   const Operator* op = jsgraph_->common()->FrameState(
-      FrameStateType::ARGUMENTS_ADAPTOR, BailoutId(-1),
-      OutputFrameStateCombine::Ignore(), shared_info);
+      BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
   NodeVector params(temp_zone);

@@ -448,6 +448,10 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       state_values_cache_(jsgraph),
       liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
                          local_zone),
+      frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kJavaScriptFunction,
+          info->num_parameters_including_this(),
+          info->scope()->num_stack_slots(), info->shared_info())),
       js_type_feedback_(js_type_feedback) {
   InitializeAstVisitor(info->isolate(), local_zone);
 }
@@ -869,8 +873,8 @@ Node* AstGraphBuilder::Environment::Checkpoint(
   UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
                     stack_height());
 
-  const Operator* op = common()->FrameState(JS_FRAME, ast_id, combine,
-                                            builder()->info()->shared_info());
+  const Operator* op = common()->FrameState(
+      ast_id, combine, builder()->frame_state_function_info());
 
   Node* result = graph()->NewNode(op, parameters_node_, locals_node_,
                                   stack_node_, builder()->current_context(),

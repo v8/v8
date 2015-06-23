@@ -528,13 +528,13 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
   int shared_info_id = DefineDeoptimizationLiteral(shared_info);
 
   switch (descriptor->type()) {
-    case JS_FRAME:
+    case FrameStateType::kJavaScriptFunction:
       translation->BeginJSFrame(
           descriptor->bailout_id(), shared_info_id,
           static_cast<unsigned int>(descriptor->GetSize(state_combine) -
                                     (1 + descriptor->parameters_count())));
       break;
-    case ARGUMENTS_ADAPTOR:
+    case FrameStateType::kArgumentsAdaptor:
       translation->BeginArgumentsAdaptorFrame(
           shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
