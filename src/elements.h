@@ -138,6 +138,9 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
+  virtual void Set(FixedArrayBase* backing_store, uint32_t key,
+                   Object* value) = 0;
+
  protected:
   friend class SloppyArgumentsElementsAccessor;
   friend class LookupIterator;
@@ -163,9 +166,6 @@ class ElementsAccessor {
   virtual PropertyDetails GetDetails(FixedArrayBase* backing_store,
                                      uint32_t index) = 0;
   virtual bool HasIndex(FixedArrayBase* backing_store, uint32_t key) = 0;
-
-  virtual void Set(FixedArrayBase* backing_store, uint32_t key,
-                   Object* value) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;

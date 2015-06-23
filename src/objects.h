@@ -1114,6 +1114,12 @@ class Object {
     }
   }
 
+  inline ElementsKind OptimalElementsKind() {
+    if (IsSmi()) return FAST_SMI_ELEMENTS;
+    if (IsNumber()) return FAST_DOUBLE_ELEMENTS;
+    return FAST_ELEMENTS;
+  }
+
   inline bool FitsRepresentation(Representation representation) {
     if (FLAG_track_fields && representation.IsNone()) {
       return false;
@@ -1777,7 +1783,7 @@ class JSObject: public JSReceiver {
                                        Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
   inline ElementsKind GetElementsKind();
-  inline ElementsAccessor* GetElementsAccessor();
+  ElementsAccessor* GetElementsAccessor();
   // Returns true if an object has elements of FAST_SMI_ELEMENTS ElementsKind.
   inline bool HasFastSmiElements();
   // Returns true if an object has elements of FAST_ELEMENTS ElementsKind.
@@ -1900,9 +1906,6 @@ class JSObject: public JSReceiver {
   static void AddDictionaryElement(Handle<JSObject> object, uint32_t index,
                                    Handle<Object> value,
                                    PropertyAttributes attributes);
-  static void AddSloppyArgumentsElement(Handle<JSObject> object, uint32_t index,
-                                        Handle<Object> value,
-                                        PropertyAttributes attributes);
   static void SetDictionaryElement(Handle<JSObject> object, uint32_t index,
                                    Handle<Object> value,
                                    PropertyAttributes attributes);
@@ -1910,11 +1913,6 @@ class JSObject: public JSReceiver {
                                             uint32_t index,
                                             Handle<Object> value,
                                             PropertyAttributes attributes);
-
-  static void AddFastElement(Handle<JSObject> object, uint32_t index,
-                             Handle<Object> value);
-  static void AddFastDoubleElement(Handle<JSObject> object, uint32_t index,
-                                   Handle<Object> value);
 
   static void OptimizeAsPrototype(Handle<JSObject> object,
                                   PrototypeOptimizationMode mode);
@@ -1990,7 +1988,7 @@ class JSObject: public JSReceiver {
 
   static void SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash);
 
-  static inline void ValidateElements(Handle<JSObject> object);
+  static void ValidateElements(Handle<JSObject> object);
 
   // Makes sure that this object can contain HeapObject as elements.
   static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);

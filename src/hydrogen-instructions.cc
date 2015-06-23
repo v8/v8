@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/double.h"
+#include "src/elements.h"
 #include "src/factory.h"
 #include "src/hydrogen-infer-representation.h"
 

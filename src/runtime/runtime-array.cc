@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/elements.h"
 #include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 

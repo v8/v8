@@ -11,6 +11,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins.h"
 #include "src/cpu-profiler.h"
+#include "src/elements.h"
 #include "src/gdb-jit.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap-profiler.h"

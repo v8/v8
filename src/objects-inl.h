@@ -16,7 +16,6 @@
 #include "src/base/bits.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
-#include "src/elements.h"
 #include "src/factory.h"
 #include "src/field-index-inl.h"
 #include "src/heap/heap-inl.h"
@@ -1602,16 +1601,6 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 FixedArrayBase* JSObject::elements() const {
   Object* array = READ_FIELD(this, kElementsOffset);
   return static_cast<FixedArrayBase*>(array);
-}
-
-
-void JSObject::ValidateElements(Handle<JSObject> object) {
-#ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
-    ElementsAccessor* accessor = object->GetElementsAccessor();
-    accessor->Validate(object);
-  }
-#endif
 }
 
 
@@ -6224,11 +6213,6 @@ ElementsKind JSObject::GetElementsKind() {
   }
 #endif
   return kind;
-}
-
-
-ElementsAccessor* JSObject::GetElementsAccessor() {
-  return ElementsAccessor::ForKind(GetElementsKind());
 }
 
 

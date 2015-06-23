@@ -7,6 +7,8 @@
 
 #include "src/lookup.h"
 
+#include "src/elements.h"
+
 namespace v8 {
 namespace internal {
 
