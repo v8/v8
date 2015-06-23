@@ -527,8 +527,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ decp(rcx);
     __ j(greater_equal, &loop);
 
-    __ incp(rax);  // Pushed new.target.
-
     // Handle step in.
     Label skip_step_in;
     ExternalReference debug_step_in_fp =
@@ -553,8 +551,9 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // Restore context from the frame.
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
-    __ movp(rbx, Operand(rsp, 0));  // Get arguments count.
-  }                                 // Leave construct frame.
+    // Get arguments count, skipping over new.target.
+    __ movp(rbx, Operand(rsp, kPointerSize));  // Get arguments count.
+  }                                            // Leave construct frame.
 
   // Remove caller arguments from the stack and return.
   __ PopReturnAddressTo(rcx);

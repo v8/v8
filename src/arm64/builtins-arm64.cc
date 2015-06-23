@@ -731,7 +731,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // sp[1]: new.target
     // sp[2]: receiver (the hole)
 
-
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
 
@@ -759,8 +758,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ Drop(1);
     __ Bind(&done_copying_arguments);
 
-    __ Add(x0, x0, Operand(1));  // new.target
-
     // Handle step in.
     Label skip_step_in;
     ExternalReference debug_step_in_fp =
@@ -787,8 +784,8 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // jssp[0]: number of arguments (smi-tagged)
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
-    // Load number of arguments (smi).
-    __ Peek(x1, 0);
+    // Load number of arguments (smi), skipping over new.target.
+    __ Peek(x1, kPointerSize);
 
     // Leave construct frame
   }
