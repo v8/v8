@@ -1763,13 +1763,6 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 }
 
 
-void Map::ConnectElementsTransition(Handle<Map> parent, Handle<Map> child) {
-  Isolate* isolate = parent->GetIsolate();
-  Handle<Name> name = isolate->factory()->elements_transition_symbol();
-  ConnectTransition(parent, child, name, SPECIAL_TRANSITION);
-}
-
-
 void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
                             int expected_additional_properties) {
   if (object->map() == *new_map) return;
@@ -3726,24 +3719,8 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
     }
   }
 
-  return TransitionElementsToSlow(map, to_kind);
-}
-
-
-Handle<Map> Map::TransitionElementsToSlow(Handle<Map> map,
-                                          ElementsKind to_kind) {
-  ElementsKind from_kind = map->elements_kind();
-
-  if (from_kind == to_kind) {
-    return map;
-  }
-
-  bool allow_store_transition =
-      // Only remember the map transition if there is not an already existing
-      // non-matching element transition.
-      !map->IsUndefined() && !map->is_dictionary_map() &&
-      IsTransitionElementsKind(from_kind);
-
+  DCHECK(!map->IsUndefined());
+  bool allow_store_transition = IsTransitionElementsKind(from_kind);
   // Only store fast element maps in ascending generality.
   if (IsFastElementsKind(to_kind)) {
     allow_store_transition &=
@@ -5599,8 +5576,7 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
     DCHECK(transition_map->has_dictionary_elements());
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
-  } else if (object->HasFastProperties() &&
-             TransitionArray::CanHaveMoreTransitions(old_map)) {
+  } else if (TransitionArray::CanHaveMoreTransitions(old_map)) {
     // Create a new descriptor array with the appropriate property attributes
     Handle<Map> new_map = Map::CopyForPreventExtensions(
         old_map, attrs, transition_marker, "CopyForPreventExtensions");
@@ -5668,8 +5644,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
   if (transition != NULL) {
     new_map = handle(transition, isolate);
     DCHECK(new_map->is_observed());
-  } else if (object->HasFastProperties() &&
-             TransitionArray::CanHaveMoreTransitions(old_map)) {
+  } else if (TransitionArray::CanHaveMoreTransitions(old_map)) {
     new_map = Map::CopyForObserved(old_map);
   } else {
     new_map = Map::Copy(old_map, "SlowObserved");
@@ -6963,8 +6938,9 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
     Handle<Map> new_map = CopyForTransition(map, "CopyAsElementsKind");
     new_map->set_elements_kind(kind);
 
-    ConnectElementsTransition(map, new_map);
-
+    Isolate* isolate = map->GetIsolate();
+    Handle<Name> name = isolate->factory()->elements_transition_symbol();
+    ConnectTransition(map, new_map, name, SPECIAL_TRANSITION);
     return new_map;
   }
 

@@ -223,6 +223,7 @@ Handle<String> TransitionArray::ExpectedTransitionKey(Handle<Map> map) {
 
 // static
 bool TransitionArray::CanHaveMoreTransitions(Handle<Map> map) {
+  if (map->is_dictionary_map()) return false;
   Object* raw_transitions = map->raw_transitions();
   if (IsFullTransitionArray(raw_transitions)) {
     TransitionArray* transitions = TransitionArray::cast(raw_transitions);

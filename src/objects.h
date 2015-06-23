@@ -6225,7 +6225,6 @@ class Map: public HeapObject {
       Handle<LayoutDescriptor> layout_descriptor);
 
  private:
-  static void ConnectElementsTransition(Handle<Map> parent, Handle<Map> child);
   static void ConnectTransition(Handle<Map> parent, Handle<Map> child,
                                 Handle<Name> name, SimpleTransitionFlag flag);
 
@@ -6262,9 +6261,6 @@ class Map: public HeapObject {
   // This includes adding transitions to the leaf map or changing
   // the descriptor array.
   inline void NotifyLeafMapLayoutChange();
-
-  static Handle<Map> TransitionElementsToSlow(Handle<Map> object,
-                                              ElementsKind to_kind);
 
   void DeprecateTransitionTree();
   bool DeprecateTarget(PropertyKind kind, Name* key,
