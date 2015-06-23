@@ -191,6 +191,13 @@ enum BindingFlags {
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
+  V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                 \
+  V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                                 \
+  V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                 \
+  V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                           \
+  V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                 \
+  V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                 \
+  V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                           \
   V(MAP_FROM_ARRAY_INDEX, JSFunction, map_from_array)                          \
   V(SET_FROM_ARRAY_INDEX, JSFunction, set_from_array)                          \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
@@ -437,6 +444,13 @@ class Context: public FixedArray {
     JS_MAP_MAP_INDEX,
     JS_SET_FUN_INDEX,
     JS_SET_MAP_INDEX,
+    MAP_GET_METHOD_INDEX,
+    MAP_SET_METHOD_INDEX,
+    MAP_HAS_METHOD_INDEX,
+    MAP_DELETE_METHOD_INDEX,
+    SET_ADD_METHOD_INDEX,
+    SET_HAS_METHOD_INDEX,
+    SET_DELETE_METHOD_INDEX,
     MAP_FROM_ARRAY_INDEX,
     SET_FROM_ARRAY_INDEX,
     MAP_ITERATOR_MAP_INDEX,

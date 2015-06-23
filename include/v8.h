@@ -2982,6 +2982,16 @@ class V8_EXPORT Array : public Object {
 class V8_EXPORT Map : public Object {
  public:
   size_t Size() const;
+  void Clear();
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+                                              Local<Value> key);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Map> Set(Local<Context> context,
+                                            Local<Value> key,
+                                            Local<Value> value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
+                                        Local<Value> key);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
+                                           Local<Value> key);
 
   /**
    * Returns an array of length Size() * 2, where index N is the Nth key and
@@ -3016,6 +3026,13 @@ class V8_EXPORT Map : public Object {
 class V8_EXPORT Set : public Object {
  public:
   size_t Size() const;
+  void Clear();
+  V8_WARN_UNUSED_RESULT MaybeLocal<Set> Add(Local<Context> context,
+                                            Local<Value> key);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
+                                        Local<Value> key);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
+                                           Local<Value> key);
 
   /**
    * Returns an array of the keys in this Set.

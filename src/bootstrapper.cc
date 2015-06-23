@@ -1711,6 +1711,13 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "$observeNativeObjectNotifierPerformChange",
                  native_object_notifier_perform_change);
   INSTALL_NATIVE(JSFunction, "$arrayValues", array_values_iterator);
+  INSTALL_NATIVE(JSFunction, "$mapGet", map_get);
+  INSTALL_NATIVE(JSFunction, "$mapSet", map_set);
+  INSTALL_NATIVE(JSFunction, "$mapHas", map_has);
+  INSTALL_NATIVE(JSFunction, "$mapDelete", map_delete);
+  INSTALL_NATIVE(JSFunction, "$setAdd", set_add);
+  INSTALL_NATIVE(JSFunction, "$setHas", set_has);
+  INSTALL_NATIVE(JSFunction, "$setDelete", set_delete);
   INSTALL_NATIVE(JSFunction, "$mapFromArray", map_from_array);
   INSTALL_NATIVE(JSFunction, "$setFromArray", set_from_array);
 }

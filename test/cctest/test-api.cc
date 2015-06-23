@@ -21584,8 +21584,43 @@ TEST(Map) {
   map = v8::Map::FromArray(env.local(), contents).ToLocalChecked();
   CHECK_EQ(2U, map->Size());
 
+  CHECK(map->Has(env.local(), v8::Integer::New(isolate, 1)).FromJust());
+  CHECK(map->Has(env.local(), v8::Integer::New(isolate, 3)).FromJust());
+
+  CHECK(!map->Has(env.local(), v8::Integer::New(isolate, 2)).FromJust());
+  CHECK(!map->Has(env.local(), map).FromJust());
+
+  CHECK_EQ(2, map->Get(env.local(), v8::Integer::New(isolate, 1))
+                  .ToLocalChecked()
+                  ->Int32Value());
+  CHECK_EQ(4, map->Get(env.local(), v8::Integer::New(isolate, 3))
+                  .ToLocalChecked()
+                  ->Int32Value());
+
+  CHECK(map->Get(env.local(), v8::Integer::New(isolate, 42))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  CHECK(!map->Set(env.local(), map, map).IsEmpty());
+  CHECK_EQ(3U, map->Size());
+  CHECK(map->Has(env.local(), map).FromJust());
+
+  CHECK(map->Delete(env.local(), map).FromJust());
+  CHECK_EQ(2U, map->Size());
+  CHECK(!map->Has(env.local(), map).FromJust());
+  CHECK(!map->Delete(env.local(), map).FromJust());
+
+  map->Clear();
+  CHECK_EQ(0U, map->Size());
+}
+
+
+TEST(MapFromArrayOddLength) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
   // Odd lengths result in a null MaybeLocal.
-  contents = v8::Array::New(isolate, 41);
+  Local<v8::Array> contents = v8::Array::New(isolate, 41);
   CHECK(v8::Map::FromArray(env.local(), contents).IsEmpty());
 }
 
@@ -21613,4 +21648,22 @@ TEST(Set) {
 
   set = v8::Set::FromArray(env.local(), keys).ToLocalChecked();
   CHECK_EQ(2U, set->Size());
+
+  CHECK(set->Has(env.local(), v8::Integer::New(isolate, 1)).FromJust());
+  CHECK(set->Has(env.local(), v8::Integer::New(isolate, 2)).FromJust());
+
+  CHECK(!set->Has(env.local(), v8::Integer::New(isolate, 3)).FromJust());
+  CHECK(!set->Has(env.local(), set).FromJust());
+
+  CHECK(!set->Add(env.local(), set).IsEmpty());
+  CHECK_EQ(3U, set->Size());
+  CHECK(set->Has(env.local(), set).FromJust());
+
+  CHECK(set->Delete(env.local(), set).FromJust());
+  CHECK_EQ(2U, set->Size());
+  CHECK(!set->Has(env.local(), set).FromJust());
+  CHECK(!set->Delete(env.local(), set).FromJust());
+
+  set->Clear();
+  CHECK_EQ(0U, set->Size());
 }

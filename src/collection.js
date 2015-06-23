@@ -4,6 +4,12 @@
 
 var $getHash;
 var $getExistingHash;
+var $mapSet;
+var $mapHas;
+var $mapDelete;
+var $setAdd;
+var $setHas;
+var $setDelete;
 var $mapFromArray;
 var $setFromArray;
 
@@ -481,6 +487,13 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 // Expose to the global scope.
 $getHash = GetHash;
 $getExistingHash = GetExistingHash;
+$mapGet = MapGet;
+$mapSet = MapSet;
+$mapHas = MapHas;
+$mapDelete = MapDelete;
+$setAdd = SetAdd;
+$setHas = SetHas;
+$setDelete = SetDelete;
 
 $mapFromArray = function(array) {
   var map = new GlobalMap;
