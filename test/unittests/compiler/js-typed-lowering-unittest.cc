@@ -736,13 +736,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* base = HeapConstant(array);
       Node* value =
           Parameter(AccessBuilder::ForTypedArrayElement(type, true).type);
+      Node* vector = UndefinedConstant();
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
       VectorSlotPair feedback;
-      Node* node =
-          graph()->NewNode(javascript()->StoreProperty(language_mode, feedback),
-                           base, key, value, context);
+      const Operator* op = javascript()->StoreProperty(language_mode, feedback);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
         node->AppendInput(zone(), EmptyFrameState());
@@ -784,13 +784,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
           Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
       Node* base = HeapConstant(array);
       Node* value = Parameter(Type::Any());
+      Node* vector = UndefinedConstant();
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
       VectorSlotPair feedback;
-      Node* node =
-          graph()->NewNode(javascript()->StoreProperty(language_mode, feedback),
-                           base, key, value, context);
+      const Operator* op = javascript()->StoreProperty(language_mode, feedback);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
         node->AppendInput(zone(), EmptyFrameState());
@@ -845,13 +845,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* key = Parameter(Type::Range(min, max, zone()));
       Node* base = HeapConstant(array);
       Node* value = Parameter(access.type);
+      Node* vector = UndefinedConstant();
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
       VectorSlotPair feedback;
-      Node* node =
-          graph()->NewNode(javascript()->StoreProperty(language_mode, feedback),
-                           base, key, value, context);
+      const Operator* op = javascript()->StoreProperty(language_mode, feedback);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context);
       for (int i = 0;
            i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
         node->AppendInput(zone(), EmptyFrameState());

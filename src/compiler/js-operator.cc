@@ -519,7 +519,7 @@ const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
   return new (zone()) Operator1<StoreNamedParameters>(   // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
-      2, 1, 1, 0, 1, 2,                                  // counts
+      3, 1, 1, 0, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
@@ -530,7 +530,7 @@ const Operator* JSOperatorBuilder::StoreProperty(
   return new (zone()) Operator1<StorePropertyParameters>(   // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
       "JSStoreProperty",                                    // name
-      3, 1, 1, 0, 1, 2,                                     // counts
+      4, 1, 1, 0, 1, 2,                                     // counts
       parameters);                                          // parameter
 }
 

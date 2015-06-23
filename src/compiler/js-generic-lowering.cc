@@ -334,9 +334,16 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  const StorePropertyParameters& p = StorePropertyParametersOf(node->op());
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
   Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
       isolate(), language_mode, UNINITIALIZED);
+  if (FLAG_vector_stores) {
+    DCHECK(p.feedback().index() != -1);
+    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  } else {
+    node->RemoveInput(3);
+  }
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }
@@ -347,6 +354,12 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
   Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  if (FLAG_vector_stores) {
+    DCHECK(p.feedback().index() != -1);
+    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  } else {
+    node->RemoveInput(3);
+  }
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }

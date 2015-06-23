@@ -1827,7 +1827,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                        feedback_getter);
     VisitForValueOrNull(it->second->setter);
     VectorSlotPair feedback_setter = CreateVectorSlotPair(
-        expr->SlotForHomeObject(it->second->getter, &store_slot_index));
+        expr->SlotForHomeObject(it->second->setter, &store_slot_index));
     BuildSetHomeObject(environment()->Top(), literal, it->second->setter,
                        feedback_setter);
     Node* setter = environment()->Pop();
@@ -3504,7 +3504,10 @@ Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
                                        const VectorSlotPair& feedback,
                                        TypeFeedbackId id) {
   const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
-  Node* node = NewNode(op, object, key, value);
+  Node* node = NewNode(op, object, key, value, BuildLoadFeedbackVector());
+  if (FLAG_vector_stores) {
+    return Record(js_type_feedback_, node, feedback.slot());
+  }
   return Record(js_type_feedback_, node, id);
 }
 
@@ -3515,7 +3518,10 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        TypeFeedbackId id) {
   const Operator* op =
       javascript()->StoreNamed(language_mode(), MakeUnique(name), feedback);
-  Node* node = NewNode(op, object, value);
+  Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
+  if (FLAG_vector_stores) {
+    return Record(js_type_feedback_, node, feedback.slot());
+  }
   return Record(js_type_feedback_, node, id);
 }
 
