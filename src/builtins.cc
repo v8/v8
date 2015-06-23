@@ -184,38 +184,34 @@ static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
 }
 
 
-static bool ArrayPrototypeHasNoElements(Heap* heap, PrototypeIterator* iter) {
+static bool ArrayPrototypeHasNoElements(PrototypeIterator* iter) {
   DisallowHeapAllocation no_gc;
   for (; !iter->IsAtEnd(); iter->Advance()) {
     if (iter->GetCurrent()->IsJSProxy()) return false;
-    if (JSObject::cast(iter->GetCurrent())->elements() !=
-        heap->empty_fixed_array()) {
-      return false;
-    }
+    JSObject* current = JSObject::cast(iter->GetCurrent());
+    if (current->IsAccessCheckNeeded()) return false;
+    if (current->HasIndexedInterceptor()) return false;
+    if (current->elements()->length() != 0) return false;
   }
   return true;
 }
 
 
-static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
+static inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
                                                      JSArray* receiver) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = heap->isolate();
-  if (!isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-    return false;
-  }
-
   // If the array prototype chain is intact (and free of elements), and if the
   // receiver's prototype is the array prototype, then we are done.
   Object* prototype = receiver->map()->prototype();
   if (prototype->IsJSArray() &&
-      isolate->is_initial_array_prototype(JSArray::cast(prototype))) {
+      isolate->is_initial_array_prototype(JSArray::cast(prototype)) &&
+      isolate->IsFastArrayConstructorPrototypeChainIntact()) {
     return true;
   }
 
   // Slow case.
   PrototypeIterator iter(isolate, receiver);
-  return ArrayPrototypeHasNoElements(heap, &iter);
+  return ArrayPrototypeHasNoElements(&iter);
 }
 
 
@@ -231,7 +227,7 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   // If there may be elements accessors in the prototype chain, the fast path
   // cannot be used if there arguments to add to the array.
   Heap* heap = isolate->heap();
-  if (args != NULL && !IsJSArrayFastElementMovingAllowed(heap, *array)) {
+  if (args != NULL && !IsJSArrayFastElementMovingAllowed(isolate, *array)) {
     return MaybeHandle<FixedArrayBase>();
   }
   if (array->map()->is_observed()) return MaybeHandle<FixedArrayBase>();
@@ -463,7 +459,7 @@ BUILTIN(ArrayShift) {
       EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
   Handle<FixedArrayBase> elms_obj;
   if (!maybe_elms_obj.ToHandle(&elms_obj) ||
-      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(*receiver))) {
+      !IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
     return CallJsBuiltin(isolate, "$arrayShift", args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -566,7 +562,6 @@ BUILTIN(ArrayUnshift) {
 
 BUILTIN(ArraySlice) {
   HandleScope scope(isolate);
-  Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
   int len = -1;
   int relative_start = 0;
@@ -575,7 +570,7 @@ BUILTIN(ArraySlice) {
     DisallowHeapAllocation no_gc;
     if (receiver->IsJSArray()) {
       JSArray* array = JSArray::cast(*receiver);
-      if (!IsJSArrayFastElementMovingAllowed(heap, array)) {
+      if (!IsJSArrayFastElementMovingAllowed(isolate, array)) {
         AllowHeapAllocation allow_allocation;
         return CallJsBuiltin(isolate, "$arraySlice", args);
       }
@@ -934,12 +929,11 @@ BUILTIN(ArrayConcat) {
   bool has_double = false;
   {
     DisallowHeapAllocation no_gc;
-    Heap* heap = isolate->heap();
     Context* native_context = isolate->context()->native_context();
     Object* array_proto = native_context->array_function()->prototype();
     PrototypeIterator iter(isolate, array_proto,
                            PrototypeIterator::START_AT_RECEIVER);
-    if (!ArrayPrototypeHasNoElements(heap, &iter)) {
+    if (!ArrayPrototypeHasNoElements(&iter)) {
       AllowHeapAllocation allow_allocation;
       return CallJsBuiltin(isolate, "$arrayConcat", args);
     }
