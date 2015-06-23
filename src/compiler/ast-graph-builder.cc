@@ -3641,8 +3641,10 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
   // TODO(bmeurer, mstarzinger): Refactor this into a separate optimization
   // method.
   switch (input->opcode()) {
-    case IrOpcode::kNumberConstant:
-      return jsgraph_->BooleanConstant(!NumberMatcher(input).Is(0));
+    case IrOpcode::kNumberConstant: {
+      NumberMatcher m(input);
+      return jsgraph_->BooleanConstant(!m.Is(0) && !m.IsNaN());
+    }
     case IrOpcode::kHeapConstant: {
       Handle<HeapObject> object = HeapObjectMatcher(input).Value().handle();
       return jsgraph_->BooleanConstant(object->BooleanValue());
