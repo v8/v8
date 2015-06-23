@@ -556,7 +556,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   typedef ElementsTraitsParam ElementsTraits;
   typedef typename ElementsTraitsParam::BackingStore BackingStore;
 
-  ElementsKind kind() const final { return ElementsTraits::Kind; }
+  static ElementsKind kind() { return ElementsTraits::Kind; }
 
   static void ValidateContents(Handle<JSObject> holder, int length) {
   }
@@ -644,9 +644,59 @@ class ElementsAccessorBase : public ElementsAccessor {
   static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
                             Handle<FixedArrayBase> backing_store);
 
-  static void GrowCapacityAndConvertImpl(Handle<JSObject> obj,
+  static Handle<FixedArrayBase> ConvertElementsWithCapacity(
+      Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
+      ElementsKind from_kind, uint32_t capacity) {
+    Isolate* isolate = object->GetIsolate();
+    Handle<FixedArrayBase> elements;
+    if (IsFastDoubleElementsKind(kind())) {
+      elements = isolate->factory()->NewFixedDoubleArray(capacity);
+    } else {
+      elements = isolate->factory()->NewUninitializedFixedArray(capacity);
+    }
+
+    int packed = kPackedSizeNotKnown;
+    if (IsFastPackedElementsKind(from_kind) && object->IsJSArray()) {
+      packed = Smi::cast(JSArray::cast(*object)->length())->value();
+    }
+
+    ElementsAccessorSubclass::CopyElementsImpl(
+        *old_elements, 0, *elements, from_kind, 0, packed,
+        ElementsAccessor::kCopyToEndAndInitializeToHole);
+    return elements;
+  }
+
+  static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
                                          uint32_t capacity) {
-    UNIMPLEMENTED();
+    ElementsKind from_kind = object->GetElementsKind();
+    if (IsFastSmiOrObjectElementsKind(from_kind)) {
+      // Array optimizations rely on the prototype lookups of Array objects
+      // always returning undefined. If there is a store to the initial
+      // prototype object, make sure all of these optimizations are invalidated.
+      object->GetIsolate()->UpdateArrayProtectorOnSetLength(object);
+    }
+    Handle<FixedArrayBase> old_elements(object->elements());
+    // This method should only be called if there's a reason to update the
+    // elements.
+    DCHECK(IsFastDoubleElementsKind(from_kind) !=
+               IsFastDoubleElementsKind(kind()) ||
+           IsDictionaryElementsKind(from_kind) ||
+           static_cast<uint32_t>(old_elements->length()) < capacity);
+    Handle<FixedArrayBase> elements =
+        ConvertElementsWithCapacity(object, old_elements, from_kind, capacity);
+
+    ElementsKind to_kind = kind();
+    if (IsHoleyElementsKind(from_kind)) to_kind = GetHoleyElementsKind(to_kind);
+    Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
+    JSObject::SetMapAndElements(object, new_map, elements);
+
+    // Transition through the allocation site as well if present.
+    JSObject::UpdateAllocationSite(object, to_kind);
+
+    if (FLAG_trace_elements_transitions) {
+      JSObject::PrintElementsTransition(stdout, object, from_kind, old_elements,
+                                        to_kind, elements);
+    }
   }
 
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
@@ -1035,16 +1085,6 @@ class FastSmiOrObjectElementsAccessor
 #undef TYPED_ARRAY_CASE
     }
   }
-
-
-  static void GrowCapacityAndConvertImpl(Handle<JSObject> obj,
-                                         uint32_t capacity) {
-    JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
-        obj->HasFastSmiElements()
-            ? JSObject::kAllowSmiElements
-            : JSObject::kDontAllowSmiElements;
-    JSObject::SetFastElementsCapacity(obj, capacity, set_capacity_mode);
-  }
 };
 
 
@@ -1104,34 +1144,6 @@ class FastDoubleElementsAccessor
   explicit FastDoubleElementsAccessor(const char* name)
       : FastElementsAccessor<FastElementsAccessorSubclass,
                              KindTraits>(name) {}
-
-  static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
-                                         uint32_t capacity) {
-    Handle<FixedArrayBase> elements =
-        object->GetIsolate()->factory()->NewFixedDoubleArray(capacity);
-    ElementsKind from_kind = object->GetElementsKind();
-    ElementsKind to_kind = IsHoleyElementsKind(from_kind)
-                               ? FAST_HOLEY_DOUBLE_ELEMENTS
-                               : FAST_DOUBLE_ELEMENTS;
-
-    Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
-
-    Handle<FixedArrayBase> old_elements(object->elements());
-    int packed = kPackedSizeNotKnown;
-    if (IsFastPackedElementsKind(from_kind) && object->IsJSArray()) {
-      packed = Smi::cast(JSArray::cast(*object)->length())->value();
-    }
-    CopyElementsImpl(*old_elements, 0, *elements, from_kind, 0, packed,
-                     ElementsAccessor::kCopyToEndAndInitializeToHole);
-
-    JSObject::SetMapAndElements(object, new_map, elements);
-    JSObject::ValidateElements(object);
-
-    if (FLAG_trace_elements_transitions) {
-      JSObject::PrintElementsTransition(stdout, object, from_kind, old_elements,
-                                        to_kind, elements);
-    }
-  }
 
  protected:
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
@@ -1494,6 +1506,22 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
+  static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
+                                         uint32_t capacity) {
+    Handle<FixedArray> parameter_map(FixedArray::cast(object->elements()));
+    Handle<FixedArray> old_elements(FixedArray::cast(parameter_map->get(1)));
+    ElementsKind from_kind = old_elements->IsDictionary() ? DICTIONARY_ELEMENTS
+                                                          : FAST_HOLEY_ELEMENTS;
+    // This method should only be called if there's a reason to update the
+    // elements.
+    DCHECK(IsDictionaryElementsKind(from_kind) ||
+           static_cast<uint32_t>(old_elements->length()) < capacity);
+    Handle<FixedArrayBase> elements =
+        ConvertElementsWithCapacity(object, old_elements, from_kind, capacity);
+    parameter_map->set(1, *elements);
+    JSObject::ValidateElements(object);
+  }
+
   static void SetImpl(FixedArrayBase* store, uint32_t key, Object* value) {
     FixedArray* parameter_map = FixedArray::cast(store);
     Object* probe = GetParameterMapArg(parameter_map, key);
@@ -1556,7 +1584,15 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
                                FixedArrayBase* to, ElementsKind from_kind,
                                uint32_t to_start, int packed_size,
                                int copy_size) {
-    UNREACHABLE();
+    DCHECK(!to->IsDictionary());
+    if (from_kind == DICTIONARY_ELEMENTS) {
+      CopyDictionaryToObjectElements(from, from_start, to, FAST_HOLEY_ELEMENTS,
+                                     to_start, copy_size);
+    } else {
+      DCHECK_EQ(FAST_HOLEY_ELEMENTS, from_kind);
+      CopyObjectToObjectElements(from, from_kind, from_start, to,
+                                 FAST_HOLEY_ELEMENTS, to_start, copy_size);
+    }
   }
 
   static uint32_t GetCapacityImpl(JSObject* holder,

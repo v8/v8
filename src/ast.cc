@@ -544,6 +544,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   if (array_index != values()->length()) {
     JSArray::SetLength(array, array_index);
   }
+  JSObject::ValidateElements(array);
   Handle<FixedArrayBase> element_values(array->elements());
 
   // Simple and shallow arrays can be lazily copied, we transform the

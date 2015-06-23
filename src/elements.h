@@ -20,7 +20,6 @@ class ElementsAccessor {
   explicit ElementsAccessor(const char* name) : name_(name) { }
   virtual ~ElementsAccessor() { }
 
-  virtual ElementsKind kind() const = 0;
   const char* name() const { return name_; }
 
   // Checks the elements of an object for consistency, asserting when a problem

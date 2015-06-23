@@ -576,6 +576,7 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, JSObject::AddDataElement(array, index, value, NONE));
+  JSObject::ValidateElements(array);
   return *array;
 }
 

@@ -2025,10 +2025,7 @@ class JSObject: public JSReceiver {
   // storage would.  In that case the JSObject should have fast
   // elements.
   bool ShouldConvertToFastElements();
-  // Returns true if the elements of JSObject contains only values that can be
-  // represented in a FixedDoubleArray and has at least one value that can only
-  // be represented as a double and not a Smi.
-  bool ShouldConvertToFastDoubleElements(bool* has_smi_only_elements);
+  ElementsKind BestFittingFastElementsKind();
 
   // Computes the new capacity when expanding the elements of a JSObject.
   static uint32_t NewElementsCapacity(uint32_t old_capacity) {
@@ -2039,27 +2036,6 @@ class JSObject: public JSReceiver {
   // These methods do not perform access checks!
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
-
-  enum SetFastElementsCapacitySmiMode {
-    kAllowSmiElements,
-    kForceSmiElements,
-    kDontAllowSmiElements
-  };
-
-  static Handle<FixedArray> SetFastElementsCapacity(
-      Handle<JSObject> object, int capacity,
-      SetFastElementsCapacitySmiMode smi_mode);
-
-  // Replace the elements' backing store with fast elements of the given
-  // capacity.  Update the length for JSArrays.  Returns the new backing
-  // store.
-  static Handle<FixedArray> SetFastElementsCapacityAndLength(
-      Handle<JSObject> object,
-      int capacity,
-      int length,
-      SetFastElementsCapacitySmiMode smi_mode);
-  static void SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
-                                                     int capacity, int length);
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
