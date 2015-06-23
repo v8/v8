@@ -292,7 +292,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ValueUse) {
   Node* node = graph()->NewNode(&kMockOperator);
   Node* use_value = graph()->NewNode(common.Return(), node);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), nullptr);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(replacement, use_value->InputAt(0));
@@ -308,7 +308,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_EffectUse) {
   Node* node = graph()->NewNode(&kMockOpEffect, start);
   Node* use_effect = graph()->NewNode(common.EffectPhi(1), node);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), nullptr);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_effect->InputAt(0));
@@ -326,7 +326,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse1) {
   Node* success = graph()->NewNode(common.IfSuccess(), node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), nullptr);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_control->InputAt(0));
@@ -346,18 +346,19 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse2) {
   Node* success = graph()->NewNode(common.IfSuccess(), node);
   Node* exception = graph()->NewNode(common.IfException(kNoHint), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
+  Node* use_exception_control = graph()->NewNode(common.Merge(1), exception);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), dead);
+  GraphReducer graph_reducer(zone(), graph(), nullptr, dead);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_control->InputAt(0));
-  EXPECT_EQ(dead, exception->InputAt(1));
+  EXPECT_EQ(dead, use_exception_control->InputAt(0));
   EXPECT_EQ(0, node->UseCount());
   EXPECT_EQ(2, start->UseCount());
   EXPECT_EQ(1, dead->UseCount());
   EXPECT_EQ(0, replacement->UseCount());
   EXPECT_THAT(start->uses(), UnorderedElementsAre(use_control, node));
-  EXPECT_THAT(dead->uses(), ElementsAre(exception));
+  EXPECT_THAT(dead->uses(), ElementsAre(use_exception_control));
 }
 
 
@@ -370,18 +371,19 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse3) {
   Node* success = graph()->NewNode(common.IfSuccess(), node);
   Node* exception = graph()->NewNode(common.IfException(kNoHint), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
+  Node* use_exception_value = graph()->NewNode(common.Return(), exception);
   Node* replacement = graph()->NewNode(&kMockOperator);
-  GraphReducer graph_reducer(zone(), graph(), dead);
+  GraphReducer graph_reducer(zone(), graph(), dead, nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_control->InputAt(0));
-  EXPECT_EQ(dead, exception->InputAt(1));
+  EXPECT_EQ(dead, use_exception_value->InputAt(0));
   EXPECT_EQ(0, node->UseCount());
   EXPECT_EQ(2, start->UseCount());
   EXPECT_EQ(1, dead->UseCount());
   EXPECT_EQ(0, replacement->UseCount());
   EXPECT_THAT(start->uses(), UnorderedElementsAre(use_control, node));
-  EXPECT_THAT(dead->uses(), ElementsAre(exception));
+  EXPECT_THAT(dead->uses(), ElementsAre(use_exception_value));
 }
 
 

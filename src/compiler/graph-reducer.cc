@@ -22,9 +22,11 @@ enum class GraphReducer::State : uint8_t {
 };
 
 
-GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
+GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead_value,
+                           Node* dead_control)
     : graph_(graph),
-      dead_(dead),
+      dead_value_(dead_value),
+      dead_control_(dead_control),
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
@@ -203,15 +205,17 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
 
   // Requires distinguishing between value, effect and control edges.
   for (Edge edge : node->use_edges()) {
-    Node* const user = edge.from();
-    DCHECK(!user->IsDead());
+    Node* user = edge.from();
     if (NodeProperties::IsControlEdge(edge)) {
       if (user->opcode() == IrOpcode::kIfSuccess) {
         Replace(user, control);
       } else if (user->opcode() == IrOpcode::kIfException) {
-        DCHECK_NOT_NULL(dead_);
-        edge.UpdateTo(dead_);
-        Revisit(user);
+        for (Edge e : user->use_edges()) {
+          if (NodeProperties::IsValueEdge(e)) e.UpdateTo(dead_value_);
+          if (NodeProperties::IsEffectEdge(e)) e.UpdateTo(graph()->start());
+          if (NodeProperties::IsControlEdge(e)) e.UpdateTo(dead_control_);
+        }
+        edge.UpdateTo(user);
       } else {
         UNREACHABLE();
       }

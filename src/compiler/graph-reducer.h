@@ -116,7 +116,8 @@ class AdvancedReducer : public Reducer {
 // Performs an iterative reduction of a node graph.
 class GraphReducer : public AdvancedReducer::Editor {
  public:
-  GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
+  GraphReducer(Zone* zone, Graph* graph, Node* dead_value = nullptr,
+               Node* dead_control = nullptr);
   ~GraphReducer();
 
   Graph* graph() const { return graph_; }
@@ -163,7 +164,8 @@ class GraphReducer : public AdvancedReducer::Editor {
   void Revisit(Node* node) final;
 
   Graph* const graph_;
-  Node* const dead_;
+  Node* dead_value_;
+  Node* dead_control_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
   ZoneStack<Node*> revisit_;
