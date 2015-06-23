@@ -133,7 +133,7 @@ var Date_cache = {
 function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
   if (!%_IsConstructCall()) {
     // ECMA 262 - 15.9.2
-    return (new GlobalDate()).toString();
+    return %_CallFunction(new GlobalDate(), DateToString);
   }
 
   // ECMA 262 - 15.9.3

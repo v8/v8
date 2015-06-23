@@ -349,3 +349,8 @@ delete Date.prototype.getUTCMinutes;
 delete Date.prototype.getUTCSeconds;
 delete Date.prototype.getUTCMilliseconds;
 date.toISOString();
+
+(function TestDeleteToString() {
+  assertTrue(delete Date.prototype.toString);
+  assertTrue('[object Date]' !== Date());
+})();
