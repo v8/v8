@@ -95,13 +95,13 @@ macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
 macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
 macro IS_OBJECT(arg)            = (%_IsObject(arg));
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
+macro IS_DATE(arg)              = (%_IsDate(arg));
 macro IS_FUNCTION(arg)          = (%_IsFunction(arg));
 macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
 macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');
 macro IS_WEAKSET(arg)           = (%_ClassOf(arg) === 'WeakSet');
-macro IS_DATE(arg)              = (%_ClassOf(arg) === 'Date');
 macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');
 macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
 macro IS_SYMBOL_WRAPPER(arg)    = (%_ClassOf(arg) === 'Symbol');
@@ -191,7 +191,7 @@ define MAX_TIME_BEFORE_UTC = 8640002592000000;
 
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
-macro CHECK_DATE(arg) = %_ThrowIfNotADate(arg);
+macro CHECK_DATE(arg) = if (%_IsDate(arg)) {} else %_ThrowNotDateError();
 macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
 macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
 

@@ -11958,14 +11958,21 @@ void HOptimizedGraphBuilder::GenerateJSValueGetValue(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateThrowIfNotADate(CallRuntime* call) {
+void HOptimizedGraphBuilder::GenerateIsDate(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* obj = Pop();
-  BuildCheckHeapObject(obj);
-  HCheckInstanceType* check =
-      New<HCheckInstanceType>(obj, HCheckInstanceType::IS_JS_DATE);
-  return ast_context()->ReturnInstruction(check, call->id());
+  HValue* value = Pop();
+  HHasInstanceTypeAndBranch* result =
+      New<HHasInstanceTypeAndBranch>(value, JS_DATE_TYPE);
+  return ast_context()->ReturnControl(result, call->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateThrowNotDateError(CallRuntime* call) {
+  DCHECK_EQ(0, call->arguments()->length());
+  Add<HDeoptimize>(Deoptimizer::kNotADateObject, Deoptimizer::EAGER);
+  Add<HSimulate>(call->id(), FIXED_SIMULATE);
+  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 
 

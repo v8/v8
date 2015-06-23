@@ -74,8 +74,24 @@ TEST(IncrementStatsCounter) {
 TEST(IsArray) {
   FunctionTester T("(function(a) { return %_IsArray(a); })", flags);
 
+  T.CheckFalse(T.NewObject("new Date()"));
   T.CheckFalse(T.NewObject("(function() {})"));
   T.CheckTrue(T.NewObject("([1])"));
+  T.CheckFalse(T.NewObject("({})"));
+  T.CheckFalse(T.NewObject("(/x/)"));
+  T.CheckFalse(T.undefined());
+  T.CheckFalse(T.null());
+  T.CheckFalse(T.Val("x"));
+  T.CheckFalse(T.Val(1));
+}
+
+
+TEST(IsDate) {
+  FunctionTester T("(function(a) { return %_IsDate(a); })", flags);
+
+  T.CheckTrue(T.NewObject("new Date()"));
+  T.CheckFalse(T.NewObject("(function() {})"));
+  T.CheckFalse(T.NewObject("([1])"));
   T.CheckFalse(T.NewObject("({})"));
   T.CheckFalse(T.NewObject("(/x/)"));
   T.CheckFalse(T.undefined());
@@ -88,6 +104,7 @@ TEST(IsArray) {
 TEST(IsFunction) {
   FunctionTester T("(function(a) { return %_IsFunction(a); })", flags);
 
+  T.CheckFalse(T.NewObject("new Date()"));
   T.CheckTrue(T.NewObject("(function() {})"));
   T.CheckFalse(T.NewObject("([1])"));
   T.CheckFalse(T.NewObject("({})"));
@@ -140,6 +157,7 @@ TEST(IsObject) {
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
+  T.CheckFalse(T.NewObject("new Date()"));
   T.CheckFalse(T.NewObject("(function() {})"));
   T.CheckFalse(T.NewObject("([1])"));
   T.CheckFalse(T.NewObject("({})"));

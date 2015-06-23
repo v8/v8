@@ -46,6 +46,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIncrementStatsCounter(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
+    case Runtime::kInlineIsDate:
+      return ReduceIsInstanceType(node, JS_DATE_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:

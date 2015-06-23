@@ -531,7 +531,7 @@ class FullCodeGenerator: public AstVisitor {
   F(Arguments)                            \
   F(ValueOf)                              \
   F(SetValueOf)                           \
-  F(ThrowIfNotADate)                      \
+  F(IsDate)                               \
   F(DateField)                            \
   F(StringCharFromCode)                   \
   F(StringCharAt)                         \

@@ -136,7 +136,7 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
-    case Runtime::kInlineThrowIfNotADate:
+    case Runtime::kInlineThrowNotDateError:
       return true;
     default:
       break;

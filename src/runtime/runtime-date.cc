@@ -60,16 +60,11 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowIfNotADate) {
+RUNTIME_FUNCTION(Runtime_IsDate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsJSDate()) {
-    HandleScope scope(isolate);
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotDateObject));
-  }
-  return obj;
+  return isolate->heap()->ToBoolean(obj->IsJSDate());
 }
 
 

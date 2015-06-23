@@ -134,7 +134,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_DATE(F) \
   F(DateMakeDay, 2, 1)             \
   F(DateSetValue, 3, 1)            \
-  F(ThrowIfNotADate, 1, 1)         \
+  F(IsDate, 1, 1)                  \
   F(ThrowNotDateError, 0, 1)       \
   F(DateCurrentTime, 0, 1)         \
   F(DateParseString, 2, 1)         \
