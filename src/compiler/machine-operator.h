@@ -88,6 +88,8 @@ class MachineOperatorBuilder final : public ZoneObject {
   // for operations that are unsupported by some back-ends.
   enum Flag {
     kNoFlags = 0u,
+    // Note that Float*Max behaves like `(a < b) ? b : a`, not like Math.max().
+    // Note that Float*Min behaves like `(a < b) ? a : b`, not like Math.min().
     kFloat32Max = 1u << 0,
     kFloat32Min = 1u << 1,
     kFloat64Max = 1u << 2,

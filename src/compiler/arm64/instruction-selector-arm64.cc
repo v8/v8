@@ -1282,24 +1282,16 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat32Max(Node* node) {
-  VisitRRR(this, kArm64Float32Max, node);
-}
+void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
 
 
-void InstructionSelector::VisitFloat64Max(Node* node) {
-  VisitRRR(this, kArm64Float64Max, node);
-}
+void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
 
 
-void InstructionSelector::VisitFloat32Min(Node* node) {
-  VisitRRR(this, kArm64Float32Min, node);
-}
+void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 
 
-void InstructionSelector::VisitFloat64Min(Node* node) {
-  VisitRRR(this, kArm64Float64Min, node);
-}
+void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
 
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
@@ -2009,11 +2001,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat32Max |
-         MachineOperatorBuilder::kFloat32Min |
-         MachineOperatorBuilder::kFloat64Max |
-         MachineOperatorBuilder::kFloat64Min |
-         MachineOperatorBuilder::kFloat64RoundDown |
+  return MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
