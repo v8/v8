@@ -279,8 +279,8 @@ Reduction JSIntrinsicLowering::ReduceMathClz32(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceMathFloor(Node* node) {
-  if (!machine()->HasFloat64RoundDown()) return NoChange();
-  return Change(node, machine()->Float64RoundDown());
+  if (!machine()->Float64RoundDown().IsSupported()) return NoChange();
+  return Change(node, machine()->Float64RoundDown().op());
 }
 
 

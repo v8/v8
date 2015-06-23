@@ -5070,7 +5070,7 @@ TEST(RunFloat64RoundDown1) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundDown()) return;
+  if (!m.machine()->Float64RoundDown().IsSupported()) return;
   m.StoreToPointer(&result, kMachFloat64,
                    m.Float64RoundDown(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
@@ -5087,7 +5087,7 @@ TEST(RunFloat64RoundDown2) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundDown()) return;
+  if (!m.machine()->Float64RoundDown().IsSupported()) return;
   m.StoreToPointer(&result, kMachFloat64,
                    m.Float64Sub(m.Float64Constant(-0.0),
                                 m.Float64RoundDown(m.Float64Sub(
@@ -5107,7 +5107,7 @@ TEST(RunFloat64RoundTruncate) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundTruncate()) return;
+  if (!m.machine()->Float64RoundTruncate().IsSupported()) return;
   m.StoreToPointer(
       &result, kMachFloat64,
       m.Float64RoundTruncate(m.LoadFromPointer(&input, kMachFloat64)));
@@ -5125,7 +5125,7 @@ TEST(RunFloat64RoundTiesAway) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundTiesAway()) return;
+  if (!m.machine()->Float64RoundTiesAway().IsSupported()) return;
   m.StoreToPointer(
       &result, kMachFloat64,
       m.Float64RoundTiesAway(m.LoadFromPointer(&input, kMachFloat64)));

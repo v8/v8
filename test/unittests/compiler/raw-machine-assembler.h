@@ -416,13 +416,13 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(machine()->TruncateInt64ToInt32(), a);
   }
   Node* Float64RoundDown(Node* a) {
-    return NewNode(machine()->Float64RoundDown(), a);
+    return NewNode(machine()->Float64RoundDown().op(), a);
   }
   Node* Float64RoundTruncate(Node* a) {
-    return NewNode(machine()->Float64RoundTruncate(), a);
+    return NewNode(machine()->Float64RoundTruncate().op(), a);
   }
   Node* Float64RoundTiesAway(Node* a) {
-    return NewNode(machine()->Float64RoundTiesAway(), a);
+    return NewNode(machine()->Float64RoundTiesAway().op(), a);
   }
 
   // Float64 bit operations.

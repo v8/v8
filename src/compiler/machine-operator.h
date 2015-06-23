@@ -16,6 +16,20 @@ namespace compiler {
 struct MachineOperatorGlobalCache;
 class Operator;
 
+// For operators that are not supported on all platforms.
+class OptionalOperator {
+ public:
+  explicit OptionalOperator(const Operator* op) : op_(op) {}
+
+  bool IsSupported() const { return op_ != nullptr; }
+  const Operator* op() const {
+    DCHECK_NOT_NULL(op_);
+    return op_;
+  }
+
+ private:
+  const Operator* op_;
+};
 
 // Supported write barrier modes.
 enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
@@ -83,7 +97,10 @@ class MachineOperatorBuilder final : public ZoneObject {
     kFloat64RoundTiesAway = 1u << 6,
     kInt32DivIsSafe = 1u << 7,
     kUint32DivIsSafe = 1u << 8,
-    kWord32ShiftIsSafe = 1u << 9
+    kWord32ShiftIsSafe = 1u << 9,
+    kAllOptionalOps = kFloat32Max | kFloat32Min | kFloat64Max | kFloat64Min |
+                      kFloat64RoundDown | kFloat64RoundTruncate |
+                      kFloat64RoundTiesAway
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -186,16 +203,12 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64LessThanOrEqual();
 
   // Floating point min/max complying to IEEE 754 (single-precision).
-  const Operator* Float32Max();
-  const Operator* Float32Min();
-  bool HasFloat32Max() { return flags_ & kFloat32Max; }
-  bool HasFloat32Min() { return flags_ & kFloat32Min; }
+  const OptionalOperator Float32Max();
+  const OptionalOperator Float32Min();
 
   // Floating point min/max complying to IEEE 754 (double-precision).
-  const Operator* Float64Max();
-  const Operator* Float64Min();
-  bool HasFloat64Max() { return flags_ & kFloat64Max; }
-  bool HasFloat64Min() { return flags_ & kFloat64Min; }
+  const OptionalOperator Float64Max();
+  const OptionalOperator Float64Min();
 
   // Floating point abs complying to IEEE 754 (single-precision).
   const Operator* Float32Abs();
@@ -204,12 +217,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64Abs();
 
   // Floating point rounding.
-  const Operator* Float64RoundDown();
-  const Operator* Float64RoundTruncate();
-  const Operator* Float64RoundTiesAway();
-  bool HasFloat64RoundDown() { return flags_ & kFloat64RoundDown; }
-  bool HasFloat64RoundTruncate() { return flags_ & kFloat64RoundTruncate; }
-  bool HasFloat64RoundTiesAway() { return flags_ & kFloat64RoundTiesAway; }
+  const OptionalOperator Float64RoundDown();
+  const OptionalOperator Float64RoundTruncate();
+  const OptionalOperator Float64RoundTiesAway();
 
   // Floating point bit representation.
   const Operator* Float64ExtractLowWord32();
