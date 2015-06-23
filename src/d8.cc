@@ -496,6 +496,7 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   data->realms_ = new Persistent<Context>[++data->realm_count_];
   for (int i = 0; i < index; ++i) {
     data->realms_[i].Reset(isolate, old_realms[i]);
+    old_realms[i].Reset();
   }
   delete[] old_realms;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
