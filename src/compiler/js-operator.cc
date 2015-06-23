@@ -249,6 +249,12 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op) {
 }
 
 
+const LoadNamedParameters& LoadGlobalParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSLoadGlobal, op->opcode());
+  return OpParameter<LoadNamedParameters>(op);
+}
+
+
 bool operator==(StoreNamedParameters const& lhs,
                 StoreNamedParameters const& rhs) {
   return lhs.language_mode() == rhs.language_mode() &&
@@ -274,6 +280,12 @@ std::ostream& operator<<(std::ostream& os, StoreNamedParameters const& p) {
 
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSStoreNamed, op->opcode());
+  return OpParameter<StoreNamedParameters>(op);
+}
+
+
+const StoreNamedParameters& StoreGlobalParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSStoreGlobal, op->opcode());
   return OpParameter<StoreNamedParameters>(op);
 }
 
@@ -490,9 +502,8 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 
 
 const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
-                                             const VectorSlotPair& feedback,
-                                             ContextualMode contextual_mode) {
-  LoadNamedParameters parameters(name, feedback, contextual_mode);
+                                             const VectorSlotPair& feedback) {
+  LoadNamedParameters parameters(name, feedback, NOT_CONTEXTUAL);
   return new (zone()) Operator1<LoadNamedParameters>(   // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
@@ -541,6 +552,30 @@ const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
       "JSDeleteProperty",                                    // name
       2, 1, 1, 1, 1, 2,                                      // counts
       language_mode);                                        // parameter
+}
+
+
+const Operator* JSOperatorBuilder::LoadGlobal(const Unique<Name>& name,
+                                              const VectorSlotPair& feedback,
+                                              ContextualMode contextual_mode) {
+  LoadNamedParameters parameters(name, feedback, contextual_mode);
+  return new (zone()) Operator1<LoadNamedParameters>(    // --
+      IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
+      "JSLoadGlobal",                                    // name
+      2, 1, 1, 1, 1, 2,                                  // counts
+      parameters);                                       // parameter
+}
+
+
+const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
+                                               const Unique<Name>& name,
+                                               const VectorSlotPair& feedback) {
+  StoreNamedParameters parameters(language_mode, feedback, name);
+  return new (zone()) Operator1<StoreNamedParameters>(    // --
+      IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
+      "JSStoreGlobal",                                    // name
+      3, 1, 1, 0, 1, 2,                                   // counts
+      parameters);                                        // parameter
 }
 
 

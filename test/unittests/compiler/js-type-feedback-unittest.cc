@@ -78,13 +78,13 @@ class JSTypeFeedbackTest : public TypedGraphTest {
       const char* string, Node* effect, Node* control,
       JSTypeFeedbackSpecializer::DeoptimizationMode mode) {
     VectorSlotPair feedback;
-    Node* global = Parameter(Type::GlobalObject());
+    Node* global = UndefinedConstant();
     Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
 
     Unique<Name> name = Unique<Name>::CreateUninitialized(
         isolate()->factory()->InternalizeUtf8String(string));
-    const Operator* op = javascript()->LoadNamed(name, feedback);
+    const Operator* op = javascript()->LoadGlobal(name, feedback);
     Node* load = graph()->NewNode(op, global, vector, context);
     if (mode == JSTypeFeedbackSpecializer::kDeoptimizationEnabled) {
       for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op);

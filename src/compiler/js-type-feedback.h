@@ -84,8 +84,8 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
   Reduction Reduce(Node* node) override;
 
   // Visible for unit testing.
+  Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
-  Reduction ReduceJSLoadNamedForGlobalVariable(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);

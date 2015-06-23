@@ -3233,7 +3233,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
-      Node* value = BuildNamedLoad(global, name, feedback, contextual_mode);
+      Node* value = BuildGlobalLoad(global, name, feedback, contextual_mode);
       states.AddToNode(value, bailout_id, combine);
       return value;
     }
@@ -3367,8 +3367,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
-      Node* store = BuildNamedStore(global, name, value, feedback,
-                                    TypeFeedbackId::None());
+      Node* store = BuildGlobalStore(global, name, value, feedback,
+                                     TypeFeedbackId::None());
       states.AddToNode(store, bailout_id, combine);
       return store;
     }
@@ -3491,10 +3491,8 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
 
 
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
-                                      const VectorSlotPair& feedback,
-                                      ContextualMode mode) {
-  const Operator* op =
-      javascript()->LoadNamed(MakeUnique(name), feedback, mode);
+                                      const VectorSlotPair& feedback) {
+  const Operator* op = javascript()->LoadNamed(MakeUnique(name), feedback);
   Node* node = NewNode(op, object, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }
@@ -3567,6 +3565,30 @@ Node* AstGraphBuilder::BuildNamedSuperStore(Node* receiver, Node* home_object,
                                         : Runtime::kStoreToSuper_Sloppy;
   const Operator* op = javascript()->CallRuntime(function_id, 4);
   Node* node = NewNode(op, receiver, home_object, name_node, value);
+  return Record(js_type_feedback_, node, id);
+}
+
+
+Node* AstGraphBuilder::BuildGlobalLoad(Node* object, Handle<Name> name,
+                                       const VectorSlotPair& feedback,
+                                       ContextualMode mode) {
+  const Operator* op =
+      javascript()->LoadGlobal(MakeUnique(name), feedback, mode);
+  Node* node = NewNode(op, object, BuildLoadFeedbackVector());
+  return Record(js_type_feedback_, node, feedback.slot());
+}
+
+
+Node* AstGraphBuilder::BuildGlobalStore(Node* object, Handle<Name> name,
+                                        Node* value,
+                                        const VectorSlotPair& feedback,
+                                        TypeFeedbackId id) {
+  const Operator* op =
+      javascript()->StoreGlobal(language_mode(), MakeUnique(name), feedback);
+  Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
+  if (FLAG_vector_stores) {
+    return Record(js_type_feedback_, node, feedback.slot());
+  }
   return Record(js_type_feedback_, node, id);
 }
 

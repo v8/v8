@@ -801,18 +801,14 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
-  Node* object = NodeProperties::GetValueInput(node, 0);
-  Type* object_type = NodeProperties::GetBounds(object).upper;
-  if (object_type->Is(Type::GlobalObject())) {
-    // Optimize global constants like "undefined", "Infinity", and "NaN".
-    Handle<Name> name = LoadNamedParametersOf(node->op()).name().handle();
-    Handle<Object> constant_value = factory()->GlobalConstantFor(name);
-    if (!constant_value.is_null()) {
-      Node* constant = jsgraph()->Constant(constant_value);
-      ReplaceWithValue(node, constant);
-      return Replace(constant);
-    }
+Reduction JSTypedLowering::ReduceJSLoadGlobal(Node* node) {
+  // Optimize global constants like "undefined", "Infinity", and "NaN".
+  Handle<Name> name = LoadGlobalParametersOf(node->op()).name().handle();
+  Handle<Object> constant_value = factory()->GlobalConstantFor(name);
+  if (!constant_value.is_null()) {
+    Node* constant = jsgraph()->Constant(constant_value);
+    ReplaceWithValue(node, constant);
+    return Replace(constant);
   }
   return NoChange();
 }
@@ -1023,7 +1019,7 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true), context,
       context, effect);
   Node* fast = graph()->NewNode(
-      javascript()->LoadNamed(name, access.feedback(), access.mode()), global,
+      javascript()->LoadGlobal(name, access.feedback(), access.mode()), global,
       vector, context, state1, state2, global, check_true);
 
   // Slow case, because variable potentially shadowed. Perform dynamic lookup.
@@ -1639,8 +1635,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToNumber(node);
     case IrOpcode::kJSToString:
       return ReduceJSToString(node);
-    case IrOpcode::kJSLoadNamed:
-      return ReduceJSLoadNamed(node);
+    case IrOpcode::kJSLoadGlobal:
+      return ReduceJSLoadGlobal(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:

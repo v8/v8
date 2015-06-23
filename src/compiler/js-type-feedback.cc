@@ -52,6 +52,8 @@ Reduction JSTypeFeedbackSpecializer::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
+    case IrOpcode::kJSLoadGlobal:
+      return ReduceJSLoadGlobal(node);
     case IrOpcode::kJSStoreNamed:
       return ReduceJSStoreNamed(node);
     case IrOpcode::kJSStoreProperty:
@@ -137,19 +139,8 @@ static bool GetInObjectFieldAccess(LoadOrStore mode, Handle<Map> map,
 }
 
 
-static bool IsGlobalObject(Node* node) {
-  return NodeProperties::IsTyped(node) &&
-         NodeProperties::GetBounds(node).upper->Is(Type::GlobalObject());
-}
-
-
 Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
-  Node* receiver = node->InputAt(0);
-  if (IsGlobalObject(receiver)) {
-    return ReduceJSLoadNamedForGlobalVariable(node);
-  }
-
   if (mode() != kDeoptimizationEnabled) return NoChange();
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
@@ -166,6 +157,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   }
   oracle()->PropertyReceiverTypes(slot, name, &maps);
 
+  Node* receiver = node->InputAt(0);
   Node* effect = NodeProperties::GetEffectInput(node);
 
   if (maps.length() != 1) return NoChange();  // TODO(turbofan): polymorphism
@@ -196,10 +188,10 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
 }
 
 
-Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamedForGlobalVariable(
-    Node* node) {
+Reduction JSTypeFeedbackSpecializer::ReduceJSLoadGlobal(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadGlobal);
   Handle<String> name =
-      Handle<String>::cast(LoadNamedParametersOf(node->op()).name().handle());
+      Handle<String>::cast(LoadGlobalParametersOf(node->op()).name().handle());
   // Try to optimize loads from the global object.
   Handle<Object> constant_value =
       jsgraph()->isolate()->factory()->GlobalConstantFor(name);

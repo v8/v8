@@ -227,7 +227,7 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 
 
 // Defines the property being loaded from an object by a named load. This is
-// used as a parameter by JSLoadNamed operators.
+// used as a parameter by JSLoadNamed and JSLoadGlobal operators.
 class LoadNamedParameters final {
  public:
   LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
@@ -254,6 +254,8 @@ std::ostream& operator<<(std::ostream&, LoadNamedParameters const&);
 
 const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 
+const LoadNamedParameters& LoadGlobalParametersOf(const Operator* op);
+
 
 // Defines the property being loaded from an object. This is
 // used as a parameter by JSLoadProperty operators.
@@ -279,7 +281,7 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 
 
 // Defines the property being stored to an object by a named store. This is
-// used as a parameter by JSStoreNamed operators.
+// used as a parameter by JSStoreNamed and JSStoreGlobal operators.
 class StoreNamedParameters final {
  public:
   StoreNamedParameters(LanguageMode language_mode,
@@ -304,6 +306,8 @@ size_t hash_value(StoreNamedParameters const&);
 std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
 
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
+
+const StoreNamedParameters& StoreGlobalParametersOf(const Operator* op);
 
 
 // Defines the property being stored to an object. This is used as a parameter
@@ -408,8 +412,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadProperty(const VectorSlotPair& feedback);
   const Operator* LoadNamed(const Unique<Name>& name,
-                            const VectorSlotPair& feedback,
-                            ContextualMode contextual_mode = NOT_CONTEXTUAL);
+                            const VectorSlotPair& feedback);
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 const VectorSlotPair& feedback);
@@ -420,6 +423,13 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* DeleteProperty(LanguageMode language_mode);
 
   const Operator* HasProperty();
+
+  const Operator* LoadGlobal(const Unique<Name>& name,
+                             const VectorSlotPair& feedback,
+                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
+  const Operator* StoreGlobal(LanguageMode language_mode,
+                              const Unique<Name>& name,
+                              const VectorSlotPair& feedback);
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);

@@ -332,6 +332,17 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  const LoadNamedParameters& p = LoadGlobalParametersOf(node->op());
+  Callable callable = CodeFactory::LoadICInOptimizedCode(
+      isolate(), p.contextual_mode(), UNINITIALIZED);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  ReplaceWithStubCall(node, callable, flags);
+}
+
+
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StorePropertyParameters& p = StorePropertyParametersOf(node->op());
@@ -352,6 +363,22 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
+  Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  if (FLAG_vector_stores) {
+    DCHECK(p.feedback().index() != -1);
+    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  } else {
+    node->RemoveInput(3);
+  }
+  ReplaceWithStubCall(node, callable,
+                      CallDescriptor::kPatchableCallSite | flags);
+}
+
+
+void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  const StoreNamedParameters& p = StoreGlobalParametersOf(node->op());
   Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   if (FLAG_vector_stores) {

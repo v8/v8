@@ -521,11 +521,13 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadGlobal:
       // Type can be anything.
       CheckUpperIs(node, Type::Any());
       break;
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreGlobal:
       // Type is empty.
       CheckNotTyped(node);
       break;

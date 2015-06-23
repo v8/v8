@@ -208,7 +208,7 @@ namespace internal {
   V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPointer)) \
   V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPointer)) \
   V(Undetectable,        1u << 15 | REPRESENTATION(kTaggedPointer)) \
-  V(GlobalObject,        1u << 16 | REPRESENTATION(kTaggedPointer)) \
+  /* Unused semantic bit 1u << 16 in case you are looking for a bit. */ \
   V(OtherObject,         1u << 17 | REPRESENTATION(kTaggedPointer)) \
   V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
   V(Internal,            1u << 19 | REPRESENTATION(kTagged | kUntagged)) \
@@ -232,10 +232,9 @@ namespace internal {
   V(NumberOrUndefined,   kNumber | kUndefined) \
   V(PlainPrimitive,      kNumberOrString | kBoolean | kNullOrUndefined) \
   V(Primitive,           kSymbol | kPlainPrimitive) \
-  V(DetectableObject,    kGlobalObject | kOtherObject) \
-  V(DetectableReceiver,  kDetectableObject | kProxy) \
+  V(DetectableReceiver,  kOtherObject | kProxy) \
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
-  V(Object,              kDetectableObject | kUndetectable) \
+  V(Object,              kOtherObject | kUndetectable) \
   V(Receiver,            kObject | kProxy) \
   V(ReceiverOrUndefined, kReceiver | kUndefined) \
   V(StringOrReceiver,    kString | kReceiver) \

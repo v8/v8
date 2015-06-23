@@ -885,7 +885,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
   };
 
   VectorSlotPair feedback;
-  Node* global = Parameter(Type::GlobalObject());
+  Node* global = UndefinedConstant();
   Node* vector = UndefinedConstant();
   Node* context = UndefinedConstant();
   Node* effect = graph()->start();
@@ -894,7 +894,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
   for (size_t i = 0; i < arraysize(names); i++) {
     Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadNamed(name, feedback), global, vector, context,
+        javascript()->LoadGlobal(name, feedback), global, vector, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());

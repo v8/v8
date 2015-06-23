@@ -290,11 +290,10 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildKeyedLoad(Node* receiver, Node* key,
                        const VectorSlotPair& feedback);
   Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
-                       const VectorSlotPair& feedback,
-                       ContextualMode mode = NOT_CONTEXTUAL);
+                       const VectorSlotPair& feedback);
   Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
                         const VectorSlotPair& feedback, TypeFeedbackId id);
-  Node* BuildNamedStore(Node* receiver, Handle<Name>, Node* value,
+  Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
                         const VectorSlotPair& feedback, TypeFeedbackId id);
 
   // Builders for super property loads and stores.
@@ -306,6 +305,12 @@ class AstGraphBuilder : public AstVisitor {
                             Handle<Name> name, const VectorSlotPair& feedback);
   Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
                             const VectorSlotPair& feedback);
+
+  // Builders for global variable loads and stores.
+  Node* BuildGlobalLoad(Node* global, Handle<Name> name,
+                        const VectorSlotPair& feedback, ContextualMode mode);
+  Node* BuildGlobalStore(Node* global, Handle<Name> name, Node* value,
+                         const VectorSlotPair& feedback, TypeFeedbackId id);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();

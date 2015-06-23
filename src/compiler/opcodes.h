@@ -114,8 +114,10 @@
   V(JSCreateLiteralObject)   \
   V(JSLoadProperty)          \
   V(JSLoadNamed)             \
+  V(JSLoadGlobal)            \
   V(JSStoreProperty)         \
   V(JSStoreNamed)            \
+  V(JSStoreGlobal)           \
   V(JSDeleteProperty)        \
   V(JSHasProperty)           \
   V(JSInstanceOf)

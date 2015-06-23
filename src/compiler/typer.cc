@@ -1338,6 +1338,11 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeJSLoadGlobal(Node* node) {
+  return Bounds::Unbounded(zone());
+}
+
+
 // Returns a somewhat larger range if we previously assigned
 // a (smaller) range to this node. This is used  to speed up
 // the fixpoint calculation in case there appears to be a loop
@@ -1431,6 +1436,12 @@ Bounds Typer::Visitor::TypeJSStoreNamed(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeJSStoreGlobal(Node* node) {
+  UNREACHABLE();
+  return Bounds();
+}
+
+
 Bounds Typer::Visitor::TypeJSDeleteProperty(Node* node) {
   return Bounds(Type::None(zone()), Type::Boolean(zone()));
 }
@@ -1453,12 +1464,9 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   ContextAccess access = OpParameter<ContextAccess>(node);
   Bounds outer = Operand(node, 0);
   Type* context_type = outer.upper;
-  Type* upper = (access.index() == Context::GLOBAL_OBJECT_INDEX)
-                    ? Type::GlobalObject()
-                    : Type::Any();
   if (context_type->Is(Type::None())) {
     // Upper bound of context is not yet known.
-    return Bounds(Type::None(), upper);
+    return Bounds(Type::None(), Type::Any());
   }
 
   DCHECK(context_type->Maybe(Type::Internal()));
@@ -1488,7 +1496,7 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
         handle(context.ToHandleChecked()->get(static_cast<int>(access.index())),
                isolate()));
   }
-  return Bounds(lower, upper);
+  return Bounds(lower, Type::Any());
 }
 
 
