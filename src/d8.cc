@@ -490,6 +490,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Realm.create() creates a new realm and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Persistent<Context>* old_realms = data->realms_;
   int index = data->realm_count_;
@@ -500,8 +501,13 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   delete[] old_realms;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  data->realms_[index].Reset(
-      isolate, Context::New(isolate, NULL, global_template));
+  Local<Context> context = Context::New(isolate, NULL, global_template);
+  if (context.IsEmpty()) {
+    DCHECK(try_catch.HasCaught());
+    try_catch.ReThrow();
+    return;
+  }
+  data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
 }
 

@@ -5584,7 +5584,12 @@ Local<Context> v8::Context::New(
   if (extensions == NULL) extensions = &no_extensions;
   i::Handle<i::Context> env =
       CreateEnvironment(isolate, extensions, global_template, global_object);
-  if (env.is_null()) return Local<Context>();
+  if (env.is_null()) {
+    if (isolate->has_pending_exception()) {
+      isolate->OptionalRescheduleException(true);
+    }
+    return Local<Context>();
+  }
   return Utils::ToLocal(scope.CloseAndEscape(env));
 }
 
