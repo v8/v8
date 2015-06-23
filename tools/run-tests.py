@@ -187,6 +187,9 @@ def BuildOptions():
   result.add_option("--dcheck-always-on",
                     help="Indicates that V8 was compiled with DCHECKs enabled",
                     default=False, action="store_true")
+  result.add_option("--novfp3",
+                    help="Indicates that V8 was compiled without VFP3 support",
+                    default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
                     default=False, action="store_true")
   result.add_option("--flaky-tests",
@@ -368,6 +371,9 @@ def ProcessOptions(options):
   if options.asan:
     options.extra_flags.append("--invoke-weak-callbacks")
     options.extra_flags.append("--omit-quit")
+
+  if options.novfp3:
+    options.extra_flags.append("--noenable-vfp3")
 
   if options.msan:
     VARIANTS = ["default"]
@@ -590,6 +596,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "tsan": options.tsan,
     "msan": options.msan,
     "dcheck_always_on": options.dcheck_always_on,
+    "novfp3": options.novfp3,
     "byteorder": sys.byteorder,
   }
   all_tests = []

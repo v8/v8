@@ -245,6 +245,13 @@
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
 }],  # ALWAYS
 
+['novfp3 == True', {
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/zlib': [SKIP],
+  'asm/embenchen/memops': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
+}],  # novfp3 == True
+
 ##############################################################################
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
