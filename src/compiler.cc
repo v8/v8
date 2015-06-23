@@ -1015,9 +1015,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   PostponeInterruptsScope postpone(info.isolate());
   VMState<COMPILER> state(info.isolate());
 
-  // Get rid of old list of shared function infos.
-  script->set_shared_function_infos(Smi::FromInt(0));
-
   info.parse_info()->set_global();
   if (!Parser::ParseStatic(info.parse_info())) return;
 
@@ -1078,8 +1075,6 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
     }
 
-    info->MarkAsNewScript();
-
     FunctionLiteral* lit = info->function();
     LiveEditFunctionTracker live_edit_tracker(isolate, lit);
 
@@ -1106,7 +1101,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
     SharedFunctionInfo::InitFromFunctionLiteral(result, lit);
-    SharedFunctionInfo::SetScript(result, script);
+    result->set_script(*script);
     result->set_is_toplevel(true);
 
     Handle<String> script_name = script->name()->IsString()
@@ -1336,25 +1331,10 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
 }
 
 
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
     CompilationInfo* outer_info) {
   // Precondition: code has been parsed and scopes have been analyzed.
-  MaybeHandle<SharedFunctionInfo> maybe_existing;
-  if (outer_info->is_new_script()) {
-    // There is no existing shared function info when compiling a new script.
-    DCHECK(script->FindSharedFunctionInfo(literal).is_null());
-  } else {
-    maybe_existing = script->FindSharedFunctionInfo(literal);
-  }
-  // We found an existing shared function info. If it's already compiled,
-  // don't worry about compiling it, and simply return it. If it's not yet
-  // compiled, continue to decide whether to eagerly compile.
-  Handle<SharedFunctionInfo> existing;
-  if (maybe_existing.ToHandle(&existing) && existing->is_compiled()) {
-    return existing;
-  }
-
   Zone zone;
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
@@ -1362,7 +1342,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
-  if (outer_info->is_new_script()) info.MarkAsNewScript();
 
   Isolate* isolate = info.isolate();
   Factory* factory = isolate->factory();
@@ -1416,34 +1395,25 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     return Handle<SharedFunctionInfo>::null();
   }
 
-  if (maybe_existing.is_null()) {
-    // Create a shared function info object.
-    Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
-        literal->name(), literal->materialized_literal_count(), literal->kind(),
-        info.code(), scope_info, info.feedback_vector());
+  // Create a shared function info object.
+  Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
+      literal->name(), literal->materialized_literal_count(), literal->kind(),
+      info.code(), scope_info, info.feedback_vector());
 
-    SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-    SharedFunctionInfo::SetScript(result, script);
-    result->set_is_toplevel(false);
+  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
+  result->set_script(*script);
+  result->set_is_toplevel(false);
 
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
-    result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
-    result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
+  RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
+  result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
+  result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
 
-    // Set the expected number of properties for instances and return
-    // the resulting function.
-    SetExpectedNofPropertiesFromEstimate(result,
-                                         literal->expected_property_count());
-    live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
-    return result;
-  } else {
-    // We may have additional data from compilation now.
-    DCHECK(!existing->is_compiled());
-    existing->ReplaceCode(*info.code());
-    existing->set_scope_info(*scope_info);
-    existing->set_feedback_vector(*info.feedback_vector());
-    return existing;
-  }
+  // Set the expected number of properties for instances and return
+  // the resulting function.
+  SetExpectedNofPropertiesFromEstimate(result,
+                                       literal->expected_property_count());
+  live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
+  return result;
 }
 
 
