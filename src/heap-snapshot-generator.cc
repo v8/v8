@@ -323,7 +323,8 @@ List<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
     for (int i = 0; i < entries_.length(); ++i) {
       sorted_entries_[i] = &entries_[i];
     }
-    sorted_entries_.Sort(SortByIds);
+    sorted_entries_.Sort<int (*)(HeapEntry* const*, HeapEntry* const*)>(
+        SortByIds);
   }
   return &sorted_entries_;
 }
