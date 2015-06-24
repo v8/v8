@@ -337,6 +337,9 @@ bool Assembler::IsRlwinm(Instr instr) {
 }
 
 
+bool Assembler::IsAndi(Instr instr) { return ((instr & kOpcodeMask) == ANDIx); }
+
+
 #if V8_TARGET_ARCH_PPC64
 bool Assembler::IsRldicl(Instr instr) {
   return (((instr & kOpcodeMask) == EXT5) &&

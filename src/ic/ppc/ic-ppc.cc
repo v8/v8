@@ -874,11 +874,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     patcher.masm()->TestIfSmi(reg, r0);
   } else {
     DCHECK(check == DISABLE_INLINED_SMI_CHECK);
-#if V8_TARGET_ARCH_PPC64
-    DCHECK(Assembler::IsRldicl(instr_at_patch));
-#else
-    DCHECK(Assembler::IsRlwinm(instr_at_patch));
-#endif
+    DCHECK(Assembler::IsAndi(instr_at_patch));
     patcher.masm()->cmp(reg, reg, cr0);
   }
   DCHECK(Assembler::IsBranch(branch_instr));
