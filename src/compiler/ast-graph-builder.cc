@@ -2360,7 +2360,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       callee_value = NewNode(common()->Projection(0), pair);
       receiver_value = NewNode(common()->Projection(1), pair);
 
-      PrepareFrameState(pair, expr->LookupId(),
+      PrepareFrameState(pair, expr->EvalOrLookupId(),
                         OutputFrameStateCombine::Push(2));
       break;
     }
@@ -2428,18 +2428,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       break;
     case Call::POSSIBLY_EVAL_CALL:
       possibly_eval = true;
-      if (callee->AsVariableProxy()->var()->IsLookupSlot()) {
-        Variable* variable = callee->AsVariableProxy()->var();
-        Node* name = jsgraph()->Constant(variable->name());
-        const Operator* op =
-            javascript()->CallRuntime(Runtime::kLoadLookupSlot, 2);
-        Node* pair = NewNode(op, current_context(), name);
-        callee_value = NewNode(common()->Projection(0), pair);
-        receiver_value = NewNode(common()->Projection(1), pair);
-        PrepareFrameState(pair, expr->LookupId(),
-                          OutputFrameStateCombine::Push(2));
-        break;
-      }
     // Fall through.
     case Call::OTHER_CALL:
       VisitForValue(callee);
@@ -2475,7 +2463,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
         javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
     Node* new_callee =
         NewNode(op, callee, source, function, language, position);
-    PrepareFrameState(new_callee, expr->EvalId(),
+    PrepareFrameState(new_callee, expr->EvalOrLookupId(),
                       OutputFrameStateCombine::PokeAt(arg_count + 1));
 
     // Patch callee on the environment.

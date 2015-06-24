@@ -3032,50 +3032,6 @@ void FullCodeGenerator::EmitInitializeThisAfterSuper(
 }
 
 
-// See http://www.ecma-international.org/ecma-262/6.0/#sec-function-calls.
-void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
-  VariableProxy* callee = expr->expression()->AsVariableProxy();
-  if (callee->var()->IsLookupSlot()) {
-    Label slow, done;
-
-    {
-      PreservePositionScope scope(masm()->positions_recorder());
-      // Generate code for loading from variables potentially shadowed by
-      // eval-introduced variables.
-      EmitDynamicLookupFastCase(callee, NOT_INSIDE_TYPEOF, &slow, &done);
-    }
-    __ bind(&slow);
-    // Call the runtime to find the function to call (returned in rax) and
-    // the object holding it (returned in rdx).
-    __ Push(context_register());
-    __ Push(callee->name());
-    __ CallRuntime(Runtime::kLoadLookupSlot, 2);
-    __ Push(rax);  // Function.
-    __ Push(rdx);  // Receiver.
-    PrepareForBailoutForId(expr->LookupId(), NO_REGISTERS);
-
-    // If fast case code has been generated, emit code to push the function
-    // and receiver and have the slow path jump around this code.
-    if (done.is_linked()) {
-      Label call;
-      __ jmp(&call, Label::kNear);
-      __ bind(&done);
-      // Push function.
-      __ Push(rax);
-      // Pass undefined as the receiver, which is the WithBaseObject of a
-      // non-object environment record.  If the callee is sloppy, it will patch
-      // it up to be the global receiver.
-      __ PushRoot(Heap::kUndefinedValueRootIndex);
-      __ bind(&call);
-    }
-  } else {
-    VisitForStackValue(callee);
-    // refEnv.WithBaseObject()
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-  }
-}
-
-
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
@@ -3094,7 +3050,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     ZoneList<Expression*>* args = expr->arguments();
     int arg_count = args->length();
     { PreservePositionScope pos_scope(masm()->positions_recorder());
-      PushCalleeAndWithBaseObject(expr);
+      VisitForStackValue(callee);
+      __ PushRoot(Heap::kUndefinedValueRootIndex);  // Reserved receiver slot.
 
       // Push the arguments.
       for (int i = 0; i < arg_count; i++) {
@@ -3109,7 +3066,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Touch up the callee.
       __ movp(Operand(rsp, (arg_count + 1) * kPointerSize), rax);
 
-      PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
+      PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
     }
     // Record source position for debugger.
     SetSourcePosition(expr->position());
@@ -3125,7 +3082,40 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
   } else if (call_type == Call::LOOKUP_SLOT_CALL) {
     // Call to a lookup slot (dynamically introduced variable).
-    PushCalleeAndWithBaseObject(expr);
+    VariableProxy* proxy = callee->AsVariableProxy();
+    Label slow, done;
+
+    { PreservePositionScope scope(masm()->positions_recorder());
+      // Generate code for loading from variables potentially shadowed by
+      // eval-introduced variables.
+      EmitDynamicLookupFastCase(proxy, NOT_INSIDE_TYPEOF, &slow, &done);
+    }
+    __ bind(&slow);
+    // Call the runtime to find the function to call (returned in rax) and
+    // the object holding it (returned in rdx).
+    __ Push(context_register());
+    __ Push(proxy->name());
+    __ CallRuntime(Runtime::kLoadLookupSlot, 2);
+    __ Push(rax);  // Function.
+    __ Push(rdx);  // Receiver.
+    PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
+
+    // If fast case code has been generated, emit code to push the function
+    // and receiver and have the slow path jump around this code.
+    if (done.is_linked()) {
+      Label call;
+      __ jmp(&call, Label::kNear);
+      __ bind(&done);
+      // Push function.
+      __ Push(rax);
+      // The receiver is implicitly the global receiver. Indicate this by
+      // passing the hole to the call function stub.
+      __ PushRoot(Heap::kUndefinedValueRootIndex);
+      __ bind(&call);
+    }
+
+    // The receiver is either the global receiver or an object found by
+    // LoadContextSlot.
     EmitCall(expr);
   } else if (call_type == Call::PROPERTY_CALL) {
     Property* property = callee->AsProperty();
