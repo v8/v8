@@ -1481,7 +1481,7 @@ class StackLimitCheck BASE_EMBEDDED {
   }
 
   // Use this to check for stack-overflow when entering runtime from JS code.
-  bool JsHasOverflowed() const;
+  bool JsHasOverflowed(uintptr_t gap = 0) const;
 
  private:
   Isolate* isolate_;

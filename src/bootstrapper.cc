@@ -1541,7 +1541,7 @@ bool Genesis::CompileNative(Isolate* isolate, Vector<const char> name,
   // environment has been at least partially initialized. Add a stack check
   // before entering JS code to catch overflow early.
   StackLimitCheck check(isolate);
-  if (check.HasOverflowed()) {
+  if (check.JsHasOverflowed(1 * KB)) {
     isolate->StackOverflow();
     return false;
   }

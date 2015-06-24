@@ -2772,15 +2772,15 @@ void Isolate::CheckDetachedContextsAfterGC() {
 }
 
 
-bool StackLimitCheck::JsHasOverflowed() const {
+bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR
   // The simulator uses a separate JS stack.
   Address jssp_address = Simulator::current(isolate_)->get_sp();
   uintptr_t jssp = reinterpret_cast<uintptr_t>(jssp_address);
-  if (jssp < stack_guard->real_jslimit()) return true;
+  if (jssp - gap < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
-  return GetCurrentStackPosition() < stack_guard->real_climit();
+  return GetCurrentStackPosition() - gap < stack_guard->real_climit();
 }
 
 
