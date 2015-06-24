@@ -33,7 +33,6 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
-    'clang_dir%': 'third_party/llvm-build/Release+Asserts',
     'clang_xcode%': 0,
     # Track where uninitialized memory originates from. From fastest to
     # slowest: 0 - no tracking, 1 - track only the initial allocation site, 2
@@ -85,6 +84,8 @@
       # library. This is intended to be used for instrumented builds.
       'use_custom_libcxx%': 0,
 
+      'clang_dir%': 'third_party/llvm-build/Release+Asserts',
+
       # goma settings.
       # 1 to use goma.
       # If no gomadir is set, it uses the default gomadir.
@@ -97,9 +98,16 @@
         }, {
           'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
         }],
+        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
+          'host_clang%': '1',
+        }, {
+          'host_clang%': '0',
+        }],
       ],
     },
+    'clang_dir%': '<(clang_dir)',
     'host_arch%': '<(host_arch)',
+    'host_clang%': '<(host_clang)',
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
     'werror%': '-Werror',
@@ -180,11 +188,6 @@
       }, {
         'clang%': 0,
       }],
-      ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
-        'host_clang%': '1',
-      }, {
-        'host_clang%': '0',
-      }],
       ['asan==1 or lsan==1 or msan==1 or tsan==1', {
         'clang%': 1,
         'use_allocator%': 'none',
@@ -242,6 +245,9 @@
           ],
         },
 
+        # Copy conditionally-set variables out one scope.
+        'android_toolchain%': '<(android_toolchain)',
+
         'conditions': [
           ['android_ndk_root==""', {
             'variables': {
@@ -277,6 +283,13 @@
         ],
         'android_stlport_library': 'stlport_static',
       }],  # OS=="android"
+      ['host_clang==1', {
+        'host_cc': '../<(clang_dir)/bin/clang',
+        'host_cxx': '../<(clang_dir)/bin/clang++',
+      }, {
+        'host_cc': '<!(which gcc)',
+        'host_cxx': '<!(which g++)',
+      }],
     ],
     # Default ARM variable settings.
     'arm_version%': 'default',
@@ -812,7 +825,7 @@
               'libraries': [
                 '-l<(android_stlport_library)',
                 # Manually link the libgcc.a that the cross compiler uses.
-                '<!($CC -print-libgcc-file-name)',
+                '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
                 '-lc',
                 '-ldl',
                 '-lstdc++',
@@ -937,6 +950,16 @@
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="android"
+    ['OS=="android" and clang==0', {
+      # Hardcode the compiler names in the Makefile so that
+      # it won't depend on the environment at make time.
+      'make_global_settings': [
+        ['CC', '<!(/bin/echo -n <(android_toolchain)/*-gcc)'],
+        ['CXX', '<!(/bin/echo -n <(android_toolchain)/*-g++)'],
+        ['CC.host', '<(host_cc)'],
+        ['CXX.host', '<(host_cxx)'],
+      ],
+    }],
     ['clang!=1 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
       'make_global_settings': [
         ['CC.host', '../<(clang_dir)/bin/clang'],

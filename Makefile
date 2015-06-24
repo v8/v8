@@ -31,9 +31,7 @@ OUTDIR ?= out
 TESTJOBS ?=
 GYPFLAGS ?=
 TESTFLAGS ?=
-ANDROID_NDK_ROOT ?=
 ANDROID_NDK_HOST_ARCH ?=
-ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/tmp/v8
 NACL_SDK_ROOT ?=
 
@@ -281,7 +279,6 @@ ENVFILE = $(OUTDIR)/environment
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
-        must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN \
         $(NACL_ARCHES) $(NACL_BUILDS) $(NACL_CHECKS) \
         must-set-NACL_SDK_ROOT
 
@@ -315,8 +312,7 @@ native: $(OUTDIR)/Makefile.native
 
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
-$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) \
-                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
+$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) Makefile.android
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -451,13 +447,6 @@ $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
-
-must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN:
-ifndef ANDROID_NDK_ROOT
-ifndef ANDROID_TOOLCHAIN
-	  $(error ANDROID_NDK_ROOT or ANDROID_TOOLCHAIN must be set))
-endif
-endif
 
 # Note that NACL_SDK_ROOT must be set to point to an appropriate
 # Native Client SDK before using this makefile. You can download
