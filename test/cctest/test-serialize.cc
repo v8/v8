@@ -697,6 +697,56 @@ TEST(PerIsolateSnapshotBlobs) {
 }
 
 
+static void SerializationFunctionTemplate(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args[0]);
+}
+
+
+TEST(PerIsolateSnapshotBlobsOutdatedContextWithOverflow) {
+  DisableTurbofan();
+
+  const char* source1 =
+      "var o = {};"
+      "(function() {"
+      "  function f1(x) { return f2(x) instanceof Array; }"
+      "  function f2(x) { return foo.bar(x); }"
+      "  o.a = f2.bind(null);"
+      "  o.b = 1;"
+      "  o.c = 2;"
+      "  o.d = 3;"
+      "  o.e = 4;"
+      "})();\n";
+
+  const char* source2 = "o.a(42)";
+
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source1);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+    v8::Local<v8::ObjectTemplate> property = v8::ObjectTemplate::New(isolate);
+    v8::Local<v8::FunctionTemplate> function =
+        v8::FunctionTemplate::New(isolate, SerializationFunctionTemplate);
+    property->Set(isolate, "bar", function);
+    global->Set(isolate, "foo", property);
+
+    v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+    delete[] data.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    v8::Local<v8::Value> result = CompileRun(source2);
+    CHECK(v8_str("42")->Equals(result));
+  }
+  isolate->Dispose();
+}
+
+
 TEST(PerIsolateSnapshotBlobsWithLocker) {
   DisableTurbofan();
   v8::Isolate* isolate0 = v8::Isolate::New();
