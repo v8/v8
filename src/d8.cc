@@ -1972,7 +1972,6 @@ bool Shell::SerializeValue(Isolate* isolate, Handle<Value> value,
                            ObjectList* seen_objects,
                            SerializationData* out_data) {
   DCHECK(out_data);
-  HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
 
   if (value->IsUndefined()) {
