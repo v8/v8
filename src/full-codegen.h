@@ -736,6 +736,8 @@ class FullCodeGenerator: public AstVisitor {
   // and PushCatchContext.
   void PushFunctionArgumentForContextAllocation();
 
+  void PushCalleeAndWithBaseObject(Call* expr);
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
