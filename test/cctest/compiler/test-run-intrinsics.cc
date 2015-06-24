@@ -172,12 +172,17 @@ TEST(IsRegExp) {
 TEST(IsSmi) {
   FunctionTester T("(function(a) { return %_IsSmi(a); })", flags);
 
+  T.CheckFalse(T.NewObject("new Date()"));
+  T.CheckFalse(T.NewObject("(function() {})"));
+  T.CheckFalse(T.NewObject("([1])"));
+  T.CheckFalse(T.NewObject("({})"));
+  T.CheckFalse(T.NewObject("(/x/)"));
+  T.CheckFalse(T.undefined());
   T.CheckTrue(T.Val(1));
   T.CheckFalse(T.Val(1.1));
   T.CheckFalse(T.Val(-0.0));
   T.CheckTrue(T.Val(-2));
   T.CheckFalse(T.Val(-2.3));
-  T.CheckFalse(T.undefined());
 }
 
 
