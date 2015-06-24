@@ -165,7 +165,7 @@ class LinkageHelper {
         // The first parameters go in registers.
         Register reg = descriptor.GetEnvironmentParameterRegister(i);
         Representation rep =
-            descriptor.GetEnvironmentParameterRepresentation(i);
+            RepresentationFromType(descriptor.GetEnvironmentParameterType(i));
         locations.AddParam(regloc(reg));
         types.AddParam(reptyp(rep));
       } else {

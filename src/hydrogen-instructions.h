@@ -2276,7 +2276,7 @@ class HCallWithDescriptor final : public HInstruction {
     } else {
       int par_index = index - 1;
       DCHECK(par_index < descriptor_.GetEnvironmentLength());
-      return descriptor_.GetParameterRepresentation(par_index);
+      return RepresentationFromType(descriptor_.GetParameterType(par_index));
     }
   }
 

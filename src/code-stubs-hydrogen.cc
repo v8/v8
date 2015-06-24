@@ -136,7 +136,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   bool runtime_stack_params = descriptor_.stack_parameter_count().is_valid();
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    Representation r = descriptor_.GetEnvironmentParameterRepresentation(i);
+    Representation r =
+        RepresentationFromType(descriptor_.GetEnvironmentParameterType(i));
     HParameter* param = Add<HParameter>(i,
                                         HParameter::REGISTER_PARAMETER, r);
     start_environment->Bind(i, param);

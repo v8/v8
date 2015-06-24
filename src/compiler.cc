@@ -153,7 +153,8 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
       parameter_count_(0),
       optimization_id_(-1),
-      osr_expr_stack_height_(0) {}
+      osr_expr_stack_height_(0),
+      function_type_(nullptr) {}
 
 
 CompilationInfo::~CompilationInfo() {

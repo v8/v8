@@ -111,7 +111,7 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
     : GraphTest(num_parameters),
-      typer_(isolate(), graph(), MaybeHandle<Context>()) {}
+      typer_(isolate(), graph(), nullptr, MaybeHandle<Context>()) {}
 
 
 TypedGraphTest::~TypedGraphTest() {}

@@ -9,6 +9,7 @@
 #include "src/ast.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
+#include "src/signature.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -288,6 +289,11 @@ class CompilationInfo {
     optimization_id_ = isolate()->NextOptimizationId();
   }
 
+  void SetFunctionType(Type::FunctionType* function_type) {
+    function_type_ = function_type;
+  }
+  Type::FunctionType* function_type() const { return function_type_; }
+
   void SetStub(CodeStub* code_stub) {
     SetMode(STUB);
     code_stub_ = code_stub;
@@ -478,6 +484,8 @@ class CompilationInfo {
   int optimization_id_;
 
   int osr_expr_stack_height_;
+
+  Type::FunctionType* function_type_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

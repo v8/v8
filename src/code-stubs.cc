@@ -502,6 +502,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
   ParseInfo parse_info(&zone, inner);
   CompilationInfo info(&parse_info);
+  info.SetFunctionType(GetCallInterfaceDescriptor().GetFunctionType());
   info.SetStub(this);
   return info.GenerateCodeStub();
 }
@@ -1046,5 +1047,21 @@ InternalArrayConstructorStub::InternalArrayConstructorStub(
 }
 
 
+Representation RepresentationFromType(Type* type) {
+  if (type->Is(Type::UntaggedSigned()) || type->Is(Type::UntaggedUnsigned())) {
+    return Representation::Integer32();
+  }
+
+  if (type->Is(Type::TaggedSigned())) {
+    return Representation::Smi();
+  }
+
+  if (type->Is(Type::UntaggedPointer())) {
+    return Representation::External();
+  }
+
+  DCHECK(!type->Is(Type::Untagged()));
+  return Representation::Tagged();
+}
 }  // namespace internal
 }  // namespace v8

@@ -176,9 +176,11 @@ class Typer::Decorator final : public GraphDecorator {
 };
 
 
-Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
+Typer::Typer(Isolate* isolate, Graph* graph, Type::FunctionType* function_type,
+             MaybeHandle<Context> context)
     : isolate_(isolate),
       graph_(graph),
+      function_type_(function_type),
       context_(context),
       decorator_(NULL),
       cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())) {
@@ -634,6 +636,12 @@ Bounds Typer::Visitor::TypeIfException(Node* node) {
 
 
 Bounds Typer::Visitor::TypeParameter(Node* node) {
+  int param = OpParameter<int>(node);
+  Type::FunctionType* function_type = typer_->function_type();
+  if (function_type != nullptr && param >= 0 &&
+      param < static_cast<int>(function_type->Arity())) {
+    return Bounds(Type::None(), function_type->Parameter(param));
+  }
   return Bounds::Unbounded(zone());
 }
 

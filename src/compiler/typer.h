@@ -18,7 +18,8 @@ class LazyTypeCache;
 
 class Typer {
  public:
-  Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context);
+  Typer(Isolate* isolate, Graph* graph, Type::FunctionType* function_type,
+        MaybeHandle<Context> context);
   ~Typer();
 
   void Run();
@@ -33,9 +34,11 @@ class Typer {
   MaybeHandle<Context> context() const { return context_; }
   Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return isolate_; }
+  Type::FunctionType* function_type() const { return function_type_; }
 
   Isolate* const isolate_;
   Graph* const graph_;
+  Type::FunctionType* function_type_;
   MaybeHandle<Context> const context_;
   Decorator* decorator_;
 

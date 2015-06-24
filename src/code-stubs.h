@@ -431,8 +431,8 @@ class CodeStubDescriptor {
     return call_descriptor().GetEnvironmentParameterCount();
   }
 
-  Representation GetEnvironmentParameterRepresentation(int index) const {
-    return call_descriptor().GetEnvironmentParameterRepresentation(index);
+  Type* GetEnvironmentParameterType(int index) const {
+    return call_descriptor().GetEnvironmentParameterType(index);
   }
 
   ExternalReference miss_handler() const {
@@ -2963,6 +2963,8 @@ class StringCompareStub : public PlatformCodeStub {
 #undef DEFINE_HYDROGEN_CODE_STUB
 #undef DEFINE_CODE_STUB
 #undef DEFINE_CODE_STUB_BASE
+
+extern Representation RepresentationFromType(Type* type);
 } }  // namespace v8::internal
 
 #endif  // V8_CODE_STUBS_H_
