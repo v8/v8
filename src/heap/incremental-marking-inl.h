@@ -15,28 +15,14 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object** slot,
                                          Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
   MarkBit value_bit = Marking::MarkBitFrom(value_heap_obj);
-  if (Marking::IsWhite(value_bit)) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-      if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-        if (chunk->IsLeftOfProgressBar(slot)) {
-          WhiteToGreyAndPush(value_heap_obj, value_bit);
-          RestartIfNotMarking();
-        } else {
-          return false;
-        }
-      } else {
-        BlackToGreyAndUnshift(obj, obj_bit);
-        RestartIfNotMarking();
-        return false;
-      }
-    } else {
-      return false;
-    }
+  // Checking the obj marking state is not necessary, but reduces the marking
+  // load.
+  MarkBit obj_bit = Marking::MarkBitFrom(obj);
+  if (Marking::IsWhite(value_bit) && Marking::IsBlack(obj_bit)) {
+    WhiteToGreyAndPush(value_heap_obj, value_bit);
+    RestartIfNotMarking();
   }
   if (!is_compacting_) return false;
-  MarkBit obj_bit = Marking::MarkBitFrom(obj);
   return Marking::IsBlack(obj_bit);
 }
 
