@@ -788,8 +788,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ bdnz(&loop);
     __ bind(&no_args);
 
-    __ addi(r3, r3, Operand(1));
-
     // Handle step in.
     Label skip_step_in;
     ExternalReference debug_step_in_fp =
@@ -815,7 +813,8 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // r3: result
     // sp[0]: number of arguments (smi-tagged)
     __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    __ LoadP(r4, MemOperand(sp, 0));
+    // Get arguments count, skipping over new.target.
+    __ LoadP(r4, MemOperand(sp, kPointerSize));
 
     // Leave construct frame.
   }

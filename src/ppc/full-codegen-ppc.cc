@@ -254,17 +254,34 @@ void FullCodeGenerator::Generate() {
   Variable* new_target_var = scope()->new_target_var();
   if (new_target_var != nullptr) {
     Comment cmnt(masm_, "[ new.target");
-    // new.target is parameter -2.
-    int offset = 2 * kPointerSize +
-                 (info_->scope()->num_parameters() + 1) * kPointerSize;
-    __ LoadP(r3, MemOperand(fp, offset));
+
+    // Get the frame pointer for the calling frame.
+    __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+
+    // Skip the arguments adaptor frame if it exists.
+    __ LoadP(r4, MemOperand(r5, StandardFrameConstants::kContextOffset));
+    __ CmpSmiLiteral(r4, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+    Label skip;
+    __ bne(&skip);
+    __ LoadP(r5, MemOperand(r5, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&skip);
+
+    // Check the marker in the calling frame.
+    __ LoadP(r4, MemOperand(r5, StandardFrameConstants::kMarkerOffset));
+    __ CmpSmiLiteral(r4, Smi::FromInt(StackFrame::CONSTRUCT), r0);
+    Label non_construct_frame, done;
+
+    __ bne(&non_construct_frame);
+    __ LoadP(r3, MemOperand(r5, StandardFrameConstants::kExpressionsOffset -
+                                    2 * kPointerSize));
+    __ b(&done);
+
+    __ bind(&non_construct_frame);
+    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    __ bind(&done);
+
     SetVar(new_target_var, r3, r5, r6);
   }
-
-  ArgumentsAccessStub::HasNewTarget has_new_target =
-      IsSubclassConstructor(info->function()->kind())
-          ? ArgumentsAccessStub::HAS_NEW_TARGET
-          : ArgumentsAccessStub::NO_NEW_TARGET;
 
   // Possibly allocate RestParameters
   int rest_index;
@@ -274,10 +291,6 @@ void FullCodeGenerator::Generate() {
 
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
-    if (has_new_target == ArgumentsAccessStub::HAS_NEW_TARGET) {
-      --num_parameters;
-      ++rest_index;
-    }
 
     __ addi(r6, fp, Operand(StandardFrameConstants::kCallerSPOffset + offset));
     __ LoadSmiLiteral(r5, Smi::FromInt(num_parameters));
@@ -320,7 +333,7 @@ void FullCodeGenerator::Generate() {
     } else {
       type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
     }
-    ArgumentsAccessStub stub(isolate(), type, has_new_target);
+    ArgumentsAccessStub stub(isolate(), type);
     __ CallStub(&stub);
 
     SetVar(arguments, r3, r4, r5);
@@ -484,9 +497,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     {
       Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
       int32_t arg_count = info_->scope()->num_parameters() + 1;
-      if (IsSubclassConstructor(info_->function()->kind())) {
-        arg_count++;
-      }
       int32_t sp_delta = arg_count * kPointerSize;
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       __ RecordJSReturn();
@@ -4285,9 +4295,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
     __ bind(&adaptor_frame);
     __ LoadP(r3, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
     __ SmiUntag(r3);
-
-    // Subtract 1 from arguments count, for new.target.
-    __ subi(r3, r3, Operand(1));
 
     // Get arguments pointer in r5.
     __ ShiftLeftImm(r0, r3, Operand(kPointerSizeLog2));

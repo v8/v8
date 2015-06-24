@@ -1628,7 +1628,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  CHECK(!has_new_target());
   // The displacement is the offset of the last parameter (if any)
   // relative to the frame pointer.
   const int kDisplacement =
@@ -1689,8 +1688,6 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // sp[1] : receiver displacement
   // sp[2] : function
 
-  CHECK(!has_new_target());
-
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
   __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1720,8 +1717,6 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Registers used over whole function:
   //  r9 : allocated object (tagged)
   //  r11 : mapped parameter count (tagged)
-
-  CHECK(!has_new_target());
 
   __ LoadP(r4, MemOperand(sp, 0 * kPointerSize));
   // r4 = parameter count (tagged)
@@ -2005,14 +2000,6 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
   __ LoadP(r4, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  if (has_new_target()) {
-    __ CmpSmiLiteral(r4, Smi::FromInt(0), r0);
-    Label skip_decrement;
-    __ beq(&skip_decrement);
-    // Subtract 1 from smi-tagged arguments count.
-    __ SubSmiLiteral(r4, r4, Smi::FromInt(1), r0);
-    __ bind(&skip_decrement);
-  }
   __ StoreP(r4, MemOperand(sp, 0));
   __ SmiToPtrArrayOffset(r6, r4);
   __ add(r6, r5, r6);
