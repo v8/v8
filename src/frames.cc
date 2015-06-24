@@ -960,7 +960,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
           Deoptimizer::GetOutputInfo(output_data, ast_id, shared_info);
       unsigned const pc_offset =
           FullCodeGenerator::PcField::decode(entry) + Code::kHeaderSize;
-      DCHECK_NE(0, pc_offset);
+      DCHECK_NE(0U, pc_offset);
 
       FrameSummary summary(receiver, function, code, pc_offset, is_constructor);
       frames->Add(summary);
