@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
-class LazyTypeCache;
+class TyperCache;
 
 
 class Typer {
@@ -41,18 +41,14 @@ class Typer {
   Type::FunctionType* function_type_;
   MaybeHandle<Context> const context_;
   Decorator* decorator_;
+  TyperCache const& cache_;
 
   Type* singleton_false_;
   Type* singleton_true_;
-  Type* singleton_zero_;
-  Type* singleton_one_;
-  Type* zero_or_one_;
-  Type* zeroish_;
   Type* signed32ish_;
   Type* unsigned32ish_;
   Type* falsish_;
   Type* truish_;
-  LazyTypeCache* const cache_;
 
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
