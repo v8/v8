@@ -36,7 +36,8 @@ class LCodeGen: public LCodeGenBase {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        pushed_arguments_(0) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -80,7 +81,9 @@ class LCodeGen: public LCodeGenBase {
   Register ToRegister32(LOperand* op) const;
   Operand ToOperand(LOperand* op);
   Operand ToOperand32(LOperand* op);
-  MemOperand ToMemOperand(LOperand* op) const;
+  enum StackMode { kMustUseFramePointer, kCanUseStackPointer };
+  MemOperand ToMemOperand(LOperand* op,
+                          StackMode stack_mode = kCanUseStackPointer) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
   template <class LI>
@@ -355,6 +358,15 @@ class LCodeGen: public LCodeGenBase {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  // The number of arguments pushed onto the stack, either by this block or by a
+  // predecessor.
+  int pushed_arguments_;
+
+  void RecordPushedArgumentsDelta(int delta) {
+    pushed_arguments_ += delta;
+    DCHECK(pushed_arguments_ >= 0);
+  }
 
   int old_position_;
 

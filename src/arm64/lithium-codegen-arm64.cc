@@ -387,6 +387,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
     CallFunctionStub stub(isolate(), arity, flags);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }
 
 
@@ -401,6 +402,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 
   DCHECK(ToRegister(instr->result()).is(x0));
 }
@@ -456,6 +458,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
     ArrayNArgumentsConstructorStub stub(isolate(), kind, override_mode);
     CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
   }
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 
   DCHECK(ToRegister(instr->result()).is(x0));
 }
@@ -477,7 +480,7 @@ void LCodeGen::LoadContextFromDeferred(LOperand* context) {
   if (context->IsRegister()) {
     __ Mov(cp, ToRegister(context));
   } else if (context->IsStackSlot()) {
-    __ Ldr(cp, ToMemOperand(context));
+    __ Ldr(cp, ToMemOperand(context, kMustUseFramePointer));
   } else if (context->IsConstantOperand()) {
     HConstant* constant =
         chunk_->LookupConstant(LConstantOperand::cast(context));
@@ -1230,13 +1233,37 @@ static int64_t ArgumentsOffsetWithoutFrame(int index) {
 }
 
 
-MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
+MemOperand LCodeGen::ToMemOperand(LOperand* op, StackMode stack_mode) const {
   DCHECK(op != NULL);
   DCHECK(!op->IsRegister());
   DCHECK(!op->IsDoubleRegister());
   DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
   if (NeedsEagerFrame()) {
-    return MemOperand(fp, StackSlotOffset(op->index()));
+    int fp_offset = StackSlotOffset(op->index());
+    // Loads and stores have a bigger reach in positive offset than negative.
+    // We try to access using jssp (positive offset) first, then fall back to
+    // fp (negative offset) if that fails.
+    //
+    // We can reference a stack slot from jssp only if we know how much we've
+    // put on the stack. We don't know this in the following cases:
+    // - stack_mode != kCanUseStackPointer: this is the case when deferred
+    //   code has saved the registers.
+    // - saves_caller_doubles(): some double registers have been pushed, jssp
+    //   references the end of the double registers and not the end of the stack
+    //   slots.
+    // In both of the cases above, we _could_ add the tracking information
+    // required so that we can use jssp here, but in practice it isn't worth it.
+    if ((stack_mode == kCanUseStackPointer) &&
+        !info()->saves_caller_doubles()) {
+      int jssp_offset_to_fp =
+          StandardFrameConstants::kFixedFrameSizeFromFp +
+          (pushed_arguments_ + GetStackSlotCount()) * kPointerSize;
+      int jssp_offset = fp_offset + jssp_offset_to_fp;
+      if (masm()->IsImmLSScaled(jssp_offset, LSDoubleWord)) {
+        return MemOperand(masm()->StackPointer(), jssp_offset);
+      }
+    }
+    return MemOperand(fp, fp_offset);
   } else {
     // Retrieve parameter without eager stack-frame relative to the
     // stack-pointer.
@@ -2011,6 +2038,8 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     }
     generator.AfterCall();
   }
+
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }
 
 
@@ -2030,11 +2059,13 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   __ Call(x10);
 
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
   CallRuntime(instr->function(), instr->arity(), instr);
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }
 
 
@@ -2060,6 +2091,7 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     default:
       UNREACHABLE();
   }
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }
 
 
@@ -3118,6 +3150,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
                       instr->hydrogen()->formal_parameter_count(),
                       instr->arity(), instr);
   }
+  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }
 
 
@@ -3230,6 +3263,16 @@ void LCodeGen::DoLabel(LLabel* label) {
           label->hydrogen_value()->id(),
           label->block_id(),
           LabelType(label));
+
+  // Inherit pushed_arguments_ from the predecessor's argument count.
+  if (label->block()->HasPredecessor()) {
+    pushed_arguments_ = label->block()->predecessors()->at(0)->argument_count();
+#ifdef DEBUG
+    for (auto p : *label->block()->predecessors()) {
+      DCHECK_EQ(p->argument_count(), pushed_arguments_);
+    }
+#endif
+  }
 
   __ Bind(label->label());
   current_block_ = label->block_id();
@@ -4671,6 +4714,8 @@ void LCodeGen::DoPushArguments(LPushArguments* instr) {
 
   // The preamble was done by LPreparePushArguments.
   args.PushQueued(MacroAssembler::PushPopQueue::SKIP_PREAMBLE);
+
+  RecordPushedArgumentsDelta(instr->ArgumentCount());
 }
 
 
