@@ -2151,7 +2151,6 @@ MaybeLocal<Value> Shell::DeserializeValue(Isolate* isolate,
       for (int i = 0; i < length; ++i) {
         Local<Value> property_name;
         CHECK(DeserializeValue(isolate, data, offset).ToLocal(&property_name));
-        DCHECK(property_name->IsString());
         Local<Value> property_value;
         CHECK(DeserializeValue(isolate, data, offset).ToLocal(&property_value));
         object->Set(property_name, property_value);
