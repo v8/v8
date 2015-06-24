@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 // Should not time out.  Running time 0.5s vs. 120s before the change.
-function collapse(flags) {
+function collapse() {
   var src = "(?:";
   for (var i = 128; i < 0x1000; i++) {
-    src += String.fromCharCode(96 + i % 26) + String.fromCharCode(i) + "|";
+    src += "a" + String.fromCharCode(i) + "|";
   }
   src += "aa)";
-  var collapsible = new RegExp(src, flags);
+  var collapsible = new RegExp(src);
   var subject = "zzzzzzz" + String.fromCharCode(3000);
   for (var i = 0; i < 1000; i++) {
     subject += "xxxxxxx";
@@ -19,5 +19,4 @@ function collapse(flags) {
   }
 }
 
-collapse("i");
-collapse("");
+collapse();

@@ -149,15 +149,12 @@ class List {
   void Iterate(Visitor* visitor);
 
   // Sort all list entries (using QuickSort)
-  template <typename CompareFunction>
-  void Sort(CompareFunction cmp, size_t start, size_t length);
-  template <typename CompareFunction>
-  void Sort(CompareFunction cmp);
+  void Sort(int (*cmp)(const T* x, const T* y), size_t start, size_t length);
+  void Sort(int (*cmp)(const T* x, const T* y));
   void Sort();
-  template <typename CompareFunction>
-  void StableSort(CompareFunction cmp, size_t start, size_t length);
-  template <typename CompareFunction>
-  void StableSort(CompareFunction cmp);
+  void StableSort(int (*cmp)(const T* x, const T* y), size_t start,
+                  size_t length);
+  void StableSort(int (*cmp)(const T* x, const T* y));
   void StableSort();
 
   INLINE(void Initialize(int capacity,

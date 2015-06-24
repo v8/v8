@@ -69,30 +69,24 @@ class Vector {
     return Vector<T>(result, length_);
   }
 
-  template <typename CompareFunction>
-  void Sort(CompareFunction cmp, size_t s, size_t l) {
-    std::sort(start() + s, start() + s + l, RawComparer<CompareFunction>(cmp));
+  void Sort(int (*cmp)(const T*, const T*), size_t s, size_t l) {
+    std::sort(start() + s, start() + s + l, RawComparer(cmp));
   }
 
-  template <typename CompareFunction>
-  void Sort(CompareFunction cmp) {
-    std::sort(start(), start() + length(), RawComparer<CompareFunction>(cmp));
+  void Sort(int (*cmp)(const T*, const T*)) {
+    std::sort(start(), start() + length(), RawComparer(cmp));
   }
 
   void Sort() {
     std::sort(start(), start() + length());
   }
 
-  template <typename CompareFunction>
-  void StableSort(CompareFunction cmp, size_t s, size_t l) {
-    std::stable_sort(start() + s, start() + s + l,
-                     RawComparer<CompareFunction>(cmp));
+  void StableSort(int (*cmp)(const T*, const T*), size_t s, size_t l) {
+    std::stable_sort(start() + s, start() + s + l, RawComparer(cmp));
   }
 
-  template <typename CompareFunction>
-  void StableSort(CompareFunction cmp) {
-    std::stable_sort(start(), start() + length(),
-                     RawComparer<CompareFunction>(cmp));
+  void StableSort(int (*cmp)(const T*, const T*)) {
+    std::stable_sort(start(), start() + length(), RawComparer(cmp));
   }
 
   void StableSort() { std::stable_sort(start(), start() + length()); }
@@ -142,16 +136,15 @@ class Vector {
   T* start_;
   int length_;
 
-  template <typename CookedComparer>
   class RawComparer {
    public:
-    explicit RawComparer(CookedComparer cmp) : cmp_(cmp) {}
+    explicit RawComparer(int (*cmp)(const T*, const T*)) : cmp_(cmp) {}
     bool operator()(const T& a, const T& b) {
       return cmp_(&a, &b) < 0;
     }
 
    private:
-    CookedComparer cmp_;
+    int (*cmp_)(const T*, const T*);
   };
 };
 
