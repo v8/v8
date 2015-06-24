@@ -1875,10 +1875,6 @@ void Serializer::ObjectSerializer::Serialize() {
     // Clear cached line ends.
     Object* undefined = serializer_->isolate()->heap()->undefined_value();
     Script::cast(object_)->set_line_ends(undefined);
-    Object* shared_list = Script::cast(object_)->shared_function_infos();
-    if (shared_list->IsWeakFixedArray()) {
-      WeakFixedArray::cast(shared_list)->Compact();
-    }
   }
 
   if (object_->IsExternalString()) {
@@ -2299,7 +2295,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         DCHECK(code_object->has_reloc_info_for_serialization());
         // Only serialize the code for the toplevel function unless specified
         // by flag. Replace code of inner functions by the lazy compile builtin.
-        // This is safe, as checked in Compiler::GetSharedFunctionInfo.
+        // This is safe, as checked in Compiler::BuildFunctionInfo.
         if (code_object != main_code_ && !FLAG_serialize_inner) {
           SerializeBuiltin(Builtins::kCompileLazy, how_to_code, where_to_point);
         } else {

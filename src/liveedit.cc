@@ -1220,7 +1220,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
   Handle<SharedFunctionInfo> shared_info =
       UnwrapSharedFunctionInfoFromJSValue(function_wrapper);
   CHECK(script_handle->IsScript() || script_handle->IsUndefined());
-  SharedFunctionInfo::SetScript(shared_info, script_handle);
+  shared_info->set_script(*script_handle);
   shared_info->DisableOptimization(kLiveEdit);
 
   function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);

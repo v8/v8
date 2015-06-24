@@ -875,23 +875,16 @@ class AccessorPair;
 class AllocationSite;
 class AllocationSiteCreationContext;
 class AllocationSiteUsageContext;
-class Cell;
 class ConsString;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
 class FixedArrayBase;
 class FunctionLiteral;
 class GlobalObject;
-class JSBuiltinsObject;
 class LayoutDescriptor;
 class LookupIterator;
-class ObjectHashTable;
 class ObjectVisitor;
-class PropertyCell;
-class SafepointEntry;
-class SharedFunctionInfo;
 class StringStream;
-class TypeFeedbackInfo;
 class TypeFeedbackVector;
 class WeakCell;
 
@@ -1739,6 +1732,9 @@ class JSReceiver: public HeapObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
+
+// Forward declaration for JSObject::GetOrCreateHiddenPropertiesHashTable.
+class ObjectHashTable;
 
 
 // The JSObject describes real heap allocated JavaScript objects with
@@ -4850,6 +4846,12 @@ class HandlerTable : public FixedArray {
 };
 
 
+// Forward declaration.
+class Cell;
+class PropertyCell;
+class SafepointEntry;
+class TypeFeedbackInfo;
+
 // Code describes objects with on-the-fly generated machine code.
 class Code: public HeapObject {
  public:
@@ -6413,10 +6415,6 @@ class Script: public Struct {
   // function from which eval was called where eval was called.
   DECL_ACCESSORS(eval_from_instructions_offset, Smi)
 
-  // [shared_function_infos]: weak fixed array containing all shared
-  // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, Object)
-
   // [flags]: Holds an exciting bitfield.
   DECL_ACCESSORS(flags, Smi)
 
@@ -6464,10 +6462,6 @@ class Script: public Struct {
   // Get the JS object wrapping the given script; create it if none exists.
   static Handle<JSObject> GetWrapper(Handle<Script> script);
 
-  // Look through the list of existing shared function infos to find one
-  // that matches the function literal.  Return empty handle if not found.
-  MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(FunctionLiteral* fun);
-
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
   DECLARE_VERIFIER(Script)
@@ -6484,9 +6478,8 @@ class Script: public Struct {
   static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
       kEvalFromSharedOffset + kPointerSize;
-  static const int kSharedFunctionInfosOffset =
+  static const int kFlagsOffset =
       kEvalFrominstructionsOffsetOffset + kPointerSize;
-  static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;
   static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
   static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
   static const int kSize = kSourceMappingUrlOffset + kPointerSize;
@@ -6616,11 +6609,6 @@ class SharedFunctionInfo: public HeapObject {
                                     Handle<Code> code,
                                     Handle<FixedArray> literals,
                                     BailoutId osr_ast_id);
-
-  // Set up the link between shared function info and the script. The shared
-  // function info is added to the list on the script.
-  static void SetScript(Handle<SharedFunctionInfo> shared,
-                        Handle<Object> script_object);
 
   // Layout description of the optimized code map.
   static const int kNextMapIndex = 0;
@@ -7500,6 +7488,9 @@ class JSGlobalProxy : public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
 };
 
+
+// Forward declaration.
+class JSBuiltinsObject;
 
 // Common super class for JavaScript global objects and the special
 // builtins global objects.

@@ -241,6 +241,25 @@ bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
 }
 
 
+// Helper to find an existing shared function info in the baseline code for the
+// given function literal. Used to canonicalize SharedFunctionInfo objects.
+void FunctionLiteral::InitializeSharedInfo(
+    Handle<Code> unoptimized_code) {
+  for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
+    Object* obj = rinfo->target_object();
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (shared->start_position() == start_position()) {
+        shared_info_ = Handle<SharedFunctionInfo>(shared);
+        break;
+      }
+    }
+  }
+}
+
+
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              Kind kind, bool is_static,
                                              bool is_computed_name)
