@@ -26,14 +26,34 @@ var ObjectDefineProperties = utils.ObjectDefineProperties;
 var ObjectDefineProperty = utils.ObjectDefineProperty;
 var SetFunctionName = utils.SetFunctionName;
 
+var ArrayIndexOf;
+var ArrayJoin;
 var IsFinite;
 var IsNaN;
 var MathFloor;
+var RegExpTest;
+var StringIndexOf;
+var StringLastIndexOf;
+var StringMatch;
+var StringReplace;
+var StringSplit;
+var StringSubstr;
+var StringSubstring;
 
 utils.Import(function(from) {
+  ArrayIndexOf = from.ArrayIndexOf;
+  ArrayJoin = from.ArrayJoin;
   IsFinite = from.IsFinite;
   IsNaN = from.IsNaN;
   MathFloor = from.MathFloor;
+  RegExpTest = from.RegExpTest;
+  StringIndexOf = from.StringIndexOf;
+  StringLastIndexOf = from.StringLastIndexOf;
+  StringMatch = from.StringMatch;
+  StringReplace = from.StringReplace;
+  StringSplit = from.StringSplit;
+  StringSubstr = from.StringSubstr;
+  StringSubstring = from.StringSubstring;
 });
 
 // -------------------------------------------------------------------
@@ -223,7 +243,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
  * Parameter locales is treated as a priority list.
  */
 function supportedLocalesOf(service, locales, options) {
-  if (IS_NULL(service.match(GetServiceRE()))) {
+  if (IS_NULL(%_CallFunction(service, GetServiceRE(), StringMatch))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -271,19 +291,20 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
   var matchedLocales = [];
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove -u- extension.
-    var locale = requestedLocales[i].replace(GetUnicodeExtensionRE(), '');
+    var locale = %_CallFunction(requestedLocales[i], GetUnicodeExtensionRE(),
+                                '', StringReplace);
     do {
       if (!IS_UNDEFINED(availableLocales[locale])) {
         // Push requested locale not the resolved one.
-        matchedLocales.push(requestedLocales[i]);
+        %_CallFunction(matchedLocales, requestedLocales[i], $arrayPush);
         break;
       }
       // Truncate locale if possible, if not break.
-      var pos = locale.lastIndexOf('-');
+      var pos = %_CallFunction(locale, '-', StringLastIndexOf);
       if (pos === -1) {
         break;
       }
-      locale = locale.substring(0, pos);
+      locale = %_CallFunction(locale, 0, pos, StringSubstring);
     } while (true);
   }
 
@@ -327,7 +348,9 @@ function getGetOption(options, caller) {
         default:
           throw MakeError(kWrongValueType);
       }
-      if (!IS_UNDEFINED(values) && values.indexOf(value) === -1) {
+
+      if (!IS_UNDEFINED(values) &&
+          %_CallFunction(values, value, ArrayIndexOf) === -1) {
         throw MakeRangeError(kValueOutOfRange, value, caller, property);
       }
 
@@ -376,7 +399,7 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  if (IS_NULL(service.match(GetServiceRE()))) {
+  if (IS_NULL(%_CallFunction(service, GetServiceRE(), StringMatch))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -387,20 +410,23 @@ function lookupMatcher(service, requestedLocales) {
 
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove all extensions.
-    var locale = requestedLocales[i].replace(GetAnyExtensionRE(), '');
+    var locale = %_CallFunction(requestedLocales[i], GetAnyExtensionRE(), '',
+                                StringReplace);
     do {
       if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
         // Return the resolved locale and extension.
-        var extensionMatch = requestedLocales[i].match(GetUnicodeExtensionRE());
+        var extensionMatch =
+            %_CallFunction(requestedLocales[i], GetUnicodeExtensionRE(),
+                           StringMatch);
         var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
         return {'locale': locale, 'extension': extension, 'position': i};
       }
       // Truncate locale if possible.
-      var pos = locale.lastIndexOf('-');
+      var pos = %_CallFunction(locale, '-', StringLastIndexOf);
       if (pos === -1) {
         break;
       }
-      locale = locale.substring(0, pos);
+      locale = %_CallFunction(locale, 0, pos, StringSubstring);
     } while (true);
   }
 
@@ -429,7 +455,7 @@ function bestFitMatcher(service, requestedLocales) {
  * We are not concerned with the validity of the values at this point.
  */
 function parseExtension(extension) {
-  var extensionSplit = extension.split('-');
+  var extensionSplit = %_CallFunction(extension, '-', StringSplit);
 
   // Assume ['', 'u', ...] input, but don't throw.
   if (extensionSplit.length <= 2 ||
@@ -488,7 +514,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   }
 
   for (var key in keyValues) {
-    if (keyValues.hasOwnProperty(key)) {
+    if (%HasOwnProperty(keyValues, key)) {
       var value = UNDEFINED;
       var map = keyValues[key];
       if (!IS_UNDEFINED(map.property)) {
@@ -504,7 +530,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
       // User options didn't have it, check Unicode extension.
       // Here we want to convert strings 'true', 'false' into proper Boolean
       // values (not a user error).
-      if (extensionMap.hasOwnProperty(key)) {
+      if (%HasOwnProperty(extensionMap, key)) {
         value = extensionMap[key];
         if (!IS_UNDEFINED(value)) {
           updateProperty(map.property, map.type, value);
@@ -528,15 +554,17 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
  * configurable: false, writable: false, enumerable: true.
  */
 function freezeArray(array) {
-  array.forEach(function(element, index) {
-    ObjectDefineProperty(array, index, {value: element,
-                                        configurable: false,
-                                        writable: false,
-                                        enumerable: true});
-  });
+  var l = array.length;
+  for (var i = 0; i < l; i++) {
+    if (i in array) {
+      ObjectDefineProperty(array, i, {value: array[i],
+                                      configurable: false,
+                                      writable: false,
+                                      enumerable: true});
+    }
+  }
 
-  ObjectDefineProperty(array, 'length', {value: array.length,
-                                         writable: false});
+  ObjectDefineProperty(array, 'length', {value: l, writable: false});
   return array;
 }
 
@@ -564,7 +592,7 @@ function getOptimalLanguageTag(original, resolved) {
 
   // Preserve extensions of resolved locale, but swap base tags with original.
   var resolvedBase = new GlobalRegExp('^' + locales[1].base);
-  return resolved.replace(resolvedBase, locales[0].base);
+  return %_CallFunction(resolved, resolvedBase, locales[0].base, StringReplace);
 }
 
 
@@ -578,8 +606,9 @@ function getAvailableLocalesOf(service) {
   var available = %AvailableLocalesOf(service);
 
   for (var i in available) {
-    if (available.hasOwnProperty(i)) {
-      var parts = i.match(/^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/);
+    if (%HasOwnProperty(available, i)) {
+      var parts = %_CallFunction(i, /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/,
+                                 StringMatch);
       if (parts !== null) {
         // Build xx-ZZ. We don't care about the actual value,
         // as long it's not undefined.
@@ -639,7 +668,8 @@ function addWECPropertyIfDefined(object, property, value) {
  * Returns titlecased word, aMeRricA -> America.
  */
 function toTitleCaseWord(word) {
-  return word.substr(0, 1).toUpperCase() + word.substr(1).toLowerCase();
+  return %StringToUpperCase(%_CallFunction(word, 0, 1, StringSubstr)) +
+         %StringToLowerCase(%_CallFunction(word, 1, StringSubstr));
 }
 
 /**
@@ -683,13 +713,12 @@ function initializeLocaleList(locales) {
   } else {
     // We allow single string localeID.
     if (typeof locales === 'string') {
-      seen.push(canonicalizeLanguageTag(locales));
+      %_CallFunction(seen, canonicalizeLanguageTag(locales), $arrayPush);
       return freezeArray(seen);
     }
 
     var o = $toObject(locales);
-    // Converts it to UInt32 (>>> is shr on 32bit integers).
-    var len = o.length >>> 0;
+    var len = TO_UINT32(o.length);
 
     for (var k = 0; k < len; k++) {
       if (k in o) {
@@ -697,8 +726,8 @@ function initializeLocaleList(locales) {
 
         var tag = canonicalizeLanguageTag(value);
 
-        if (seen.indexOf(tag) === -1) {
-          seen.push(tag);
+        if (%_CallFunction(seen, tag, ArrayIndexOf) === -1) {
+          %_CallFunction(seen, tag, $arrayPush);
         }
       }
     }
@@ -719,39 +748,40 @@ function initializeLocaleList(locales) {
  */
 function isValidLanguageTag(locale) {
   // Check if it's well-formed, including grandfadered tags.
-  if (GetLanguageTagRE().test(locale) === false) {
+  if (!%_CallFunction(GetLanguageTagRE(), locale, RegExpTest)) {
     return false;
   }
 
   // Just return if it's a x- form. It's all private.
-  if (locale.indexOf('x-') === 0) {
+  if (%_CallFunction(locale, 'x-', StringIndexOf) === 0) {
     return true;
   }
 
   // Check if there are any duplicate variants or singletons (extensions).
 
   // Remove private use section.
-  locale = locale.split(/-x-/)[0];
+  locale = %_CallFunction(locale, /-x-/, StringSplit)[0];
 
   // Skip language since it can match variant regex, so we start from 1.
   // We are matching i-klingon here, but that's ok, since i-klingon-klingon
   // is not valid and would fail LANGUAGE_TAG_RE test.
   var variants = [];
   var extensions = [];
-  var parts = locale.split(/-/);
+  var parts = %_CallFunction(locale, /-/, StringSplit);
   for (var i = 1; i < parts.length; i++) {
     var value = parts[i];
-    if (GetLanguageVariantRE().test(value) === true && extensions.length === 0) {
-      if (variants.indexOf(value) === -1) {
-        variants.push(value);
+    if (%_CallFunction(GetLanguageVariantRE(), value, RegExpTest) &&
+        extensions.length === 0) {
+      if (%_CallFunction(variants, value, ArrayIndexOf) === -1) {
+        %_CallFunction(variants, value, $arrayPush);
       } else {
         return false;
       }
     }
 
-    if (GetLanguageSingletonRE().test(value) === true) {
-      if (extensions.indexOf(value) === -1) {
-        extensions.push(value);
+    if (%_CallFunction(GetLanguageSingletonRE(), value, RegExpTest)) {
+      if (%_CallFunction(extensions, value, ArrayIndexOf) === -1) {
+        %_CallFunction(extensions, value, $arrayPush);
       } else {
         return false;
       }
@@ -854,7 +884,7 @@ function initializeCollator(collator, locales, options) {
 
   var collation = 'default';
   var extension = '';
-  if (extensionMap.hasOwnProperty('co') && internalOptions.usage === 'sort') {
+  if (%HasOwnProperty(extensionMap, 'co') && internalOptions.usage === 'sort') {
 
     /**
      * Allowed -u-co- values. List taken from:
@@ -865,7 +895,8 @@ function initializeCollator(collator, locales, options) {
       'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
     ];
 
-    if (ALLOWED_CO_VALUES.indexOf(extensionMap.co) !== -1) {
+    if (%_CallFunction(ALLOWED_CO_VALUES, extensionMap.co, ArrayIndexOf) !==
+        -1) {
       extension = '-u-co-' + extensionMap.co;
       // ICU can't tell us what the collation is, so save user's input.
       collation = extensionMap.co;
@@ -1005,7 +1036,7 @@ addBoundMethod(Intl.Collator, 'compare', compare, 2);
 function isWellFormedCurrencyCode(currency) {
   return typeof currency == "string" &&
       currency.length == 3 &&
-      currency.match(/[^A-Za-z]/) == null;
+      %_CallFunction(currency, /[^A-Za-z]/, StringMatch) == null;
 }
 
 
@@ -1060,7 +1091,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
   var currencyDisplay = getOption(
       'currencyDisplay', 'string', ['code', 'symbol', 'name'], 'symbol');
   if (internalOptions.style === 'currency') {
-    defineWEProperty(internalOptions, 'currency', currency.toUpperCase());
+    defineWEProperty(internalOptions, 'currency', %StringToUpperCase(currency));
     defineWEProperty(internalOptions, 'currencyDisplay', currencyDisplay);
   }
 
@@ -1116,10 +1147,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
     style: {value: internalOptions.style, writable: true},
     useGrouping: {writable: true}
   });
-  if (internalOptions.hasOwnProperty('minimumSignificantDigits')) {
+  if (%HasOwnProperty(internalOptions, 'minimumSignificantDigits')) {
     defineWEProperty(resolved, 'minimumSignificantDigits', UNDEFINED);
   }
-  if (internalOptions.hasOwnProperty('maximumSignificantDigits')) {
+  if (%HasOwnProperty(internalOptions, 'maximumSignificantDigits')) {
     defineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
   }
   var formatter = %CreateNumberFormat(requestedLocale,
@@ -1193,12 +1224,12 @@ function initializeNumberFormat(numberFormat, locales, options) {
                         format.resolved.currencyDisplay);
     }
 
-    if (format.resolved.hasOwnProperty('minimumSignificantDigits')) {
+    if (%HasOwnProperty(format.resolved, 'minimumSignificantDigits')) {
       defineWECProperty(result, 'minimumSignificantDigits',
                         format.resolved.minimumSignificantDigits);
     }
 
-    if (format.resolved.hasOwnProperty('maximumSignificantDigits')) {
+    if (%HasOwnProperty(format.resolved, 'maximumSignificantDigits')) {
       defineWECProperty(result, 'maximumSignificantDigits',
                         format.resolved.maximumSignificantDigits);
     }
@@ -1326,57 +1357,58 @@ function appendToLDMLString(option, pairs) {
  */
 function fromLDMLString(ldmlString) {
   // First remove '' quoted text, so we lose 'Uhr' strings.
-  ldmlString = ldmlString.replace(GetQuotedStringRE(), '');
+  ldmlString = %_CallFunction(ldmlString, GetQuotedStringRE(), '',
+                              StringReplace);
 
   var options = {};
-  var match = ldmlString.match(/E{3,5}/g);
+  var match = %_CallFunction(ldmlString, /E{3,5}/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'weekday', match, {EEEEE: 'narrow', EEE: 'short', EEEE: 'long'});
 
-  match = ldmlString.match(/G{3,5}/g);
+  match = %_CallFunction(ldmlString, /G{3,5}/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'era', match, {GGGGG: 'narrow', GGG: 'short', GGGG: 'long'});
 
-  match = ldmlString.match(/y{1,2}/g);
+  match = %_CallFunction(ldmlString, /y{1,2}/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'year', match, {y: 'numeric', yy: '2-digit'});
 
-  match = ldmlString.match(/M{1,5}/g);
+  match = %_CallFunction(ldmlString, /M{1,5}/g, StringMatch);
   options = appendToDateTimeObject(options, 'month', match, {MM: '2-digit',
       M: 'numeric', MMMMM: 'narrow', MMM: 'short', MMMM: 'long'});
 
   // Sometimes we get L instead of M for month - standalone name.
-  match = ldmlString.match(/L{1,5}/g);
+  match = %_CallFunction(ldmlString, /L{1,5}/g, StringMatch);
   options = appendToDateTimeObject(options, 'month', match, {LL: '2-digit',
       L: 'numeric', LLLLL: 'narrow', LLL: 'short', LLLL: 'long'});
 
-  match = ldmlString.match(/d{1,2}/g);
+  match = %_CallFunction(ldmlString, /d{1,2}/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'day', match, {d: 'numeric', dd: '2-digit'});
 
-  match = ldmlString.match(/h{1,2}/g);
+  match = %_CallFunction(ldmlString, /h{1,2}/g, StringMatch);
   if (match !== null) {
     options['hour12'] = true;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {h: 'numeric', hh: '2-digit'});
 
-  match = ldmlString.match(/H{1,2}/g);
+  match = %_CallFunction(ldmlString, /H{1,2}/g, StringMatch);
   if (match !== null) {
     options['hour12'] = false;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {H: 'numeric', HH: '2-digit'});
 
-  match = ldmlString.match(/m{1,2}/g);
+  match = %_CallFunction(ldmlString, /m{1,2}/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'minute', match, {m: 'numeric', mm: '2-digit'});
 
-  match = ldmlString.match(/s{1,2}/g);
+  match = %_CallFunction(ldmlString, /s{1,2}/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'second', match, {s: 'numeric', ss: '2-digit'});
 
-  match = ldmlString.match(/z|zzzz/g);
+  match = %_CallFunction(ldmlString, /z|zzzz/g, StringMatch);
   options = appendToDateTimeObject(
       options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
 
@@ -1386,7 +1418,7 @@ function fromLDMLString(ldmlString) {
 
 function appendToDateTimeObject(options, option, match, pairs) {
   if (IS_NULL(match)) {
-    if (!options.hasOwnProperty(option)) {
+    if (!%HasOwnProperty(options, option)) {
       defineWEProperty(options, option, UNDEFINED);
     }
     return options;
@@ -1661,7 +1693,7 @@ SetFunctionName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
 function formatDate(formatter, dateValue) {
   var dateMs;
   if (IS_UNDEFINED(dateValue)) {
-    dateMs = GlobalDate.now();
+    dateMs = %DateCurrentTime();
   } else {
     dateMs = $toNumber(dateValue);
   }
@@ -1701,7 +1733,7 @@ function canonicalizeTimeZoneID(tzID) {
   }
 
   // Special case handling (UTC, GMT).
-  var upperID = tzID.toUpperCase();
+  var upperID = %StringToUpperCase(tzID);
   if (upperID === 'UTC' || upperID === 'GMT' ||
       upperID === 'ETC/UTC' || upperID === 'ETC/GMT') {
     return 'UTC';
@@ -1709,7 +1741,7 @@ function canonicalizeTimeZoneID(tzID) {
 
   // We expect only _ and / beside ASCII letters.
   // All inputs should conform to Area/Location from now on.
-  var match = GetTimezoneNameCheckRE().exec(tzID);
+  var match = %_CallFunction(tzID, GetTimezoneNameCheckRE(), StringMatch);
   if (IS_NULL(match)) throw MakeRangeError(kExpectedLocation, tzID);
 
   var result = toTitleCaseWord(match[1]) + '/' + toTitleCaseWord(match[2]);
@@ -1968,9 +2000,11 @@ OverrideFunction(GlobalString.prototype, 'normalize', function(that) {
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
-    var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
+    var normalizationForm =
+        %_CallFunction(NORMALIZATION_FORMS, form, ArrayIndexOf);
     if (normalizationForm === -1) {
-      throw MakeRangeError(kNormalizationForm, NORMALIZATION_FORMS.join(', '));
+      throw MakeRangeError(kNormalizationForm,
+          %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
     }
 
     return %StringNormalize(this, normalizationForm);

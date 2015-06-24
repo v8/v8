@@ -14,6 +14,8 @@ var GlobalString = global.String;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 
+var ArrayIndexOf;
+var ArrayJoin;
 var MathMax;
 var MathMin;
 var RegExpExec;
@@ -21,6 +23,8 @@ var RegExpExecNoTests;
 var RegExpLastMatchInfo;
 
 utils.Import(function(from) {
+  ArrayIndexOf = from.ArrayIndexOf;
+  ArrayJoin = from.ArrayJoin;
   MathMax = from.MathMax;
   MathMin = from.MathMin;
   RegExpExec = from.RegExpExec;
@@ -191,10 +195,11 @@ function StringNormalizeJS(form) {
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-
-  var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
+  var normalizationForm =
+      %_CallFunction(NORMALIZATION_FORMS, form, ArrayIndexOf);
   if (normalizationForm === -1) {
-    throw MakeRangeError(kNormalizationForm, NORMALIZATION_FORMS.join(', '));
+    throw MakeRangeError(kNormalizationForm,
+                         %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
   }
 
   return %_ValueOf(this);
@@ -1191,6 +1196,11 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 utils.Export(function(to) {
   to.StringCharAt = StringCharAtJS;
   to.StringIndexOf = StringIndexOfJS;
+  to.StringLastIndexOf = StringLastIndexOfJS;
+  to.StringMatch = StringMatchJS;
+  to.StringReplace = StringReplace;
+  to.StringSplit = StringSplitJS;
+  to.StringSubstr = StringSubstr;
   to.StringSubstring = StringSubstring;
 });
 

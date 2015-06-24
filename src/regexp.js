@@ -447,6 +447,7 @@ utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
   to.RegExpExecNoTests = RegExpExecNoTests;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
+  to.RegExpTest = RegExpTest;
 });
 
 })

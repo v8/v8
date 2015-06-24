@@ -1676,6 +1676,7 @@ utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
 // Exports
 
 utils.Export(function(to) {
+  to.ArrayIndexOf = ArrayIndexOf;
   to.ArrayJoin = ArrayJoin;
   to.ArrayToString = ArrayToString;
   to.InnerArrayEvery = InnerArrayEvery;
