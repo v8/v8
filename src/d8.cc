@@ -1538,8 +1538,10 @@ void SerializationData::WriteTag(SerializationTag tag) { data.Add(tag); }
 
 
 void SerializationData::WriteMemory(const void* p, int length) {
-  i::Vector<uint8_t> block = data.AddBlock(0, length);
-  memcpy(&block[0], p, length);
+  if (length > 0) {
+    i::Vector<uint8_t> block = data.AddBlock(0, length);
+    memcpy(&block[0], p, length);
+  }
 }
 
 
