@@ -697,7 +697,7 @@ class ParserTraits {
                                 const AstRawString* arg, int pos);
 
   // Generic AST generator for throwing errors from compiled code.
-  Expression* NewThrowError(const AstRawString* constructor,
+  Expression* NewThrowError(Runtime::FunctionId function_id,
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
 

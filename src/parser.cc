@@ -645,36 +645,34 @@ Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
 
 Expression* ParserTraits::NewThrowReferenceError(
     MessageTemplate::Template message, int pos) {
-  return NewThrowError(
-      parser_->ast_value_factory()->make_reference_error_string(), message,
-      parser_->ast_value_factory()->empty_string(), pos);
+  return NewThrowError(Runtime::kNewReferenceError, message,
+                       parser_->ast_value_factory()->empty_string(), pos);
 }
 
 
 Expression* ParserTraits::NewThrowSyntaxError(MessageTemplate::Template message,
                                               const AstRawString* arg,
                                               int pos) {
-  return NewThrowError(parser_->ast_value_factory()->make_syntax_error_string(),
-                       message, arg, pos);
+  return NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
 }
 
 
 Expression* ParserTraits::NewThrowTypeError(MessageTemplate::Template message,
                                             const AstRawString* arg, int pos) {
-  return NewThrowError(parser_->ast_value_factory()->make_type_error_string(),
-                       message, arg, pos);
+  return NewThrowError(Runtime::kNewTypeError, message, arg, pos);
 }
 
 
-Expression* ParserTraits::NewThrowError(const AstRawString* constructor,
+Expression* ParserTraits::NewThrowError(Runtime::FunctionId id,
                                         MessageTemplate::Template message,
                                         const AstRawString* arg, int pos) {
   Zone* zone = parser_->zone();
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(2, zone);
   args->Add(parser_->factory()->NewSmiLiteral(message, pos), zone);
   args->Add(parser_->factory()->NewStringLiteral(arg, pos), zone);
-  CallRuntime* call_constructor =
-      parser_->factory()->NewCallRuntime(constructor, NULL, args, pos);
+  CallRuntime* call_constructor = parser_->factory()->NewCallRuntime(
+      parser_->ast_value_factory()->empty_string(), Runtime::FunctionForId(id),
+      args, pos);
   return parser_->factory()->NewThrow(call_constructor, pos);
 }
 

@@ -60,6 +60,39 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_NewTypeError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  auto message_template =
+      static_cast<MessageTemplate::Template>(template_index);
+  return *isolate->factory()->NewTypeError(message_template, arg0);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewReferenceError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  auto message_template =
+      static_cast<MessageTemplate::Template>(template_index);
+  return *isolate->factory()->NewReferenceError(message_template, arg0);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  auto message_template =
+      static_cast<MessageTemplate::Template>(template_index);
+  return *isolate->factory()->NewSyntaxError(message_template, arg0);
+}
+
+
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

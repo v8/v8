@@ -296,6 +296,9 @@ namespace internal {
   F(UnwindAndFindExceptionHandler, 0, 1)      \
   F(PromoteScheduledException, 0, 1)          \
   F(ThrowReferenceError, 1, 1)                \
+  F(NewTypeError, 2, 1)                       \
+  F(NewSyntaxError, 2, 1)                     \
+  F(NewReferenceError, 2, 1)                  \
   F(ThrowIteratorResultNotAnObject, 1, 1)     \
   F(PromiseRejectEvent, 3, 1)                 \
   F(PromiseRevokeReject, 1, 1)                \
