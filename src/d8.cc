@@ -1725,8 +1725,8 @@ void Worker::ExecuteInThread() {
         }
       }
     }
+    Shell::CollectGarbage(isolate);
   }
-  Shell::CollectGarbage(isolate);
   isolate->Dispose();
 }
 
