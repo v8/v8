@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: Unexpected identifier
+eval => 42
+^^^^
+SyntaxError: Unexpected identifier

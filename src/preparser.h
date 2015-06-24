@@ -503,6 +503,10 @@ class ParserBase : public Traits {
                             error_type);
   }
 
+  void GetUnexpectedTokenMessage(
+      Token::Value token, MessageTemplate::Template* message, const char** arg,
+      MessageTemplate::Template default_ = MessageTemplate::kUnexpectedToken);
+
   void ReportUnexpectedToken(Token::Value token);
   void ReportUnexpectedTokenAt(
       Scanner::Location location, Token::Value token,
@@ -572,21 +576,26 @@ class ParserBase : public Traits {
   }
 
   void ExpressionUnexpectedToken(ExpressionClassifier* classifier) {
-    classifier->RecordExpressionError(scanner()->peek_location(),
-                                      MessageTemplate::kUnexpectedToken,
-                                      Token::String(peek()));
+    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    const char* arg;
+    GetUnexpectedTokenMessage(peek(), &message, &arg);
+    classifier->RecordExpressionError(scanner()->peek_location(), message, arg);
   }
 
   void BindingPatternUnexpectedToken(ExpressionClassifier* classifier) {
-    classifier->RecordBindingPatternError(scanner()->peek_location(),
-                                          MessageTemplate::kUnexpectedToken,
-                                          Token::String(peek()));
+    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    const char* arg;
+    GetUnexpectedTokenMessage(peek(), &message, &arg);
+    classifier->RecordBindingPatternError(scanner()->peek_location(), message,
+                                          arg);
   }
 
   void ArrowFormalParametersUnexpectedToken(ExpressionClassifier* classifier) {
-    classifier->RecordArrowFormalParametersError(
-        scanner()->peek_location(), MessageTemplate::kUnexpectedToken,
-        Token::String(peek()));
+    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    const char* arg;
+    GetUnexpectedTokenMessage(peek(), &message, &arg);
+    classifier->RecordArrowFormalParametersError(scanner()->peek_location(),
+                                                 message, arg);
   }
 
   // Recursive descent functions:
@@ -1830,7 +1839,57 @@ ParserBase<Traits>::FunctionState::~FunctionState() {
 }
 
 
-template<class Traits>
+template <class Traits>
+void ParserBase<Traits>::GetUnexpectedTokenMessage(
+    Token::Value token, MessageTemplate::Template* message, const char** arg,
+    MessageTemplate::Template default_) {
+  // Four of the tokens are treated specially
+  switch (token) {
+    case Token::EOS:
+      *message = MessageTemplate::kUnexpectedEOS;
+      *arg = nullptr;
+      break;
+    case Token::SMI:
+    case Token::NUMBER:
+      *message = MessageTemplate::kUnexpectedTokenNumber;
+      *arg = nullptr;
+      break;
+    case Token::STRING:
+      *message = MessageTemplate::kUnexpectedTokenString;
+      *arg = nullptr;
+      break;
+    case Token::IDENTIFIER:
+      *message = MessageTemplate::kUnexpectedTokenIdentifier;
+      *arg = nullptr;
+      break;
+    case Token::FUTURE_RESERVED_WORD:
+      *message = MessageTemplate::kUnexpectedReserved;
+      *arg = nullptr;
+      break;
+    case Token::LET:
+    case Token::STATIC:
+    case Token::YIELD:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+      *message = is_strict(language_mode())
+                     ? MessageTemplate::kUnexpectedStrictReserved
+                     : MessageTemplate::kUnexpectedTokenIdentifier;
+      *arg = nullptr;
+      break;
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      *message = MessageTemplate::kUnexpectedTemplateString;
+      *arg = nullptr;
+      break;
+    default:
+      const char* name = Token::String(token);
+      DCHECK(name != NULL);
+      *arg = name;
+      break;
+  }
+}
+
+
+template <class Traits>
 void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
   return ReportUnexpectedTokenAt(scanner_->location(), token);
 }
@@ -1840,40 +1899,9 @@ template <class Traits>
 void ParserBase<Traits>::ReportUnexpectedTokenAt(
     Scanner::Location source_location, Token::Value token,
     MessageTemplate::Template message) {
-  // Four of the tokens are treated specially
-  switch (token) {
-    case Token::EOS:
-      return ReportMessageAt(source_location, MessageTemplate::kUnexpectedEOS);
-    case Token::SMI:
-    case Token::NUMBER:
-      return ReportMessageAt(source_location,
-                             MessageTemplate::kUnexpectedTokenNumber);
-    case Token::STRING:
-      return ReportMessageAt(source_location,
-                             MessageTemplate::kUnexpectedTokenString);
-    case Token::IDENTIFIER:
-      return ReportMessageAt(source_location,
-                             MessageTemplate::kUnexpectedTokenIdentifier);
-    case Token::FUTURE_RESERVED_WORD:
-      return ReportMessageAt(source_location,
-                             MessageTemplate::kUnexpectedReserved);
-    case Token::LET:
-    case Token::STATIC:
-    case Token::YIELD:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      return ReportMessageAt(source_location,
-                             is_strict(language_mode())
-                                 ? MessageTemplate::kUnexpectedStrictReserved
-                                 : MessageTemplate::kUnexpectedTokenIdentifier);
-    case Token::TEMPLATE_SPAN:
-    case Token::TEMPLATE_TAIL:
-      return Traits::ReportMessageAt(
-          source_location, MessageTemplate::kUnexpectedTemplateString);
-    default:
-      const char* name = Token::String(token);
-      DCHECK(name != NULL);
-      Traits::ReportMessageAt(source_location, message, name);
-  }
+  const char* arg;
+  GetUnexpectedTokenMessage(token, &message, &arg);
+  Traits::ReportMessageAt(source_location, message, arg);
 }
 
 
