@@ -1658,6 +1658,31 @@ TEST(SerializeInternalReference) {
 }
 
 
+TEST(Regress503552) {
+  // Test that the code serializer can deal with weak cells that form a linked
+  // list during incremental marking.
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  HandleScope scope(isolate);
+  Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
+      "function f() {} function g() {}");
+  ScriptData* script_data = NULL;
+  Handle<SharedFunctionInfo> shared = Compiler::CompileScript(
+      source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
+      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
+      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
+      false);
+  delete script_data;
+
+  SimulateIncrementalMarking(isolate->heap());
+
+  script_data = CodeSerializer::Serialize(isolate, shared, source);
+  delete script_data;
+}
+
+
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;
   FLAG_always_opt = false;

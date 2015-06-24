@@ -329,11 +329,10 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
                                                         HeapObject* object) {
   Heap* heap = map->GetHeap();
   WeakCell* weak_cell = reinterpret_cast<WeakCell*>(object);
-  Object* the_hole = heap->the_hole_value();
   // Enqueue weak cell in linked list of encountered weak collections.
   // We can ignore weak cells with cleared values because they will always
   // contain smi zero.
-  if (weak_cell->next() == the_hole && !weak_cell->cleared()) {
+  if (weak_cell->next_cleared() && !weak_cell->cleared()) {
     weak_cell->set_next(heap->encountered_weak_cells(),
                         UPDATE_WEAK_WRITE_BARRIER);
     heap->set_encountered_weak_cells(weak_cell);

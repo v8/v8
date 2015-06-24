@@ -9610,6 +9610,10 @@ class WeakCell : public HeapObject {
 
   DECL_ACCESSORS(next, Object)
 
+  inline void clear_next(Heap* heap);
+
+  inline bool next_cleared();
+
   DECLARE_CAST(WeakCell)
 
   DECLARE_PRINTER(WeakCell)

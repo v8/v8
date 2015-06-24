@@ -1925,6 +1925,14 @@ void WeakCell::set_next(Object* val, WriteBarrierMode mode) {
 }
 
 
+void WeakCell::clear_next(Heap* heap) {
+  set_next(heap->the_hole_value(), SKIP_WRITE_BARRIER);
+}
+
+
+bool WeakCell::next_cleared() { return next()->IsTheHole(); }
+
+
 int JSObject::GetHeaderSize() {
   InstanceType type = map()->instance_type();
   // Check for the most common kind of JavaScript object before

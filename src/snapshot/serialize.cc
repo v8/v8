@@ -1851,6 +1851,28 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 }
 
 
+// Clear and later restore the next link in the weak cell, if the object is one.
+class UnlinkWeakCellScope {
+ public:
+  explicit UnlinkWeakCellScope(HeapObject* object) : weak_cell_(NULL) {
+    if (object->IsWeakCell()) {
+      weak_cell_ = WeakCell::cast(object);
+      next_ = weak_cell_->next();
+      weak_cell_->clear_next(object->GetHeap());
+    }
+  }
+
+  ~UnlinkWeakCellScope() {
+    if (weak_cell_) weak_cell_->set_next(next_, UPDATE_WEAK_WRITE_BARRIER);
+  }
+
+ private:
+  WeakCell* weak_cell_;
+  Object* next_;
+  DisallowHeapAllocation no_gc_;
+};
+
+
 void Serializer::ObjectSerializer::Serialize() {
   if (FLAG_trace_serializer) {
     PrintF(" Encoding heap object: ");
@@ -1910,6 +1932,8 @@ void Serializer::ObjectSerializer::Serialize() {
     return;
   }
 
+  UnlinkWeakCellScope unlink_weak_cell(object_);
+
   object_->IterateBody(map->instance_type(), size, this);
   OutputRawData(object_->address() + size);
 }
@@ -1933,6 +1957,8 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   sink_->Put(kNewObject + reference.space(), "deferred object");
   serializer_->PutBackReference(object_, reference);
   sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
+
+  UnlinkWeakCellScope unlink_weak_cell(object_);
 
   object_->IterateBody(map->instance_type(), size, this);
   OutputRawData(object_->address() + size);

@@ -3126,7 +3126,7 @@ AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   }
   result->set_map_no_write_barrier(weak_cell_map());
   WeakCell::cast(result)->initialize(value);
-  WeakCell::cast(result)->set_next(the_hole_value(), SKIP_WRITE_BARRIER);
+  WeakCell::cast(result)->clear_next(this);
   return result;
 }
 
