@@ -924,7 +924,7 @@ bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
   Types old_types = new_types;
   bool to_boolean_value = new_types.UpdateStatus(object);
   TraceTransition(old_types, new_types);
-  set_sub_minor_key(TypesBits::update(sub_minor_key(), new_types.ToByte()));
+  set_sub_minor_key(TypesBits::update(sub_minor_key(), new_types.ToIntegral()));
   return to_boolean_value;
 }
 
