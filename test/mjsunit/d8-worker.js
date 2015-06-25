@@ -128,4 +128,12 @@ if (this.Worker) {
   assertEquals("DONE", w.getMessage());
 
   w.terminate();
+
+
+  // Make sure that the main thread doesn't block forever in getMessage() if
+  // the worker dies without posting a message.
+  function f2() {}
+  var w2 = new Worker(f2);
+  var msg = w2.getMessage();
+  assertEquals(undefined, msg);
 }

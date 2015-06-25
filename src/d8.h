@@ -257,6 +257,8 @@ class Worker {
     Worker* worker_;
   };
 
+  enum State { IDLE, RUNNING, TERMINATED };
+
   void ExecuteInThread();
   void Cleanup();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -267,6 +269,7 @@ class Worker {
   SerializationDataQueue out_queue_;
   base::Thread* thread_;
   char* script_;
+  base::Atomic32 state_;
 };
 #endif  // !V8_SHARED
 
@@ -461,6 +464,9 @@ class Shell : public i::AllStatic {
   static base::OS::MemoryMappedFile* counters_file_;
   static base::Mutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
+
+  static base::Mutex workers_mutex_;
+  static bool allow_new_workers_;
   static i::List<Worker*> workers_;
   static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
 
