@@ -371,11 +371,9 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 // Test that optimized code for different closures is actually shared
 // immediately by the FastNewClosureStub when run in the same context.
 TEST(OptimizedCodeSharing) {
-  // Skip test if --cache-optimized-code is not activated by default because
-  // FastNewClosureStub that is baked into the snapshot is incorrect.
-  if (!FLAG_cache_optimized_code) return;
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
+  FLAG_cache_optimized_code = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   for (int i = 0; i < 10; i++) {

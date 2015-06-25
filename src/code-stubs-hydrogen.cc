@@ -1818,14 +1818,10 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
                         context());
 
-  // Initialize the code pointer in the function to be the one
-  // found in the shared function info object.
-  // But first check if there is an optimized version for our context.
-  if (FLAG_cache_optimized_code) {
-    BuildInstallFromOptimizedCodeMap(js_function, shared_info, native_context);
-  } else {
-    BuildInstallCode(js_function, shared_info);
-  }
+  // Initialize the code pointer in the function to be the one found in the
+  // shared function info object. But first check if there is an optimized
+  // version for our context.
+  BuildInstallFromOptimizedCodeMap(js_function, shared_info, native_context);
 
   return js_function;
 }

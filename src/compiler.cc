@@ -691,18 +691,16 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
 
 MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
     Handle<JSFunction> function, BailoutId osr_ast_id) {
-  if (FLAG_cache_optimized_code) {
-    Handle<SharedFunctionInfo> shared(function->shared());
-    DisallowHeapAllocation no_gc;
-    CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
-        function->context()->native_context(), osr_ast_id);
-    if (cached.code != nullptr) {
-      // Caching of optimized code enabled and optimized code found.
-      if (cached.literals != nullptr) function->set_literals(cached.literals);
-      DCHECK(!cached.code->marked_for_deoptimization());
-      DCHECK(function->shared()->is_compiled());
-      return Handle<Code>(cached.code);
-    }
+  Handle<SharedFunctionInfo> shared(function->shared());
+  DisallowHeapAllocation no_gc;
+  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+      function->context()->native_context(), osr_ast_id);
+  if (cached.code != nullptr) {
+    // Caching of optimized code enabled and optimized code found.
+    if (cached.literals != nullptr) function->set_literals(cached.literals);
+    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(function->shared()->is_compiled());
+    return Handle<Code>(cached.code);
   }
   return MaybeHandle<Code>();
 }
