@@ -1899,9 +1899,6 @@ class JSObject: public JSReceiver {
   static void SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
                                     Handle<Object> value,
                                     PropertyDetails details);
-  static void AddDictionaryElement(Handle<JSObject> object, uint32_t index,
-                                   Handle<Object> value,
-                                   PropertyAttributes attributes);
   static void SetDictionaryElement(Handle<JSObject> object, uint32_t index,
                                    Handle<Object> value,
                                    PropertyAttributes attributes);
@@ -2011,12 +2008,6 @@ class JSObject: public JSReceiver {
   // an access at key?
   bool WouldConvertToSlowElements(uint32_t index);
   inline bool WouldConvertToSlowElements(Handle<Object> key);
-  // Do we want to keep fast elements when adding an element at |index|?
-  // Returns |new_capacity| indicating to which capacity the object should be
-  // increased.
-  bool ShouldConvertToSlowElements(uint32_t capacity, uint32_t index,
-                                   uint32_t* new_capacity);
-  ElementsKind BestFittingFastElementsKind();
 
   // Computes the new capacity when expanding the elements of a JSObject.
   static uint32_t NewElementsCapacity(uint32_t old_capacity) {
@@ -2285,6 +2276,9 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object, const char* type, Handle<Name> name,
       Handle<Object> old_value);
 
+  // Gets the current elements capacity and the number of used elements.
+  void GetElementsCapacityAndUsage(int* capacity, int* used);
+
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
@@ -2318,12 +2312,6 @@ class JSObject: public JSReceiver {
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
-
-  // Returns true if most of the elements backing storage is used.
-  bool HasDenseElements();
-
-  // Gets the current elements capacity and the number of used elements.
-  void GetElementsCapacityAndUsage(int* capacity, int* used);
 
   static bool CanSetCallback(Handle<JSObject> object, Handle<Name> name);
   static void SetElementCallback(Handle<JSObject> object,
