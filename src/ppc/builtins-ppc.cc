@@ -1397,7 +1397,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 5b. Get the code to call from the function and check that the number of
   //     expected arguments matches what we're providing.  If so, jump
-  //     (tail-call) to the code in register edx without checking arguments.
+  //     (tail-call) to the code in register ip without checking arguments.
   // r3: actual number of arguments
   // r4: function
   __ LoadP(r6, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
