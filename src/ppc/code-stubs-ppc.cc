@@ -2897,7 +2897,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   const int count_offset = FixedArray::kHeaderSize + kPointerSize;
   __ LoadP(r6, FieldMemOperand(r9, count_offset));
   __ AddSmiLiteral(r6, r6, Smi::FromInt(CallICNexus::kCallCountIncrement), r0);
-  __ StoreP(r6, FieldMemOperand(r9, count_offset));
+  __ StoreP(r6, FieldMemOperand(r9, count_offset), r0);
 
   __ mr(r5, r7);
   __ mr(r6, r4);
@@ -2960,7 +2960,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   const int count_offset = FixedArray::kHeaderSize + kPointerSize;
   __ LoadP(r6, FieldMemOperand(r9, count_offset));
   __ AddSmiLiteral(r6, r6, Smi::FromInt(CallICNexus::kCallCountIncrement), r0);
-  __ StoreP(r6, FieldMemOperand(r9, count_offset));
+  __ StoreP(r6, FieldMemOperand(r9, count_offset), r0);
 
   __ bind(&have_js_function);
   if (CallAsMethod()) {
@@ -3037,8 +3037,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ StoreP(r7, FieldMemOperand(r5, with_types_offset), r0);
 
   // Initialize the call counter.
-  __ LoadSmiLiteral(r0, Smi::FromInt(CallICNexus::kCallCountIncrement));
-  __ StoreP(r0, FieldMemOperand(r9, count_offset));
+  __ LoadSmiLiteral(r8, Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ StoreP(r8, FieldMemOperand(r9, count_offset), r0);
 
   // Store the function. Use a stub since we need a frame for allocation.
   // r5 - vector
