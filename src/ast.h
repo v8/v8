@@ -1869,9 +1869,10 @@ class Call final : public Expression {
     allocation_site_ = site;
   }
 
-  static int num_ids() { return parent_num_ids() + 2; }
+  static int num_ids() { return parent_num_ids() + 3; }
   BailoutId ReturnId() const { return BailoutId(local_id(0)); }
-  BailoutId EvalOrLookupId() const { return BailoutId(local_id(1)); }
+  BailoutId EvalId() const { return BailoutId(local_id(1)); }
+  BailoutId LookupId() const { return BailoutId(local_id(2)); }
 
   bool is_uninitialized() const {
     return IsUninitializedField::decode(bit_field_);
