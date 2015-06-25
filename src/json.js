@@ -183,27 +183,6 @@ function JSONStringify(value, replacer, space) {
   if (%_ArgumentsLength() == 1) {
     return %BasicJSONStringify(value);
   }
-  if (IS_OBJECT(space)) {
-    // Unwrap 'space' if it is wrapped
-    if (IS_NUMBER_WRAPPER(space)) {
-      space = $toNumber(space);
-    } else if (IS_STRING_WRAPPER(space)) {
-      space = $toString(space);
-    }
-  }
-  var gap;
-  if (IS_NUMBER(space)) {
-    space = MathMax(0, MathMin($toInteger(space), 10));
-    gap = %_SubString("          ", 0, space);
-  } else if (IS_STRING(space)) {
-    if (space.length > 10) {
-      gap = %_SubString(space, 0, 10);
-    } else {
-      gap = space;
-    }
-  } else {
-    gap = "";
-  }
   if (IS_ARRAY(replacer)) {
     // Deduplicate replacer array items.
     var property_list = new InternalArray();
@@ -227,6 +206,27 @@ function JSONStringify(value, replacer, space) {
       }
     }
     replacer = property_list;
+  }
+  if (IS_OBJECT(space)) {
+    // Unwrap 'space' if it is wrapped
+    if (IS_NUMBER_WRAPPER(space)) {
+      space = $toNumber(space);
+    } else if (IS_STRING_WRAPPER(space)) {
+      space = $toString(space);
+    }
+  }
+  var gap;
+  if (IS_NUMBER(space)) {
+    space = MathMax(0, MathMin($toInteger(space), 10));
+    gap = %_SubString("          ", 0, space);
+  } else if (IS_STRING(space)) {
+    if (space.length > 10) {
+      gap = %_SubString(space, 0, 10);
+    } else {
+      gap = space;
+    }
+  } else {
+    gap = "";
   }
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
