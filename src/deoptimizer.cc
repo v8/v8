@@ -1250,14 +1250,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
-  // Constructor function being invoked by the stub (only present on some
-  // architectures, indicated by kConstructorOffset).
-  if (ConstructFrameConstants::kConstructorOffset != kMinInt) {
-    output_offset -= kPointerSize;
-    WriteValueToOutput(function, 0, frame_index, output_offset,
-                       "constructor function    ");
-  }
-
   // The newly allocated object was passed as receiver in the artificial
   // constructor stub environment created by HEnvironment::CopyForInlining().
   output_offset -= kPointerSize;

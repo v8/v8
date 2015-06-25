@@ -626,15 +626,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
+    __ Pop(r4);
+
     __ Push(r7, r7);
 
     // Reload the number of arguments and the constructor from the stack.
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: constructor function
-    // sp[3]: number of arguments (smi-tagged)
-    __ LoadP(r4, MemOperand(sp, 2 * kPointerSize));
-    __ LoadP(r6, MemOperand(sp, 3 * kPointerSize));
+    // sp[2]: number of arguments (smi-tagged)
+    __ LoadP(r6, MemOperand(sp, 2 * kPointerSize));
 
     // Set up pointer to last argument.
     __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset));
@@ -649,8 +649,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r6: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: constructor function
-    // sp[3]: number of arguments (smi-tagged)
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, no_args;
     __ cmpi(r3, Operand::Zero());
     __ beq(&no_args);
@@ -683,8 +682,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore context from the frame.
     // r3: result
     // sp[0]: receiver
-    // sp[1]: constructor function
-    // sp[2]: number of arguments (smi-tagged)
+    // sp[1]: number of arguments (smi-tagged)
     __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     // If the result is an object (in the ECMA sense), we should get rid
@@ -695,8 +693,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // If the result is a smi, it is *not* an object in the ECMA sense.
     // r3: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
-    // sp[2]: number of arguments (smi-tagged)
+    // sp[1]: number of arguments (smi-tagged)
     __ JumpIfSmi(r3, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
@@ -714,9 +711,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&exit);
     // r3: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
-    // sp[2]: number of arguments (smi-tagged)
-    __ LoadP(r4, MemOperand(sp, 2 * kPointerSize));
+    // sp[1]: number of arguments (smi-tagged)
+    __ LoadP(r4, MemOperand(sp, kPointerSize));
 
     // Leave construct frame.
   }

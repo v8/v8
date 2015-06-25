@@ -649,15 +649,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
+    __ Pop(a1);
+
     __ Push(t0, t0);
 
     // Reload the number of arguments from the stack.
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: constructor function
-    // sp[3]: number of arguments (smi-tagged)
-    __ ld(a1, MemOperand(sp, 2 * kPointerSize));
-    __ ld(a3, MemOperand(sp, 3 * kPointerSize));
+    // sp[2]: number of arguments (smi-tagged)
+    __ ld(a3, MemOperand(sp, 2 * kPointerSize));
 
     // Set up pointer to last argument.
     __ Daddu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
@@ -672,8 +672,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // a3: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: constructor function
-    // sp[3]: number of arguments (smi-tagged)
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, entry;
     __ SmiUntag(a3);
     __ jmp(&entry);
@@ -715,8 +714,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // If the result is a smi, it is *not* an object in the ECMA sense.
     // v0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
-    // sp[2]: number of arguments (smi-tagged)
+    // sp[1]: number of arguments (smi-tagged)
     __ JumpIfSmi(v0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
@@ -734,9 +732,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&exit);
     // v0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
-    // sp[2]: number of arguments (smi-tagged)
-    __ ld(a1, MemOperand(sp, 2 * kPointerSize));
+    // sp[1]: number of arguments (smi-tagged)
+    __ ld(a1, MemOperand(sp, kPointerSize));
 
     // Leave construct frame.
   }

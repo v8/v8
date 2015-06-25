@@ -592,16 +592,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
+    __ Pop(constructor);
+
     __ Push(x4, x4);
 
     // Reload the number of arguments from the stack.
     // Set it up in x0 for the function call below.
     // jssp[0]: receiver
     // jssp[1]: receiver
-    // jssp[2]: constructor function
-    // jssp[3]: number of arguments (smi-tagged)
-    __ Peek(constructor, 2 * kXRegSize);  // Load constructor.
-    __ Peek(argc, 3 * kXRegSize);  // Load number of arguments.
+    // jssp[2]: number of arguments (smi-tagged)
+    __ Peek(argc, 2 * kXRegSize);  // Load number of arguments.
     __ SmiUntag(argc);
 
     // Set up pointer to last argument.
@@ -614,8 +614,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // x2: address of last argument (caller sp)
     // jssp[0]: receiver
     // jssp[1]: receiver
-    // jssp[2]: constructor function
-    // jssp[3]: number of arguments (smi-tagged)
+    // jssp[2]: number of arguments (smi-tagged)
     // Compute the start address of the copy in x3.
     __ Add(x3, x2, Operand(argc, LSL, kPointerSizeLog2));
     Label loop, entry, done_copying_arguments;
@@ -653,8 +652,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore the context from the frame.
     // x0: result
     // jssp[0]: receiver
-    // jssp[1]: constructor function
-    // jssp[2]: number of arguments (smi-tagged)
+    // jssp[1]: number of arguments (smi-tagged)
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     // If the result is an object (in the ECMA sense), we should get rid
@@ -665,8 +663,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // If the result is a smi, it is *not* an object in the ECMA sense.
     // x0: result
     // jssp[0]: receiver (newly allocated object)
-    // jssp[1]: constructor function
-    // jssp[2]: number of arguments (smi-tagged)
+    // jssp[1]: number of arguments (smi-tagged)
     __ JumpIfSmi(x0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
@@ -683,9 +680,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Bind(&exit);
     // x0: result
     // jssp[0]: receiver (newly allocated object)
-    // jssp[1]: constructor function
-    // jssp[2]: number of arguments (smi-tagged)
-    __ Peek(x1, 2 * kXRegSize);
+    // jssp[1]: number of arguments (smi-tagged)
+    __ Peek(x1, kXRegSize);
 
     // Leave construct frame.
   }
