@@ -119,11 +119,14 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (FLAG_turbo_types) MarkAsTypingEnabled();
 
-  if (has_shared_info() && shared_info()->is_compiled()) {
-    // We should initialize the CompilationInfo feedback vector from the
-    // passed in shared info, rather than creating a new one.
-    feedback_vector_ = Handle<TypeFeedbackVector>(
-        shared_info()->feedback_vector(), parse_info->isolate());
+  if (has_shared_info()) {
+    if (shared_info()->is_compiled()) {
+      // We should initialize the CompilationInfo feedback vector from the
+      // passed in shared info, rather than creating a new one.
+      feedback_vector_ = Handle<TypeFeedbackVector>(
+          shared_info()->feedback_vector(), parse_info->isolate());
+    }
+    if (shared_info()->never_compiled()) MarkAsFirstCompile();
   }
 }
 
@@ -1004,6 +1007,9 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   PostponeInterruptsScope postpone(info.isolate());
   VMState<COMPILER> state(info.isolate());
 
+  // Get rid of old list of shared function infos.
+  script->set_shared_function_infos(Smi::FromInt(0));
+
   info.parse_info()->set_global();
   if (!Parser::ParseStatic(info.parse_info())) return;
 
@@ -1064,6 +1070,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
     }
 
+    info->MarkAsFirstCompile();
+
     FunctionLiteral* lit = info->function();
     LiveEditFunctionTracker live_edit_tracker(isolate, lit);
 
@@ -1090,7 +1098,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
     SharedFunctionInfo::InitFromFunctionLiteral(result, lit);
-    result->set_script(*script);
+    SharedFunctionInfo::SetScript(result, script);
     result->set_is_toplevel(true);
 
     Handle<String> script_name = script->name()->IsString()
@@ -1320,10 +1328,26 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
 }
 
 
-Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
     CompilationInfo* outer_info) {
   // Precondition: code has been parsed and scopes have been analyzed.
+  MaybeHandle<SharedFunctionInfo> maybe_existing;
+  if (outer_info->is_first_compile()) {
+    // On the first compile, there are no existing shared function info for
+    // inner functions yet, so do not try to find them.
+    DCHECK(script->FindSharedFunctionInfo(literal).is_null());
+  } else {
+    maybe_existing = script->FindSharedFunctionInfo(literal);
+  }
+  // We found an existing shared function info. If it's already compiled,
+  // don't worry about compiling it, and simply return it. If it's not yet
+  // compiled, continue to decide whether to eagerly compile.
+  Handle<SharedFunctionInfo> existing;
+  if (maybe_existing.ToHandle(&existing) && existing->is_compiled()) {
+    return existing;
+  }
+
   Zone zone;
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
@@ -1331,6 +1355,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
+  if (outer_info->is_first_compile()) info.MarkAsFirstCompile();
 
   Isolate* isolate = info.isolate();
   Factory* factory = isolate->factory();
@@ -1356,9 +1381,11 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     DCHECK(allow_lazy);
   }
 
+  bool lazy = FLAG_lazy && allow_lazy && !literal->should_eager_compile();
+
   // Generate code
   Handle<ScopeInfo> scope_info;
-  if (FLAG_lazy && allow_lazy && !literal->should_eager_compile()) {
+  if (lazy) {
     Handle<Code> code = isolate->builtins()->CompileLazy();
     info.SetCode(code);
     // There's no need in theory for a lazy-compiled function to have a type
@@ -1384,25 +1411,38 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     return Handle<SharedFunctionInfo>::null();
   }
 
-  // Create a shared function info object.
-  Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
-      literal->name(), literal->materialized_literal_count(), literal->kind(),
-      info.code(), scope_info, info.feedback_vector());
+  if (maybe_existing.is_null()) {
+    // Create a shared function info object.
+    Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
+        literal->name(), literal->materialized_literal_count(), literal->kind(),
+        info.code(), scope_info, info.feedback_vector());
 
-  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-  result->set_script(*script);
-  result->set_is_toplevel(false);
+    SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
+    SharedFunctionInfo::SetScript(result, script);
+    result->set_is_toplevel(false);
+    // If the outer function has been compiled before, we cannot be sure that
+    // shared function info for this function literal has been created for the
+    // first time. It may have already been compiled previously.
+    result->set_never_compiled(outer_info->is_first_compile() && lazy);
 
-  RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
-  result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
-  result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
+    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
+    result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
+    result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
 
-  // Set the expected number of properties for instances and return
-  // the resulting function.
-  SetExpectedNofPropertiesFromEstimate(result,
-                                       literal->expected_property_count());
-  live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
-  return result;
+    // Set the expected number of properties for instances and return
+    // the resulting function.
+    SetExpectedNofPropertiesFromEstimate(result,
+                                         literal->expected_property_count());
+    live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
+    return result;
+  } else {
+    // We may have additional data from compilation now.
+    DCHECK(!existing->is_compiled());
+    existing->ReplaceCode(*info.code());
+    existing->set_scope_info(*scope_info);
+    existing->set_feedback_vector(*info.feedback_vector());
+    return existing;
+  }
 }
 
 
@@ -1424,25 +1464,22 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     return cached_code;
   }
 
-  SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(function));
-  Isolate* isolate = info->isolate();
+  Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
-  VMState<COMPILER> state(isolate);
-  DCHECK(!isolate->has_pending_exception());
-  PostponeInterruptsScope postpone(isolate);
 
-  Handle<SharedFunctionInfo> shared = info->shared_info();
-  if (shared->code()->kind() != Code::FUNCTION ||
-      ScopeInfo::Empty(isolate) == shared->scope_info()) {
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  if (!shared->is_compiled() ||
+      shared->scope_info() == ScopeInfo::Empty(isolate)) {
     // The function was never compiled. Compile it unoptimized first.
     // TODO(titzer): reuse the AST and scope info from this compile.
-    CompilationInfoWithZone nested(function);
-    nested.EnableDeoptimizationSupport();
-    if (!GetUnoptimizedCodeCommon(&nested).ToHandle(&current_code)) {
+    CompilationInfoWithZone unoptimized(function);
+    unoptimized.EnableDeoptimizationSupport();
+    if (!GetUnoptimizedCodeCommon(&unoptimized).ToHandle(&current_code)) {
       return MaybeHandle<Code>();
     }
     shared->ReplaceCode(*current_code);
   }
+
   current_code->set_profiler_ticks(0);
 
   // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
@@ -1456,6 +1493,11 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   if (shared->is_toplevel() && isolate->bootstrapper()->IsActive()) {
     return MaybeHandle<Code>();
   }
+
+  SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(function));
+  VMState<COMPILER> state(isolate);
+  DCHECK(!isolate->has_pending_exception());
+  PostponeInterruptsScope postpone(isolate);
 
   info->SetOptimizing(osr_ast_id, current_code);
 

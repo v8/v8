@@ -2512,8 +2512,6 @@ class FunctionLiteral final : public Expression {
   bool AllowsLazyCompilation();
   bool AllowsLazyCompilationWithoutContext();
 
-  void InitializeSharedInfo(Handle<Code> code);
-
   Handle<String> debug_name() const {
     if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
       return raw_name_->string();
@@ -2547,9 +2545,6 @@ class FunctionLiteral final : public Expression {
     DCHECK(inferred_name_.is_null());
     inferred_name_ = Handle<String>();
   }
-
-  // shared_info may be null if it's not cached in full code.
-  Handle<SharedFunctionInfo> shared_info() { return shared_info_; }
 
   bool pretenure() { return Pretenure::decode(bitfield_); }
   void set_pretenure() { bitfield_ |= Pretenure::encode(true); }
@@ -2632,7 +2627,6 @@ class FunctionLiteral final : public Expression {
  private:
   const AstRawString* raw_name_;
   Handle<String> name_;
-  Handle<SharedFunctionInfo> shared_info_;
   Scope* scope_;
   ZoneList<Statement*>* body_;
   const AstString* raw_inferred_name_;

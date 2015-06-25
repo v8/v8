@@ -5924,6 +5924,53 @@ TEST(MessageObjectLeak) {
 }
 
 
+static void CheckEqualSharedFunctionInfos(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Handle<Object> obj1 = v8::Utils::OpenHandle(*args[0]);
+  Handle<Object> obj2 = v8::Utils::OpenHandle(*args[1]);
+  Handle<JSFunction> fun1 = Handle<JSFunction>::cast(obj1);
+  Handle<JSFunction> fun2 = Handle<JSFunction>::cast(obj2);
+  CHECK(fun1->shared() == fun2->shared());
+}
+
+
+static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<Object> obj = v8::Utils::OpenHandle(*args[0]);
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
+  fun->ReplaceCode(*isolate->builtins()->CompileLazy());
+  fun->shared()->ReplaceCode(*isolate->builtins()->CompileLazy());
+  isolate->heap()->CollectAllAvailableGarbage("remove code and gc");
+}
+
+
+TEST(CanonicalSharedFunctionInfo) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  global->Set(isolate, "check", v8::FunctionTemplate::New(
+                                    isolate, CheckEqualSharedFunctionInfos));
+  global->Set(isolate, "remove",
+              v8::FunctionTemplate::New(isolate, RemoveCodeAndGC));
+  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Context::Scope cscope(context);
+  CompileRun(
+      "function f() { return function g() {}; }"
+      "var g1 = f();"
+      "remove(f);"
+      "var g2 = f();"
+      "check(g1, g2);");
+
+  CompileRun(
+      "function f() { return (function() { return function g() {}; })(); }"
+      "var g1 = f();"
+      "remove(f);"
+      "var g2 = f();"
+      "check(g1, g2);");
+}
+
+
 TEST(OldGenerationAllocationThroughput) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
