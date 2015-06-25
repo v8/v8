@@ -430,9 +430,9 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   DCHECK(!AreAliased(vector, slot, r7, r8, r9, r10));
   Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
       masm->isolate()->factory()->keyed_load_dummy_vector());
-  int int_slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+  int slot_index = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
   __ LoadRoot(vector, Heap::kKeyedLoadDummyVectorRootIndex);
-  __ LoadSmiLiteral(slot, Smi::FromInt(int_slot));
+  __ LoadSmiLiteral(slot, Smi::FromInt(slot_index));
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
@@ -683,6 +683,20 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ LoadP(r7, FieldMemOperand(key, HeapObject::kMapOffset));
   __ lbz(r7, FieldMemOperand(r7, Map::kInstanceTypeOffset));
   __ JumpIfNotUniqueNameInstanceType(r7, &slow);
+
+  if (FLAG_vector_stores) {
+    // The handlers in the stub cache expect a vector and slot. Since we won't
+    // change the IC from any downstream misses, a dummy vector can be used.
+    Register vector = VectorStoreICDescriptor::VectorRegister();
+    Register slot = VectorStoreICDescriptor::SlotRegister();
+    DCHECK(!AreAliased(vector, slot, r6, r7, r8, r9));
+    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+        masm->isolate()->factory()->keyed_store_dummy_vector());
+    int slot_index = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    __ LoadRoot(vector, Heap::kKeyedStoreDummyVectorRootIndex);
+    __ LoadSmiLiteral(slot, Smi::FromInt(slot_index));
+  }
+
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
