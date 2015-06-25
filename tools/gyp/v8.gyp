@@ -566,6 +566,8 @@
         '../../src/compiler/select-lowering.h',
         '../../src/compiler/simplified-lowering.cc',
         '../../src/compiler/simplified-lowering.h',
+        '../../src/compiler/simplified-operator-reducer.cc',
+        '../../src/compiler/simplified-operator-reducer.h',
         '../../src/compiler/simplified-operator.cc',
         '../../src/compiler/simplified-operator.h',
         '../../src/compiler/source-position.cc',

@@ -79,6 +79,7 @@
         'compiler/schedule-unittest.cc',
         'compiler/select-lowering-unittest.cc',
         'compiler/scheduler-unittest.cc',
+        'compiler/simplified-operator-reducer-unittest.cc',
         'compiler/simplified-operator-unittest.cc',
         'compiler/state-values-utils-unittest.cc',
         'compiler/tail-call-optimization-unittest.cc',
