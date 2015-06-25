@@ -1535,6 +1535,7 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsSmi:
     case Runtime::kInlineIsNonNegativeSmi:
     case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsDate:
     case Runtime::kInlineIsTypedArray:
     case Runtime::kInlineIsMinusZero:
     case Runtime::kInlineIsFunction:
