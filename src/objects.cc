@@ -12316,31 +12316,6 @@ void JSObject::ValidateElements(Handle<JSObject> object) {
 }
 
 
-static void AddDictionaryElement(Handle<JSObject> object,
-                                 Handle<SeededNumberDictionary> dictionary,
-                                 uint32_t index, Handle<Object> value,
-                                 PropertyAttributes attributes) {
-// TODO(verwaest): Handle with the elements accessor.
-// Insert element in the dictionary.
-#ifdef DEBUG
-  int entry = dictionary->FindEntry(index);
-  DCHECK_EQ(SeededNumberDictionary::kNotFound, entry);
-#endif
-
-  PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
-  Handle<SeededNumberDictionary> new_dictionary =
-      SeededNumberDictionary::AddNumberEntry(dictionary, index, value, details);
-
-  if (*dictionary == *new_dictionary) return;
-
-  if (object->HasSloppyArgumentsElements()) {
-    FixedArray::cast(object->elements())->set(1, *new_dictionary);
-  } else {
-    object->set_elements(*new_dictionary);
-  }
-}
-
-
 // static
 MaybeHandle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
                                            uint32_t index, Handle<Object> value,
@@ -12351,36 +12326,6 @@ MaybeHandle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
 }
 
 
-static void AddFastElement(Handle<JSObject> object, uint32_t index,
-                           Handle<Object> value, ElementsKind from_kind,
-                           uint32_t array_length, uint32_t capacity,
-                           uint32_t new_capacity) {
-  bool introduces_holes = !object->IsJSArray() || index > array_length;
-
-  ElementsKind to_kind = value->OptimalElementsKind();
-  if (IsHoleyElementsKind(from_kind)) to_kind = GetHoleyElementsKind(to_kind);
-  to_kind = IsMoreGeneralElementsKindTransition(from_kind, to_kind) ? to_kind
-                                                                    : from_kind;
-  if (introduces_holes) to_kind = GetHoleyElementsKind(to_kind);
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(to_kind);
-
-  // Increase backing store capacity if that's been decided previously.
-  // The capacity is indicated as 0 if the incoming object was dictionary or
-  // slow-mode sloppy arguments.
-  if (capacity != new_capacity ||
-      IsFastDoubleElementsKind(from_kind) !=
-          IsFastDoubleElementsKind(to_kind)) {
-    accessor->GrowCapacityAndConvert(object, new_capacity);
-  } else if (from_kind != to_kind) {
-    JSObject::TransitionElementsKind(object, to_kind);
-  }
-
-  accessor->Set(object->elements(), index, *value);
-}
-
-
-// Do we want to keep fast elements when adding an element at |index|? Returns
-// |new_capacity| indicating to which capacity the object should be increased.
 static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
                                         uint32_t index,
                                         uint32_t* new_capacity) {
@@ -12476,10 +12421,7 @@ MaybeHandle<Object> JSObject::AddDataElement(Handle<JSObject> object,
 
   Isolate* isolate = object->GetIsolate();
 
-  ElementsKind kind = object->GetElementsKind();
-  bool handle_slow;
   uint32_t old_length = 0;
-  uint32_t old_capacity = 0;
   uint32_t new_capacity = 0;
 
   Handle<Object> old_length_handle;
@@ -12490,38 +12432,50 @@ MaybeHandle<Object> JSObject::AddDataElement(Handle<JSObject> object,
     }
   }
 
-  Handle<SeededNumberDictionary> dictionary;
+  ElementsKind kind = object->GetElementsKind();
   FixedArrayBase* elements = object->elements();
   if (IsSloppyArgumentsElements(kind)) {
     elements = FixedArrayBase::cast(FixedArray::cast(elements)->get(1));
   }
 
-  if (elements->IsSeededNumberDictionary()) {
-    dictionary = handle(SeededNumberDictionary::cast(elements));
-    handle_slow = attributes != NONE ||
-                  !ShouldConvertToFastElements(*object, *dictionary, index,
-                                               &new_capacity);
-    if (!handle_slow) kind = BestFittingFastElementsKind(*object);
-  } else {
-    old_capacity = static_cast<uint32_t>(elements->length());
-    handle_slow =
-        attributes != NONE || ShouldConvertToSlowElements(*object, old_capacity,
-                                                          index, &new_capacity);
-    if (handle_slow) {
-      dictionary = NormalizeElements(object);
-    } else if (IsFastSmiOrObjectElementsKind(kind)) {
-      EnsureWritableFastElements(object);
-    }
+  if (attributes != NONE) {
+    kind = DICTIONARY_ELEMENTS;
+  } else if (elements->IsSeededNumberDictionary()) {
+    kind = ShouldConvertToFastElements(*object,
+                                       SeededNumberDictionary::cast(elements),
+                                       index, &new_capacity)
+               ? BestFittingFastElementsKind(*object)
+               : DICTIONARY_ELEMENTS;  // Overwrite in case of arguments.
+  } else if (ShouldConvertToSlowElements(
+                 *object, static_cast<uint32_t>(elements->length()), index,
+                 &new_capacity)) {
+    kind = DICTIONARY_ELEMENTS;
   }
 
-  if (handle_slow) {
-    if (attributes != NONE) dictionary->set_requires_slow_elements();
-    DCHECK(object->HasDictionaryElements() ||
-           object->HasDictionaryArgumentsElements());
-    AddDictionaryElement(object, dictionary, index, value, attributes);
+  if (kind == DICTIONARY_ELEMENTS && object->HasSloppyArgumentsElements()) {
+    // TODO(verwaest): Distinguish fast/slow sloppy elements in ElementsKind.
+    Handle<SeededNumberDictionary> dictionary =
+        elements->IsSeededNumberDictionary()
+            ? handle(SeededNumberDictionary::cast(elements))
+            : NormalizeElements(object);
+    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
+    Handle<SeededNumberDictionary> new_dictionary =
+        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
+                                               details);
+    if (attributes != NONE) new_dictionary->set_requires_slow_elements();
+    if (*dictionary != *new_dictionary) {
+      FixedArray::cast(object->elements())->set(1, *new_dictionary);
+    }
   } else {
-    AddFastElement(object, index, value, kind, old_length, old_capacity,
-                   new_capacity);
+    ElementsKind to = value->OptimalElementsKind();
+    if (IsHoleyElementsKind(kind) || !object->IsJSArray() ||
+        index > old_length) {
+      to = GetHoleyElementsKind(to);
+      kind = GetHoleyElementsKind(kind);
+    }
+    to = IsMoreGeneralElementsKindTransition(kind, to) ? to : kind;
+    ElementsAccessor* accessor = ElementsAccessor::ForKind(to);
+    accessor->Add(object, index, value, attributes, new_capacity);
   }
 
   uint32_t new_length = old_length;

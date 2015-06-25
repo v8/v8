@@ -144,6 +144,9 @@ class ElementsAccessor {
                            Handle<FixedArrayBase> backing_store, uint32_t index,
                            Handle<Object> value,
                            PropertyAttributes attributes) = 0;
+  virtual void Add(Handle<JSObject> object, uint32_t index,
+                   Handle<Object> value, PropertyAttributes attributes,
+                   uint32_t new_capacity) = 0;
 
  protected:
   friend class SloppyArgumentsElementsAccessor;

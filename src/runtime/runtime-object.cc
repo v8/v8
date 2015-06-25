@@ -394,24 +394,6 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
 }
 
 
-MUST_USE_RESULT static MaybeHandle<Object> TransitionElements(
-    Handle<Object> object, ElementsKind to_kind, Isolate* isolate) {
-  HandleScope scope(isolate);
-  if (!object->IsJSObject()) {
-    isolate->ThrowIllegalOperation();
-    return MaybeHandle<Object>();
-  }
-  ElementsKind from_kind =
-      Handle<JSObject>::cast(object)->map()->elements_kind();
-  if (Map::IsValidElementsTransition(from_kind, to_kind)) {
-    JSObject::TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
-    return object;
-  }
-  isolate->ThrowIllegalOperation();
-  return MaybeHandle<Object>();
-}
-
-
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   HandleScope scope(isolate);
@@ -470,15 +452,11 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver_obj);
       ElementsKind elements_kind = js_object->GetElementsKind();
       if (IsFastDoubleElementsKind(elements_kind)) {
-        Handle<Smi> key = Handle<Smi>::cast(key_obj);
-        if (key->value() >= js_object->elements()->length()) {
-          if (IsFastHoleyElementsKind(elements_kind)) {
-            elements_kind = FAST_HOLEY_ELEMENTS;
-          } else {
-            elements_kind = FAST_ELEMENTS;
-          }
-          RETURN_FAILURE_ON_EXCEPTION(
-              isolate, TransitionElements(js_object, elements_kind, isolate));
+        if (Smi::cast(*key_obj)->value() >= js_object->elements()->length()) {
+          elements_kind = IsFastHoleyElementsKind(elements_kind)
+                              ? FAST_HOLEY_ELEMENTS
+                              : FAST_ELEMENTS;
+          JSObject::TransitionElementsKind(js_object, elements_kind);
         }
       } else {
         DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
