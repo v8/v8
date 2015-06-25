@@ -1372,43 +1372,45 @@ class DictionaryElementsAccessor
     int capacity = dict->Capacity();
     uint32_t old_length = 0;
     CHECK(array->length()->ToArrayLength(&old_length));
-    if (dict->requires_slow_elements() && length < old_length) {
-      // Find last non-deletable element in range of elements to be
-      // deleted and adjust range accordingly.
-      for (int i = 0; i < capacity; i++) {
+    if (length < old_length) {
+      if (dict->requires_slow_elements()) {
+        // Find last non-deletable element in range of elements to be
+        // deleted and adjust range accordingly.
+        for (int i = 0; i < capacity; i++) {
+          DisallowHeapAllocation no_gc;
+          Object* key = dict->KeyAt(i);
+          if (key->IsNumber()) {
+            uint32_t number = static_cast<uint32_t>(key->Number());
+            if (length <= number && number < old_length) {
+              PropertyDetails details = dict->DetailsAt(i);
+              if (!details.IsConfigurable()) length = number + 1;
+            }
+          }
+        }
+      }
+
+      if (length == 0) {
+        // Flush the backing store.
+        JSObject::ResetElements(array);
+      } else {
         DisallowHeapAllocation no_gc;
-        Object* key = dict->KeyAt(i);
-        if (key->IsNumber()) {
-          uint32_t number = static_cast<uint32_t>(key->Number());
-          if (length <= number && number < old_length) {
-            PropertyDetails details = dict->DetailsAt(i);
-            if (!details.IsConfigurable()) length = number + 1;
+        // Remove elements that should be deleted.
+        int removed_entries = 0;
+        Handle<Object> the_hole_value = isolate->factory()->the_hole_value();
+        for (int i = 0; i < capacity; i++) {
+          Object* key = dict->KeyAt(i);
+          if (key->IsNumber()) {
+            uint32_t number = static_cast<uint32_t>(key->Number());
+            if (length <= number && number < old_length) {
+              dict->SetEntry(i, the_hole_value, the_hole_value);
+              removed_entries++;
+            }
           }
         }
-      }
-    }
 
-    if (length == 0) {
-      // Flush the backing store.
-      JSObject::ResetElements(array);
-    } else {
-      DisallowHeapAllocation no_gc;
-      // Remove elements that should be deleted.
-      int removed_entries = 0;
-      Handle<Object> the_hole_value = isolate->factory()->the_hole_value();
-      for (int i = 0; i < capacity; i++) {
-        Object* key = dict->KeyAt(i);
-        if (key->IsNumber()) {
-          uint32_t number = static_cast<uint32_t>(key->Number());
-          if (length <= number && number < old_length) {
-            dict->SetEntry(i, the_hole_value, the_hole_value);
-            removed_entries++;
-          }
-        }
+        // Update the number of elements.
+        dict->ElementsRemoved(removed_entries);
       }
-
-      // Update the number of elements.
-      dict->ElementsRemoved(removed_entries);
     }
 
     Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
