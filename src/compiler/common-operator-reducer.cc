@@ -65,6 +65,29 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
 Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
   Node* const cond = node->InputAt(0);
+  // Swap IfTrue/IfFalse on {branch} if {cond} is a BooleanNot and use the input
+  // to BooleanNot as new condition for {branch}. Note we assume that {cond} was
+  // already properly optimized before we get here (as guaranteed by the graph
+  // reduction logic).
+  if (cond->opcode() == IrOpcode::kBooleanNot) {
+    for (Node* const use : node->uses()) {
+      switch (use->opcode()) {
+        case IrOpcode::kIfTrue:
+          use->set_op(common()->IfFalse());
+          break;
+        case IrOpcode::kIfFalse:
+          use->set_op(common()->IfTrue());
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+    // Update the condition of {branch}. No need to mark the uses for revisit,
+    // since we tell the graph reducer that the {branch} was changed and the
+    // graph reduction logic will ensure that the uses are revisited properly.
+    node->ReplaceInput(0, cond->InputAt(0));
+    return Changed(node);
+  }
   Decision const decision = DecideCondition(cond);
   if (decision == Decision::kUnknown) return NoChange();
   Node* const control = node->InputAt(1);

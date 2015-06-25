@@ -7,6 +7,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/machine-type.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/simplified-operator.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -20,7 +21,7 @@ namespace compiler {
 class CommonOperatorReducerTest : public GraphTest {
  public:
   explicit CommonOperatorReducerTest(int num_parameters = 1)
-      : GraphTest(num_parameters), machine_(zone()) {}
+      : GraphTest(num_parameters), machine_(zone()), simplified_(zone()) {}
   ~CommonOperatorReducerTest() override {}
 
  protected:
@@ -39,9 +40,11 @@ class CommonOperatorReducerTest : public GraphTest {
   }
 
   MachineOperatorBuilder* machine() { return &machine_; }
+  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
  private:
   MachineOperatorBuilder machine_;
+  SimplifiedOperatorBuilder simplified_;
 };
 
 
@@ -165,6 +168,25 @@ TEST_F(CommonOperatorReducerTest, BranchWithTrueConstant) {
     Reduction const r = Reduce(&editor, branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsDead());
+  }
+}
+
+
+TEST_F(CommonOperatorReducerTest, BranchWithBooleanNot) {
+  Node* const value = Parameter(0);
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch = graph()->NewNode(
+        common()->Branch(hint),
+        graph()->NewNode(simplified()->BooleanNot(), value), control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Reduction const r = Reduce(branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(branch, r.replacement());
+    EXPECT_THAT(branch, IsBranch(value, control));
+    EXPECT_THAT(if_false, IsIfTrue(branch));
+    EXPECT_THAT(if_true, IsIfFalse(branch));
   }
 }
 
