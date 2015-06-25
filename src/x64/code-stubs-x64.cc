@@ -2130,6 +2130,11 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
          factory->allocation_site_map());
   __ j(not_equal, &miss);
 
+  // Increment the call count for monomorphic function calls.
+  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize),
+                    Smi::FromInt(CallICNexus::kCallCountIncrement));
+
   __ movp(rbx, rcx);
   __ movp(rdx, rdi);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
@@ -2190,6 +2195,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // The compare above could have been a SMI/SMI comparison. Guard against this
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(rdi, &extra_checks_or_miss);
+
+  // Increment the call count for monomorphic function calls.
+  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize),
+                    Smi::FromInt(CallICNexus::kCallCountIncrement));
 
   __ bind(&have_js_function);
   if (CallAsMethod()) {
@@ -2260,6 +2270,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // Update stats.
   __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(1));
+
+  // Initialize the call counter.
+  __ Move(FieldOperand(rbx, rdx, times_pointer_size,
+                       FixedArray::kHeaderSize + kPointerSize),
+          Smi::FromInt(CallICNexus::kCallCountIncrement));
 
   // Store the function. Use a stub since we need a frame for allocation.
   // rbx - vector

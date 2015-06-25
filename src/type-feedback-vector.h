@@ -214,11 +214,6 @@ class TypeFeedbackVector : public FixedArray {
   // The object that indicates a premonomorphic state.
   static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
 
-  // The object that indicates a monomorphic state of Array with
-  // ElementsKind
-  static inline Handle<Object> MonomorphicArraySentinel(
-      Isolate* isolate, ElementsKind elements_kind);
-
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
   static inline Object* RawUninitializedSentinel(Heap* heap);
@@ -339,6 +334,10 @@ class FeedbackNexus {
 
 class CallICNexus : public FeedbackNexus {
  public:
+  // Monomorphic call ics store call counts. Platform code needs to increment
+  // the count appropriately (ie, by 2).
+  static const int kCallCountIncrement = 2;
+
   CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->GetKind(slot) == Code::CALL_IC);
@@ -368,6 +367,8 @@ class CallICNexus : public FeedbackNexus {
                             int length = -1) const override {
     return length == 0;
   }
+
+  int ExtractCallCount();
 };
 
 

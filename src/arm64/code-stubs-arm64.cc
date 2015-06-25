@@ -3091,10 +3091,18 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ Ldr(map, FieldMemOperand(scratch, HeapObject::kMapOffset));
   __ JumpIfNotRoot(map, Heap::kAllocationSiteMapRootIndex, &miss);
 
-  Register allocation_site = feedback_vector;
-  __ Mov(allocation_site, scratch);
+  // Increment the call count for monomorphic function calls.
+  __ Add(feedback_vector, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Add(feedback_vector, feedback_vector,
+         Operand(FixedArray::kHeaderSize + kPointerSize));
+  __ Ldr(index, FieldMemOperand(feedback_vector, 0));
+  __ Add(index, index, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Str(index, FieldMemOperand(feedback_vector, 0));
 
-  Register original_constructor = x3;
+  Register allocation_site = feedback_vector;
+  Register original_constructor = index;
+  __ Mov(allocation_site, scratch);
   __ Mov(original_constructor, function);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
@@ -3159,6 +3167,15 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // The compare above could have been a SMI/SMI comparison. Guard against this
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(function, &extra_checks_or_miss);
+
+  // Increment the call count for monomorphic function calls.
+  __ Add(feedback_vector, feedback_vector,
+         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Add(feedback_vector, feedback_vector,
+         Operand(FixedArray::kHeaderSize + kPointerSize));
+  __ Ldr(index, FieldMemOperand(feedback_vector, 0));
+  __ Add(index, index, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Str(index, FieldMemOperand(feedback_vector, 0));
 
   __ bind(&have_js_function);
   if (CallAsMethod()) {
@@ -3234,6 +3251,12 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
   __ Adds(x4, x4, Operand(Smi::FromInt(1)));
   __ Str(x4, FieldMemOperand(feedback_vector, with_types_offset));
+
+  // Initialize the call counter.
+  __ Mov(x5, Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ Adds(x4, feedback_vector,
+          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
+  __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize + kPointerSize));
 
   // Store the function. Use a stub since we need a frame for allocation.
   // x2 - vector
