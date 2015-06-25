@@ -14494,6 +14494,14 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
 }
 
 
+String* StringTable::LookupKeyIfExists(Isolate* isolate, HashTableKey* key) {
+  Handle<StringTable> table = isolate->factory()->string_table();
+  int entry = table->FindEntry(key);
+  if (entry != kNotFound) return String::cast(table->KeyAt(entry));
+  return NULL;
+}
+
+
 Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
                                              Handle<Context> context,
                                              LanguageMode language_mode) {

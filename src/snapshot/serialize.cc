@@ -642,11 +642,17 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
     return Handle<SharedFunctionInfo>();
   } else {
     deserializing_user_code_ = true;
-    DisallowHeapAllocation no_gc;
-    Object* root;
-    VisitPointer(&root);
-    DeserializeDeferredObjects();
-    return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
+    HandleScope scope(isolate);
+    Handle<SharedFunctionInfo> result;
+    {
+      DisallowHeapAllocation no_gc;
+      Object* root;
+      VisitPointer(&root);
+      DeserializeDeferredObjects();
+      result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
+    }
+    CommitNewInternalizedStrings(isolate);
+    return scope.CloseAndEscape(result);
   }
 }
 
@@ -711,8 +717,10 @@ class StringTableInsertionKey : public HashTableKey {
     return handle(string_, isolate);
   }
 
+ private:
   String* string_;
   uint32_t hash_;
+  DisallowHeapAllocation no_gc;
 };
 
 
@@ -725,12 +733,15 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       if (string->IsInternalizedString()) {
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
-        DisallowHeapAllocation no_gc;
-        HandleScope scope(isolate_);
         StringTableInsertionKey key(string);
-        String* canonical = *StringTable::LookupKey(isolate_, &key);
-        string->SetForwardedInternalizedString(canonical);
-        return canonical;
+        String* canonical = StringTable::LookupKeyIfExists(isolate_, &key);
+        if (canonical == NULL) {
+          new_internalized_strings_.Add(handle(string));
+          return string;
+        } else {
+          string->SetForwardedInternalizedString(canonical);
+          return canonical;
+        }
       }
     } else if (obj->IsScript()) {
       // Assign a new script id to avoid collision.
@@ -764,6 +775,17 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
   return obj;
+}
+
+
+void Deserializer::CommitNewInternalizedStrings(Isolate* isolate) {
+  StringTable::EnsureCapacityForDeserialization(
+      isolate, new_internalized_strings_.length());
+  for (Handle<String> string : new_internalized_strings_) {
+    StringTableInsertionKey key(*string);
+    DCHECK_NULL(StringTable::LookupKeyIfExists(isolate, &key));
+    StringTable::LookupKey(isolate, &key);
+  }
 }
 
 
@@ -2352,8 +2374,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
                                       HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
-  if (heap_object->IsInternalizedString()) num_internalized_strings_++;
-
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
                               where_to_point);
@@ -2474,10 +2494,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     attached_objects[i + kCodeStubsBaseIndex] =
         CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
   }
-
-  // Eagerly expand string table to avoid allocations during deserialization.
-  StringTable::EnsureCapacityForDeserialization(isolate,
-                                                scd->NumInternalizedStrings());
 
   Deserializer deserializer(scd.get());
   deserializer.SetAttachedObjects(attached_objects);
@@ -2637,7 +2653,6 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
-  SetHeaderValue(kNumInternalizedStringsOffset, cs.num_internalized_strings());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload.length());
@@ -2714,10 +2729,6 @@ Vector<const byte> SerializedCodeData::Payload() const {
   return Vector<const byte>(payload, length);
 }
 
-
-int SerializedCodeData::NumInternalizedStrings() const {
-  return GetHeaderValue(kNumInternalizedStringsOffset);
-}
 
 Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
   int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
