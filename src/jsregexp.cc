@@ -4837,6 +4837,34 @@ int CompareFirstChar(RegExpTree* const* a, RegExpTree* const* b) {
 }
 
 
+static unibrow::uchar Canonical(
+    unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize,
+    unibrow::uchar c) {
+  unibrow::uchar chars[unibrow::Ecma262Canonicalize::kMaxWidth];
+  int length = canonicalize->get(c, '\0', chars);
+  DCHECK_LE(length, 1);
+  unibrow::uchar canonical = c;
+  if (length == 1) canonical = chars[0];
+  return canonical;
+}
+
+
+int CompareFirstCharCaseIndependent(
+    unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize,
+    RegExpTree* const* a, RegExpTree* const* b) {
+  RegExpAtom* atom1 = (*a)->AsAtom();
+  RegExpAtom* atom2 = (*b)->AsAtom();
+  unibrow::uchar character1 = atom1->data().at(0);
+  unibrow::uchar character2 = atom2->data().at(0);
+  if (character1 == character2) return 0;
+  if (character1 >= 'a' || character2 >= 'a') {
+    character1 = Canonical(canonicalize, character1);
+    character2 = Canonical(canonicalize, character2);
+  }
+  return static_cast<int>(character1) - static_cast<int>(character2);
+}
+
+
 // We can stable sort runs of atoms, since the order does not matter if they
 // start with different characters.
 // Returns true if any consecutive atoms were found.
@@ -4860,15 +4888,23 @@ bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
       i++;
     }
     // Sort atoms to get ones with common prefixes together.
-    // This step is not valid if we are in a case-independent regexp,
+    // This step is more tricky if we are in a case-independent regexp,
     // because it would change /is|I/ to /I|is/, and order matters when
     // the regexp parts don't match only disjoint starting points. To fix
-    // this would need a version of CompareFirstChar that uses case-
+    // this we have a version of CompareFirstChar that uses case-
     // independent character classes for comparison.
-    if (!compiler->ignore_case()) {
-      DCHECK_LT(first_atom, alternatives->length());
-      DCHECK_LE(i, alternatives->length());
-      DCHECK_LE(first_atom, i);
+    DCHECK_LT(first_atom, alternatives->length());
+    DCHECK_LE(i, alternatives->length());
+    DCHECK_LE(first_atom, i);
+    if (compiler->ignore_case()) {
+      unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
+          compiler->isolate()->regexp_macro_assembler_canonicalize();
+      auto compare_closure =
+          [canonicalize](RegExpTree* const* a, RegExpTree* const* b) {
+            return CompareFirstCharCaseIndependent(canonicalize, a, b);
+          };
+      alternatives->StableSort(compare_closure, first_atom, i - first_atom);
+    } else {
       alternatives->StableSort(CompareFirstChar, first_atom, i - first_atom);
     }
     if (i - first_atom > 1) found_consecutive_atoms = true;
@@ -4893,7 +4929,7 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
       continue;
     }
     RegExpAtom* atom = alternative->AsAtom();
-    uc16 common_prefix = atom->data().at(0);
+    unibrow::uchar common_prefix = atom->data().at(0);
     int first_with_prefix = i;
     int prefix_length = atom->length();
     i++;
@@ -4901,7 +4937,15 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
       alternative = alternatives->at(i);
       if (!alternative->IsAtom()) break;
       atom = alternative->AsAtom();
-      if (atom->data().at(0) != common_prefix) break;
+      unibrow::uchar new_prefix = atom->data().at(0);
+      if (new_prefix != common_prefix) {
+        if (!compiler->ignore_case()) break;
+        unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
+            compiler->isolate()->regexp_macro_assembler_canonicalize();
+        new_prefix = Canonical(canonicalize, new_prefix);
+        common_prefix = Canonical(canonicalize, common_prefix);
+        if (new_prefix != common_prefix) break;
+      }
       prefix_length = Min(prefix_length, atom->length());
       i++;
     }
@@ -4917,7 +4961,10 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
         RegExpAtom* old_atom =
             alternatives->at(j + first_with_prefix)->AsAtom();
         for (int k = 1; k < prefix_length; k++) {
-          if (atom->data().at(k) != old_atom->data().at(k)) prefix_length = k;
+          if (atom->data().at(k) != old_atom->data().at(k)) {
+            prefix_length = k;
+            break;
+          }
         }
       }
       RegExpAtom* prefix =
