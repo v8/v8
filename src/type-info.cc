@@ -430,7 +430,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
 }
 
 
-byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
+uint16_t TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   return object->IsCode() ? Handle<Code>::cast(object)->to_boolean_state() : 0;
 }

@@ -4683,9 +4683,7 @@ bool Code::back_edges_patched_for_osr() {
 }
 
 
-byte Code::to_boolean_state() {
-  return extra_ic_state();
-}
+uint16_t Code::to_boolean_state() { return extra_ic_state(); }
 
 
 bool Code::has_function_cache() {

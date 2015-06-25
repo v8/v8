@@ -379,7 +379,7 @@ class Expression : public AstNode {
 
   // TODO(rossberg): this should move to its own AST node eventually.
   virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
-  byte to_boolean_types() const {
+  uint16_t to_boolean_types() const {
     return ToBooleanTypesField::decode(bit_field_);
   }
 
@@ -395,7 +395,7 @@ class Expression : public AstNode {
         bounds_(Bounds::Unbounded(zone)),
         bit_field_(0) {}
   static int parent_num_ids() { return 0; }
-  void set_to_boolean_types(byte types) {
+  void set_to_boolean_types(uint16_t types) {
     bit_field_ = ToBooleanTypesField::update(bit_field_, types);
   }
 
@@ -409,7 +409,7 @@ class Expression : public AstNode {
 
   int base_id_;
   Bounds bounds_;
-  class ToBooleanTypesField : public BitField16<byte, 0, 8> {};
+  class ToBooleanTypesField : public BitField16<uint16_t, 0, 9> {};
   uint16_t bit_field_;
   // Ends with 16-bit field; deriving classes in turn begin with
   // 16-bit fields for optimum packing efficiency.

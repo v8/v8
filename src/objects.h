@@ -5081,7 +5081,7 @@ class Code: public HeapObject {
   inline bool back_edges_patched_for_osr();
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
-  inline byte to_boolean_state();
+  inline uint16_t to_boolean_state();
 
   // [has_function_cache]: For kind STUB tells whether there is a function
   // cache is passed to the stub.

@@ -78,7 +78,7 @@ class TypeFeedbackOracle: public ZoneObject {
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(TypeFeedbackId id);
+  uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
   void BinaryType(TypeFeedbackId id,
