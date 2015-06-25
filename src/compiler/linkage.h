@@ -102,11 +102,17 @@ class CallDescriptor final : public ZoneObject {
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
 
+  // Returns {true} if this descriptor is a call to a C function.
+  bool IsCFunctionCall() const { return kind_ == kCallAddress; }
+
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
   // The number of return values from this call.
   size_t ReturnCount() const { return machine_sig_->return_count(); }
+
+  // The number of C parameters to this call.
+  size_t CParameterCount() const { return machine_sig_->parameter_count(); }
 
   // The number of JavaScript parameters to this call, including the receiver
   // object.

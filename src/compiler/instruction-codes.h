@@ -35,32 +35,34 @@ namespace compiler {
 
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
-#define ARCH_OPCODE_LIST(V) \
-  V(ArchCallCodeObject)     \
-  V(ArchTailCallCodeObject) \
-  V(ArchCallJSFunction)     \
-  V(ArchTailCallJSFunction) \
-  V(ArchJmp)                \
-  V(ArchLookupSwitch)       \
-  V(ArchTableSwitch)        \
-  V(ArchNop)                \
-  V(ArchDeoptimize)         \
-  V(ArchRet)                \
-  V(ArchStackPointer)       \
-  V(ArchFramePointer)       \
-  V(ArchTruncateDoubleToI)  \
-  V(CheckedLoadInt8)        \
-  V(CheckedLoadUint8)       \
-  V(CheckedLoadInt16)       \
-  V(CheckedLoadUint16)      \
-  V(CheckedLoadWord32)      \
-  V(CheckedLoadFloat32)     \
-  V(CheckedLoadFloat64)     \
-  V(CheckedStoreWord8)      \
-  V(CheckedStoreWord16)     \
-  V(CheckedStoreWord32)     \
-  V(CheckedStoreFloat32)    \
-  V(CheckedStoreFloat64)    \
+#define ARCH_OPCODE_LIST(V)   \
+  V(ArchCallCodeObject)       \
+  V(ArchTailCallCodeObject)   \
+  V(ArchCallJSFunction)       \
+  V(ArchTailCallJSFunction)   \
+  V(ArchPrepareCallCFunction) \
+  V(ArchCallCFunction)        \
+  V(ArchJmp)                  \
+  V(ArchLookupSwitch)         \
+  V(ArchTableSwitch)          \
+  V(ArchNop)                  \
+  V(ArchDeoptimize)           \
+  V(ArchRet)                  \
+  V(ArchStackPointer)         \
+  V(ArchFramePointer)         \
+  V(ArchTruncateDoubleToI)    \
+  V(CheckedLoadInt8)          \
+  V(CheckedLoadUint8)         \
+  V(CheckedLoadInt16)         \
+  V(CheckedLoadUint16)        \
+  V(CheckedLoadWord32)        \
+  V(CheckedLoadFloat32)       \
+  V(CheckedLoadFloat64)       \
+  V(CheckedStoreWord8)        \
+  V(CheckedStoreWord16)       \
+  V(CheckedStoreWord32)       \
+  V(CheckedStoreFloat32)      \
+  V(CheckedStoreFloat64)      \
   TARGET_ARCH_OPCODE_LIST(V)
 
 enum ArchOpcode {

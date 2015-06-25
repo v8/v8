@@ -1345,7 +1345,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // TODO(turbofan): on ARM64 it's probably better to use the code object in a
   // register if there are multiple uses of it. Improve constant pool and the
   // heuristics in the register allocator for where to emit constants.
-  InitializeCallBuffer(node, &buffer, true, false);
+  InitializeCallBuffer(node, &buffer, true, true);
 
   // Push the arguments to the stack.
   int aligned_push_count = static_cast<int>(buffer.pushed_nodes.size());
@@ -1392,18 +1392,21 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
-    case CallDescriptor::kCallCodeObject: {
-      opcode = kArchCallCodeObject;
+    case CallDescriptor::kCallAddress:
+      opcode =
+          kArchCallCFunction |
+          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
       break;
-    }
+    case CallDescriptor::kCallCodeObject:
+      opcode = kArchCallCodeObject | MiscField::encode(flags);
+      break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction;
+      opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
     default:
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
   size_t const output_count = buffer.outputs.size();

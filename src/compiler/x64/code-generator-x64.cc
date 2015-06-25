@@ -602,6 +602,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }
+    case kArchPrepareCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters);
+      break;
+    }
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (HasImmediateInput(instr, 0)) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
@@ -1215,6 +1231,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         }
       }
       break;
+    case kX64Poke: {
+      int const slot = MiscField::decode(instr->opcode());
+      if (HasImmediateInput(instr, 0)) {
+        __ movq(Operand(rsp, slot * kPointerSize), i.InputImmediate(0));
+      } else {
+        __ movq(Operand(rsp, slot * kPointerSize), i.InputRegister(0));
+      }
+      break;
+    }
     case kX64StoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);

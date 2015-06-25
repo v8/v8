@@ -373,6 +373,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArchPrepareCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, kScratchReg);
+      break;
+    }
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (instr->InputAt(0)->IsImmediate()) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -806,6 +822,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Push(i.InputRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmPoke: {
+      int const slot = MiscField::decode(instr->opcode());
+      __ str(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmStoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);

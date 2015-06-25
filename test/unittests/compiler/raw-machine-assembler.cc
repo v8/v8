@@ -144,6 +144,78 @@ Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
 }
 
 
+Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
+                                          Node* function) {
+  MachineSignature::Builder builder(zone(), 1, 0);
+  builder.AddReturn(return_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  Node* call = graph()->NewNode(common()->Call(descriptor), function);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
+}
+
+
+Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
+                                          MachineType arg0_type, Node* function,
+                                          Node* arg0) {
+  MachineSignature::Builder builder(zone(), 1, 1);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
+}
+
+
+Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
+                                          MachineType arg0_type,
+                                          MachineType arg1_type, Node* function,
+                                          Node* arg0, Node* arg1) {
+  MachineSignature::Builder builder(zone(), 1, 2);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  Node* call =
+      graph()->NewNode(common()->Call(descriptor), function, arg0, arg1);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
+}
+
+
+Node* RawMachineAssembler::CallCFunction8(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    MachineType arg5_type, MachineType arg6_type, MachineType arg7_type,
+    Node* function, Node* arg0, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+    Node* arg5, Node* arg6, Node* arg7) {
+  MachineSignature::Builder builder(zone(), 1, 8);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  builder.AddParam(arg3_type);
+  builder.AddParam(arg4_type);
+  builder.AddParam(arg5_type);
+  builder.AddParam(arg6_type);
+  builder.AddParam(arg7_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0,
+                                arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
+}
+
+
 void RawMachineAssembler::Bind(Label* label) {
   DCHECK(current_block_ == NULL);
   DCHECK(!label->bound_);

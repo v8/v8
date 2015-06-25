@@ -471,6 +471,23 @@ class RawMachineAssembler : public GraphBuilder {
   // Call to a runtime function with zero parameters.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context,
                      Node* frame_state);
+  // Call to a C function with zero parameters.
+  Node* CallCFunction0(MachineType return_type, Node* function);
+  // Call to a C function with one parameter.
+  Node* CallCFunction1(MachineType return_type, MachineType arg0_type,
+                       Node* function, Node* arg0);
+  // Call to a C function with two parameters.
+  Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, Node* function, Node* arg0,
+                       Node* arg1);
+  // Call to a C function with eight parameters.
+  Node* CallCFunction8(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       MachineType arg5_type, MachineType arg6_type,
+                       MachineType arg7_type, Node* function, Node* arg0,
+                       Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                       Node* arg5, Node* arg6, Node* arg7);
   void Return(Node* value);
   void Bind(Label* label);
   void Deoptimize(Node* state);

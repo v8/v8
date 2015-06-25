@@ -204,11 +204,13 @@ class LinkageHelper {
 
     // Add register and/or stack parameter(s).
     const int parameter_count = static_cast<int>(msig->parameter_count());
+    int stack_offset = LinkageTraits::CStackBackingStoreLength();
     for (int i = 0; i < parameter_count; i++) {
       if (i < LinkageTraits::CRegisterParametersLength()) {
         locations.AddParam(regloc(LinkageTraits::CRegisterParameter(i)));
       } else {
-        locations.AddParam(stackloc(-1 - i));
+        locations.AddParam(stackloc(-1 - stack_offset));
+        stack_offset++;
       }
     }
 

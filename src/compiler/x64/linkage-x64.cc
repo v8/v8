@@ -43,6 +43,7 @@ struct X64LinkageHelperTraits {
     }
   }
   static int CRegisterParametersLength() { return kWin64 ? 4 : 6; }
+  static int CStackBackingStoreLength() { return kWin64 ? 4 : 0; }
 };
 
 typedef LinkageHelper<X64LinkageHelperTraits> LH;

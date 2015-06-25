@@ -420,6 +420,23 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Jump(x10);
       break;
     }
+    case kArchPrepareCallCFunction:
+      // We don't need kArchPrepareCallCFunction on arm64 as the instruction
+      // selector already perform a Claim to reserve space on the stack and
+      // guarantee correct alignment of stack pointer.
+      UNREACHABLE();
+      break;
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (instr->InputAt(0)->IsImmediate()) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters, 0);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters, 0);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;

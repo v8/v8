@@ -1038,14 +1038,31 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Compute InstructionOperands for inputs and outputs.
   InitializeCallBuffer(node, &buffer, true, true);
 
-  // Push any stack arguments.
-  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-    // TODO(titzer): handle pushing double parameters.
-    InstructionOperand value =
-        g.CanBeImmediate(node)
-            ? g.UseImmediate(node)
-            : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
-    Emit(kX64Push, g.NoOutput(), value);
+  // Prepare for C function call.
+  if (descriptor->IsCFunctionCall()) {
+    Emit(kArchPrepareCallCFunction |
+             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+         0, nullptr, 0, nullptr);
+
+    // Poke any stack arguments.
+    for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
+      if (Node* node = buffer.pushed_nodes[n]) {
+        int const slot = static_cast<int>(n);
+        InstructionOperand value =
+            g.CanBeImmediate(node) ? g.UseImmediate(node) : g.UseRegister(node);
+        Emit(kX64Poke | MiscField::encode(slot), g.NoOutput(), value);
+      }
+    }
+  } else {
+    // Push any stack arguments.
+    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+      // TODO(titzer): handle pushing double parameters.
+      InstructionOperand value =
+          g.CanBeImmediate(node)
+              ? g.UseImmediate(node)
+              : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
+      Emit(kX64Push, g.NoOutput(), value);
+    }
   }
 
   // Pass label of exception handler block.
@@ -1063,17 +1080,21 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
+    case CallDescriptor::kCallAddress:
+      opcode =
+          kArchCallCFunction |
+          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
+      break;
     case CallDescriptor::kCallCodeObject:
-      opcode = kArchCallCodeObject;
+      opcode = kArchCallCodeObject | MiscField::encode(flags);
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction;
+      opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
     default:
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
   size_t const output_count = buffer.outputs.size();
