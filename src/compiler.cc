@@ -691,23 +691,14 @@ MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
   if (FLAG_cache_optimized_code) {
     Handle<SharedFunctionInfo> shared(function->shared());
     DisallowHeapAllocation no_gc;
-    int index = shared->SearchOptimizedCodeMap(
+    CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
         function->context()->native_context(), osr_ast_id);
-    if (index > 0) {
-      if (FLAG_trace_opt) {
-        PrintF("[found optimized code for ");
-        function->ShortPrint();
-        if (!osr_ast_id.IsNone()) {
-          PrintF(" at OSR AST id %d", osr_ast_id.ToInt());
-        }
-        PrintF("]\n");
-      }
-      FixedArray* literals = shared->GetLiteralsFromOptimizedCodeMap(index);
-      if (literals != NULL) function->set_literals(literals);
-      Code* code = shared->GetCodeFromOptimizedCodeMap(index);
-      DCHECK(!code->marked_for_deoptimization());
+    if (cached.code != nullptr) {
+      // Caching of optimized code enabled and optimized code found.
+      if (cached.literals != nullptr) function->set_literals(cached.literals);
+      DCHECK(!cached.code->marked_for_deoptimization());
       DCHECK(function->shared()->is_compiled());
-      return Handle<Code>(code);
+      return Handle<Code>(cached.code);
     }
   }
   return MaybeHandle<Code>();
@@ -1424,6 +1415,14 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   Handle<Code> cached_code;
   if (GetCodeFromOptimizedCodeMap(
           function, osr_ast_id).ToHandle(&cached_code)) {
+    if (FLAG_trace_opt) {
+      PrintF("[found optimized code for ");
+      function->ShortPrint();
+      if (!osr_ast_id.IsNone()) {
+        PrintF(" at OSR AST id %d", osr_ast_id.ToInt());
+      }
+      PrintF("]\n");
+    }
     return cached_code;
   }
 
@@ -1503,8 +1502,8 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
       job->RetryOptimization(kDebuggerHasBreakPoints);
     } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
-      if (info->shared_info()->SearchOptimizedCodeMap(
-              info->context()->native_context(), info->osr_ast_id()) == -1) {
+      if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
+                                         info->osr_ast_id()).code == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info.get());
       }
       if (FLAG_trace_opt) {

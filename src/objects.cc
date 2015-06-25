@@ -9590,7 +9590,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   } else {
     // Copy old map and append one new entry.
     Handle<FixedArray> old_code_map = Handle<FixedArray>::cast(value);
-    DCHECK_EQ(-1, shared->SearchOptimizedCodeMap(*native_context, osr_ast_id));
+    DCHECK(!shared->SearchOptimizedCodeMap(*native_context, osr_ast_id).code);
     old_length = old_code_map->length();
     new_code_map = FixedArray::CopySize(
         old_code_map, old_length + kEntryLength);
@@ -9617,24 +9617,6 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   }
 #endif
   shared->set_optimized_code_map(*new_code_map);
-}
-
-
-FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
-  DCHECK(index > kEntriesStart);
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
-  FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
-  DCHECK_NOT_NULL(cached_literals);
-  return cached_literals;
-}
-
-
-Code* SharedFunctionInfo::GetCodeFromOptimizedCodeMap(int index) {
-  DCHECK(index > kEntriesStart);
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
-  Code* code = Code::cast(code_map->get(index));
-  DCHECK_NOT_NULL(code);
-  return code;
 }
 
 
@@ -10612,11 +10594,11 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
 }
 
 
-int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
-                                               BailoutId osr_ast_id) {
+CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
+    Context* native_context, BailoutId osr_ast_id) {
   DisallowHeapAllocation no_gc;
   DCHECK(native_context->IsNativeContext());
-  if (!FLAG_cache_optimized_code) return -1;
+  if (!FLAG_cache_optimized_code) return {nullptr, nullptr};
   Object* value = optimized_code_map();
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
@@ -10625,7 +10607,8 @@ int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
     for (int i = kEntriesStart; i < length; i += kEntryLength) {
       if (optimized_code_map->get(i + kContextOffset) == native_context &&
           optimized_code_map->get(i + kOsrAstIdOffset) == osr_ast_id_smi) {
-        return i + kCachedCodeOffset;
+        return {Code::cast(optimized_code_map->get(i + kCachedCodeOffset)),
+                FixedArray::cast(optimized_code_map->get(i + kLiteralsOffset))};
       }
     }
     if (FLAG_trace_opt) {
@@ -10634,7 +10617,7 @@ int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
       PrintF("]\n");
     }
   }
-  return -1;
+  return {nullptr, nullptr};
 }
 
 

@@ -1377,22 +1377,20 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     result->MarkForOptimization();
   }
 
-  int index = info->SearchOptimizedCodeMap(context->native_context(),
-                                           BailoutId::None());
-  if (!info->bound() && index < 0) {
+  CodeAndLiterals cached = info->SearchOptimizedCodeMap(
+      context->native_context(), BailoutId::None());
+  if (cached.code != nullptr) {
+    // Caching of optimized code enabled and optimized code found.
+    if (cached.literals != nullptr) result->set_literals(cached.literals);
+    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(result->shared()->is_compiled());
+    result->ReplaceCode(cached.code);
+  }
+
+  if (cached.literals == nullptr && !info->bound()) {
     int number_of_literals = info->num_literals();
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
     result->set_literals(*literals);
-  }
-
-  if (index > 0) {
-    // Caching of optimized code enabled and optimized code found.
-    FixedArray* literals = info->GetLiteralsFromOptimizedCodeMap(index);
-    if (literals != NULL) result->set_literals(literals);
-    Code* code = info->GetCodeFromOptimizedCodeMap(index);
-    DCHECK(!code->marked_for_deoptimization());
-    DCHECK(result->shared()->is_compiled());
-    result->ReplaceCode(code);
   }
 
   return result;
