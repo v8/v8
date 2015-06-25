@@ -844,6 +844,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
   script->set_eval_from_instructions_offset(Smi::FromInt(0));
+  script->set_shared_function_infos(Smi::FromInt(0));
   script->set_flags(Smi::FromInt(0));
 
   return script;
@@ -2196,6 +2197,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_compiler_hints(0);
   share->set_opt_count_and_bailout_reason(0);
 
+  share->set_never_compiled(!share->is_compiled());
   return share;
 }
 

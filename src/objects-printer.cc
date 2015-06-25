@@ -983,6 +983,7 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - eval from shared: " << Brief(eval_from_shared());
   os << "\n - eval from instructions offset: "
      << Brief(eval_from_instructions_offset());
+  os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
 }
 
