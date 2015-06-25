@@ -623,6 +623,21 @@ class ElementsAccessorBase : public ElementsAccessor {
     BackingStore::cast(backing_store)->SetValue(key, value);
   }
 
+  virtual void Reconfigure(Handle<JSObject> object,
+                           Handle<FixedArrayBase> store, uint32_t index,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) final {
+    ElementsAccessorSubclass::ReconfigureImpl(object, store, index, value,
+                                              attributes);
+  }
+
+  static void ReconfigureImpl(Handle<JSObject> object,
+                              Handle<FixedArrayBase> store, uint32_t index,
+                              Handle<Object> value,
+                              PropertyAttributes attributes) {
+    UNREACHABLE();
+  }
+
   virtual MaybeHandle<AccessorPair> GetAccessorPair(
       Handle<JSObject> holder, uint32_t key,
       Handle<FixedArrayBase> backing_store) final {
@@ -903,6 +918,18 @@ class FastElementsAccessor
   explicit FastElementsAccessor(const char* name)
       : ElementsAccessorBase<FastElementsAccessorSubclass,
                              KindTraits>(name) {}
+
+  static void ReconfigureImpl(Handle<JSObject> object,
+                              Handle<FixedArrayBase> store, uint32_t index,
+                              Handle<Object> value,
+                              PropertyAttributes attributes) {
+    Handle<SeededNumberDictionary> dictionary =
+        JSObject::NormalizeElements(object);
+    index = dictionary->FindEntry(index);
+    object->GetElementsAccessor()->Reconfigure(object, dictionary, index, value,
+                                               attributes);
+  }
+
  protected:
   friend class ElementsAccessorBase<FastElementsAccessorSubclass, KindTraits>;
   friend class SloppyArgumentsElementsAccessor;
@@ -1409,10 +1436,23 @@ class DictionaryElementsAccessor
   }
 
   static void SetImpl(FixedArrayBase* store, uint32_t key, Object* value) {
-    SeededNumberDictionary* backing_store = SeededNumberDictionary::cast(store);
-    int entry = backing_store->FindEntry(key);
+    SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(store);
+    int entry = dictionary->FindEntry(key);
     DCHECK_NE(SeededNumberDictionary::kNotFound, entry);
-    backing_store->ValueAtPut(entry, value);
+    dictionary->ValueAtPut(entry, value);
+  }
+
+  static void ReconfigureImpl(Handle<JSObject> object,
+                              Handle<FixedArrayBase> store, uint32_t index,
+                              Handle<Object> value,
+                              PropertyAttributes attributes) {
+    SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(*store);
+    if (attributes != NONE) dictionary->set_requires_slow_elements();
+    dictionary->ValueAtPut(index, *value);
+    PropertyDetails details = dictionary->DetailsAt(index);
+    details = PropertyDetails(attributes, DATA, details.dictionary_index(),
+                              PropertyCellType::kNoCell);
+    dictionary->DetailsAtPut(index, details);
   }
 
   static MaybeHandle<AccessorPair> GetAccessorPairImpl(
@@ -1530,6 +1570,44 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     } else {
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       ElementsAccessor::ForArray(arguments)->Set(arguments, key, value);
+    }
+  }
+
+  static void ReconfigureImpl(Handle<JSObject> object,
+                              Handle<FixedArrayBase> store, uint32_t index,
+                              Handle<Object> value,
+                              PropertyAttributes attributes) {
+    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(store);
+    uint32_t length = parameter_map->length() - 2;
+    if (index < length) {
+      Object* probe = parameter_map->get(index + 2);
+      DCHECK(!probe->IsTheHole());
+      Context* context = Context::cast(parameter_map->get(0));
+      int context_index = Smi::cast(probe)->value();
+      DCHECK(!context->get(context_index)->IsTheHole());
+      context->set(context_index, *value);
+
+      // Redefining attributes of an aliased element destroys fast aliasing.
+      parameter_map->set_the_hole(index + 2);
+      // For elements that are still writable we re-establish slow aliasing.
+      if ((attributes & READ_ONLY) == 0) {
+        Isolate* isolate = store->GetIsolate();
+        value = isolate->factory()->NewAliasedArgumentsEntry(context_index);
+      }
+
+      PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
+      Handle<SeededNumberDictionary> arguments =
+          parameter_map->get(1)->IsSeededNumberDictionary()
+              ? handle(SeededNumberDictionary::cast(parameter_map->get(1)))
+              : JSObject::NormalizeElements(object);
+      arguments = SeededNumberDictionary::AddNumberEntry(arguments, index,
+                                                         value, details);
+      parameter_map->set(1, *arguments);
+    } else {
+      Handle<FixedArrayBase> arguments(
+          FixedArrayBase::cast(parameter_map->get(1)));
+      ElementsAccessor::ForArray(arguments)
+          ->Reconfigure(object, arguments, index - length, value, attributes);
     }
   }
 

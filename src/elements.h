@@ -140,6 +140,10 @@ class ElementsAccessor {
 
   virtual void Set(FixedArrayBase* backing_store, uint32_t key,
                    Object* value) = 0;
+  virtual void Reconfigure(Handle<JSObject> object,
+                           Handle<FixedArrayBase> backing_store, uint32_t index,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) = 0;
 
  protected:
   friend class SloppyArgumentsElementsAccessor;
