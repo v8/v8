@@ -690,8 +690,6 @@ MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
     Handle<JSFunction> function, BailoutId osr_ast_id) {
   if (FLAG_cache_optimized_code) {
     Handle<SharedFunctionInfo> shared(function->shared());
-    // Bound functions are not cached.
-    if (shared->bound()) return MaybeHandle<Code>();
     DisallowHeapAllocation no_gc;
     int index = shared->SearchOptimizedCodeMap(
         function->context()->native_context(), osr_ast_id);
@@ -723,12 +721,13 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Context specialization folds-in the context, so no sharing can occur.
   if (code->is_turbofanned() && info->is_context_specializing()) return;
 
+  // Do not cache bound functions.
+  if (info->closure()->shared()->bound()) return;
+
   // Cache optimized code.
   if (FLAG_cache_optimized_code) {
     Handle<JSFunction> function = info->closure();
     Handle<SharedFunctionInfo> shared(function->shared());
-    // Do not cache bound functions.
-    if (shared->bound()) return;
     Handle<FixedArray> literals(function->literals());
     Handle<Context> native_context(function->context()->native_context());
     SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,

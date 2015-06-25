@@ -396,6 +396,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
 
   // TODO(lrn): Create bound function in C++ code from premade shared info.
   bound_function->shared()->set_bound(true);
+  bound_function->shared()->set_optimized_code_map(Smi::FromInt(0));
   bound_function->shared()->set_inferred_name(isolate->heap()->empty_string());
   // Get all arguments of calling function (Function.prototype.bind).
   int argc = 0;

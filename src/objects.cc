@@ -9623,12 +9623,9 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 FixedArray* SharedFunctionInfo::GetLiteralsFromOptimizedCodeMap(int index) {
   DCHECK(index > kEntriesStart);
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
-  if (!bound()) {
-    FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
-    DCHECK_NOT_NULL(cached_literals);
-    return cached_literals;
-  }
-  return NULL;
+  FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
+  DCHECK_NOT_NULL(cached_literals);
+  return cached_literals;
 }
 
 
