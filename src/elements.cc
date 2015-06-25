@@ -1842,7 +1842,7 @@ template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
 void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
     SetLengthImpl(Handle<JSArray> array, uint32_t length,
                   Handle<FixedArrayBase> backing_store) {
-  DCHECK(!JSArray::SetLengthWouldNormalize(array->GetHeap(), length));
+  DCHECK(!array->SetLengthWouldNormalize(length));
   DCHECK(IsFastElementsKind(array->GetElementsKind()));
   uint32_t old_length = 0;
   CHECK(array->length()->ToArrayIndex(&old_length));

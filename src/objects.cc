@@ -11786,7 +11786,7 @@ static bool GetOldValue(Isolate* isolate,
 void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   // We should never end in here with a pixel or external array.
   DCHECK(array->AllowsSetLength());
-  if (JSArray::SetLengthWouldNormalize(array->GetHeap(), new_length)) {
+  if (array->SetLengthWouldNormalize(new_length)) {
     JSObject::NormalizeElements(array);
   }
   array->GetElementsAccessor()->SetLength(array, new_length);
@@ -12516,6 +12516,16 @@ MaybeHandle<Object> JSObject::AddDataElement(Handle<JSObject> object,
   }
 
   return value;
+}
+
+
+bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
+  if (!HasFastElements()) return false;
+  uint32_t capacity = static_cast<uint32_t>(elements()->length());
+  uint32_t new_capacity;
+  return JSArray::SetLengthWouldNormalize(GetHeap(), new_length) &&
+         ShouldConvertToSlowElements(this, capacity, new_length - 1,
+                                     &new_capacity);
 }
 
 
