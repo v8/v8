@@ -1284,10 +1284,7 @@ class V8_EXPORT ScriptCompiler {
     kProduceParserCache,
     kConsumeParserCache,
     kProduceCodeCache,
-    kConsumeCodeCache,
-
-    // Support the previous API for a transition period.
-    kProduceDataToCache
+    kConsumeCodeCache
   };
 
   /**

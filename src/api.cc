@@ -1715,15 +1715,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   PREPARE_FOR_EXECUTION_WITH_ISOLATE(
       isolate, "v8::ScriptCompiler::CompileUnbound()", UnboundScript);
 
-  // Support the old API for a transition period:
-  // - kProduceToCache -> kProduceParserCache
-  // - kNoCompileOptions + cached_data != NULL -> kConsumeParserCache
-  if (options == kProduceDataToCache) {
-    options = kProduceParserCache;
-  } else if (options == kNoCompileOptions && source->cached_data) {
-    options = kConsumeParserCache;
-  }
-
   // Don't try to produce any kind of cache when the debugger is loaded.
   if (isolate->debug()->is_loaded() &&
       (options == kProduceParserCache || options == kProduceCodeCache)) {

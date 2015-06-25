@@ -277,7 +277,7 @@ TEST(PreparseFunctionDataIsUsed) {
   for (unsigned i = 0; i < arraysize(good_code); i++) {
     v8::ScriptCompiler::Source good_source(v8_str(good_code[i]));
     v8::ScriptCompiler::Compile(isolate, &good_source,
-                                v8::ScriptCompiler::kProduceDataToCache);
+                                v8::ScriptCompiler::kProduceParserCache);
 
     const v8::ScriptCompiler::CachedData* cached_data =
         good_source.GetCachedData();
@@ -291,7 +291,9 @@ TEST(PreparseFunctionDataIsUsed) {
         v8_str(bad_code[i]), new v8::ScriptCompiler::CachedData(
                                  cached_data->data, cached_data->length));
     v8::Local<v8::Value> result =
-        v8::ScriptCompiler::Compile(isolate, &bad_source)->Run();
+        v8::ScriptCompiler::Compile(isolate, &bad_source,
+                                    v8::ScriptCompiler::kConsumeParserCache)
+            ->Run();
     CHECK(result->IsInt32());
     CHECK_EQ(25, result->Int32Value());
   }
