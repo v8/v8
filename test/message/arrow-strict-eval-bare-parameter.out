@@ -1,4 +1,4 @@
-*%(basename)s:8: SyntaxError: Unexpected identifier
+*%(basename)s:8: SyntaxError: Unexpected eval or arguments in strict mode
 eval => 42
 ^^^^
-SyntaxError: Unexpected identifier
+SyntaxError: Unexpected eval or arguments in strict mode

@@ -560,7 +560,8 @@ class ParserBase : public Traits {
   }
 
   void ValidateArrowFormalParameters(const ExpressionClassifier* classifier,
-                                     ExpressionT expr, bool* ok) {
+                                     ExpressionT expr,
+                                     bool parenthesized_formals, bool* ok) {
     if (classifier->is_valid_binding_pattern()) {
       // A simple arrow formal parameter: IDENTIFIER => BODY.
       if (!this->IsIdentifier(expr)) {
@@ -570,7 +571,14 @@ class ParserBase : public Traits {
         *ok = false;
       }
     } else if (!classifier->is_valid_arrow_formal_parameters()) {
-      ReportClassifierError(classifier->arrow_formal_parameters_error());
+      // If after parsing the expr, we see an error but the expression is
+      // neither a valid binding pattern nor a valid parenthesized formal
+      // parameter list, show the "arrow formal parameters" error if the formals
+      // started with a parenthesis, and the binding pattern error otherwise.
+      const ExpressionClassifier::Error& error =
+          parenthesized_formals ? classifier->arrow_formal_parameters_error()
+                                : classifier->binding_pattern_error();
+      ReportClassifierError(error);
       *ok = false;
     }
   }
@@ -2763,9 +2771,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   if (fni_ != NULL) fni_->Enter();
   ParserBase<Traits>::Checkpoint checkpoint(this);
   ExpressionClassifier arrow_formals_classifier(classifier->duplicate_finder());
-  if (peek() != Token::LPAREN) {
-    // The expression we are going to read is not a parenthesized arrow function
-    // formal parameter list.
+  bool parenthesized_formals = peek() == Token::LPAREN;
+  if (!parenthesized_formals) {
     ArrowFormalParametersUnexpectedToken(&arrow_formals_classifier);
   }
   ExpressionT expression = this->ParseConditionalExpression(
@@ -2775,7 +2782,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     checkpoint.Restore();
     BindingPatternUnexpectedToken(classifier);
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
-                                  CHECK_OK);
+                                  parenthesized_formals, CHECK_OK);
     Scanner::Location loc(lhs_location.beg_pos, scanner()->location().end_pos);
     Scope* scope =
         this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
