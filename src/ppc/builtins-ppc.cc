@@ -626,11 +626,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
-    __ Pop(r4);
+    __ pop(r4);  // Constructor function.
 
     __ Push(r7, r7);
 
-    // Reload the number of arguments and the constructor from the stack.
+    // Reload the number of arguments from the stack.
     // sp[0]: receiver
     // sp[1]: receiver
     // sp[2]: number of arguments (smi-tagged)
