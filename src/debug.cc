@@ -2081,7 +2081,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       // If the candidate is not compiled, compile it to reveal any inner
       // functions which might contain the requested source position. This
       // will compile all inner functions that cannot be compiled without a
-      // context, because Compiler::GetSharedFunctionInfo checks whether the
+      // context, because Compiler::BuildFunctionInfo checks whether the
       // debugger is active.
       MaybeHandle<Code> maybe_result = target_function.is_null()
           ? Compiler::GetUnoptimizedCode(target)

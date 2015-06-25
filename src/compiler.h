@@ -128,8 +128,7 @@ class CompilationInfo {
     kSplittingEnabled = 1 << 13,
     kTypeFeedbackEnabled = 1 << 14,
     kDeoptimizationEnabled = 1 << 15,
-    kSourcePositionsEnabled = 1 << 16,
-    kFirstCompile = 1 << 17,
+    kSourcePositionsEnabled = 1 << 16
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -246,10 +245,6 @@ class CompilationInfo {
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
 
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
-
-  void MarkAsFirstCompile() { SetFlag(kFirstCompile); }
-
-  bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
@@ -651,8 +646,9 @@ class Compiler : public AllStatic {
                                                           int source_length);
 
   // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
-      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
+  static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
+                                                      Handle<Script> script,
+                                                      CompilationInfo* outer);
 
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 

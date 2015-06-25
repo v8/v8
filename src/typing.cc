@@ -346,7 +346,9 @@ void AstTyper::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
-void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {}
+void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
+  expr->InitializeSharedInfo(Handle<Code>(info_->closure()->shared()->code()));
+}
 
 
 void AstTyper::VisitClassLiteral(ClassLiteral* expr) {}

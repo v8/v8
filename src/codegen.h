@@ -32,6 +32,7 @@
 //   ~CodeGenerator
 //   Generate
 //   ComputeLazyCompile
+//   BuildFunctionInfo
 //   ProcessDeclarations
 //   DeclareGlobals
 //   CheckForInlineRuntimeCall

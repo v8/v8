@@ -232,6 +232,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target_shared->set_feedback_vector(source_shared->feedback_vector());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
+  target_shared->set_script(source_shared->script());
   target_shared->set_start_position_and_type(
       source_shared->start_position_and_type());
   target_shared->set_end_position(source_shared->end_position());
@@ -241,8 +242,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
       source_shared->opt_count_and_bailout_reason());
   target_shared->set_native(was_native);
   target_shared->set_profiler_ticks(source_shared->profiler_ticks());
-  SharedFunctionInfo::SetScript(
-      target_shared, Handle<Object>(source_shared->script(), isolate));
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
