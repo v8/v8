@@ -70,9 +70,7 @@ BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
       data_(rinfo->data()),
       original_data_(original_rinfo->data()),
       position_(position),
-      statement_position_(statement_position) {
-  DCHECK(debug_info_->GetIsolate()->debug()->is_active());
-}
+      statement_position_(statement_position) {}
 
 
 BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
