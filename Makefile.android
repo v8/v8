@@ -35,28 +35,24 @@ MODES = release debug
 ANDROID_BUILDS = $(foreach mode,$(MODES), \
                    $(addsuffix .$(mode),$(ANDROID_ARCHES)))
 
-HOST_OS = $(shell uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')
-
 ifeq ($(ARCH), android_arm)
-  DEFINES  = target_arch=arm v8_target_arch=arm android_target_arch=arm android_target_platform=16
-  DEFINES += arm_neon=0 arm_version=7
+  DEFINES  = target_arch=arm v8_target_arch=arm
 else ifeq ($(ARCH), android_arm64)
-  DEFINES  = target_arch=arm64 v8_target_arch=arm64 android_target_arch=arm64 android_target_platform=21
+  DEFINES  = target_arch=arm64 v8_target_arch=arm64
 else ifeq ($(ARCH), android_mipsel)
-  DEFINES  = target_arch=mipsel v8_target_arch=mipsel android_target_platform=16
-  DEFINES += android_target_arch=mips mips_arch_variant=mips32r2
+  DEFINES  = target_arch=mipsel v8_target_arch=mipsel
 else ifeq ($(ARCH), android_ia32)
-  DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86 android_target_platform=16
+  DEFINES = target_arch=ia32 v8_target_arch=ia32
 else ifeq ($(ARCH), android_x64)
-  DEFINES = target_arch=x64 v8_target_arch=x64 android_target_arch=x86_64 android_target_platform=21
+  DEFINES = target_arch=x64 v8_target_arch=x64
 else ifeq ($(ARCH), android_x87)
-  DEFINES = target_arch=x87 v8_target_arch=x87 android_target_arch=x86 android_target_platform=16
+  DEFINES = target_arch=ia32 v8_target_arch=x87
 else
   $(error Target architecture "${ARCH}" is not supported)
 endif
 
 # Common flags.
-DEFINES += host_os=${HOST_OS} OS=android
+DEFINES += OS=android
 
 .SECONDEXPANSION:
 $(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$@
