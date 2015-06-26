@@ -4748,6 +4748,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
       VisitForStackValue(args->at(i));
     }
 
+    PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
     EmitCallJSRuntimeFunction(expr);
 
     // Restore context register.
@@ -4773,6 +4774,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
         }
 
         // Call the C runtime function.
+        PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
         __ CallRuntime(expr->function(), arg_count);
         context()->Plug(r0);
       }

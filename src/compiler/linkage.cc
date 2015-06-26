@@ -105,7 +105,7 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
 
 
 // static
-bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
+int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   // Most runtime functions need a FrameState. A few chosen ones that we know
   // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
   // are blacklisted here and can be called without a FrameState.
@@ -129,15 +129,16 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
-      return false;
+      return 0;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
-    case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
+      return 1;
+    case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineThrowNotDateError:
-      return true;
+      return 2;
     default:
       break;
   }
@@ -145,9 +146,9 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   // Most inlined runtime functions (except the ones listed above) can be called
   // without a FrameState or will be lowered by JSIntrinsicLowering internally.
   const Runtime::Function* const f = Runtime::FunctionForId(function);
-  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
+  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return 0;
 
-  return true;
+  return 1;
 }
 
 

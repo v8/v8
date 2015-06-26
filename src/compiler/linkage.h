@@ -251,7 +251,7 @@ class Linkage : public ZoneObject {
   // the frame offset, e.g. to index into part of a double slot.
   FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0) const;
 
-  static bool NeedsFrameState(Runtime::FunctionId function);
+  static int FrameStateInputCount(Runtime::FunctionId function);
 
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;

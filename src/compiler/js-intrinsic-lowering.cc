@@ -92,6 +92,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGetTypeFeedbackVector(node);
     case Runtime::kInlineGetCallerJSFunction:
       return ReduceGetCallerJSFunction(node);
+    case Runtime::kInlineThrowNotDateError:
+      return ReduceThrowNotDateError(node);
     default:
       break;
   }
@@ -491,6 +493,23 @@ Reduction JSIntrinsicLowering::ReduceGetCallerJSFunction(Node* node) {
       graph()->NewNode(simplified()->LoadField(access), fp, effect, control);
   return Change(node, simplified()->LoadField(AccessBuilder::ForFrameMarker()),
                 next_fp, effect, control);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
+  if (mode() != kDeoptimizationEnabled) return NoChange();
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+
+  // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(), frame_state, effect, control);
+  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+
+  node->set_op(common()->Dead());
+  node->TrimInputCount(0);
+  return Changed(node);
 }
 
 

@@ -115,7 +115,7 @@ class LinkageHelper {
     locations.AddParam(regloc(LinkageTraits::ContextReg()));
     types.AddParam(kMachAnyTagged);
 
-    CallDescriptor::Flags flags = Linkage::NeedsFrameState(function_id)
+    CallDescriptor::Flags flags = Linkage::FrameStateInputCount(function_id) > 0
                                       ? CallDescriptor::kNeedsFrameState
                                       : CallDescriptor::kNoFlags;
 

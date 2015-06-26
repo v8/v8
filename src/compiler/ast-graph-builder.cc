@@ -2552,8 +2552,9 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   if (functionId == Runtime::kInlineGeneratorNext) SetStackOverflow();
   if (functionId == Runtime::kInlineGeneratorThrow) SetStackOverflow();
   const Operator* call = javascript()->CallRuntime(functionId, args->length());
+  FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length());
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
 

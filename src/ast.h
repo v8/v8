@@ -2029,7 +2029,8 @@ class CallRuntime final : public Expression {
     return callruntime_feedback_slot_;
   }
 
-  static int num_ids() { return parent_num_ids(); }
+  static int num_ids() { return parent_num_ids() + 1; }
+  BailoutId CallId() { return BailoutId(local_id(0)); }
 
  protected:
   CallRuntime(Zone* zone, const AstRawString* name,
@@ -2043,6 +2044,8 @@ class CallRuntime final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+
   const AstRawString* raw_name_;
   const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
