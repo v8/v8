@@ -8689,7 +8689,6 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 TEST(SuperAccessControl) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_harmony_classes = true;
-  i::FLAG_harmony_object_literals = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> obj_template =
@@ -8744,7 +8743,6 @@ TEST(SuperAccessControl) {
 
 TEST(Regress470113) {
   i::FLAG_harmony_classes = true;
-  i::FLAG_harmony_object_literals = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Handle<v8::ObjectTemplate> obj_template =

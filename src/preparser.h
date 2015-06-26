@@ -92,7 +92,6 @@ class ParserBase : public Traits {
         allow_lazy_(false),
         allow_natives_(false),
         allow_harmony_arrow_functions_(false),
-        allow_harmony_object_literals_(false),
         allow_harmony_sloppy_(false),
         allow_harmony_computed_property_names_(false),
         allow_harmony_rest_params_(false),
@@ -109,7 +108,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_arrow_functions);
-  ALLOW_ACCESSORS(harmony_object_literals);
   ALLOW_ACCESSORS(harmony_sloppy);
   ALLOW_ACCESSORS(harmony_computed_property_names);
   ALLOW_ACCESSORS(harmony_rest_params);
@@ -778,7 +776,6 @@ class ParserBase : public Traits {
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_harmony_arrow_functions_;
-  bool allow_harmony_object_literals_;
   bool allow_harmony_sloppy_;
   bool allow_harmony_computed_property_names_;
   bool allow_harmony_rest_params_;
@@ -2479,7 +2476,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
   bool is_get = false;
   bool is_set = false;
   bool name_is_static = false;
-  bool is_generator = allow_harmony_object_literals_ && Check(Token::MUL);
+  bool is_generator = Check(Token::MUL);
 
   Token::Value name_token = peek();
   int next_beg_pos = scanner()->peek_location().beg_pos;
@@ -2503,8 +2500,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     value = this->ParseAssignmentExpression(
         true, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
-  } else if (is_generator ||
-             (allow_harmony_object_literals_ && peek() == Token::LPAREN)) {
+  } else if (is_generator || peek() == Token::LPAREN) {
     // Concise Method
     if (!*is_computed_name) {
       checker->CheckProperty(name_token, kMethodProperty, is_static,
@@ -2576,9 +2572,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
         is_get ? ObjectLiteralProperty::GETTER : ObjectLiteralProperty::SETTER,
         is_static, *is_computed_name);
 
-  } else if (!in_class && allow_harmony_object_literals_ &&
-             Token::IsIdentifier(name_token, language_mode(),
-                                 this->is_generator())) {
+  } else if (!in_class && Token::IsIdentifier(name_token, language_mode(),
+                                              this->is_generator())) {
     DCHECK(!*is_computed_name);
     DCHECK(!is_static);
 
