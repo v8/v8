@@ -1538,12 +1538,18 @@ void CodeGenerator::AssembleReturn() {
       __ ret(0);
     }
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
-    __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
-    __ popq(rbp);       // Pop caller's frame pointer.
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Ret(pop_count * kPointerSize, rbx);
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ jmp(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
+      __ popq(rbp);       // Pop caller's frame pointer.
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : 0;
+      __ Ret(pop_count * kPointerSize, rbx);
+    }
   } else {
     __ ret(0);
   }

@@ -172,6 +172,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   InstructionSequence* const code_;
   CompilationInfo* const info_;
   Label* const labels_;
+  Label return_label_;
   RpoNumber current_block_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;

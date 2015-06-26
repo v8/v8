@@ -1024,12 +1024,18 @@ void CodeGenerator::AssembleReturn() {
     __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
-    __ LeaveFrame(StackFrame::MANUAL);
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Drop(pop_count);
-    __ Ret();
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ b(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      __ LeaveFrame(StackFrame::MANUAL);
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : 0;
+      __ Drop(pop_count);
+      __ Ret();
+    }
   } else {
     __ Ret();
   }
