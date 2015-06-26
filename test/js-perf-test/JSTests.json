@@ -28,7 +28,6 @@
       "path": ["Classes"],
       "main": "run.js",
       "resources": ["super.js", "default-constructor.js"],
-      "flags": ["--harmony-classes"],
       "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
       "tests": [
         {"name": "Super"},

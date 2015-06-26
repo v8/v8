@@ -119,11 +119,9 @@ class ParserBase : public Traits {
 #undef ALLOW_ACCESSORS
 
   bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
-  bool allow_harmony_classes() const { return scanner()->HarmonyClasses(); }
   bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
 
   void set_allow_harmony_modules(bool a) { scanner()->SetHarmonyModules(a); }
-  void set_allow_harmony_classes(bool a) { scanner()->SetHarmonyClasses(a); }
   void set_allow_harmony_unicode(bool a) { scanner()->SetHarmonyUnicode(a); }
 
  protected:

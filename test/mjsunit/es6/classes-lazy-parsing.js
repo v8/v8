@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-classes --min-preparse-length=0
+// Flags: --min-preparse-length=0
 
 'use strict';
 

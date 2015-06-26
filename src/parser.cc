@@ -907,7 +907,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_harmony_arrow_functions(FLAG_harmony_arrow_functions);
-  set_allow_harmony_classes(FLAG_harmony_classes);
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_unicode(FLAG_harmony_unicode);
   set_allow_harmony_computed_property_names(
@@ -4367,7 +4366,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(natives);
     SET_ALLOW(harmony_modules);
     SET_ALLOW(harmony_arrow_functions);
-    SET_ALLOW(harmony_classes);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_unicode);
     SET_ALLOW(harmony_computed_property_names);
