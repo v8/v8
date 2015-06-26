@@ -376,6 +376,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   }
 
   DCHECK(info()->shared_info()->has_deoptimization_support());
+  DCHECK(!info()->is_first_compile());
 
   // Check the enabling conditions for TurboFan.
   bool dont_crankshaft = info()->shared_info()->dont_crankshaft();
@@ -955,6 +956,8 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 
     shared->EnableDeoptimizationSupport(*unoptimized.code());
     shared->set_feedback_vector(*unoptimized.feedback_vector());
+
+    info->MarkAsCompiled();
 
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.

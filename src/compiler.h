@@ -249,6 +249,8 @@ class CompilationInfo {
 
   void MarkAsFirstCompile() { SetFlag(kFirstCompile); }
 
+  void MarkAsCompiled() { SetFlag(kFirstCompile, false); }
+
   bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
   bool IsCodePreAgingActive() const {
