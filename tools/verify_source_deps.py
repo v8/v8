@@ -7,6 +7,10 @@
 Script to print potentially missing source dependencies based on the actual
 .h and .cc files in the source tree and which files are included in the gyp
 and gn files. The latter inclusion is overapproximated.
+
+TODO(machenbach): Gyp files in src will point to source files in src without a
+src/ prefix. For simplicity, all paths relative to src are stripped. But this
+tool won't be accurate for other sources in other directories (e.g. cctest).
 """
 
 import itertools
@@ -31,6 +35,8 @@ GYP_FILES = [
 def path_no_prefix(path):
   if path.startswith('../'):
     return path_no_prefix(path[3:])
+  elif path.startswith('src/'):
+    return path_no_prefix(path[4:])
   else:
     return path
 
@@ -40,7 +46,7 @@ def isources(directory):
     for f in files:
       if not (f.endswith('.h') or f.endswith('.cc')):
         continue
-      yield os.path.relpath(os.path.join(root, f), V8_BASE)
+      yield path_no_prefix(os.path.relpath(os.path.join(root, f), V8_BASE))
 
 
 def iflatten(obj):
@@ -74,7 +80,7 @@ def iflatten_gn_file(gn_file):
     for line in f.read().splitlines():
       match = re.match(r'.*"([^"]*)".*', line)
       if match:
-        yield match.group(1)
+        yield path_no_prefix(match.group(1))
 
 
 def icheck_values(values, *source_dirs):

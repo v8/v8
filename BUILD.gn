@@ -536,6 +536,14 @@ source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "../../include/v8-debug.h",
+    "../../include/v8-platform.h",
+    "../../include/v8-profiler.h",
+    "../../include/v8-testing.h",
+    "../../include/v8-util.h",
+    "../../include/v8-version.h",
+    "../../include/v8.h",
+    "../../include/v8config.h",
     "src/accessors.cc",
     "src/accessors.h",
     "src/allocation.cc",
@@ -1046,6 +1054,7 @@ source_set("v8_base") {
     "src/scopes.cc",
     "src/scopes.h",
     "src/signature.h",
+    "src/simulator.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
     "src/snapshot/natives.h",
@@ -1054,6 +1063,8 @@ source_set("v8_base") {
     "src/snapshot/snapshot-common.cc",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
+    "src/splay-tree.h",
+    "src/splay-tree-inl.h",
     "src/snapshot/snapshot.h",
     "src/string-builder.cc",
     "src/string-builder.h",
@@ -1103,6 +1114,8 @@ source_set("v8_base") {
     "src/vm-state.h",
     "src/zone.cc",
     "src/zone.h",
+    "src/zone-allocator.h",
+    "src/zone-containers.h",
     "src/third_party/fdlibm/fdlibm.cc",
     "src/third_party/fdlibm/fdlibm.h",
   ]
@@ -1215,6 +1228,7 @@ source_set("v8_base") {
       "src/arm/regexp-macro-assembler-arm.cc",
       "src/arm/regexp-macro-assembler-arm.h",
       "src/arm/simulator-arm.cc",
+      "src/arm/simulator-arm.h",
       "src/compiler/arm/code-generator-arm.cc",
       "src/compiler/arm/instruction-codes-arm.h",
       "src/compiler/arm/instruction-selector-arm.cc",
@@ -1309,6 +1323,7 @@ source_set("v8_base") {
       "src/mips/regexp-macro-assembler-mips.cc",
       "src/mips/regexp-macro-assembler-mips.h",
       "src/mips/simulator-mips.cc",
+      "src/mips/simulator-mips.h",
       "src/compiler/mips/code-generator-mips.cc",
       "src/compiler/mips/instruction-codes-mips.h",
       "src/compiler/mips/instruction-selector-mips.cc",
@@ -1350,6 +1365,7 @@ source_set("v8_base") {
       "src/mips64/regexp-macro-assembler-mips64.cc",
       "src/mips64/regexp-macro-assembler-mips64.h",
       "src/mips64/simulator-mips64.cc",
+      "src/mips64/simulator-mips64.h",
       "src/ic/mips64/access-compiler-mips64.cc",
       "src/ic/mips64/handler-compiler-mips64.cc",
       "src/ic/mips64/ic-mips64.cc",
@@ -1413,6 +1429,8 @@ source_set("v8_libbase") {
     "src/base/atomicops_internals_atomicword_compat.h",
     "src/base/atomicops_internals_mac.h",
     "src/base/atomicops_internals_mips_gcc.h",
+    "src/base/atomicops_internals_mips64_gcc.h",
+    "src/base/atomicops_internals_portable.h",
     "src/base/atomicops_internals_tsan.h",
     "src/base/atomicops_internals_x86_gcc.cc",
     "src/base/atomicops_internals_x86_gcc.h",
@@ -1682,6 +1700,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
     if (!is_component_build) {
       sources += [
         "src/d8-debug.cc",
+        "src/d8-debug.h",
         "$target_gen_dir/d8-js.cc",
       ]
     }
