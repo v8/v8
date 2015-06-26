@@ -646,8 +646,8 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_print_handles) PrintHandles();
   if (FLAG_gc_verbose) Print();
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
-#endif
   if (FLAG_check_handle_count) CheckHandleCount();
+#endif
   if (FLAG_deopt_every_n_garbage_collections > 0) {
     // TODO(jkummerow/ulan/jarin): This is not safe! We can't assume that
     // the topmost optimized frame can be deoptimized safely, because it
@@ -5991,7 +5991,9 @@ void Heap::PrintHandles() {
 class CheckHandleCountVisitor : public ObjectVisitor {
  public:
   CheckHandleCountVisitor() : handle_count_(0) {}
-  ~CheckHandleCountVisitor() { CHECK_LT(handle_count_, 2000); }
+  ~CheckHandleCountVisitor() {
+    CHECK(handle_count_ < HandleScope::kCheckHandleThreshold);
+  }
   void VisitPointers(Object** start, Object** end) {
     handle_count_ += end - start;
   }

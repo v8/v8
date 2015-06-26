@@ -226,6 +226,11 @@ class HandleScope {
 
   Isolate* isolate() { return isolate_; }
 
+  // Limit for number of handles with --check_handle-count. This is
+  // large enough to compile natives and pass unit tests with some
+  // slack for future changes to natives.
+  static const int kCheckHandleThreshold = 30 * 1024;
+
  private:
   // Prevent heap allocation or illegal handle scopes.
   HandleScope(const HandleScope&);
