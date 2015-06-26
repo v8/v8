@@ -719,6 +719,7 @@ void PrettyPrinter::PrintObjectLiteralProperty(
 
 void PrettyPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   Print("[ ");
+  Print(" literal_index = %d", node->literal_index());
   for (int i = 0; i < node->values()->length(); i++) {
     if (i != 0) Print(",");
     Visit(node->values()->at(i));
@@ -1397,6 +1398,9 @@ void AstPrinter::VisitLiteral(Literal* node) {
 
 void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   IndentedScope indent(this, "REGEXP LITERAL");
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "literal_index = %d\n", node->literal_index());
+  PrintIndented(buf.start());
   PrintLiteralIndented("PATTERN", node->pattern(), false);
   PrintLiteralIndented("FLAGS", node->flags(), false);
 }
@@ -1404,12 +1408,19 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   IndentedScope indent(this, "OBJ LITERAL");
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "literal_index = %d\n", node->literal_index());
+  PrintIndented(buf.start());
   PrintProperties(node->properties());
 }
 
 
 void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   IndentedScope indent(this, "ARRAY LITERAL");
+
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "literal_index = %d\n", node->literal_index());
+  PrintIndented(buf.start());
   if (node->values()->length() > 0) {
     IndentedScope indent(this, "VALUES");
     for (int i = 0; i < node->values()->length(); i++) {

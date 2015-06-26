@@ -397,6 +397,8 @@
         '../../src/assert-scope.cc',
         '../../src/ast-value-factory.cc',
         '../../src/ast-value-factory.h',
+        '../../src/ast-literal-reindexer.cc',
+        '../../src/ast-literal-reindexer.h',
         '../../src/ast-numbering.cc',
         '../../src/ast-numbering.h',
         '../../src/ast.cc',

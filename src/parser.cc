@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/ast.h"
+#include "src/ast-literal-reindexer.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -1179,6 +1180,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
       ParserFormalParameterParsingState parsing_state(scope);
+      Checkpoint checkpoint(this);
       {
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Entrer arrow function
@@ -1197,6 +1199,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       }
 
       if (ok) {
+        checkpoint.Restore(&parsing_state.materialized_literals_count);
         Expression* expression =
             ParseArrowFunctionLiteral(parsing_state, formals_classifier, &ok);
         if (ok) {
@@ -3849,6 +3852,20 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   DeclareFormalParameter(parsing_state, expr, &classifier, is_rest);
   if (!duplicate_loc->IsValid()) {
     *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
+  }
+}
+
+
+void ParserTraits::ReindexLiterals(
+    const ParserFormalParameterParsingState& parsing_state) {
+  if (parser_->function_state_->materialized_literal_count() > 0) {
+    AstLiteralReindexer reindexer;
+
+    for (const auto p : parsing_state.params) {
+      if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
+    }
+    DCHECK(reindexer.count() <=
+           parser_->function_state_->materialized_literal_count());
   }
 }
 

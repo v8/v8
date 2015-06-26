@@ -1298,6 +1298,8 @@ class Literal final : public Expression {
 };
 
 
+class AstLiteralReindexer;
+
 // Base class for literals that needs space in the corresponding JSFunction.
 class MaterializedLiteral : public Expression {
  public:
@@ -1349,6 +1351,8 @@ class MaterializedLiteral : public Expression {
   bool is_simple_;
   bool is_strong_;
   int depth_;
+
+  friend class AstLiteralReindexer;
 };
 
 

@@ -788,6 +788,8 @@ class ParserTraits {
       const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
       bool* ok);
 
+  void ReindexLiterals(const ParserFormalParameterParsingState& parsing_state);
+
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(
