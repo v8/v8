@@ -684,6 +684,9 @@
   'language/expressions/prefix-decrement/S11.4.5_A5_*': [FAIL],
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=4253
+  'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
