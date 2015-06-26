@@ -363,7 +363,8 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
-  Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
+  Callable callable = CodeFactory::StoreICInOptimizedCode(
+      isolate(), p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   if (FLAG_vector_stores) {
     DCHECK(p.feedback().index() != -1);

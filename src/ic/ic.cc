@@ -937,9 +937,9 @@ Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
 }
 
 
-Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
-                                           LanguageMode language_mode,
-                                           State initialization_state) {
+static Handle<Code> KeyedStoreICInitializeStubHelper(
+    Isolate* isolate, LanguageMode language_mode,
+    InlineCacheState initialization_state) {
   switch (initialization_state) {
     case UNINITIALIZED:
       return is_strict(language_mode)
@@ -957,6 +957,31 @@ Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
       UNREACHABLE();
   }
   return Handle<Code>();
+}
+
+
+Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
+                                           LanguageMode language_mode,
+                                           State initialization_state) {
+  if (FLAG_vector_stores) {
+    VectorKeyedStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
+    return stub.GetCode();
+  }
+
+  return KeyedStoreICInitializeStubHelper(isolate, language_mode,
+                                          initialization_state);
+}
+
+
+Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, LanguageMode language_mode, State initialization_state) {
+  if (FLAG_vector_stores && initialization_state != MEGAMORPHIC) {
+    VectorKeyedStoreICStub stub(isolate, StoreICState(language_mode));
+    return stub.GetCode();
+  }
+
+  return KeyedStoreICInitializeStubHelper(isolate, language_mode,
+                                          initialization_state);
 }
 
 
@@ -1323,26 +1348,15 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     }
   }
 
-  if (!UseVector()) {
-    if (!is_target_set()) {
-      Code* generic = *megamorphic_stub();
-      if (*stub == generic) {
-        TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
-      }
-
-      set_target(*stub);
-      TRACE_IC("LoadIC", key);
+  DCHECK(UseVector());
+  if (!is_vector_set() || stub.is_null()) {
+    Code* generic = *megamorphic_stub();
+    if (!stub.is_null() && *stub == generic) {
+      ConfigureVectorState(MEGAMORPHIC);
+      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
     }
-  } else {
-    if (!is_vector_set() || stub.is_null()) {
-      Code* generic = *megamorphic_stub();
-      if (!stub.is_null() && *stub == generic) {
-        ConfigureVectorState(MEGAMORPHIC);
-        TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
-      }
 
-      TRACE_IC("LoadIC", key);
-    }
+    TRACE_IC("LoadIC", key);
   }
 
   if (!load_handle.is_null()) return load_handle;
@@ -1523,16 +1537,43 @@ Handle<Code> CallIC::initialize_stub_in_optimized_code(
 }
 
 
+static Handle<Code> StoreICInitializeStubHelper(
+    Isolate* isolate, ExtraICState extra_state,
+    InlineCacheState initialization_state) {
+  Handle<Code> ic = PropertyICCompiler::ComputeStore(
+      isolate, initialization_state, extra_state);
+  return ic;
+}
+
+
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
                                       LanguageMode language_mode,
                                       State initialization_state) {
   DCHECK(initialization_state == UNINITIALIZED ||
          initialization_state == PREMONOMORPHIC ||
          initialization_state == MEGAMORPHIC);
-  ExtraICState extra_state = ComputeExtraICState(language_mode);
-  Handle<Code> ic = PropertyICCompiler::ComputeStore(
-      isolate, initialization_state, extra_state);
-  return ic;
+  if (FLAG_vector_stores) {
+    VectorStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
+    return stub.GetCode();
+  }
+
+  return StoreICInitializeStubHelper(
+      isolate, ComputeExtraICState(language_mode), initialization_state);
+}
+
+
+Handle<Code> StoreIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, LanguageMode language_mode, State initialization_state) {
+  DCHECK(initialization_state == UNINITIALIZED ||
+         initialization_state == PREMONOMORPHIC ||
+         initialization_state == MEGAMORPHIC);
+  if (FLAG_vector_stores && initialization_state != MEGAMORPHIC) {
+    VectorStoreICStub stub(isolate, StoreICState(language_mode));
+    return stub.GetCode();
+  }
+
+  return StoreICInitializeStubHelper(
+      isolate, ComputeExtraICState(language_mode), initialization_state);
 }
 
 

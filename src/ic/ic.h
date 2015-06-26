@@ -520,6 +520,8 @@ class StoreIC : public IC {
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       LanguageMode language_mode,
                                       State initialization_state);
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, LanguageMode language_mode, State initialization_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -613,6 +615,9 @@ class KeyedStoreIC : public StoreIC {
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       LanguageMode language_mode,
                                       State initialization_state);
+
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, LanguageMode language_mode, State initialization_state);
 
  protected:
   virtual Handle<Code> pre_monomorphic_stub() const {

@@ -43,6 +43,8 @@ class CodeFactory final {
   static Callable CallICInOptimizedCode(Isolate* isolate, int argc,
                                         CallICState::CallType call_type);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
+  static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode,
+                                         InlineCacheState initialization_state);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreICInOptimizedCode(
       Isolate* isolate, LanguageMode mode,

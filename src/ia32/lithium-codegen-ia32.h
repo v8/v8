@@ -308,6 +308,8 @@ class LCodeGen: public LCodeGenBase {
 
   template <class T>
   void EmitVectorLoadICRegisters(T* instr);
+  template <class T>
+  void EmitVectorStoreICRegisters(T* instr);
 
   void EmitReturn(LReturn* instr, bool dynamic_frame_alignment);
 

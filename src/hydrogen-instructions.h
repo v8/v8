@@ -6393,11 +6393,11 @@ class HLoadNamedField final : public HTemplateInstruction<2> {
 class HLoadNamedGeneric final : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadNamedGeneric, HValue*,
-                                              Handle<Object>, InlineCacheState);
+                                              Handle<Name>, InlineCacheState);
 
   HValue* context() const { return OperandAt(0); }
   HValue* object() const { return OperandAt(1); }
-  Handle<Object> name() const { return name_; }
+  Handle<Name> name() const { return name_; }
 
   InlineCacheState initialization_state() const {
     return initialization_state_;
@@ -6422,7 +6422,7 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric)
 
  private:
-  HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name,
+  HLoadNamedGeneric(HValue* context, HValue* object, Handle<Name> name,
                     InlineCacheState initialization_state)
       : name_(name),
         slot_(FeedbackVectorICSlot::Invalid()),
@@ -6433,7 +6433,7 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
     SetAllSideEffects();
   }
 
-  Handle<Object> name_;
+  Handle<Name> name_;
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorICSlot slot_;
   InlineCacheState initialization_state_;
@@ -6888,12 +6888,12 @@ class HStoreNamedField final : public HTemplateInstruction<3> {
 class HStoreNamedGeneric final : public HTemplateInstruction<3> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(HStoreNamedGeneric, HValue*,
-                                              Handle<String>, HValue*,
+                                              Handle<Name>, HValue*,
                                               LanguageMode, InlineCacheState);
   HValue* object() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
-  Handle<String> name() const { return name_; }
+  Handle<Name> name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
   InlineCacheState initialization_state() const {
     return initialization_state_;
@@ -6905,13 +6905,25 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
     return Representation::Tagged();
   }
 
+  FeedbackVectorICSlot slot() const { return slot_; }
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
+  bool HasVectorAndSlot() const { return FLAG_vector_stores; }
+  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
+    feedback_vector_ = vector;
+    slot_ = slot;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric)
 
  private:
-  HStoreNamedGeneric(HValue* context, HValue* object, Handle<String> name,
+  HStoreNamedGeneric(HValue* context, HValue* object, Handle<Name> name,
                      HValue* value, LanguageMode language_mode,
                      InlineCacheState initialization_state)
       : name_(name),
+        slot_(FeedbackVectorICSlot::Invalid()),
         language_mode_(language_mode),
         initialization_state_(initialization_state) {
     SetOperandAt(0, object);
@@ -6920,7 +6932,9 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
     SetAllSideEffects();
   }
 
-  Handle<String> name_;
+  Handle<Name> name_;
+  Handle<TypeFeedbackVector> feedback_vector_;
+  FeedbackVectorICSlot slot_;
   LanguageMode language_mode_;
   InlineCacheState initialization_state_;
 };
@@ -7130,6 +7144,21 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
     return Representation::Tagged();
   }
 
+  FeedbackVectorICSlot slot() const { return slot_; }
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
+  bool HasVectorAndSlot() const {
+    DCHECK(!(FLAG_vector_stores && initialization_state_ != MEGAMORPHIC) ||
+           !feedback_vector_.is_null());
+    return !feedback_vector_.is_null();
+  }
+  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
+    feedback_vector_ = vector;
+    slot_ = slot;
+  }
+
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric)
@@ -7138,7 +7167,8 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
   HStoreKeyedGeneric(HValue* context, HValue* object, HValue* key,
                      HValue* value, LanguageMode language_mode,
                      InlineCacheState initialization_state)
-      : language_mode_(language_mode),
+      : slot_(FeedbackVectorICSlot::Invalid()),
+        language_mode_(language_mode),
         initialization_state_(initialization_state) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
@@ -7147,6 +7177,8 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
     SetAllSideEffects();
   }
 
+  Handle<TypeFeedbackVector> feedback_vector_;
+  FeedbackVectorICSlot slot_;
   LanguageMode language_mode_;
   InlineCacheState initialization_state_;
 };
