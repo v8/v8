@@ -204,7 +204,7 @@
         # the C++ standard library is used.
         'use_custom_libcxx%': 1,
       }],
-      ['OS=="linux" and v8_target_arch==host_arch', {
+      ['OS=="linux"', {
         # Gradually roll out v8_use_external_startup_data.
         # Should eventually be default enabled on all platforms.
         'v8_use_external_startup_data%': 1,
