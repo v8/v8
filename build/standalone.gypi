@@ -222,50 +222,31 @@
 
           # Copy conditionally-set variables out one scope.
           'android_ndk_root%': '<(android_ndk_root)',
-          'host_os%': '<(host_os)',
 
           'conditions': [
             ['target_arch == "ia32"', {
               'android_toolchain%': '<(android_ndk_root)/toolchains/x86-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
-              'android_target_arch%': 'x86',
-              'android_target_platform%': '16',
             }],
             ['target_arch == "x64"', {
               'android_toolchain%': '<(android_ndk_root)/toolchains/x86_64-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
-              'android_target_arch%': 'x86_64',
-              'android_target_platform%': '21',
             }],
             ['target_arch=="arm"', {
               'android_toolchain%': '<(android_ndk_root)/toolchains/arm-linux-androideabi-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
-              'android_target_arch%': 'arm',
-              'android_target_platform%': '16',
-              'arm_version%': 7,
             }],
             ['target_arch == "arm64"', {
               'android_toolchain%': '<(android_ndk_root)/toolchains/aarch64-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
-              'android_target_arch%': 'arm64',
-              'android_target_platform%': '21',
-              'arm_version%': 'default',
             }],
             ['target_arch == "mipsel"', {
               'android_toolchain%': '<(android_ndk_root)/toolchains/mipsel-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
-              'android_target_arch%': 'mips',
-              'android_target_platform%': '16',
             }],
             ['target_arch == "mips64el"', {
               'android_toolchain%': '<(android_ndk_root)/toolchains/mips64el-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
-              'android_target_arch%': 'mips64',
-              'android_target_platform%': '21',
             }],
           ],
         },
 
         # Copy conditionally-set variables out one scope.
-        'android_target_arch%': '<(android_target_arch)',
-        'android_target_platform%': '<(android_target_platform)',
         'android_toolchain%': '<(android_toolchain)',
-        'arm_version%': '<(arm_version)',
-        'host_os%': '<(host_os)',
 
         'conditions': [
           ['android_ndk_root==""', {
@@ -311,6 +292,7 @@
       }],
     ],
     # Default ARM variable settings.
+    'arm_version%': 'default',
     'arm_fpu%': 'vfpv3',
     'arm_float_abi%': 'default',
     'arm_thumb': 'default',
@@ -328,11 +310,6 @@
   'target_defaults': {
     'variables': {
       'v8_code%': '<(v8_code)',
-      'conditions':[
-        ['OS=="android"', {
-          'host_os%': '<(host_os)',
-        }],
-      ],
     },
     'default_configuration': 'Debug',
     'configurations': {
