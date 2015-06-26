@@ -425,6 +425,35 @@ TEST_F(CommonOperatorReducerTest, PhiToFloat64Min) {
 
 
 // -----------------------------------------------------------------------------
+// Return
+
+
+TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
+  Node* cond = Parameter(2);
+  Node* branch = graph()->NewNode(common()->Branch(), cond, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = graph()->start();
+  Node* vtrue = Parameter(0);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = graph()->start();
+  Node* vfalse = Parameter(1);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
+  Node* phi =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vtrue, vfalse, merge);
+  Node* ret = graph()->NewNode(common()->Return(), phi, ephi, merge);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+  StrictMock<MockAdvancedReducerEditor> editor;
+  EXPECT_CALL(editor, Replace(merge, IsDead()));
+  Reduction const r = Reduce(&editor, ret);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsDead());
+  EXPECT_THAT(graph()->end(), IsEnd(ret, IsReturn(vtrue, etrue, if_true),
+                                    IsReturn(vfalse, efalse, if_false)));
+}
+
+
+// -----------------------------------------------------------------------------
 // Select
 
 

@@ -11,6 +11,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -43,6 +44,16 @@ Decision DecideCondition(Node* const cond) {
 }  // namespace
 
 
+CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
+                                             CommonOperatorBuilder* common,
+                                             MachineOperatorBuilder* machine)
+    : AdvancedReducer(editor),
+      graph_(graph),
+      common_(common),
+      machine_(machine),
+      dead_(graph->NewNode(common->Dead())) {}
+
+
 Reduction CommonOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBranch:
@@ -53,6 +64,8 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceEffectPhi(node);
     case IrOpcode::kPhi:
       return ReducePhi(node);
+    case IrOpcode::kReturn:
+      return ReduceReturn(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
     default:
@@ -91,20 +104,19 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   Decision const decision = DecideCondition(cond);
   if (decision == Decision::kUnknown) return NoChange();
   Node* const control = node->InputAt(1);
-  if (!dead_.is_set()) dead_.set(graph()->NewNode(common()->Dead()));
   for (Node* const use : node->uses()) {
     switch (use->opcode()) {
       case IrOpcode::kIfTrue:
-        Replace(use, (decision == Decision::kTrue) ? control : dead_.get());
+        Replace(use, (decision == Decision::kTrue) ? control : dead());
         break;
       case IrOpcode::kIfFalse:
-        Replace(use, (decision == Decision::kFalse) ? control : dead_.get());
+        Replace(use, (decision == Decision::kFalse) ? control : dead());
         break;
       default:
         UNREACHABLE();
     }
   }
-  return Replace(dead_.get());
+  return Replace(dead());
 }
 
 
@@ -250,6 +262,41 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
   // We might now be able to further reduce the {merge} node.
   Revisit(merge);
   return Replace(value);
+}
+
+
+Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
+  DCHECK_EQ(IrOpcode::kReturn, node->opcode());
+  Node* const value = node->InputAt(0);
+  Node* const effect = node->InputAt(1);
+  Node* const control = node->InputAt(2);
+  if (value->opcode() == IrOpcode::kPhi &&
+      NodeProperties::GetControlInput(value) == control &&
+      effect->opcode() == IrOpcode::kEffectPhi &&
+      NodeProperties::GetControlInput(effect) == control &&
+      control->opcode() == IrOpcode::kMerge) {
+    int const control_input_count = control->InputCount();
+    DCHECK_NE(0, control_input_count);
+    DCHECK_EQ(control_input_count, value->InputCount() - 1);
+    DCHECK_EQ(control_input_count, effect->InputCount() - 1);
+    Node* const end = graph()->end();
+    DCHECK_EQ(IrOpcode::kEnd, end->opcode());
+    DCHECK_NE(0, end->InputCount());
+    for (int i = 0; i < control_input_count; ++i) {
+      // Create a new {Return} and connect it to {end}. We don't need to mark
+      // {end} as revisit, because we mark {node} as {Dead} below, which was
+      // previously connected to {end}, so we know for sure that at some point
+      // the reducer logic will visit {end} again.
+      Node* ret = graph()->NewNode(common()->Return(), value->InputAt(i),
+                                   effect->InputAt(i), control->InputAt(i));
+      end->set_op(common()->End(end->InputCount() + 1));
+      end->AppendInput(graph()->zone(), ret);
+    }
+    // Mark the merge {control} and return {node} as {dead}.
+    Replace(control, dead());
+    return Replace(dead());
+  }
+  return NoChange();
 }
 
 

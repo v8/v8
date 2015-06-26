@@ -40,6 +40,9 @@ Matcher<Node*> IsDead();
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher);
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
                      const Matcher<Node*>& control1_matcher);
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher,
+                     const Matcher<Node*>& control2_matcher);
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,

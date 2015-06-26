@@ -23,11 +23,7 @@ class CommonOperatorReducer final : public AdvancedReducer {
  public:
   CommonOperatorReducer(Editor* editor, Graph* graph,
                         CommonOperatorBuilder* common,
-                        MachineOperatorBuilder* machine)
-      : AdvancedReducer(editor),
-        graph_(graph),
-        common_(common),
-        machine_(machine) {}
+                        MachineOperatorBuilder* machine);
   ~CommonOperatorReducer() final {}
 
   Reduction Reduce(Node* node) final;
@@ -37,6 +33,7 @@ class CommonOperatorReducer final : public AdvancedReducer {
   Reduction ReduceMerge(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);
+  Reduction ReduceReturn(Node* node);
   Reduction ReduceSelect(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
@@ -45,11 +42,12 @@ class CommonOperatorReducer final : public AdvancedReducer {
   Graph* graph() const { return graph_; }
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
+  Node* dead() const { return dead_; }
 
   Graph* const graph_;
   CommonOperatorBuilder* const common_;
   MachineOperatorBuilder* const machine_;
-  SetOncePointer<Node> dead_;
+  Node* const dead_;
 };
 
 }  // namespace compiler

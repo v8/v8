@@ -1395,6 +1395,14 @@ Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
 }
 
 
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher,
+                     const Matcher<Node*>& control2_matcher) {
+  return MakeMatcher(new IsControl3Matcher(IrOpcode::kEnd, control0_matcher,
+                                           control1_matcher, control2_matcher));
+}
+
+
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsBranchMatcher(value_matcher, control_matcher));
