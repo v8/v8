@@ -187,6 +187,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithBooleanNot) {
     EXPECT_THAT(branch, IsBranch(value, control));
     EXPECT_THAT(if_false, IsIfTrue(branch));
     EXPECT_THAT(if_true, IsIfFalse(branch));
+    EXPECT_EQ(NegateBranchHint(hint), BranchHintOf(branch->op()));
   }
 }
 

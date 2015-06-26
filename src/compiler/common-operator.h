@@ -27,6 +27,19 @@ class Operator;
 // Prediction hint for branches.
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
 
+inline BranchHint NegateBranchHint(BranchHint hint) {
+  switch (hint) {
+    case BranchHint::kNone:
+      return hint;
+    case BranchHint::kTrue:
+      return BranchHint::kFalse;
+    case BranchHint::kFalse:
+      return BranchHint::kTrue;
+  }
+  UNREACHABLE();
+  return hint;
+}
+
 inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
 
 std::ostream& operator<<(std::ostream&, BranchHint);

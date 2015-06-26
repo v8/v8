@@ -99,6 +99,8 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
     // since we tell the graph reducer that the {branch} was changed and the
     // graph reduction logic will ensure that the uses are revisited properly.
     node->ReplaceInput(0, cond->InputAt(0));
+    // Negate the hint for {branch}.
+    node->set_op(common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
     return Changed(node);
   }
   Decision const decision = DecideCondition(cond);
