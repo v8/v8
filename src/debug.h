@@ -481,9 +481,6 @@ class Debug {
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
-  template <typename C>
-  bool CompileToRevealInnerFunctions(C* compilable);
-
   // This function is used in FunctionNameUsing* tests.
   Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
                                                 int position);
