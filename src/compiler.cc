@@ -1022,8 +1022,7 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   VMState<COMPILER> state(info.isolate());
 
   // Get rid of old list of shared function infos.
-  script->set_shared_function_infos(Smi::FromInt(0));
-
+  info.MarkAsFirstCompile();
   info.parse_info()->set_global();
   if (!Parser::ParseStatic(info.parse_info())) return;
 
@@ -1346,11 +1345,14 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
     CompilationInfo* outer_info) {
   // Precondition: code has been parsed and scopes have been analyzed.
+  Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
   if (outer_info->is_first_compile()) {
     // On the first compile, there are no existing shared function info for
-    // inner functions yet, so do not try to find them.
-    DCHECK(script->FindSharedFunctionInfo(literal).is_null());
+    // inner functions yet, so do not try to find them. All bets are off for
+    // live edit though.
+    DCHECK(script->FindSharedFunctionInfo(literal).is_null() ||
+           isolate->debug()->live_edit_enabled());
   } else {
     maybe_existing = script->FindSharedFunctionInfo(literal);
   }
@@ -1371,8 +1373,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_first_compile()) info.MarkAsFirstCompile();
 
-  Isolate* isolate = info.isolate();
-  Factory* factory = isolate->factory();
   LiveEditFunctionTracker live_edit_tracker(isolate, literal);
   // Determine if the function can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
@@ -1427,9 +1427,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   if (maybe_existing.is_null()) {
     // Create a shared function info object.
-    Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
-        literal->name(), literal->materialized_literal_count(), literal->kind(),
-        info.code(), scope_info, info.feedback_vector());
+    Handle<SharedFunctionInfo> result =
+        isolate->factory()->NewSharedFunctionInfo(
+            literal->name(), literal->materialized_literal_count(),
+            literal->kind(), info.code(), scope_info, info.feedback_vector());
 
     SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
     SharedFunctionInfo::SetScript(result, script);
