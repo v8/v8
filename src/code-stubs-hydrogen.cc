@@ -93,6 +93,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
                                          IfBuilder* builder,
                                          HValue* optimized_map,
                                          HValue* map_index);
+  void BuildInstallOptimizedCode(HValue* js_function, HValue* native_context,
+                                 HValue* code_object, HValue* literals);
   void BuildInstallCode(HValue* js_function, HValue* shared_info);
 
   HInstruction* LoadFromOptimizedCodeMap(HValue* optimized_map,
@@ -1651,6 +1653,16 @@ void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
   HValue* literals = LoadFromOptimizedCodeMap(optimized_map,
       map_index, SharedFunctionInfo::kLiteralsOffset);
 
+  BuildInstallOptimizedCode(js_function, native_context, code_object, literals);
+
+  // The builder continues in the "then" after this function.
+}
+
+
+void CodeStubGraphBuilderBase::BuildInstallOptimizedCode(HValue* js_function,
+                                                         HValue* native_context,
+                                                         HValue* code_object,
+                                                         HValue* literals) {
   Counters* counters = isolate()->counters();
   AddIncrementCounter(counters->fast_new_closure_install_optimized());
 
@@ -1673,8 +1685,6 @@ void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
   Add<HStoreNamedField>(native_context,
            HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST),
            js_function);
-
-  // The builder continues in the "then" after this function.
 }
 
 
@@ -1712,6 +1722,7 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
     HValue* shared_info,
     HValue* native_context) {
   Counters* counters = isolate()->counters();
+  Factory* factory = isolate()->factory();
   IfBuilder is_optimized(this);
   HInstruction* optimized_map = Add<HLoadNamedField>(
       shared_info, nullptr, HObjectAccess::ForOptimizedCodeMap());
@@ -1764,15 +1775,31 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
       }
       loop_builder.EndBody();
 
-      // If slot_iterator equals first entry index, then we failed to find and
-      // install optimized code
+      // If slot_iterator equals first entry index, then we failed to find a
+      // context-dependent code and try context-independent code next.
       IfBuilder no_optimized_code_check(this);
       no_optimized_code_check.If<HCompareNumericAndBranch>(
           slot_iterator, first_entry_index, Token::EQ);
       no_optimized_code_check.Then();
       {
-        // Store the unoptimized code
-        BuildInstallCode(js_function, shared_info);
+        IfBuilder shared_code_check(this);
+        HValue* shared_code = Add<HLoadNamedField>(
+            optimized_map, nullptr,
+            HObjectAccess::ForOptimizedCodeMapSharedCode());
+        shared_code_check.IfNot<HCompareObjectEqAndBranch>(
+            shared_code, graph()->GetConstantUndefined());
+        shared_code_check.Then();
+        {
+          // Store the context-independent optimized code.
+          HValue* literals = Add<HConstant>(factory->empty_fixed_array());
+          BuildInstallOptimizedCode(js_function, native_context, shared_code,
+                                    literals);
+        }
+        shared_code_check.Else();
+        {
+          // Store the unoptimized code.
+          BuildInstallCode(js_function, shared_info);
+        }
       }
     }
   }

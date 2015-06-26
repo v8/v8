@@ -714,16 +714,27 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (code->is_turbofanned() && info->is_context_specializing()) return;
 
   // Do not cache bound functions.
-  if (info->closure()->shared()->bound()) return;
+  Handle<JSFunction> function = info->closure();
+  if (function->shared()->bound()) return;
 
-  // Cache optimized code.
+  // Cache optimized context-specific code.
   if (FLAG_cache_optimized_code) {
-    Handle<JSFunction> function = info->closure();
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<FixedArray> literals(function->literals());
     Handle<Context> native_context(function->context()->native_context());
     SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
                                               literals, info->osr_ast_id());
+  }
+
+  // Do not cache context-independent code compiled for OSR.
+  if (code->is_turbofanned() && info->is_osr()) return;
+
+  // Cache optimized context-independent code.
+  if (FLAG_turbo_cache_shared_code && code->is_turbofanned()) {
+    DCHECK(!info->is_context_specializing());
+    DCHECK(info->osr_ast_id().IsNone());
+    Handle<SharedFunctionInfo> shared(function->shared());
+    SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(shared, code);
   }
 }
 

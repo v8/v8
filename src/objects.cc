@@ -9568,6 +9568,17 @@ Handle<JSFunction> JSFunction::CloneClosure(Handle<JSFunction> function) {
 }
 
 
+void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
+    Handle<SharedFunctionInfo> shared, Handle<Code> code) {
+  Isolate* isolate = shared->GetIsolate();
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+  Handle<Object> value(shared->optimized_code_map(), isolate);
+  if (value->IsSmi()) return;  // Empty code maps are unsupported.
+  Handle<FixedArray> code_map = Handle<FixedArray>::cast(value);
+  code_map->set(kSharedCodeIndex, *code);
+}
+
+
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared,
     Handle<Context> native_context,
@@ -9584,7 +9595,6 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   if (value->IsSmi()) {
     // No optimized code map.
     DCHECK_EQ(0, Smi::cast(*value)->value());
-    // Create 3 entries per context {context, code, literals}.
     new_code_map = isolate->factory()->NewFixedArray(kInitialLength);
     old_length = kEntriesStart;
   } else {
@@ -9670,6 +9680,15 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
                       code_map->get(src + kOsrAstIdOffset));
       }
       dst += kEntryLength;
+    }
+  }
+  if (code_map->get(kSharedCodeIndex) == optimized_code) {
+    // Evict context-independent code as well.
+    code_map->set_undefined(kSharedCodeIndex);
+    if (FLAG_trace_opt) {
+      PrintF("[evicting entry from optimizing code map (%s) for ", reason);
+      ShortPrint();
+      PrintF(" (context-independent code)]\n");
     }
   }
   if (dst != length) {
@@ -10658,6 +10677,10 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
         return {Code::cast(optimized_code_map->get(i + kCachedCodeOffset)),
                 FixedArray::cast(optimized_code_map->get(i + kLiteralsOffset))};
       }
+    }
+    Object* shared_code = optimized_code_map->get(kSharedCodeIndex);
+    if (shared_code->IsCode() && osr_ast_id.IsNone()) {
+      return {Code::cast(shared_code), nullptr};
     }
     if (FLAG_trace_opt) {
       PrintF("[didn't find optimized code in optimized code map for ");

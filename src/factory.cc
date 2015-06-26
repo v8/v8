@@ -1390,6 +1390,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (cached.literals == nullptr && !info->bound()) {
     int number_of_literals = info->num_literals();
+    // TODO(mstarzinger): Consider sharing the newly created literals array.
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
     result->set_literals(*literals);
   }
