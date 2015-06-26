@@ -1372,11 +1372,17 @@ void CodeGenerator::AssembleReturn() {
     __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
-    __ Ret();
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ b(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : 0;
+      __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
+      __ Ret();
+    }
   } else {
     __ Ret();
   }
