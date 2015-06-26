@@ -396,6 +396,16 @@ function ScriptLineCount() {
 
 
 /**
+ * Returns the position of the nth line end.
+ * @return {number}
+ *     Zero-based position of the nth line end in the script.
+ */
+function ScriptLineEnd(n) {
+  return this.line_ends[n];
+}
+
+
+/**
  * If sourceURL comment is available returns sourceURL comment contents.
  * Otherwise, script name is returned. See
  * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
@@ -426,7 +436,8 @@ utils.SetUpLockedPrototype(Script, [
     "sourceSlice", ScriptSourceSlice,
     "sourceLine", ScriptSourceLine,
     "lineCount", ScriptLineCount,
-    "nameOrSourceURL", ScriptNameOrSourceURL
+    "nameOrSourceURL", ScriptNameOrSourceURL,
+    "lineEnd", ScriptLineEnd
   ]
 );
 

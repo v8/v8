@@ -6000,12 +6000,21 @@ TEST(DebugGetLoadedScripts) {
   bool allow_natives_syntax = i::FLAG_allow_natives_syntax;
   i::FLAG_allow_natives_syntax = true;
   EnableDebugger();
-  CompileRun(
-      "var scripts = %DebugGetLoadedScripts();"
-      "var count = scripts.length;"
-      "for (var i = 0; i < count; ++i) {"
-      "  scripts[i].line_ends;"
-      "}");
+  v8::MaybeLocal<v8::Value> result =
+      CompileRun(env.context(),
+                 "var scripts = %DebugGetLoadedScripts();"
+                 "var count = scripts.length;"
+                 "for (var i = 0; i < count; ++i) {"
+                 "  var lines = scripts[i].lineCount();"
+                 "  if (lines < 1) throw 'lineCount';"
+                 "  var last = -1;"
+                 "  for (var j = 0; j < lines; ++j) {"
+                 "    var end = scripts[i].lineEnd(j);"
+                 "    if (last >= end) throw 'lineEnd';"
+                 "    last = end;"
+                 "  }"
+                 "}");
+  CHECK(!result.IsEmpty());
   DisableDebugger();
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;

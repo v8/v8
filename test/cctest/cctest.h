@@ -398,6 +398,13 @@ static inline v8::Local<v8::Value> CompileRun(const char* source) {
 }
 
 
+// Helper functions that compile and run the source.
+static inline v8::MaybeLocal<v8::Value> CompileRun(
+    v8::Local<v8::Context> context, const char* source) {
+  return v8::Script::Compile(v8_str(source))->Run(context);
+}
+
+
 // Compiles source as an ES6 module.
 static inline v8::Local<v8::Value> CompileRunModule(const char* source) {
   v8::ScriptCompiler::Source script_source(v8_str(source));
