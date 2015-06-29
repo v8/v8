@@ -237,6 +237,10 @@ struct LiveRange::SpillAtDefinitionList : ZoneObject {
 };
 
 
+const float LiveRange::kInvalidWeight = -1;
+const float LiveRange::kMaxWeight = std::numeric_limits<float>::max();
+
+
 LiveRange::LiveRange(int id, MachineType machine_type)
     : id_(id),
       spill_start_index_(kMaxInt),
@@ -250,7 +254,9 @@ LiveRange::LiveRange(int id, MachineType machine_type)
       spills_at_definition_(nullptr),
       current_interval_(nullptr),
       last_processed_use_(nullptr),
-      current_hint_position_(nullptr) {
+      current_hint_position_(nullptr),
+      size_(kInvalidSize),
+      weight_(kInvalidWeight) {
   DCHECK(AllocatedOperand::IsSupportedMachineType(machine_type));
   bits_ = SpillTypeField::encode(SpillType::kNoSpillType) |
           AssignedRegisterField::encode(kUnassignedRegister) |
@@ -559,6 +565,10 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
   result->next_ = next_;
   next_ = result;
 
+  // Invalidate size and weight of this range. The child range has them
+  // invalid at construction.
+  size_ = kInvalidSize;
+  weight_ = kInvalidWeight;
 #ifdef DEBUG
   Verify();
   result->Verify();
@@ -746,6 +756,19 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
     }
   }
   return LifetimePosition::Invalid();
+}
+
+
+unsigned LiveRange::GetSize() {
+  if (size_ == kInvalidSize) {
+    size_ = 0;
+    for (auto interval = first_interval(); interval != nullptr;
+         interval = interval->next()) {
+      size_ += (interval->end().value() - interval->start().value());
+    }
+  }
+
+  return static_cast<unsigned>(size_);
 }
 
 
@@ -1852,6 +1875,15 @@ const ZoneVector<LiveRange*>& RegisterAllocator::GetFixedRegisters() const {
 }
 
 
+const char* RegisterAllocator::RegisterName(int allocation_index) const {
+  if (mode() == GENERAL_REGISTERS) {
+    return data()->config()->general_register_name(allocation_index);
+  } else {
+    return data()->config()->double_register_name(allocation_index);
+  }
+}
+
+
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
                                          RegisterKind kind, Zone* local_zone)
     : RegisterAllocator(data, kind),
@@ -1954,15 +1986,6 @@ void LinearScanAllocator::AllocateRegisters() {
     if (current->HasRegisterAssigned()) {
       AddToActive(current);
     }
-  }
-}
-
-
-const char* LinearScanAllocator::RegisterName(int allocation_index) const {
-  if (mode() == GENERAL_REGISTERS) {
-    return data()->config()->general_register_name(allocation_index);
-  } else {
-    return data()->config()->double_register_name(allocation_index);
   }
 }
 

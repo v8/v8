@@ -5,6 +5,7 @@
 #ifndef V8_GREEDY_ALLOCATOR_H_
 #define V8_GREEDY_ALLOCATOR_H_
 
+#include "src/compiler/coalesced-live-ranges.h"
 #include "src/compiler/register-allocator.h"
 #include "src/zone-containers.h"
 
@@ -12,7 +13,43 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class CoalescedLiveRanges;
+
+// The object of allocation scheduling. At minimum, this is a LiveRange, but
+// we may extend this to groups of LiveRanges. It has to be comparable.
+class AllocationCandidate {
+ public:
+  explicit AllocationCandidate(LiveRange* range) : range_(range) {}
+
+  // Strict ordering operators
+  bool operator<(const AllocationCandidate& other) const {
+    return range_->GetSize() < other.range_->GetSize();
+  }
+
+  bool operator>(const AllocationCandidate& other) const {
+    return range_->GetSize() > other.range_->GetSize();
+  }
+
+  LiveRange* live_range() const { return range_; }
+
+ private:
+  LiveRange* range_;
+};
+
+
+// Schedule processing (allocating) of AllocationCandidates.
+class AllocationScheduler final : ZoneObject {
+ public:
+  explicit AllocationScheduler(Zone* zone) : queue_(zone) {}
+  void Schedule(LiveRange* range);
+  AllocationCandidate GetNext();
+  bool empty() const { return queue_.empty(); }
+
+ private:
+  typedef ZonePriorityQueue<AllocationCandidate> ScheduleQueue;
+  ScheduleQueue queue_;
+
+  DISALLOW_COPY_AND_ASSIGN(AllocationScheduler);
+};
 
 
 // A variant of the LLVM Greedy Register Allocator. See
@@ -25,39 +62,47 @@ class GreedyAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
-  LifetimePosition GetSplittablePos(LifetimePosition pos);
-  const RegisterConfiguration* config() const { return data()->config(); }
+  AllocationScheduler& scheduler() { return scheduler_; }
+  CoalescedLiveRanges* current_allocations(unsigned i) {
+    return allocations_[i];
+  }
   Zone* local_zone() const { return local_zone_; }
 
-  int GetHintedRegister(LiveRange* range);
+  // Insert fixed ranges.
+  void PreallocateFixedRanges();
 
-  typedef ZonePriorityQueue<std::pair<unsigned, LiveRange*>> PQueue;
+  // Schedule unassigned live ranges for allocation.
+  // TODO(mtrofin): groups.
+  void ScheduleAllocationCandidates();
 
-  unsigned GetLiveRangeSize(LiveRange* range);
-  void Enqueue(LiveRange* range);
+  // Find the optimal split for ranges defined by a memory operand, e.g.
+  // constants or function parameters passed on the stack.
+  void SplitAndSpillRangesDefinedByMemoryOperand();
 
-  void Evict(LiveRange* range);
-  float CalculateSpillWeight(LiveRange* range);
-  float CalculateMaxSpillWeight(const ZoneSet<LiveRange*>& ranges);
+  void TryAllocateCandidate(const AllocationCandidate& candidate);
+  void TryAllocateLiveRange(LiveRange* range);
 
+  bool CanProcessRange(LiveRange* range) const {
+    return range != nullptr && !range->IsEmpty() && range->kind() == mode();
+  }
 
-  bool TryAllocate(LiveRange* current, ZoneSet<LiveRange*>* conflicting);
-  bool TryAllocatePhysicalRegister(unsigned reg_id, LiveRange* range,
-                                   ZoneSet<LiveRange*>* conflicting);
-  bool HandleSpillOperands(LiveRange* range);
-  void AllocateBlockedRange(LiveRange* current, LifetimePosition pos,
-                            bool spill);
+  // Calculate the weight of a candidate for allocation.
+  void EnsureValidRangeWeight(LiveRange* range);
 
-  LiveRange* SpillBetweenUntil(LiveRange* range, LifetimePosition start,
-                               LifetimePosition until, LifetimePosition end);
+  // Calculate the new weight of a range that is about to be allocated.
+  float GetAllocatedRangeWeight(float candidate_weight);
+
+  // This is the extension point for splitting heuristics.
+  void SplitOrSpillBlockedRange(LiveRange* range);
+
+  // Necessary heuristic: spill when all else failed.
+  void SpillRangeAsLastResort(LiveRange* range);
+
   void AssignRangeToRegister(int reg_id, LiveRange* range);
-
-  LifetimePosition FindProgressingSplitPosition(LiveRange* range,
-                                                bool* is_spill_pos);
 
   Zone* local_zone_;
   ZoneVector<CoalescedLiveRanges*> allocations_;
-  PQueue queue_;
+  AllocationScheduler scheduler_;
   DISALLOW_COPY_AND_ASSIGN(GreedyAllocator);
 };
 }  // namespace compiler

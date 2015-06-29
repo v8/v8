@@ -428,6 +428,15 @@ class LiveRange final : public ZoneObject {
     return spills_at_definition_;
   }
 
+  // Used solely by the Greedy Allocator:
+  unsigned GetSize();
+  float weight() const { return weight_; }
+  void set_weight(float weight) { weight_ = weight; }
+
+  static const int kInvalidSize = -1;
+  static const float kInvalidWeight;
+  static const float kMaxWeight;
+
  private:
   void set_spill_type(SpillType value) {
     bits_ = SpillTypeField::update(bits_, value);
@@ -468,6 +477,14 @@ class LiveRange final : public ZoneObject {
   // This is used as a cache, it's invalid outside of BuildLiveRanges.
   mutable UsePosition* current_hint_position_;
 
+  // greedy: the number of LifetimePositions covered by this range. Used to
+  // prioritize selecting live ranges for register assignment, as well as
+  // in weight calculations.
+  int size_;
+
+  // greedy: a metric for resolving conflicts between ranges with an assigned
+  // register and ranges that intersect them and need a register.
+  float weight_;
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
 
@@ -770,6 +787,7 @@ class RegisterAllocator : public ZoneObject {
                                           LifetimePosition pos);
 
   const ZoneVector<LiveRange*>& GetFixedRegisters() const;
+  const char* RegisterName(int allocation_index) const;
 
  private:
   RegisterAllocationData* const data_;
@@ -789,8 +807,6 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
-  const char* RegisterName(int allocation_index) const;
-
   ZoneVector<LiveRange*>& unhandled_live_ranges() {
     return unhandled_live_ranges_;
   }
