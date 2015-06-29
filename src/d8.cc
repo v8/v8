@@ -704,6 +704,10 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     workers_.Add(worker);
 
     String::Utf8Value function_string(args[0]->ToString());
+    if (!*function_string) {
+      Throw(args.GetIsolate(), "Function.prototype.toString failed");
+      return;
+    }
     worker->StartExecuteInThread(isolate, *function_string);
   }
 }
