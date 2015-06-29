@@ -354,9 +354,6 @@ class Logger {
   // Internal configurable move event.
   void MoveEventInternal(LogEventsAndTags event, Address from, Address to);
 
-  // Emits the source code of a regexp. Used by regexp events.
-  void LogRegExpSource(Handle<JSRegExp> regexp);
-
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
 

@@ -953,57 +953,58 @@ TIMER_EVENTS_LIST(V)
 #undef V
 
 
-void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
+namespace {
+// Emits the source code of a regexp. Used by regexp events.
+void LogRegExpSource(Handle<JSRegExp> regexp, Isolate* isolate,
+                     Log::MessageBuilder* msg) {
   // Prints "/" + re.source + "/" +
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
-  Log::MessageBuilder msg(log_);
 
-  Handle<Object> source = Object::GetProperty(
-      isolate_, regexp, "source").ToHandleChecked();
+  Handle<Object> source =
+      Object::GetProperty(isolate, regexp, "source").ToHandleChecked();
   if (!source->IsString()) {
-    msg.Append("no source");
+    msg->Append("no source");
     return;
   }
 
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
-      msg.Append('a');
+      msg->Append('a');
       break;
     default:
       break;
   }
-  msg.Append('/');
-  msg.AppendDetailed(*Handle<String>::cast(source), false);
-  msg.Append('/');
+  msg->Append('/');
+  msg->AppendDetailed(*Handle<String>::cast(source), false);
+  msg->Append('/');
 
   // global flag
-  Handle<Object> global = Object::GetProperty(
-      isolate_, regexp, "global").ToHandleChecked();
+  Handle<Object> global =
+      Object::GetProperty(isolate, regexp, "global").ToHandleChecked();
   if (global->IsTrue()) {
-    msg.Append('g');
+    msg->Append('g');
   }
   // ignorecase flag
-  Handle<Object> ignorecase = Object::GetProperty(
-      isolate_, regexp, "ignoreCase").ToHandleChecked();
+  Handle<Object> ignorecase =
+      Object::GetProperty(isolate, regexp, "ignoreCase").ToHandleChecked();
   if (ignorecase->IsTrue()) {
-    msg.Append('i');
+    msg->Append('i');
   }
   // multiline flag
-  Handle<Object> multiline = Object::GetProperty(
-      isolate_, regexp, "multiline").ToHandleChecked();
+  Handle<Object> multiline =
+      Object::GetProperty(isolate, regexp, "multiline").ToHandleChecked();
   if (multiline->IsTrue()) {
-    msg.Append('m');
+    msg->Append('m');
   }
-
-  msg.WriteToLogFile();
 }
+}  // namespace
 
 
 void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
   if (!log_->IsEnabled() || !FLAG_log_regexp) return;
   Log::MessageBuilder msg(log_);
   msg.Append("regexp-compile,");
-  LogRegExpSource(regexp);
+  LogRegExpSource(regexp, isolate_, &msg);
   msg.Append(in_cache ? ",hit" : ",miss");
   msg.WriteToLogFile();
 }
