@@ -331,6 +331,7 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_METHOD
 
   static Type* JSUnaryNotTyper(Type*, Typer*);
+  static Type* JSTypeOfTyper(Type*, Typer*);
   static Type* JSLoadPropertyTyper(Type*, Type*, Typer*);
   static Type* JSCallFunctionTyper(Type*, Typer*);
 
@@ -1211,8 +1212,25 @@ Bounds Typer::Visitor::TypeJSUnaryNot(Node* node) {
 }
 
 
+Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
+  Factory* const f = t->isolate()->factory();
+  if (type->Is(Type::Boolean())) {
+    return Type::Constant(f->boolean_string(), t->zone());
+  } else if (type->Is(Type::Number())) {
+    return Type::Constant(f->number_string(), t->zone());
+  } else if (type->Is(Type::Symbol())) {
+    return Type::Constant(f->symbol_string(), t->zone());
+  } else if (type->Is(Type::Union(Type::Undefined(), Type::Undetectable()))) {
+    return Type::Constant(f->undefined_string(), t->zone());
+  } else if (type->Is(Type::Null())) {
+    return Type::Constant(f->object_string(), t->zone());
+  }
+  return Type::InternalizedString();
+}
+
+
 Bounds Typer::Visitor::TypeJSTypeOf(Node* node) {
-  return Bounds(Type::None(zone()), Type::InternalizedString(zone()));
+  return TypeUnaryOp(node, JSTypeOfTyper);
 }
 
 
