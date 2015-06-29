@@ -189,11 +189,11 @@ function PromiseDeferred() {
       reject: function(r) { PromiseReject(promise, r) }
     };
   } else {
-    var result = {};
+    var result = {promise: UNDEFINED, reject: UNDEFINED, resolve: UNDEFINED};
     result.promise = new this(function(resolve, reject) {
       result.resolve = resolve;
       result.reject = reject;
-    })
+    });
     return result;
   }
 }
