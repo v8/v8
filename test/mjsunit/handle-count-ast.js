@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --check_handle_count
+// Flags: --check-handle-count
 
 var ones = eval("[" + Array(12 * 1024).join("1,") + 1 + "]")
 
