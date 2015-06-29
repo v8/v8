@@ -9722,6 +9722,12 @@ void HOptimizedGraphBuilder::BuildInitializeInobjectProperties(
 
 
 HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
+  // We HForceRepresentation here to avoid allocations during an *-to-tagged
+  // HChange that could cause GC while the array buffer object is not fully
+  // initialized.
+  HObjectAccess byte_length_access(HObjectAccess::ForJSArrayBufferByteLength());
+  byte_length = AddUncasted<HForceRepresentation>(
+      byte_length, byte_length_access.representation());
   HAllocate* result =
       BuildAllocate(Add<HConstant>(JSArrayBuffer::kSizeWithInternalFields),
                     HType::JSObject(), JS_ARRAY_BUFFER_TYPE, HAllocationMode());
@@ -9749,8 +9755,7 @@ HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
       result, HObjectAccess::ForJSArrayBufferBackingStore().WithRepresentation(
                   Representation::Smi()),
       graph()->GetConstant0());
-  Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferByteLength(),
-                        byte_length);
+  Add<HStoreNamedField>(result, byte_length_access, byte_length);
   Add<HStoreNamedField>(result, HObjectAccess::ForJSArrayBufferBitFieldSlot(),
                         graph()->GetConstant0());
   Add<HStoreNamedField>(
