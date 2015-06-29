@@ -156,8 +156,6 @@
 })();
 
 
-/*
-// TODO(arv): Reflect.construct does not work correctly with a third argument.
 (function TestReflectConstruct() {
   var calls = 0;
   function f(expected) {
@@ -187,7 +185,6 @@
   assertEquals(Object.getPrototypeOf(o), g.prototype);
   assertEquals(2, calls);
 })();
-*/
 
 
 (function TestRestParametersFunction() {
