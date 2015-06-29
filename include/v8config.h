@@ -5,6 +5,8 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// clang-format off
+
 // Platform headers for feature detection below.
 #if defined(__ANDROID__)
 # include <sys/cdefs.h>
@@ -230,10 +232,15 @@
 #elif defined(__GNUC__)
 
 # define V8_CC_GNU 1
-// Intel C++ also masquerades as GCC 3.2.0
-# define V8_CC_INTEL (defined(__INTEL_COMPILER))
-# define V8_CC_MINGW32 (defined(__MINGW32__))
-# define V8_CC_MINGW64 (defined(__MINGW64__))
+# if defined(__INTEL_COMPILER)  // Intel C++ also masquerades as GCC 3.2.0
+#  define V8_CC_INTEL 1
+# endif
+# if defined(__MINGW32__)
+#  define V8_CC_MINGW32 1
+# endif
+# if defined(__MINGW64__)
+#  define V8_CC_MINGW64 1
+# endif
 # define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
 # define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(4, 3, 0))
@@ -411,5 +418,7 @@ namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
 #else
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
+
+// clang-format on
 
 #endif  // V8CONFIG_H_
