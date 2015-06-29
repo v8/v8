@@ -319,24 +319,20 @@ void Scope::Initialize() {
     receiver_ = var;
   }
 
-  if (is_function_scope()) {
-    if (!is_arrow_scope()) {
-      // Declare 'arguments' variable which exists in all non arrow functions.
-      // Note that it might never be accessed, in which case it won't be
-      // allocated during variable allocation.
-      variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
-                         Variable::ARGUMENTS, kCreatedInitialized);
-    }
+  if (is_function_scope() && !is_arrow_scope()) {
+    // Declare 'arguments' variable which exists in all non arrow functions.
+    // Note that it might never be accessed, in which case it won't be
+    // allocated during variable allocation.
+    variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
+                       Variable::ARGUMENTS, kCreatedInitialized);
 
-    if (subclass_constructor) {
-      DCHECK(!is_arrow_scope());
+    if (subclass_constructor || FLAG_harmony_new_target) {
       variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
                          Variable::NORMAL, kCreatedInitialized);
     }
 
     if (IsConciseMethod(function_kind_) || IsConstructor(function_kind_) ||
         IsAccessorFunction(function_kind_)) {
-      DCHECK(!is_arrow_scope());
       variables_.Declare(this, ast_value_factory_->this_function_string(),
                          CONST, Variable::NORMAL, kCreatedInitialized);
     }

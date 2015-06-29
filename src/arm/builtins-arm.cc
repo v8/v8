@@ -343,6 +343,7 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
+                                           bool use_new_target,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments
@@ -367,10 +368,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ push(r2);
     }
 
-    // Preserve the two incoming parameters on the stack.
+    // Preserve the incoming parameters on the stack.
     __ SmiTag(r0);
-    __ push(r0);  // Smi-tagged arguments count.
-    __ push(r1);  // Constructor function.
+    __ push(r0);
+    __ push(r1);
+    if (use_new_target) {
+      __ push(r3);
+    }
 
     Label rt_call, allocated, normal_new, count_incremented;
     __ cmp(r1, r3);
@@ -610,7 +614,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&allocated);
 
     if (create_memento) {
-      __ ldr(r2, MemOperand(sp, kPointerSize * 2));
+      int offset = (use_new_target ? 3 : 2) * kPointerSize;
+      __ ldr(r2, MemOperand(sp, offset));
       __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
       __ cmp(r2, r5);
       __ b(eq, &count_incremented);
@@ -624,22 +629,26 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
-    __ pop(r1);  // Constructor function.
+    // Restore the parameters.
+    if (use_new_target) {
+      __ pop(r3);
+    }
+    __ pop(r1);
 
+    // Retrieve smi-tagged arguments count from the stack.
+    __ ldr(r0, MemOperand(sp));
+    __ SmiUntag(r0);
+
+    // Push new.target onto the construct frame. This is stored just below the
+    // receiver on the stack.
+    if (use_new_target) {
+      __ push(r3);
+    }
     __ push(r4);
     __ push(r4);
-
-    // Reload the number of arguments from the stack.
-    // sp[0]: receiver
-    // sp[1]: receiver
-    // sp[2]: number of arguments (smi-tagged)
-    __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
 
     // Set up pointer to last argument.
     __ add(r2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
-
-    // Set up number of arguments for function call below
-    __ SmiUntag(r0, r3);
 
     // Copy arguments and receiver to the expression stack.
     // r0: number of arguments
@@ -648,8 +657,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: number of arguments (smi-tagged)
+    // sp[2]: new.target (if used)
+    // sp[2/3]: number of arguments (smi-tagged)
     Label loop, entry;
+    __ SmiTag(r3, r0);
     __ b(&entry);
     __ bind(&loop);
     __ ldr(ip, MemOperand(r2, r3, LSL, kPointerSizeLog2 - 1));
@@ -672,14 +683,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function) {
+    // TODO(arv): Remove the "!use_new_target" before supporting optimization
+    // of functions that reference new.target
+    if (!is_api_function && !use_new_target) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
     // Restore context from the frame.
     // r0: result
     // sp[0]: receiver
-    // sp[1]: number of arguments (smi-tagged)
+    // sp[1]: new.target (if used)
+    // sp[1/2]: number of arguments (smi-tagged)
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     // If the result is an object (in the ECMA sense), we should get rid
@@ -690,7 +704,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // If the result is a smi, it is *not* an object in the ECMA sense.
     // r0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: number of arguments (smi-tagged)
+    // sp[1]: new.target (if used)
+    // sp[1/2]: number of arguments (smi-tagged)
     __ JumpIfSmi(r0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
@@ -708,8 +723,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&exit);
     // r0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: number of arguments (smi-tagged)
-    __ ldr(r1, MemOperand(sp, kPointerSize));
+    // sp[1]: new.target (if used)
+    // sp[1/2]: number of arguments (smi-tagged)
+    int offset = (use_new_target ? 2 : 1) * kPointerSize;
+    __ ldr(r1, MemOperand(sp, offset));
 
     // Leave construct frame.
   }
@@ -722,12 +739,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
+}
+
+
+void Builtins::Generate_JSConstructStubNewTarget(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, FLAG_pretenuring_call_new);
 }
 
 

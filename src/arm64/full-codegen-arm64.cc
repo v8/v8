@@ -273,7 +273,7 @@ void FullCodeGenerator::Generate() {
     __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
 
     __ Bind(&done);
-    // new.target is parameter -2.
+
     SetVar(new_target_var, x0, x2, x3);
   }
 

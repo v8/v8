@@ -136,6 +136,7 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
+                                           bool use_new_target,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
@@ -156,12 +157,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Push(rbx);
     }
 
-    // Store a smi-tagged arguments count on the stack.
+    // Preserve the incoming parameters on the stack.
     __ Integer32ToSmi(rax, rax);
     __ Push(rax);
-
-    // Push the function to invoke on the stack.
     __ Push(rdi);
+    if (use_new_target) {
+      __ Push(rdx);
+    }
 
     Label rt_call, normal_new, allocated, count_incremented;
     __ cmpp(rdx, rdi);
@@ -388,7 +390,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&allocated);
 
     if (create_memento) {
-      __ movp(rcx, Operand(rsp, kPointerSize*2));
+      int offset = (use_new_target ? 3 : 2) * kPointerSize;
+      __ movp(rcx, Operand(rsp, offset));
       __ Cmp(rcx, masm->isolate()->factory()->undefined_value());
       __ j(equal, &count_incremented);
       // rcx is an AllocationSite. We are creating a memento from it, so we
@@ -399,12 +402,21 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
-    // Retrieve the function from the stack.
+    // Restore the parameters.
+    if (use_new_target) {
+      __ Pop(rdx);
+    }
     __ Pop(rdi);
 
     // Retrieve smi-tagged arguments count from the stack.
     __ movp(rax, Operand(rsp, 0));
     __ SmiToInteger32(rax, rax);
+
+    // Push new.target onto the construct frame. This is stored just below the
+    // receiver on the stack.
+    if (use_new_target) {
+      __ Push(rdx);
+    }
 
     // Push the allocated receiver to the stack. We need two copies
     // because we may have to return the original one and the calling
@@ -437,7 +449,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function) {
+    // TODO(arv): Remove the "!use_new_target" before supporting optimization
+    // of functions that reference new.target
+    if (!is_api_function && !use_new_target) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -462,9 +476,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&use_receiver);
     __ movp(rax, Operand(rsp, 0));
 
-    // Restore the arguments count and leave the construct frame.
+    // Restore the arguments count and leave the construct frame. The arguments
+    // count is stored below the reciever and the new.target.
     __ bind(&exit);
-    __ movp(rbx, Operand(rsp, kPointerSize));  // Get arguments count.
+    int offset = (use_new_target ? 2 : 1) * kPointerSize;
+    __ movp(rbx, Operand(rsp, offset));
 
     // Leave construct frame.
   }
@@ -481,12 +497,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
+}
+
+
+void Builtins::Generate_JSConstructStubNewTarget(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, FLAG_pretenuring_call_new);
 }
 
 

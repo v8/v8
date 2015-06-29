@@ -70,6 +70,7 @@ enum BuiltinExtraArguments {
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
   V(JSConstructStubForDerived, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
   V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
+  V(JSConstructStubNewTarget, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
   V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                    \
@@ -322,6 +323,7 @@ class Builtins {
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSConstructStubForDerived(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
+  static void Generate_JSConstructStubNewTarget(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
   static void Generate_NotifyDeoptimized(MacroAssembler* masm);

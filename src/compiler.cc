@@ -1440,6 +1440,11 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // first time. It may have already been compiled previously.
     result->set_never_compiled(outer_info->is_first_compile() && lazy);
 
+    if (literal->scope()->new_target_var() != nullptr) {
+      Handle<Code> stub(isolate->builtins()->JSConstructStubNewTarget());
+      result->set_construct_stub(*stub);
+    }
+
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
     result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
     result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
