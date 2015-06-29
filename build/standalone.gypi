@@ -67,7 +67,9 @@
         },
         'host_arch%': '<(host_arch)',
         'target_arch%': '<(host_arch)',
+        'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
       },
+      'base_dir%': '<(base_dir)',
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
@@ -84,7 +86,7 @@
       # library. This is intended to be used for instrumented builds.
       'use_custom_libcxx%': 0,
 
-      'clang_dir%': 'third_party/llvm-build/Release+Asserts',
+      'clang_dir%': '<(base_dir)/third_party/llvm-build/Release+Asserts',
 
       # goma settings.
       # 1 to use goma.
@@ -105,6 +107,7 @@
         }],
       ],
     },
+    'base_dir%': '<(base_dir)',
     'clang_dir%': '<(clang_dir)',
     'host_arch%': '<(host_arch)',
     'host_clang%': '<(host_clang)',
@@ -215,7 +218,7 @@
           'variables': {
             # The Android toolchain needs to use the absolute path to the NDK
             # because it is used at different levels in the GYP files.
-            'android_ndk_root%': '<!(cd <(DEPTH) && pwd -P)/third_party/android_tools/ndk/',
+            'android_ndk_root%': '<(base_dir)/third_party/android_tools/ndk/',
             'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
             'host_os%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')",
           },
@@ -303,8 +306,8 @@
         'android_stlport_library': 'stlport_static',
       }],  # OS=="android"
       ['host_clang==1', {
-        'host_cc': '../<(clang_dir)/bin/clang',
-        'host_cxx': '../<(clang_dir)/bin/clang++',
+        'host_cc': '<(clang_dir)/bin/clang',
+        'host_cxx': '<(clang_dir)/bin/clang++',
       }, {
         'host_cc': '<!(which gcc)',
         'host_cxx': '<!(which g++)',
@@ -986,8 +989,8 @@
     }],
     ['clang!=1 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
       'make_global_settings': [
-        ['CC.host', '../<(clang_dir)/bin/clang'],
-        ['CXX.host', '../<(clang_dir)/bin/clang++'],
+        ['CC.host', '<(clang_dir)/bin/clang'],
+        ['CXX.host', '<(clang_dir)/bin/clang++'],
       ],
     }],
     ['clang==0 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
@@ -1012,8 +1015,8 @@
     ['clang==1 and ((OS!="mac" and OS!="ios") or clang_xcode==0) '
         'and OS!="win" and "<(GENERATOR)"=="make"', {
       'make_global_settings': [
-        ['CC', '../<(clang_dir)/bin/clang'],
-        ['CXX', '../<(clang_dir)/bin/clang++'],
+        ['CC', '<(clang_dir)/bin/clang'],
+        ['CXX', '<(clang_dir)/bin/clang++'],
         ['CC.host', '$(CC)'],
         ['CXX.host', '$(CXX)'],
       ],
@@ -1030,7 +1033,7 @@
     ['clang==1 and OS=="win"', {
       'make_global_settings': [
         # On Windows, gyp's ninja generator only looks at CC.
-        ['CC', '../<(clang_dir)/bin/clang-cl'],
+        ['CC', '<(clang_dir)/bin/clang-cl'],
       ],
     }],
     # TODO(yyanagisawa): supports GENERATOR==make
