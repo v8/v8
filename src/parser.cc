@@ -4036,9 +4036,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // To make this additional case work, both Parser and PreParser implement a
     // logic where only top-level functions will be parsed lazily.
-    bool is_lazily_parsed = (mode() == PARSE_LAZILY &&
-                             scope_->AllowsLazyCompilation() &&
-                             !parenthesized_function_);
+    bool is_lazily_parsed = mode() == PARSE_LAZILY &&
+                            scope_->AllowsLazyParsing() &&
+                            !parenthesized_function_;
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     // Eager or lazy parse?
@@ -4048,11 +4048,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // try to lazy parse in the first place, we'll have to parse eagerly.
     Scanner::BookmarkScope bookmark(scanner());
     if (is_lazily_parsed) {
-      for (Scope* s = scope_->outer_scope();
-           s != nullptr && (s != s->DeclarationScope()); s = s->outer_scope()) {
-        s->ForceContextAllocation();
-      }
-
       Scanner::BookmarkScope* maybe_bookmark =
           bookmark.Set() ? &bookmark : nullptr;
       SkipLazyFunctionBody(&materialized_literal_count,

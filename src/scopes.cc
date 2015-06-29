@@ -734,6 +734,17 @@ bool Scope::HasLazyCompilableOuterContext() const {
 }
 
 
+bool Scope::AllowsLazyParsing() const {
+  // If we are inside a block scope, we must parse eagerly to find out how
+  // to allocate variables on the block scope. At this point, declarations may
+  // not have yet been parsed.
+  for (const Scope* scope = this; scope != NULL; scope = scope->outer_scope_) {
+    if (scope->is_block_scope()) return false;
+  }
+  return AllowsLazyCompilation();
+}
+
+
 bool Scope::AllowsLazyCompilation() const {
   return !force_eager_compilation_ && HasLazyCompilableOuterContext();
 }

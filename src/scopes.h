@@ -470,6 +470,9 @@ class Scope: public ZoneObject {
   // Make sure this scope and all outer scopes are eagerly compiled.
   void ForceEagerCompilation()  { force_eager_compilation_ = true; }
 
+  // Determine if we can parse a function literal in this scope lazily.
+  bool AllowsLazyParsing() const;
+
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;
 
