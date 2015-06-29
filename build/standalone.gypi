@@ -771,11 +771,8 @@
           }],
           ['clang==1', {
             'xcode_settings': {
-              'CC': '<(clang_dir)/bin/clang',
-              'LDPLUSPLUS': '<(clang_dir)/bin/clang++',
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
-              'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
         ],
