@@ -108,11 +108,7 @@ from testrunner.local import commands
 from testrunner.local import utils
 
 ARCH_GUESS = utils.DefaultArch()
-SUPPORTED_ARCHS = ["android_arm",
-                   "android_arm64",
-                   "android_ia32",
-                   "android_x64",
-                   "arm",
+SUPPORTED_ARCHS = ["arm",
                    "ia32",
                    "mips",
                    "mipsel",
@@ -470,7 +466,7 @@ class Platform(object):
 
   @staticmethod
   def GetPlatform(options):
-    if options.arch.startswith("android"):
+    if options.android_build_tools:
       return AndroidPlatform(options)
     else:
       return DesktopPlatform(options)
@@ -632,7 +628,8 @@ def Main(args):
   logging.getLogger().setLevel(logging.INFO)
   parser = optparse.OptionParser()
   parser.add_option("--android-build-tools",
-                    help="Path to chromium's build/android.")
+                    help="Path to chromium's build/android. Specifying this "
+                         "option will run tests using android platform.")
   parser.add_option("--arch",
                     help=("The architecture to run tests for, "
                           "'auto' or 'native' for auto-detect"),
@@ -663,15 +660,8 @@ def Main(args):
     print "Unknown architecture %s" % options.arch
     return 1
 
-  if (bool(options.arch.startswith("android")) !=
-      bool(options.android_build_tools)):  # pragma: no cover
-    print ("Android architectures imply setting --android-build-tools and the "
-           "other way around.")
-    return 1
-
-  if (options.device and not
-      options.arch.startswith("android")):  # pragma: no cover
-    print "Specifying a device requires an Android architecture to be used."
+  if (options.device and not options.android_build_tools):  # pragma: no cover
+    print "Specifying a device requires Android build tools."
     return 1
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
