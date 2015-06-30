@@ -1056,11 +1056,12 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 
 
 void CodeFlusher::EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
-  DCHECK(!FixedArray::cast(code_map_holder->optimized_code_map())
-              ->get(SharedFunctionInfo::kNextMapIndex)
-              ->IsUndefined());
+  FixedArray* code_map =
+      FixedArray::cast(code_map_holder->optimized_code_map());
+  DCHECK(!code_map->get(SharedFunctionInfo::kNextMapIndex)->IsUndefined());
 
   // Make sure previous flushing decisions are revisited.
+  isolate_->heap()->incremental_marking()->RecordWrites(code_map);
   isolate_->heap()->incremental_marking()->RecordWrites(code_map_holder);
 
   if (FLAG_trace_code_flushing) {
