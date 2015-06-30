@@ -140,6 +140,7 @@ bool AstValue::BooleanValue() const {
     case SYMBOL:
       UNREACHABLE();
       break;
+    case NUMBER_WITH_DOT:
     case NUMBER:
       return DoubleToBoolean(number_);
     case SMI:
@@ -175,6 +176,7 @@ void AstValue::Internalize(Isolate* isolate) {
         value_ = isolate->factory()->home_object_symbol();
       }
       break;
+    case NUMBER_WITH_DOT:
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);
       break;
@@ -290,8 +292,8 @@ const AstValue* AstValueFactory::NewSymbol(const char* name) {
 }
 
 
-const AstValue* AstValueFactory::NewNumber(double number) {
-  AstValue* value = new (zone_) AstValue(number);
+const AstValue* AstValueFactory::NewNumber(double number, bool with_dot) {
+  AstValue* value = new (zone_) AstValue(number, with_dot);
   if (isolate_) {
     value->Internalize(isolate_);
   }

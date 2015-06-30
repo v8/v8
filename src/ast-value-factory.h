@@ -142,8 +142,10 @@ class AstValue : public ZoneObject {
   }
 
   bool IsNumber() const {
-    return type_ == NUMBER || type_ == SMI;
+    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI;
   }
+
+  bool ContainsDot() const { return type_ == NUMBER_WITH_DOT; }
 
   const AstRawString* AsString() const {
     if (type_ == STRING)
@@ -153,7 +155,7 @@ class AstValue : public ZoneObject {
   }
 
   double AsNumber() const {
-    if (type_ == NUMBER)
+    if (type_ == NUMBER || type_ == NUMBER_WITH_DOT)
       return number_;
     if (type_ == SMI)
       return smi_;
@@ -189,6 +191,7 @@ class AstValue : public ZoneObject {
     STRING,
     SYMBOL,
     NUMBER,
+    NUMBER_WITH_DOT,
     SMI,
     BOOLEAN,
     NULL_TYPE,
@@ -200,7 +203,14 @@ class AstValue : public ZoneObject {
 
   explicit AstValue(const char* name) : type_(SYMBOL) { symbol_name_ = name; }
 
-  explicit AstValue(double n) : type_(NUMBER) { number_ = n; }
+  explicit AstValue(double n, bool with_dot) {
+    if (with_dot) {
+      type_ = NUMBER_WITH_DOT;
+    } else {
+      type_ = NUMBER;
+    }
+    number_ = n;
+  }
 
   AstValue(Type t, int i) : type_(t) {
     DCHECK(type_ == SMI);
@@ -334,7 +344,7 @@ class AstValueFactory {
   const AstValue* NewString(const AstRawString* string);
   // A JavaScript symbol (ECMA-262 edition 6).
   const AstValue* NewSymbol(const char* name);
-  const AstValue* NewNumber(double number);
+  const AstValue* NewNumber(double number, bool with_dot = false);
   const AstValue* NewSmi(int number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);

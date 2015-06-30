@@ -1100,6 +1100,58 @@ TEST(ScopeUsesArgumentsSuperThis) {
 }
 
 
+static void CheckParsesToNumber(const char* source, bool with_dot) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::string full_source = "function f() { return ";
+  full_source += source;
+  full_source += "; }";
+
+  i::Handle<i::String> source_code =
+      factory->NewStringFromUtf8(i::CStrVector(full_source.c_str()))
+          .ToHandleChecked();
+
+  i::Handle<i::Script> script = factory->NewScript(source_code);
+
+  i::ParseInfo info(handles.main_zone(), script);
+  i::Parser parser(&info);
+  parser.set_allow_harmony_arrow_functions(true);
+  parser.set_allow_harmony_sloppy(true);
+  info.set_global();
+  info.set_lazy(false);
+  info.set_allow_lazy_parsing(false);
+  info.set_toplevel(true);
+
+  i::CompilationInfo compilation_info(&info);
+  CHECK(i::Compiler::ParseAndAnalyze(&info));
+
+  CHECK(info.scope()->declarations()->length() == 1);
+  i::FunctionLiteral* fun =
+      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
+  CHECK(fun->body()->length() == 1);
+  CHECK(fun->body()->at(0)->IsReturnStatement());
+  i::ReturnStatement* ret = fun->body()->at(0)->AsReturnStatement();
+  CHECK(ret->expression()->IsLiteral());
+  i::Literal* lit = ret->expression()->AsLiteral();
+  const i::AstValue* val = lit->raw_value();
+  CHECK(with_dot == val->ContainsDot());
+}
+
+
+TEST(ParseNumbers) {
+  CheckParsesToNumber("1.34", true);
+  CheckParsesToNumber("134", false);
+  CheckParsesToNumber("134e44", false);
+  CheckParsesToNumber("134.e44", true);
+  CheckParsesToNumber("134.44e44", true);
+  CheckParsesToNumber(".44", true);
+}
+
+
 TEST(ScopePositions) {
   // Test the parser for correctly setting the start and end positions
   // of a scope. We check the scope positions of exactly one scope

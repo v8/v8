@@ -815,8 +815,9 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
       return factory->NewSmiLiteral(value, pos);
     }
     case Token::NUMBER: {
+      bool has_dot = scanner->ContainsDot();
       double value = scanner->DoubleValue();
-      return factory->NewNumberLiteral(value, pos);
+      return factory->NewNumberLiteral(value, pos, has_dot);
     }
     default:
       DCHECK(false);

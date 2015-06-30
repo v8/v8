@@ -1425,6 +1425,13 @@ double Scanner::DoubleValue() {
 }
 
 
+bool Scanner::ContainsDot() {
+  DCHECK(is_literal_one_byte());
+  Vector<const uint8_t> str = literal_one_byte_string();
+  return std::find(str.begin(), str.end(), '.') != str.end();
+}
+
+
 int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
   if (is_literal_one_byte()) {
     return finder->AddOneByteSymbol(literal_one_byte_string(), value);

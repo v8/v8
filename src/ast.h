@@ -3380,9 +3380,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Literal(zone_, ast_value_factory_->NewSymbol(name), pos);
   }
 
-  Literal* NewNumberLiteral(double number, int pos) {
+  Literal* NewNumberLiteral(double number, int pos, bool with_dot = false) {
     return new (zone_)
-        Literal(zone_, ast_value_factory_->NewNumber(number), pos);
+        Literal(zone_, ast_value_factory_->NewNumber(number, with_dot), pos);
   }
 
   Literal* NewSmiLiteral(int number, int pos) {
