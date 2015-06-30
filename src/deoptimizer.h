@@ -20,7 +20,7 @@ class DeoptimizedFrameInfo;
 class TranslatedState;
 class RegisterValues;
 
-class TranslatedValue BASE_EMBEDDED {
+class TranslatedValue {
  public:
   // Allocation-less getter of the value.
   // Returns heap()->arguments_marker() if allocation would be
@@ -292,50 +292,6 @@ class TranslatedState {
     int value_index_;
   };
   std::deque<ObjectPosition> object_positions_;
-};
-
-template<typename T>
-class HeapNumberMaterializationDescriptor BASE_EMBEDDED {
- public:
-  HeapNumberMaterializationDescriptor(T destination, double value)
-      : destination_(destination), value_(value) { }
-
-  T destination() const { return destination_; }
-  double value() const { return value_; }
-
- private:
-  T destination_;
-  double value_;
-};
-
-
-class ObjectMaterializationDescriptor BASE_EMBEDDED {
- public:
-  ObjectMaterializationDescriptor(
-      Address slot_address, int frame, int length, int duplicate, bool is_args)
-      : slot_address_(slot_address),
-        jsframe_index_(frame),
-        object_length_(length),
-        duplicate_object_(duplicate),
-        is_arguments_(is_args) { }
-
-  Address slot_address() const { return slot_address_; }
-  int jsframe_index() const { return jsframe_index_; }
-  int object_length() const { return object_length_; }
-  int duplicate_object() const { return duplicate_object_; }
-  bool is_arguments() const { return is_arguments_; }
-
-  // Only used for allocated receivers in DoComputeConstructStubFrame.
-  void patch_slot_address(intptr_t slot) {
-    slot_address_ = reinterpret_cast<Address>(slot);
-  }
-
- private:
-  Address slot_address_;
-  int jsframe_index_;
-  int object_length_;
-  int duplicate_object_;
-  bool is_arguments_;
 };
 
 
