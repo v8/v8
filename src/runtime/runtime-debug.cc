@@ -3022,6 +3022,11 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   DebugScope debug_scope(isolate->debug());
+  if (debug_scope.failed()) {
+    DCHECK(isolate->has_pending_exception());
+    return isolate->heap()->exception();
+  }
+
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -3037,6 +3042,10 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
   Handle<Context> context;
   {
     DebugScope debug_scope(isolate->debug());
+    if (debug_scope.failed()) {
+      DCHECK(isolate->has_pending_exception());
+      return isolate->heap()->exception();
+    }
     context = isolate->debug()->GetDebugContext();
   }
   if (context.is_null()) return isolate->heap()->undefined_value();
