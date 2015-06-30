@@ -2061,8 +2061,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       for (int i = 0; i < array->Length(); i++) {
         Object* item = array->Get(i);
         if (!item->IsSharedFunctionInfo()) continue;
-        SharedFunctionInfo* shared = SharedFunctionInfo::cast(item);
-        finder.NewCandidate(shared);
+        finder.NewCandidate(SharedFunctionInfo::cast(item));
       }
       shared = finder.Result();
       if (shared == NULL) break;
@@ -2081,18 +2080,20 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       HeapIterator it(isolate_->heap(), HeapIterator::kNoFiltering);
       SharedFunctionInfoFinder finder(position);
       while (HeapObject* object = it.next()) {
-        JSFunction* closure = NULL;
-        SharedFunctionInfo* shared = NULL;
+        JSFunction* candidate_closure = NULL;
+        SharedFunctionInfo* candidate = NULL;
         if (object->IsJSFunction()) {
-          closure = JSFunction::cast(object);
-          shared = closure->shared();
+          candidate_closure = JSFunction::cast(object);
+          candidate = candidate_closure->shared();
         } else if (object->IsSharedFunctionInfo()) {
-          shared = SharedFunctionInfo::cast(object);
-          if (!shared->allows_lazy_compilation_without_context()) continue;
+          candidate = SharedFunctionInfo::cast(object);
+          if (!candidate->allows_lazy_compilation_without_context()) continue;
         } else {
           continue;
         }
-        if (shared->script() == *script) finder.NewCandidate(shared, closure);
+        if (candidate->script() == *script) {
+          finder.NewCandidate(candidate, candidate_closure);
+        }
       }
       closure = finder.ResultClosure();
       shared = finder.Result();
