@@ -3242,6 +3242,35 @@ void MacroAssembler::FlushICache(Register address, size_t size,
 }
 
 
+void MacroAssembler::DecodeConstantPoolOffset(Register result,
+                                              Register location) {
+  Label overflow_access, done;
+  DCHECK(!AreAliased(result, location, r0));
+
+  // Determine constant pool access type
+  // Caller has already placed the instruction word at location in result.
+  ExtractBitRange(r0, result, 31, 26);
+  cmpi(r0, Operand(ADDIS >> 26));
+  beq(&overflow_access);
+
+  // Regular constant pool access
+  // extract the load offset
+  andi(result, result, Operand(kImm16Mask));
+  b(&done);
+
+  bind(&overflow_access);
+  // Overflow constant pool access
+  // shift addis immediate
+  slwi(r0, result, Operand(16));
+  // sign-extend and add the load offset
+  lwz(result, MemOperand(location, kInstrSize));
+  extsh(result, result);
+  add(result, r0, result);
+
+  bind(&done);
+}
+
+
 void MacroAssembler::SetRelocatedValue(Register location, Register scratch,
                                        Register new_value) {
   lwz(scratch, MemOperand(location));
@@ -3255,8 +3284,7 @@ void MacroAssembler::SetRelocatedValue(Register location, Register scratch,
       // Scratch was clobbered. Restore it.
       lwz(scratch, MemOperand(location));
     }
-    // Get the address of the constant and patch it.
-    andi(scratch, scratch, Operand(kImm16Mask));
+    DecodeConstantPoolOffset(scratch, location);
     StorePX(new_value, MemOperand(kConstantPoolRegister, scratch));
     return;
   }
@@ -3352,8 +3380,7 @@ void MacroAssembler::GetRelocatedValue(Register location, Register result,
       Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
       lwz(result, MemOperand(location));
     }
-    // Get the address of the constant and retrieve it.
-    andi(result, result, Operand(kImm16Mask));
+    DecodeConstantPoolOffset(result, location);
     LoadPX(result, MemOperand(kConstantPoolRegister, result));
     return;
   }

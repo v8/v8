@@ -1367,6 +1367,10 @@ class MacroAssembler : public Assembler {
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
+  // Decode offset from constant pool load instruction(s).
+  // Caller must place the instruction word at <location> in <result>.
+  void DecodeConstantPoolOffset(Register result, Register location);
+
   // Retrieve/patch the relocated value (lis/ori pair or constant pool load).
   void GetRelocatedValue(Register location, Register result, Register scratch);
   void SetRelocatedValue(Register location, Register scratch,
