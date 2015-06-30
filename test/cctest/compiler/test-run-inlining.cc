@@ -541,4 +541,38 @@ TEST(StrongModeArityOuter) {
   T.CheckThrows(T.undefined(), T.undefined());
 }
 
+
+TEST(InlineSelfRecursive) {
+  FunctionTester T(
+      "(function () {"
+      "  function foo(x) { "
+      "    AssertInlineCount(1);"
+      "    if (x == 1) return foo(12);"
+      "    return x;"
+      "  }"
+      "  return foo;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.Val(12), T.Val(1));
+}
+
+
+TEST(InlineMutuallyRecursive) {
+  FunctionTester T(
+      "(function () {"
+      "  function bar(x) { AssertInlineCount(2); return foo(x); }"
+      "  function foo(x) { "
+      "    if (x == 1) return bar(42);"
+      "    return x;"
+      "  }"
+      "  return foo;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.Val(42), T.Val(1));
+}
+
 #endif  // V8_TURBOFAN_TARGET

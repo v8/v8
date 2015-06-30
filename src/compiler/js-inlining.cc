@@ -251,6 +251,23 @@ Reduction JSInliner::Reduce(Node* node) {
     return NoChange();
   }
 
+  // TODO(turbofan): TranslatedState::GetAdaptedArguments() currently relies on
+  // not inlining recursive functions. We might want to relax that at some
+  // point.
+  for (Node* frame_state = call.frame_state();
+       frame_state->opcode() == IrOpcode::kFrameState;
+       frame_state = frame_state->InputAt(kFrameStateOuterStateInput)) {
+    FrameStateInfo const& info = OpParameter<FrameStateInfo>(frame_state);
+    Handle<SharedFunctionInfo> shared_info;
+    if (info.shared_info().ToHandle(&shared_info) &&
+        *shared_info == function->shared()) {
+      TRACE("Not inlining %s into %s because call is recursive\n",
+            function->shared()->DebugName()->ToCString().get(),
+            info_->shared_info()->DebugName()->ToCString().get());
+      return NoChange();
+    }
+  }
+
   Zone zone;
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);
