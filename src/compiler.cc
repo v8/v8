@@ -1455,14 +1455,14 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
                                          literal->expected_property_count());
     live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
     return result;
-  } else {
-    // We may have additional data from compilation now.
+  } else if (!lazy) {
+    // We have additional data from compilation now.
     DCHECK(!existing->is_compiled());
     existing->ReplaceCode(*info.code());
     existing->set_scope_info(*scope_info);
     existing->set_feedback_vector(*info.feedback_vector());
-    return existing;
   }
+  return existing;
 }
 
 

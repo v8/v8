@@ -1967,7 +1967,6 @@ void Debug::PrepareForBreakPoints() {
       Handle<SharedFunctionInfo> shared(function->shared());
 
       // If recompilation is not possible just skip it.
-      if (shared->is_toplevel()) continue;
       if (!shared->allows_lazy_compilation()) continue;
       if (shared->code()->kind() == Code::BUILTIN) continue;
 
