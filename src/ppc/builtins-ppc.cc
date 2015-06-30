@@ -641,7 +641,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Retrieve smi-tagged arguments count from the stack.
     __ LoadP(r6, MemOperand(sp));
-    __ SmiUntag(r3, r6);
 
     // Push new.target onto the construct frame. This is stored just below the
     // receiver on the stack.
@@ -655,7 +654,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset));
 
     // Copy arguments and receiver to the expression stack.
-    // r3: number of arguments
     // r4: constructor function
     // r5: address of last argument (caller sp)
     // r6: number of arguments (smi-tagged)
@@ -664,14 +662,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // sp[2]: new.target (if used)
     // sp[2/3]: number of arguments (smi-tagged)
     Label loop, no_args;
-    __ cmpi(r3, Operand::Zero());
-    __ beq(&no_args);
+    __ SmiUntag(r3, r6, SetRC);
+    __ beq(&no_args, cr0);
     __ ShiftLeftImm(ip, r3, Operand(kPointerSizeLog2));
+    __ sub(sp, sp, ip);
     __ mtctr(r3);
     __ bind(&loop);
     __ subi(ip, ip, Operand(kPointerSize));
     __ LoadPX(r0, MemOperand(r5, ip));
-    __ push(r0);
+    __ StorePX(r0, MemOperand(sp, ip));
     __ bdnz(&loop);
     __ bind(&no_args);
 
