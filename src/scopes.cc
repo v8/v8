@@ -711,25 +711,6 @@ bool Scope::HasTrivialOuterContext() const {
 }
 
 
-bool Scope::HasLazyCompilableOuterContext() const {
-  Scope* outer = outer_scope_;
-  if (outer == NULL) return true;
-  // We have to prevent lazy compilation if this scope is inside a with scope
-  // and all declaration scopes between them have empty contexts. Such
-  // declaration scopes may become invisible during scope info deserialization.
-  outer = outer->DeclarationScope();
-  bool found_non_trivial_declarations = false;
-  for (const Scope* scope = outer; scope != NULL; scope = scope->outer_scope_) {
-    if (scope->is_with_scope() && !found_non_trivial_declarations) return false;
-    if (scope->is_block_scope() && !scope->decls_.is_empty()) return false;
-    if (scope->is_declaration_scope() && scope->num_heap_slots() > 0) {
-      found_non_trivial_declarations = true;
-    }
-  }
-  return true;
-}
-
-
 bool Scope::AllowsLazyParsing() const {
   // If we are inside a block scope, we must parse eagerly to find out how
   // to allocate variables on the block scope. At this point, declarations may
@@ -741,9 +722,7 @@ bool Scope::AllowsLazyParsing() const {
 }
 
 
-bool Scope::AllowsLazyCompilation() const {
-  return !force_eager_compilation_ && HasLazyCompilableOuterContext();
-}
+bool Scope::AllowsLazyCompilation() const { return !force_eager_compilation_; }
 
 
 bool Scope::AllowsLazyCompilationWithoutContext() const {

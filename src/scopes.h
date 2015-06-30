@@ -482,9 +482,6 @@ class Scope: public ZoneObject {
   // True if the outer context of this scope is always the native context.
   bool HasTrivialOuterContext() const;
 
-  // True if the outer context allows lazy compilation of this scope.
-  bool HasLazyCompilableOuterContext() const;
-
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
