@@ -1578,8 +1578,10 @@ SerializationTag SerializationData::ReadTag(int* offset) const {
 
 
 void SerializationData::ReadMemory(void* p, int length, int* offset) const {
-  memcpy(p, &data[*offset], length);
-  (*offset) += length;
+  if (length > 0) {
+    memcpy(p, &data[*offset], length);
+    (*offset) += length;
+  }
 }
 
 
