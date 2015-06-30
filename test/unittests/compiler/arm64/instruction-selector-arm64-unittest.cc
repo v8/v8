@@ -2603,6 +2603,38 @@ TEST_F(InstructionSelectorTest, Int32MulHighWithSar) {
 }
 
 
+TEST_F(InstructionSelectorTest, Int32MulHighWithAdd) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const a = m.Int32Add(m.Int32MulHigh(p0, p1), p0);
+  // Test only one shift constant here, as we're only interested in it being a
+  // 32-bit operation; the shift amount is irrelevant.
+  Node* const n = m.Word32Sar(a, m.Int32Constant(1));
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_Operand2_R_ASR_I, s[1]->addressing_mode());
+  ASSERT_EQ(3U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(32, s.ToInt64(s[1]->InputAt(2)));
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(kArm64Asr32, s[2]->arch_opcode());
+  ASSERT_EQ(2U, s[2]->InputCount());
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(1, s.ToInt64(s[2]->InputAt(1)));
+  ASSERT_EQ(1U, s[2]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[2]->Output()));
+}
+
+
 TEST_F(InstructionSelectorTest, Uint32MulHighWithShr) {
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
