@@ -294,6 +294,10 @@ class FeedbackNexus {
   virtual bool FindHandlers(CodeHandleList* code_list, int length = -1) const;
   virtual Name* FindFirstName() const { return NULL; }
 
+  virtual void ConfigureUninitialized();
+  virtual void ConfigurePremonomorphic();
+  virtual void ConfigureMegamorphic();
+
   Object* GetFeedback() const { return vector()->Get(slot()); }
   Object* GetFeedbackExtra() const {
     DCHECK(TypeFeedbackVector::elements_per_ic_slot() > 1);
@@ -349,8 +353,6 @@ class CallICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureUninitialized();
-  void ConfigureGeneric();
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
 
@@ -363,8 +365,7 @@ class CallICNexus : public FeedbackNexus {
   MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const override {
     return MaybeHandle<Code>();
   }
-  virtual bool FindHandlers(CodeHandleList* code_list,
-                            int length = -1) const override {
+  bool FindHandlers(CodeHandleList* code_list, int length = -1) const override {
     return length == 0;
   }
 
@@ -385,8 +386,6 @@ class LoadICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureMegamorphic();
-  void ConfigurePremonomorphic();
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
 
   void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
@@ -408,8 +407,53 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureMegamorphic();
-  void ConfigurePremonomorphic();
+  // name can be a null handle for element loads.
+  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
+                            Handle<Code> handler);
+  // name can be null.
+  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+                            CodeHandleList* handlers);
+
+  InlineCacheState StateFromFeedback() const override;
+  Name* FindFirstName() const override;
+};
+
+
+class StoreICNexus : public FeedbackNexus {
+ public:
+  StoreICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::STORE_IC);
+  }
+  StoreICNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::STORE_IC);
+  }
+
+  void Clear(Code* host);
+
+  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
+
+  void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
+
+  InlineCacheState StateFromFeedback() const override;
+};
+
+
+class KeyedStoreICNexus : public FeedbackNexus {
+ public:
+  KeyedStoreICNexus(Handle<TypeFeedbackVector> vector,
+                    FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::KEYED_STORE_IC);
+  }
+  KeyedStoreICNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->GetKind(slot) == Code::KEYED_STORE_IC);
+  }
+
+  void Clear(Code* host);
+
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
                             Handle<Code> handler);

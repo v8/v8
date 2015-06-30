@@ -98,10 +98,11 @@ void IC::SetTargetAtAddress(Address address, Code* target,
 
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
 
-  // Don't use this for load_ics when --vector-ics is turned on.
   DCHECK(!target->is_inline_cache_stub() ||
          (target->kind() != Code::LOAD_IC &&
-          target->kind() != Code::KEYED_LOAD_IC));
+          target->kind() != Code::KEYED_LOAD_IC &&
+          (!FLAG_vector_stores || (target->kind() != Code::STORE_IC &&
+                                   target->kind() != Code::KEYED_STORE_IC))));
 
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);

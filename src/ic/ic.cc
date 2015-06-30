@@ -16,6 +16,7 @@
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/macro-assembler.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
 
@@ -488,8 +489,10 @@ void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
     case Code::KEYED_LOAD_IC:
       return;
     case Code::STORE_IC:
+      if (FLAG_vector_stores) return;
       return StoreIC::Clear(isolate, address, target, constant_pool);
     case Code::KEYED_STORE_IC:
+      if (FLAG_vector_stores) return;
       return KeyedStoreIC::Clear(isolate, address, target, constant_pool);
     case Code::COMPARE_IC:
       return CompareIC::Clear(isolate, address, target, constant_pool);
@@ -548,12 +551,29 @@ void StoreIC::Clear(Isolate* isolate, Address address, Code* target,
 }
 
 
+void StoreIC::Clear(Isolate* isolate, Code* host, StoreICNexus* nexus) {
+  if (IsCleared(nexus)) return;
+  State state = nexus->StateFromFeedback();
+  nexus->ConfigurePremonomorphic();
+  OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, PREMONOMORPHIC);
+}
+
+
 void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
                          Address constant_pool) {
   if (IsCleared(target)) return;
   Handle<Code> code = pre_monomorphic_stub(
       isolate, StoreICState::GetLanguageMode(target->extra_ic_state()));
   SetTargetAtAddress(address, *code, constant_pool);
+}
+
+
+void KeyedStoreIC::Clear(Isolate* isolate, Code* host,
+                         KeyedStoreICNexus* nexus) {
+  if (IsCleared(nexus)) return;
+  State state = nexus->StateFromFeedback();
+  nexus->ConfigurePremonomorphic();
+  OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, PREMONOMORPHIC);
 }
 
 
@@ -591,24 +611,10 @@ static bool MigrateDeprecated(Handle<Object> object) {
 
 void IC::ConfigureVectorState(IC::State new_state) {
   DCHECK(UseVector());
-  if (kind() == Code::LOAD_IC) {
-    LoadICNexus* nexus = casted_nexus<LoadICNexus>();
-    if (new_state == PREMONOMORPHIC) {
-      nexus->ConfigurePremonomorphic();
-    } else if (new_state == MEGAMORPHIC) {
-      nexus->ConfigureMegamorphic();
-    } else {
-      UNREACHABLE();
-    }
-  } else if (kind() == Code::KEYED_LOAD_IC) {
-    KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    if (new_state == PREMONOMORPHIC) {
-      nexus->ConfigurePremonomorphic();
-    } else if (new_state == MEGAMORPHIC) {
-      nexus->ConfigureMegamorphic();
-    } else {
-      UNREACHABLE();
-    }
+  if (new_state == PREMONOMORPHIC) {
+    nexus()->ConfigurePremonomorphic();
+  } else if (new_state == MEGAMORPHIC) {
+    nexus()->ConfigureMegamorphic();
   } else {
     UNREACHABLE();
   }
@@ -625,9 +631,15 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   if (kind() == Code::LOAD_IC) {
     LoadICNexus* nexus = casted_nexus<LoadICNexus>();
     nexus->ConfigureMonomorphic(map, handler);
-  } else {
-    DCHECK(kind() == Code::KEYED_LOAD_IC);
+  } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
+    nexus->ConfigureMonomorphic(name, map, handler);
+  } else if (kind() == Code::STORE_IC) {
+    StoreICNexus* nexus = casted_nexus<StoreICNexus>();
+    nexus->ConfigureMonomorphic(map, handler);
+  } else {
+    DCHECK(kind() == Code::KEYED_STORE_IC);
+    KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
     nexus->ConfigureMonomorphic(name, map, handler);
   }
 
@@ -643,9 +655,15 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
   if (kind() == Code::LOAD_IC) {
     LoadICNexus* nexus = casted_nexus<LoadICNexus>();
     nexus->ConfigurePolymorphic(maps, handlers);
-  } else {
-    DCHECK(kind() == Code::KEYED_LOAD_IC);
+  } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
+    nexus->ConfigurePolymorphic(name, maps, handlers);
+  } else if (kind() == Code::STORE_IC) {
+    StoreICNexus* nexus = casted_nexus<StoreICNexus>();
+    nexus->ConfigurePolymorphic(maps, handlers);
+  } else {
+    DCHECK(kind() == Code::KEYED_STORE_IC);
+    KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
     nexus->ConfigurePolymorphic(name, maps, handlers);
   }
 
@@ -668,11 +686,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) {
-      if (UseVector()) {
-        ConfigureVectorState(MEGAMORPHIC);
-      } else {
-        set_target(*megamorphic_stub());
-      }
+      DCHECK(UseVector());
+      ConfigureVectorState(MEGAMORPHIC);
       TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
     }
@@ -1614,7 +1629,11 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
-    set_target(*pre_monomorphic_stub());
+    if (FLAG_vector_stores) {
+      ConfigureVectorState(PREMONOMORPHIC);
+    } else {
+      set_target(*pre_monomorphic_stub());
+    }
     TRACE_IC("StoreIC", lookup->name());
     return;
   }
@@ -2053,11 +2072,20 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         StoreIC::Store(object, Handle<Name>::cast(key), value,
                        JSReceiver::MAY_BE_STORE_FROM_KEYED),
         Object);
-    if (!is_target_set()) {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
-                       "unhandled internalized string key");
-      TRACE_IC("StoreIC", key);
-      set_target(*stub);
+    if (FLAG_vector_stores) {
+      if (!is_vector_set()) {
+        ConfigureVectorState(MEGAMORPHIC);
+        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+                         "unhandled internalized string key");
+        TRACE_IC("StoreIC", key);
+      }
+    } else {
+      if (!is_target_set()) {
+        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+                         "unhandled internalized string key");
+        TRACE_IC("StoreIC", key);
+        set_target(*stub);
+      }
     }
     return store_handle;
   }
@@ -2114,17 +2142,28 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         Object);
   }
 
-  DCHECK(!is_target_set());
-  Code* megamorphic = *megamorphic_stub();
-  if (*stub == megamorphic) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
-  }
-  if (*stub == *slow_stub()) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "slow stub");
-  }
-  DCHECK(!stub.is_null());
-  if (!AddressIsDeoptimizedCode()) {
-    set_target(*stub);
+  if (FLAG_vector_stores) {
+    if (!is_vector_set() || stub.is_null()) {
+      Code* megamorphic = *megamorphic_stub();
+      if (!stub.is_null() && (*stub == megamorphic || *stub == *slow_stub())) {
+        ConfigureVectorState(MEGAMORPHIC);
+        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+                         *stub == megamorphic ? "set generic" : "slow stub");
+      }
+    }
+  } else {
+    DCHECK(!is_target_set());
+    Code* megamorphic = *megamorphic_stub();
+    if (*stub == megamorphic) {
+      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
+    } else if (*stub == *slow_stub()) {
+      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "slow stub");
+    }
+
+    DCHECK(!stub.is_null());
+    if (!AddressIsDeoptimizedCode()) {
+      set_target(*stub);
+    }
   }
   TRACE_IC("StoreIC", key);
 
@@ -2173,7 +2212,7 @@ void CallIC::PatchMegamorphic(Handle<Object> function) {
 
   // We are going generic.
   CallICNexus* nexus = casted_nexus<CallICNexus>();
-  nexus->ConfigureGeneric();
+  nexus->ConfigureMegamorphic();
 
   // Vector-based ICs have a different calling convention in optimized code
   // than full code so the correct stub has to be chosen.
@@ -2208,7 +2247,7 @@ void CallIC::HandleMiss(Handle<Object> function) {
 
   if (feedback->IsWeakCell() || !function->IsJSFunction()) {
     // We are going generic.
-    nexus->ConfigureGeneric();
+    nexus->ConfigureMegamorphic();
   } else {
     // The feedback is either uninitialized or an allocation site.
     // It might be an allocation site because if we re-compile the full code
@@ -2352,14 +2391,37 @@ RUNTIME_FUNCTION(KeyedLoadIC_MissFromStubFailure) {
 RUNTIME_FUNCTION(StoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
-  ic.UpdateState(receiver, key);
+  Handle<Object> value = args.at<Object>(2);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, ic.Store(receiver, key, args.at<Object>(2)));
+
+  if (FLAG_vector_stores) {
+    DCHECK(args.length() == 5);
+    Handle<Smi> slot = args.at<Smi>(3);
+    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    if (vector->GetKind(vector_slot) == Code::STORE_IC) {
+      StoreICNexus nexus(vector, vector_slot);
+      StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Store(receiver, key, value));
+    } else {
+      DCHECK(vector->GetKind(vector_slot) == Code::KEYED_STORE_IC);
+      KeyedStoreICNexus nexus(vector, vector_slot);
+      KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Store(receiver, key, value));
+    }
+  } else {
+    DCHECK(args.length() == 3);
+    StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+    ic.UpdateState(receiver, key);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       ic.Store(receiver, key, value));
+  }
   return *result;
 }
 
@@ -2367,14 +2429,37 @@ RUNTIME_FUNCTION(StoreIC_Miss) {
 RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3 || args.length() == 4);
-  StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
-  ic.UpdateState(receiver, key);
+  Handle<Object> value = args.at<Object>(2);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, ic.Store(receiver, key, args.at<Object>(2)));
+
+  if (FLAG_vector_stores) {
+    DCHECK(args.length() == 5);
+    Handle<Smi> slot = args.at<Smi>(3);
+    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    if (vector->GetKind(vector_slot) == Code::STORE_IC) {
+      StoreICNexus nexus(vector, vector_slot);
+      StoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Store(receiver, key, value));
+    } else {
+      DCHECK(vector->GetKind(vector_slot) == Code::KEYED_STORE_IC);
+      KeyedStoreICNexus nexus(vector, vector_slot);
+      KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+      ic.UpdateState(receiver, key);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                         ic.Store(receiver, key, value));
+    }
+  } else {
+    DCHECK(args.length() == 3 || args.length() == 4);
+    StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
+    ic.UpdateState(receiver, key);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       ic.Store(receiver, key, value));
+  }
   return *result;
 }
 
@@ -2383,14 +2468,28 @@ RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
 RUNTIME_FUNCTION(KeyedStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
-  ic.UpdateState(receiver, key);
+  Handle<Object> value = args.at<Object>(2);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, ic.Store(receiver, key, args.at<Object>(2)));
+
+  if (FLAG_vector_stores) {
+    DCHECK(args.length() == 5);
+    Handle<Smi> slot = args.at<Smi>(3);
+    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    KeyedStoreICNexus nexus(vector, vector_slot);
+    KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    ic.UpdateState(receiver, key);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       ic.Store(receiver, key, value));
+  } else {
+    DCHECK(args.length() == 3);
+    KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+    ic.UpdateState(receiver, key);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       ic.Store(receiver, key, value));
+  }
   return *result;
 }
 
@@ -2398,14 +2497,28 @@ RUNTIME_FUNCTION(KeyedStoreIC_Miss) {
 RUNTIME_FUNCTION(KeyedStoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
-  ic.UpdateState(receiver, key);
+  Handle<Object> value = args.at<Object>(2);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, ic.Store(receiver, key, args.at<Object>(2)));
+
+  if (FLAG_vector_stores) {
+    DCHECK(args.length() == 5);
+    Handle<Smi> slot = args.at<Smi>(3);
+    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    KeyedStoreICNexus nexus(vector, vector_slot);
+    KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+    ic.UpdateState(receiver, key);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       ic.Store(receiver, key, value));
+  } else {
+    DCHECK(args.length() == 3);
+    KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
+    ic.UpdateState(receiver, key);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, ic.Store(receiver, key, args.at<Object>(2)));
+  }
   return *result;
 }
 

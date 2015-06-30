@@ -114,7 +114,9 @@ class IC {
 
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-           kind == Code::CALL_IC;
+           kind == Code::CALL_IC ||
+           (FLAG_vector_stores &&
+            (kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC));
   }
 
  protected:
@@ -497,7 +499,8 @@ class StoreIC : public IC {
     return StoreICState(flag).GetExtraICState();
   }
 
-  StoreIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
+  StoreIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
+      : IC(depth, isolate, nexus) {
     DCHECK(IsStoreStub());
   }
 
@@ -530,6 +533,8 @@ class StoreIC : public IC {
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
                       JSReceiver::StoreFromKeyed store_mode);
+
+  static void Clear(Isolate* isolate, Code* host, StoreICNexus* nexus);
 
  protected:
   // Stub accessors.
@@ -594,7 +599,9 @@ class KeyedStoreIC : public StoreIC {
     return IcCheckTypeField::decode(extra_state);
   }
 
-  KeyedStoreIC(FrameDepth depth, Isolate* isolate) : StoreIC(depth, isolate) {
+  KeyedStoreIC(FrameDepth depth, Isolate* isolate,
+               KeyedStoreICNexus* nexus = NULL)
+      : StoreIC(depth, isolate, nexus) {
     DCHECK(target()->is_keyed_store_stub());
   }
 
@@ -618,6 +625,8 @@ class KeyedStoreIC : public StoreIC {
 
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, LanguageMode language_mode, State initialization_state);
+
+  static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:
   virtual Handle<Code> pre_monomorphic_stub() const {
