@@ -1423,7 +1423,8 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   int index = feedback_vector->GetIndex(FeedbackVectorICSlot(0));
   __ Mov(slot, Smi::FromInt(index));
   __ Mov(vector, feedback_vector);
-  Handle<Code> ic = KeyedLoadICStub(masm->isolate()).GetCode();
+  Handle<Code> ic =
+      KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ Call(ic, RelocInfo::CODE_TARGET);
 
   // Push the nth argument.

@@ -683,6 +683,11 @@ HConstant* HGraph::GetConstantMinus1() {
 }
 
 
+HConstant* HGraph::GetConstantBool(bool value) {
+  return value ? GetConstantTrue() : GetConstantFalse();
+}
+
+
 #define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value)            \
 HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
@@ -1667,10 +1672,9 @@ HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
 }
 
 
-HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
-                                                           HValue* elements,
-                                                           HValue* key,
-                                                           HValue* hash) {
+HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
+    HValue* receiver, HValue* elements, HValue* key, HValue* hash,
+    LanguageMode language_mode) {
   HValue* capacity =
       Add<HLoadKeyed>(elements, Add<HConstant>(NameDictionary::kCapacityIndex),
                       nullptr, FAST_ELEMENTS);
@@ -1713,9 +1717,12 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
     // element == undefined means "not found". Call the runtime.
     // TODO(jkummerow): walk the prototype chain instead.
     Add<HPushArguments>(receiver, key);
-    Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
-                           Runtime::FunctionForId(Runtime::kKeyedGetProperty),
-                           2));
+    Push(Add<HCallRuntime>(
+        isolate()->factory()->empty_string(),
+        Runtime::FunctionForId(is_strong(language_mode)
+                                   ? Runtime::kKeyedGetPropertyStrong
+                                   : Runtime::kKeyedGetProperty),
+        2));
   }
   if_undefined.Else();
   {
@@ -1773,9 +1780,12 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
     Push(Add<HLoadKeyed>(elements, result_index, nullptr, FAST_ELEMENTS));
     details_compare.Else();
     Add<HPushArguments>(receiver, key);
-    Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
-                           Runtime::FunctionForId(Runtime::kKeyedGetProperty),
-                           2));
+    Push(Add<HCallRuntime>(
+        isolate()->factory()->empty_string(),
+        Runtime::FunctionForId(is_strong(language_mode)
+                                   ? Runtime::kKeyedGetPropertyStrong
+                                   : Runtime::kKeyedGetProperty),
+        2));
     details_compare.End();
 
     found_key_match.Else();
@@ -6248,7 +6258,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
   if (!CanAccessMonomorphic()) return false;
   STATIC_ASSERT(kMaxLoadPolymorphism == kMaxStorePolymorphism);
   if (maps->length() > kMaxLoadPolymorphism) return false;
-
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (GetJSObjectFieldAccess(&access)) {
     for (int i = 1; i < maps->length(); ++i) {
@@ -6259,7 +6268,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
     }
     return true;
   }
-
   if (GetJSArrayBufferViewFieldAccess(&access)) {
     for (int i = 1; i < maps->length(); ++i) {
       PropertyAccessInfo test_info(builder_, access_type_, maps->at(i), name_);
@@ -6341,7 +6349,14 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
   if (!info->IsFound()) {
     DCHECK(info->IsLoad());
-    return graph()->GetConstantUndefined();
+    if (is_strong(function_language_mode())) {
+      return New<HCallRuntime>(
+          isolate()->factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kThrowStrongModeImplicitConversion),
+          0);
+    } else {
+      return graph()->GetConstantUndefined();
+    }
   }
 
   if (info->IsData()) {
@@ -7038,14 +7053,14 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // use a generic Keyed Load if we are using the type vector, because
       // it has to share information with full code.
       HConstant* key = Add<HConstant>(name);
-      HLoadKeyedGeneric* result =
-          New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
+      HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
+          object, key, function_language_mode(), PREMONOMORPHIC);
       result->SetVectorAndSlot(vector, slot);
       return result;
     }
 
-    HLoadNamedGeneric* result =
-        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
+    HLoadNamedGeneric* result = New<HLoadNamedGeneric>(
+        object, name, function_language_mode(), PREMONOMORPHIC);
     result->SetVectorAndSlot(vector, slot);
     return result;
   } else {
@@ -7064,8 +7079,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     HValue* value) {
   if (access_type == LOAD) {
     InlineCacheState initial_state = expr->AsProperty()->GetInlineCacheState();
-    HLoadKeyedGeneric* result =
-        New<HLoadKeyedGeneric>(object, key, initial_state);
+    HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
+        object, key, function_language_mode(), initial_state);
     // HLoadKeyedGeneric with vector ics benefits from being encoded as
     // MEGAMORPHIC because the vector/slot combo becomes unnecessary.
     if (initial_state != MEGAMORPHIC) {
@@ -9356,7 +9371,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         return;
       }
     }
-
     HValue* key = NULL;
     if (!prop->key()->IsPropertyName()) {
       CHECK_ALIVE(VisitForValue(prop->key()));
@@ -10797,6 +10811,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {
     if (is_strong(strength) && Token::IsBitOp(op)) {
+      // TODO(conradw): This is not efficient, but is necessary to prevent
+      // conversion of oddball values to numbers in strong mode. It would be
+      // better to prevent the conversion rather than adding a runtime check.
       IfBuilder if_builder(this);
       if_builder.If<HHasInstanceTypeAndBranch>(left, ODDBALL_TYPE);
       if_builder.OrIf<HHasInstanceTypeAndBranch>(right, ODDBALL_TYPE);

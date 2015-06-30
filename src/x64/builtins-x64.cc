@@ -1142,7 +1142,8 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   int index = feedback_vector->GetIndex(FeedbackVectorICSlot(0));
   __ Move(slot, Smi::FromInt(index));
   __ Move(vector, feedback_vector);
-  Handle<Code> ic = KeyedLoadICStub(masm->isolate()).GetCode();
+  Handle<Code> ic =
+      KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ Call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
   // call.  A test instruction after the call is used to indicate that

@@ -193,6 +193,7 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const* op) {
 bool operator==(LoadNamedParameters const& lhs,
                 LoadNamedParameters const& rhs) {
   return lhs.name() == rhs.name() &&
+         lhs.language_mode() == rhs.language_mode() &&
          lhs.contextual_mode() == rhs.contextual_mode() &&
          lhs.feedback() == rhs.feedback();
 }
@@ -205,24 +206,26 @@ bool operator!=(LoadNamedParameters const& lhs,
 
 
 size_t hash_value(LoadNamedParameters const& p) {
-  return base::hash_combine(p.name(), p.contextual_mode(), p.feedback());
+  return base::hash_combine(p.name(), p.language_mode(), p.contextual_mode(),
+                            p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadNamedParameters const& p) {
-  return os << Brief(*p.name().handle()) << ", " << p.contextual_mode();
+  return os << Brief(*p.name().handle()) << ", " << p.language_mode() << ", "
+            << p.contextual_mode();
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadPropertyParameters const& p) {
-  // Nothing special to print.
-  return os;
+  return os << p.language_mode();
 }
 
 
 bool operator==(LoadPropertyParameters const& lhs,
                 LoadPropertyParameters const& rhs) {
-  return lhs.feedback() == rhs.feedback();
+  return lhs.language_mode() == rhs.language_mode() &&
+         lhs.feedback() == rhs.feedback();
 }
 
 
@@ -239,7 +242,7 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op) {
 
 
 size_t hash_value(LoadPropertyParameters const& p) {
-  return hash_value(p.feedback());
+  return base::hash_combine(p.language_mode(), p.feedback());
 }
 
 
@@ -502,8 +505,9 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 
 
 const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
-                                             const VectorSlotPair& feedback) {
-  LoadNamedParameters parameters(name, feedback, NOT_CONTEXTUAL);
+                                             const VectorSlotPair& feedback,
+                                             LanguageMode language_mode) {
+  LoadNamedParameters parameters(name, feedback, language_mode, NOT_CONTEXTUAL);
   return new (zone()) Operator1<LoadNamedParameters>(   // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
@@ -512,9 +516,9 @@ const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
 }
 
 
-const Operator* JSOperatorBuilder::LoadProperty(
-    const VectorSlotPair& feedback) {
-  LoadPropertyParameters parameters(feedback);
+const Operator* JSOperatorBuilder::LoadProperty(const VectorSlotPair& feedback,
+                                                LanguageMode language_mode) {
+  LoadPropertyParameters parameters(feedback, language_mode);
   return new (zone()) Operator1<LoadPropertyParameters>(   // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name
@@ -558,7 +562,7 @@ const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
 const Operator* JSOperatorBuilder::LoadGlobal(const Unique<Name>& name,
                                               const VectorSlotPair& feedback,
                                               ContextualMode contextual_mode) {
-  LoadNamedParameters parameters(name, feedback, contextual_mode);
+  LoadNamedParameters parameters(name, feedback, SLOPPY, contextual_mode);
   return new (zone()) Operator1<LoadNamedParameters>(    // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name

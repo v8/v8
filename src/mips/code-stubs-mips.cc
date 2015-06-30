@@ -4600,7 +4600,7 @@ void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
 
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, LoadWithVectorDescriptor::VectorRegister());
-  KeyedLoadICStub stub(isolate());
+  KeyedLoadICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
@@ -4813,7 +4813,7 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&try_poly_name, ne, at, Operand(feedback));
   Handle<Code> megamorphic_stub =
-      KeyedLoadIC::ChooseMegamorphicStub(masm->isolate());
+      KeyedLoadIC::ChooseMegamorphicStub(masm->isolate(), GetExtraICState());
   __ Jump(megamorphic_stub, RelocInfo::CODE_TARGET);
 
   __ bind(&try_poly_name);

@@ -591,11 +591,14 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
 
 
 // static
-Handle<Code> KeyedLoadIC::ChooseMegamorphicStub(Isolate* isolate) {
+Handle<Code> KeyedLoadIC::ChooseMegamorphicStub(Isolate* isolate,
+                                                ExtraICState extra_state) {
   if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericStub(isolate).GetCode();
+    return KeyedLoadGenericStub(isolate, LoadICState(extra_state)).GetCode();
   } else {
-    return isolate->builtins()->KeyedLoadIC_Megamorphic();
+    return is_strong(LoadICState::GetLanguageMode(extra_state))
+               ? isolate->builtins()->KeyedLoadIC_Megamorphic_Strong()
+               : isolate->builtins()->KeyedLoadIC_Megamorphic();
   }
 }
 
@@ -694,7 +697,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Runtime::GetElementOrCharAt(isolate(), object, index), Object);
+        Runtime::GetElementOrCharAt(isolate(), object, index, language_mode()),
+        Object);
     return result;
   }
 
@@ -737,8 +741,9 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
     // Get the property.
     Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, Object::GetProperty(&it),
-                               Object);
+
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(), result, Object::GetProperty(&it, language_mode()), Object);
     if (it.IsFound()) {
       return result;
     } else if (!IsUndeclaredGlobal(object)) {
@@ -930,25 +935,20 @@ Handle<Code> LoadIC::initialize_stub_in_optimized_code(
 }
 
 
-Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
-  return KeyedLoadICTrampolineStub(isolate).GetCode();
+Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate,
+                                          ExtraICState extra_state) {
+  return KeyedLoadICTrampolineStub(isolate, LoadICState(extra_state)).GetCode();
 }
 
 
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, State initialization_state) {
+    Isolate* isolate, State initialization_state, ExtraICState extra_state) {
   if (initialization_state != MEGAMORPHIC) {
-    return KeyedLoadICStub(isolate).GetCode();
+    return KeyedLoadICStub(isolate, LoadICState(extra_state)).GetCode();
   }
-  switch (initialization_state) {
-    case UNINITIALIZED:
-      return isolate->builtins()->KeyedLoadIC_Initialize();
-    case MEGAMORPHIC:
-      return isolate->builtins()->KeyedLoadIC_Megamorphic();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>();
+  return is_strong(LoadICState::GetLanguageMode(extra_state))
+             ? isolate->builtins()->KeyedLoadIC_Megamorphic_Strong()
+             : isolate->builtins()->KeyedLoadIC_Megamorphic();
 }
 
 
@@ -1002,7 +1002,7 @@ Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
 
 Handle<Code> LoadIC::megamorphic_stub() {
   DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-  return KeyedLoadIC::ChooseMegamorphicStub(isolate());
+  return KeyedLoadIC::ChooseMegamorphicStub(isolate(), extra_ic_state());
 }
 
 
@@ -1026,7 +1026,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       lookup->state() == LookupIterator::ACCESS_CHECK) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
-    if (kind() == Code::LOAD_IC) {
+    if (kind() == Code::LOAD_IC && !is_strong(language_mode())) {
       code = NamedLoadHandlerCompiler::ComputeLoadNonexistent(lookup->name(),
                                                               receiver_map());
       // TODO(jkummerow/verwaest): Introduce a builtin that handles this case.
@@ -1219,7 +1219,9 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         // property must be found in the object for the stub to be
         // applicable.
         if (!receiver_is_holder) break;
-        return isolate()->builtins()->LoadIC_Normal();
+        return is_strong(language_mode())
+                   ? isolate()->builtins()->LoadIC_Normal_Strong()
+                   : isolate()->builtins()->LoadIC_Normal();
       }
 
       // -------------- Fields --------------
@@ -1285,7 +1287,8 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
 
   if (target_receiver_maps.length() == 0) {
     Handle<Code> handler =
-        PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(receiver_map);
+        PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
+            receiver_map, extra_ic_state());
     ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
     return null_handle;
   }
@@ -1302,7 +1305,8 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
           target_receiver_maps.at(0)->elements_kind(),
           Handle<JSObject>::cast(receiver)->GetElementsKind())) {
     Handle<Code> handler =
-        PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(receiver_map);
+        PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
+            receiver_map, extra_ic_state());
     ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
     return null_handle;
   }
@@ -1327,7 +1331,8 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
 
   CodeHandleList handlers(target_receiver_maps.length());
   ElementHandlerCompiler compiler(isolate());
-  compiler.CompileElementHandlers(&target_receiver_maps, &handlers);
+  compiler.CompileElementHandlers(&target_receiver_maps, &handlers,
+                                  language_mode());
   ConfigureVectorState(Handle<Name>::null(), &target_receiver_maps, &handlers);
   return null_handle;
 }
@@ -1338,7 +1343,8 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   if (MigrateDeprecated(object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, Runtime::GetObjectProperty(isolate(), object, key),
+        isolate(), result,
+        Runtime::GetObjectProperty(isolate(), object, key, language_mode()),
         Object);
     return result;
   }
@@ -1375,10 +1381,12 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   if (!load_handle.is_null()) return load_handle;
+
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                             Runtime::GetObjectProperty(isolate(), object, key),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate(), result,
+      Runtime::GetObjectProperty(isolate(), object, key, language_mode()),
+      Object);
   return result;
 }
 
@@ -2966,6 +2974,7 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
 
   Handle<Object> result;
   LookupIterator it(receiver, name, holder);
+  // TODO(conradw): Investigate strong mode semantics for this.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::GetProperty(&it));
 
@@ -3011,8 +3020,11 @@ RUNTIME_FUNCTION(LoadElementWithInterceptor) {
   DCHECK(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
   Handle<Object> result;
+  // TODO(conradw): Investigate strong mode semantics for this.
+  LanguageMode language_mode = SLOPPY;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::GetElement(isolate, receiver, index));
+      isolate, result,
+      Object::GetElement(isolate, receiver, index, language_mode));
   return *result;
 }
 

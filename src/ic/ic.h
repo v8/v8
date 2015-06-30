@@ -354,12 +354,17 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
-    return LoadICState(contextual_mode).GetExtraICState();
+  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+                                          LanguageMode language_mode) {
+    return LoadICState(contextual_mode, language_mode).GetExtraICState();
   }
 
   ContextualMode contextual_mode() const {
     return LoadICState::GetContextualMode(extra_ic_state());
+  }
+
+  LanguageMode language_mode() const {
+    return LoadICState::GetLanguageMode(extra_ic_state());
   }
 
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
@@ -391,8 +396,9 @@ class LoadIC : public IC {
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm,
+                                         LanguageMode language_mode);
+  static void GenerateNormal(MacroAssembler* masm, LanguageMode language_mode);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
@@ -409,10 +415,14 @@ class LoadIC : public IC {
 
   Handle<Code> slow_stub() const {
     if (kind() == Code::LOAD_IC) {
-      return isolate()->builtins()->LoadIC_Slow();
+      return is_strong(language_mode())
+                 ? isolate()->builtins()->LoadIC_Slow_Strong()
+                 : isolate()->builtins()->LoadIC_Slow();
     } else {
       DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-      return isolate()->builtins()->KeyedLoadIC_Slow();
+      return is_strong(language_mode())
+                 ? isolate()->builtins()->KeyedLoadIC_Slow_Strong()
+                 : isolate()->builtins()->KeyedLoadIC_Slow();
     }
   }
 
@@ -439,11 +449,13 @@ class LoadIC : public IC {
 class KeyedLoadIC : public LoadIC {
  public:
   // ExtraICState bits (building on IC)
-  class IcCheckTypeField : public BitField<IcCheckType, 1, 1> {};
+  class IcCheckTypeField
+      : public BitField<IcCheckType, LoadICState::kNextBitFieldOffset, 1> {};
 
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+                                          LanguageMode language_mode,
                                           IcCheckType key_type) {
-    return LoadICState(contextual_mode).GetExtraICState() |
+    return LoadICState(contextual_mode, language_mode).GetExtraICState() |
            IcCheckTypeField::encode(key_type);
   }
 
@@ -463,9 +475,11 @@ class KeyedLoadIC : public LoadIC {
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm,
+                                         LanguageMode language_mode);
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  LanguageMode language_mode);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -474,10 +488,12 @@ class KeyedLoadIC : public LoadIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
-  static Handle<Code> initialize_stub(Isolate* isolate);
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      ExtraICState extra_state);
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, State initialization_state);
-  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate);
+      Isolate* isolate, State initialization_state, ExtraICState extra_state);
+  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
+                                            ExtraICState extra_state);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 

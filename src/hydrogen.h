@@ -331,6 +331,7 @@ class HGraph final : public ZoneObject {
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
   HConstant* GetConstantFalse();
+  HConstant* GetConstantBool(bool value);
   HConstant* GetConstantHole();
   HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
@@ -1352,9 +1353,9 @@ class HGraphBuilder {
                                     HValue* key);
 
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
-                                              HValue* elements,
-                                              HValue* key,
-                                              HValue* hash);
+                                              HValue* elements, HValue* key,
+                                              HValue* hash,
+                                              LanguageMode language_mode);
 
   HValue* BuildRegExpConstructResult(HValue* length,
                                      HValue* index,

@@ -167,11 +167,12 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
                                   Register key, Register elements,
                                   Register scratch1, Register scratch2,
-                                  Register result, Label* slow) {
+                                  Register result, Label* slow,
+                                  LanguageMode language_mode) {
   DCHECK(!AreAliased(receiver, key, elements, scratch1, scratch2));
 
   Label check_prototypes, check_next_prototype;
-  Label done, in_bounds, return_undefined;
+  Label done, in_bounds, absent;
 
   // Check for fast array.
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -191,7 +192,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   __ Bind(&check_next_prototype);
   __ Ldr(scratch2, FieldMemOperand(scratch2, Map::kPrototypeOffset));
   // scratch2: current prototype
-  __ JumpIfRoot(scratch2, Heap::kNullValueRootIndex, &return_undefined);
+  __ JumpIfRoot(scratch2, Heap::kNullValueRootIndex, &absent);
   __ Ldr(elements, FieldMemOperand(scratch2, JSObject::kElementsOffset));
   __ Ldr(scratch2, FieldMemOperand(scratch2, HeapObject::kMapOffset));
   // elements: elements of current prototype
@@ -204,9 +205,14 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   __ JumpIfNotRoot(elements, Heap::kEmptyFixedArrayRootIndex, slow);
   __ B(&check_next_prototype);
 
-  __ Bind(&return_undefined);
-  __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
-  __ B(&done);
+  __ Bind(&absent);
+  if (is_strong(language_mode)) {
+    // Strong mode accesses must throw in this case, so call the runtime.
+    __ B(slow);
+  } else {
+    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+    __ B(&done);
+  }
 
   __ Bind(&in_bounds);
   // Fast case: Do the load.
@@ -258,7 +264,7 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
 }
 
 
-void LoadIC::GenerateNormal(MacroAssembler* masm) {
+void LoadIC::GenerateNormal(MacroAssembler* masm, LanguageMode language_mode) {
   Register dictionary = x0;
   DCHECK(!dictionary.is(LoadDescriptor::ReceiverRegister()));
   DCHECK(!dictionary.is(LoadDescriptor::NameRegister()));
@@ -272,7 +278,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Dictionary load failed, go slow (but don't miss).
   __ Bind(&slow);
-  GenerateRuntimeGetProperty(masm);
+  GenerateRuntimeGetProperty(masm, language_mode);
 }
 
 
@@ -296,10 +302,15 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
+                                        LanguageMode language_mode) {
   // The return address is in lr.
   __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
-  __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(is_strong(language_mode) ? Runtime::kGetPropertyStrong
+                                              : Runtime::kGetProperty,
+                     2, 1);
 }
 
 
@@ -324,10 +335,15 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
+                                             LanguageMode language_mode) {
   // The return address is in lr.
   __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
-  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(is_strong(language_mode) ? Runtime::kKeyedGetPropertyStrong
+                                              : Runtime::kKeyedGetProperty,
+                     2, 1);
 }
 
 
@@ -335,7 +351,8 @@ static void GenerateKeyedLoadWithSmiKey(MacroAssembler* masm, Register key,
                                         Register receiver, Register scratch1,
                                         Register scratch2, Register scratch3,
                                         Register scratch4, Register scratch5,
-                                        Label* slow) {
+                                        Label* slow,
+                                        LanguageMode language_mode) {
   DCHECK(!AreAliased(key, receiver, scratch1, scratch2, scratch3, scratch4,
                      scratch5));
 
@@ -351,7 +368,7 @@ static void GenerateKeyedLoadWithSmiKey(MacroAssembler* masm, Register key,
   __ CheckFastElements(scratch1, scratch2, &check_number_dictionary);
 
   GenerateFastArrayLoad(masm, receiver, key, scratch3, scratch2, scratch1,
-                        result, slow);
+                        result, slow, language_mode);
   __ IncrementCounter(isolate->counters()->keyed_load_generic_smi(), 1,
                       scratch1, scratch2);
   __ Ret();
@@ -422,7 +439,8 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm, Register key,
 }
 
 
-void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
+                                      LanguageMode language_mode) {
   // The return address is in lr.
   Label slow, check_name, index_smi, index_name;
 
@@ -435,13 +453,14 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ Bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
-  GenerateKeyedLoadWithSmiKey(masm, key, receiver, x7, x3, x4, x5, x6, &slow);
+  GenerateKeyedLoadWithSmiKey(masm, key, receiver, x7, x3, x4, x5, x6, &slow,
+                              language_mode);
 
   // Slow case.
   __ Bind(&slow);
   __ IncrementCounter(masm->isolate()->counters()->keyed_load_generic_slow(), 1,
                       x4, x3);
-  GenerateRuntimeGetProperty(masm);
+  GenerateRuntimeGetProperty(masm, language_mode);
 
   __ Bind(&check_name);
   GenerateKeyNameCheck(masm, key, x0, x3, &index_name, &slow);

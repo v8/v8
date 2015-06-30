@@ -376,6 +376,8 @@ class CallSite {
     "instead")                                                                 \
   T(StrongForIn,                                                               \
     "In strong mode, 'for'-'in' loops are deprecated, use 'for'-'of' instead") \
+  T(StrongPropertyAccess,                                                      \
+    "In strong mode, accessing missing property '%' of % is deprecated")       \
   T(StrongSuperCallDuplicate,                                                  \
     "In strong mode, invoking the super constructor multiple times is "        \
     "deprecated")                                                              \

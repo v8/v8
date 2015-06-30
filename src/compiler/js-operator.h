@@ -231,10 +231,15 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 class LoadNamedParameters final {
  public:
   LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+                      LanguageMode language_mode,
                       ContextualMode contextual_mode)
-      : name_(name), feedback_(feedback), contextual_mode_(contextual_mode) {}
+      : name_(name),
+        feedback_(feedback),
+        language_mode_(language_mode),
+        contextual_mode_(contextual_mode) {}
 
   const Unique<Name>& name() const { return name_; }
+  LanguageMode language_mode() const { return language_mode_; }
   ContextualMode contextual_mode() const { return contextual_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
@@ -242,6 +247,7 @@ class LoadNamedParameters final {
  private:
   const Unique<Name> name_;
   const VectorSlotPair feedback_;
+  const LanguageMode language_mode_;
   const ContextualMode contextual_mode_;
 };
 
@@ -261,13 +267,17 @@ const LoadNamedParameters& LoadGlobalParametersOf(const Operator* op);
 // used as a parameter by JSLoadProperty operators.
 class LoadPropertyParameters final {
  public:
-  explicit LoadPropertyParameters(const VectorSlotPair& feedback)
-      : feedback_(feedback) {}
+  explicit LoadPropertyParameters(const VectorSlotPair& feedback,
+                                  LanguageMode language_mode)
+      : feedback_(feedback), language_mode_(language_mode) {}
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
+  LanguageMode language_mode() const { return language_mode_; }
+
  private:
   const VectorSlotPair feedback_;
+  const LanguageMode language_mode_;
 };
 
 bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
@@ -410,9 +420,11 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* CallConstruct(int arguments);
 
-  const Operator* LoadProperty(const VectorSlotPair& feedback);
+  const Operator* LoadProperty(const VectorSlotPair& feedback,
+                               LanguageMode language_mode);
   const Operator* LoadNamed(const Unique<Name>& name,
-                            const VectorSlotPair& feedback);
+                            const VectorSlotPair& feedback,
+                            LanguageMode language_mode);
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 const VectorSlotPair& feedback);

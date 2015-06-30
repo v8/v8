@@ -78,8 +78,8 @@ namespace internal {
   F(DefineClass, 6, 1)                        \
   F(DefineClassMethod, 3, 1)                  \
   F(ClassGetSourceCode, 1, 1)                 \
-  F(LoadFromSuper, 3, 1)                      \
-  F(LoadKeyedFromSuper, 3, 1)                 \
+  F(LoadFromSuper, 4, 1)                      \
+  F(LoadKeyedFromSuper, 4, 1)                 \
   F(StoreToSuper_Strict, 4, 1)                \
   F(StoreToSuper_Sloppy, 4, 1)                \
   F(StoreKeyedToSuper_Strict, 4, 1)           \
@@ -436,7 +436,9 @@ namespace internal {
   F(ObjectFreeze, 1, 1)                              \
   F(ObjectSeal, 1, 1)                                \
   F(GetProperty, 2, 1)                               \
+  F(GetPropertyStrong, 2, 1)                         \
   F(KeyedGetProperty, 2, 1)                          \
+  F(KeyedGetPropertyStrong, 2, 1)                    \
   F(AddNamedProperty, 4, 1)                          \
   F(SetProperty, 4, 1)                               \
   F(AddElement, 3, 1)                                \
@@ -819,14 +821,20 @@ class Runtime : public AllStatic {
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
   MUST_USE_RESULT static MaybeHandle<Object> GetElementOrCharAt(
-      Isolate* isolate, Handle<Object> object, uint32_t index);
+      Isolate* isolate, Handle<Object> object, uint32_t index,
+      LanguageMode language_mode = SLOPPY);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       Handle<Object> value, LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
-      Isolate* isolate, Handle<Object> object, Handle<Object> key);
+      Isolate* isolate, Handle<Object> object, Handle<Object> key,
+      LanguageMode language_mode = SLOPPY);
+
+  MUST_USE_RESULT static MaybeHandle<Object> KeyedGetObjectProperty(
+      Isolate* isolate, Handle<Object> receiver_obj, Handle<Object> key_obj,
+      LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPrototype(
       Isolate* isolate, Handle<Object> object);

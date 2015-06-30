@@ -1161,17 +1161,18 @@ bool Object::HasSpecificClassOf(String* name) {
 
 
 MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
-                                        Handle<Name> name) {
+                                        Handle<Name> name,
+                                        LanguageMode language_mode) {
   LookupIterator it(object, name);
-  return GetProperty(&it);
+  return GetProperty(&it, language_mode);
 }
 
 
-MaybeHandle<Object> Object::GetElement(Isolate* isolate,
-                                       Handle<Object> object,
-                                       uint32_t index) {
+MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
+                                       uint32_t index,
+                                       LanguageMode language_mode) {
   LookupIterator it(isolate, object, index);
-  return GetProperty(&it);
+  return GetProperty(&it, language_mode);
 }
 
 
@@ -1188,11 +1189,11 @@ Handle<Object> Object::GetPrototypeSkipHiddenPrototypes(
 }
 
 
-MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
-                                        Handle<Object> object,
-                                        const char* name) {
+MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
+                                        const char* name,
+                                        LanguageMode language_mode) {
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  return GetProperty(object, str);
+  return GetProperty(object, str, language_mode);
 }
 
 
@@ -6546,10 +6547,11 @@ String* String::GetForwardedInternalizedString() {
 
 
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                                 Handle<Name> name) {
+                                                 Handle<Name> name,
+                                                 LanguageMode language_mode) {
   LookupIterator it =
       LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
-  return GetProperty(&it);
+  return GetProperty(&it, language_mode);
 }
 
 
