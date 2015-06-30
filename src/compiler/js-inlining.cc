@@ -251,6 +251,22 @@ Reduction JSInliner::Reduce(Node* node) {
     return NoChange();
   }
 
+  // Disallow cross native-context inlining for now. This means that all parts
+  // of the resulting code will operate on the same global object.
+  // This also prevents cross context leaks for asm.js code, where we could
+  // inline functions from a different context and hold on to that context (and
+  // closure) from the code object.
+  // TODO(turbofan): We might want to revisit this restriction later when we
+  // have a need for this, and we know how to model different native contexts
+  // in the same graph in a compositional way.
+  if (function->context()->native_context() !=
+      info_->context()->native_context()) {
+    TRACE("Not inlining %s into %s because of different native contexts\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   // TODO(turbofan): TranslatedState::GetAdaptedArguments() currently relies on
   // not inlining recursive functions. We might want to relax that at some
   // point.
@@ -278,7 +294,7 @@ Reduction JSInliner::Reduce(Node* node) {
 
   if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
     // For now do not inline functions that use their arguments array.
-    TRACE("Not Inlining %s into %s because inlinee uses arguments array\n",
+    TRACE("Not inlining %s into %s because inlinee uses arguments array\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
