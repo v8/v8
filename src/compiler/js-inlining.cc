@@ -9,7 +9,6 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -282,10 +281,6 @@ Reduction JSInliner::Reduce(Node* node) {
   // type feedback in the compiler.
   AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
   graph_builder.CreateGraph(true, false);
-  GraphReducer graph_reducer(local_zone_, &graph);
-  JSContextSpecializer context_specializer(&graph_reducer, &jsgraph);
-  graph_reducer.AddReducer(&context_specializer);
-  graph_reducer.ReduceGraph();
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());
   visitor.CopyGraph();
