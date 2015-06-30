@@ -61,23 +61,17 @@ let numberValues = [
   "0",
   "(-0)",
   "1",
-  "0.79",
-  "(-0.79)",
-  "4294967295",
-  "4294967296",
   "(-4294967295)",
   "(-4294967296)",
   "9999999999999",
   "(-9999999999999)",
-  "1.5e10",
-  "(-1.5e10)",
-  "0xFFF",
-  "(-0xFFF)",
   "NaN",
   "Infinity",
   "(-Infinity)"
 ];
 
+//******************************************************************************
+// Relational comparison function declarations
 function add_strong(x, y) {
   "use strong";
   return x + y;
@@ -253,6 +247,18 @@ function typed_greater_equal_strong(x, y) {
   return (+x) >= (+y);
 }
 
+//******************************************************************************
+// (in)equality function declarations
+function str_equal_strong(x, y) {
+  "use strong";
+  return x === y;
+}
+
+function str_ineq_strong(x, y) {
+  "use strong";
+  return x !== y;
+}
+
 let strongNumberFuncs = [add_num_strong, sub_strong, mul_strong, div_strong,
                          mod_strong, or_strong, and_strong, xor_strong,
                          shl_strong, shr_strong, sar_strong, less_num_strong,
@@ -332,44 +338,75 @@ for (let op of strongUnops) {
 
 for (let func of strongNumberFuncs) {
   // Check IC None*None->None throws
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %OptimizeFunctionOnNextCall(func);
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %DeoptimizeFunction(func);
+  for (let v of nonNumberValues) {
+    let value = eval(v);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %OptimizeFunctionOnNextCall(func);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %DeoptimizeFunction(func);
+  }
   func(4, 5);
   func(4, 5);
   // Check IC Smi*Smi->Smi throws
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %OptimizeFunctionOnNextCall(func);
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %DeoptimizeFunction(func);
+  for (let v of nonNumberValues) {
+    let value = eval(v);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %OptimizeFunctionOnNextCall(func);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %DeoptimizeFunction(func);
+  }
   func(NaN, NaN);
   func(NaN, NaN);
   // Check IC Number*Number->Number throws
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %OptimizeFunctionOnNextCall(func);
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %DeoptimizeFunction(func);
+  for (let v of nonNumberValues) {
+    let value = eval(v);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %OptimizeFunctionOnNextCall(func);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %DeoptimizeFunction(func);
+  }
 }
 
 for (let func of strongStringOrNumberFuncs) {
   // Check IC None*None->None throws
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %OptimizeFunctionOnNextCall(func);
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %DeoptimizeFunction(func);
+  for (let v of nonNumberValues) {
+    let value = eval(v);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %OptimizeFunctionOnNextCall(func);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %DeoptimizeFunction(func);
+  }
   func("foo", "bar");
   func("foo", "bar");
   // Check IC String*String->String throws
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %OptimizeFunctionOnNextCall(func);
-  assertThrows(function(){func(2, "foo");}, TypeError);
-  %DeoptimizeFunction(func);
+  for (let v of nonNumberValues) {
+    let value = eval(v);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %OptimizeFunctionOnNextCall(func);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %DeoptimizeFunction(func);
+  }
   func(NaN, NaN);
   func(NaN, NaN);
   // Check IC Generic*Generic->Generic throws
-  assertThrows(function(){func(2, "foo");}, TypeError);
+  for (let v of nonNumberValues) {
+    let value = eval(v);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %OptimizeFunctionOnNextCall(func);
+    assertThrows(function(){func(2, value);}, TypeError);
+    %DeoptimizeFunction(func);
+  }
+}
+
+for (let func of [str_equal_strong, str_ineq_strong]) {
+  assertDoesNotThrow(function(){func(2, undefined)});
+  assertDoesNotThrow(function(){func(2, undefined)});
   %OptimizeFunctionOnNextCall(func);
-  assertThrows(function(){func(2, "foo");}, TypeError);
+  assertDoesNotThrow(function(){func(2, undefined)});
+  %DeoptimizeFunction(func);
+  assertDoesNotThrow(function(){func(true, {})});
+  assertDoesNotThrow(function(){func(true, {})});
+  %OptimizeFunctionOnNextCall(func);
+  assertDoesNotThrow(function(){func(true, {})});
   %DeoptimizeFunction(func);
 }

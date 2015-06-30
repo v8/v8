@@ -223,6 +223,7 @@ Type* BinaryOpICState::GetResultType(Zone* zone) const {
 std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s) {
   os << "(" << Token::Name(s.op_);
   if (s.CouldCreateAllocationMementos()) os << "_CreateAllocationMementos";
+  if (is_strong(s.strength())) os << "_Strong";
   os << ":" << BinaryOpICState::KindToString(s.left_kind_) << "*";
   if (s.fixed_right_arg_.IsJust()) {
     os << s.fixed_right_arg_.FromJust();

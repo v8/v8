@@ -4151,7 +4151,7 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
       : HBinaryOperation(context, left, right, strength, type) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToInt32);
-    SetFlag(kAllowUndefinedAsNaN);
+    if (!is_strong(strength)) SetFlag(kAllowUndefinedAsNaN);
     SetAllSideEffects();
   }
 
@@ -4232,7 +4232,7 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
                          HType::TaggedNumber()) {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
-    SetFlag(kAllowUndefinedAsNaN);
+    if (!is_strong(strength)) SetFlag(kAllowUndefinedAsNaN);
   }
 
   void RepresentationChanged(Representation to) override {
@@ -4289,11 +4289,22 @@ class HCompareGeneric final : public HBinaryOperation {
 
 class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P3(HCompareNumericAndBranch,
-                                 HValue*, HValue*, Token::Value);
-  DECLARE_INSTRUCTION_FACTORY_P5(HCompareNumericAndBranch,
-                                 HValue*, HValue*, Token::Value,
-                                 HBasicBlock*, HBasicBlock*);
+  static HCompareNumericAndBranch* New(Isolate* isolate, Zone* zone,
+                                       HValue* context, HValue* left,
+                                       HValue* right, Token::Value token,
+                                       HBasicBlock* true_target = NULL,
+                                       HBasicBlock* false_target = NULL,
+                                       Strength strength = Strength::WEAK) {
+    return new (zone) HCompareNumericAndBranch(left, right, token, true_target,
+                                               false_target, strength);
+  }
+  static HCompareNumericAndBranch* New(Isolate* isolate, Zone* zone,
+                                       HValue* context, HValue* left,
+                                       HValue* right, Token::Value token,
+                                       Strength strength) {
+    return new (zone)
+        HCompareNumericAndBranch(left, right, token, NULL, NULL, strength);
+  }
 
   HValue* left() const { return OperandAt(0); }
   HValue* right() const { return OperandAt(1); }
@@ -4316,6 +4327,8 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
   bool KnownSuccessorBlock(HBasicBlock** block) override;
 
+  Strength strength() const { return strength_; }
+
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
   void SetOperandPositions(Zone* zone, SourcePosition left_pos,
@@ -4327,12 +4340,10 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
   DECLARE_CONCRETE_INSTRUCTION(CompareNumericAndBranch)
 
  private:
-  HCompareNumericAndBranch(HValue* left,
-                           HValue* right,
-                           Token::Value token,
-                           HBasicBlock* true_target = NULL,
-                           HBasicBlock* false_target = NULL)
-      : token_(token) {
+  HCompareNumericAndBranch(HValue* left, HValue* right, Token::Value token,
+                           HBasicBlock* true_target, HBasicBlock* false_target,
+                           Strength strength)
+      : token_(token), strength_(strength) {
     SetFlag(kFlexibleRepresentation);
     DCHECK(Token::IsCompareOp(token));
     SetOperandAt(0, left);
@@ -4343,6 +4354,7 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
   Representation observed_input_representation_[2];
   Token::Value token_;
+  Strength strength_;
 };
 
 

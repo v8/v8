@@ -2661,9 +2661,11 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   }
 
   // Convert old value into a number.
-  old_value = NewNode(javascript()->ToNumber(), old_value);
-  PrepareFrameState(old_value, expr->ToNumberId(),
-                    OutputFrameStateCombine::Push());
+  if (!is_strong(language_mode())) {
+    old_value = NewNode(javascript()->ToNumber(), old_value);
+    PrepareFrameState(old_value, expr->ToNumberId(),
+                      OutputFrameStateCombine::Push());
+  }
 
   // TODO(titzer): combine this framestate with the above?
   FrameStateBeforeAndAfter store_states(this, assign_type == KEYED_PROPERTY
@@ -2679,9 +2681,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     FrameStateBeforeAndAfter states(this, BailoutId::None());
     value =
         BuildBinaryOp(old_value, jsgraph()->OneConstant(), expr->binary_op());
-    // This should never deoptimize because we have converted to number
-    // before.
-    states.AddToNode(value, BailoutId::None(),
+    // This should never deoptimize outside strong mode because otherwise we
+    // have converted to number before.
+    states.AddToNode(value, is_strong(language_mode()) ? expr->ToNumberId()
+                                                       : BailoutId::None(),
                      OutputFrameStateCombine::Ignore());
   }
 

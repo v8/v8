@@ -300,6 +300,7 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                     \
   F(NewReferenceError, 2, 1)                  \
   F(ThrowIteratorResultNotAnObject, 1, 1)     \
+  F(ThrowStrongModeImplicitConversion, 0, 1)  \
   F(PromiseRejectEvent, 3, 1)                 \
   F(PromiseRevokeReject, 1, 1)                \
   F(PromiseHasHandlerSymbol, 0, 1)            \

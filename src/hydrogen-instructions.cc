@@ -3404,7 +3404,7 @@ void HCompareNumericAndBranch::InferRepresentation(
     // (false). Therefore, any comparisons other than ordered relational
     // comparisons must cause a deopt when one of their arguments is undefined.
     // See also v8:1434
-    if (Token::IsOrderedRelationalCompareOp(token_)) {
+    if (Token::IsOrderedRelationalCompareOp(token_) && !is_strong(strength())) {
       SetFlag(kAllowUndefinedAsNaN);
     }
   }

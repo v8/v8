@@ -10305,7 +10305,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     rep = Representation::Smi();
   }
 
-  if (returns_original_input) {
+  if (returns_original_input && !is_strong(function_language_mode())) {
     // We need an explicit HValue representing ToNumber(input).  The
     // actual HChange instruction we need is (sometimes) added in a later
     // phase, so it is not available now to be used as an input to HAdd and
@@ -10331,8 +10331,12 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     add->set_observed_input_representation(1, rep);
     add->set_observed_input_representation(2, Representation::Smi());
   }
+  if (!is_strong(function_language_mode())) {
+    instr->ClearAllSideEffects();
+  } else {
+    Add<HSimulate>(expr->ToNumberId(), REMOVABLE_SIMULATE);
+  }
   instr->SetFlag(HInstruction::kCannotBeTagged);
-  instr->ClearAllSideEffects();
   return instr;
 }
 
@@ -10616,10 +10620,10 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   if (FLAG_allocation_site_pretenuring && !allocation_site.is_null()) {
     allocation_mode = HAllocationMode(allocation_site);
   }
-
   HValue* result = HGraphBuilder::BuildBinaryOperation(
       expr->op(), left, right, left_type, right_type, result_type,
-      fixed_right_arg, allocation_mode, strength(function_language_mode()));
+      fixed_right_arg, allocation_mode, strength(function_language_mode()),
+      expr->id());
   // Add a simulate after instructions with observable side effects, and
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
@@ -10636,12 +10640,10 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
 }
 
 
-HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
-                                            HValue* right, Type* left_type,
-                                            Type* right_type, Type* result_type,
-                                            Maybe<int> fixed_right_arg,
-                                            HAllocationMode allocation_mode,
-                                            Strength strength) {
+HValue* HGraphBuilder::BuildBinaryOperation(
+    Token::Value op, HValue* left, HValue* right, Type* left_type,
+    Type* right_type, Type* result_type, Maybe<int> fixed_right_arg,
+    HAllocationMode allocation_mode, Strength strength, BailoutId opt_id) {
   bool maybe_string_add = false;
   if (op == Token::ADD) {
     // If we are adding constant string with something for which we don't have
@@ -10684,7 +10686,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
     maybe_string_add = op == Token::ADD;
   }
 
-  if (!maybe_string_add) {
+  if (!maybe_string_add && !is_strong(strength)) {
     left = TruncateToNumber(left, &left_type);
     right = TruncateToNumber(right, &right_type);
   }
@@ -10794,6 +10796,20 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
     Add<HPushArguments>(left, right);
     instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {
+    if (is_strong(strength) && Token::IsBitOp(op)) {
+      IfBuilder if_builder(this);
+      if_builder.If<HHasInstanceTypeAndBranch>(left, ODDBALL_TYPE);
+      if_builder.OrIf<HHasInstanceTypeAndBranch>(right, ODDBALL_TYPE);
+      if_builder.Then();
+      Add<HCallRuntime>(
+          isolate()->factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kThrowStrongModeImplicitConversion),
+          0);
+      if (!graph()->info()->IsStub()) {
+        Add<HSimulate>(opt_id, REMOVABLE_SIMULATE);
+      }
+      if_builder.End();
+    }
     switch (op) {
       case Token::ADD:
         instr = AddUncasted<HAdd>(left, right, strength);
@@ -11251,8 +11267,8 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       HBranch* branch = New<HBranch>(result);
       return branch;
     } else {
-      HCompareNumericAndBranch* result =
-          New<HCompareNumericAndBranch>(left, right, op);
+      HCompareNumericAndBranch* result = New<HCompareNumericAndBranch>(
+          left, right, op, strength(function_language_mode()));
       result->set_observed_input_representation(left_rep, right_rep);
       if (top_info()->is_tracking_positions()) {
         result->SetOperandPositions(zone(), left_position, right_position);

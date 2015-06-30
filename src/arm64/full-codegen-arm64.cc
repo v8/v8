@@ -4712,9 +4712,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ B(&stub_call);
     __ Bind(&slow);
   }
-  ToNumberStub convert_stub(isolate());
-  __ CallStub(&convert_stub);
-  PrepareForBailoutForId(expr->ToNumberId(), TOS_REG);
+  if (!is_strong(language_mode())) {
+    ToNumberStub convert_stub(isolate());
+    __ CallStub(&convert_stub);
+    PrepareForBailoutForId(expr->ToNumberId(), TOS_REG);
+  }
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -4759,6 +4761,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
   __ Bind(&done);
 
+  if (is_strong(language_mode())) {
+    PrepareForBailoutForId(expr->ToNumberId(), TOS_REG);
+  }
   // Store the value returned in x0.
   switch (assign_type) {
     case VARIABLE:

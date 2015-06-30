@@ -103,6 +103,14 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowStrongModeImplicitConversion) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kStrongImplicitConversion));
+}
+
+
 RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   DCHECK(args.length() == 3);
   HandleScope scope(isolate);
