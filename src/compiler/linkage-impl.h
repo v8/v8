@@ -70,6 +70,7 @@ class LinkageHelper {
         js_parameter_count,               // js_parameter_count
         Operator::kNoProperties,          // properties
         kNoCalleeSaved,                   // callee-saved
+        kNoCalleeSaved,                   // callee-saved fp
         flags,                            // flags
         "js-call");
   }
@@ -131,6 +132,7 @@ class LinkageHelper {
         js_parameter_count,               // js_parameter_count
         properties,                       // properties
         kNoCalleeSaved,                   // callee-saved
+        kNoCalleeSaved,                   // callee-saved fp
         flags,                            // flags
         function->name);                  // debug name
   }
@@ -191,6 +193,7 @@ class LinkageHelper {
         js_parameter_count,               // js_parameter_count
         properties,                       // properties
         kNoCalleeSaved,                   // callee-saved registers
+        kNoCalleeSaved,                   // callee-saved fp
         flags,                            // flags
         descriptor.DebugName(isolate));
   }
@@ -217,16 +220,17 @@ class LinkageHelper {
     // The target for C calls is always an address (i.e. machine pointer).
     MachineType target_type = kMachPtr;
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone) CallDescriptor(           // --
-        CallDescriptor::kCallAddress,           // kind
-        target_type,                            // target MachineType
-        target_loc,                             // target location
-        msig,                                   // machine_sig
-        locations.Build(),                      // location_sig
-        0,                                      // js_parameter_count
-        Operator::kNoProperties,                // properties
-        LinkageTraits::CCalleeSaveRegisters(),  // callee-saved registers
-        CallDescriptor::kNoFlags,               // flags
+    return new (zone) CallDescriptor(             // --
+        CallDescriptor::kCallAddress,             // kind
+        target_type,                              // target MachineType
+        target_loc,                               // target location
+        msig,                                     // machine_sig
+        locations.Build(),                        // location_sig
+        0,                                        // js_parameter_count
+        Operator::kNoProperties,                  // properties
+        LinkageTraits::CCalleeSaveRegisters(),    // callee-saved registers
+        LinkageTraits::CCalleeSaveFPRegisters(),  // callee-saved fp regs
+        CallDescriptor::kNoFlags,                 // flags
         "c-call");
   }
 

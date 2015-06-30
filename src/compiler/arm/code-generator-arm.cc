@@ -962,16 +962,28 @@ void CodeGenerator::AssemblePrologue() {
       __ mov(fp, sp);
       saved_pp = false;
     }
+    int register_save_area_size = saved_pp ? kPointerSize : 0;
     const RegList saves = descriptor->CalleeSavedRegisters();
     if (saves != 0 || saved_pp) {
       // Save callee-saved registers.
-      int register_save_area_size = saved_pp ? kPointerSize : 0;
-      for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-        if (!((1 << i) & saves)) continue;
-        register_save_area_size += kPointerSize;
-      }
-      frame()->SetRegisterSaveAreaSize(register_save_area_size);
       __ stm(db_w, sp, saves);
+      register_save_area_size +=
+          kPointerSize * base::bits::CountPopulation32(saves);
+    }
+    const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+    if (saves_fp != 0) {
+      // Save callee-saved FP registers.
+      STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+      uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
+      uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
+      DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
+
+      __ vstm(db_w, sp, DwVfpRegister::from_code(first),
+              DwVfpRegister::from_code(last));
+      register_save_area_size += 2 * kPointerSize * (last - first + 1);
+    }
+    if (register_save_area_size > 0) {
+      frame()->SetRegisterSaveAreaSize(register_save_area_size);
     }
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
@@ -1014,6 +1026,15 @@ void CodeGenerator::AssembleReturn() {
       // Remove this frame's spill slots first.
       if (stack_slots > 0) {
         __ add(sp, sp, Operand(stack_slots * kPointerSize));
+      }
+      // Restore FP registers.
+      const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+      if (saves_fp != 0) {
+        STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+        uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
+        uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
+        __ vldm(ia_w, sp, DwVfpRegister::from_code(first),
+                DwVfpRegister::from_code(last));
       }
       // Restore registers.
       const RegList saves = descriptor->CalleeSavedRegisters();

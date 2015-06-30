@@ -83,7 +83,8 @@ class CallDescriptor final : public ZoneObject {
                  const MachineSignature* machine_sig,
                  LocationSignature* location_sig, size_t js_param_count,
                  Operator::Properties properties,
-                 RegList callee_saved_registers, Flags flags,
+                 RegList callee_saved_registers,
+                 RegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "")
       : kind_(kind),
         target_type_(target_type),
@@ -93,6 +94,7 @@ class CallDescriptor final : public ZoneObject {
         js_param_count_(js_param_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
+        callee_saved_fp_registers_(callee_saved_fp_registers),
         flags_(flags),
         debug_name_(debug_name) {
     DCHECK(machine_sig->return_count() == location_sig->return_count());
@@ -156,6 +158,9 @@ class CallDescriptor final : public ZoneObject {
   // Get the callee-saved registers, if any, across this call.
   RegList CalleeSavedRegisters() const { return callee_saved_registers_; }
 
+  // Get the callee-saved FP registers, if any, across this call.
+  RegList CalleeSavedFPRegisters() const { return callee_saved_fp_registers_; }
+
   const char* debug_name() const { return debug_name_; }
 
   bool UsesOnlyRegisters() const;
@@ -173,6 +178,7 @@ class CallDescriptor final : public ZoneObject {
   const size_t js_param_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
+  const RegList callee_saved_fp_registers_;
   const Flags flags_;
   const char* const debug_name_;
 

@@ -25,6 +25,7 @@ struct PPCLinkageHelperTraits {
            r24.bit() | r25.bit() | r26.bit() | r27.bit() | r28.bit() |
            r29.bit() | r30.bit() | fp.bit();
   }
+  static RegList CCalleeSaveFPRegisters() { return 0; }
   static Register CRegisterParameter(int i) {
     static Register register_parameters[] = {r3, r4, r5, r6, r7, r8, r9, r10};
     return register_parameters[i];
