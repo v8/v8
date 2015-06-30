@@ -160,6 +160,7 @@ void BlockBuilder::EndBlock() {
 
 
 void TryCatchBuilder::BeginTry() {
+  exit_environment_ = environment()->CopyAsUnreachable();
   catch_environment_ = environment()->CopyAsUnreachable();
   catch_environment_->Push(the_hole());
 }
@@ -174,7 +175,7 @@ void TryCatchBuilder::Throw(Node* exception) {
 
 
 void TryCatchBuilder::EndTry() {
-  exit_environment_ = environment();
+  exit_environment_->Merge(environment());
   exception_node_ = catch_environment_->Pop();
   set_environment(catch_environment_);
 }
