@@ -244,6 +244,10 @@ void FullCodeGenerator::Generate() {
   Variable* this_function_var = scope()->this_function_var();
   if (this_function_var != nullptr) {
     Comment cmnt(masm_, "[ This function");
+    if (!function_in_register_x1) {
+      __ Ldr(x1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+      // The write barrier clobbers register again, keep is marked as such.
+    }
     SetVar(this_function_var, x1, x0, x2);
   }
 
