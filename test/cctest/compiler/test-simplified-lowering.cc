@@ -35,7 +35,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
   SimplifiedLoweringTester(MachineType p0 = kMachNone,
                            MachineType p1 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0, p1),
-        typer(this->isolate(), this->graph(), nullptr, MaybeHandle<Context>()),
+        typer(this->isolate(), this->graph()),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
                 this->machine()),
@@ -710,7 +710,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None(),
                         Type* p2_type = Type::None())
       : GraphAndBuilders(main_zone()),
-        typer(main_isolate(), graph(), nullptr, MaybeHandle<Context>()),
+        typer(main_isolate(), graph()),
         javascript(main_zone()),
         jsgraph(main_isolate(), graph(), common(), &javascript, machine()) {
     start = graph()->NewNode(common()->Start(2));

@@ -1055,8 +1055,7 @@ Handle<Code> Pipeline::GenerateCode() {
   SmartPointer<Typer> typer;
   if (info()->is_typing_enabled()) {
     // Type the graph.
-    typer.Reset(new Typer(isolate(), data.graph(), info()->function_type(),
-                          info()->context()));
+    typer.Reset(new Typer(isolate(), data.graph(), info()->function_type()));
     Run<TyperPhase>(typer.get());
     RunPrintAndVerify("Typed");
   }

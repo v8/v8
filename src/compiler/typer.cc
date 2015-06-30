@@ -65,12 +65,9 @@ class TyperCache final {
                                          Type::Integral32(), zone());
   Type* const kClz32Func =
       Type::Function(CreateRange(0, 32), Type::Number(), zone());
-  Type* const kArrayBufferFunc =
-      Type::Function(Type::Object(zone()), Type::Unsigned32(), zone());
 
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
-  Type* const k##TypeName##Array = CreateArray(k##TypeName);     \
-  Type* const k##TypeName##ArrayFunc = CreateArrayFunction(k##TypeName##Array);
+  Type* const k##TypeName##Array = CreateArray(k##TypeName);
   TYPED_ARRAYS(TYPED_ARRAY)
 #undef TYPED_ARRAY
 
@@ -119,12 +116,10 @@ class Typer::Decorator final : public GraphDecorator {
 };
 
 
-Typer::Typer(Isolate* isolate, Graph* graph, Type::FunctionType* function_type,
-             MaybeHandle<Context> context)
+Typer::Typer(Isolate* isolate, Graph* graph, Type::FunctionType* function_type)
     : isolate_(isolate),
       graph_(graph),
       function_type_(function_type),
-      context_(context),
       decorator_(nullptr),
       cache_(kCache.Get()) {
   Zone* zone = this->zone();
@@ -261,7 +256,6 @@ class Typer::Visitor : public Reducer {
 
  private:
   Typer* typer_;
-  MaybeHandle<Context> context_;
   ZoneSet<NodeId> weakened_nodes_;
 
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
@@ -286,7 +280,6 @@ class Typer::Visitor : public Reducer {
   Zone* zone() { return typer_->zone(); }
   Isolate* isolate() { return typer_->isolate(); }
   Graph* graph() { return typer_->graph(); }
-  MaybeHandle<Context> context() { return typer_->context(); }
 
   void SetWeakened(NodeId node_id) { weakened_nodes_.insert(node_id); }
   bool IsWeakened(NodeId node_id) {
@@ -2336,28 +2329,6 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
           return typer_->cache_.kClz32Func;
         default:
           break;
-      }
-    } else if (JSFunction::cast(*value)->IsBuiltin() && !context().is_null()) {
-      Handle<Context> native =
-          handle(context().ToHandleChecked()->native_context(), isolate());
-      if (*value == native->array_buffer_fun()) {
-        return typer_->cache_.kArrayBufferFunc;
-      } else if (*value == native->int8_array_fun()) {
-        return typer_->cache_.kInt8ArrayFunc;
-      } else if (*value == native->int16_array_fun()) {
-        return typer_->cache_.kInt16ArrayFunc;
-      } else if (*value == native->int32_array_fun()) {
-        return typer_->cache_.kInt32ArrayFunc;
-      } else if (*value == native->uint8_array_fun()) {
-        return typer_->cache_.kUint8ArrayFunc;
-      } else if (*value == native->uint16_array_fun()) {
-        return typer_->cache_.kUint16ArrayFunc;
-      } else if (*value == native->uint32_array_fun()) {
-        return typer_->cache_.kUint32ArrayFunc;
-      } else if (*value == native->float32_array_fun()) {
-        return typer_->cache_.kFloat32ArrayFunc;
-      } else if (*value == native->float64_array_fun()) {
-        return typer_->cache_.kFloat64ArrayFunc;
       }
     }
     int const arity =
