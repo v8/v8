@@ -115,7 +115,6 @@
   'language/expressions/arrow-function/lexical-super-property-from-within-constructor': [PASS, FAIL_SLOPPY],
   'language/expressions/arrow-function/lexical-super-property': [PASS, FAIL_SLOPPY],
   'language/expressions/arrow-function/lexical-supercall-from-immediately-invoked-arrow': [PASS, FAIL_SLOPPY],
-  'language/expressions/object/method-definition/generator-param-redecl-const': [PASS, FAIL_SLOPPY],
   'language/expressions/object/method-definition/generator-shadow-parameter-const': [PASS, FAIL_SLOPPY],
   'language/rest-parameters/with-new-target': [PASS, FAIL_SLOPPY],
   'language/statements/class/arguments/access': [PASS, FAIL_SLOPPY],
@@ -265,6 +264,7 @@
   # https://code.google.com/p/v8/issues/detail?id=4118
   'built-ins/Object/getOwnPropertyNames/15.2.3.4-4-44': [FAIL],
 
+
   # https://code.google.com/p/v8/issues/detail?id=3087
   'built-ins/Array/prototype/every/15.4.4.16-3-12': [FAIL],
   'built-ins/Array/prototype/every/15.4.4.16-3-14': [FAIL],
@@ -328,13 +328,8 @@
   'built-ins/Array/prototype/unshift/S15.4.4.13_A3_T2': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=1543
-  'built-ins/Proxy/*': [FAIL],
   'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-1': [FAIL],
   'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-2': [FAIL],
-  'built-ins/Object/assign/source-own-prop-desc-missing': [FAIL],
-  'built-ins/Object/assign/source-own-prop-error': [FAIL],
-  'built-ins/Object/assign/source-own-prop-keys-error': [FAIL],
-  'built-ins/Object/setPrototypeOf/set-error': [FAIL],
   'language/expressions/object/prop-def-id-eval-error-2': [FAIL],
   'language/statements/for-of/iterator-as-proxy': [FAIL],
   'language/statements/for-of/iterator-next-result-type': [FAIL],
@@ -364,7 +359,43 @@
 
   # https://code.google.com/p/v8/issues/detail?id=3566
   'built-ins/Set/set-iterator-close-after-add-failure': [FAIL],
-  'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
+
+  # https://github.com/tc39/test262/pull/334
+  'built-ins/Math/E/S15.8.1.1_A1': [PASS, FAIL],
+  'built-ins/Math/LN10/S15.8.1.2_A1': [PASS, FAIL],
+  'built-ins/Math/LN2/S15.8.1.3_A1': [PASS, FAIL],
+  'built-ins/Math/LOG10E/S15.8.1.5_A1': [PASS, FAIL],
+  'built-ins/Math/LOG2E/S15.8.1.4_A1': [PASS, FAIL],
+  'built-ins/Math/PI/S15.8.1.6_A1': [PASS, FAIL],
+  'built-ins/Math/SQRT1_2/S15.8.1.7_A1': [PASS, FAIL],
+  'built-ins/Math/SQRT2/S15.8.1.8_A1': [PASS, FAIL],
+  'built-ins/Math/acos/S15.8.2.2_A5': [PASS, FAIL],
+  'built-ins/Math/asin/S15.8.2.3_A6': [PASS, FAIL],
+  'built-ins/Math/atan/S15.8.2.4_A4': [PASS, FAIL],
+  'built-ins/Math/atan/S15.8.2.4_A5': [PASS, FAIL],
+  'built-ins/Math/atan/S15.8.2.4_A6': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A10': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A11': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A12': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A13': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A15': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A17': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A18': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A19': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A2': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A20': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A21': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A22': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A23': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A24': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A3': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A6': [PASS, FAIL],
+  'built-ins/Math/atan2/S15.8.2.5_A7': [PASS, FAIL],
+  'built-ins/Math/log/S15.8.2.10_A6': [PASS, FAIL],
+  'built-ins/Math/pow/S15.8.2.13_A24': [PASS, FAIL],
+  'built-ins/Math/sqrt/S15.8.2.17_A6': [PASS, FAIL],
+  'built-ins/Number/MAX_VALUE/S15.7.3.2_A1': [PASS, FAIL],
+  'built-ins/Number/MIN_VALUE/S15.7.3.3_A1': [PASS, FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3715
   'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-212': [FAIL],
@@ -429,9 +460,6 @@
   # https://code.google.com/p/v8/issues/detail?id=2160
   'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-1': [FAIL],
   'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-2': [FAIL],
-  'language/expressions/object/method-definition/generator-super-prop-param': [FAIL],
-  'language/expressions/object/method-definition/name-param-init-yield': [FAIL],
-  'language/expressions/object/method-definition/name-super-prop-param': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3673
   'language/statements/class/definition/basics': [FAIL],
@@ -658,10 +686,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
-
-  # https://code.google.com/p/v8/issues/detail?id=3761
-  'language/expressions/object/method-definition/generator-name-prop-symbol': [FAIL],
-  'language/expressions/object/method-definition/name-name-prop-symbol': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
