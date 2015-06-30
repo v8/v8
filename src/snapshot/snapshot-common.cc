@@ -137,7 +137,7 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
                   2 * context_reservations[context_index].chunk_size()) +
                  Page::kObjectStartOffset;
       // Add a small allowance to the code space for small scripts.
-      if (space == CODE_SPACE) required += 32 * KB;
+      if (space == CODE_SPACE) required += 64 * KB;
     } else {
       // We expect the vanilla snapshot to only require on page per space.
       DCHECK(!is_default_snapshot);

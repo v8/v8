@@ -439,6 +439,9 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   if (!isolate->snapshot_available()) return;
   if (Snapshot::EmbedsScript(isolate)) return;
 
+  // If this test fails due to enabling experimental natives that are not part
+  // of the snapshot, we may need to adjust CalculateFirstPageSizes.
+
   // Freshly initialized VM gets by with one page per space.
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
