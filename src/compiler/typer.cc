@@ -2365,7 +2365,7 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
     switch (arity) {
       case SharedFunctionInfo::kDontAdaptArgumentsSentinel:
         // Some smart optimization at work... &%$!&@+$!
-        return Type::Any(zone());
+        break;
       case 0:
         return typer_->cache_.kAnyFunc0;
       case 1:
