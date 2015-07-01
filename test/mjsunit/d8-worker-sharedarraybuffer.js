@@ -27,27 +27,24 @@
 
 // Flags: --harmony-sharedarraybuffer --harmony-atomics
 
-function f() {
-  onmessage = function(m) {
-    var sab = m;
-    var ta = new Uint32Array(sab);
-    if (sab.byteLength !== 16) {
-      throw new Error("SharedArrayBuffer transfer byteLength");
-    }
-
-    for (var i = 0; i < 4; ++i) {
-      if (ta[i] !== i) {
-        throw new Error("SharedArrayBuffer transfer value " + i);
-      }
-    }
-
+var workerScript =
+  `onmessage = function(m) {
+   var sab = m;
+   var ta = new Uint32Array(sab);
+   if (sab.byteLength !== 16) {
+     throw new Error('SharedArrayBuffer transfer byteLength');
+   }
+   for (var i = 0; i < 4; ++i) {
+     if (ta[i] !== i) {
+       throw new Error('SharedArrayBuffer transfer value ' + i);
+     }
+   }
     // Atomically update ta[0]
     Atomics.store(ta, 0, 100);
-  };
-}
+  };`;
 
 if (this.Worker) {
-  var w = new Worker(f);
+  var w = new Worker(workerScript);
 
   var sab = new SharedArrayBuffer(16);
   var ta = new Uint32Array(sab);

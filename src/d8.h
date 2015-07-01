@@ -239,7 +239,7 @@ class Worker {
   Worker();
   ~Worker();
 
-  void StartExecuteInThread(Isolate* isolate, const char* function_string);
+  void StartExecuteInThread(Isolate* isolate, const char* script);
   void PostMessage(SerializationData* data);
   SerializationData* GetMessage();
   void Terminate();

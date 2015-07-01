@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 if (this.Worker) {
-  function __f_5() {}
-  var __v_10 = new Worker(__f_5);
+  var __v_10 = new Worker('');
   __v_10.terminate();
  __v_10.getMessage();
 }

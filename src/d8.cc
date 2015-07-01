@@ -690,8 +690,8 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
-  if (args.Length() < 1 || !args[0]->IsFunction()) {
-    Throw(args.GetIsolate(), "1st argument must be function");
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    Throw(args.GetIsolate(), "1st argument must be string");
     return;
   }
 
@@ -703,12 +703,12 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args.This()->SetInternalField(0, External::New(isolate, worker));
     workers_.Add(worker);
 
-    String::Utf8Value function_string(args[0]->ToString());
-    if (!*function_string) {
-      Throw(args.GetIsolate(), "Function.prototype.toString failed");
+    String::Utf8Value script(args[0]);
+    if (!*script) {
+      Throw(args.GetIsolate(), "Can't get worker script");
       return;
     }
-    worker->StartExecuteInThread(isolate, *function_string);
+    worker->StartExecuteInThread(isolate, *script);
   }
 }
 
@@ -1641,19 +1641,15 @@ Worker::Worker()
 Worker::~Worker() { Cleanup(); }
 
 
-void Worker::StartExecuteInThread(Isolate* isolate,
-                                  const char* function_string) {
-  DCHECK(base::NoBarrier_Load(&state_) == IDLE);
-  static const char format[] = "(%s).call(this);";
-  size_t len = strlen(function_string) + sizeof(format);
-
-  script_ = new char[len + 1];
-  i::Vector<char> vec(script_, static_cast<int>(len + 1));
-  i::SNPrintF(vec, format, function_string);
-
-  base::NoBarrier_Store(&state_, RUNNING);
-  thread_ = new WorkerThread(this);
-  thread_->Start();
+void Worker::StartExecuteInThread(Isolate* isolate, const char* script) {
+  if (base::NoBarrier_CompareAndSwap(&state_, IDLE, RUNNING) == IDLE) {
+    script_ = i::StrDup(script);
+    thread_ = new WorkerThread(this);
+    thread_->Start();
+  } else {
+    // Somehow the Worker was started twice.
+    UNREACHABLE();
+  }
 }
 
 

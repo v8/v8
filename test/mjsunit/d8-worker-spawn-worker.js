@@ -26,21 +26,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 if (this.Worker) {
-  function f() {
-    var g = function () {
-      postMessage(42);
-    };
+  var workerScript =
+    `var w = new Worker('postMessage(42)');
+     onmessage = function(parentMsg) {
+       w.postMessage(parentMsg);
+       var childMsg = w.getMessage();
+       postMessage(childMsg);
+     };`;
 
-    var w = new Worker(g);
-
-    onmessage = function(parentMsg) {
-      w.postMessage(parentMsg);
-      var childMsg = w.getMessage();
-      postMessage(childMsg);
-    };
-  }
-
-  var w = new Worker(f);
+  var w = new Worker(workerScript);
   w.postMessage(9);
   assertEquals(42, w.getMessage());
 }

@@ -5,6 +5,5 @@
 // Flags: --no-test
 
 if (this.Worker) {
-  function __f_4() {}
-  var __v_2 = new Worker(__f_4);
+  var __v_2 = new Worker('');
 }
