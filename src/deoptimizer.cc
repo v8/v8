@@ -1445,7 +1445,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
-  int param_count = descriptor.GetEnvironmentParameterCount();
+  int param_count = descriptor.GetRegisterParameterCount();
   CHECK_EQ(translated_frame->height(), param_count);
   CHECK_GE(param_count, 0);
 
@@ -1564,7 +1564,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     WriteTranslatedValueToOutput(&value_iterator, &input_index, 0,
                                  output_frame_offset);
 
-    if (!arg_count_known && descriptor.IsEnvironmentParameterCountRegister(i)) {
+    if (!arg_count_known &&
+        descriptor.GetRegisterParameter(i)
+            .is(descriptor.stack_parameter_count())) {
       arguments_length_offset = output_frame_offset;
     }
   }

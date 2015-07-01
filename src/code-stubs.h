@@ -214,7 +214,7 @@ class CodeStub BASE_EMBEDDED {
   // Lookup the code in the (possibly custom) cache.
   bool FindCodeInCache(Code** code_out);
 
-  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() = 0;
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() const = 0;
 
   virtual int GetStackParameterCount() const { return 0; }
 
@@ -322,7 +322,7 @@ struct FakeStubForTesting : public CodeStub {
   // Only used by pipeline.cc's GetDebugName in DEBUG mode.
   Major MajorKey() const override { return CodeStub::NoCache; }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     UNREACHABLE();
     return CallInterfaceDescriptor();
   }
@@ -365,20 +365,20 @@ struct FakeStubForTesting : public CodeStub {
   Handle<Code> GenerateCode() override;       \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_CALL_INTERFACE_DESCRIPTOR(NAME)                    \
- public:                                                          \
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override { \
-    return NAME##Descriptor(isolate());                           \
+#define DEFINE_CALL_INTERFACE_DESCRIPTOR(NAME)                          \
+ public:                                                                \
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override { \
+    return NAME##Descriptor(isolate());                                 \
   }
 
 // There are some code stubs we just can't describe right now with a
 // CallInterfaceDescriptor. Isolate behavior for those cases with this macro.
 // An attempt to retrieve a descriptor will fail.
-#define DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR()                   \
- public:                                                          \
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override { \
-    UNREACHABLE();                                                \
-    return CallInterfaceDescriptor();                             \
+#define DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR()                         \
+ public:                                                                \
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override { \
+    UNREACHABLE();                                                      \
+    return CallInterfaceDescriptor();                                   \
   }
 
 
@@ -427,12 +427,16 @@ class CodeStubDescriptor {
   void set_call_descriptor(CallInterfaceDescriptor d) { call_descriptor_ = d; }
   CallInterfaceDescriptor call_descriptor() const { return call_descriptor_; }
 
-  int GetEnvironmentParameterCount() const {
-    return call_descriptor().GetEnvironmentParameterCount();
+  int GetRegisterParameterCount() const {
+    return call_descriptor().GetRegisterParameterCount();
   }
 
-  Type* GetEnvironmentParameterType(int index) const {
-    return call_descriptor().GetEnvironmentParameterType(index);
+  Register GetRegisterParameter(int index) const {
+    return call_descriptor().GetRegisterParameter(index);
+  }
+
+  Type* GetParameterType(int index) const {
+    return call_descriptor().GetParameterType(index);
   }
 
   ExternalReference miss_handler() const {
@@ -444,13 +448,8 @@ class CodeStubDescriptor {
     return has_miss_handler_;
   }
 
-  bool IsEnvironmentParameterCountRegister(int index) const {
-    return call_descriptor().GetEnvironmentParameterRegister(index).is(
-        stack_parameter_count_);
-  }
-
   int GetHandlerParameterCount() const {
-    int params = call_descriptor().GetEnvironmentParameterCount();
+    int params = GetRegisterParameterCount();
     if (handler_arguments_mode_ == PASS_ARGUMENTS) {
       params += 1;
     }
@@ -530,6 +529,10 @@ class TurboFanCodeStub : public CodeStub {
  public:
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GenerateCode() override;
+
+  virtual int GetStackParameterCount() const override {
+    return GetCallInterfaceDescriptor().GetStackParameterCount();
+  }
 
   Code::StubType GetStubType() const override { return Code::FAST; }
 
@@ -852,7 +855,7 @@ class InstanceofStub: public PlatformCodeStub {
   static Register left() { return InstanceofDescriptor::left(); }
   static Register right() { return InstanceofDescriptor::right(); }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     if (HasArgsInRegisters()) {
       return InstanceofDescriptor(isolate());
     }
@@ -933,7 +936,7 @@ class MathPowStub: public PlatformCodeStub {
     minor_key_ = ExponentTypeBits::encode(exponent_type);
   }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     if (exponent_type() == TAGGED) {
       return MathPowTaggedDescriptor(isolate());
     } else if (exponent_type() == INTEGER) {
@@ -1021,7 +1024,7 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   // TODO(mvstanton): only the receiver register is accessed. When this is
   // translated to a hydrogen code stub, a new CallInterfaceDescriptor
   // should be created that just uses that register for more efficient code.
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     return LoadWithVectorDescriptor(isolate());
   }
 
@@ -1064,7 +1067,7 @@ class HandlerStub : public HydrogenCodeStub {
 
   void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override;
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override;
 
  protected:
   explicit HandlerStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
@@ -1258,7 +1261,7 @@ class StoreTransitionStub : public HandlerStub {
     return StoreModeBits::decode(sub_minor_key());
   }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override;
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override;
 
  protected:
   Code::Kind kind() const override { return Code::STORE_IC; }
@@ -1789,7 +1792,7 @@ class ArgumentsAccessStub: public PlatformCodeStub {
     minor_key_ = TypeBits::encode(type);
   }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     if (type() == READ_ELEMENT) {
       return ArgumentsAccessReadDescriptor(isolate());
     }
@@ -1816,7 +1819,7 @@ class RestParamAccessStub: public PlatformCodeStub {
  public:
   explicit RestParamAccessStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     return ContextOnlyDescriptor(isolate());
   }
 
@@ -2110,7 +2113,7 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
     minor_key_ = state.GetExtraICState();
   }
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     return LoadWithVectorDescriptor(isolate());
   }
 

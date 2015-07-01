@@ -3500,8 +3500,8 @@ HGraph::HGraph(CompilationInfo* info)
   if (info->IsStub()) {
     CallInterfaceDescriptor descriptor =
         info->code_stub()->GetCallInterfaceDescriptor();
-    start_environment_ = new (zone_)
-        HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
+    start_environment_ =
+        new (zone_) HEnvironment(zone_, descriptor.GetRegisterParameterCount());
   } else {
     if (info->is_tracking_positions()) {
       info->TraceInlinedFunction(info->shared_info(), SourcePosition::Unknown(),
@@ -7707,9 +7707,8 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
       isolate()->builtins()->ArgumentsAdaptorTrampoline();
   HConstant* adaptor_value = Add<HConstant>(adaptor);
 
-  return New<HCallWithDescriptor>(
-      adaptor_value, argument_count, descriptor,
-      Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+  return New<HCallWithDescriptor>(adaptor_value, argument_count, descriptor,
+                                  Vector<HValue*>(op_vals, arraysize(op_vals)));
 }
 
 
@@ -8965,19 +8964,17 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     ApiAccessorDescriptor descriptor(isolate());
-    DCHECK(arraysize(op_vals) - 1 == descriptor.GetEnvironmentLength());
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, descriptor,
-        Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+        Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
   } else if (argc <= CallApiFunctionWithFixedArgsStub::kMaxFixedArgs) {
     CallApiFunctionWithFixedArgsStub stub(isolate(), argc, call_data_undefined);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     ApiFunctionWithFixedArgsDescriptor descriptor(isolate());
-    DCHECK(arraysize(op_vals) - 1 == descriptor.GetEnvironmentLength());
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, descriptor,
-        Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+        Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
     Drop(1);  // Drop function.
   } else {
     op_vals[arraysize(op_vals) - 1] = Add<HConstant>(argc);
@@ -8985,10 +8982,9 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     ApiFunctionDescriptor descriptor(isolate());
-    DCHECK(arraysize(op_vals) == descriptor.GetEnvironmentLength());
-    call = New<HCallWithDescriptor>(
-        code_value, argc + 1, descriptor,
-        Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
+    call =
+        New<HCallWithDescriptor>(code_value, argc + 1, descriptor,
+                                 Vector<HValue*>(op_vals, arraysize(op_vals)));
     Drop(1);  // Drop function.
   }
 

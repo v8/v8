@@ -1097,10 +1097,18 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
 
   LOperand* target = UseRegisterOrConstantAtStart(instr->target());
   ZoneList<LOperand*> ops(instr->OperandCount(), zone());
+  // Target
   ops.Add(target, zone());
-  for (int i = 1; i < instr->OperandCount(); i++) {
-    LOperand* op =
-        UseFixed(instr->OperandAt(i), descriptor.GetParameterRegister(i - 1));
+  // Context
+  LOperand* op = UseFixed(instr->OperandAt(1), cp);
+  ops.Add(op, zone());
+  // Other register parameters
+  for (int i = LCallWithDescriptor::kImplicitRegisterParameterCount;
+       i < instr->OperandCount(); i++) {
+    op =
+        UseFixed(instr->OperandAt(i),
+                 descriptor.GetRegisterParameter(
+                     i - LCallWithDescriptor::kImplicitRegisterParameterCount));
     ops.Add(op, zone());
   }
 
@@ -2448,7 +2456,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     CallInterfaceDescriptor descriptor =
         info()->code_stub()->GetCallInterfaceDescriptor();
     int index = static_cast<int>(instr->index());
-    Register reg = descriptor.GetEnvironmentParameterRegister(index);
+    Register reg = descriptor.GetRegisterParameter(index);
     return DefineFixed(result, reg);
   }
 }

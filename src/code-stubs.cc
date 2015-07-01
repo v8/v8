@@ -644,7 +644,7 @@ void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 }
 
 
-CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() {
+CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
   if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
     return LoadWithVectorDescriptor(isolate());
   } else {
@@ -666,7 +666,8 @@ void ElementsTransitionAndStoreStub::InitializeDescriptor(
 }
 
 
-CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor() {
+CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor()
+    const {
   return StoreTransitionDescriptor(isolate());
 }
 

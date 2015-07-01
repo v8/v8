@@ -2261,9 +2261,9 @@ class HCallWithDescriptor final : public HInstruction {
                                   CallInterfaceDescriptor descriptor,
                                   const Vector<HValue*>& operands,
                                   CallMode call_mode = NORMAL_CALL) {
-    DCHECK(operands.length() == descriptor.GetEnvironmentLength());
     HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
         target, argument_count, descriptor, operands, call_mode, zone);
+    DCHECK(operands.length() == res->GetParameterCount());
     return res;
   }
 
@@ -2271,11 +2271,12 @@ class HCallWithDescriptor final : public HInstruction {
   HValue* OperandAt(int index) const final { return values_[index]; }
 
   Representation RequiredInputRepresentation(int index) final {
-    if (index == 0) {
+    if (index == 0 || index == 1) {
+      // Target + context
       return Representation::Tagged();
     } else {
-      int par_index = index - 1;
-      DCHECK(par_index < descriptor_.GetEnvironmentLength());
+      int par_index = index - 2;
+      DCHECK(par_index < GetParameterCount());
       return RepresentationFromType(descriptor_.GetParameterType(par_index));
     }
   }
@@ -2307,7 +2308,7 @@ class HCallWithDescriptor final : public HInstruction {
                       const Vector<HValue*>& operands, CallMode call_mode,
                       Zone* zone)
       : descriptor_(descriptor),
-        values_(descriptor.GetEnvironmentLength() + 1, zone),
+        values_(GetParameterCount() + 1, zone),
         argument_count_(argument_count),
         call_mode_(call_mode) {
     // We can only tail call without any stack arguments.
@@ -2323,6 +2324,10 @@ class HCallWithDescriptor final : public HInstruction {
   void AddOperand(HValue* v, Zone* zone) {
     values_.Add(NULL, zone);
     SetOperandAt(values_.length() - 1, v);
+  }
+
+  int GetParameterCount() const {
+    return descriptor_.GetRegisterParameterCount() + 1;
   }
 
   void InternalSetOperandAt(int index, HValue* value) final {

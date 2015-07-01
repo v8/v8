@@ -66,21 +66,21 @@ const Register GrowArrayElementsDescriptor::KeyRegister() { return rbx; }
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rbx};
+  Register registers[] = {rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void FastNewContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdi};
+  Register registers[] = {rdi};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rbx};
+  Register registers[] = {rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -88,70 +88,70 @@ void TypeofDescriptor::InitializePlatformSpecific(
 void ToNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // ToNumberStub invokes a function, and therefore needs a context.
-  Register registers[] = {rsi, rax};
+  Register registers[] = {rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void NumberToStringDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rax};
+  Register registers[] = {rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void FastCloneShallowArrayDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rax, rbx, rcx};
+  Register registers[] = {rax, rbx, rcx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void FastCloneShallowObjectDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rax, rbx, rcx, rdx};
+  Register registers[] = {rax, rbx, rcx, rdx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CreateAllocationSiteDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rbx, rdx};
+  Register registers[] = {rbx, rdx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CreateWeakCellDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rbx, rdx, rdi};
+  Register registers[] = {rbx, rdx, rdi};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void StoreArrayLiteralElementDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rcx, rax};
+  Register registers[] = {rcx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CallFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdi};
+  Register registers[] = {rdi};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CallFunctionWithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdi, rdx};
+  Register registers[] = {rdi, rdx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdi, rdx, rbx};
+  Register registers[] = {rdi, rdx, rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -165,31 +165,28 @@ void CallConstructDescriptor::InitializePlatformSpecific(
   // rdi : constructor function
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-  Register registers[] = {rsi, rax, rdi, rbx};
+  Register registers[] = {rax, rdi, rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void RegExpConstructResultDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rcx, rbx, rax};
+  Register registers[] = {rcx, rbx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void TransitionElementsKindDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rax, rbx};
+  Register registers[] = {rax, rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // register state
-  // rsi -- context
-  Register registers[] = {rsi};
-  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
+  data->InitializePlatformSpecific(0, nullptr, nullptr);
 }
 
 
@@ -199,7 +196,7 @@ void ArrayConstructorConstantArgCountDescriptor::InitializePlatformSpecific(
   // rax -- number of arguments
   // rdi -- function
   // rbx -- allocation site with elements kind
-  Register registers[] = {rsi, rdi, rbx};
+  Register registers[] = {rdi, rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -207,7 +204,7 @@ void ArrayConstructorConstantArgCountDescriptor::InitializePlatformSpecific(
 void ArrayConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // stack param count needs (constructor pointer, and single argument)
-  Register registers[] = {rsi, rdi, rbx, rax};
+  Register registers[] = {rdi, rbx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -215,10 +212,9 @@ void ArrayConstructorDescriptor::InitializePlatformSpecific(
 void InternalArrayConstructorConstantArgCountDescriptor::
     InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
   // register state
-  // rsi -- context
   // rax -- number of arguments
   // rdi -- constructor function
-  Register registers[] = {rsi, rdi};
+  Register registers[] = {rdi};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -226,49 +222,49 @@ void InternalArrayConstructorConstantArgCountDescriptor::
 void InternalArrayConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // stack param count needs (constructor pointer, and single argument)
-  Register registers[] = {rsi, rdi, rax};
+  Register registers[] = {rdi, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdx, rax};
+  Register registers[] = {rdx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void CompareNilDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rax};
+  Register registers[] = {rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void ToBooleanDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rax};
+  Register registers[] = {rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void BinaryOpDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdx, rax};
+  Register registers[] = {rdx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void BinaryOpWithAllocationSiteDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rcx, rdx, rax};
+  Register registers[] = {rcx, rdx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
 void StringAddDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {rsi, rdx, rax};
+  Register registers[] = {rdx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -276,7 +272,6 @@ void StringAddDescriptor::InitializePlatformSpecific(
 void KeyedDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rcx,  // key
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
@@ -286,7 +281,6 @@ void KeyedDescriptor::InitializePlatformSpecific(
 void NamedDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rcx,  // name
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
@@ -296,7 +290,6 @@ void NamedDescriptor::InitializePlatformSpecific(
 void CallHandlerDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rdx,  // receiver
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
@@ -306,7 +299,6 @@ void CallHandlerDescriptor::InitializePlatformSpecific(
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rdi,  // JSFunction
       rax,  // actual number of arguments
       rbx,  // expected number of arguments
@@ -318,7 +310,6 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
 void ApiFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rdi,  // callee
       rbx,  // call_data
       rcx,  // holder
@@ -332,7 +323,6 @@ void ApiFunctionDescriptor::InitializePlatformSpecific(
 void ApiAccessorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rdi,  // callee
       rbx,  // call_data
       rcx,  // holder
@@ -345,7 +335,6 @@ void ApiAccessorDescriptor::InitializePlatformSpecific(
 void MathRoundVariantDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      rsi,  // context
       rdi,  // math rounding function
       rdx,  // vector slot id
   };

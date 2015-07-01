@@ -1872,8 +1872,12 @@ class LCallWithDescriptor final : public LTemplateResultInstruction<1> {
   LCallWithDescriptor(CallInterfaceDescriptor descriptor,
                       const ZoneList<LOperand*>& operands, Zone* zone)
       : descriptor_(descriptor),
-        inputs_(descriptor.GetRegisterParameterCount() + 1, zone) {
-    DCHECK(descriptor.GetRegisterParameterCount() + 1 == operands.length());
+        inputs_(descriptor.GetRegisterParameterCount() +
+                    kImplicitRegisterParameterCount,
+                zone) {
+    DCHECK(descriptor.GetRegisterParameterCount() +
+               kImplicitRegisterParameterCount ==
+           operands.length());
     inputs_.AddAll(operands, zone);
   }
 
@@ -1882,6 +1886,10 @@ class LCallWithDescriptor final : public LTemplateResultInstruction<1> {
   const CallInterfaceDescriptor descriptor() { return descriptor_; }
 
   DECLARE_HYDROGEN_ACCESSOR(CallWithDescriptor)
+
+  // The target and context are passed as implicit parameters that are not
+  // explicitly listed in the descriptor.
+  static const int kImplicitRegisterParameterCount = 2;
 
  private:
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")

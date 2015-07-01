@@ -145,8 +145,7 @@ class LinkageHelper {
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties, MachineType return_type) {
-    const int register_parameter_count =
-        descriptor.GetEnvironmentParameterCount();
+    const int register_parameter_count = descriptor.GetRegisterParameterCount();
     const int js_parameter_count =
         register_parameter_count + stack_parameter_count;
     const int context_count = 1;
@@ -165,9 +164,9 @@ class LinkageHelper {
     for (int i = 0; i < js_parameter_count; i++) {
       if (i < register_parameter_count) {
         // The first parameters go in registers.
-        Register reg = descriptor.GetEnvironmentParameterRegister(i);
+        Register reg = descriptor.GetRegisterParameter(i);
         Representation rep =
-            RepresentationFromType(descriptor.GetEnvironmentParameterType(i));
+            RepresentationFromType(descriptor.GetParameterType(i));
         locations.AddParam(regloc(reg));
         types.AddParam(reptyp(rep));
       } else {

@@ -140,33 +140,21 @@ class CallInterfaceDescriptor {
   CallInterfaceDescriptor(Isolate* isolate, CallDescriptors::Key key)
       : data_(isolate->call_descriptor_data(key)) {}
 
-  int GetEnvironmentLength() const { return data()->register_param_count(); }
-
   int GetRegisterParameterCount() const {
     return data()->register_param_count();
   }
 
-  Register GetParameterRegister(int index) const {
+  int GetStackParameterCount() const {
+    return data()->function_type()->Arity() - data()->register_param_count();
+  }
+
+  Register GetRegisterParameter(int index) const {
     return data()->register_param(index);
   }
 
   Type* GetParameterType(int index) const {
     DCHECK(index < data()->register_param_count());
     return data()->register_param_type(index);
-  }
-
-  // "Environment" versions of parameter functions. The first register
-  // parameter (context) is not included.
-  int GetEnvironmentParameterCount() const {
-    return GetEnvironmentLength() - 1;
-  }
-
-  Register GetEnvironmentParameterRegister(int index) const {
-    return GetParameterRegister(index + 1);
-  }
-
-  Type* GetEnvironmentParameterType(int index) const {
-    return GetParameterType(index + 1);
   }
 
   // Some platforms have extra information to associate with the descriptor.

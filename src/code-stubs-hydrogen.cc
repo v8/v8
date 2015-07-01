@@ -41,16 +41,26 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
         info_(info),
         descriptor_(info->code_stub()),
         context_(NULL) {
-    int parameter_count = descriptor_.GetEnvironmentParameterCount();
+    int parameter_count = GetParameterCount();
     parameters_.Reset(new HParameter*[parameter_count]);
   }
   virtual bool BuildGraph();
 
  protected:
   virtual HValue* BuildCodeStub() = 0;
+  int GetParameterCount() const {
+    return descriptor_.GetRegisterParameterCount();
+  }
   HParameter* GetParameter(int parameter) {
-    DCHECK(parameter < descriptor_.GetEnvironmentParameterCount());
+    DCHECK(parameter < GetParameterCount());
     return parameters_[parameter];
+  }
+  Representation GetParameterRepresentation(int parameter) {
+    return RepresentationFromType(descriptor_.GetParameterType(parameter));
+  }
+  bool IsParameterCountRegister(int index) const {
+    return descriptor_.GetRegisterParameter(index)
+        .is(descriptor_.stack_parameter_count());
   }
   HValue* GetArgumentsLength() {
     // This is initialized in BuildGraph()
@@ -127,7 +137,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     isolate()->GetHTracer()->TraceCompilation(info());
   }
 
-  int param_count = descriptor_.GetEnvironmentParameterCount();
+  int param_count = GetParameterCount();
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
   Goto(next_block);
@@ -137,13 +147,12 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   bool runtime_stack_params = descriptor_.stack_parameter_count().is_valid();
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    Representation r =
-        RepresentationFromType(descriptor_.GetEnvironmentParameterType(i));
+    Representation r = GetParameterRepresentation(i);
     HParameter* param = Add<HParameter>(i,
                                         HParameter::REGISTER_PARAMETER, r);
     start_environment->Bind(i, param);
     parameters_[i] = param;
-    if (descriptor_.IsEnvironmentParameterCountRegister(i)) {
+    if (IsParameterCountRegister(i)) {
       param->set_type(HType::Smi());
       stack_parameter_count = param;
       arguments_length_ = stack_parameter_count;
