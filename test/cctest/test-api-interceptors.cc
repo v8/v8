@@ -1007,10 +1007,11 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 }
 
 
+bool is_bootstrapping = true;
 static void PrePropertyHandlerGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  if (v8_str("pre")->Equals(key)) {
+  if (!is_bootstrapping && v8_str("pre")->Equals(key)) {
     info.GetReturnValue().Set(v8_str("PrePropertyHandler: pre"));
   }
 }
@@ -1018,7 +1019,7 @@ static void PrePropertyHandlerGet(
 
 static void PrePropertyHandlerQuery(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  if (v8_str("pre")->Equals(key)) {
+  if (!is_bootstrapping && v8_str("pre")->Equals(key)) {
     info.GetReturnValue().Set(static_cast<int32_t>(v8::None));
   }
 }
@@ -1030,7 +1031,9 @@ THREADED_TEST(PrePropertyHandler) {
   v8::Handle<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       PrePropertyHandlerGet, 0, PrePropertyHandlerQuery));
+  is_bootstrapping = true;
   LocalContext env(NULL, desc->InstanceTemplate());
+  is_bootstrapping = false;
   CompileRun("var pre = 'Object: pre'; var on = 'Object: on';");
   v8::Handle<Value> result_pre = CompileRun("pre");
   CHECK(v8_str("PrePropertyHandler: pre")->Equals(result_pre));
@@ -2548,7 +2551,9 @@ THREADED_TEST(InterceptorICReferenceErrors) {
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICRefErrorGetter));
+  interceptor_call_count = -100000;  // Generous limit for bootstrapping.
   LocalContext context(0, templ, v8::Handle<Value>());
+  interceptor_call_count = 0;
   call_ic_function2 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
@@ -2594,9 +2599,12 @@ THREADED_TEST(InterceptorICGetterExceptions) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  // Generous limit for bootstrapping.
+  interceptor_ic_exception_get_count = -100000;
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICExceptionGetter));
   LocalContext context(0, templ, v8::Handle<Value>());
+  interceptor_ic_exception_get_count = 0;
   call_ic_function3 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
