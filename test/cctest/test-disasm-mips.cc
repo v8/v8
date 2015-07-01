@@ -666,11 +666,13 @@ TEST(Type1) {
   COMPARE(mul_s(f8, f6, f4), "46043202       mul.s   f8, f6, f4");
   COMPARE(mul_d(f8, f6, f4), "46243202       mul.d   f8, f6, f4");
 
-  COMPARE(rsqrt_s(f8, f6), "46003216       rsqrt.s  f8, f6");
-  COMPARE(rsqrt_d(f8, f6), "46203216       rsqrt.d  f8, f6");
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    COMPARE(rsqrt_s(f8, f6), "46003216       rsqrt.s  f8, f6");
+    COMPARE(rsqrt_d(f8, f6), "46203216       rsqrt.d  f8, f6");
 
-  COMPARE(recip_s(f8, f6), "46003215       recip.s  f8, f6");
-  COMPARE(recip_d(f8, f6), "46203215       recip.d  f8, f6");
+    COMPARE(recip_s(f8, f6), "46003215       recip.s  f8, f6");
+    COMPARE(recip_d(f8, f6), "46203215       recip.d  f8, f6");
+  }
 
   COMPARE(mov_s(f6, f4), "46002186       mov.s   f6, f4");
   COMPARE(mov_d(f6, f4), "46202186       mov.d   f6, f4");

@@ -2350,21 +2350,25 @@ void Assembler::sqrt_d(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, S, f0, fs, fd, RSQRT_S);
 }
 
 
 void Assembler::rsqrt_d(FPURegister fd, FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, D, f0, fs, fd, RSQRT_D);
 }
 
 
 void Assembler::recip_d(FPURegister fd, FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, D, f0, fs, fd, RECIP_D);
 }
 
 
 void Assembler::recip_s(FPURegister fd, FPURegister fs) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, S, f0, fs, fd, RECIP_S);
 }
 

@@ -2711,11 +2711,13 @@ void Simulator::DecodeTypeRegisterDRsType(Instruction* instr,
       set_fpu_register_double(fd_reg, fast_sqrt(fs));
       break;
     case RSQRT_D: {
+      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
       double result = 1.0 / fast_sqrt(fs);
       set_fpu_register_double(fd_reg, result);
       break;
     }
     case RECIP_D: {
+      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
       double result = 1.0 / fs;
       set_fpu_register_double(fd_reg, result);
       break;
@@ -3117,11 +3119,13 @@ void Simulator::DecodeTypeRegisterSRsType(Instruction* instr,
       set_fpu_register_float(fd_reg, fast_sqrt(fs));
       break;
     case RSQRT_S: {
+      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
       float result = 1.0 / fast_sqrt(fs);
       set_fpu_register_float(fd_reg, result);
       break;
     }
     case RECIP_S: {
+      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
       float result = 1.0 / fs;
       set_fpu_register_float(fd_reg, result);
       break;

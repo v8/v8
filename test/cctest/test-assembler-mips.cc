@@ -2511,16 +2511,22 @@ TEST(sqrt_rsqrt_recip) {
   __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
   __ sqrt_s(f6, f2);
   __ sqrt_d(f12, f8);
-  __ rsqrt_d(f14, f8);
-  __ rsqrt_s(f16, f2);
-  __ recip_d(f18, f8);
-  __ recip_s(f20, f2);
+
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    __ rsqrt_d(f14, f8);
+    __ rsqrt_s(f16, f2);
+    __ recip_d(f18, f8);
+    __ recip_s(f20, f2);
+  }
   __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
   __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
-  __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resultS1)) );
-  __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)) );
-  __ swc1(f20, MemOperand(a0, offsetof(TestFloat, resultS2)) );
-  __ sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)) );
+
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resultS1)) );
+    __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)) );
+    __ swc1(f20, MemOperand(a0, offsetof(TestFloat, resultS2)) );
+    __ sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)) );
+  }
   __ jr(ra);
   __ nop();
 
@@ -2541,24 +2547,26 @@ TEST(sqrt_rsqrt_recip) {
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
 
-    if (i != 0) {
-      f1 = test.resultS1 - 1.0F/outputs_S[i];
-      f1 = (f1 < 0) ? f1 : -f1;
-      CHECK(f1 <= deltaFloat);
-      d1 = test.resultD1 - 1.0L/outputs_D[i];
-      d1 = (d1 < 0) ? d1 : -d1;
-      CHECK(d1 <= deltaDouble);
-      f1 = test.resultS2 - 1.0F/inputs_S[i];
-      f1 = (f1 < 0) ? f1 : -f1;
-      CHECK(f1 <= deltaFloat);
-      d1 = test.resultD2 - 1.0L/inputs_D[i];
-      d1 = (d1 < 0) ? d1 : -d1;
-      CHECK(d1 <= deltaDouble);
-    } else {
-      CHECK_EQ(test.resultS1, 1.0F/outputs_S[i]);
-      CHECK_EQ(test.resultD1, 1.0L/outputs_D[i]);
-      CHECK_EQ(test.resultS2, 1.0F/inputs_S[i]);
-      CHECK_EQ(test.resultD2, 1.0L/inputs_D[i]);
+    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+      if (i != 0) {
+        f1 = test.resultS1 - 1.0F/outputs_S[i];
+        f1 = (f1 < 0) ? f1 : -f1;
+        CHECK(f1 <= deltaFloat);
+        d1 = test.resultD1 - 1.0L/outputs_D[i];
+        d1 = (d1 < 0) ? d1 : -d1;
+        CHECK(d1 <= deltaDouble);
+        f1 = test.resultS2 - 1.0F/inputs_S[i];
+        f1 = (f1 < 0) ? f1 : -f1;
+        CHECK(f1 <= deltaFloat);
+        d1 = test.resultD2 - 1.0L/inputs_D[i];
+        d1 = (d1 < 0) ? d1 : -d1;
+        CHECK(d1 <= deltaDouble);
+      } else {
+        CHECK_EQ(test.resultS1, 1.0F/outputs_S[i]);
+        CHECK_EQ(test.resultD1, 1.0L/outputs_D[i]);
+        CHECK_EQ(test.resultS2, 1.0F/inputs_S[i]);
+        CHECK_EQ(test.resultD2, 1.0L/inputs_D[i]);
+      }
     }
   }
 }
