@@ -766,7 +766,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Float64Max: {
-      Label check_nan_left, check_zero, return_left, return_right;
+      Label check_zero, return_left, return_right;
       Condition condition = below;
       __ fstp(0);
       __ fld_d(MemOperand(esp, kDoubleSize));
@@ -774,8 +774,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fld(1);
       __ fld(1);
       __ FCmp();
-      __ j(parity_even, &check_nan_left, Label::kNear);  // At least one NaN.
-      __ j(equal, &check_zero, Label::kNear);            // left == right.
+      __ j(parity_even, &return_right,
+           Label::kNear);  // At least one NaN, Return right.
+      __ j(equal, &check_zero, Label::kNear);  // left == right.
       __ j(condition, &return_left, Label::kNear);
       __ jmp(&return_right, Label::kNear);
 
@@ -784,15 +785,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fldz();
       __ FCmp();
       __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
-
-      __ fadd(1);
-      __ jmp(&return_left, Label::kNear);
-
-      __ bind(&check_nan_left);
-      __ fld(0);
-      __ fld(0);
-      __ FCmp();                                      // NaN check.
-      __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
 
       __ bind(&return_right);
       __ fxch();
@@ -803,7 +795,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Float64Min: {
-      Label check_nan_left, check_zero, return_left, return_right;
+      Label check_zero, return_left, return_right;
       Condition condition = above;
       __ fstp(0);
       __ fld_d(MemOperand(esp, kDoubleSize));
@@ -811,8 +803,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fld(1);
       __ fld(1);
       __ FCmp();
-      __ j(parity_even, &check_nan_left, Label::kNear);  // At least one NaN.
-      __ j(equal, &check_zero, Label::kNear);            // left == right.
+      __ j(parity_even, &return_right,
+           Label::kNear);  // At least one NaN, return right value.
+      __ j(equal, &check_zero, Label::kNear);  // left == right.
       __ j(condition, &return_left, Label::kNear);
       __ jmp(&return_right, Label::kNear);
 
@@ -821,28 +814,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fldz();
       __ FCmp();
       __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
-      // At this point, both left and right are either 0 or -0.
-      // Push st0 and st1 to stack, then pop them to temp registers and OR them,
-      // load it to left.
-      __ push(eax);
-      __ fld(1);
-      __ fld(1);
-      __ sub(esp, Immediate(2 * kPointerSize));
-      __ fstp_s(MemOperand(esp, 0));
-      __ fstp_s(MemOperand(esp, kPointerSize));
-      __ pop(eax);
-      __ xor_(MemOperand(esp, 0), eax);
-      __ fstp(0);
-      __ fld_s(MemOperand(esp, 0));
-      __ pop(eax);  // restore esp
-      __ pop(eax);  // restore esp
-      __ jmp(&return_left, Label::kNear);
-
-      __ bind(&check_nan_left);
-      __ fld(0);
-      __ fld(0);
-      __ FCmp();                                      // NaN check.
-      __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
 
       __ bind(&return_right);
       __ fxch();
