@@ -1372,6 +1372,10 @@ class Heap {
     return PromotedSpaceSizeOfObjects() - old_generation_size_at_last_gc_;
   }
 
+  // Record the fact that we generated some optimized code since the last GC
+  // which will pretenure some previously unpretenured allocation.
+  void RecordDeoptForPretenuring() { gathering_lifetime_feedback_ = 2; }
+
   // Update GC statistics that are tracked on the Heap.
   void UpdateCumulativeGCStatistics(double duration, double spent_in_mutator,
                                     double marking_time);
@@ -2173,6 +2177,10 @@ class Heap {
   static const int kOldSurvivalRateLowThreshold = 10;
 
   bool new_space_high_promotion_mode_active_;
+  // If this is non-zero, then there is hope yet that the optimized code we
+  // have generated will solve our high promotion rate problems, so we don't
+  // need to go into high promotion mode just yet.
+  int gathering_lifetime_feedback_;
   int high_survival_rate_period_length_;
   intptr_t promoted_objects_size_;
   int low_survival_rate_period_length_;
@@ -2239,8 +2247,6 @@ class Heap {
 
   bool IsLowSurvivalRate() { return low_survival_rate_period_length_ > 0; }
 
-  // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
-  // Re-visit incremental marking heuristics.
   bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
 
   void ConfigureInitialOldGenerationSize();

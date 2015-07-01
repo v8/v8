@@ -117,6 +117,7 @@ Heap::Heap()
       total_regexp_code_generated_(0),
       tracer_(this),
       new_space_high_promotion_mode_active_(false),
+      gathering_lifetime_feedback_(0),
       high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
       low_survival_rate_period_length_(0),
@@ -1253,7 +1254,9 @@ bool Heap::PerformGarbageCollection(
 
   // When pretenuring is collecting new feedback, we do not shrink the new space
   // right away.
-  if (!deopted) {
+  if (deopted) {
+    RecordDeoptForPretenuring();
+  } else {
     ConfigureNewGenerationSize();
   }
   ConfigureInitialOldGenerationSize();
@@ -2635,6 +2638,8 @@ void Heap::ConfigureInitialOldGenerationSize() {
 
 
 void Heap::ConfigureNewGenerationSize() {
+  bool still_gathering_lifetime_data = gathering_lifetime_feedback_ != 0;
+  if (gathering_lifetime_feedback_ != 0) gathering_lifetime_feedback_--;
   if (!new_space_high_promotion_mode_active_ &&
       new_space_.TotalCapacity() == new_space_.MaximumCapacity() &&
       IsStableOrIncreasingSurvivalTrend() && IsHighSurvivalRate()) {
@@ -2642,10 +2647,18 @@ void Heap::ConfigureNewGenerationSize() {
     // maximum capacity indicates that most objects will be promoted.
     // To decrease scavenger pauses and final mark-sweep pauses, we
     // have to limit maximal capacity of the young generation.
-    new_space_high_promotion_mode_active_ = true;
-    if (FLAG_trace_gc) {
-      PrintPID("Limited new space size due to high promotion rate: %d MB\n",
-               new_space_.InitialTotalCapacity() / MB);
+    if (still_gathering_lifetime_data) {
+      if (FLAG_trace_gc) {
+        PrintPID(
+            "Postpone entering high promotion mode as optimized pretenuring "
+            "code is still being generated\n");
+      }
+    } else {
+      new_space_high_promotion_mode_active_ = true;
+      if (FLAG_trace_gc) {
+        PrintPID("Limited new space size due to high promotion rate: %d MB\n",
+                 new_space_.InitialTotalCapacity() / MB);
+      }
     }
   } else if (new_space_high_promotion_mode_active_ &&
              IsStableOrDecreasingSurvivalTrend() && IsLowSurvivalRate()) {
