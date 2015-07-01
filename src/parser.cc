@@ -3555,11 +3555,14 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         //
         // into
         //
-        //   <let x' be a temporary variable>
-        //   for (x' in/of e) {
-        //     let/const/var x;
-        //     x = x';
-        //     b;
+        //   {
+        //     <let x' be a temporary variable>
+        //     for (x' in/of e) {
+        //       let/const/var x;
+        //       x = x';
+        //       b;
+        //     }
+        //     let x;  // for TDZ
         //   }
 
         Variable* temp = scope_->DeclarationScope()->NewTemporary(
@@ -3568,11 +3571,13 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
-        // The expression does not see the lexical loop variables.
-        scope_ = saved_scope;
         Expression* enumerable = ParseExpression(true, CHECK_OK);
-        scope_ = for_scope;
+
         Expect(Token::RPAREN, CHECK_OK);
+
+        Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
+        body_scope->set_start_position(scanner()->location().beg_pos);
+        scope_ = body_scope;
 
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
 
@@ -3601,17 +3606,46 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         VariableProxy* temp_proxy =
             factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
         InitializeForEachStatement(loop, temp_proxy, enumerable, body_block);
+        scope_ = for_scope;
+        body_scope->set_end_position(scanner()->location().end_pos);
+        body_scope = body_scope->FinalizeBlockScope();
+        if (body_scope != nullptr) {
+          body_block->set_scope(body_scope);
+        }
+
+        // Create a TDZ for any lexically-bound names.
+        if (is_strict(language_mode()) &&
+            IsLexicalVariableMode(parsing_result.descriptor.mode)) {
+          DCHECK_NULL(init_block);
+
+          init_block =
+              factory()->NewBlock(nullptr, 1, false, RelocInfo::kNoPosition);
+
+          for (int i = 0; i < lexical_bindings.length(); ++i) {
+            // TODO(adamk): This needs to be some sort of special
+            // INTERNAL variable that's invisible to the debugger
+            // but visible to everything else.
+            VariableProxy* tdz_proxy = NewUnresolved(lexical_bindings[i], LET);
+            Declaration* tdz_decl = factory()->NewVariableDeclaration(
+                tdz_proxy, LET, scope_, RelocInfo::kNoPosition);
+            Variable* tdz_var = Declare(tdz_decl, DeclarationDescriptor::NORMAL,
+                                        true, CHECK_OK);
+            tdz_var->set_initializer_position(position());
+          }
+        }
+
         scope_ = saved_scope;
         for_scope->set_end_position(scanner()->location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
-        if (for_scope != nullptr) {
-          body_block->set_scope(for_scope);
-        }
         // Parsed for-in loop w/ variable declarations.
         if (init_block != nullptr) {
           init_block->AddStatement(loop, zone());
+          if (for_scope != nullptr) {
+            init_block->set_scope(for_scope);
+          }
           return init_block;
         } else {
+          DCHECK_NULL(for_scope);
           return loop;
         }
       } else {

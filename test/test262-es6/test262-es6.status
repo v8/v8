@@ -464,12 +464,6 @@
   # https://code.google.com/p/v8/issues/detail?id=3673
   'language/statements/class/definition/basics': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4210
-  'language/statements/for-in/const-bound-names-fordecl-tdz-for-in': [PASS, FAIL],
-  'language/statements/for-in/let-bound-names-fordecl-tdz-for-in': [PASS, FAIL],
-  'language/statements/for-of/const-bound-names-fordecl-tdz-for-of': [PASS, FAIL],
-  'language/statements/for-of/let-bound-names-fordecl-tdz-for-of': [PASS, FAIL],
-
   # Destructuring
   # https://code.google.com/p/v8/issues/detail?id=811
   'language/statements/for-of/body-dstr-assign': [FAIL],

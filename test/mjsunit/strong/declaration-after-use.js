@@ -193,10 +193,6 @@ function assertThrowsHelper(code) {
     i;
   }
 
-  let var6 = [1, 2];
-  // The second var6 resolves to outside (not to the first var6).
-  for (let var6 of var6) { var6; }
-
   try {
     throw "error";
   } catch (e) {

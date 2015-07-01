@@ -728,3 +728,11 @@
   assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
   assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
 }());
+
+
+(function TestForInOfTDZ() {
+  assertThrows("'use strict'; let x = {}; for (let [x, y] of {x});", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [y, x] of {x});", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [x, y] in {x});", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [y, x] in {x});", ReferenceError);
+}());

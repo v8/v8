@@ -110,7 +110,7 @@ var expected = [
   // Exit.
   "y0","z0",
 ]
-print("expected:\n"+ JSON.stringify(log));
+print("expected:\n"+ JSON.stringify(expected));
 
 assertArrayEquals(expected, log);
 assertEquals(48, s);
