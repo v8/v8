@@ -24,6 +24,7 @@ struct X87LinkageHelperTraits {
   }
   static Register CRegisterParameter(int i) { return no_reg; }
   static int CRegisterParametersLength() { return 0; }
+  static int CStackBackingStoreLength() { return 0; }
 };
 
 typedef LinkageHelper<X87LinkageHelperTraits> LH;

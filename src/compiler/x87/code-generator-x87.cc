@@ -385,6 +385,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }
+    case kArchPrepareCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, i.TempRegister(0));
+      break;
+    }
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (HasImmediateInput(instr, 0)) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
@@ -1100,6 +1116,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ push(i.InputOperand(0));
       }
       break;
+    case kX87Poke: {
+      int const slot = MiscField::decode(instr->opcode());
+      if (HasImmediateInput(instr, 0)) {
+        __ mov(Operand(esp, slot * kPointerSize), i.InputImmediate(0));
+      } else {
+        __ mov(Operand(esp, slot * kPointerSize), i.InputRegister(0));
+      }
+      break;
+    }
     case kX87PushFloat32:
       __ lea(esp, Operand(esp, -kFloatSize));
       if (instr->InputAt(0)->IsDoubleStackSlot()) {
