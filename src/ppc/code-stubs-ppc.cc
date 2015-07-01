@@ -1379,15 +1379,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   Register map = r6;              // Map of the object.
   const Register function = r4;   // Function (rhs).
   const Register prototype = r7;  // Prototype of the function.
-  const Register inline_site = r9;
+  // The map_check_delta was stored in r8
+  // The bool_load_delta was stored in r9
+  //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
+  const Register map_check_delta = r8;
+  const Register bool_load_delta = r9;
+  const Register inline_site = r10;
   const Register scratch = r5;
   Register scratch3 = no_reg;
-
-  // delta = mov + tagged LoadP + cmp + bne
-  const int32_t kDeltaToLoadBoolResult =
-      (Assembler::kMovInstructions + Assembler::kTaggedLoadInstructions + 2) *
-      Assembler::kInstrSize;
-
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
   if (!HasArgsInRegisters()) {
@@ -1429,17 +1428,15 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     DCHECK(HasArgsInRegisters());
     // Patch the (relocated) inlined map check.
 
-    // The offset was stored in r8
-    //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
-    const Register offset = r8;
+    const Register offset = map_check_delta;
     __ mflr(inline_site);
     __ sub(inline_site, inline_site, offset);
-    // Get the map location in r8 and patch it.
+    // Get the map location in offset and patch it.
     __ GetRelocatedValue(inline_site, offset, scratch);
     __ StoreP(map, FieldMemOperand(offset, Cell::kValueOffset), r0);
 
-    __ mr(r10, map);
-    __ RecordWriteField(offset, Cell::kValueOffset, r10, function,
+    __ mr(r11, map);
+    __ RecordWriteField(offset, Cell::kValueOffset, r11, function,
                         kLRHasNotBeenSaved, kDontSaveFPRegs,
                         OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
@@ -1474,7 +1471,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   } else {
     // Patch the call site to return true.
     __ LoadRoot(r3, Heap::kTrueValueRootIndex);
-    __ addi(inline_site, inline_site, Operand(kDeltaToLoadBoolResult));
+    __ add(inline_site, inline_site, bool_load_delta);
     // Get the boolean result location in scratch and patch it.
     __ SetRelocatedValue(inline_site, scratch, r3);
 
@@ -1494,7 +1491,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   } else {
     // Patch the call site to return false.
     __ LoadRoot(r3, Heap::kFalseValueRootIndex);
-    __ addi(inline_site, inline_site, Operand(kDeltaToLoadBoolResult));
+    __ add(inline_site, inline_site, bool_load_delta);
     // Get the boolean result location in scratch and patch it.
     __ SetRelocatedValue(inline_site, scratch, r3);
 

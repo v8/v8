@@ -2813,14 +2813,17 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
                                   LInstanceOfKnownGlobal* instr)
         : LDeferredCode(codegen), instr_(instr) {}
     void Generate() override {
-      codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_);
+      codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_,
+                                                 &load_bool_);
     }
     LInstruction* instr() override { return instr_; }
     Label* map_check() { return &map_check_; }
+    Label* load_bool() { return &load_bool_; }
 
    private:
     LInstanceOfKnownGlobal* instr_;
     Label map_check_;
+    Label load_bool_;
   };
 
   DeferredInstanceOfKnownGlobal* deferred;
@@ -2853,6 +2856,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     __ LoadP(ip, FieldMemOperand(ip, Cell::kValueOffset));
     __ cmp(map, ip);
     __ bc_short(ne, &cache_miss);
+    __ bind(deferred->load_bool());  // Label for calculating code patching.
     // We use Factory::the_hole_value() on purpose instead of loading from the
     // root array to force relocation to be able to later patch
     // with true or false.
@@ -2886,7 +2890,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
 
 
 void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                               Label* map_check) {
+                                               Label* map_check,
+                                               Label* bool_load) {
   InstanceofStub::Flags flags = InstanceofStub::kNoFlags;
   flags = static_cast<InstanceofStub::Flags>(flags |
                                              InstanceofStub::kArgsInRegisters);
@@ -2903,21 +2908,24 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   {
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
     Handle<Code> code = stub.GetCode();
-    // Include instructions below in delta: bitwise_mov32 + call
-    int delta = (masm_->InstructionsGeneratedSince(map_check) + 2) *
-                    Instruction::kInstrSize +
-                masm_->CallSize(code);
-    // r8 is used to communicate the offset to the location of the map check.
-    if (is_int16(delta)) {
-      delta -= Instruction::kInstrSize;
-      __ li(r8, Operand(delta));
-    } else {
-      __ bitwise_mov32(r8, delta);
-    }
+    // Include instructions below in delta: bitwise_mov32 + li + call
+    int additional_delta = 3 * Instruction::kInstrSize + masm_->CallSize(code);
+    // The labels must be already bound since the code has predictabel size up
+    // to the call instruction.
+    DCHECK(map_check->is_bound());
+    DCHECK(bool_load->is_bound());
+    int map_check_delta =
+        masm_->InstructionsGeneratedSince(map_check) * Instruction::kInstrSize;
+    int bool_load_delta =
+        masm_->InstructionsGeneratedSince(bool_load) * Instruction::kInstrSize;
+    // r8 is the delta from our callee's lr to the location of the map check.
+    __ bitwise_mov32(r8, map_check_delta + additional_delta);
+    // r9 is the delta from map check to bool load.
+    __ li(r9, Operand(map_check_delta - bool_load_delta));
     CallCodeGeneric(code, RelocInfo::CODE_TARGET, instr,
                     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
-    DCHECK(delta / Instruction::kInstrSize ==
-           masm_->InstructionsGeneratedSince(map_check));
+    DCHECK_EQ((map_check_delta + additional_delta) / Instruction::kInstrSize,
+              masm_->InstructionsGeneratedSince(map_check));
   }
   LEnvironment* env = instr->GetDeferredLazyDeoptimizationEnvironment();
   safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
