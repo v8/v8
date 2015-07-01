@@ -1007,7 +1007,7 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 }
 
 
-bool is_bootstrapping = true;
+bool is_bootstrapping = false;
 static void PrePropertyHandlerGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
@@ -2604,7 +2604,9 @@ THREADED_TEST(InterceptorICGetterExceptions) {
   // Generous limit for bootstrapping.
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICExceptionGetter));
+  is_bootstrapping = true;
   LocalContext context(0, templ, v8::Handle<Value>());
+  is_bootstrapping = false;
   call_ic_function3 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
