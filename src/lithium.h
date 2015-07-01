@@ -665,14 +665,14 @@ class LChunk : public ZoneObject {
     DCHECK(!map->is_deprecated());
     if (!map->CanBeDeprecated()) return;
     DCHECK(!info_->IsStub());
-    deprecation_dependencies_.insert(map);
+    deprecation_dependencies_.Add(map, zone());
   }
 
   void AddStabilityDependency(Handle<Map> map) {
     DCHECK(map->is_stable());
     if (!map->CanTransition()) return;
     DCHECK(!info_->IsStub());
-    stability_dependencies_.insert(map);
+    stability_dependencies_.Add(map, zone());
   }
 
   Zone* zone() const { return info_->zone(); }
@@ -690,10 +690,6 @@ class LChunk : public ZoneObject {
   int spill_slot_count_;
 
  private:
-  typedef std::less<Handle<Map> > MapLess;
-  typedef zone_allocator<Handle<Map> > MapAllocator;
-  typedef std::set<Handle<Map>, MapLess, MapAllocator> MapSet;
-
   void RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const;
   void CommitDependencies(Handle<Code> code) const;
 
@@ -703,8 +699,8 @@ class LChunk : public ZoneObject {
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
   ZoneList<Handle<SharedFunctionInfo>> inlined_functions_;
-  MapSet deprecation_dependencies_;
-  MapSet stability_dependencies_;
+  ZoneList<Handle<Map>> deprecation_dependencies_;
+  ZoneList<Handle<Map>> stability_dependencies_;
 };
 
 

@@ -174,13 +174,6 @@ inline Handle<T> handle(T* t) {
 }
 
 
-// Key comparison function for Map handles.
-inline bool operator<(const Handle<Map>& lhs, const Handle<Map>& rhs) {
-  // This is safe because maps don't move.
-  return *lhs < *rhs;
-}
-
-
 class DeferredHandles;
 class HandleScopeImplementer;
 
