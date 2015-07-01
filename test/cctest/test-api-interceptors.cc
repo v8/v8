@@ -2536,7 +2536,8 @@ static int interceptor_call_count = 0;
 static void InterceptorICRefErrorGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  if (v8_str("x")->Equals(name) && interceptor_call_count++ < 20) {
+  if (!is_bootstrapping && v8_str("x")->Equals(name) &&
+      interceptor_call_count++ < 20) {
     info.GetReturnValue().Set(call_ic_function2);
   }
 }
@@ -2551,9 +2552,9 @@ THREADED_TEST(InterceptorICReferenceErrors) {
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICRefErrorGetter));
-  interceptor_call_count = -100000;  // Generous limit for bootstrapping.
+  is_bootstrapping = true;
   LocalContext context(0, templ, v8::Handle<Value>());
-  interceptor_call_count = 0;
+  is_bootstrapping = false;
   call_ic_function2 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
@@ -2582,6 +2583,7 @@ static int interceptor_ic_exception_get_count = 0;
 static void InterceptorICExceptionGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
+  if (is_bootstrapping) return;
   if (v8_str("x")->Equals(name) && ++interceptor_ic_exception_get_count < 20) {
     info.GetReturnValue().Set(call_ic_function3);
   }
@@ -2600,11 +2602,9 @@ THREADED_TEST(InterceptorICGetterExceptions) {
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   // Generous limit for bootstrapping.
-  interceptor_ic_exception_get_count = -100000;
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICExceptionGetter));
   LocalContext context(0, templ, v8::Handle<Value>());
-  interceptor_ic_exception_get_count = 0;
   call_ic_function3 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
