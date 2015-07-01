@@ -78,7 +78,13 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
           if (number_ == kMaxUInt32) return NOT_FOUND;
           property_details_ = accessor->GetDetails(backing_store, number_);
         }
-      } else if (holder->IsGlobalObject()) {
+      } else if (!map->is_dictionary_map()) {
+        DescriptorArray* descriptors = map->instance_descriptors();
+        int number = descriptors->SearchWithCache(*name_, map);
+        if (number == DescriptorArray::kNotFound) return NOT_FOUND;
+        number_ = static_cast<uint32_t>(number);
+        property_details_ = descriptors->GetDetails(number_);
+      } else if (map->IsGlobalObjectMap()) {
         GlobalDictionary* dict = JSObject::cast(holder)->global_dictionary();
         int number = dict->FindEntry(name_);
         if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
@@ -87,18 +93,12 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
         if (cell->value()->IsTheHole()) return NOT_FOUND;
         property_details_ = cell->property_details();
-      } else if (map->is_dictionary_map()) {
+      } else {
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
         int number = dict->FindEntry(name_);
         if (number == NameDictionary::kNotFound) return NOT_FOUND;
         number_ = static_cast<uint32_t>(number);
         property_details_ = dict->DetailsAt(number_);
-      } else {
-        DescriptorArray* descriptors = map->instance_descriptors();
-        int number = descriptors->SearchWithCache(*name_, map);
-        if (number == DescriptorArray::kNotFound) return NOT_FOUND;
-        number_ = static_cast<uint32_t>(number);
-        property_details_ = descriptors->GetDetails(number_);
       }
       has_property_ = true;
       switch (property_details_.kind()) {
