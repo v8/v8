@@ -15,7 +15,7 @@ namespace internal {
 
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
-  if (map->prototype()->IsNull()) return NULL;
+  if (!map->prototype()->IsJSReceiver()) return NULL;
 
   JSReceiver* next = JSReceiver::cast(map->prototype());
   DCHECK(!next->map()->IsGlobalObjectMap() ||

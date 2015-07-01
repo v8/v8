@@ -130,6 +130,10 @@ void DeclarationContext::InitializeIfNeeded() {
   context_.Reset(isolate, context);
   context->Enter();
   is_initialized_ = true;
+  // Reset counts. Bootstrapping might have called into the interceptor.
+  get_count_ = 0;
+  set_count_ = 0;
+  query_count_ = 0;
   PostInitializeContext(context);
 }
 

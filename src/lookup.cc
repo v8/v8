@@ -87,11 +87,6 @@ Handle<JSObject> LookupIterator::GetStoreTarget() const {
 }
 
 
-bool LookupIterator::IsBootstrapping() const {
-  return isolate_->bootstrapper()->IsActive();
-}
-
-
 bool LookupIterator::HasAccess() const {
   DCHECK_EQ(ACCESS_CHECK, state_);
   return isolate_->MayAccess(GetHolder<JSObject>());

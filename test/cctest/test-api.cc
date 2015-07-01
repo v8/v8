@@ -13273,17 +13273,18 @@ TEST(ForceSet) {
 
 
 TEST(ForceSetWithInterceptor) {
-  force_set_get_count = 0;
-  force_set_set_count = 0;
-  pass_on_get = false;
-
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
       ForceSetInterceptGetter, ForceSetInterceptSetter));
+  pass_on_get = true;
   LocalContext context(NULL, templ);
   v8::Handle<v8::Object> global = context->Global();
+
+  force_set_get_count = 0;
+  force_set_set_count = 0;
+  pass_on_get = false;
 
   v8::Handle<v8::String> some_property =
       v8::String::NewFromUtf8(isolate, "a");
