@@ -560,10 +560,28 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ mov(ebx, FieldOperand(key, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ JumpIfNotUniqueNameInstanceType(ebx, &slow);
+
+
+  if (FLAG_vector_stores) {
+    // The handlers in the stub cache expect a vector and slot. Since we won't
+    // change the IC from any downstream misses, a dummy vector can be used.
+    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+        masm->isolate()->factory()->keyed_store_dummy_vector());
+    int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    __ push(Immediate(Smi::FromInt(slot)));
+    __ push(Immediate(dummy_vector));
+  }
+
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, Code::STORE_IC, flags, false, receiver, key, ebx, no_reg);
+
+  if (FLAG_vector_stores) {
+    __ pop(VectorStoreICDescriptor::VectorRegister());
+    __ pop(VectorStoreICDescriptor::SlotRegister());
+  }
+
   // Cache miss.
   __ jmp(&miss);
 
