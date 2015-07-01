@@ -868,9 +868,8 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
         shared->ShortPrint();
         PrintF(" - age: %d]\n", code->GetAge());
       }
-      // Always flush the optimized code map if requested by flag.
-      if (FLAG_flush_optimized_code_cache &&
-          !shared->optimized_code_map()->IsSmi()) {
+      // Always flush the optimized code map if there is one.
+      if (!shared->optimized_code_map()->IsSmi()) {
         shared->ClearOptimizedCodeMap();
       }
       shared->set_code(lazy_compile);
@@ -916,9 +915,8 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
         candidate->ShortPrint();
         PrintF(" - age: %d]\n", code->GetAge());
       }
-      // Always flush the optimized code map if requested by flag.
-      if (FLAG_flush_optimized_code_cache &&
-          !candidate->optimized_code_map()->IsSmi()) {
+      // Always flush the optimized code map if there is one.
+      if (!candidate->optimized_code_map()->IsSmi()) {
         candidate->ClearOptimizedCodeMap();
       }
       candidate->set_code(lazy_compile);
@@ -946,6 +944,7 @@ void CodeFlusher::ProcessOptimizedCodeMaps() {
     next_holder = GetNextCodeMap(holder);
     ClearNextCodeMap(holder);
 
+    // Process context-dependent entries in the optimized code map.
     FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
     int new_length = SharedFunctionInfo::kEntriesStart;
     int old_length = code_map->length();
@@ -969,6 +968,21 @@ void CodeFlusher::ProcessOptimizedCodeMaps() {
           isolate_->heap()->mark_compact_collector()->RecordSlot(slot, slot,
                                                                  *slot);
         }
+      }
+    }
+
+    // Process context-independent entry in the optimized code map.
+    Object* shared_object = code_map->get(SharedFunctionInfo::kSharedCodeIndex);
+    if (shared_object->IsCode()) {
+      Code* shared_code = Code::cast(shared_object);
+      if (Marking::IsWhite(Marking::MarkBitFrom(shared_code))) {
+        code_map->set_undefined(SharedFunctionInfo::kSharedCodeIndex);
+      } else {
+        DCHECK(Marking::IsBlack(Marking::MarkBitFrom(shared_code)));
+        Object** slot =
+            code_map->RawFieldOfElementAt(SharedFunctionInfo::kSharedCodeIndex);
+        isolate_->heap()->mark_compact_collector()->RecordSlot(slot, slot,
+                                                               *slot);
       }
     }
 
