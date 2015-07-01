@@ -85,22 +85,13 @@ Context* Context::script_context() {
 
 
 Context* Context::native_context() {
-  // Fast case: the global object for this context has been set.  In
-  // that case, the global object has a direct pointer to the global
-  // context.
-  if (global_object()->IsGlobalObject()) {
-    return global_object()->native_context();
-  }
-
-  // During bootstrapping, the global object might not be set and we
-  // have to search the context chain to find the native context.
-  DCHECK(this->GetIsolate()->bootstrapper()->IsActive());
-  Context* current = this;
-  while (!current->IsNativeContext()) {
-    JSFunction* closure = JSFunction::cast(current->closure());
-    current = Context::cast(closure->context());
-  }
-  return current;
+  // Fast case: the receiver context is already a native context.
+  if (IsNativeContext()) return this;
+  // The global object has a direct pointer to the native context. If the
+  // following DCHECK fails, the native context is probably being accessed
+  // indirectly during bootstrapping. This is unsupported.
+  DCHECK(global_object()->IsGlobalObject());
+  return global_object()->native_context();
 }
 
 
