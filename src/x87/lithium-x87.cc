@@ -2347,8 +2347,15 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   DCHECK(instr->key()->representation().IsTagged());
   DCHECK(instr->value()->representation().IsTagged());
 
-  LStoreKeyedGeneric* result =
-      new(zone()) LStoreKeyedGeneric(context, object, key, value);
+  LOperand* slot = NULL;
+  LOperand* vector = NULL;
+  if (instr->HasVectorAndSlot()) {
+    slot = FixedTemp(VectorStoreICDescriptor::SlotRegister());
+    vector = FixedTemp(VectorStoreICDescriptor::VectorRegister());
+  }
+
+  LStoreKeyedGeneric* result = new (zone())
+      LStoreKeyedGeneric(context, object, key, value, slot, vector);
   return MarkAsCall(result, instr);
 }
 
@@ -2459,9 +2466,15 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
   LOperand* object =
       UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
   LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
+  LOperand* slot = NULL;
+  LOperand* vector = NULL;
+  if (instr->HasVectorAndSlot()) {
+    slot = FixedTemp(VectorStoreICDescriptor::SlotRegister());
+    vector = FixedTemp(VectorStoreICDescriptor::VectorRegister());
+  }
 
   LStoreNamedGeneric* result =
-      new(zone()) LStoreNamedGeneric(context, object, value);
+      new (zone()) LStoreNamedGeneric(context, object, value, slot, vector);
   return MarkAsCall(result, instr);
 }
 
