@@ -433,7 +433,7 @@ void Heap::GarbageCollectionPrologue() {
     gc_count_++;
     unflattened_strings_length_ = 0;
 
-    if (FLAG_flush_code && FLAG_flush_code_incrementally) {
+    if (FLAG_flush_code) {
       mark_compact_collector()->EnableCodeFlushing(true);
     }
 

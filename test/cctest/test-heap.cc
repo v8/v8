@@ -1194,7 +1194,7 @@ TEST(TestCodeFlushingPreAged) {
 
 TEST(TestCodeFlushingIncremental) {
   // If we do not flush code this test is invalid.
-  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
+  if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
@@ -1263,7 +1263,7 @@ TEST(TestCodeFlushingIncremental) {
 
 TEST(TestCodeFlushingIncrementalScavenge) {
   // If we do not flush code this test is invalid.
-  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
+  if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
@@ -1332,7 +1332,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
 
 TEST(TestCodeFlushingIncrementalAbort) {
   // If we do not flush code this test is invalid.
-  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
+  if (!FLAG_flush_code) return;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_optimize_for_size = false;
   CcTest::InitializeVM();
@@ -1400,8 +1400,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this
   // test is invalid.
-  if (!FLAG_flush_code || !FLAG_flush_code_incrementally ||
-      !FLAG_compilation_cache) {
+  if (!FLAG_flush_code || !FLAG_compilation_cache) {
     return;
   }
   CcTest::InitializeVM();
@@ -4009,7 +4008,6 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
 
 TEST(Regress159140) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4071,7 +4069,6 @@ TEST(Regress159140) {
 
 TEST(Regress165495) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4119,7 +4116,6 @@ TEST(Regress165495) {
 TEST(Regress169209) {
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_flush_code_incrementally = true;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4268,7 +4264,6 @@ TEST(Regress168801) {
   i::FLAG_always_compact = true;
   i::FLAG_cache_optimized_code = false;
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4325,7 +4320,6 @@ TEST(Regress173458) {
   i::FLAG_always_compact = true;
   i::FLAG_cache_optimized_code = false;
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_flush_code_incrementally = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();

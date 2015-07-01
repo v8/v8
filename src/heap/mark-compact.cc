@@ -1572,11 +1572,6 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
 
 
 void MarkCompactCollector::PrepareForCodeFlushing() {
-  // Enable code flushing for non-incremental cycles.
-  if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
-    EnableCodeFlushing(!was_marked_incrementally_);
-  }
-
   // If code flushing is disabled, there is no need to prepare for it.
   if (!is_code_flushing_enabled()) return;
 
@@ -2308,11 +2303,6 @@ void MarkCompactCollector::AfterMarking() {
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
     code_flusher_->ProcessCandidates();
-    // If incremental marker does not support code flushing, we need to
-    // disable it before incremental marking steps for next cycle.
-    if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
-      EnableCodeFlushing(false);
-    }
   }
 
   if (FLAG_track_gc_object_stats) {
