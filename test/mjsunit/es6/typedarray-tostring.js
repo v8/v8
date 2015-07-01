@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrays
-
 // Array's toString should call the object's own join method, if one exists and
 // is callable. Otherwise, just use the original Object.toString function.
 

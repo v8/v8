@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrays
-
 // Test that the methods for different TypedArray types have the same
 // identity.
 // TODO(dehrenberg): Test that the TypedArray proto hierarchy is set

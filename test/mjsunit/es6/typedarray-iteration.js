@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrays
-
 // Tests for standard TypedArray array iteration functions.
 
 var typedArrayConstructors = [

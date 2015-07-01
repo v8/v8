@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrays --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 var typedArrayConstructors = [
   Uint8Array,
@@ -22,39 +22,53 @@ function CheckTypedArrayIsNeutered(array) {
 }
 
 function TestTypedArrayForEach(constructor) {
-  assertEquals(1, constructor.prototype.forEach.length);
+  assertEquals(1, constructor.prototype.every.length);
 
-  var a = new constructor(2);
+  var a = new constructor(3);
   a[0] = 0;
   a[1] = 1;
+  a[2] = 2;
 
-  var count = 0;
-  a.forEach(function (n) { count++; });
-  assertEquals(2, count);
+  var result = a.every(function (n) { return n < 2; });
+  assertFalse(result);
+
+  var result = a.every(function (n) { return n > 2; });
+  assertFalse(result);
+
+  var result = a.every(function (n) { return n >= 0; });
+  assertEquals(true, result);
 
   // Use specified object as this object when calling the function.
   var o = { value: 42 };
-  var result = [];
-  a.forEach(function (n, index, array) { result.push(this.value); }, o);
-  assertArrayEquals([42, 42], result);
+  result = a.every(function (n, index, array) { return n == index && n < this.value; }, o);
+  assertEquals(true, result);
+
+  // Early exit happens when appropriate
+  count = 0;
+  result = a.every(function () { count++; return false; });
+  assertEquals(1, count);
+  assertFalse(result);
 
   // Modify the original array.
   count = 0;
-  a.forEach(function (n, index, array) { array[index] = n + 1; count++ });
-  assertEquals(2, count);
-  assertArrayEquals([1, 2], a);
+  result = a.every(function (n, index, array) {
+    array[index] = n + 1; count++; return true;
+  });
+  assertEquals(3, count);
+  assertEquals(true, result);
+  assertArrayEquals([1, 2, 3], a);
 
   // Check that values passed as second argument are wrapped into
   // objects when calling into sloppy mode functions.
   function CheckWrapping(value, wrapper) {
     var wrappedValue = new wrapper(value);
 
-    a.forEach(function () {
+    a.every(function () {
       assertEquals("object", typeof this);
       assertEquals(wrappedValue, this);
     }, value);
 
-    a.forEach(function () {
+    a.every(function () {
       "use strict";
       assertEquals(typeof value, typeof this);
       assertEquals(value, this);
@@ -67,38 +81,20 @@ function TestTypedArrayForEach(constructor) {
   CheckWrapping(3.14, Number);
   CheckWrapping({}, Object);
 
-  // Throw before completing iteration, only the first element
-  // should be modified when thorwing mid-way.
-  count = 0;
-  a[0] = 42;
-  a[1] = 42;
-  try {
-    a.forEach(function (n, index, array) {
-      if (count > 0) throw "meh";
-      array[index] = n + 1;
-      count++;
-    });
-  } catch (e) {
-  }
-  assertEquals(1, count);
-  assertEquals(43, a[0]);
-  assertEquals(42, a[1]);
-
   // Neutering the buffer backing the typed array mid-way should
-  // still make .forEach() finish, but exiting early due to the missing
-  // elements, and the array should keep being empty after detaching it.
-  // TODO(dehrenberg): According to the ES6 spec, accessing or testing
-  // for members on a detached TypedArray should throw, so really this
-  // should throw in the third iteration. However, this behavior matches
-  // the Khronos spec.
-  a = new constructor(3);
+  // still make .forEach() finish, and the array should keep being
+  // empty after neutering it.
   count = 0;
-  a.forEach(function (n, index, array) {
+  a = new constructor(3);
+  result = a.every(function (n, index, array) {
+    assertFalse(array[index] === undefined);  // don't get here if neutered
     if (count > 0) %ArrayBufferNeuter(array.buffer);
     array[index] = n + 1;
     count++;
+    return count > 1 ? array[index] === undefined : true;
   });
   assertEquals(2, count);
+  assertEquals(true, result);
   CheckTypedArrayIsNeutered(a);
   assertEquals(undefined, a[0]);
 
@@ -107,46 +103,47 @@ function TestTypedArrayForEach(constructor) {
   // all lengths of the typed array items.
   a = new constructor(new ArrayBuffer(64));
   count = 0;
-  a.forEach(function (n) { count++ });
-  assertEquals(a.length, count);
+  result = a.every(function (n) { return n == 0; });
+  assertEquals(result, true);
 
   // Externalizing the array mid-way accessing the .buffer property
   // should work.
   a = new constructor(2);
   count = 0;
   var buffer = undefined;
-  a.forEach(function (n, index, array) {
+  a.every(function (n, index, array) {
     if (count++ > 0)
       buffer = array.buffer;
+    return true;
   });
   assertEquals(2, count);
   assertTrue(!!buffer);
   assertEquals("ArrayBuffer", %_ClassOf(buffer));
   assertSame(buffer, a.buffer);
 
-  // The %TypedArray%.forEach() method should not work when
+  // The %TypedArray%.every() method should not work when
   // transplanted to objects that are not typed arrays.
-  assertThrows(function () { constructor.prototype.forEach.call([1, 2, 3], function (x) {}) }, TypeError);
-  assertThrows(function () { constructor.prototype.forEach.call("abc", function (x) {}) }, TypeError);
-  assertThrows(function () { constructor.prototype.forEach.call({}, function (x) {}) }, TypeError);
-  assertThrows(function () { constructor.prototype.forEach.call(0, function (x) {}) }, TypeError);
+  assertThrows(function () { constructor.prototype.every.call([1, 2, 3], function (x) {}) }, TypeError);
+  assertThrows(function () { constructor.prototype.every.call("abc", function (x) {}) }, TypeError);
+  assertThrows(function () { constructor.prototype.every.call({}, function (x) {}) }, TypeError);
+  assertThrows(function () { constructor.prototype.every.call(0, function (x) {}) }, TypeError);
 
   // Method must be useable on instances of other typed arrays.
   for (var i = 0; i < typedArrayConstructors.length; i++) {
     count = 0;
     a = new typedArrayConstructors[i](4);
-    constructor.prototype.forEach.call(a, function (x) { count++ });
+    constructor.prototype.every.call(a, function (x) { count++; return true; });
     assertEquals(a.length, count);
   }
 
-  // Shadowing length doesn't affect forEach, unlike Array.prototype.forEach
+  // Shadowing length doesn't affect every, unlike Array.prototype.every
   a = new constructor([1, 2]);
   Object.defineProperty(a, 'length', {value: 1});
   var x = 0;
-  assertEquals(a.forEach(function(elt) { x += elt; }), undefined);
+  assertEquals(a.every(function(elt) { x += elt; return true; }), true);
   assertEquals(x, 3);
-  assertEquals(Array.prototype.forEach.call(a,
-      function(elt) { x += elt; }), undefined);
+  assertEquals(Array.prototype.every.call(a,
+      function(elt) { x += elt; return true; }), true);
   assertEquals(x, 4);
 }
 

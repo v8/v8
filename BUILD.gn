@@ -231,6 +231,8 @@ action("js2c") {
     "src/mirror-debugger.js",
     "src/liveedit-debugger.js",
     "src/templates.js",
+    "src/harmony-array.js",
+    "src/harmony-typedarray.js",
   ]
 
   outputs = [
@@ -270,9 +272,7 @@ action("js2c_experimental") {
     "src/proxy.js",
     "src/generator.js",
     "src/harmony-atomics.js",
-    "src/harmony-array.js",
     "src/harmony-array-includes.js",
-    "src/harmony-typedarray.js",
     "src/harmony-tostring.js",
     "src/harmony-regexp.js",
     "src/harmony-reflect.js",

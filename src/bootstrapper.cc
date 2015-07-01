@@ -1798,7 +1798,6 @@ void Genesis::InitializeBuiltinTypedArrays() {
   void Genesis::InstallNativeFunctions_##id() {}
 
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_modules)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrays)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_array_includes)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_regexps)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrow_functions)
@@ -1834,7 +1833,6 @@ void Genesis::InstallNativeFunctions_harmony_proxies() {
   void Genesis::InitializeGlobal_##id() {}
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_modules)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrays)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_array_includes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrow_functions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
@@ -2464,8 +2462,6 @@ bool Genesis::InstallNatives() {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  static const char* harmony_arrays_natives[] = {
-      "native harmony-array.js", "native harmony-typedarray.js", nullptr};
   static const char* harmony_array_includes_natives[] = {
       "native harmony-array-includes.js", nullptr};
   static const char* harmony_proxies_natives[] = {"native proxy.js", nullptr};

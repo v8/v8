@@ -726,15 +726,13 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
 static bool IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsSpecObject()) return false;
-  if (FLAG_harmony_arrays) {
-    Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-    Handle<Object> value;
-    MaybeHandle<Object> maybeValue =
-        i::Runtime::GetObjectProperty(isolate, obj, key);
-    if (maybeValue.ToHandle(&value)) {
-      if (!value->IsUndefined()) {
-        return value->BooleanValue();
-      }
+  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
+  Handle<Object> value;
+  MaybeHandle<Object> maybeValue =
+      i::Runtime::GetObjectProperty(isolate, obj, key);
+  if (maybeValue.ToHandle(&value)) {
+    if (!value->IsUndefined()) {
+      return value->BooleanValue();
     }
   }
   return obj->IsJSArray();
