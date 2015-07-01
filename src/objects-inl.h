@@ -5607,6 +5607,11 @@ bool JSFunction::IsFromExtensionScript() {
 }
 
 
+bool JSFunction::IsSubjectToDebugging() {
+  return !IsFromNativeScript() && !IsFromExtensionScript();
+}
+
+
 bool JSFunction::NeedsArgumentsAdaption() {
   return shared()->internal_formal_parameter_count() !=
          SharedFunctionInfo::kDontAdaptArgumentsSentinel;

@@ -320,7 +320,7 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
     if (receiver->IsJSBuiltinsObject()) return false;
     if (fun->IsBuiltin()) {
       return fun->shared()->native();
-    } else if (fun->IsFromNativeScript() || fun->IsFromExtensionScript()) {
+    } else if (!fun->IsSubjectToDebugging()) {
       return false;
     }
   }
@@ -1324,7 +1324,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   for (int i = 1; i < elements_limit; i += 4) {
     Handle<JSFunction> fun =
         handle(JSFunction::cast(elements->get(i + 1)), this);
-    if (fun->IsFromNativeScript()) continue;
+    if (!fun->IsSubjectToDebugging()) continue;
 
     Object* script = fun->shared()->script();
     if (script->IsScript() &&

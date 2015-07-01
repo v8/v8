@@ -253,6 +253,7 @@ BreakLocation BreakLocation::FromPosition(Handle<DebugInfo> debug_info,
 void BreakLocation::SetBreakPoint(Handle<Object> break_point_object) {
   // If there is not already a real break point here patch code with debug
   // break.
+  DCHECK(code()->has_debug_break_slots());
   if (!HasBreakPoint()) SetDebugBreak();
   DCHECK(IsDebugBreak() || IsDebuggerStatement());
   // Set the break point information.
@@ -1083,8 +1084,8 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<JSFunction> function,
                              BreakLocatorType type) {
-  // Do not ever break in native functions.
-  if (function->IsFromNativeScript()) return;
+  // Do not ever break in native and extension functions.
+  if (!function->IsSubjectToDebugging()) return;
 
   PrepareForBreakPoints();
 
@@ -1109,7 +1110,7 @@ void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
                         isolate_);
 
   if (!bindee.is_null() && bindee->IsJSFunction() &&
-      !JSFunction::cast(*bindee)->IsFromNativeScript()) {
+      JSFunction::cast(*bindee)->IsSubjectToDebugging()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
     FloodWithOneShotGeneric(bindee_function);
   }
@@ -1307,9 +1308,9 @@ void Debug::PrepareStep(StepAction step_action,
       DCHECK(location.IsExit());
       frames_it.Advance();
     }
-    // Skip builtin functions on the stack.
+    // Skip native and extension functions on the stack.
     while (!frames_it.done() &&
-           frames_it.frame()->function()->IsFromNativeScript()) {
+           !frames_it.frame()->function()->IsSubjectToDebugging()) {
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
@@ -1965,9 +1966,12 @@ void Debug::PrepareForBreakPoints() {
     for (int i = 0; i < active_functions.length(); i++) {
       Handle<JSFunction> function = active_functions[i];
       Handle<SharedFunctionInfo> shared(function->shared());
-
-      // If recompilation is not possible just skip it.
-      if (!shared->allows_lazy_compilation()) continue;
+      if (!shared->allows_lazy_compilation()) {
+        // Ignore functions that cannot be recompiled. Fortunately, those are
+        // only ones that are not subject to debugging in the first place.
+        DCHECK(!function->IsSubjectToDebugging());
+        continue;
+      }
       if (shared->code()->kind() == Code::BUILTIN) continue;
 
       EnsureFunctionHasDebugBreakSlots(function);

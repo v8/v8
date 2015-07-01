@@ -457,8 +457,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0; i--) {
-      // Omit functions from native scripts.
-      if (!frames[i].function()->IsFromNativeScript()) n++;
+      // Omit functions from native and extension scripts.
+      if (frames[i].function()->IsSubjectToDebugging()) n++;
     }
   }
   return Smi::FromInt(n);
@@ -583,8 +583,8 @@ int Runtime::FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index) {
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     it->frame()->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0; i--) {
-      // Omit functions from native scripts.
-      if (frames[i].function()->IsFromNativeScript()) continue;
+      // Omit functions from native and extension scripts.
+      if (!frames[i].function()->IsSubjectToDebugging()) continue;
       if (++count == index) return i;
     }
   }
