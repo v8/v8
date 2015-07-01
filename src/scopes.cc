@@ -152,7 +152,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   outer_scope_ = outer_scope;
   scope_type_ = scope_type;
   function_kind_ = function_kind;
-  block_scope_is_class_scope_ = false;
   scope_name_ = ast_value_factory_->empty_string();
   dynamics_ = nullptr;
   receiver_ = nullptr;
@@ -189,7 +188,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
-    block_scope_is_class_scope_ = scope_info->block_scope_is_class_scope();
     function_kind_ = scope_info->function_kind();
   }
 }
@@ -1232,7 +1230,6 @@ ClassVariable* Scope::ClassVariableForMethod() const {
     return nullptr;
   }
   DCHECK_NOT_NULL(outer_scope_);
-  DCHECK(outer_scope_->is_class_scope());
   // The class scope contains at most one variable, the class name.
   DCHECK(outer_scope_->variables_.occupancy() <= 1);
   if (outer_scope_->variables_.occupancy() == 0) return nullptr;

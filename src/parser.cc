@@ -4455,11 +4455,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     return NULL;
   }
 
-  // Create a block scope which is additionally tagged as class scope; this is
-  // important for resolving variable references to the class name in the strong
-  // mode.
   Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
-  block_scope->tag_as_class_scope();
   BlockState block_state(&scope_, block_scope);
   scope_->SetLanguageMode(
       static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));

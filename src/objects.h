@@ -4029,7 +4029,6 @@ class ScopeInfo : public FixedArray {
   // context-allocated.  Otherwise returns a value < 0.
   int ReceiverContextSlotIndex();
 
-  bool block_scope_is_class_scope();
   FunctionKind function_kind();
 
   // Copies all the context locals into an object used to materialize a scope.
@@ -4157,10 +4156,8 @@ class ScopeInfo : public FixedArray {
   class AsmFunctionField : public BitField<bool, AsmModuleField::kNext, 1> {};
   class IsSimpleParameterListField
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
-  class BlockScopeIsClassScopeField
-      : public BitField<bool, IsSimpleParameterListField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, BlockScopeIsClassScopeField::kNext, 8> {};
+      : public BitField<FunctionKind, IsSimpleParameterListField::kNext, 8> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
