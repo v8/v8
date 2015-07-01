@@ -1155,7 +1155,9 @@ void CodeGenerator::AssemblePrologue() {
     const RegList saves = descriptor->CalleeSavedRegisters();
     // Save callee-saved registers.
     __ MultiPush(saves);
-    DCHECK(kNumCalleeSaved == base::bits::CountPopulation32(saves));
+    // kNumCalleeSaved includes the fp register, but the fp register
+    // is saved separately in TF.
+    DCHECK(kNumCalleeSaved == base::bits::CountPopulation32(saves) + 1);
     int register_save_area_size = kNumCalleeSaved * kPointerSize;
 
     const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
