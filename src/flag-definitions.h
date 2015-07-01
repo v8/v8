@@ -672,10 +672,7 @@ DEFINE_BOOL(native_code_counters, false,
 DEFINE_BOOL(always_compact, false, "Perform compaction on every full GC")
 DEFINE_BOOL(never_compact, false,
             "Never perform compaction on full GC - testing only")
-DEFINE_BOOL(compact_code_space, true,
-            "Compact code space on full non-incremental collections")
-DEFINE_BOOL(incremental_code_compaction, true,
-            "Compact code space on full incremental collections")
+DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
 DEFINE_BOOL(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")

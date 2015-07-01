@@ -260,8 +260,7 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
 
     CollectEvacuationCandidates(heap()->old_space());
 
-    if (FLAG_compact_code_space && (mode == NON_INCREMENTAL_COMPACTION ||
-                                    FLAG_incremental_code_compaction)) {
+    if (FLAG_compact_code_space) {
       CollectEvacuationCandidates(heap()->code_space());
     } else if (FLAG_trace_fragmentation) {
       TraceFragmentation(heap()->code_space());
