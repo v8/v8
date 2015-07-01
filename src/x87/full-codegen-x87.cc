@@ -246,17 +246,33 @@ void FullCodeGenerator::Generate() {
   Variable* new_target_var = scope()->new_target_var();
   if (new_target_var != nullptr) {
     Comment cmnt(masm_, "[ new.target");
-    // new.target is parameter -2.
-    int offset = 2 * kPointerSize + kFPOnStackSize + kPCOnStackSize +
-                 (info_->scope()->num_parameters() - 1) * kPointerSize;
-    __ mov(eax, Operand(ebp, offset));
+    __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+    Label non_adaptor_frame;
+    __ cmp(Operand(eax, StandardFrameConstants::kContextOffset),
+           Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ j(not_equal, &non_adaptor_frame);
+    __ mov(eax, Operand(eax, StandardFrameConstants::kCallerFPOffset));
+
+    __ bind(&non_adaptor_frame);
+    __ cmp(Operand(eax, StandardFrameConstants::kMarkerOffset),
+           Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
+
+    Label non_construct_frame, done;
+    __ j(not_equal, &non_construct_frame);
+
+    // Construct frame
+    __ mov(eax, Operand(eax, StandardFrameConstants::kExpressionsOffset -
+                                 2 * kPointerSize));
+    __ jmp(&done);
+
+    // Non-construct frame
+    __ bind(&non_construct_frame);
+    __ mov(eax, Immediate(isolate()->factory()->undefined_value()));
+
+    __ bind(&done);
     SetVar(new_target_var, eax, ebx, edx);
   }
 
-  ArgumentsAccessStub::HasNewTarget has_new_target =
-      IsSubclassConstructor(info->function()->kind())
-          ? ArgumentsAccessStub::HAS_NEW_TARGET
-          : ArgumentsAccessStub::NO_NEW_TARGET;
 
   // Possibly allocate RestParameters
   int rest_index;
@@ -266,10 +282,6 @@ void FullCodeGenerator::Generate() {
 
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
-    if (has_new_target == ArgumentsAccessStub::HAS_NEW_TARGET) {
-      --num_parameters;
-      ++rest_index;
-    }
 
     __ lea(edx,
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
@@ -313,7 +325,7 @@ void FullCodeGenerator::Generate() {
       type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
     }
 
-    ArgumentsAccessStub stub(isolate(), type, has_new_target);
+    ArgumentsAccessStub stub(isolate(), type);
     __ CallStub(&stub);
 
     SetVar(arguments, eax, ebx, edx);
@@ -463,9 +475,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ pop(ebp);
 
     int arg_count = info_->scope()->num_parameters() + 1;
-    if (IsSubclassConstructor(info_->function()->kind())) {
-      arg_count++;
-    }
     int arguments_bytes = arg_count * kPointerSize;
     __ Ret(arguments_bytes, ecx);
     // Check that the size of the code used for returning is large enough
@@ -3017,6 +3026,7 @@ void FullCodeGenerator::EmitInitializeThisAfterSuper(
   Variable* this_var = super_call_ref->this_var()->var();
   GetVar(ecx, this_var);
   __ cmp(ecx, isolate()->factory()->the_hole_value());
+
   Label uninitialized_this;
   __ j(equal, &uninitialized_this);
   __ push(Immediate(this_var->name()));
@@ -4189,8 +4199,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
     __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
     __ SmiUntag(ecx);
 
-    // Subtract 1 from arguments count, for new.target.
-    __ sub(ecx, Immediate(1));
     __ mov(eax, ecx);
     __ lea(edx, Operand(edx, ecx, times_pointer_size,
                         StandardFrameConstants::kCallerSPOffset));
