@@ -950,25 +950,40 @@ void CodeFlusher::ProcessOptimizedCodeMaps() {
     int old_length = code_map->length();
     for (int i = SharedFunctionInfo::kEntriesStart; i < old_length;
          i += SharedFunctionInfo::kEntryLength) {
+      // Each entry contains [ context, code, literals, ast-id ] as fields.
+      STATIC_ASSERT(SharedFunctionInfo::kEntryLength == 4);
+      Context* context =
+          Context::cast(code_map->get(i + SharedFunctionInfo::kContextOffset));
       Code* code =
           Code::cast(code_map->get(i + SharedFunctionInfo::kCachedCodeOffset));
+      FixedArray* literals = FixedArray::cast(
+          code_map->get(i + SharedFunctionInfo::kLiteralsOffset));
+      Smi* ast_id =
+          Smi::cast(code_map->get(i + SharedFunctionInfo::kOsrAstIdOffset));
+      if (Marking::IsWhite(Marking::MarkBitFrom(context))) continue;
+      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(context)));
       if (Marking::IsWhite(Marking::MarkBitFrom(code))) continue;
       DCHECK(Marking::IsBlack(Marking::MarkBitFrom(code)));
-      // Move every slot in the entry.
-      for (int j = 0; j < SharedFunctionInfo::kEntryLength; j++) {
-        int dst_index = new_length++;
-        Object** slot = code_map->RawFieldOfElementAt(dst_index);
-        Object* object = code_map->get(i + j);
-        code_map->set(dst_index, object);
-        if (j == SharedFunctionInfo::kOsrAstIdOffset) {
-          DCHECK(object->IsSmi());
-        } else {
-          DCHECK(
-              Marking::IsBlack(Marking::MarkBitFrom(HeapObject::cast(*slot))));
-          isolate_->heap()->mark_compact_collector()->RecordSlot(slot, slot,
-                                                                 *slot);
-        }
-      }
+      if (Marking::IsWhite(Marking::MarkBitFrom(literals))) continue;
+      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(literals)));
+      // Move every slot in the entry and record slots when needed.
+      code_map->set(new_length + SharedFunctionInfo::kCachedCodeOffset, code);
+      code_map->set(new_length + SharedFunctionInfo::kContextOffset, context);
+      code_map->set(new_length + SharedFunctionInfo::kLiteralsOffset, literals);
+      code_map->set(new_length + SharedFunctionInfo::kOsrAstIdOffset, ast_id);
+      Object** code_slot = code_map->RawFieldOfElementAt(
+          new_length + SharedFunctionInfo::kCachedCodeOffset);
+      isolate_->heap()->mark_compact_collector()->RecordSlot(
+          code_slot, code_slot, *code_slot);
+      Object** context_slot = code_map->RawFieldOfElementAt(
+          new_length + SharedFunctionInfo::kContextOffset);
+      isolate_->heap()->mark_compact_collector()->RecordSlot(
+          context_slot, context_slot, *context_slot);
+      Object** literals_slot = code_map->RawFieldOfElementAt(
+          new_length + SharedFunctionInfo::kLiteralsOffset);
+      isolate_->heap()->mark_compact_collector()->RecordSlot(
+          literals_slot, literals_slot, *literals_slot);
+      new_length += SharedFunctionInfo::kEntryLength;
     }
 
     // Process context-independent entry in the optimized code map.
