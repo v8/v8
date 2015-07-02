@@ -825,10 +825,16 @@ void IncrementalMarking::Epilogue() {
 
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
+  // If we are stressing the GC, then always return the bump allocation area to
+  // the free list here, which will cause a crash if the top and limit are not
+  // up to date.
+  if (FLAG_gc_interval != -1) {
+    heap()->old_space()->ReturnLinearAllocationAreaToFreeList();
+  }
   if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
     Start(Heap::kNoGCFlags);
   } else {
-    Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
+    Step(allocated * kOldSpaceAllocationMarkingFactor, GC_VIA_STACK_GUARD);
   }
 }
 
@@ -910,8 +916,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
                                   ForceMarkingAction marking,
                                   ForceCompletionAction completion) {
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      !FLAG_incremental_marking_steps ||
-      (state_ != SWEEPING && state_ != MARKING)) {
+      !CanDoSteps()) {
     return 0;
   }
 

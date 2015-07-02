@@ -1589,6 +1589,7 @@ class FreeList {
 
   PagedSpace* owner_;
   Heap* heap_;
+  int unreported_allocation_;
 
   static const int kSmallListMax = 0xff * kPointerSize;
   static const int kMediumListMax = 0x7ff * kPointerSize;
@@ -1785,13 +1786,8 @@ class PagedSpace : public Space {
   void ResetFreeList() { free_list_.Reset(); }
 
   // Set space allocation info.
-  void SetTopAndLimit(Address top, Address limit) {
-    DCHECK(top == limit ||
-           Page::FromAddress(top) == Page::FromAddress(limit - 1));
-    MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-    allocation_info_.set_top(top);
-    allocation_info_.set_limit(limit);
-  }
+  void SetTopAndLimit(Address top, Address limit);
+  void ReturnLinearAllocationAreaToFreeList();
 
   // Empty space allocation info, returning unused area to free list.
   void EmptyAllocationInfo() {
