@@ -5276,7 +5276,8 @@ MaybeHandle<Object> JSReceiver::DeleteProperty(LookupIterator* it,
 MaybeHandle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
                                               uint32_t index,
                                               LanguageMode language_mode) {
-  LookupIterator it(object->GetIsolate(), object, index);
+  LookupIterator it(object->GetIsolate(), object, index,
+                    LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);
 }
 

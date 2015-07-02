@@ -259,7 +259,6 @@ class CallSite {
     "In strong mode, using an undeclared global variable '%' is not allowed")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
-  T(ArrayLengthOutOfRange, "defineProperty() array length out of range")       \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedLocation, "Expected Area/Location for time zone, got %")           \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \

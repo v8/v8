@@ -3607,25 +3607,6 @@ bool v8::Object::ForceSet(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
-MUST_USE_RESULT
-static i::MaybeHandle<i::Object> DeleteObjectProperty(
-    i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
-    i::Handle<i::Object> key, i::LanguageMode language_mode) {
-  // Check if the given key is an array index.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    return i::JSReceiver::DeleteElement(receiver, index, language_mode);
-  }
-
-  i::Handle<i::Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
-                                   i::Runtime::ToName(isolate, key),
-                                   i::MaybeHandle<i::Object>());
-
-  return i::JSReceiver::DeletePropertyOrElement(receiver, name, language_mode);
-}
-
-
 MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
                                   Local<Value> key) {
   PREPARE_FOR_EXECUTION(context, "v8::Object::Get()", Value);
@@ -3883,7 +3864,8 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   auto key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> obj;
   has_pending_exception =
-      !DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY).ToHandle(&obj);
+      !i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY)
+           .ToHandle(&obj);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(obj->IsTrue());
 }

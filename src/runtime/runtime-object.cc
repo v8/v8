@@ -162,6 +162,23 @@ MaybeHandle<Object> Runtime::KeyedGetObjectProperty(
 }
 
 
+MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
+                                                  Handle<JSReceiver> receiver,
+                                                  Handle<Object> key,
+                                                  LanguageMode language_mode) {
+  // Check if the given key is an array index.
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index)) {
+    return JSReceiver::DeleteElement(receiver, index, language_mode);
+  }
+
+  Handle<Name> name;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
+
+  return JSReceiver::DeletePropertyOrElement(receiver, name, language_mode);
+}
+
+
 MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
@@ -591,13 +608,13 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
 RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 2);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSReceiver::DeletePropertyOrElement(object, key, language_mode));
+      Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode));
   return *result;
 }
 

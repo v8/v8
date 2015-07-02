@@ -822,6 +822,10 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
 
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
+      Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> key,
+      LanguageMode language_mode);
+
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       Handle<Object> value, LanguageMode language_mode);

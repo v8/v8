@@ -33,6 +33,30 @@
   'intl402/11.2.3_b': [FAIL],
   'intl402/12.2.3_b': [FAIL],
 
+  # BUG(v8:4267)
+  'built-ins/Object/defineProperty/15.2.3.6-4-116': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-117': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-168': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-169': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-170': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-172': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-173': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-174': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-176': [FAIL],
+  'built-ins/Object/defineProperty/15.2.3.6-4-177': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-112': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-113': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-164': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-165': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-166': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-168': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-169': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-170': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-172': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-173': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-175': [FAIL],
+  'built-ins/Object/defineProperties/15.2.3.7-6-a-176': [FAIL],
+
   # Unicode canonicalization is not available with i18n turned off.
   'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [['no_i18n', SKIP]],
 
