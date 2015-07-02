@@ -3566,16 +3566,9 @@ static i::MaybeHandle<i::Object> DefineObjectProperty(
   }
 
   i::Handle<i::Name> name;
-  if (key->IsName()) {
-    name = i::Handle<i::Name>::cast(key);
-  } else {
-    // Call-back into JavaScript to convert the key to a string.
-    i::Handle<i::Object> converted;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, converted,
-                                     i::Execution::ToString(isolate, key),
-                                     i::MaybeHandle<i::Object>());
-    name = i::Handle<i::String>::cast(converted);
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
+                                   i::Runtime::ToName(isolate, key),
+                                   i::MaybeHandle<i::Object>());
 
   return i::JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name,
                                                               value, attrs);
@@ -3614,43 +3607,23 @@ bool v8::Object::ForceSet(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
-namespace {
-
-i::MaybeHandle<i::Object> DeleteObjectProperty(
+MUST_USE_RESULT
+static i::MaybeHandle<i::Object> DeleteObjectProperty(
     i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
     i::Handle<i::Object> key, i::LanguageMode language_mode) {
   // Check if the given key is an array index.
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
-    // In Firefox/SpiderMonkey, Safari and Opera you can access the
-    // characters of a string using [] notation.  In the case of a
-    // String object we just need to redirect the deletion to the
-    // underlying string if the index is in range.  Since the
-    // underlying string does nothing with the deletion, we can ignore
-    // such deletions.
-    if (receiver->IsStringObjectWithCharacterAt(index)) {
-      return isolate->factory()->false_value();
-    }
-
     return i::JSReceiver::DeleteElement(receiver, index, language_mode);
   }
 
   i::Handle<i::Name> name;
-  if (key->IsName()) {
-    name = i::Handle<i::Name>::cast(key);
-  } else {
-    // Call-back into JavaScript to convert the key to a string.
-    i::Handle<i::Object> converted;
-    if (!i::Execution::ToString(isolate, key).ToHandle(&converted)) {
-      return i::MaybeHandle<i::Object>();
-    }
-    name = i::Handle<i::String>::cast(converted);
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
+                                   i::Runtime::ToName(isolate, key),
+                                   i::MaybeHandle<i::Object>());
 
-  return i::JSReceiver::DeleteProperty(receiver, name, language_mode);
+  return i::JSReceiver::DeletePropertyOrElement(receiver, name, language_mode);
 }
-
-}  // namespace
 
 
 MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,

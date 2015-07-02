@@ -596,7 +596,8 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 2);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSReceiver::DeleteProperty(object, key, language_mode));
+      isolate, result,
+      JSReceiver::DeletePropertyOrElement(object, key, language_mode));
   return *result;
 }
 
