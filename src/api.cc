@@ -1426,9 +1426,7 @@ void ObjectTemplate::MarkAsUndetectable() {
 
 void ObjectTemplate::SetAccessCheckCallbacks(
     NamedSecurityCallback named_callback,
-    IndexedSecurityCallback indexed_callback,
-    Handle<Value> data,
-    bool turned_on_by_default) {
+    IndexedSecurityCallback indexed_callback, Handle<Value> data) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -1449,7 +1447,7 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   info->set_data(*Utils::OpenHandle(*data));
 
   cons->set_access_check_info(*info);
-  cons->set_needs_access_check(turned_on_by_default);
+  cons->set_needs_access_check(true);
 }
 
 
@@ -4259,26 +4257,6 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
     Handle<String> key) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return GetRealNamedPropertyAttributes(context, key);
-}
-
-
-// Turns on access checks by copying the map and setting the check flag.
-// Because the object gets a new map, existing inline cache caching
-// the old map of this object will fail.
-void v8::Object::TurnOnAccessCheck() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-
-  // When turning on access checks for a global object deoptimize all functions
-  // as optimized code does not always handle access checks.
-  i::Deoptimizer::DeoptimizeGlobalObject(*obj);
-
-  i::Handle<i::Map> new_map =
-      i::Map::Copy(i::Handle<i::Map>(obj->map()), "APITurnOnAccessCheck");
-  new_map->set_is_access_check_needed(true);
-  i::JSObject::MigrateToMap(obj, new_map);
 }
 
 

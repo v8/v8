@@ -386,36 +386,6 @@ RUNTIME_FUNCTION(Runtime_IsExtensible) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DisableAccessChecks) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
-  Handle<Map> old_map(object->map());
-  bool needs_access_checks = old_map->is_access_check_needed();
-  if (needs_access_checks) {
-    // Copy map so it won't interfere constructor's initial map.
-    Handle<Map> new_map = Map::Copy(old_map, "DisableAccessChecks");
-    new_map->set_is_access_check_needed(false);
-    JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
-  }
-  return isolate->heap()->ToBoolean(needs_access_checks);
-}
-
-
-RUNTIME_FUNCTION(Runtime_EnableAccessChecks) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  Handle<Map> old_map(object->map());
-  RUNTIME_ASSERT(!old_map->is_access_check_needed());
-  // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(old_map, "EnableAccessChecks");
-  new_map->set_is_access_check_needed(true);
-  JSObject::MigrateToMap(object, new_map);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

@@ -430,8 +430,6 @@ namespace internal {
   F(GetOwnProperty, 2, 1)                            \
   F(PreventExtensions, 1, 1)                         \
   F(IsExtensible, 1, 1)                              \
-  F(DisableAccessChecks, 1, 1)                       \
-  F(EnableAccessChecks, 1, 1)                        \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(ObjectFreeze, 1, 1)                              \
   F(ObjectSeal, 1, 1)                                \

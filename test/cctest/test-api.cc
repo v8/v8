@@ -8278,7 +8278,6 @@ TEST(DetachedAccesses) {
   }
 
   Local<Object> env2_global = env2->Global();
-  env2_global->TurnOnAccessCheck();
   env2->DetachGlobal();
 
   Local<Value> result;
@@ -12760,71 +12759,6 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
 }
 
 
-THREADED_TEST(TurnOnAccessCheck) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-
-  // Create an environment with access check to the global object disabled by
-  // default.
-  v8::Handle<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate);
-  global_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL,
-                                           v8::Handle<v8::Value>(), false);
-  v8::Local<Context> context = Context::New(isolate, NULL, global_template);
-  Context::Scope context_scope(context);
-
-  // Set up a property and a number of functions.
-  context->Global()->Set(v8_str("a"), v8_num(1));
-  CompileRun("function f1() {return a;}"
-             "function f2() {return a;}"
-             "function g1() {return h();}"
-             "function g2() {return h();}"
-             "function h() {return 1;}");
-  Local<Function> f1 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("f1")));
-  Local<Function> f2 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("f2")));
-  Local<Function> g1 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("g1")));
-  Local<Function> g2 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("g2")));
-  Local<Function> h =
-      Local<Function>::Cast(context->Global()->Get(v8_str("h")));
-
-  // Get the global object.
-  v8::Handle<v8::Object> global = context->Global();
-
-  // Call f1 one time and f2 a number of times. This will ensure that f1 still
-  // uses the runtime system to retreive property a whereas f2 uses global load
-  // inline cache.
-  CHECK(f1->Call(global, 0, NULL)->Equals(v8_num(1)));
-  for (int i = 0; i < 4; i++) {
-    CHECK(f2->Call(global, 0, NULL)->Equals(v8_num(1)));
-  }
-
-  // Same for g1 and g2.
-  CHECK(g1->Call(global, 0, NULL)->Equals(v8_num(1)));
-  for (int i = 0; i < 4; i++) {
-    CHECK(g2->Call(global, 0, NULL)->Equals(v8_num(1)));
-  }
-
-  // Detach the global and turn on access check.
-  Local<Object> hidden_global = Local<Object>::Cast(
-      context->Global()->GetPrototype());
-  context->DetachGlobal();
-  hidden_global->TurnOnAccessCheck();
-
-  // Failing access check results in exception.
-  CHECK(f1->Call(global, 0, NULL).IsEmpty());
-  CHECK(f2->Call(global, 0, NULL).IsEmpty());
-  CHECK(g1->Call(global, 0, NULL).IsEmpty());
-  CHECK(g2->Call(global, 0, NULL).IsEmpty());
-
-  // No failing access check when just returning a constant.
-  CHECK(h->Call(global, 0, NULL)->Equals(v8_num(1)));
-}
-
-
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
@@ -16800,7 +16734,7 @@ TEST(GCInFailedAccessCheckCallback) {
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL,
-                                           v8::Handle<v8::Value>(), false);
+                                           v8::Handle<v8::Value>());
 
   // Create a context and set an x property on it's global object.
   LocalContext context0(NULL, global_template);
@@ -19246,16 +19180,6 @@ TEST(JSONStringifyAccessCheck) {
     CHECK(CompileRun("JSON.stringify(other)").IsEmpty());
     CHECK(CompileRun("JSON.stringify({ 'a' : other, 'b' : ['c'] })").IsEmpty());
     CHECK(CompileRun("JSON.stringify([other, 'b', 'c'])").IsEmpty());
-
-    v8::Handle<v8::Array> array = v8::Array::New(isolate, 2);
-    array->Set(0, v8_str("a"));
-    array->Set(1, v8_str("b"));
-    context1->Global()->Set(v8_str("array"), array);
-    ExpectString("JSON.stringify(array)", "[\"a\",\"b\"]");
-    array->TurnOnAccessCheck();
-    CHECK(CompileRun("JSON.stringify(array)").IsEmpty());
-    CHECK(CompileRun("JSON.stringify([array])").IsEmpty());
-    CHECK(CompileRun("JSON.stringify({'a' : array})").IsEmpty());
   }
 }
 

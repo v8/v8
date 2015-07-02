@@ -454,28 +454,6 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
 }
 
 
-void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
-  if (FLAG_trace_deopt) {
-    CodeTracer::Scope scope(object->GetHeap()->isolate()->GetCodeTracer());
-    PrintF(scope.file(), "[deoptimize global object @ 0x%08" V8PRIxPTR "]\n",
-        reinterpret_cast<intptr_t>(object));
-  }
-  if (object->IsJSGlobalProxy()) {
-    PrototypeIterator iter(object->GetIsolate(), object);
-    // TODO(verwaest): This CHECK will be hit if the global proxy is detached.
-    CHECK(iter.GetCurrent()->IsJSGlobalObject());
-    Context* native_context =
-        GlobalObject::cast(iter.GetCurrent())->native_context();
-    MarkAllCodeForContext(native_context);
-    DeoptimizeMarkedCodeForContext(native_context);
-  } else if (object->IsGlobalObject()) {
-    Context* native_context = GlobalObject::cast(object)->native_context();
-    MarkAllCodeForContext(native_context);
-    DeoptimizeMarkedCodeForContext(native_context);
-  }
-}
-
-
 void Deoptimizer::MarkAllCodeForContext(Context* context) {
   Object* element = context->OptimizedCodeListHead();
   while (!element->IsUndefined()) {

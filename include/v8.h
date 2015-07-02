@@ -2859,13 +2859,6 @@ class V8_EXPORT Object : public Value {
   bool HasIndexedLookupInterceptor();
 
   /**
-   * Turns on access check on the object if the object is an instance of
-   * a template that has access check callbacks. If an object has no
-   * access check info, the object cannot be accessed by anyone.
-   */
-  V8_DEPRECATE_SOON("No alternative", void TurnOnAccessCheck());
-
-  /**
    * Returns the identity hash for this object. The current implementation
    * uses a hidden property on the object to store the identity hash.
    *
@@ -4651,20 +4644,16 @@ class V8_EXPORT ObjectTemplate : public Template {
   void MarkAsUndetectable();
 
   /**
-   * Sets access check callbacks on the object template.
+   * Sets access check callbacks on the object template and enables
+   * access checks.
    *
    * When accessing properties on instances of this object template,
    * the access check callback will be called to determine whether or
    * not to allow cross-context access to the properties.
-   * The last parameter specifies whether access checks are turned
-   * on by default on instances. If access checks are off by default,
-   * they can be turned on on individual instances by calling
-   * Object::TurnOnAccessCheck().
    */
   void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
                                IndexedSecurityCallback indexed_handler,
-                               Handle<Value> data = Handle<Value>(),
-                               bool turned_on_by_default = true);
+                               Handle<Value> data = Handle<Value>());
 
   /**
    * Gets the number of internal fields for objects generated from
