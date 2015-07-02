@@ -149,6 +149,7 @@ void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
 void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
                                                     Task* task,
                                                     double delay_in_seconds) {
+  base::LockGuard<base::Mutex> guard(&lock_);
   double deadline = MonotonicallyIncreasingTime() + delay_in_seconds;
   main_thread_delayed_queue_[isolate].push(std::make_pair(deadline, task));
 }
