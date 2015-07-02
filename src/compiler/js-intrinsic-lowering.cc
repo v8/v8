@@ -94,6 +94,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGetCallerJSFunction(node);
     case Runtime::kInlineThrowNotDateError:
       return ReduceThrowNotDateError(node);
+    case Runtime::kInlineCallFunction:
+      return ReduceCallFunction(node);
     default:
       break;
   }
@@ -513,6 +515,21 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
 }
 
 
+Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
+  CallRuntimeParameters params = OpParameter<CallRuntimeParameters>(node->op());
+  size_t arity = params.arity();
+  node->set_op(javascript()->CallFunction(arity, NO_CALL_FUNCTION_FLAGS, STRICT,
+                                          VectorSlotPair(), ALLOW_TAIL_CALLS));
+  Node* function = node->InputAt(static_cast<int>(arity - 1));
+  while (--arity != 0) {
+    node->ReplaceInput(static_cast<int>(arity),
+                       node->InputAt(static_cast<int>(arity - 1)));
+  }
+  node->ReplaceInput(0, function);
+  return Changed(node);
+}
+
+
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {
   node->set_op(op);
@@ -547,6 +564,10 @@ Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
 
 CommonOperatorBuilder* JSIntrinsicLowering::common() const {
   return jsgraph()->common();
+}
+
+JSOperatorBuilder* JSIntrinsicLowering::javascript() const {
+  return jsgraph_->javascript();
 }
 
 

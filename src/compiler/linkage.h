@@ -20,6 +20,7 @@ class CallInterfaceDescriptor;
 
 namespace compiler {
 
+class Node;
 class OsrHelper;
 
 // Describes the location for a parameter or a return value to a call.
@@ -166,6 +167,8 @@ class CallDescriptor final : public ZoneObject {
   bool UsesOnlyRegisters() const;
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
+
+  bool CanTailCall(const Node* call) const;
 
  private:
   friend class Linkage;

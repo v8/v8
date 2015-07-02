@@ -703,8 +703,7 @@ struct GenericLoweringPhase {
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &generic_lowering);
     AddReducer(data, &graph_reducer, &select_lowering);
-    // TODO(turbofan): TCO is currently limited to stubs.
-    if (data->info()->IsStub()) AddReducer(data, &graph_reducer, &tco);
+    AddReducer(data, &graph_reducer, &tco);
     graph_reducer.ReduceGraph();
   }
 };
