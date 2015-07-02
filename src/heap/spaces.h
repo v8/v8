@@ -1014,6 +1014,10 @@ class SkipList {
     list->AddObject(addr, size);
   }
 
+  void Lock() { mutex_.Lock(); }
+
+  void Unlock() { mutex_.Unlock(); }
+
  private:
   static const int kRegionSizeLog2 = 13;
   static const int kRegionSize = 1 << kRegionSizeLog2;
@@ -1022,6 +1026,7 @@ class SkipList {
   STATIC_ASSERT(Page::kPageSize % kRegionSize == 0);
 
   Address starts_[kSize];
+  base::Mutex mutex_;
 };
 
 
