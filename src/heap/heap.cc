@@ -5623,7 +5623,8 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
 
   // We set the old generation growing factor to 2 to grow the heap slower on
   // memory-constrained devices.
-  if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice) {
+  if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice ||
+      FLAG_optimize_for_size) {
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
