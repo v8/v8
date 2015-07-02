@@ -1835,8 +1835,8 @@ class JSObject: public JSReceiver {
   inline bool HasFixedFloat32Elements();
   inline bool HasFixedFloat64Elements();
 
-  bool HasFastArgumentsElements();
-  bool HasDictionaryArgumentsElements();
+  inline bool HasFastArgumentsElements();
+  inline bool HasSlowArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
@@ -5708,7 +5708,7 @@ class Map: public HeapObject {
   }
 
   inline bool has_sloppy_arguments_elements() {
-    return elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
+    return IsSloppyArgumentsElements(elements_kind());
   }
 
   inline bool has_external_array_elements() {
@@ -5721,11 +5721,6 @@ class Map: public HeapObject {
 
   inline bool has_dictionary_elements() {
     return IsDictionaryElementsKind(elements_kind());
-  }
-
-  inline bool has_slow_elements_kind() {
-    return elements_kind() == DICTIONARY_ELEMENTS
-        || elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
   }
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
@@ -6052,7 +6047,8 @@ class Map: public HeapObject {
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or null handle if no match is
   // found at all.
-  Handle<Map> FindTransitionedMap(MapHandleList* candidates);
+  static Handle<Map> FindTransitionedMap(Handle<Map> map,
+                                         MapHandleList* candidates);
 
   bool CanTransition() {
     // Only JSObject and subtypes have map transitions and back pointers.

@@ -340,7 +340,8 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     case DICTIONARY_ELEMENTS:
       elements()->Print(os);
       break;
-    case SLOPPY_ARGUMENTS_ELEMENTS: {
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       FixedArray* p = FixedArray::cast(elements());
       os << "   parameter map:";
       for (int i = 2; i < p->length(); i++) {

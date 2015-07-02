@@ -810,7 +810,8 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
     case DICTIONARY_ELEMENTS:
       ElementHandlerCompiler::GenerateStoreSlow(masm);
       break;
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }

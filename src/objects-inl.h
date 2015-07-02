@@ -6223,7 +6223,7 @@ ElementsKind JSObject::GetElementsKind() {
             fixed_array->IsFixedArray() &&
             fixed_array->IsDictionary()) ||
            (kind > DICTIONARY_ELEMENTS));
-    DCHECK((kind != SLOPPY_ARGUMENTS_ELEMENTS) ||
+    DCHECK(!IsSloppyArgumentsElements(kind) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
   }
 #endif
@@ -6266,8 +6266,18 @@ bool JSObject::HasDictionaryElements() {
 }
 
 
+bool JSObject::HasFastArgumentsElements() {
+  return GetElementsKind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
+}
+
+
+bool JSObject::HasSlowArgumentsElements() {
+  return GetElementsKind() == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
+}
+
+
 bool JSObject::HasSloppyArgumentsElements() {
-  return GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS;
+  return IsSloppyArgumentsElements(GetElementsKind());
 }
 
 

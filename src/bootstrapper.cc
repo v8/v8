@@ -1357,12 +1357,17 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }
 
-  {  // --- aliased arguments map
-    Handle<Map> map =
-        Map::Copy(isolate->sloppy_arguments_map(), "AliasedArguments");
-    map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
+  {  // --- fast and slow aliased arguments map
+    Handle<Map> map = isolate->sloppy_arguments_map();
+    map = Map::Copy(map, "FastAliasedArguments");
+    map->set_elements_kind(FAST_SLOPPY_ARGUMENTS_ELEMENTS);
     DCHECK_EQ(2, map->pre_allocated_property_fields());
-    native_context()->set_aliased_arguments_map(*map);
+    native_context()->set_fast_aliased_arguments_map(*map);
+
+    map = Map::Copy(map, "SlowAliasedArguments");
+    map->set_elements_kind(SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
+    DCHECK_EQ(2, map->pre_allocated_property_fields());
+    native_context()->set_slow_aliased_arguments_map(*map);
   }
 
   {  // --- strict mode arguments map
@@ -2438,7 +2443,14 @@ bool Genesis::InstallNatives() {
     {
       AccessorConstantDescriptor d(factory()->iterator_symbol(),
                                    arguments_iterator, attribs);
-      Handle<Map> map(native_context()->aliased_arguments_map());
+      Handle<Map> map(native_context()->fast_aliased_arguments_map());
+      Map::EnsureDescriptorSlack(map, 1);
+      map->AppendDescriptor(&d);
+    }
+    {
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
+      Handle<Map> map(native_context()->slow_aliased_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
     }

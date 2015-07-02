@@ -138,7 +138,8 @@ enum BindingFlags {
   V(BOUND_FUNCTION_MAP_INDEX, Map, bound_function_map)                         \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SLOPPY_ARGUMENTS_MAP_INDEX, Map, sloppy_arguments_map)                     \
-  V(ALIASED_ARGUMENTS_MAP_INDEX, Map, aliased_arguments_map)                   \
+  V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
+  V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners)                      \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun)                      \
@@ -337,7 +338,8 @@ class Context: public FixedArray {
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     SLOPPY_ARGUMENTS_MAP_INDEX,
-    ALIASED_ARGUMENTS_MAP_INDEX,
+    FAST_ALIASED_ARGUMENTS_MAP_INDEX,
+    SLOW_ALIASED_ARGUMENTS_MAP_INDEX,
     STRICT_ARGUMENTS_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     SLOPPY_FUNCTION_MAP_INDEX,

@@ -149,7 +149,6 @@ class ElementsAccessor {
                    uint32_t new_capacity) = 0;
 
  protected:
-  friend class SloppyArgumentsElementsAccessor;
   friend class LookupIterator;
 
   static ElementsAccessor* ForArray(FixedArrayBase* array);

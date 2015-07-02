@@ -7157,7 +7157,8 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
 
 
 static bool CanInlineElementAccess(Handle<Map> map) {
-  return map->IsJSObjectMap() && !map->has_slow_elements_kind() &&
+  return map->IsJSObjectMap() && !map->has_dictionary_elements() &&
+         !map->has_sloppy_arguments_elements() &&
          !map->has_indexed_interceptor() && !map->is_access_check_needed();
 }
 
@@ -7263,7 +7264,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         elements_kind != GetInitialFastElementsKind()) {
       possible_transitioned_maps.Add(map);
     }
-    if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
+    if (IsSloppyArgumentsElements(elements_kind)) {
       HInstruction* result = BuildKeyedGeneric(access_type, expr, object, key,
                                                val);
       *has_side_effects = result->HasObservableSideEffects();
@@ -7274,7 +7275,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     Handle<Map> transitioned_map =
-        map->FindTransitionedMap(&possible_transitioned_maps);
+        Map::FindTransitionedMap(map, &possible_transitioned_maps);
     transition_target.Add(transitioned_map);
   }
 
