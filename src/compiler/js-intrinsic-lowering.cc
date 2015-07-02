@@ -86,6 +86,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceValueOf(node);
     case Runtime::kInlineIsMinusZero:
       return ReduceIsMinusZero(node);
+    case Runtime::kInlineFixedArrayGet:
+      return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
       return ReduceFixedArraySet(node);
     case Runtime::kInlineGetTypeFeedbackVector:
@@ -447,6 +449,17 @@ Reduction JSIntrinsicLowering::ReduceIsMinusZero(Node* node) {
 }
 
 
+Reduction JSIntrinsicLowering::ReduceFixedArrayGet(Node* node) {
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(
+      node, simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+      base, index, effect, control);
+}
+
+
 Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -548,6 +561,19 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->TrimInputCount(3);
+  RelaxControls(node);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
+                                      Node* b, Node* c, Node* d) {
+  node->set_op(op);
+  node->ReplaceInput(0, a);
+  node->ReplaceInput(1, b);
+  node->ReplaceInput(2, c);
+  node->ReplaceInput(3, d);
+  node->TrimInputCount(4);
   RelaxControls(node);
   return Changed(node);
 }
