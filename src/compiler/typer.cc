@@ -2052,6 +2052,11 @@ Bounds Typer::Visitor::TypeUint64LessThan(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeUint64LessThanOrEqual(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
 Bounds Typer::Visitor::TypeUint64Mod(Node* node) {
   return Bounds(Type::Internal());
 }

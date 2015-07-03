@@ -1722,6 +1722,10 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWordCompare(this, value, kArm64Cmp, &cont, false,
                                 kArithmeticImm);
+      case IrOpcode::kUint64LessThanOrEqual:
+        cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWordCompare(this, value, kArm64Cmp, &cont, false,
+                                kArithmeticImm);
       case IrOpcode::kFloat32Equal:
         cont.OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat32Compare(this, value, &cont);
@@ -1954,6 +1958,12 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+}
+
+
+void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
   VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
 }
 

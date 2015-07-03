@@ -203,6 +203,7 @@
   V(Int64LessThan)                    \
   V(Int64LessThanOrEqual)             \
   V(Uint64LessThan)                   \
+  V(Uint64LessThanOrEqual)            \
   V(Float32Equal)                     \
   V(Float32LessThan)                  \
   V(Float32LessThanOrEqual)           \

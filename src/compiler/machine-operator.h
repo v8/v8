@@ -156,6 +156,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Int64LessThanOrEqual();
   const Operator* Uint64Div();
   const Operator* Uint64LessThan();
+  const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
 
   // These operators change the representation of numbers while preserving the

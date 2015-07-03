@@ -101,13 +101,14 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
-  V(Int64Div, Operator::kNoProperties, 2, 0, 1)                               \
-  V(Int64Mod, Operator::kNoProperties, 2, 0, 1)                               \
+  V(Int64Div, Operator::kNoProperties, 2, 1, 1)                               \
+  V(Int64Mod, Operator::kNoProperties, 2, 1, 1)                               \
   V(Int64LessThan, Operator::kNoProperties, 2, 0, 1)                          \
   V(Int64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                   \
-  V(Uint64Div, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Uint64Div, Operator::kNoProperties, 2, 1, 1)                              \
+  V(Uint64Mod, Operator::kNoProperties, 2, 1, 1)                              \
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Uint64Mod, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                  \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \

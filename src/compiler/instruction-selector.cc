@@ -674,6 +674,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitUint64Div(node);
     case IrOpcode::kUint64LessThan:
       return VisitUint64LessThan(node);
+    case IrOpcode::kUint64LessThanOrEqual:
+      return VisitUint64LessThanOrEqual(node);
     case IrOpcode::kUint64Mod:
       return MarkAsWord64(node), VisitUint64Mod(node);
     case IrOpcode::kChangeFloat32ToFloat64:
@@ -835,7 +837,7 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
 #endif  // V8_TURBOFAN_BACKEND
 
 // 32 bit targets do not implement the following instructions.
-#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 && V8_TURBOFAN_BACKEND
+#if !V8_TURBOFAN_BACKEND_64
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -888,6 +890,11 @@ void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 
 
 void InstructionSelector::VisitUint64LessThan(Node* node) { UNIMPLEMENTED(); }
+
+
+void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+  UNIMPLEMENTED();
+}
 
 
 void InstructionSelector::VisitUint64Mod(Node* node) { UNIMPLEMENTED(); }

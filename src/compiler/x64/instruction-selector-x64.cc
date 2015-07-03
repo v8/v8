@@ -1360,6 +1360,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kUint64LessThan:
         cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(this, value, &cont);
+      case IrOpcode::kUint64LessThanOrEqual:
+        cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWord64Compare(this, value, &cont);
       case IrOpcode::kFloat32Equal:
         cont.OverwriteAndNegateIfEqual(kUnorderedEqual);
         return VisitFloat32Compare(this, value, &cont);
@@ -1568,6 +1571,12 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitWord64Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 

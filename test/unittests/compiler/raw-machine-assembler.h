@@ -285,11 +285,14 @@ class RawMachineAssembler : public GraphBuilder {
   Node* Int64LessThan(Node* a, Node* b) {
     return NewNode(machine()->Int64LessThan(), a, b);
   }
+  Node* Int64LessThanOrEqual(Node* a, Node* b) {
+    return NewNode(machine()->Int64LessThanOrEqual(), a, b);
+  }
   Node* Uint64LessThan(Node* a, Node* b) {
     return NewNode(machine()->Uint64LessThan(), a, b);
   }
-  Node* Int64LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Int64LessThanOrEqual(), a, b);
+  Node* Uint64LessThanOrEqual(Node* a, Node* b) {
+    return NewNode(machine()->Uint64LessThanOrEqual(), a, b);
   }
   Node* Int64GreaterThan(Node* a, Node* b) { return Int64LessThan(b, a); }
   Node* Int64GreaterThanOrEqual(Node* a, Node* b) {
