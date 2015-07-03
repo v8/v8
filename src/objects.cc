@@ -6784,8 +6784,9 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     if (old_size == 0) {
       descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
     } else {
-      EnsureDescriptorSlack(
-          map, SlackForArraySize(old_size, kMaxNumberOfDescriptors));
+      int slack = SlackForArraySize(map->is_prototype_map(), old_size,
+                                    kMaxNumberOfDescriptors);
+      EnsureDescriptorSlack(map, slack);
       descriptors = handle(map->instance_descriptors());
     }
   }

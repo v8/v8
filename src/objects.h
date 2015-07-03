@@ -6021,7 +6021,8 @@ class Map: public HeapObject {
   static void AppendCallbackDescriptors(Handle<Map> map,
                                         Handle<Object> descriptors);
 
-  static inline int SlackForArraySize(int old_size, int size_limit);
+  static inline int SlackForArraySize(bool is_prototype_map, int old_size,
+                                      int size_limit);
 
   static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
@@ -10452,13 +10453,16 @@ class CallHandlerInfo: public Struct {
 class TemplateInfo: public Struct {
  public:
   DECL_ACCESSORS(tag, Object)
+  inline int number_of_properties() const;
+  inline void set_number_of_properties(int value);
   DECL_ACCESSORS(property_list, Object)
   DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
 
   static const int kTagOffset = HeapObject::kHeaderSize;
-  static const int kPropertyListOffset = kTagOffset + kPointerSize;
+  static const int kNumberOfProperties = kTagOffset + kPointerSize;
+  static const int kPropertyListOffset = kNumberOfProperties + kPointerSize;
   static const int kPropertyAccessorsOffset =
       kPropertyListOffset + kPointerSize;
   static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;

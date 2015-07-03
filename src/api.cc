@@ -904,6 +904,7 @@ void NeanderArray::set(int index, i::Object* value) {
 
 
 static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
+  that->set_number_of_properties(0);
   that->set_tag(i::Smi::FromInt(type));
 }
 
@@ -946,7 +947,7 @@ void Template::SetAccessorProperty(
 // --- F u n c t i o n   T e m p l a t e ---
 static void InitializeFunctionTemplate(
     i::Handle<i::FunctionTemplateInfo> info) {
-  info->set_tag(i::Smi::FromInt(Consts::FUNCTION_TEMPLATE));
+  InitializeTemplate(info, Consts::FUNCTION_TEMPLATE);
   info->set_flag(0);
 }
 
