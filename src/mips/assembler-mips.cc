@@ -1415,6 +1415,7 @@ void Assembler::jal(int32_t target) {
 
 
 void Assembler::jalr(Register rs, Register rd) {
+  DCHECK(rs.code() != rd.code());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrRegister(SPECIAL, rs, zero_reg, rd, 0, JALR);
