@@ -414,9 +414,11 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     PatchCodeForDeoptimization(isolate, codes[i]);
 
     // We might be in the middle of incremental marking with compaction.
-    // Ignore all slots that might have been recorded on the deoptimized code
-    // object.
-    isolate->heap()->mark_compact_collector()->RemoveObjectSlots(codes[i]);
+    // Ignore all slots that might have been recorded in the body of the
+    // deoptimized code object.
+    Code* code = codes[i];
+    isolate->heap()->mark_compact_collector()->RemoveObjectSlots(
+        code->instruction_start(), code->address() + code->Size());
   }
 }
 
