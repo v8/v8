@@ -592,9 +592,6 @@
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
-
-  # BUG(v8:4127)
-  'deserialize-script-id': [PASS, ['no_snap == True', FLAKY]],
 }],  # 'system == windows'
 
 ##############################################################################
