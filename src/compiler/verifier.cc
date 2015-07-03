@@ -633,6 +633,19 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(rossberg): activate once we retype after opcode changes.
       // CheckUpperIs(node, Type::Number());
       break;
+    case IrOpcode::kNumberShiftLeft:
+    case IrOpcode::kNumberShiftRight:
+      // (Signed32, Unsigned32) -> Signed32
+      CheckValueInputIs(node, 0, Type::Signed32());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckUpperIs(node, Type::Signed32());
+      break;
+    case IrOpcode::kNumberShiftRightLogical:
+      // (Unsigned32, Unsigned32) -> Unsigned32
+      CheckValueInputIs(node, 0, Type::Unsigned32());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckUpperIs(node, Type::Unsigned32());
+      break;
     case IrOpcode::kNumberToInt32:
       // Number -> Signed32
       CheckValueInputIs(node, 0, Type::Number());

@@ -171,6 +171,9 @@
   V(NumberMultiply)                \
   V(NumberDivide)                  \
   V(NumberModulus)                 \
+  V(NumberShiftLeft)               \
+  V(NumberShiftRight)              \
+  V(NumberShiftRightLogical)       \
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
   V(PlainPrimitiveToNumber)        \

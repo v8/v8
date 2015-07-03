@@ -1657,6 +1657,21 @@ Bounds Typer::Visitor::TypeNumberModulus(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeNumberShiftLeft(Node* node) {
+  return Bounds(Type::None(zone()), Type::Signed32(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeNumberShiftRight(Node* node) {
+  return Bounds(Type::None(zone()), Type::Signed32(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
+  return Bounds(Type::None(zone()), Type::Unsigned32(zone()));
+}
+
+
 Bounds Typer::Visitor::TypeNumberToInt32(Node* node) {
   return TypeUnaryOp(node, NumberToInt32);
 }
