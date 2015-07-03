@@ -881,6 +881,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     if (id != Deoptimizer::kNotDeoptimizationEntry) {
       os << "  (deoptimization bailout " << id << ")";
     }
+  } else if (IsConstPool(rmode_)) {
+    os << " (size " << static_cast<int>(data_) << ")";
   }
 
   os << "\n";
