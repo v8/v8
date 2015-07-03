@@ -650,19 +650,6 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  virtual MaybeHandle<AccessorPair> GetAccessorPair(
-      Handle<JSObject> holder, uint32_t key,
-      Handle<FixedArrayBase> backing_store) final {
-    return ElementsAccessorSubclass::GetAccessorPairImpl(holder, key,
-                                                         backing_store);
-  }
-
-  static MaybeHandle<AccessorPair> GetAccessorPairImpl(
-      Handle<JSObject> obj, uint32_t key,
-      Handle<FixedArrayBase> backing_store) {
-    return MaybeHandle<AccessorPair>();
-  }
-
   virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
     ElementsAccessorSubclass::SetLengthImpl(array, length,
                                             handle(array->elements()));
@@ -1068,19 +1055,6 @@ class DictionaryElementsAccessor
     if (attributes != NONE) new_dictionary->set_requires_slow_elements();
     if (dictionary.is_identical_to(new_dictionary)) return;
     object->set_elements(*new_dictionary);
-  }
-
-  static MaybeHandle<AccessorPair> GetAccessorPairImpl(
-      Handle<JSObject> obj, uint32_t key, Handle<FixedArrayBase> store) {
-    Handle<SeededNumberDictionary> backing_store =
-        Handle<SeededNumberDictionary>::cast(store);
-    int entry = backing_store->FindEntry(key);
-    if (entry != SeededNumberDictionary::kNotFound &&
-        backing_store->DetailsAt(entry).type() == ACCESSOR_CONSTANT &&
-        backing_store->ValueAt(entry)->IsAccessorPair()) {
-      return handle(AccessorPair::cast(backing_store->ValueAt(entry)));
-    }
-    return MaybeHandle<AccessorPair>();
   }
 
   static bool HasIndexImpl(FixedArrayBase* store, uint32_t index) {
@@ -1569,20 +1543,6 @@ class SloppyArgumentsElementsAccessor
     } else {
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       ArgumentsAccessor::SetImpl(arguments, key, value);
-    }
-  }
-
-  static MaybeHandle<AccessorPair> GetAccessorPairImpl(
-      Handle<JSObject> obj, uint32_t key, Handle<FixedArrayBase> parameters) {
-    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Handle<Object> probe(GetParameterMapArg(*parameter_map, key),
-                         obj->GetIsolate());
-    if (!probe->IsTheHole()) {
-      return MaybeHandle<AccessorPair>();
-    } else {
-      // If not aliased, check the arguments.
-      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      return ArgumentsAccessor::GetAccessorPairImpl(obj, key, arguments);
     }
   }
 
