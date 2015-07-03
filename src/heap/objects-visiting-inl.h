@@ -409,7 +409,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (FLAG_cleanup_code_caches_at_gc) {
     shared->ClearTypeFeedbackInfoAtGCTime();
   }
-  if (FLAG_flush_optimized_code_cache &&
+  if ((FLAG_flush_optimized_code_cache ||
+       heap->isolate()->serializer_enabled()) &&
       !shared->optimized_code_map()->IsSmi()) {
     // Always flush the optimized code map if requested by flag.
     shared->ClearOptimizedCodeMap();
