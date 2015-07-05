@@ -16,7 +16,6 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/memory-reducer.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
@@ -832,10 +831,6 @@ class Heap {
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
 
-  // Start incremental marking and ensure that idle time handler can perform
-  // incremental steps.
-  void StartIdleIncrementalMarking();
-
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
     if (FLAG_gc_verbose) {
@@ -1622,10 +1617,6 @@ class Heap {
   // An ArrayBuffer moved from new space to old space.
   void PromoteArrayBuffer(Object* buffer);
 
-  bool HasLowAllocationRate();
-  bool HasHighFragmentation();
-  bool HasHighFragmentation(intptr_t used, intptr_t committed);
-
  protected:
   // Methods made available to tests.
 
@@ -1785,6 +1776,10 @@ class Heap {
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
   intptr_t old_generation_allocation_limit_;
+
+  // The allocation limit when there is >16.66ms idle time in the idle time
+  // handler.
+  intptr_t idle_old_generation_allocation_limit_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
@@ -2262,6 +2257,7 @@ class Heap {
 
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
+  bool HasLowAllocationRate();
 
   void ReduceNewSpaceSize();
 
@@ -2327,8 +2323,6 @@ class Heap {
   IncrementalMarking incremental_marking_;
 
   GCIdleTimeHandler gc_idle_time_handler_;
-
-  MemoryReducer memory_reducer_;
 
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
