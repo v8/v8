@@ -927,7 +927,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   }
 
   bool next_gc_likely_to_collect_more = false;
-  intptr_t committed_memory_before = 0;
+  intptr_t committed_memory_before;
 
   if (collector == MARK_COMPACTOR) {
     committed_memory_before = CommittedOldGenerationMemory();
