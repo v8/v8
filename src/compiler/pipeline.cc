@@ -366,9 +366,9 @@ class AstGraphBuilderWithPositions final : public AstGraphBuilder {
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
 
-  bool CreateGraph(bool constant_context, bool stack_check) {
+  bool CreateGraph(bool stack_check) {
     SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
-    return AstGraphBuilder::CreateGraph(constant_context, stack_check);
+    return AstGraphBuilder::CreateGraph(stack_check);
   }
 
 #define DEF_VISIT(type)                                               \
@@ -475,12 +475,12 @@ struct LoopAssignmentAnalysisPhase {
 struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
-  void Run(PipelineData* data, Zone* temp_zone, bool constant_context) {
+  void Run(PipelineData* data, Zone* temp_zone) {
     AstGraphBuilderWithPositions graph_builder(
         temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
         data->js_type_feedback(), data->source_positions());
     bool stack_check = !data->info()->IsStub();
-    if (!graph_builder.CreateGraph(constant_context, stack_check)) {
+    if (!graph_builder.CreateGraph(stack_check)) {
       data->set_compilation_failed();
     }
   }
@@ -496,7 +496,8 @@ struct InliningPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSContextSpecializer context_specializer(&graph_reducer, data->jsgraph());
+    JSContextSpecialization context_specialization(
+        &graph_reducer, data->jsgraph(), data->info()->context());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
@@ -509,7 +510,7 @@ struct InliningPhase {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
     if (data->info()->is_context_specializing()) {
-      AddReducer(data, &graph_reducer, &context_specializer);
+      AddReducer(data, &graph_reducer, &context_specialization);
     }
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
@@ -1037,7 +1038,7 @@ Handle<Code> Pipeline::GenerateCode() {
     Run<LoopAssignmentAnalysisPhase>();
   }
 
-  Run<GraphBuilderPhase>(info()->is_context_specializing());
+  Run<GraphBuilderPhase>();
   if (data.compilation_failed()) return Handle<Code>::null();
   RunPrintAndVerify("Initial untyped", true);
 

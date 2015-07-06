@@ -35,7 +35,7 @@ class AstGraphBuilder : public AstVisitor {
                   JSTypeFeedbackTable* js_type_feedback = NULL);
 
   // Creates a graph by visiting the entire AST.
-  bool CreateGraph(bool constant_context, bool stack_check = true);
+  bool CreateGraph(bool stack_check = true);
 
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
@@ -150,12 +150,12 @@ class AstGraphBuilder : public AstVisitor {
   // Create the main graph body by visiting the AST.
   void CreateGraphBody(bool stack_check);
 
-  // Create the node that represents the outer context of the function.
-  void CreateFunctionContext(bool constant_context);
-
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosureForContext();
   Node* GetFunctionClosure();
+
+  // Get or create the node that represents the outer function context.
+  Node* GetFunctionContext();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {
@@ -201,8 +201,6 @@ class AstGraphBuilder : public AstVisitor {
   // Creates a new Phi node having {count} input values.
   Node* NewPhi(int count, Node* input, Node* control);
   Node* NewEffectPhi(int count, Node* input, Node* control);
-
-  Node* NewOuterContextParam();
 
   // Helpers for merging control, effect or value dependencies.
   Node* MergeControl(Node* control, Node* other);

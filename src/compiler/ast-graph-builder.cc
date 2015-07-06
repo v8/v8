@@ -483,22 +483,19 @@ Node* AstGraphBuilder::GetFunctionClosure() {
 }
 
 
-void AstGraphBuilder::CreateFunctionContext(bool constant_context) {
-  function_context_.set(constant_context
-                            ? jsgraph()->HeapConstant(info()->context())
-                            : NewOuterContextParam());
+Node* AstGraphBuilder::GetFunctionContext() {
+  if (!function_context_.is_set()) {
+    // Parameter (arity + 1) is special for the outer context of the function
+    const Operator* op = common()->Parameter(
+        info()->num_parameters_including_this(), "%context");
+    Node* node = NewNode(op, graph()->start());
+    function_context_.set(node);
+  }
+  return function_context_.get();
 }
 
 
-Node* AstGraphBuilder::NewOuterContextParam() {
-  // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op =
-      common()->Parameter(info()->num_parameters_including_this(), "%context");
-  return NewNode(op, graph()->start());
-}
-
-
-bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
+bool AstGraphBuilder::CreateGraph(bool stack_check) {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
 
@@ -518,8 +515,7 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   }
 
   // Initialize the incoming context.
-  CreateFunctionContext(constant_context);
-  ContextScope incoming(this, scope, function_context_.get());
+  ContextScope incoming(this, scope, GetFunctionContext());
 
   // Initialize control scope.
   ControlScope control(this);
@@ -535,7 +531,7 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   // Build function context only if there are context allocated variables.
   if (info()->num_heap_slots() > 0) {
     // Push a new inner context scope for the function.
-    Node* inner_context = BuildLocalFunctionContext(function_context_.get());
+    Node* inner_context = BuildLocalFunctionContext(GetFunctionContext());
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody(stack_check);
   } else {
@@ -3631,7 +3627,7 @@ Node* AstGraphBuilder::BuildLoadBuiltinsObject() {
 Node* AstGraphBuilder::BuildLoadGlobalObject() {
   const Operator* load_op =
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
-  return NewNode(load_op, function_context_.get());
+  return NewNode(load_op, GetFunctionContext());
 }
 
 
@@ -4056,11 +4052,9 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
 
   if (builder_->info()->is_osr()) {
     // Introduce phis for all context values in the case of an OSR graph.
-    for (int i = 0; i < static_cast<int>(contexts()->size()); ++i) {
-      Node* val = contexts()->at(i);
-      if (!IrOpcode::IsConstantOpcode(val->opcode())) {
-        contexts()->at(i) = builder_->NewPhi(1, val, control);
-      }
+    for (size_t i = 0; i < contexts()->size(); ++i) {
+      Node* context = contexts()->at(i);
+      contexts()->at(i) = builder_->NewPhi(1, context, control);
     }
   }
 
@@ -4074,12 +4068,10 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
     builder_->MergeEffect(effect, osr_loop_entry, control);
 
     for (int i = 0; i < size; ++i) {
-      Node* val = values()->at(i);
-      if (!IrOpcode::IsConstantOpcode(val->opcode())) {
-        Node* osr_value =
-            graph->NewNode(builder_->common()->OsrValue(i), osr_loop_entry);
-        values()->at(i) = builder_->MergeValue(val, osr_value, control);
-      }
+      Node* value = values()->at(i);
+      Node* osr_value =
+          graph->NewNode(builder_->common()->OsrValue(i), osr_loop_entry);
+      values()->at(i) = builder_->MergeValue(value, osr_value, control);
     }
 
     // Rename all the contexts in the environment.
@@ -4092,15 +4084,11 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
         builder_->common()->OsrValue(Linkage::kOsrContextSpillSlotIndex);
     int last = static_cast<int>(contexts()->size() - 1);
     for (int i = last; i >= 0; i--) {
-      Node* val = contexts()->at(i);
-      if (!IrOpcode::IsConstantOpcode(val->opcode())) {
-        osr_context = (i == last) ? graph->NewNode(op_inner, osr_loop_entry)
-                                  : graph->NewNode(op, osr_context, osr_context,
-                                                   osr_loop_entry);
-        contexts()->at(i) = builder_->MergeValue(val, osr_context, control);
-      } else {
-        osr_context = val;
-      }
+      Node* context = contexts()->at(i);
+      osr_context = (i == last) ? graph->NewNode(op_inner, osr_loop_entry)
+                                : graph->NewNode(op, osr_context, osr_context,
+                                                 osr_loop_entry);
+      contexts()->at(i) = builder_->MergeValue(context, osr_context, control);
     }
   }
 }
