@@ -1386,6 +1386,12 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitUint64LessThan(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitWord64Compare(this, node, &cont);
+}
+
+
 void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
