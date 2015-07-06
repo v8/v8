@@ -203,7 +203,6 @@ class AstGraphBuilder : public AstVisitor {
   Node* NewEffectPhi(int count, Node* input, Node* control);
 
   Node* NewOuterContextParam();
-  Node* NewCurrentContextOsrValue();
 
   // Helpers for merging control, effect or value dependencies.
   Node* MergeControl(Node* control, Node* other);

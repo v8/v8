@@ -498,15 +498,6 @@ Node* AstGraphBuilder::NewOuterContextParam() {
 }
 
 
-Node* AstGraphBuilder::NewCurrentContextOsrValue() {
-  // TODO(titzer): use a real OSR value here; a parameter works by accident.
-  // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op = common()->Parameter(
-      info()->num_parameters_including_this(), "%osr-context");
-  return NewNode(op, graph()->start());
-}
-
-
 bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
@@ -4093,11 +4084,13 @@ void AstGraphBuilder::Environment::PrepareForLoop(BitVector* assigned,
     Node* osr_context = nullptr;
     const Operator* op =
         builder_->javascript()->LoadContext(0, Context::PREVIOUS_INDEX, true);
+    const Operator* op_inner =
+        builder_->common()->OsrValue(Linkage::kOsrContextSpillSlotIndex);
     int last = static_cast<int>(contexts()->size() - 1);
     for (int i = last; i >= 0; i--) {
       Node* val = contexts()->at(i);
       if (!IrOpcode::IsConstantOpcode(val->opcode())) {
-        osr_context = (i == last) ? builder_->NewCurrentContextOsrValue()
+        osr_context = (i == last) ? graph->NewNode(op_inner, osr_loop_entry)
                                   : graph->NewNode(op, osr_context, osr_context,
                                                    osr_loop_entry);
         contexts()->at(i) = builder_->MergeValue(val, osr_context, control);

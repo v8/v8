@@ -268,6 +268,9 @@ class Linkage : public ZoneObject {
   // A special parameter index for JSCalls that represents the closure.
   static const int kJSFunctionCallClosureParamIndex = -1;
 
+  // A special {OsrValue} index to indicate the context spill slot.
+  static const int kOsrContextSpillSlotIndex = -1;
+
  private:
   CallDescriptor* const incoming_;
 
