@@ -17,7 +17,6 @@ namespace internal {
 
 class AstValueFactory;
 class HydrogenCodeStub;
-class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
 
@@ -123,15 +122,14 @@ class CompilationInfo {
     kCompilingForDebugging = 1 << 7,
     kSerializing = 1 << 8,
     kContextSpecializing = 1 << 9,
-    kFrameSpecializing = 1 << 10,
-    kInliningEnabled = 1 << 11,
-    kTypingEnabled = 1 << 12,
-    kDisableFutureOptimization = 1 << 13,
-    kSplittingEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15,
-    kDeoptimizationEnabled = 1 << 16,
-    kSourcePositionsEnabled = 1 << 17,
-    kFirstCompile = 1 << 18,
+    kInliningEnabled = 1 << 10,
+    kTypingEnabled = 1 << 11,
+    kDisableFutureOptimization = 1 << 12,
+    kSplittingEnabled = 1 << 13,
+    kTypeFeedbackEnabled = 1 << 14,
+    kDeoptimizationEnabled = 1 << 15,
+    kSourcePositionsEnabled = 1 << 16,
+    kFirstCompile = 1 << 17,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -218,10 +216,6 @@ class CompilationInfo {
   void MarkAsContextSpecializing() { SetFlag(kContextSpecializing); }
 
   bool is_context_specializing() const { return GetFlag(kContextSpecializing); }
-
-  void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
-
-  bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
 
   void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
 
@@ -394,8 +388,6 @@ class CompilationInfo {
     DCHECK(height >= 0);
     osr_expr_stack_height_ = height;
   }
-  JavaScriptFrame* osr_frame() const { return osr_frame_; }
-  void set_osr_frame(JavaScriptFrame* osr_frame) { osr_frame_ = osr_frame; }
 
 #if DEBUG
   void PrintAstForTesting();
@@ -499,9 +491,6 @@ class CompilationInfo {
   int optimization_id_;
 
   int osr_expr_stack_height_;
-
-  // The current OSR frame for specialization or {nullptr}.
-  JavaScriptFrame* osr_frame_ = nullptr;
 
   Type::FunctionType* function_type_;
 
@@ -673,9 +662,10 @@ class Compiler : public AllStatic {
   // In the latter case, return the InOptimizationQueue builtin.  On failure,
   // return the empty handle.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCode(
-      Handle<JSFunction> function, Handle<Code> current_code,
-      ConcurrencyMode mode, BailoutId osr_ast_id = BailoutId::None(),
-      JavaScriptFrame* osr_frame = nullptr);
+      Handle<JSFunction> function,
+      Handle<Code> current_code,
+      ConcurrencyMode mode,
+      BailoutId osr_ast_id = BailoutId::None());
 
   // Generate and return code from previously queued optimization job.
   // On failure, return the empty handle.

@@ -505,8 +505,6 @@
         '../../src/compiler/js-builtin-reducer.h',
         '../../src/compiler/js-context-specialization.cc',
         '../../src/compiler/js-context-specialization.h',
-        '../../src/compiler/js-frame-specialization.cc',
-        '../../src/compiler/js-frame-specialization.h',
         '../../src/compiler/js-generic-lowering.cc',
         '../../src/compiler/js-generic-lowering.h',
         '../../src/compiler/js-graph.cc',

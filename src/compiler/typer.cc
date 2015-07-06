@@ -582,6 +582,16 @@ Bounds Typer::Visitor::TypeParameter(Node* node) {
 
 
 Bounds Typer::Visitor::TypeOsrValue(Node* node) {
+  if (node->InputAt(0)->opcode() == IrOpcode::kOsrLoopEntry) {
+    // Before deconstruction, OSR values have type {None} to avoid polluting
+    // the types of phis and other nodes in the graph.
+    return Bounds(Type::None(), Type::None());
+  }
+  if (NodeProperties::IsTyped(node)) {
+    // After deconstruction, OSR values may have had a type explicitly set.
+    return NodeProperties::GetBounds(node);
+  }
+  // Otherwise, be conservative.
   return Bounds::Unbounded(zone());
 }
 
