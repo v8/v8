@@ -285,10 +285,10 @@ class MessageImpl: public v8::Debug::Message {
   virtual bool IsResponse() const;
   virtual DebugEvent GetEvent() const;
   virtual bool WillStartRunning() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::String> GetJSON() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Local<v8::Object> GetExecutionState() const;
+  virtual v8::Local<v8::Object> GetEventData() const;
+  virtual v8::Local<v8::String> GetJSON() const;
+  virtual v8::Local<v8::Context> GetEventContext() const;
   virtual v8::Debug::ClientData* GetClientData() const;
   virtual v8::Isolate* GetIsolate() const;
 
@@ -320,10 +320,10 @@ class EventDetailsImpl : public v8::Debug::EventDetails {
                    Handle<Object> callback_data,
                    v8::Debug::ClientData* client_data);
   virtual DebugEvent GetEvent() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
-  virtual v8::Handle<v8::Value> GetCallbackData() const;
+  virtual v8::Local<v8::Object> GetExecutionState() const;
+  virtual v8::Local<v8::Object> GetEventData() const;
+  virtual v8::Local<v8::Context> GetEventContext() const;
+  virtual v8::Local<v8::Value> GetCallbackData() const;
   virtual v8::Debug::ClientData* GetClientData() const;
  private:
   DebugEvent event_;  // Debug event causing the break.

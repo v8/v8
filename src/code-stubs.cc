@@ -468,7 +468,7 @@ namespace {
 Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
   v8::ExtensionConfiguration no_extensions;
   Handle<Context> ctx = isolate->bootstrapper()->CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Handle<v8::ObjectTemplate>(),
+      MaybeHandle<JSGlobalProxy>(), v8::Local<v8::ObjectTemplate>(),
       &no_extensions);
   Handle<JSBuiltinsObject> builtins = handle(ctx->builtins());
   MaybeHandle<Object> fun = Object::GetProperty(isolate, builtins, name);

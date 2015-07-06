@@ -1089,7 +1089,7 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
                                      args.length() - 1,
                                      is_construct);
 
-    v8::Handle<v8::Value> value = custom.Call(callback);
+    v8::Local<v8::Value> value = custom.Call(callback);
     Handle<Object> result;
     if (value.IsEmpty()) {
       result = isolate->factory()->undefined_value();
@@ -1226,7 +1226,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
                                      &args[0] - 1,
                                      args.length() - 1,
                                      is_construct_call);
-    v8::Handle<v8::Value> value = custom.Call(callback);
+    v8::Local<v8::Value> value = custom.Call(callback);
     if (value.IsEmpty()) {
       result = heap->undefined_value();
     } else {

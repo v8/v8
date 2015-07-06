@@ -48,7 +48,7 @@ Debug::Debug(Isolate* isolate)
 }
 
 
-static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
+static v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
   Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
   // Isolate::context() may have been NULL when "script collected" event
   // occured.
@@ -684,11 +684,9 @@ bool Debug::Load() {
   // Create the debugger context.
   HandleScope scope(isolate_);
   ExtensionConfiguration no_extensions;
-  Handle<Context> context =
-      isolate_->bootstrapper()->CreateEnvironment(
-          MaybeHandle<JSGlobalProxy>(),
-          v8::Handle<ObjectTemplate>(),
-          &no_extensions);
+  Handle<Context> context = isolate_->bootstrapper()->CreateEnvironment(
+      MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(),
+      &no_extensions);
 
   // Fail if no context could be created.
   if (context.is_null()) return false;
@@ -3201,7 +3199,7 @@ bool MessageImpl::WillStartRunning() const {
 }
 
 
-v8::Handle<v8::Object> MessageImpl::GetExecutionState() const {
+v8::Local<v8::Object> MessageImpl::GetExecutionState() const {
   return v8::Utils::ToLocal(exec_state_);
 }
 
@@ -3211,12 +3209,12 @@ v8::Isolate* MessageImpl::GetIsolate() const {
 }
 
 
-v8::Handle<v8::Object> MessageImpl::GetEventData() const {
+v8::Local<v8::Object> MessageImpl::GetEventData() const {
   return v8::Utils::ToLocal(event_data_);
 }
 
 
-v8::Handle<v8::String> MessageImpl::GetJSON() const {
+v8::Local<v8::String> MessageImpl::GetJSON() const {
   Isolate* isolate = event_data_->GetIsolate();
   v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
 
@@ -3225,14 +3223,14 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
     Handle<Object> fun = Object::GetProperty(
         isolate, event_data_, "toJSONProtocol").ToHandleChecked();
     if (!fun->IsJSFunction()) {
-      return v8::Handle<v8::String>();
+      return v8::Local<v8::String>();
     }
 
     MaybeHandle<Object> maybe_json =
         Execution::TryCall(Handle<JSFunction>::cast(fun), event_data_, 0, NULL);
     Handle<Object> json;
     if (!maybe_json.ToHandle(&json) || !json->IsString()) {
-      return v8::Handle<v8::String>();
+      return v8::Local<v8::String>();
     }
     return scope.Escape(v8::Utils::ToLocal(Handle<String>::cast(json)));
   } else {
@@ -3241,9 +3239,9 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 }
 
 
-v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
+v8::Local<v8::Context> MessageImpl::GetEventContext() const {
   Isolate* isolate = event_data_->GetIsolate();
-  v8::Handle<v8::Context> context = GetDebugEventContext(isolate);
+  v8::Local<v8::Context> context = GetDebugEventContext(isolate);
   // Isolate::context() may be NULL when "script collected" event occurs.
   DCHECK(!context.IsEmpty());
   return context;
@@ -3272,22 +3270,22 @@ DebugEvent EventDetailsImpl::GetEvent() const {
 }
 
 
-v8::Handle<v8::Object> EventDetailsImpl::GetExecutionState() const {
+v8::Local<v8::Object> EventDetailsImpl::GetExecutionState() const {
   return v8::Utils::ToLocal(exec_state_);
 }
 
 
-v8::Handle<v8::Object> EventDetailsImpl::GetEventData() const {
+v8::Local<v8::Object> EventDetailsImpl::GetEventData() const {
   return v8::Utils::ToLocal(event_data_);
 }
 
 
-v8::Handle<v8::Context> EventDetailsImpl::GetEventContext() const {
+v8::Local<v8::Context> EventDetailsImpl::GetEventContext() const {
   return GetDebugEventContext(exec_state_->GetIsolate());
 }
 
 
-v8::Handle<v8::Value> EventDetailsImpl::GetCallbackData() const {
+v8::Local<v8::Value> EventDetailsImpl::GetCallbackData() const {
   return v8::Utils::ToLocal(callback_data_);
 }
 

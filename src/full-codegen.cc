@@ -1456,7 +1456,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
 
   // Compute the function template for the native function.
   Handle<String> name = expr->name();
-  v8::Handle<v8::FunctionTemplate> fun_template =
+  v8::Local<v8::FunctionTemplate> fun_template =
       expr->extension()->GetNativeFunctionTemplate(v8_isolate,
                                                    v8::Utils::ToLocal(name));
   DCHECK(!fun_template.IsEmpty());

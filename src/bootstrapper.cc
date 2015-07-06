@@ -148,9 +148,8 @@ void Bootstrapper::TearDown() {
 
 class Genesis BASE_EMBEDDED {
  public:
-  Genesis(Isolate* isolate,
-          MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-          v8::Handle<v8::ObjectTemplate> global_proxy_template,
+  Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+          v8::Local<v8::ObjectTemplate> global_proxy_template,
           v8::ExtensionConfiguration* extensions);
   ~Genesis() { }
 
@@ -185,7 +184,7 @@ class Genesis BASE_EMBEDDED {
   // we have to used the deserialized ones that are linked together with the
   // rest of the context snapshot.
   Handle<GlobalObject> CreateNewGlobals(
-      v8::Handle<v8::ObjectTemplate> global_proxy_template,
+      v8::Local<v8::ObjectTemplate> global_proxy_template,
       Handle<JSGlobalProxy> global_proxy);
   // Hooks the given global proxy into the context.  If the context was created
   // by deserialization then this will unhook the global proxy that was
@@ -274,7 +273,7 @@ class Genesis BASE_EMBEDDED {
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObjects(
-      v8::Handle<v8::ObjectTemplate> global_proxy_template);
+      v8::Local<v8::ObjectTemplate> global_proxy_template);
 
   // Migrates all properties from the 'from' object to the 'to'
   // object and overrides the prototype in 'to' with the one from
@@ -350,7 +349,7 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
 
 Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-    v8::Handle<v8::ObjectTemplate> global_proxy_template,
+    v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions) {
   HandleScope scope(isolate_);
   Genesis genesis(
@@ -855,7 +854,7 @@ void Genesis::HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts) {
 
 
 Handle<GlobalObject> Genesis::CreateNewGlobals(
-    v8::Handle<v8::ObjectTemplate> global_proxy_template,
+    v8::Local<v8::ObjectTemplate> global_proxy_template,
     Handle<JSGlobalProxy> global_proxy) {
   // The argument global_proxy_template aka data is an ObjectTemplateInfo.
   // It has a constructor pointer that points at global_constructor which is a
@@ -2858,7 +2857,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
 
 
 bool Genesis::ConfigureGlobalObjects(
-    v8::Handle<v8::ObjectTemplate> global_proxy_template) {
+    v8::Local<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(
       JSObject::cast(native_context()->global_proxy()));
   Handle<JSObject> global_object(
@@ -3079,10 +3078,9 @@ class NoTrackDoubleFieldsForSerializerScope {
 
 Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-                 v8::Handle<v8::ObjectTemplate> global_proxy_template,
+                 v8::Local<v8::ObjectTemplate> global_proxy_template,
                  v8::ExtensionConfiguration* extensions)
-    : isolate_(isolate),
-      active_(isolate->bootstrapper()) {
+    : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
   // Before creating the roots we must save the context and restore it
