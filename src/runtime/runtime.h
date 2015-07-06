@@ -239,6 +239,7 @@ namespace internal {
   F(Apply, 5, 1)                                            \
   F(GetFunctionDelegate, 1, 1)                              \
   F(GetConstructorDelegate, 1, 1)                           \
+  F(GetOriginalConstructor, 0, 1)                           \
   F(CallFunction, -1 /* receiver + n args + function */, 1) \
   F(IsConstructCall, 0, 1)                                  \
   F(IsFunction, 1, 1)

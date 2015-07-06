@@ -265,8 +265,11 @@ class AstGraphBuilder : public AstVisitor {
   // Builder to create an array of rest parameters if used
   Node* BuildRestArgumentsArray(Variable* rest, int index);
 
-  // Builder that assigns to the .this_function internal variable if needed.
-  Node* BuildThisFunctionVar(Variable* this_function_var);
+  // Builder that assigns to the {.this_function} internal variable if needed.
+  Node* BuildThisFunctionVariable(Variable* this_function_var);
+
+  // Builder that assigns to the {new.target} internal variable if needed.
+  Node* BuildNewTargetVariable(Variable* new_target_var);
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,

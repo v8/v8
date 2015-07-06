@@ -566,12 +566,11 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   Variable* rest_parameter = scope->rest_parameter(&rest_index);
   BuildRestArgumentsArray(rest_parameter, rest_index);
 
-  // Build .this_function var if it is used.
-  BuildThisFunctionVar(scope->this_function_var());
+  // Build assignment to {.this_function} variable if it is used.
+  BuildThisFunctionVariable(scope->this_function_var());
 
-  if (scope->new_target_var() != nullptr) {
-    SetStackOverflow();
-  }
+  // Build assignment to {new.target} variable if it is used.
+  BuildNewTargetVariable(scope->new_target_var());
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
@@ -3146,10 +3145,8 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  VectorSlotPair feedback;
-  BuildVariableAssignment(arguments, object, Token::ASSIGN, feedback,
+  BuildVariableAssignment(arguments, object, Token::ASSIGN, VectorSlotPair(),
                           BailoutId::None(), states);
-
   return object;
 }
 
@@ -3162,27 +3159,43 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   Node* object = NewNode(op, jsgraph()->SmiConstant(index),
                          jsgraph()->SmiConstant(language_mode()));
 
-  // Assign the object to the rest array
+  // Assign the object to the rest parameter variable.
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
   // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  VectorSlotPair feedback;
-  BuildVariableAssignment(rest, object, Token::ASSIGN, feedback,
+  BuildVariableAssignment(rest, object, Token::ASSIGN, VectorSlotPair(),
                           BailoutId::None(), states);
-
   return object;
 }
 
 
-Node* AstGraphBuilder::BuildThisFunctionVar(Variable* this_function_var) {
+Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
   if (this_function_var == nullptr) return nullptr;
 
+  // Retrieve the closure we were called with.
   Node* this_function = GetFunctionClosure();
+
+  // Assign the object to the {.this_function} variable.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  VectorSlotPair feedback;
   BuildVariableAssignment(this_function_var, this_function, Token::INIT_CONST,
-                          feedback, BailoutId::None(), states);
+                          VectorSlotPair(), BailoutId::None(), states);
   return this_function;
+}
+
+
+Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
+  if (new_target_var == nullptr) return nullptr;
+
+  // Retrieve the original constructor in case we are called as a constructor.
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kGetOriginalConstructor, 0);
+  Node* object = NewNode(op);
+
+  // Assign the object to the {new.target} variable.
+  FrameStateBeforeAndAfter states(this, BailoutId::None());
+  BuildVariableAssignment(new_target_var, object, Token::INIT_CONST,
+                          VectorSlotPair(), BailoutId::None(), states);
+  return object;
 }
 
 

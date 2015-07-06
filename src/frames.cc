@@ -730,6 +730,17 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
+Object* JavaScriptFrame::GetOriginalConstructor() const {
+  Address fp = caller_fp();
+  if (has_adapted_arguments()) {
+    // Skip the arguments adaptor frame and look at the real caller.
+    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
+  }
+  DCHECK(IsConstructFrame(fp));
+  return GetExpression(fp, 2);
+}
+
+
 int JavaScriptFrame::GetArgumentsLength() const {
   // If there is an arguments adaptor frame get the arguments length from it.
   if (has_adapted_arguments()) {

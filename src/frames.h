@@ -533,6 +533,10 @@ class JavaScriptFrame: public StandardFrame {
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 
+  // Returns the original constructor function that was used in the constructor
+  // call to this frame. Note that this is only valid on constructor frames.
+  Object* GetOriginalConstructor() const;
+
   // Check if this frame has "adapted" arguments in the sense that the
   // actual passed arguments are available in an arguments adaptor
   // frame below it on the stack.

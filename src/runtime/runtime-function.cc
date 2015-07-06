@@ -604,6 +604,16 @@ RUNTIME_FUNCTION(Runtime_GetConstructorDelegate) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  return frame->IsConstructor() ? frame->GetOriginalConstructor()
+                                : isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_CallFunction) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_Call(args, isolate);
