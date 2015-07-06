@@ -1431,9 +1431,7 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
 
-  page->skip_list()->Lock();
   Address addr = page->skip_list()->StartFor(inner_pointer);
-  page->skip_list()->Unlock();
 
   Address top = heap->code_space()->top();
   Address limit = heap->code_space()->limit();
