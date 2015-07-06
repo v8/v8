@@ -2746,7 +2746,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
                                                FeedbackVectorICSlot slot) {
-  if (var->IsUnallocated()) {
+  if (var->IsUnallocatedOrGlobalSlot()) {
     // Global var, const, or let.
     __ mov(StoreDescriptor::NameRegister(), Operand(var->name()));
     __ LoadP(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
@@ -4846,7 +4846,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         // "delete this" is allowed.
         bool is_this = var->HasThisName(isolate());
         DCHECK(is_sloppy(language_mode()) || is_this);
-        if (var->IsUnallocated()) {
+        if (var->IsUnallocatedOrGlobalSlot()) {
           __ LoadP(r5, GlobalObjectOperand());
           __ mov(r4, Operand(var->name()));
           __ LoadSmiLiteral(r3, Smi::FromInt(SLOPPY));
@@ -5202,7 +5202,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   DCHECK(!context()->IsEffect());
   DCHECK(!context()->IsTest());
   VariableProxy* proxy = expr->AsVariableProxy();
-  if (proxy != NULL && proxy->var()->IsUnallocated()) {
+  if (proxy != NULL && proxy->var()->IsUnallocatedOrGlobalSlot()) {
     Comment cmnt(masm_, "[ Global variable");
     __ LoadP(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
     __ mov(LoadDescriptor::NameRegister(), Operand(proxy->name()));
