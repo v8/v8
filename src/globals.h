@@ -851,6 +851,40 @@ inline bool IsImmutableVariableMode(VariableMode mode) {
 }
 
 
+enum class VariableLocation {
+  // Before and during variable allocation, a variable whose location is
+  // not yet determined.  After allocation, a variable looked up as a
+  // property on the global object (and possibly absent).  name() is the
+  // variable name, index() is invalid.
+  UNALLOCATED,
+
+  // A slot in the parameter section on the stack.  index() is the
+  // parameter index, counting left-to-right.  The receiver is index -1;
+  // the first parameter is index 0.
+  PARAMETER,
+
+  // A slot in the local section on the stack.  index() is the variable
+  // index in the stack frame, starting at 0.
+  LOCAL,
+
+  // An indexed slot in a heap context.  index() is the variable index in
+  // the context object on the heap, starting at 0.  scope() is the
+  // corresponding scope.
+  CONTEXT,
+
+  // An indexed slot in a script context that contains a respective global
+  // property cell.  name() is the variable name, index() is the variable
+  // index in the context object on the heap, starting at 0.  scope() is the
+  // corresponding script scope.
+  GLOBAL,
+
+  // A named slot in a heap context.  name() is the variable name in the
+  // context object on the heap, with lookup starting at the current
+  // context.  index() is invalid.
+  LOOKUP
+};
+
+
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
 // and immutable bindings that can be in two states: initialized and
 // uninitialized. In ES5 only immutable bindings have these two states. When

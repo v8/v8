@@ -4011,7 +4011,8 @@ class ScopeInfo : public FixedArray {
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
   static int ContextSlotIndex(Handle<ScopeInfo> scope_info, Handle<String> name,
-                              VariableMode* mode, InitializationFlag* init_flag,
+                              VariableMode* mode, VariableLocation* location,
+                              InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
   // Lookup support for serialized scope info. Returns the
@@ -4061,6 +4062,7 @@ class ScopeInfo : public FixedArray {
   V(ParameterCount)               \
   V(StackLocalCount)              \
   V(ContextLocalCount)            \
+  V(ContextGlobalCount)           \
   V(StrongModeFreeVariableCount)
 
 #define FIELD_ACCESSORS(name)                            \
@@ -4129,11 +4131,17 @@ class ScopeInfo : public FixedArray {
   int StackLocalFirstSlotIndex();
   int StackLocalEntriesIndex();
   int ContextLocalNameEntriesIndex();
+  int ContextGlobalNameEntriesIndex();
   int ContextLocalInfoEntriesIndex();
+  int ContextGlobalInfoEntriesIndex();
   int StrongModeFreeVariableNameEntriesIndex();
   int StrongModeFreeVariablePositionEntriesIndex();
   int ReceiverEntryIndex();
   int FunctionNameEntryIndex();
+
+  int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
+             VariableLocation* location, InitializationFlag* init_flag,
+             MaybeAssignedFlag* maybe_assigned_flag);
 
   // Used for the function name variable for named function expressions, and for
   // the receiver.

@@ -351,7 +351,7 @@ void FullCodeGenerator::Generate() {
         VariableDeclaration* function = scope()->function();
         DCHECK(function->proxy()->var()->mode() == CONST ||
                function->proxy()->var()->mode() == CONST_LEGACY);
-        DCHECK(function->proxy()->var()->location() != Variable::UNALLOCATED);
+        DCHECK(!function->proxy()->var()->IsUnallocatedOrGlobalSlot());
         VisitVariableDeclaration(function);
       }
       VisitDeclarations(scope()->declarations());
@@ -844,7 +844,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
   Variable* variable = proxy->var();
   bool hole_init = mode == LET || mode == CONST || mode == CONST_LEGACY;
   switch (variable->location()) {
-    case Variable::UNALLOCATED:
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED:
       globals_->Add(variable->name(), zone());
       globals_->Add(variable->binding_needs_init()
                         ? isolate()->factory()->the_hole_value()
@@ -852,8 +853,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
                     zone());
       break;
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
       if (hole_init) {
         Comment cmnt(masm_, "[ VariableDeclaration");
         __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
@@ -861,7 +862,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       }
       break;
 
-    case Variable::CONTEXT:
+    case VariableLocation::CONTEXT:
       if (hole_init) {
         Comment cmnt(masm_, "[ VariableDeclaration");
         EmitDebugCheckDeclarationContext(variable);
@@ -872,7 +873,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       }
       break;
 
-    case Variable::LOOKUP: {
+    case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ VariableDeclaration");
       __ Push(rsi);
       __ Push(variable->name());
@@ -902,7 +903,8 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case Variable::UNALLOCATED: {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED: {
       globals_->Add(variable->name(), zone());
       Handle<SharedFunctionInfo> function =
           Compiler::GetSharedFunctionInfo(declaration->fun(), script(), info_);
@@ -912,15 +914,15 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       break;
     }
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL: {
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL: {
       Comment cmnt(masm_, "[ FunctionDeclaration");
       VisitForAccumulatorValue(declaration->fun());
       __ movp(StackOperand(variable), result_register());
       break;
     }
 
-    case Variable::CONTEXT: {
+    case VariableLocation::CONTEXT: {
       Comment cmnt(masm_, "[ FunctionDeclaration");
       EmitDebugCheckDeclarationContext(variable);
       VisitForAccumulatorValue(declaration->fun());
@@ -938,7 +940,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       break;
     }
 
-    case Variable::LOOKUP: {
+    case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ FunctionDeclaration");
       __ Push(rsi);
       __ Push(variable->name());
@@ -955,20 +957,21 @@ void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case Variable::UNALLOCATED:
+    case VariableLocation::UNALLOCATED:
+    case VariableLocation::GLOBAL:
       // TODO(rossberg)
       break;
 
-    case Variable::CONTEXT: {
+    case VariableLocation::CONTEXT: {
       Comment cmnt(masm_, "[ ImportDeclaration");
       EmitDebugCheckDeclarationContext(variable);
       // TODO(rossberg)
       break;
     }
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
+    case VariableLocation::LOOKUP:
       UNREACHABLE();
   }
 }
@@ -1463,7 +1466,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
   // Three cases: global variables, lookup variables, and all other types of
   // variables.
   switch (var->location()) {
-    case Variable::UNALLOCATED: {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED: {
       Comment cmnt(masm_, "[ Global variable");
       __ Move(LoadDescriptor::NameRegister(), var->name());
       __ movp(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
@@ -1474,9 +1478,9 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       break;
     }
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::CONTEXT: {
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
+    case VariableLocation::CONTEXT: {
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context slot"
                                                : "[ Stack slot");
       if (var->binding_needs_init()) {
@@ -1544,7 +1548,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       break;
     }
 
-    case Variable::LOOKUP: {
+    case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ Lookup slot");
       Label done, slow;
       // Generate code for loading from variables potentially shadowed
@@ -2646,7 +2650,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
                                                FeedbackVectorICSlot slot) {
-  if (var->IsUnallocated()) {
+  if (var->IsUnallocatedOrGlobalSlot()) {
     // Global var, const, or let.
     __ Move(StoreDescriptor::NameRegister(), var->name());
     __ movp(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
@@ -4753,7 +4757,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         // "delete this" is allowed.
         bool is_this = var->HasThisName(isolate());
         DCHECK(is_sloppy(language_mode()) || is_this);
-        if (var->IsUnallocated()) {
+        if (var->IsUnallocatedOrGlobalSlot()) {
           __ Push(GlobalObjectOperand());
           __ Push(var->name());
           __ Push(Smi::FromInt(SLOPPY));
@@ -5113,7 +5117,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   DCHECK(!context()->IsEffect());
   DCHECK(!context()->IsTest());
 
-  if (proxy != NULL && proxy->var()->IsUnallocated()) {
+  if (proxy != NULL && proxy->var()->IsUnallocatedOrGlobalSlot()) {
     Comment cmnt(masm_, "[ Global variable");
     __ Move(LoadDescriptor::NameRegister(), proxy->name());
     __ movp(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());

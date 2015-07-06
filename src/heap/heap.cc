@@ -3409,6 +3409,10 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
   set_array_protector(*cell);
 
+  cell = factory->NewPropertyCell();
+  cell->set_value(the_hole_value());
+  set_empty_property_cell(*cell);
+
   set_weak_stack_trace_list(Smi::FromInt(0));
 
   set_allocation_sites_scratchpad(

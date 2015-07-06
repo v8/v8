@@ -226,6 +226,7 @@ class ScriptContextTable : public FixedArray {
     int context_index;
     int slot_index;
     VariableMode mode;
+    VariableLocation location;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;
   };
@@ -557,6 +558,9 @@ class Context: public FixedArray {
     return this->global_object()->native_context()->security_token() ==
         that->global_object()->native_context()->security_token();
   }
+
+  // Initializes global variable bindings in given script context.
+  void InitializeGlobalSlots();
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);

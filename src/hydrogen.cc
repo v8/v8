@@ -5411,7 +5411,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   DCHECK(current_block()->HasPredecessor());
   Variable* variable = expr->var();
   switch (variable->location()) {
-    case Variable::UNALLOCATED: {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED: {
       if (IsLexicalVariableMode(variable->mode())) {
         // TODO(rossberg): should this be an DCHECK?
         return Bailout(kReferenceToGlobalLexicalVariable);
@@ -5517,8 +5518,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
     }
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL: {
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL: {
       HValue* value = LookupAndMakeLive(variable);
       if (value == graph()->GetConstantHole()) {
         DCHECK(IsDeclaredVariableMode(variable->mode()) &&
@@ -5528,7 +5529,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       return ast_context()->ReturnValue(value);
     }
 
-    case Variable::CONTEXT: {
+    case VariableLocation::CONTEXT: {
       HValue* context = BuildContextChainWalk(variable);
       HLoadContextSlot::Mode mode;
       switch (variable->mode()) {
@@ -5548,7 +5549,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       return ast_context()->ReturnInstruction(instr, expr->id());
     }
 
-    case Variable::LOOKUP:
+    case VariableLocation::LOOKUP:
       return Bailout(kReferenceToAVariableWhichRequiresDynamicLookup);
   }
 }
@@ -6759,14 +6760,15 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     CHECK_ALIVE(VisitForValue(operation));
 
     switch (var->location()) {
-      case Variable::UNALLOCATED:
+      case VariableLocation::GLOBAL:
+      case VariableLocation::UNALLOCATED:
         HandleGlobalVariableAssignment(var,
                                        Top(),
                                        expr->AssignmentId());
         break;
 
-      case Variable::PARAMETER:
-      case Variable::LOCAL:
+      case VariableLocation::PARAMETER:
+      case VariableLocation::LOCAL:
         if (var->mode() == CONST_LEGACY)  {
           return Bailout(kUnsupportedConstCompoundAssignment);
         }
@@ -6776,7 +6778,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         BindIfLive(var, Top());
         break;
 
-      case Variable::CONTEXT: {
+      case VariableLocation::CONTEXT: {
         // Bail out if we try to mutate a parameter value in a function
         // using the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
@@ -6815,7 +6817,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         break;
       }
 
-      case Variable::LOOKUP:
+      case VariableLocation::LOOKUP:
         return Bailout(kCompoundAssignmentToLookupSlot);
     }
     return ast_context()->ReturnValue(Pop());
@@ -6885,15 +6887,16 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
 
     // Handle the assignment.
     switch (var->location()) {
-      case Variable::UNALLOCATED:
+      case VariableLocation::GLOBAL:
+      case VariableLocation::UNALLOCATED:
         CHECK_ALIVE(VisitForValue(expr->value()));
         HandleGlobalVariableAssignment(var,
                                        Top(),
                                        expr->AssignmentId());
         return ast_context()->ReturnValue(Pop());
 
-      case Variable::PARAMETER:
-      case Variable::LOCAL: {
+      case VariableLocation::PARAMETER:
+      case VariableLocation::LOCAL: {
         // Perform an initialization check for let declared variables
         // or parameters.
         if (var->mode() == LET && expr->op() == Token::ASSIGN) {
@@ -6911,7 +6914,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         return ast_context()->ReturnValue(value);
       }
 
-      case Variable::CONTEXT: {
+      case VariableLocation::CONTEXT: {
         // Bail out if we try to mutate a parameter value in a function using
         // the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
@@ -6961,7 +6964,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         return ast_context()->ReturnValue(Pop());
       }
 
-      case Variable::LOOKUP:
+      case VariableLocation::LOOKUP:
         return Bailout(kAssignmentToLOOKUPVariable);
     }
   } else {
@@ -10218,7 +10221,7 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     return ast_context()->ReturnInstruction(instr, expr->id());
   } else if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->IsUnallocated()) {
+    if (var->IsUnallocatedOrGlobalSlot()) {
       Bailout(kDeleteWithGlobalVariable);
     } else if (var->IsStackAllocated() || var->IsContextSlot()) {
       // Result of deleting non-global variables is false.  'this' is not really
@@ -10404,18 +10407,19 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
     Push(after);
 
     switch (var->location()) {
-      case Variable::UNALLOCATED:
+      case VariableLocation::GLOBAL:
+      case VariableLocation::UNALLOCATED:
         HandleGlobalVariableAssignment(var,
                                        after,
                                        expr->AssignmentId());
         break;
 
-      case Variable::PARAMETER:
-      case Variable::LOCAL:
+      case VariableLocation::PARAMETER:
+      case VariableLocation::LOCAL:
         BindIfLive(var, after);
         break;
 
-      case Variable::CONTEXT: {
+      case VariableLocation::CONTEXT: {
         // Bail out if we try to mutate a parameter value in a function
         // using the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
@@ -10442,7 +10446,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
         break;
       }
 
-      case Variable::LOOKUP:
+      case VariableLocation::LOOKUP:
         return Bailout(kLookupVariableInCountOperation);
     }
 
@@ -11664,20 +11668,21 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
   Variable* variable = proxy->var();
   bool hole_init = mode == LET || mode == CONST || mode == CONST_LEGACY;
   switch (variable->location()) {
-    case Variable::UNALLOCATED:
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED:
       globals_.Add(variable->name(), zone());
       globals_.Add(variable->binding_needs_init()
                        ? isolate()->factory()->the_hole_value()
                        : isolate()->factory()->undefined_value(), zone());
       return;
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
       if (hole_init) {
         HValue* value = graph()->GetConstantHole();
         environment()->Bind(variable, value);
       }
       break;
-    case Variable::CONTEXT:
+    case VariableLocation::CONTEXT:
       if (hole_init) {
         HValue* value = graph()->GetConstantHole();
         HValue* context = environment()->context();
@@ -11688,7 +11693,7 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
         }
       }
       break;
-    case Variable::LOOKUP:
+    case VariableLocation::LOOKUP:
       return Bailout(kUnsupportedLookupSlotInDeclaration);
   }
 }
@@ -11699,7 +11704,8 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case Variable::UNALLOCATED: {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED: {
       globals_.Add(variable->name(), zone());
       Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
           declaration->fun(), current_info()->script(), top_info());
@@ -11708,14 +11714,14 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
       globals_.Add(function, zone());
       return;
     }
-    case Variable::PARAMETER:
-    case Variable::LOCAL: {
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL: {
       CHECK_ALIVE(VisitForValue(declaration->fun()));
       HValue* value = Pop();
       BindIfLive(variable, value);
       break;
     }
-    case Variable::CONTEXT: {
+    case VariableLocation::CONTEXT: {
       CHECK_ALIVE(VisitForValue(declaration->fun()));
       HValue* value = Pop();
       HValue* context = environment()->context();
@@ -11726,7 +11732,7 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
       }
       break;
     }
-    case Variable::LOOKUP:
+    case VariableLocation::LOOKUP:
       return Bailout(kUnsupportedLookupSlotInDeclaration);
   }
 }
