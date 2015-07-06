@@ -215,9 +215,9 @@ class SerializationData {
   }
 
  private:
-  i::List<uint8_t> data;
-  i::List<ArrayBuffer::Contents> array_buffer_contents;
-  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents;
+  i::List<uint8_t> data_;
+  i::List<ArrayBuffer::Contents> array_buffer_contents_;
+  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
 };
 
 
