@@ -7553,6 +7553,22 @@ THREADED_TEST(ExceptionCreateMessage) {
 }
 
 
+THREADED_TEST(ExceptionCreateMessageLength) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Test that the message is not truncated.
+  TryCatch try_catch(context->GetIsolate());
+  CompileRun(
+      "var message = 'm';"
+      "while (message.length < 1000) message += message;"
+      "throw message;");
+  CHECK(try_catch.HasCaught());
+
+  CHECK_LT(1000, try_catch.Message()->Get()->Length());
+}
+
+
 static void YGetter(Local<String> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
