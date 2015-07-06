@@ -1041,6 +1041,12 @@ Handle<Code> Pipeline::GenerateCode() {
   if (data.compilation_failed()) return Handle<Code>::null();
   RunPrintAndVerify("Initial untyped", true);
 
+  // Perform OSR deconstruction.
+  if (info()->is_osr()) {
+    Run<OsrDeconstructionPhase>();
+    RunPrintAndVerify("OSR deconstruction", true);
+  }
+
   // Perform context specialization and inlining (if enabled).
   Run<InliningPhase>();
   RunPrintAndVerify("Inlined", true);
@@ -1077,11 +1083,6 @@ Handle<Code> Pipeline::GenerateCode() {
       RunPrintAndVerify("Loop peeled");
     }
 
-    if (info()->is_osr()) {
-      Run<OsrDeconstructionPhase>();
-      RunPrintAndVerify("OSR deconstruction");
-    }
-
     if (info()->is_type_feedback_enabled()) {
       Run<JSTypeFeedbackPhase>();
       RunPrintAndVerify("JSType feedback");
@@ -1101,12 +1102,6 @@ Handle<Code> Pipeline::GenerateCode() {
     Run<ChangeLoweringPhase>();
     // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
     RunPrintAndVerify("Lowered changes", true);
-  } else {
-    if (info()->is_osr()) {
-      Run<OsrDeconstructionPhase>();
-      if (info()->bailout_reason() != kNoReason) return Handle<Code>::null();
-      RunPrintAndVerify("OSR deconstruction", true);
-    }
   }
 
   // Lower any remaining generic JSOperators.
