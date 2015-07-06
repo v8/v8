@@ -1374,31 +1374,6 @@ static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
 }
 
 
-static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateLoadICDebugBreak(masm);
-}
-
-
-static void Generate_StoreIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateStoreICDebugBreak(masm);
-}
-
-
-static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateKeyedLoadICDebugBreak(masm);
-}
-
-
-static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateKeyedStoreICDebugBreak(masm);
-}
-
-
-static void Generate_CompareNilIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateCompareNilICDebugBreak(masm);
-}
-
-
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateReturnDebugBreak(masm);
 }

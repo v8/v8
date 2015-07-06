@@ -3208,7 +3208,7 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
       Expression* result_value = factory()->NewProperty(
           result_proxy, value_literal, RelocInfo::kNoPosition);
       assign_each = factory()->NewAssignment(Token::ASSIGN, each, result_value,
-                                             each->position());
+                                             RelocInfo::kNoPosition);
     }
 
     for_of->Initialize(each, subject, body,
@@ -3592,6 +3592,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
               parsing_result.declarations[0];
           auto descriptor = parsing_result.descriptor;
           descriptor.declaration_pos = RelocInfo::kNoPosition;
+          descriptor.initialization_pos = RelocInfo::kNoPosition;
           decl.initializer = factory()->NewVariableProxy(temp);
 
           PatternRewriter::DeclareAndInitializeVariables(
@@ -3688,7 +3689,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         return loop;
 
       } else {
-        init = factory()->NewExpressionStatement(expression, position());
+        init =
+            factory()->NewExpressionStatement(expression, lhs_location.beg_pos);
       }
     }
   }

@@ -84,8 +84,7 @@ BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
           ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE)),
       break_index_(-1),
       position_(1),
-      statement_position_(1),
-      has_immediate_position_(false) {
+      statement_position_(1) {
   Next();
 }
 
@@ -115,7 +114,6 @@ void BreakLocation::Iterator::Next() {
                                    debug_info_->shared()->start_position());
       DCHECK(position_ >= 0);
       DCHECK(statement_position_ >= 0);
-      has_immediate_position_ = true;
       continue;
     }
 
@@ -145,25 +143,19 @@ void BreakLocation::Iterator::Next() {
         break;
       }
 
-      // Skip below if we only want locations for calls and returns.
-      if (type_ == CALLS_AND_RETURNS) continue;
-
-      // Only break at an inline cache if it has an immediate position attached.
-      if (has_immediate_position_ &&
-          (code->is_inline_cache_stub() && !code->is_binary_op_stub() &&
-           !code->is_compare_ic_stub() && !code->is_to_boolean_ic_stub())) {
+      if (code->kind() == Code::STUB &&
+          CodeStub::GetMajorKey(code) == CodeStub::CallFunction) {
         break_index_++;
         break;
       }
-      if (code->kind() == Code::STUB) {
-        if (RelocInfo::IsDebuggerStatement(rmode())) {
-          break_index_++;
-          break;
-        } else if (CodeStub::GetMajorKey(code) == CodeStub::CallFunction) {
-          break_index_++;
-          break;
-        }
-      }
+    }
+
+    // Skip below if we only want locations for calls and returns.
+    if (type_ == CALLS_AND_RETURNS) continue;
+
+    if (RelocInfo::IsDebuggerStatement(rmode())) {
+      break_index_++;
+      break;
     }
 
     if (RelocInfo::IsDebugBreakSlot(rmode()) && type_ != CALLS_AND_RETURNS) {
@@ -172,7 +164,6 @@ void BreakLocation::Iterator::Next() {
       break;
     }
   }
-  has_immediate_position_ = false;
 }
 
 
@@ -385,28 +376,8 @@ static Handle<Code> DebugBreakForIC(Handle<Code> code, RelocInfo::Mode mode) {
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
   if (code->is_inline_cache_stub()) {
-    switch (code->kind()) {
-      case Code::CALL_IC:
-        return isolate->builtins()->CallICStub_DebugBreak();
-
-      case Code::LOAD_IC:
-        return isolate->builtins()->LoadIC_DebugBreak();
-
-      case Code::STORE_IC:
-        return isolate->builtins()->StoreIC_DebugBreak();
-
-      case Code::KEYED_LOAD_IC:
-        return isolate->builtins()->KeyedLoadIC_DebugBreak();
-
-      case Code::KEYED_STORE_IC:
-        return isolate->builtins()->KeyedStoreIC_DebugBreak();
-
-      case Code::COMPARE_NIL_IC:
-        return isolate->builtins()->CompareNilIC_DebugBreak();
-
-      default:
-        UNREACHABLE();
-    }
+    DCHECK(code->kind() == Code::CALL_IC);
+    return isolate->builtins()->CallICStub_DebugBreak();
   }
   if (RelocInfo::IsConstructCall(mode)) {
     if (code->has_function_cache()) {
@@ -1258,8 +1229,6 @@ void Debug::PrepareStep(StepAction step_action,
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
 
   // Compute whether or not the target is a call target.
-  bool is_load_or_store = false;
-  bool is_inline_cache_stub = false;
   bool is_at_restarted_function = false;
   Handle<Code> call_function_stub;
 
@@ -1272,8 +1241,6 @@ void Debug::PrepareStep(StepAction step_action,
   if (thread_local_.restarter_frame_function_pointer_ == NULL) {
     if (location.IsCodeTarget()) {
       Handle<Code> target_code = location.CodeTarget();
-      is_inline_cache_stub = target_code->is_inline_cache_stub();
-      is_load_or_store = is_inline_cache_stub && !target_code->is_call_stub();
 
       // Check if target code is CallFunction stub.
       Handle<Code> maybe_call_function_stub = target_code;
@@ -1320,21 +1287,10 @@ void Debug::PrepareStep(StepAction step_action,
       // Set target frame pointer.
       ActivateStepOut(frames_it.frame());
     }
-  } else if (!(is_inline_cache_stub || location.IsConstructCall() ||
-               !call_function_stub.is_null() || is_at_restarted_function) ||
-             step_action == StepNext || step_action == StepMin) {
-    // Step next or step min.
+    return;
+  }
 
-    // Fill the current function with one-shot break points.
-    // If we are stepping into another frame, only fill calls and returns.
-    FloodWithOneShot(function, step_action == StepFrame ? CALLS_AND_RETURNS
-                                                        : ALL_BREAK_LOCATIONS);
-
-    // Remember source position and frame to handle step next.
-    thread_local_.last_statement_position_ =
-        debug_info->code()->SourceStatementPosition(summary.pc());
-    thread_local_.last_fp_ = frame->UnpaddedFP();
-  } else {
+  if (step_action != StepNext && step_action != StepMin) {
     // If there's restarter frame on top of the stack, just get the pointer
     // to function which is going to be restarted.
     if (is_at_restarted_function) {
@@ -1395,36 +1351,21 @@ void Debug::PrepareStep(StepAction step_action,
       }
     }
 
-    // Fill the current function with one-shot break points even for step in on
-    // a call target as the function called might be a native function for
-    // which step in will not stop. It also prepares for stepping in
-    // getters/setters.
-    // If we are stepping into another frame, only fill calls and returns.
-    FloodWithOneShot(function, step_action == StepFrame ? CALLS_AND_RETURNS
-                                                        : ALL_BREAK_LOCATIONS);
-
-    if (is_load_or_store) {
-      // Remember source position and frame to handle step in getter/setter. If
-      // there is a custom getter/setter it will be handled in
-      // Object::Get/SetPropertyWithAccessor, otherwise the step action will be
-      // propagated on the next Debug::Break.
-      thread_local_.last_statement_position_ =
-          debug_info->code()->SourceStatementPosition(summary.pc());
-      thread_local_.last_fp_ = frame->UnpaddedFP();
-    }
-
-    // Step in or Step in min
-    // Step in through construct call requires no changes to the running code.
-    // Step in through getters/setters should already be prepared as well
-    // because caller of this function (Debug::PrepareStep) is expected to
-    // flood the top frame's function with one shot breakpoints.
-    // Step in through CallFunction stub should also be prepared by caller of
-    // this function (Debug::PrepareStep) which should flood target function
-    // with breakpoints.
-    DCHECK(location.IsConstructCall() || is_inline_cache_stub ||
-           !call_function_stub.is_null() || is_at_restarted_function);
     ActivateStepIn(frame);
   }
+
+  // Fill the current function with one-shot break points even for step in on
+  // a call target as the function called might be a native function for
+  // which step in will not stop. It also prepares for stepping in
+  // getters/setters.
+  // If we are stepping into another frame, only fill calls and returns.
+  FloodWithOneShot(function, step_action == StepFrame ? CALLS_AND_RETURNS
+                                                      : ALL_BREAK_LOCATIONS);
+
+  // Remember source position and frame to handle step next.
+  thread_local_.last_statement_position_ =
+      debug_info->code()->SourceStatementPosition(summary.pc());
+  thread_local_.last_fp_ = frame->UnpaddedFP();
 }
 
 

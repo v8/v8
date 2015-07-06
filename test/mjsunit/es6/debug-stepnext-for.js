@@ -106,7 +106,7 @@ var expected = [
   // For-var: var decl, condition, body, next, condition, body, ...
   "k7","k20","K4","k23","k20","K4","k23","k20","K4","k23","k20",
   // For: init, condition, body, next, condition, body, ...
-  "l11","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
+  "l7","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
   // Exit.
   "y0","z0",
 ]
