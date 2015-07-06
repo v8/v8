@@ -31,33 +31,29 @@ import os
 import shutil
 import sys
 import tarfile
-import imp
 
-from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-# The revision hash needs to be 7 characters?
-TEST_262_ARCHIVE_REVISION = "488c0a7"  # This is the 2015-06-11 revision.
-TEST_262_ARCHIVE_MD5 = "f7d4ec9be81f1e1f10fd8a61c71baead"
-TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
-TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
-TEST_262_SUITE_PATH = ["data", "test"]
-TEST_262_HARNESS_PATH = ["data", "harness"]
-TEST_262_TOOLS_PATH = ["data", "tools", "packaging"]
+TEST_262_ARCHIVE_REVISION = "fbba29f"  # This is the r365 revision.
+TEST_262_ARCHIVE_MD5 = "e1ff0db438cc12de8fb6da80621b4ef6"
+TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
+TEST_262_HARNESS = ["sta.js", "testBuiltInObject.js", "testIntl.js"]
+
 
 class Test262TestSuite(testsuite.TestSuite):
 
   def __init__(self, name, root):
     super(Test262TestSuite, self).__init__(name, root)
-    self.testroot = os.path.join(self.root, *TEST_262_SUITE_PATH)
-    self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
-    self.harness = [os.path.join(self.harnesspath, f)
-                    for f in TEST_262_HARNESS_FILES]
+    self.testroot = os.path.join(root, "data", "test", "suite")
+    self.harness = [os.path.join(self.root, "data", "test", "harness", f)
+                    for f in TEST_262_HARNESS]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
-    self.ParseTestRecord = None
+
+  def CommonTestName(self, testcase):
+    return testcase.path.split(os.path.sep)[-1]
 
   def ListTests(self, context):
     tests = []
@@ -78,50 +74,7 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
-            self.GetIncludesForTest(testcase) + ["--harmony"] +
             [os.path.join(self.testroot, testcase.path + ".js")])
-
-  def VariantFlags(self, testcase, default_flags):
-    flags = super(Test262TestSuite, self).VariantFlags(testcase, default_flags)
-    test_record = self.GetTestRecord(testcase)
-    if "noStrict" in test_record:
-      return flags
-    strict_flags = [f + ["--use-strict"] for f in flags]
-    if "onlyStrict" in test_record:
-      return strict_flags
-    return flags + strict_flags
-
-  def LoadParseTestRecord(self):
-    if not self.ParseTestRecord:
-      root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
-      f = None
-      try:
-        (f, pathname, description) = imp.find_module("parseTestRecord", [root])
-        module = imp.load_module("parseTestRecord", f, pathname, description)
-        self.ParseTestRecord = module.parseTestRecord
-      except:
-        raise ImportError("Cannot load parseTestRecord; you may need to "
-                          "--download-data for test262")
-      finally:
-        if f:
-          f.close()
-    return self.ParseTestRecord
-
-  def GetTestRecord(self, testcase):
-    if not hasattr(testcase, "test_record"):
-      ParseTestRecord = self.LoadParseTestRecord()
-      testcase.test_record = ParseTestRecord(self.GetSourceForTest(testcase),
-                                             testcase.path)
-    return testcase.test_record
-
-  def GetIncludesForTest(self, testcase):
-    test_record = self.GetTestRecord(testcase)
-    if "includes" in test_record:
-      includes = [os.path.join(self.harnesspath, f)
-                  for f in test_record["includes"]]
-    else:
-      includes = []
-    return includes
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.testroot, testcase.path + ".js")
@@ -129,20 +82,12 @@ class Test262TestSuite(testsuite.TestSuite):
       return f.read()
 
   def IsNegativeTest(self, testcase):
-    test_record = self.GetTestRecord(testcase)
-    return "negative" in test_record
+    return "@negative" in self.GetSourceForTest(testcase)
 
   def IsFailureOutput(self, output, testpath):
     if output.exit_code != 0:
       return True
     return "FAILED!" in output.stdout
-
-  def HasUnexpectedOutput(self, testcase):
-    outcome = self.GetOutcome(testcase)
-    if (statusfile.FAIL_SLOPPY in testcase.outcomes and
-        "--use-strict" not in testcase.flags):
-      return outcome != statusfile.FAIL
-    return not outcome in (testcase.outcomes or [statusfile.PASS])
 
   def DownloadData(self):
     revision = TEST_262_ARCHIVE_REVISION
@@ -150,17 +95,6 @@ class Test262TestSuite(testsuite.TestSuite):
     archive_name = os.path.join(self.root, "tc39-test262-%s.tar.gz" % revision)
     directory_name = os.path.join(self.root, "data")
     directory_old_name = os.path.join(self.root, "data.old")
-
-    # Clobber if the test is in an outdated state, i.e. if there are any other
-    # archive files present.
-    archive_files = [f for f in os.listdir(self.root)
-                     if f.startswith("tc39-test262-")]
-    if (len(archive_files) > 1 or
-        os.path.basename(archive_name) not in archive_files):
-      print "Clobber outdated test archives ..."
-      for f in archive_files:
-        os.remove(os.path.join(self.root, f))
-
     if not os.path.exists(archive_name):
       print "Downloading test data from %s ..." % archive_url
       utils.URLRetrieve(archive_url, archive_name)
@@ -174,11 +108,9 @@ class Test262TestSuite(testsuite.TestSuite):
       with open(archive_name, "rb") as f:
         for chunk in iter(lambda: f.read(8192), ""):
           md5.update(chunk)
-      print "MD5 hash is %s" % md5.hexdigest()
       if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
         os.remove(archive_name)
-        print "MD5 expected %s" % TEST_262_ARCHIVE_MD5
-        raise Exception("MD5 hash mismatch of test data file")
+        raise Exception("Hash mismatch of test data file")
       archive = tarfile.open(archive_name, "r:gz")
       if sys.platform in ("win32", "cygwin"):
         # Magic incantation to allow longer path names on Windows.

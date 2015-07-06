@@ -80,12 +80,3 @@ var ES5Harness = (function() {
     registerTest: registerTest
   }
 })();
-
-function $DONE(arg){
-    if (arg) {
-        print('FAILED! Error: ' + arg);
-        quit(1);
-    }
-
-    quit(0);
-};
