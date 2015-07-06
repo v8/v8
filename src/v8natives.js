@@ -21,6 +21,7 @@ var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
+var SetFunctionName = utils.SetFunctionName;
 
 var MathAbs;
 var ProxyDelegateCallAndConstruct;
@@ -1701,6 +1702,10 @@ function FunctionBind(this_arg) { // Length is 1.
   // so we don't pass the arguments object.
   var result = %FunctionBindArguments(boundFunction, this,
                                       this_arg, new_length);
+
+  var name = this.name;
+  var bound_name = IS_STRING(name) ? name : "";
+  SetFunctionName(result, bound_name, "bound");
 
   // We already have caller and arguments properties on functions,
   // which are non-configurable. It therefore makes no sence to
