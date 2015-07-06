@@ -877,7 +877,6 @@ class AllocationSiteCreationContext;
 class AllocationSiteUsageContext;
 class Cell;
 class ConsString;
-class DictionaryElementsAccessor;
 class ElementsAccessor;
 class FixedArrayBase;
 class FunctionLiteral;
@@ -2297,7 +2296,6 @@ class JSObject: public JSReceiver {
                                        Handle<Name> name, int entry);
 
  private:
-  friend class DictionaryElementsAccessor;
   friend class JSReceiver;
   friend class Object;
 

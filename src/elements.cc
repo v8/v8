@@ -55,6 +55,9 @@ namespace v8 {
 namespace internal {
 
 
+namespace {
+
+
 static const int kPackedSizeNotKnown = -1;
 
 
@@ -118,9 +121,6 @@ template<> class ElementsKindTraits<KindParam> {               \
 };
 ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
-
-
-ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
 
 
 static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
@@ -485,46 +485,6 @@ static void TraceTopFrame(Isolate* isolate) {
     }
   }
   JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-}
-
-
-void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t key,
-                     bool allow_appending) {
-  DisallowHeapAllocation no_allocation;
-  Object* raw_length = NULL;
-  const char* elements_type = "array";
-  if (obj->IsJSArray()) {
-    JSArray* array = JSArray::cast(*obj);
-    raw_length = array->length();
-  } else {
-    raw_length = Smi::FromInt(obj->elements()->length());
-    elements_type = "object";
-  }
-
-  if (raw_length->IsNumber()) {
-    double n = raw_length->Number();
-    if (FastI2D(FastD2UI(n)) == n) {
-      int32_t int32_length = DoubleToInt32(n);
-      uint32_t compare_length = static_cast<uint32_t>(int32_length);
-      if (allow_appending) compare_length++;
-      if (key >= compare_length) {
-        PrintF("[OOB %s %s (%s length = %d, element accessed = %d) in ",
-               elements_type, op, elements_type,
-               static_cast<int>(int32_length),
-               static_cast<int>(key));
-        TraceTopFrame(obj->GetIsolate());
-        PrintF("]\n");
-      }
-    } else {
-      PrintF("[%s elements length not integer value in ", elements_type);
-      TraceTopFrame(obj->GetIsolate());
-      PrintF("]\n");
-    }
-  } else {
-    PrintF("[%s elements length not a number in ", elements_type);
-    TraceTopFrame(obj->GetIsolate());
-    PrintF("]\n");
-  }
 }
 
 
@@ -1742,29 +1702,6 @@ class FastSloppyArgumentsElementsAccessor
 };
 
 
-void ElementsAccessor::InitializeOncePerProcess() {
-  static ElementsAccessor* accessor_array[] = {
-#define ACCESSOR_ARRAY(Class, Kind, Store) new Class(#Kind),
-    ELEMENTS_LIST(ACCESSOR_ARRAY)
-#undef ACCESSOR_ARRAY
-  };
-
-  STATIC_ASSERT((sizeof(accessor_array) / sizeof(*accessor_array)) ==
-                kElementsKindCount);
-
-  elements_accessors_ = accessor_array;
-}
-
-
-void ElementsAccessor::TearDown() {
-  if (elements_accessors_ == NULL) return;
-#define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
-  ELEMENTS_LIST(ACCESSOR_DELETE)
-#undef ACCESSOR_DELETE
-  elements_accessors_ = NULL;
-}
-
-
 template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
 void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
     SetLengthImpl(Handle<JSArray> array, uint32_t length,
@@ -1808,6 +1745,46 @@ void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
 
   array->set_length(Smi::FromInt(length));
   JSObject::ValidateElements(array);
+}
+}  // namespace
+
+
+void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t key,
+                     bool allow_appending) {
+  DisallowHeapAllocation no_allocation;
+  Object* raw_length = NULL;
+  const char* elements_type = "array";
+  if (obj->IsJSArray()) {
+    JSArray* array = JSArray::cast(*obj);
+    raw_length = array->length();
+  } else {
+    raw_length = Smi::FromInt(obj->elements()->length());
+    elements_type = "object";
+  }
+
+  if (raw_length->IsNumber()) {
+    double n = raw_length->Number();
+    if (FastI2D(FastD2UI(n)) == n) {
+      int32_t int32_length = DoubleToInt32(n);
+      uint32_t compare_length = static_cast<uint32_t>(int32_length);
+      if (allow_appending) compare_length++;
+      if (key >= compare_length) {
+        PrintF("[OOB %s %s (%s length = %d, element accessed = %d) in ",
+               elements_type, op, elements_type, static_cast<int>(int32_length),
+               static_cast<int>(key));
+        TraceTopFrame(obj->GetIsolate());
+        PrintF("]\n");
+      }
+    } else {
+      PrintF("[%s elements length not integer value in ", elements_type);
+      TraceTopFrame(obj->GetIsolate());
+      PrintF("]\n");
+    }
+  } else {
+    PrintF("[%s elements length not a number in ", elements_type);
+    TraceTopFrame(obj->GetIsolate());
+    PrintF("]\n");
+  }
 }
 
 
@@ -1901,5 +1878,30 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
   return array;
 }
 
+
+void ElementsAccessor::InitializeOncePerProcess() {
+  static ElementsAccessor* accessor_array[] = {
+#define ACCESSOR_ARRAY(Class, Kind, Store) new Class(#Kind),
+      ELEMENTS_LIST(ACCESSOR_ARRAY)
+#undef ACCESSOR_ARRAY
+  };
+
+  STATIC_ASSERT((sizeof(accessor_array) / sizeof(*accessor_array)) ==
+                kElementsKindCount);
+
+  elements_accessors_ = accessor_array;
+}
+
+
+void ElementsAccessor::TearDown() {
+  if (elements_accessors_ == NULL) return;
+#define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
+  ELEMENTS_LIST(ACCESSOR_DELETE)
+#undef ACCESSOR_DELETE
+  elements_accessors_ = NULL;
+}
+
+
+ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
 }  // namespace internal
 }  // namespace v8
