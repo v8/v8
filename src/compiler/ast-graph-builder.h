@@ -257,7 +257,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
 
   // Builders to create local function, script and block contexts.
-  Node* BuildLocalFunctionContext(Node* context, Node* patched_receiver);
+  Node* BuildLocalFunctionContext(Node* context);
   Node* BuildLocalScriptContext(Scope* scope);
   Node* BuildLocalBlockContext(Scope* scope);
 
@@ -434,6 +434,10 @@ class AstGraphBuilder::Environment : public ZoneObject {
   void Bind(Variable* variable, Node* node);
   Node* Lookup(Variable* variable);
   void MarkAllLocalsLive();
+
+  // Raw operations on parameter variables.
+  void RawParameterBind(int index, Node* node);
+  Node* RawParameterLookup(int index);
 
   // Operations on the context chain.
   Node* Context() const { return contexts_.back(); }

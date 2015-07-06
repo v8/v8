@@ -525,20 +525,16 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-  Node* patched_receiver = nullptr;
   if (scope->has_this_declaration()) {
-    Node* original_receiver = NewNode(common()->Parameter(0), graph()->start());
-    patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
-    if (scope->receiver()->IsStackAllocated()) {
-      env.Bind(scope->receiver(), patched_receiver);
-    }
+    Node* original_receiver = env.RawParameterLookup(0);
+    Node* patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
+    env.RawParameterBind(0, patched_receiver);
   }
 
   // Build function context only if there are context allocated variables.
   if (info()->num_heap_slots() > 0) {
     // Push a new inner context scope for the function.
-    Node* inner_context =
-        BuildLocalFunctionContext(function_context_.get(), patched_receiver);
+    Node* inner_context = BuildLocalFunctionContext(function_context_.get());
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody(stack_check);
   } else {
@@ -685,8 +681,8 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   // Bind the receiver variable.
   int param_num = 0;
   if (builder->info()->is_this_defined()) {
-    Node* receiver = builder->graph()->NewNode(
-        common()->Parameter(param_num++, "%this"), builder->graph()->start());
+    const Operator* op = common()->Parameter(param_num++, "%this");
+    Node* receiver = builder->graph()->NewNode(op, builder->graph()->start());
     values()->push_back(receiver);
   } else {
     values()->push_back(builder->jsgraph()->UndefinedConstant());
@@ -696,9 +692,8 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   // (receiver is parameter index -1 but environment index 0).
   for (int i = 0; i < scope->num_parameters(); ++i) {
     const char* debug_name = GetDebugParameterName(graph()->zone(), scope, i);
-    Node* parameter =
-        builder->graph()->NewNode(common()->Parameter(param_num++, debug_name),
-                                  builder->graph()->start());
+    const Operator* op = common()->Parameter(param_num++, debug_name);
+    Node* parameter = builder->graph()->NewNode(op, builder->graph()->start());
     values()->push_back(parameter);
   }
 
@@ -739,7 +734,6 @@ void AstGraphBuilder::Environment::Bind(Variable* variable, Node* node) {
   } else {
     DCHECK(variable->IsStackLocal());
     values()->at(variable->index() + parameters_count_) = node;
-
     DCHECK(IsLivenessBlockConsistent());
     if (liveness_block() != nullptr) {
       liveness_block()->Bind(variable->index());
@@ -772,6 +766,18 @@ void AstGraphBuilder::Environment::MarkAllLocalsLive() {
       liveness_block()->Lookup(i);
     }
   }
+}
+
+
+void AstGraphBuilder::Environment::RawParameterBind(int index, Node* node) {
+  DCHECK_LT(index, parameters_count());
+  values()->at(index) = node;
+}
+
+
+Node* AstGraphBuilder::Environment::RawParameterLookup(int index) {
+  DCHECK_LT(index, parameters_count());
+  return values()->at(index);
 }
 
 
@@ -3069,8 +3075,7 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
 }
 
 
-Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context,
-                                                 Node* patched_receiver) {
+Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context) {
   Scope* scope = info()->scope();
   Node* closure = GetFunctionClosure();
 
@@ -3081,12 +3086,12 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context,
           : NewNode(javascript()->CreateFunctionContext(), closure);
 
   if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
-    DCHECK_NOT_NULL(patched_receiver);
+    Node* receiver = environment()->RawParameterLookup(0);
     // Context variable (at bottom of the context chain).
     Variable* variable = scope->receiver();
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     const Operator* op = javascript()->StoreContext(0, variable->index());
-    NewNode(op, local_context, patched_receiver);
+    NewNode(op, local_context, receiver);
   }
 
   // Copy parameters into context if necessary.
@@ -3094,9 +3099,7 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context,
   for (int i = 0; i < num_parameters; i++) {
     Variable* variable = scope->parameter(i);
     if (!variable->IsContextSlot()) continue;
-    // Temporary parameter node. The parameter indices are shifted by 1
-    // (receiver is parameter index -1 but environment index 0).
-    Node* parameter = NewNode(common()->Parameter(i + 1), graph()->start());
+    Node* parameter = environment()->RawParameterLookup(i + 1);
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     const Operator* op = javascript()->StoreContext(0, variable->index());
