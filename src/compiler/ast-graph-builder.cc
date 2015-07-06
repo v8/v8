@@ -502,9 +502,10 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
 
-  // Set up the basic structure of the graph.
-  int parameter_count = info()->num_parameters();
-  graph()->SetStart(graph()->NewNode(common()->Start(parameter_count)));
+  // Set up the basic structure of the graph. Outputs for {Start} are the formal
+  // parameters (including the receiver) plus context and closure.
+  int actual_parameter_count = info()->num_parameters_including_this() + 2;
+  graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
   // Initialize the top-level environment.
   Environment env(this, scope, graph()->start());
