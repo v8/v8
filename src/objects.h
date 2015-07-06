@@ -2292,6 +2292,10 @@ class JSObject: public JSReceiver {
   // Gets the current elements capacity and the number of used elements.
   void GetElementsCapacityAndUsage(int* capacity, int* used);
 
+  // Deletes an existing named property in a normalized object.
+  static void DeleteNormalizedProperty(Handle<JSObject> object,
+                                       Handle<Name> name, int entry);
+
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
@@ -2317,10 +2321,6 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
       LookupIterator* it);
-
-  // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSObject> object,
-                                       Handle<Name> name);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,

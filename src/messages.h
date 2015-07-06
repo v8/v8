@@ -229,7 +229,7 @@ class CallSite {
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
   T(StrongDeleteProperty,                                                      \
-    "On strong object %, deletion of property % is deprecated")                \
+    "Deleting property '%' of strong object '%' is deprecated")                \
   T(StrongImplicitConversion,                                                  \
     "In strong mode, implicit conversions are deprecated")                     \
   T(StrongRedefineDisallowed,                                                  \

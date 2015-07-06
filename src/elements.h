@@ -62,8 +62,7 @@ class ElementsAccessor {
   virtual void SetLength(Handle<JSArray> holder, uint32_t new_length) = 0;
 
   // Deletes an element in an object.
-  virtual void Delete(Handle<JSObject> holder, uint32_t key,
-                      LanguageMode language_mode) = 0;
+  virtual void Delete(Handle<JSObject> holder, uint32_t index) = 0;
 
   // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
   // of elements from source after source_start to the destination array.
