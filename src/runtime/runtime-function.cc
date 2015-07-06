@@ -447,6 +447,9 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
       isolate->native_context()->bound_function_map());
   JSObject::MigrateToMap(bound_function, bound_function_map);
   Handle<String> length_string = isolate->factory()->length_string();
+  // These attributes must be kept in sync with how the bootstrapper
+  // configures the bound_function_map retrieved above.
+  // We use ...IgnoreAttributes() here because of length's read-onliness.
   PropertyAttributes attr =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
   RETURN_FAILURE_ON_EXCEPTION(

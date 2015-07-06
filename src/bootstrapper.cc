@@ -598,7 +598,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   // Add length.
   if (function_mode == BOUND_FUNCTION) {
     Handle<String> length_string = isolate()->factory()->length_string();
-    DataDescriptor d(length_string, 0, ro_attribs, Representation::Tagged());
+    DataDescriptor d(length_string, 0, roc_attribs, Representation::Tagged());
     map->AppendDescriptor(&d);
   } else {
     DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
