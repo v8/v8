@@ -543,22 +543,25 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
   }
 
   // Since descriptor arrays are potentially shared, ensure that only the
-  // descriptors that belong to this map are marked. The first time a
-  // non-empty descriptor array is marked, its header is also visited. The slot
-  // holding the descriptor array will be implicitly recorded when the pointer
-  // fields of this map are visited.
-  DescriptorArray* descriptors = map->instance_descriptors();
-  if (StaticVisitor::MarkObjectWithoutPush(heap, descriptors) &&
-      descriptors->length() > 0) {
-    StaticVisitor::VisitPointers(heap, descriptors->GetFirstElementAddress(),
-                                 descriptors->GetDescriptorEndSlot(0));
-  }
-  int start = 0;
-  int end = map->NumberOfOwnDescriptors();
-  if (start < end) {
-    StaticVisitor::VisitPointers(heap,
-                                 descriptors->GetDescriptorStartSlot(start),
-                                 descriptors->GetDescriptorEndSlot(end));
+  // descriptors that belong to this map are marked. The first time a non-empty
+  // descriptor array is marked, its header is also visited. The slot holding
+  // the descriptor array will be implicitly recorded when the pointer fields of
+  // this map are visited.  Prototype maps don't keep track of transitions, so
+  // just mark the entire descriptor array.
+  if (!map->is_prototype_map()) {
+    DescriptorArray* descriptors = map->instance_descriptors();
+    if (StaticVisitor::MarkObjectWithoutPush(heap, descriptors) &&
+        descriptors->length() > 0) {
+      StaticVisitor::VisitPointers(heap, descriptors->GetFirstElementAddress(),
+                                   descriptors->GetDescriptorEndSlot(0));
+    }
+    int start = 0;
+    int end = map->NumberOfOwnDescriptors();
+    if (start < end) {
+      StaticVisitor::VisitPointers(heap,
+                                   descriptors->GetDescriptorStartSlot(start),
+                                   descriptors->GetDescriptorEndSlot(end));
+    }
   }
 
   // Mark the pointer fields of the Map. Since the transitions array has
