@@ -26,6 +26,7 @@
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-context-specialization.h"
+#include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-intrinsic-lowering.h"
@@ -496,12 +497,17 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSContextSpecializer context_specializer(&graph_reducer, data->jsgraph());
+    JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
+                                               data->jsgraph());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
                                           ? JSInliner::kGeneralInlining
                                           : JSInliner::kRestrictedInlining,
                       temp_zone, data->info(), data->jsgraph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
+    if (data->info()->is_frame_specializing()) {
+      AddReducer(data, &graph_reducer, &frame_specialization);
+    }
     if (data->info()->is_context_specializing()) {
       AddReducer(data, &graph_reducer, &context_specializer);
     }
