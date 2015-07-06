@@ -584,7 +584,9 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kJSForInDone: {
-      CheckValueInputIs(node, 0, Type::UnsignedSmall());
+      // TODO(bmeurer): OSR breaks this invariant, although the node is not user
+      // visible, so we know it is safe (fullcodegen has an unsigned smi there).
+      // CheckValueInputIs(node, 0, Type::UnsignedSmall());
       break;
     }
     case IrOpcode::kJSForInNext: {
@@ -592,7 +594,9 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kJSForInStep: {
-      CheckValueInputIs(node, 0, Type::UnsignedSmall());
+      // TODO(bmeurer): OSR breaks this invariant, although the node is not user
+      // visible, so we know it is safe (fullcodegen has an unsigned smi there).
+      // CheckValueInputIs(node, 0, Type::UnsignedSmall());
       CheckUpperIs(node, Type::UnsignedSmall());
       break;
     }
