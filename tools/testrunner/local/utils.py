@@ -126,7 +126,7 @@ def URLRetrieve(source, destination):
     try:
       # In python 2.7.6 on windows, urlopen has a problem with redirects.
       # Try using curl instead. Note, this is fixed in 2.7.8.
-      subprocess.check_call(["curl", source, '-L', '-o', destination])
+      subprocess.check_call(["curl", source, '-k', '-L', '-o', destination])
       return
     except:
       # If there's no curl, fall back to urlopen.
