@@ -966,17 +966,10 @@ Handle<Code> Pipeline::GenerateCode() {
   // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
   // the correct solution is to restore the context register after invoking
   // builtins from full-codegen.
-  Handle<SharedFunctionInfo> shared = info()->shared_info();
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
     Object* builtin = isolate()->js_builtins_object()->javascript_builtin(id);
     if (*info()->closure() == builtin) return Handle<Code>::null();
-  }
-
-  // TODO(dslomov): support turbo optimization of subclass constructors.
-  if (IsSubclassConstructor(shared->kind())) {
-    shared->DisableOptimization(kSuperReference);
-    return Handle<Code>::null();
   }
 
   ZonePool zone_pool;
