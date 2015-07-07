@@ -1533,26 +1533,22 @@ void SourceGroup::WaitForThread() {
 
 
 SerializationData::~SerializationData() {
-  // Any ArrayBuffer::Contents are owned by this SerializationData object if
-  // ownership hasn't been transferred out via ReadArrayBufferContents.
-  // SharedArrayBuffer::Contents may be used by multiple threads, so must be
+  // Any ArrayBuffer::Contents are owned by this SerializationData object.
+  // SharedArrayBuffer::Contents may be used by other threads, so must be
   // cleaned up by the main thread in Shell::CleanupWorkers().
-  for (int i = 0; i < array_buffer_contents_.length(); ++i) {
-    ArrayBuffer::Contents& contents = array_buffer_contents_[i];
-    if (contents.Data()) {
-      Shell::array_buffer_allocator->Free(contents.Data(),
-                                          contents.ByteLength());
-    }
+  for (int i = 0; i < array_buffer_contents.length(); ++i) {
+    ArrayBuffer::Contents& contents = array_buffer_contents[i];
+    Shell::array_buffer_allocator->Free(contents.Data(), contents.ByteLength());
   }
 }
 
 
-void SerializationData::WriteTag(SerializationTag tag) { data_.Add(tag); }
+void SerializationData::WriteTag(SerializationTag tag) { data.Add(tag); }
 
 
 void SerializationData::WriteMemory(const void* p, int length) {
   if (length > 0) {
-    i::Vector<uint8_t> block = data_.AddBlock(0, length);
+    i::Vector<uint8_t> block = data.AddBlock(0, length);
     memcpy(&block[0], p, length);
   }
 }
@@ -1560,18 +1556,18 @@ void SerializationData::WriteMemory(const void* p, int length) {
 
 void SerializationData::WriteArrayBufferContents(
     const ArrayBuffer::Contents& contents) {
-  array_buffer_contents_.Add(contents);
+  array_buffer_contents.Add(contents);
   WriteTag(kSerializationTagTransferredArrayBuffer);
-  int index = array_buffer_contents_.length() - 1;
+  int index = array_buffer_contents.length() - 1;
   Write(index);
 }
 
 
 void SerializationData::WriteSharedArrayBufferContents(
     const SharedArrayBuffer::Contents& contents) {
-  shared_array_buffer_contents_.Add(contents);
+  shared_array_buffer_contents.Add(contents);
   WriteTag(kSerializationTagTransferredSharedArrayBuffer);
-  int index = shared_array_buffer_contents_.length() - 1;
+  int index = shared_array_buffer_contents.length() - 1;
   Write(index);
 }
 
@@ -1583,7 +1579,7 @@ SerializationTag SerializationData::ReadTag(int* offset) const {
 
 void SerializationData::ReadMemory(void* p, int length, int* offset) const {
   if (length > 0) {
-    memcpy(p, &data_[*offset], length);
+    memcpy(p, &data[*offset], length);
     (*offset) += length;
   }
 }
@@ -1592,20 +1588,16 @@ void SerializationData::ReadMemory(void* p, int length, int* offset) const {
 void SerializationData::ReadArrayBufferContents(ArrayBuffer::Contents* contents,
                                                 int* offset) const {
   int index = Read<int>(offset);
-  DCHECK(index < array_buffer_contents_.length());
-  *contents = array_buffer_contents_[index];
-  // Ownership of this ArrayBuffer::Contents is passed to the caller. Neuter
-  // our copy so it won't be double-free'd when this SerializationData is
-  // destroyed.
-  array_buffer_contents_[index] = ArrayBuffer::Contents();
+  DCHECK(index < array_buffer_contents.length());
+  *contents = array_buffer_contents[index];
 }
 
 
 void SerializationData::ReadSharedArrayBufferContents(
     SharedArrayBuffer::Contents* contents, int* offset) const {
   int index = Read<int>(offset);
-  DCHECK(index < shared_array_buffer_contents_.length());
-  *contents = shared_array_buffer_contents_[index];
+  DCHECK(index < shared_array_buffer_contents.length());
+  *contents = shared_array_buffer_contents[index];
 }
 
 
@@ -2048,9 +2040,7 @@ bool Shell::SerializeValue(Isolate* isolate, Handle<Value> value,
         return false;
       }
 
-      ArrayBuffer::Contents contents = array_buffer->IsExternal()
-                                           ? array_buffer->GetContents()
-                                           : array_buffer->Externalize();
+      ArrayBuffer::Contents contents = array_buffer->Externalize();
       array_buffer->Neuter();
       out_data->WriteArrayBufferContents(contents);
     } else {
@@ -2079,14 +2069,9 @@ bool Shell::SerializeValue(Isolate* isolate, Handle<Value> value,
       return false;
     }
 
-    SharedArrayBuffer::Contents contents;
-    if (sab->IsExternal()) {
-      contents = sab->GetContents();
-    } else {
-      contents = sab->Externalize();
-      externalized_shared_contents_.Add(contents);
-    }
+    SharedArrayBuffer::Contents contents = sab->Externalize();
     out_data->WriteSharedArrayBufferContents(contents);
+    externalized_shared_contents_.Add(contents);
   } else if (value->IsObject()) {
     Handle<Object> object = Handle<Object>::Cast(value);
     if (FindInObjectList(object, *seen_objects)) {
@@ -2202,8 +2187,8 @@ MaybeLocal<Value> Shell::DeserializeValue(Isolate* isolate,
     case kSerializationTagTransferredArrayBuffer: {
       ArrayBuffer::Contents contents;
       data.ReadArrayBufferContents(&contents, offset);
-      result = ArrayBuffer::New(isolate, contents.Data(), contents.ByteLength(),
-                                ArrayBufferCreationMode::kInternalized);
+      result =
+          ArrayBuffer::New(isolate, contents.Data(), contents.ByteLength());
       break;
     }
     case kSerializationTagTransferredSharedArrayBuffer: {
