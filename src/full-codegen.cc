@@ -214,11 +214,6 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
 }
 
 
-void FullCodeGenerator::CallGlobalLoadIC(Handle<String> name) {
-  return CallLoadIC(CONTEXTUAL);
-}
-
-
 void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
   CallIC(ic, id);
@@ -608,6 +603,22 @@ void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     EmitInlineSmiBinaryOp(expr, op, left, right);
   } else {
     EmitBinaryOp(expr, op);
+  }
+}
+
+
+void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
+  VariableProxy* proxy = expr->AsVariableProxy();
+  DCHECK(!context()->IsEffect());
+  DCHECK(!context()->IsTest());
+
+  if (proxy != NULL && (proxy->var()->IsUnallocatedOrGlobalSlot() ||
+                        proxy->var()->IsLookupSlot())) {
+    EmitVariableLoad(proxy, INSIDE_TYPEOF);
+    PrepareForBailout(proxy, TOS_REG);
+  } else {
+    // This expression cannot throw a reference error at the top level.
+    VisitInDuplicateContext(expr);
   }
 }
 

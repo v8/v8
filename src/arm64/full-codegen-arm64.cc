@@ -1399,14 +1399,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
     __ Bind(&fast);
   }
 
-  __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
-  __ Mov(LoadDescriptor::NameRegister(), Operand(proxy->var()->name()));
-  __ Mov(LoadDescriptor::SlotRegister(),
-         SmiFromSlot(proxy->VariableFeedbackSlot()));
-
-  ContextualMode mode = (typeof_state == INSIDE_TYPEOF) ? NOT_CONTEXTUAL
-                                                        : CONTEXTUAL;
-  CallLoadIC(mode);
+  // All extension objects were empty and it is safe to use a normal global
+  // load machinery.
+  EmitGlobalVariableLoad(proxy, typeof_state);
 }
 
 
@@ -1472,7 +1467,23 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
 }
 
 
-void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
+void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
+                                               TypeofState typeof_state) {
+  Variable* var = proxy->var();
+  DCHECK(var->IsUnallocatedOrGlobalSlot() ||
+         (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
+  __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
+  __ Mov(LoadDescriptor::NameRegister(), Operand(var->name()));
+  __ Mov(LoadDescriptor::SlotRegister(),
+         SmiFromSlot(proxy->VariableFeedbackSlot()));
+  // Inside typeof use a regular load, not a contextual load, to avoid
+  // a reference error.
+  CallLoadIC(typeof_state == NOT_INSIDE_TYPEOF ? CONTEXTUAL : NOT_CONTEXTUAL);
+}
+
+
+void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
+                                         TypeofState typeof_state) {
   // Record position before possible IC call.
   SetExpressionPosition(proxy);
   PrepareForBailoutForId(proxy->BeforeId(), NO_REGISTERS);
@@ -1484,11 +1495,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       Comment cmnt(masm_, "Global variable");
-      __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
-      __ Mov(LoadDescriptor::NameRegister(), Operand(var->name()));
-      __ Mov(LoadDescriptor::SlotRegister(),
-             SmiFromSlot(proxy->VariableFeedbackSlot()));
-      CallGlobalLoadIC(var->name());
+      EmitGlobalVariableLoad(proxy, typeof_state);
       context()->Plug(x0);
       break;
     }
@@ -1496,6 +1503,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
     case VariableLocation::CONTEXT: {
+      DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_state);
       Comment cmnt(masm_, var->IsContextSlot()
                               ? "Context variable"
                               : "Stack variable");
@@ -1569,12 +1577,16 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Label done, slow;
       // Generate code for loading from variables potentially shadowed by
       // eval-introduced variables.
-      EmitDynamicLookupFastCase(proxy, NOT_INSIDE_TYPEOF, &slow, &done);
+      EmitDynamicLookupFastCase(proxy, typeof_state, &slow, &done);
       __ Bind(&slow);
       Comment cmnt(masm_, "Lookup variable");
       __ Mov(x1, Operand(var->name()));
       __ Push(cp, x1);  // Context and name.
-      __ CallRuntime(Runtime::kLoadLookupSlot, 2);
+      Runtime::FunctionId function_id =
+          typeof_state == NOT_INSIDE_TYPEOF
+              ? Runtime::kLoadLookupSlot
+              : Runtime::kLoadLookupSlotNoReferenceError;
+      __ CallRuntime(function_id, 2);
       __ Bind(&done);
       context()->Plug(x0);
       break;
@@ -4837,43 +4849,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     }
-  }
-}
-
-
-void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
-  DCHECK(!context()->IsEffect());
-  DCHECK(!context()->IsTest());
-  VariableProxy* proxy = expr->AsVariableProxy();
-  if (proxy != NULL && proxy->var()->IsUnallocatedOrGlobalSlot()) {
-    Comment cmnt(masm_, "Global variable");
-    __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
-    __ Mov(LoadDescriptor::NameRegister(), Operand(proxy->name()));
-    __ Mov(LoadDescriptor::SlotRegister(),
-           SmiFromSlot(proxy->VariableFeedbackSlot()));
-    // Use a regular load, not a contextual load, to avoid a reference
-    // error.
-    CallLoadIC(NOT_CONTEXTUAL);
-    PrepareForBailout(expr, TOS_REG);
-    context()->Plug(x0);
-  } else if (proxy != NULL && proxy->var()->IsLookupSlot()) {
-    Label done, slow;
-
-    // Generate code for loading from variables potentially shadowed
-    // by eval-introduced variables.
-    EmitDynamicLookupFastCase(proxy, INSIDE_TYPEOF, &slow, &done);
-
-    __ Bind(&slow);
-    __ Mov(x0, Operand(proxy->name()));
-    __ Push(cp, x0);
-    __ CallRuntime(Runtime::kLoadLookupSlotNoReferenceError, 2);
-    PrepareForBailout(expr, TOS_REG);
-    __ Bind(&done);
-
-    context()->Plug(x0);
-  } else {
-    // This expression cannot throw a reference error at the top level.
-    VisitInDuplicateContext(expr);
   }
 }
 

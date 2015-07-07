@@ -552,7 +552,9 @@ class FullCodeGenerator: public AstVisitor {
                                  TypeofState typeof_state,
                                  Label* slow,
                                  Label* done);
-  void EmitVariableLoad(VariableProxy* proxy);
+  void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofState typeof_state);
+  void EmitVariableLoad(VariableProxy* proxy,
+                        TypeofState typeof_state = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(Expression* expression);
 
@@ -654,7 +656,6 @@ class FullCodeGenerator: public AstVisitor {
 
   void CallLoadIC(ContextualMode mode, LanguageMode language_mode = SLOPPY,
                   TypeFeedbackId id = TypeFeedbackId::None());
-  void CallGlobalLoadIC(Handle<String> name);
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
