@@ -4,8 +4,8 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/scheduler.h"
-#include "test/unittests/compiler/raw-machine-assembler.h"
 
 namespace v8 {
 namespace internal {
