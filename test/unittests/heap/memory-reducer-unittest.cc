@@ -82,6 +82,16 @@ MemoryReducer::Event ContextDisposedEvent(double time_ms) {
 }
 
 
+MemoryReducer::Event BackgroundIdleNotificationEvent(
+    double time_ms, bool can_start_incremental_gc = true) {
+  MemoryReducer::Event event;
+  event.type = MemoryReducer::kBackgroundIdleNotification;
+  event.time_ms = time_ms;
+  event.can_start_incremental_gc = can_start_incremental_gc;
+  return event;
+}
+
+
 TEST(MemoryReducer, FromDoneToDone) {
   MemoryReducer::State state0(DoneState()), state1(DoneState());
 
@@ -92,6 +102,9 @@ TEST(MemoryReducer, FromDoneToDone) {
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
 
   state1 = MemoryReducer::Step(state0, TimerEventPendingGC(0));
+  EXPECT_EQ(MemoryReducer::kDone, state1.action);
+
+  state1 = MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(0));
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
 }
 
@@ -153,6 +166,23 @@ TEST(MemoryReducer, FromWaitToWait) {
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
+
+  state1 = MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(2000));
+  EXPECT_EQ(MemoryReducer::kWait, state1.action);
+  EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
+  EXPECT_EQ(state0.started_gcs + 1, state1.started_gcs);
+
+  state1 =
+      MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(2000, false));
+  EXPECT_EQ(MemoryReducer::kWait, state1.action);
+  EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
+  EXPECT_EQ(state0.started_gcs, state1.started_gcs);
+
+  state0.started_gcs = MemoryReducer::kMaxNumberOfGCs;
+  state1 = MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(2000));
+  EXPECT_EQ(MemoryReducer::kWait, state1.action);
+  EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
+  EXPECT_EQ(state0.started_gcs, state1.started_gcs);
 }
 
 
@@ -166,6 +196,30 @@ TEST(MemoryReducer, FromWaitToRun) {
   EXPECT_EQ(MemoryReducer::kRun, state1.action);
   EXPECT_EQ(0, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs + 1, state1.started_gcs);
+}
+
+
+TEST(MemoryReducer, FromWaitToDone) {
+  if (!FLAG_incremental_marking) return;
+
+  MemoryReducer::State state0(WaitState(2, 0.0)), state1(DoneState());
+
+  state0.started_gcs = MemoryReducer::kMaxNumberOfGCs;
+
+  state1 = MemoryReducer::Step(state0, TimerEventLowAllocationRate(2000));
+  EXPECT_EQ(MemoryReducer::kDone, state1.action);
+  EXPECT_EQ(0, state1.next_gc_start_ms);
+  EXPECT_EQ(0, state1.started_gcs);
+
+  state1 = MemoryReducer::Step(state0, TimerEventHighAllocationRate(2000));
+  EXPECT_EQ(MemoryReducer::kDone, state1.action);
+  EXPECT_EQ(0, state1.next_gc_start_ms);
+  EXPECT_EQ(0, state1.started_gcs);
+
+  state1 = MemoryReducer::Step(state0, TimerEventPendingGC(2000));
+  EXPECT_EQ(MemoryReducer::kDone, state1.action);
+  EXPECT_EQ(0, state1.next_gc_start_ms);
+  EXPECT_EQ(0, state1.started_gcs);
 }
 
 

@@ -82,6 +82,26 @@ void MemoryReducer::NotifyContextDisposed(const Event& event) {
 }
 
 
+void MemoryReducer::NotifyBackgroundIdleNotification(const Event& event) {
+  DCHECK_EQ(kBackgroundIdleNotification, event.type);
+  Action old_action = state_.action;
+  int old_started_gcs = state_.started_gcs;
+  state_ = Step(state_, event);
+  if (old_action == kWait && state_.action == kWait &&
+      old_started_gcs + 1 == state_.started_gcs) {
+    DCHECK(heap()->incremental_marking()->IsStopped());
+    DCHECK(FLAG_incremental_marking);
+    heap()->StartIdleIncrementalMarking();
+    if (FLAG_trace_gc_verbose) {
+      PrintIsolate(heap()->isolate(),
+                   "Memory reducer: started GC #%d"
+                   " (background idle)\n",
+                   state_.started_gcs);
+    }
+  }
+}
+
+
 // For specification of this function see the comment for MemoryReducer class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
@@ -90,24 +110,40 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
   }
   switch (state.action) {
     case kDone:
-      if (event.type == kTimer) {
+      if (event.type == kTimer || event.type == kBackgroundIdleNotification) {
         return state;
       } else {
         DCHECK(event.type == kContextDisposed || event.type == kMarkCompact);
         return State(kWait, 0, event.time_ms + kLongDelayMs);
       }
     case kWait:
-      if (event.type == kContextDisposed) {
-        return state;
-      } else if (event.type == kTimer && event.can_start_incremental_gc &&
-                 event.low_allocation_rate) {
-        if (state.next_gc_start_ms <= event.time_ms) {
-          return State(kRun, state.started_gcs + 1, 0.0);
-        } else {
+      switch (event.type) {
+        case kContextDisposed:
           return state;
-        }
-      } else {
-        return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs);
+        case kTimer:
+          if (state.started_gcs >= kMaxNumberOfGCs) {
+            return State(kDone, 0, 0.0);
+          } else if (event.can_start_incremental_gc &&
+                     event.low_allocation_rate) {
+            if (state.next_gc_start_ms <= event.time_ms) {
+              return State(kRun, state.started_gcs + 1, 0.0);
+            } else {
+              return state;
+            }
+          } else {
+            return State(kWait, state.started_gcs,
+                         event.time_ms + kLongDelayMs);
+          }
+        case kBackgroundIdleNotification:
+          if (event.can_start_incremental_gc &&
+              state.started_gcs < kMaxNumberOfGCs) {
+            return State(kWait, state.started_gcs + 1,
+                         event.time_ms + kLongDelayMs);
+          } else {
+            return state;
+          }
+        case kMarkCompact:
+          return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs);
       }
     case kRun:
       if (event.type != kMarkCompact) {

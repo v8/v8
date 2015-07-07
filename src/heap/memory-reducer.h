@@ -48,6 +48,15 @@ class Heap;
 //     - in the timer callback if the mutator allocation rate is high or
 //       incremental GC is in progress.
 //
+// WAIT n x -> WAIT (n+1) happens:
+//     - on background idle notification, which signals that we can start
+//       incremental marking even if the allocation rate is high.
+// The MemoryReducer starts incremental marking on this transition but still
+// has a pending timer task.
+//
+// WAIT n x -> DONE happens:
+//     - in the timer callback if n >= kMaxNumberOfGCs.
+//
 // WAIT n x -> RUN (n+1) happens:
 //     - in the timer callback if the mutator allocation rate is low
 //       and now_ms >= x and there is no incremental GC in progress.
@@ -81,6 +90,7 @@ class MemoryReducer {
     kTimer,
     kMarkCompact,
     kContextDisposed,
+    kBackgroundIdleNotification
   };
 
   struct Event {
@@ -95,8 +105,8 @@ class MemoryReducer {
   // Callbacks.
   void NotifyTimer(const Event& event);
   void NotifyMarkCompact(const Event& event);
-  void NotifyScavenge(const Event& event);
   void NotifyContextDisposed(const Event& event);
+  void NotifyBackgroundIdleNotification(const Event& event);
   // The step function that computes the next state from the current state and
   // the incoming event.
   static State Step(const State& state, const Event& event);
