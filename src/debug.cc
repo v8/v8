@@ -1351,7 +1351,7 @@ void Debug::PrepareStep(StepAction step_action,
       }
     }
 
-    ActivateStepIn(frame);
+    ActivateStepIn(function, frame);
   }
 
   // Fill the current function with one-shot break points even for step in on
@@ -1455,30 +1455,27 @@ Handle<Object> Debug::GetSourceBreakLocations(
 
 
 // Handle stepping into a function.
-void Debug::HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
-                         Address fp, bool is_constructor) {
+void Debug::HandleStepIn(Handle<Object> function_obj, bool is_constructor) {
   // Flood getter/setter if we either step in or step to another frame.
   bool step_frame = thread_local_.last_step_action_ == StepFrame;
   if (!StepInActive() && !step_frame) return;
   if (!function_obj->IsJSFunction()) return;
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_obj);
   Isolate* isolate = function->GetIsolate();
-  // If the frame pointer is not supplied by the caller find it.
-  if (fp == 0) {
-    StackFrameIterator it(isolate);
+
+  StackFrameIterator it(isolate);
+  it.Advance();
+  // For constructor functions skip another frame.
+  if (is_constructor) {
+    DCHECK(it.frame()->is_construct());
     it.Advance();
-    // For constructor functions skip another frame.
-    if (is_constructor) {
-      DCHECK(it.frame()->is_construct());
-      it.Advance();
-    }
-    fp = it.frame()->fp();
   }
+  Address fp = it.frame()->fp();
 
   // Flood the function with one-shot break points if it is called from where
   // step into was requested, or when stepping into a new frame.
   if (fp == thread_local_.step_into_fp_ || step_frame) {
-    FloodWithOneShotGeneric(function, holder);
+    FloodWithOneShotGeneric(function, Handle<Object>());
   }
 }
 
@@ -1512,8 +1509,12 @@ void Debug::ClearOneShot() {
 }
 
 
-void Debug::ActivateStepIn(StackFrame* frame) {
+void Debug::ActivateStepIn(Handle<JSFunction> function, StackFrame* frame) {
   DCHECK(!StepOutActive());
+  // Make sure IC state is clean. This is so that we correct flood
+  // accessor pairs when stepping in.
+  function->code()->ClearInlineCaches();
+  function->shared()->feedback_vector()->ClearICSlots(function->shared());
   thread_local_.step_into_fp_ = frame->UnpaddedFP();
 }
 
@@ -2068,10 +2069,6 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
       !Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
-
-  // Make sure IC state is clean.
-  shared->code()->ClearInlineCaches();
-  shared->feedback_vector()->ClearICSlots(*shared);
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = isolate->factory()->NewDebugInfo(shared);

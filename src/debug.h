@@ -465,8 +465,7 @@ class Debug {
   bool IsStepping() { return thread_local_.step_count_ > 0; }
   bool StepNextContinue(BreakLocation* location, JavaScriptFrame* frame);
   bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
-                    Address fp, bool is_constructor);
+  void HandleStepIn(Handle<Object> function_obj, bool is_constructor);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   // Purge all code objects that have no debug break slots.
@@ -625,7 +624,7 @@ class Debug {
 
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
-  void ActivateStepIn(StackFrame* frame);
+  void ActivateStepIn(Handle<JSFunction> function, StackFrame* frame);
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();

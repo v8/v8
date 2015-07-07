@@ -3212,6 +3212,17 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_DebugHandleStepIntoAccessor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Debug* debug = isolate->debug();
+  // Handle stepping into constructors if step into is active.
+  if (debug->StepInActive()) debug->HandleStepIn(function, false);
+  return *isolate->factory()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;

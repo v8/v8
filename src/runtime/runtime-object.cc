@@ -1072,9 +1072,7 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
 
   Debug* debug = isolate->debug();
   // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) {
-    debug->HandleStepIn(function, Handle<Object>::null(), 0, true);
-  }
+  if (debug->StepInActive()) debug->HandleStepIn(function, true);
 
   if (function->has_initial_map()) {
     if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
