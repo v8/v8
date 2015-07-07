@@ -2844,8 +2844,8 @@ void AstGraphBuilder::VisitSuperPropertyReference(
 
 
 void AstGraphBuilder::VisitSuperCallReference(SuperCallReference* expr) {
-  Node* value = BuildThrowUnsupportedSuperError(expr->id());
-  ast_context()->ProduceValue(value);
+  // Handled by VisitCall
+  UNREACHABLE();
 }
 
 
