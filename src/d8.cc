@@ -717,17 +717,14 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  Local<Value> this_value;
 
   if (args.Length() < 1) {
     Throw(isolate, "Invalid argument");
     return;
   }
 
-  if (args.This()->InternalFieldCount() > 0) {
-    this_value = args.This()->GetInternalField(0);
-  }
-  if (this_value.IsEmpty()) {
+  Local<Value> this_value = args.This()->GetInternalField(0);
+  if (!this_value->IsExternal()) {
     Throw(isolate, "this is not a Worker");
     return;
   }
@@ -773,11 +770,9 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
-  Local<Value> this_value;
-  if (args.This()->InternalFieldCount() > 0) {
-    this_value = args.This()->GetInternalField(0);
-  }
-  if (this_value.IsEmpty()) {
+
+  Local<Value> this_value = args.This()->GetInternalField(0);
+  if (!this_value->IsExternal()) {
     Throw(isolate, "this is not a Worker");
     return;
   }
@@ -800,11 +795,8 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
-  Local<Value> this_value;
-  if (args.This()->InternalFieldCount() > 0) {
-    this_value = args.This()->GetInternalField(0);
-  }
-  if (this_value.IsEmpty()) {
+  Local<Value> this_value = args.This()->GetInternalField(0);
+  if (!this_value->IsExternal()) {
     Throw(isolate, "this is not a Worker");
     return;
   }
