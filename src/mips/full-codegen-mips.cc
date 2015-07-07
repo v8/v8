@@ -281,8 +281,8 @@ void FullCodeGenerator::Generate() {
     __ Branch(&non_construct_frame, ne, a1,
               Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
 
-    __ lw(v0, MemOperand(a2, StandardFrameConstants::kExpressionsOffset -
-                                 2 * kPointerSize));
+    __ lw(v0,
+          MemOperand(a2, ConstructFrameConstants::kOriginalConstructorOffset));
     __ Branch(&done);
 
     __ bind(&non_construct_frame);

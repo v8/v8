@@ -276,8 +276,8 @@ void FullCodeGenerator::Generate() {
     Label non_construct_frame, done;
 
     __ bne(&non_construct_frame);
-    __ LoadP(r3, MemOperand(r5, StandardFrameConstants::kExpressionsOffset -
-                                    2 * kPointerSize));
+    __ LoadP(r3, MemOperand(
+                     r5, ConstructFrameConstants::kOriginalConstructorOffset));
     __ b(&done);
 
     __ bind(&non_construct_frame);

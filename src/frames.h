@@ -134,6 +134,40 @@ class StandardFrameConstants : public AllStatic {
 };
 
 
+class ArgumentsAdaptorFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + kPointerSize;
+};
+
+
+class InternalFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
+};
+
+
+class ConstructFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kImplicitReceiverOffset =
+      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+  static const int kOriginalConstructorOffset =
+      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+  static const int kLengthOffset =
+      StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+  static const int kCodeOffset =
+      StandardFrameConstants::kExpressionsOffset - 0 * kPointerSize;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
+};
+
+
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
  public:
