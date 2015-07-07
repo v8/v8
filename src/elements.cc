@@ -1037,12 +1037,39 @@ class FastElementsAccessor
 
   typedef typename KindTraits::BackingStore BackingStore;
 
+  static void DeleteAtEnd(Handle<JSObject> obj,
+                          Handle<BackingStore> backing_store, uint32_t entry) {
+    uint32_t length = static_cast<uint32_t>(backing_store->length());
+    Heap* heap = obj->GetHeap();
+    for (; entry > 0; entry--) {
+      if (!backing_store->is_the_hole(entry - 1)) break;
+    }
+    if (entry == 0) {
+      FixedArray* empty = heap->empty_fixed_array();
+      if (obj->HasFastArgumentsElements()) {
+        FixedArray::cast(obj->elements())->set(1, empty);
+      } else {
+        obj->set_elements(empty);
+      }
+      return;
+    }
+
+    heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*backing_store,
+                                                           length - entry);
+  }
+
   static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,
                            Handle<FixedArrayBase> store) {
     DCHECK(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
     Handle<BackingStore> backing_store = Handle<BackingStore>::cast(store);
+    if (!obj->IsJSArray() &&
+        entry == static_cast<uint32_t>(store->length()) - 1) {
+      DeleteAtEnd(obj, backing_store, entry);
+      return;
+    }
+
     backing_store->set_the_hole(entry);
 
     // TODO(verwaest): Move this out of elements.cc.
@@ -1061,6 +1088,16 @@ class FastElementsAccessor
     }
     if ((entry > 0 && backing_store->is_the_hole(entry - 1)) ||
         (entry + 1 < length && backing_store->is_the_hole(entry + 1))) {
+      if (!obj->IsJSArray()) {
+        uint32_t i;
+        for (i = entry + 1; i < length; i++) {
+          if (!backing_store->is_the_hole(i)) break;
+        }
+        if (i == length) {
+          DeleteAtEnd(obj, backing_store, entry);
+          return;
+        }
+      }
       int num_used = 0;
       for (int i = 0; i < backing_store->length(); ++i) {
         if (!backing_store->is_the_hole(i)) ++num_used;
