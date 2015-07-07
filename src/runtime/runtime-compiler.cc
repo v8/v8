@@ -151,11 +151,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
         PrintF("]\n");
       }
       function->ReplaceCode(function->shared()->code());
-      // Evict optimized code for this function from the cache so that it
-      // doesn't get used for new closures.
-      function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
-                                                    "notify deoptimized");
     }
+    // Evict optimized code for this function from the cache so that it
+    // doesn't get used for new closures.
+    function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
+                                                  "notify deoptimized");
   } else {
     // TODO(titzer): we should probably do DeoptimizeCodeList(code)
     // unconditionally if the code is not already marked for deoptimization.
