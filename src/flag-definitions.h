@@ -182,6 +182,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony fetaures")
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
+DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
+
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                   \
   V(harmony_modules, "harmony modules")                         \
