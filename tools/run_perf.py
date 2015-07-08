@@ -169,6 +169,146 @@ class Results(object):
     return str(self.ToDict())
 
 
+class Measurement(object):
+  """Represents a series of results of one trace.
+
+  The results are from repetitive runs of the same executable. They are
+  gathered by repeated calls to ConsumeOutput.
+  """
+  def __init__(self, graphs, units, results_regexp, stddev_regexp):
+    self.name = graphs[-1]
+    self.graphs = graphs
+    self.units = units
+    self.results_regexp = results_regexp
+    self.stddev_regexp = stddev_regexp
+    self.results = []
+    self.errors = []
+    self.stddev = ""
+
+  def ConsumeOutput(self, stdout):
+    try:
+      result = re.search(self.results_regexp, stdout, re.M).group(1)
+      self.results.append(str(float(result)))
+    except ValueError:
+      self.errors.append("Regexp \"%s\" returned a non-numeric for test %s."
+                         % (self.results_regexp, self.name))
+    except:
+      self.errors.append("Regexp \"%s\" didn't match for test %s."
+                         % (self.results_regexp, self.name))
+
+    try:
+      if self.stddev_regexp and self.stddev:
+        self.errors.append("Test %s should only run once since a stddev "
+                           "is provided by the test." % self.name)
+      if self.stddev_regexp:
+        self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
+    except:
+      self.errors.append("Regexp \"%s\" didn't match for test %s."
+                         % (self.stddev_regexp, self.name))
+
+  def GetResults(self):
+    return Results([{
+      "graphs": self.graphs,
+      "units": self.units,
+      "results": self.results,
+      "stddev": self.stddev,
+    }], self.errors)
+
+
+def AccumulateResults(graph_names, trace_configs, iter_output, calc_total):
+  """Iterates over the output of multiple benchmark reruns and accumulates
+  results for a configured list of traces.
+
+  Args:
+    graph_names: List of names that configure the base path of the traces. E.g.
+                 ['v8', 'Octane'].
+    trace_configs: List of "TraceConfig" instances. Each trace config defines
+                   how to perform a measurement.
+    iter_output: Iterator over the standard output of each test run.
+    calc_total: Boolean flag to speficy the calculation of a summary trace.
+  Returns: A "Results" object.
+  """
+  measurements = [trace.CreateMeasurement() for trace in trace_configs]
+  for stdout in iter_output():
+    for measurement in measurements:
+      measurement.ConsumeOutput(stdout)
+
+  res = reduce(lambda r, m: r + m.GetResults(), measurements, Results())
+
+  if not res.traces or not calc_total:
+    return res
+
+  # Assume all traces have the same structure.
+  if len(set(map(lambda t: len(t["results"]), res.traces))) != 1:
+    res.errors.append("Not all traces have the same number of results.")
+    return res
+
+  # Calculate the geometric means for all traces. Above we made sure that
+  # there is at least one trace and that the number of results is the same
+  # for each trace.
+  n_results = len(res.traces[0]["results"])
+  total_results = [GeometricMean(t["results"][i] for t in res.traces)
+                   for i in range(0, n_results)]
+  res.traces.append({
+    "graphs": graph_names + ["Total"],
+    "units": res.traces[0]["units"],
+    "results": total_results,
+    "stddev": "",
+  })
+  return res
+
+
+def AccumulateGenericResults(graph_names, suite_units, iter_output):
+  """Iterates over the output of multiple benchmark reruns and accumulates
+  generic results.
+
+  Args:
+    graph_names: List of names that configure the base path of the traces. E.g.
+                 ['v8', 'Octane'].
+    suite_units: Measurement default units as defined by the benchmark suite.
+    iter_output: Iterator over the standard output of each test run.
+  Returns: A "Results" object.
+  """
+  traces = OrderedDict()
+  for stdout in iter_output():
+    for line in stdout.strip().splitlines():
+      match = GENERIC_RESULTS_RE.match(line)
+      if match:
+        stddev = ""
+        graph = match.group(1)
+        trace = match.group(2)
+        body = match.group(3)
+        units = match.group(4)
+        match_stddev = RESULT_STDDEV_RE.match(body)
+        match_list = RESULT_LIST_RE.match(body)
+        errors = []
+        if match_stddev:
+          result, stddev = map(str.strip, match_stddev.group(1).split(","))
+          results = [result]
+        elif match_list:
+          results = map(str.strip, match_list.group(1).split(","))
+        else:
+          results = [body.strip()]
+
+        try:
+          results = map(lambda r: str(float(r)), results)
+        except ValueError:
+          results = []
+          errors = ["Found non-numeric in %s" %
+                    "/".join(graph_names + [graph, trace])]
+
+        trace_result = traces.setdefault(trace, Results([{
+          "graphs": graph_names + [graph, trace],
+          "units": (units or suite_units).strip(),
+          "results": [],
+          "stddev": "",
+        }], errors))
+        trace_result.traces[0]["results"].extend(results)
+        trace_result.traces[0]["stddev"] = stddev
+
+  return reduce(lambda r, t: r + t, traces.itervalues(), Results())
+
+
 class Node(object):
   """Represents a node in the suite tree structure."""
   def __init__(self, *args):
@@ -196,13 +336,13 @@ class DefaultSentinel(Node):
     self.total = False
 
 
-class Graph(Node):
+class GraphConfig(Node):
   """Represents a suite definition.
 
   Can either be a leaf or an inner node that provides default values.
   """
   def __init__(self, suite, parent, arch):
-    super(Graph, self).__init__()
+    super(GraphConfig, self).__init__()
     self._suite = suite
 
     assert isinstance(suite.get("path", []), list)
@@ -248,49 +388,22 @@ class Graph(Node):
     self.stddev_regexp = suite.get("stddev_regexp", stddev_default)
 
 
-class Trace(Graph):
-  """Represents a leaf in the suite tree structure.
-
-  Handles collection of measurements.
-  """
+class TraceConfig(GraphConfig):
+  """Represents a leaf in the suite tree structure."""
   def __init__(self, suite, parent, arch):
-    super(Trace, self).__init__(suite, parent, arch)
+    super(TraceConfig, self).__init__(suite, parent, arch)
     assert self.results_regexp
-    self.results = []
-    self.errors = []
-    self.stddev = ""
 
-  def ConsumeOutput(self, stdout):
-    try:
-      result = re.search(self.results_regexp, stdout, re.M).group(1)
-      self.results.append(str(float(result)))
-    except ValueError:
-      self.errors.append("Regexp \"%s\" returned a non-numeric for test %s."
-                         % (self.results_regexp, self.graphs[-1]))
-    except:
-      self.errors.append("Regexp \"%s\" didn't match for test %s."
-                         % (self.results_regexp, self.graphs[-1]))
-
-    try:
-      if self.stddev_regexp and self.stddev:
-        self.errors.append("Test %s should only run once since a stddev "
-                           "is provided by the test." % self.graphs[-1])
-      if self.stddev_regexp:
-        self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
-    except:
-      self.errors.append("Regexp \"%s\" didn't match for test %s."
-                         % (self.stddev_regexp, self.graphs[-1]))
-
-  def GetResults(self):
-    return Results([{
-      "graphs": self.graphs,
-      "units": self.units,
-      "results": self.results,
-      "stddev": self.stddev,
-    }], self.errors)
+  def CreateMeasurement(self):
+    return Measurement(
+        self.graphs,
+        self.units,
+        self.results_regexp,
+        self.stddev_regexp,
+    )
 
 
-class Runnable(Graph):
+class RunnableConfig(GraphConfig):
   """Represents a runnable suite definition (i.e. has a main file).
   """
   @property
@@ -317,117 +430,56 @@ class Runnable(Graph):
 
   def Run(self, runner):
     """Iterates over several runs and handles the output for all traces."""
-    for stdout in runner():
-      for trace in self._children:
-        trace.ConsumeOutput(stdout)
-    res = reduce(lambda r, t: r + t.GetResults(), self._children, Results())
+    return AccumulateResults(self.graphs, self._children, runner, self.total)
 
-    if not res.traces or not self.total:
-      return res
 
-    # Assume all traces have the same structure.
-    if len(set(map(lambda t: len(t["results"]), res.traces))) != 1:
-      res.errors.append("Not all traces have the same number of results.")
-      return res
-
-    # Calculate the geometric means for all traces. Above we made sure that
-    # there is at least one trace and that the number of results is the same
-    # for each trace.
-    n_results = len(res.traces[0]["results"])
-    total_results = [GeometricMean(t["results"][i] for t in res.traces)
-                     for i in range(0, n_results)]
-    res.traces.append({
-      "graphs": self.graphs + ["Total"],
-      "units": res.traces[0]["units"],
-      "results": total_results,
-      "stddev": "",
-    })
-    return res
-
-class RunnableTrace(Trace, Runnable):
+class RunnableTraceConfig(TraceConfig, RunnableConfig):
   """Represents a runnable suite definition that is a leaf."""
   def __init__(self, suite, parent, arch):
-    super(RunnableTrace, self).__init__(suite, parent, arch)
+    super(RunnableTraceConfig, self).__init__(suite, parent, arch)
 
   def Run(self, runner):
     """Iterates over several runs and handles the output."""
+    measurement = self.CreateMeasurement()
     for stdout in runner():
-      self.ConsumeOutput(stdout)
-    return self.GetResults()
+      measurement.ConsumeOutput(stdout)
+    return measurement.GetResults()
 
 
-class RunnableGeneric(Runnable):
+class RunnableGenericConfig(RunnableConfig):
   """Represents a runnable suite definition with generic traces."""
   def __init__(self, suite, parent, arch):
-    super(RunnableGeneric, self).__init__(suite, parent, arch)
+    super(RunnableGenericConfig, self).__init__(suite, parent, arch)
 
   def Run(self, runner):
-    """Iterates over several runs and handles the output."""
-    traces = OrderedDict()
-    for stdout in runner():
-      for line in stdout.strip().splitlines():
-        match = GENERIC_RESULTS_RE.match(line)
-        if match:
-          stddev = ""
-          graph = match.group(1)
-          trace = match.group(2)
-          body = match.group(3)
-          units = match.group(4)
-          match_stddev = RESULT_STDDEV_RE.match(body)
-          match_list = RESULT_LIST_RE.match(body)
-          errors = []
-          if match_stddev:
-            result, stddev = map(str.strip, match_stddev.group(1).split(","))
-            results = [result]
-          elif match_list:
-            results = map(str.strip, match_list.group(1).split(","))
-          else:
-            results = [body.strip()]
-
-          try:
-            results = map(lambda r: str(float(r)), results)
-          except ValueError:
-            results = []
-            errors = ["Found non-numeric in %s" %
-                      "/".join(self.graphs + [graph, trace])]
-
-          trace_result = traces.setdefault(trace, Results([{
-            "graphs": self.graphs + [graph, trace],
-            "units": (units or self.units).strip(),
-            "results": [],
-            "stddev": "",
-          }], errors))
-          trace_result.traces[0]["results"].extend(results)
-          trace_result.traces[0]["stddev"] = stddev
-
-    return reduce(lambda r, t: r + t, traces.itervalues(), Results())
+    return AccumulateGenericResults(self.graphs, self.units, runner)
 
 
-def MakeGraph(suite, arch, parent):
-  """Factory method for making graph objects."""
-  if isinstance(parent, Runnable):
+def MakeGraphConfig(suite, arch, parent):
+  """Factory method for making graph configuration objects."""
+  if isinstance(parent, RunnableConfig):
     # Below a runnable can only be traces.
-    return Trace(suite, parent, arch)
+    return TraceConfig(suite, parent, arch)
   elif suite.get("main") is not None:
     # A main file makes this graph runnable. Empty strings are accepted.
     if suite.get("tests"):
       # This graph has subgraphs (traces).
-      return Runnable(suite, parent, arch)
+      return RunnableConfig(suite, parent, arch)
     else:
       # This graph has no subgraphs, it's a leaf.
-      return RunnableTrace(suite, parent, arch)
+      return RunnableTraceConfig(suite, parent, arch)
   elif suite.get("generic"):
     # This is a generic suite definition. It is either a runnable executable
     # or has a main js file.
-    return RunnableGeneric(suite, parent, arch)
+    return RunnableGenericConfig(suite, parent, arch)
   elif suite.get("tests"):
     # This is neither a leaf nor a runnable.
-    return Graph(suite, parent, arch)
+    return GraphConfig(suite, parent, arch)
   else:  # pragma: no cover
     raise Exception("Invalid suite configuration.")
 
 
-def BuildGraphs(suite, arch, parent=None):
+def BuildGraphConfigs(suite, arch, parent=None):
   """Builds a tree structure of graph objects that corresponds to the suite
   configuration.
   """
@@ -437,9 +489,9 @@ def BuildGraphs(suite, arch, parent=None):
   if arch not in suite.get("archs", SUPPORTED_ARCHS):
     return None
 
-  graph = MakeGraph(suite, arch, parent)
+  graph = MakeGraphConfig(suite, arch, parent)
   for subsuite in suite.get("tests", []):
-    BuildGraphs(subsuite, arch, graph)
+    BuildGraphConfigs(subsuite, arch, graph)
   parent.AppendChild(graph)
   return graph
 
@@ -449,7 +501,7 @@ def FlattenRunnables(node, node_cb):
   runnables.
   """
   node_cb(node)
-  if isinstance(node, Runnable):
+  if isinstance(node, RunnableConfig):
     yield node
   elif isinstance(node, Node):
     for child in node._children:
@@ -483,7 +535,7 @@ class DesktopPlatform(Platform):
     pass
 
   def PreTests(self, node, path):
-    if isinstance(node, Runnable):
+    if isinstance(node, RunnableConfig):
       node.ChangeCWD(path)
 
   def Run(self, runnable, count):
@@ -600,7 +652,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
         skip_if_missing=True,
     )
 
-    if isinstance(node, Runnable):
+    if isinstance(node, RunnableConfig):
       self._PushFile(bench_abs, node.main, bench_rel)
     for resource in node.resources:
       self._PushFile(bench_abs, resource, bench_rel)
@@ -703,7 +755,7 @@ def Main(args):
     platform.PreExecution()
 
     # Build the graph/trace tree structure.
-    root = BuildGraphs(suite, options.arch)
+    root = BuildGraphConfigs(suite, options.arch)
 
     # Callback to be called on each node on traversal.
     def NodeCB(node):
