@@ -6766,7 +6766,7 @@ TEST(NewTarget) {
 }
 
 
-TEST(LegacyConst) {
+TEST(ConstLegacy) {
   // clang-format off
   const char* context_data[][2] = {
     {"", ""},
@@ -6784,9 +6784,57 @@ TEST(LegacyConst) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kNoLegacyConst};
 
+  static const ParserFlag always_flags[] = {kNoLegacyConst};
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
   RunParserSyncTest(context_data, data, kSuccess);
+}
+
+
+TEST(ConstSloppy) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"{", "}"},
+    {NULL, NULL}
+  };
+
+  const char* data[] = {
+    "const x = 1",
+    "for (const x = 1; x < 1; x++) {}",
+    "for (const x in {}) {}",
+    "for (const x of []) {}",
+    NULL
+  };
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kNoLegacyConst};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(LetSloppy) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"{", "}"},
+    {NULL, NULL}
+  };
+
+  const char* data[] = {
+    "let x",
+    "let x = 1",
+    "for (let x = 1; x < 1; x++) {}",
+    "for (let x in {}) {}",
+    "for (let x of []) {}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }

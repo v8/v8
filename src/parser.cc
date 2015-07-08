@@ -1387,7 +1387,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
     case Token::VAR:
       return ParseVariableStatement(kStatementListItem, NULL, ok);
     case Token::LET:
-      if (is_strict(language_mode())) {
+      if (allow_let()) {
         return ParseVariableStatement(kStatementListItem, NULL, ok);
       }
       break;
@@ -2049,7 +2049,7 @@ Variable* Parser::Declare(Declaration* declaration,
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
       DCHECK(IsDeclaredVariableMode(var->mode()));
-      if (is_strict(language_mode())) {
+      if (is_strict(language_mode()) || allow_harmony_sloppy()) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         if (declaration_kind == DeclarationDescriptor::NORMAL) {
@@ -2207,7 +2207,7 @@ Statement* Parser::ParseFunctionDeclaration(
   VariableMode mode =
       is_strong(language_mode())
           ? CONST
-          : is_strict(language_mode()) &&
+          : (is_strict(language_mode()) || allow_harmony_sloppy()) &&
                     !(scope_->is_script_scope() || scope_->is_eval_scope() ||
                       scope_->is_function_scope())
                 ? LET
@@ -2287,7 +2287,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
 
 
 Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
-  if (is_strict(language_mode())) {
+  if (is_strict(language_mode()) || allow_harmony_sloppy()) {
     return ParseScopedBlock(labels, ok);
   }
 
@@ -2439,14 +2439,14 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       parsing_result->descriptor.init_op = Token::INIT_CONST_LEGACY;
       ++use_counts_[v8::Isolate::kLegacyConst];
     } else {
-      DCHECK(is_strict(language_mode()));
+      DCHECK(is_strict(language_mode()) || allow_harmony_sloppy());
       DCHECK(var_context != kStatement);
       parsing_result->descriptor.mode = CONST;
       parsing_result->descriptor.init_op = Token::INIT_CONST;
     }
     parsing_result->descriptor.is_const = true;
     parsing_result->descriptor.needs_init = true;
-  } else if (peek() == Token::LET && is_strict(language_mode())) {
+  } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
     parsing_result->descriptor.mode = LET;
@@ -3498,7 +3498,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   DeclarationParsingResult parsing_result;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
-        (peek() == Token::LET && is_strict(language_mode()))) {
+        (peek() == Token::LET && allow_let())) {
       ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
       is_const = parsing_result.descriptor.mode == CONST;
 
@@ -3973,6 +3973,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   Scope* original_declaration_scope = original_scope_->DeclarationScope();
   Scope* scope = function_type == FunctionLiteral::DECLARATION &&
                          is_sloppy(language_mode()) &&
+                         !allow_harmony_sloppy() &&
                          (original_scope_ == original_declaration_scope ||
                           declaration_scope != original_declaration_scope)
                      ? NewScope(declaration_scope, FUNCTION_SCOPE, kind)
@@ -4030,11 +4031,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Variable* fvar = NULL;
     Token::Value fvar_init_op = Token::INIT_CONST_LEGACY;
     if (function_type == FunctionLiteral::NAMED_EXPRESSION) {
-      if (is_strict(language_mode())) {
+      bool use_strict_const = is_strict(language_mode()) ||
+                              (!allow_legacy_const() && allow_harmony_sloppy());
+      if (use_strict_const) {
         fvar_init_op = Token::INIT_CONST;
       }
-      VariableMode fvar_mode =
-          is_strict(language_mode()) ? CONST : CONST_LEGACY;
+      VariableMode fvar_mode = use_strict_const ? CONST : CONST_LEGACY;
       DCHECK(function_name != NULL);
       fvar = new (zone())
           Variable(scope_, function_name, fvar_mode, Variable::NORMAL,

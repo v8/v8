@@ -197,7 +197,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
       }
       break;
     case Token::LET:
-      if (is_strict(language_mode())) {
+      if (allow_let()) {
         return ParseVariableStatement(kStatementListItem, ok);
       }
       break;
@@ -456,7 +456,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   Expect(Token::LBRACE, CHECK_OK);
   Statement final = Statement::Default();
   while (peek() != Token::RBRACE) {
-    if (is_strict(language_mode())) {
+    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
       final = ParseStatementListItem(CHECK_OK);
     } else {
       final = ParseStatement(CHECK_OK);
@@ -524,12 +524,13 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // existing pages. Therefore we keep allowing const with the old
     // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
-    if (is_strict(language_mode())) {
+    if (is_strict(language_mode()) ||
+        (allow_harmony_sloppy() && !allow_legacy_const())) {
       DCHECK(var_context != kStatement);
       is_strict_const = true;
       require_initializer = var_context != kForStatement;
     }
-  } else if (peek() == Token::LET && is_strict(language_mode())) {
+  } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
   } else {
@@ -869,7 +870,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   if (peek() != Token::SEMICOLON) {
     ForEachStatement::VisitMode mode;
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
-        (peek() == Token::LET && is_strict(language_mode()))) {
+        (peek() == Token::LET && allow_let())) {
       int decl_count;
       Scanner::Location first_initializer_loc = Scanner::Location::invalid();
       Scanner::Location bindings_loc = Scanner::Location::invalid();

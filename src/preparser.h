@@ -494,7 +494,12 @@ class ParserBase : public Traits {
   bool is_generator() const { return function_state_->is_generator(); }
 
   bool allow_const() {
-    return is_strict(language_mode()) || allow_legacy_const();
+    return is_strict(language_mode()) || allow_harmony_sloppy() ||
+           allow_legacy_const();
+  }
+
+  bool allow_let() {
+    return is_strict(language_mode()) || allow_harmony_sloppy();
   }
 
   // Report syntax errors.
