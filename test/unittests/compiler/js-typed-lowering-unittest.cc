@@ -874,7 +874,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
+// -----------------------------------------------------------------------------
+// JSLoadGlobal
+
+
+TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
   Handle<String> names[] = {
       Handle<String>(isolate()->heap()->undefined_string(), isolate()),
       Handle<String>(isolate()->heap()->infinity_string(), isolate()),
@@ -902,6 +906,31 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), matches[i]);
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// JSLoadNamed
+
+
+TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
+  VectorSlotPair feedback;
+  Unique<Name> name = Unique<Name>::CreateImmovable(factory()->length_string());
+  Node* const receiver = Parameter(Type::String(), 0);
+  Node* const vector = Parameter(Type::Internal(), 1);
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    Reduction const r = Reduce(
+        graph()->NewNode(javascript()->LoadNamed(name, feedback, language_mode),
+                         receiver, vector, context, EmptyFrameState(),
+                         EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsLoadField(AccessBuilder::ForStringLength(zone()), receiver,
+                            effect, control));
   }
 }
 
