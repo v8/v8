@@ -6946,12 +6946,13 @@ void Map::ClearCodeCache(Heap* heap) {
 }
 
 
-int Map::SlackForArraySize(bool is_prototype_map, int old_size,
-                           int size_limit) {
+int Map::SlackForArraySize(int old_size, int size_limit) {
   const int max_slack = size_limit - old_size;
   CHECK_LE(0, max_slack);
-  if (old_size < 4) return Min(max_slack, 1);
-  if (is_prototype_map) return Min(max_slack, 4);
+  if (old_size < 4) {
+    DCHECK_LE(1, max_slack);
+    return 1;
+  }
   return Min(max_slack, old_size / 4);
 }
 
