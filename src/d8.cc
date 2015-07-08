@@ -2024,6 +2024,9 @@ bool Shell::SerializeValue(Isolate* isolate, Handle<Value> value,
         if (!SerializeValue(isolate, element_value, to_transfer, seen_objects,
                             out_data))
           return false;
+      } else {
+        Throw(isolate, "Failed to serialize array element.");
+        return false;
       }
     }
   } else if (value->IsArrayBuffer()) {
@@ -2098,6 +2101,9 @@ bool Shell::SerializeValue(Isolate* isolate, Handle<Value> value,
         if (!SerializeValue(isolate, property_value, to_transfer, seen_objects,
                             out_data))
           return false;
+      } else {
+        Throw(isolate, "Failed to serialize property.");
+        return false;
       }
     }
   } else {
