@@ -61,7 +61,8 @@ class PlatformInterfaceDescriptor;
   V(MathPowInteger)                           \
   V(ContextOnly)                              \
   V(GrowArrayElements)                        \
-  V(MathRoundVariant)
+  V(MathRoundVariantCallFromUnoptimizedCode)  \
+  V(MathRoundVariantCallFromOptimizedCode)
 
 
 class CallInterfaceDescriptorData {
@@ -584,10 +585,20 @@ class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class MathRoundVariantDescriptor : public CallInterfaceDescriptor {
+class MathRoundVariantCallFromOptimizedCodeDescriptor
+    : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(MathRoundVariantDescriptor,
-                                               CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      MathRoundVariantCallFromOptimizedCodeDescriptor, CallInterfaceDescriptor)
+};
+
+
+class MathRoundVariantCallFromUnoptimizedCodeDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      MathRoundVariantCallFromUnoptimizedCodeDescriptor,
+      CallInterfaceDescriptor)
 };
 
 
