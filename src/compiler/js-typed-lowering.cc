@@ -797,27 +797,6 @@ Reduction JSTypedLowering::ReduceJSLoadGlobal(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Type* receiver_type = NodeProperties::GetBounds(receiver).upper;
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Handle<Name> name = LoadNamedParametersOf(node->op()).name().handle();
-  // Optimize "length" property of strings.
-  if (name.is_identical_to(factory()->length_string()) &&
-      receiver_type->Is(Type::String())) {
-    Node* value = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForStringLength(graph()->zone())),
-                         receiver, effect, control);
-    ReplaceWithValue(node, value, effect);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-
 Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
   Node* base = NodeProperties::GetValueInput(node, 0);
@@ -1642,8 +1621,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToString(node);
     case IrOpcode::kJSLoadGlobal:
       return ReduceJSLoadGlobal(node);
-    case IrOpcode::kJSLoadNamed:
-      return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:

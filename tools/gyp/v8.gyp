@@ -519,8 +519,6 @@
         '../../src/compiler/js-operator.h',
         '../../src/compiler/js-type-feedback.cc',
         '../../src/compiler/js-type-feedback.h',
-        '../../src/compiler/js-type-feedback-lowering.cc',
-        '../../src/compiler/js-type-feedback-lowering.h',
         '../../src/compiler/js-typed-lowering.cc',
         '../../src/compiler/js-typed-lowering.h',
         '../../src/compiler/jump-threading.cc',
