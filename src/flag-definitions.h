@@ -199,8 +199,9 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_new_target, "harmony new.target")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                 \
-  V(harmony_tostring, "harmony toString") \
+#define HARMONY_STAGED(V)                                       \
+  V(harmony_tostring, "harmony toString")                       \
+  V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
   V(harmony_rest_parameters, "harmony rest parameters")
 
 // Features that are shipping (turned on by default, but internal flag remains).
