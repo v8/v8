@@ -3046,6 +3046,11 @@ void LargeObjectSpace::Verify() {
     CHECK(map->IsMap());
     CHECK(heap()->map_space()->Contains(map));
 
+    // Double unboxing in LO space is not allowed. This would break the
+    // lookup mechanism for store and slot buffer entries which use the
+    // page header tag.
+    CHECK(object->ContentType() != HeapObjectContents::kMixedValues);
+
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
     // strings), fixed arrays, byte arrays, and constant pool arrays in the
