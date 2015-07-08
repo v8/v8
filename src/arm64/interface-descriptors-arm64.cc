@@ -389,22 +389,11 @@ void ApiAccessorDescriptor::InitializePlatformSpecific(
 }
 
 
-void MathRoundVariantCallFromUnoptimizedCodeDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
+void MathRoundVariantDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
   Register registers[] = {
       x1,  // math rounding function
       x3,  // vector slot id
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void MathRoundVariantCallFromOptimizedCodeDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      x1,  // math rounding function
-      x3,  // vector slot id
-      x4,  // type vector
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
