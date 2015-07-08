@@ -772,18 +772,28 @@ StringAddTFStub = function StringAddTFStub(call_conv, minor_key) {
   return stub;
 }
 
+var kTurboFanICCallModeMask = 1;
+var kTurboFanICCallForUnptimizedCode = 0;
+var kTurboFanICCallForOptimizedCode = 1;
+
 MathFloorStub = function MathFloorStub(call_conv, minor_key) {
-  var stub = function(f, i, v) {
-    // |f| is calling function's JSFunction
+  var call_from_optimized_ic = function(f, i, tv, receiver, v) {
+    "use strict";
+    // |f| is this function's JSFunction
     // |i| is TypeFeedbackVector slot # of callee's CallIC for Math.floor call
+    // |receiver| is receiver, should not be used
+    // |tv| is the calling function's type vector
     // |v| is the value to floor
+    if (f !== %_FixedArrayGet(tv, i|0)) {
+      return %_CallFunction(receiver, v, f);
+    }
     var r = %_MathFloor(+v);
     if (%_IsMinusZero(r)) {
       // Collect type feedback when the result of the floor is -0. This is
       // accomplished by storing a sentinel in the second, "extra"
       // TypeFeedbackVector slot corresponding to the Math.floor CallIC call in
       // the caller's TypeVector.
-      %_FixedArraySet(%_GetTypeFeedbackVector(f), ((i|0)+1)|0, 1);
+      %_FixedArraySet(tv, ((i|0)+1)|0, 1);
       return -0;
     }
     // Return integers in smi range as smis.
@@ -793,7 +803,17 @@ MathFloorStub = function MathFloorStub(call_conv, minor_key) {
     }
     return r;
   }
-  return stub;
+  var call_mode = (minor_key & kTurboFanICCallModeMask);
+  if (call_mode == kTurboFanICCallForOptimizedCode) {
+    return call_from_optimized_ic;
+  } else {
+    %SetForceInlineFlag(call_from_optimized_ic);
+    var call_from_unoptimized_ic = function(f, i, receiver, v) {
+      var tv = %_GetTypeFeedbackVector(%_GetCallerJSFunction());
+      return call_from_optimized_ic(f, i, tv, receiver, v);
+    }
+    return call_from_unoptimized_ic;
+  }
 }
 
 
