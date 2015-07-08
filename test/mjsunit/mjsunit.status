@@ -244,6 +244,9 @@
 
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
+
+  # BUG(chromium:508074). Remove this once the issue is fixed.
+  'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 
 ['novfp3 == True', {
