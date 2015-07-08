@@ -779,13 +779,6 @@ void InstructionSelector::VisitNode(Node* node) {
 
 #if V8_TURBOFAN_BACKEND
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));

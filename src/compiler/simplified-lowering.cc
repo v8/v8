@@ -727,8 +727,10 @@ class RepresentationSelector {
           // Require the input in float64 format and perform truncation.
           // TODO(turbofan): avoid a truncation with a smi check.
           VisitUnop(node, kTypeInt32 | kRepFloat64, kTypeInt32 | kRepWord32);
-          if (lower())
-            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
+          if (lower()) {
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32(
+                TruncationMode::kJavaScript));
+          }
         }
         break;
       }
@@ -755,8 +757,10 @@ class RepresentationSelector {
           // Require the input in float64 format and perform truncation.
           // TODO(turbofan): avoid a truncation with a smi check.
           VisitUnop(node, kTypeUint32 | kRepFloat64, kTypeUint32 | kRepWord32);
-          if (lower())
-            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
+          if (lower()) {
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32(
+                TruncationMode::kJavaScript));
+          }
         }
         break;
       }
@@ -1008,6 +1012,9 @@ class RepresentationSelector {
       case IrOpcode::kTruncateFloat64ToFloat32:
         return VisitUnop(node, kTypeNumber | kRepFloat64,
                          kTypeNumber | kRepFloat32);
+      case IrOpcode::kTruncateFloat64ToInt32:
+        return VisitUnop(node, kTypeNumber | kRepFloat64,
+                         kTypeInt32 | kRepWord32);
       case IrOpcode::kTruncateInt64ToInt32:
         // TODO(titzer): Is kTypeInt32 correct here?
         return VisitUnop(node, kTypeInt32 | kRepWord64,

@@ -914,6 +914,17 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  switch (TruncationModeOf(node->op())) {
+    case TruncationMode::kJavaScript:
+      return VisitRR(this, kArchTruncateDoubleToI, node);
+    case TruncationMode::kRoundToZero:
+      return VisitRR(this, kArmVcvtS32F64, node);
+  }
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   ArmOperandGenerator g(this);
   Float32BinopMatcher m(node);

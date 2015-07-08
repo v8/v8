@@ -224,7 +224,6 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeUint32ToFloat64, 1, 0, 1),     // --
     PURE(ChangeUint32ToUint64, 1, 0, 1),      // --
     PURE(TruncateFloat64ToFloat32, 1, 0, 1),  // --
-    PURE(TruncateFloat64ToInt32, 1, 0, 1),    // --
     PURE(TruncateInt64ToInt32, 1, 0, 1),      // --
     PURE(Float32Abs, 1, 0, 1),                // --
     PURE(Float32Add, 2, 0, 1),                // --

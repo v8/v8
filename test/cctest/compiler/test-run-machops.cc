@@ -4840,7 +4840,8 @@ TEST(RunTruncateFloat64ToInt32P) {
                  {-1.7976931348623157e+308, 0}};
   double input = -1.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.TruncateFloat64ToInt32(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.TruncateFloat64ToInt32(TruncationMode::kJavaScript,
+                                    m.LoadFromPointer(&input, kMachFloat64)));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i].from;
     uint64_t expected = static_cast<int64_t>(kValues[i].raw);

@@ -539,6 +539,17 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  switch (TruncationModeOf(node->op())) {
+    case TruncationMode::kJavaScript:
+      return VisitRR(this, kArchTruncateDoubleToI, node);
+    case TruncationMode::kRoundToZero:
+      return VisitRR(this, kMips64TruncWD, node);
+  }
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitRRR(this, kMips64AddS, node);
 }
