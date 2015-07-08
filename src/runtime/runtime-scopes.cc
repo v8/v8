@@ -230,6 +230,10 @@ RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
   BindingFlags binding_flags;
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes, &binding_flags);
+  if (holder.is_null()) {
+    // In case of JSProxy, an exception might have been thrown.
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  }
 
   Handle<JSObject> object;
   Handle<Object> value =
@@ -308,6 +312,10 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
   BindingFlags binding_flags;
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes, &binding_flags);
+  if (holder.is_null()) {
+    // In case of JSProxy, an exception might have been thrown.
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  }
 
   if (index >= 0) {
     DCHECK(holder->IsContext());
@@ -855,6 +863,8 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
+    // In case of JSProxy, an exception might have been thrown.
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
     return isolate->heap()->true_value();
   }
 
@@ -1009,8 +1019,10 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   BindingFlags binding_flags;
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes, &binding_flags);
-  // In case of JSProxy, an exception might have been thrown.
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  if (holder.is_null()) {
+    // In case of JSProxy, an exception might have been thrown.
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  }
 
   // The property was found in a context slot.
   if (index >= 0) {

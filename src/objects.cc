@@ -3999,7 +3999,7 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
     Handle<Object> error = isolate->factory()->NewTypeError(
         MessageTemplate::kProxyPropNotConfigurable, handler, name, trap);
     isolate->Throw(*error);
-    return Just(NONE);
+    return Nothing<PropertyAttributes>();
   }
 
   int attributes = NONE;
