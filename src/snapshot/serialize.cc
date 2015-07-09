@@ -792,21 +792,10 @@ void Deserializer::ReadObject(int space_number, Object** write_back) {
   HeapObject* obj;
   int next_int = source_.GetInt();
 
-  bool double_align = false;
-#ifndef V8_HOST_ARCH_64_BIT
-  double_align = next_int == kDoubleAlignmentSentinel;
-  if (double_align) next_int = source_.GetInt();
-#endif
-
   DCHECK_NE(kDoubleAlignmentSentinel, next_int);
   int size = next_int << kObjectAlignmentBits;
-  int reserved_size = size + (double_align ? kPointerSize : 0);
-  address = Allocate(space_number, reserved_size);
+  address = Allocate(space_number, size);
   obj = HeapObject::FromAddress(address);
-  if (double_align) {
-    obj = isolate_->heap()->DoubleAlignForDeserialization(obj, reserved_size);
-    address = obj->address();
-  }
 
   isolate_->heap()->OnAllocationEvent(obj, size);
   Object** current = reinterpret_cast<Object**>(address);
@@ -1682,17 +1671,8 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     }
     back_reference = serializer_->AllocateLargeObject(size);
   } else {
-    bool needs_double_align = false;
-    if (object_->NeedsToEnsureDoubleAlignment()) {
-      // Add wriggle room for double alignment padding.
-      back_reference = serializer_->Allocate(space, size + kPointerSize);
-      needs_double_align = true;
-    } else {
-      back_reference = serializer_->Allocate(space, size);
-    }
+    back_reference = serializer_->Allocate(space, size);
     sink_->Put(kNewObject + reference_representation_ + space, "NewObject");
-    if (needs_double_align)
-      sink_->PutInt(kDoubleAlignmentSentinel, "DoubleAlignSentinel");
     int encoded_size = size >> kObjectAlignmentBits;
     DCHECK_NE(kDoubleAlignmentSentinel, encoded_size);
     sink_->PutInt(encoded_size, "ObjectSizeInWords");
