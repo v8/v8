@@ -2027,4 +2027,17 @@ TEST(regress4292_blx) {
   __ bind(&end);
 }
 
+
+TEST(regress4292_CheckConstPool) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  __ mov(r0, Operand(isolate->factory()->infinity_value()));
+  __ BlockConstPoolFor(1019);
+  for (int i = 0; i < 1019; ++i) __ nop();
+  __ vldr(d0, MemOperand(r0, 0));
+}
+
 #undef __
