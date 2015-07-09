@@ -443,9 +443,18 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   // Update length. Have to remove the prototype first so that map migration
   // is happy about the number of fields.
   RUNTIME_ASSERT(bound_function->RemovePrototype());
+
+  // The new function should have the same [[Prototype]] as the bindee.
   Handle<Map> bound_function_map(
       isolate->native_context()->bound_function_map());
+  PrototypeIterator iter(isolate, bindee);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (bound_function_map->prototype() != *proto) {
+    bound_function_map = Map::TransitionToPrototype(bound_function_map, proto,
+                                                    REGULAR_PROTOTYPE);
+  }
   JSObject::MigrateToMap(bound_function, bound_function_map);
+
   Handle<String> length_string = isolate->factory()->length_string();
   // These attributes must be kept in sync with how the bootstrapper
   // configures the bound_function_map retrieved above.
