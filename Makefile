@@ -162,7 +162,9 @@ endif
 ifdef embedscript
   GYPFLAGS += -Dembed_script=$(embedscript)
 endif
-
+ifeq ($(goma), on)
+  GYPFLAGS += -Duse_goma=1
+endif
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
