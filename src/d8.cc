@@ -810,6 +810,9 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int exit_code = args[0]->Int32Value();
+#ifndef V8_SHARED
+  CleanupWorkers();
+#endif  // !V8_SHARED
   OnExit(args.GetIsolate());
   exit(exit_code);
 }
