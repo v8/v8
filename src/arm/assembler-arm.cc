@@ -1308,7 +1308,7 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
 }
 
 
-int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
+int Assembler::branch_offset(Label* L) {
   int target_pos;
   if (L->is_bound()) {
     target_pos = L->pos();
