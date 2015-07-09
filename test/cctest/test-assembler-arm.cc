@@ -1981,4 +1981,50 @@ TEST(ARMv8_vrintX) {
 #undef CHECK_VRINT
   }
 }
+
+
+TEST(regress4292_b) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  Label end;
+  __ mov(r0, Operand(isolate->factory()->infinity_value()));
+  for (int i = 0; i < 1020; ++i) {
+    __ b(hi, &end);
+  }
+  __ bind(&end);
+}
+
+
+TEST(regress4292_bl) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  Label end;
+  __ mov(r0, Operand(isolate->factory()->infinity_value()));
+  for (int i = 0; i < 1020; ++i) {
+    __ bl(hi, &end);
+  }
+  __ bind(&end);
+}
+
+
+TEST(regress4292_blx) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  Label end;
+  __ mov(r0, Operand(isolate->factory()->infinity_value()));
+  for (int i = 0; i < 1020; ++i) {
+    __ blx(&end);
+  }
+  __ bind(&end);
+}
+
 #undef __

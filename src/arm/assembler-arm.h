@@ -806,11 +806,11 @@ class Assembler : public AssemblerBase {
   void bx(Register target, Condition cond = al);  // v5 and above, plus v4t
 
   // Convenience branch instructions using labels
-  void b(Label* L, Condition cond = al) { b(branch_offset(L), cond); }
+  void b(Label* L, Condition cond = al);
   void b(Condition cond, Label* L) { b(L, cond); }
-  void bl(Label* L, Condition cond = al) { bl(branch_offset(L), cond); }
-  void bl(Condition cond, Label* L) { bl(branch_offset(L), cond); }
-  void blx(Label* L) { blx(branch_offset(L)); }  // v5 and above
+  void bl(Label* L, Condition cond = al);
+  void bl(Condition cond, Label* L) { bl(L, cond); }
+  void blx(Label* L);  // v5 and above
 
   // Data-processing instructions
 

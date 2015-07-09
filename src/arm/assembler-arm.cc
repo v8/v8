@@ -1377,6 +1377,24 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
 }
 
 
+void Assembler::b(Label* L, Condition cond) {
+  CheckBuffer();
+  b(branch_offset(L), cond);
+}
+
+
+void Assembler::bl(Label* L, Condition cond) {
+  CheckBuffer();
+  bl(branch_offset(L), cond);
+}
+
+
+void Assembler::blx(Label* L) {
+  CheckBuffer();
+  blx(branch_offset(L));
+}
+
+
 // Data-processing instructions.
 
 void Assembler::and_(Register dst, Register src1, const Operand& src2,
