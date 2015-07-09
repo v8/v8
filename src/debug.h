@@ -624,7 +624,7 @@ class Debug {
 
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
-  void ActivateStepIn(Handle<JSFunction> function, StackFrame* frame);
+  void ActivateStepIn(StackFrame* frame);
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();

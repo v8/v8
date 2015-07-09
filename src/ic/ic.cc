@@ -1210,6 +1210,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                               isolate());
         if (!getter->IsJSFunction()) break;
         if (!holder->HasFastProperties()) break;
+        // When debugging we need to go the slow path to flood the accessor.
+        if (!GetSharedFunctionInfo()->debug_info()->IsUndefined()) break;
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
         if (!receiver->IsJSObject() && !function->IsBuiltin() &&
             is_sloppy(function->shared()->language_mode())) {
@@ -1786,6 +1788,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           TRACE_GENERIC_IC(isolate(), "StoreIC", "setter not a function");
           break;
         }
+        // When debugging we need to go the slow path to flood the accessor.
+        if (!GetSharedFunctionInfo()->debug_info()->IsUndefined()) break;
         Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
         CallOptimization call_optimization(function);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);

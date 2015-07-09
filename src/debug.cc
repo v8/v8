@@ -1351,7 +1351,7 @@ void Debug::PrepareStep(StepAction step_action,
       }
     }
 
-    ActivateStepIn(function, frame);
+    ActivateStepIn(frame);
   }
 
   // Fill the current function with one-shot break points even for step in on
@@ -1509,12 +1509,8 @@ void Debug::ClearOneShot() {
 }
 
 
-void Debug::ActivateStepIn(Handle<JSFunction> function, StackFrame* frame) {
+void Debug::ActivateStepIn(StackFrame* frame) {
   DCHECK(!StepOutActive());
-  // Make sure IC state is clean. This is so that we correct flood
-  // accessor pairs when stepping in.
-  function->code()->ClearInlineCaches();
-  function->shared()->feedback_vector()->ClearICSlots(function->shared());
   thread_local_.step_into_fp_ = frame->UnpaddedFP();
 }
 
@@ -2069,6 +2065,11 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
       !Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
+
+  // Make sure IC state is clean. This is so that we correctly flood
+  // accessor pairs when stepping in.
+  shared->code()->ClearInlineCaches();
+  shared->feedback_vector()->ClearICSlots(*shared);
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = isolate->factory()->NewDebugInfo(shared);
