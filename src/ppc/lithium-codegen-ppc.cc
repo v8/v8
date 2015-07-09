@@ -417,6 +417,7 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
     Handle<Object> literal = constant->handle(isolate());
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
+      AllowDeferredHandleDereference get_number;
       DCHECK(literal->IsNumber());
       __ LoadIntLiteral(scratch, static_cast<int32_t>(literal->Number()));
     } else if (r.IsDouble()) {
