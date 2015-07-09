@@ -19,6 +19,14 @@
 namespace v8 {
 namespace internal {
 
+
+enum FunctionNameValidity {
+  kFunctionNameIsStrictReserved,
+  kSkipFunctionNameCheck,
+  kFunctionNameValidityUnknown
+};
+
+
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
 
@@ -449,13 +457,10 @@ class ParserBase : public Traits {
 
   // Checking the name of a function literal. This has to be done after parsing
   // the function, since the function can declare itself strict.
-  void CheckFunctionName(LanguageMode language_mode, FunctionKind kind,
-                         IdentifierT function_name,
-                         bool function_name_is_strict_reserved,
-                         const Scanner::Location& function_name_loc,
-                         bool* ok) {
-    // Property names are never checked.
-    if (IsConciseMethod(kind) || IsAccessorFunction(kind)) return;
+  void CheckFunctionName(LanguageMode language_mode, IdentifierT function_name,
+                         FunctionNameValidity function_name_validity,
+                         const Scanner::Location& function_name_loc, bool* ok) {
+    if (function_name_validity == kSkipFunctionNameCheck) return;
     // The function name needs to be checked in strict mode.
     if (is_sloppy(language_mode)) return;
 
@@ -465,7 +470,7 @@ class ParserBase : public Traits {
       *ok = false;
       return;
     }
-    if (function_name_is_strict_reserved) {
+    if (function_name_validity == kFunctionNameIsStrictReserved) {
       Traits::ReportMessageAt(function_name_loc,
                               MessageTemplate::kUnexpectedStrictReserved);
       *ok = false;
@@ -1620,7 +1625,7 @@ class PreParserTraits {
   PreParserExpression ParseV8Intrinsic(bool* ok);
   PreParserExpression ParseFunctionLiteral(
       PreParserIdentifier name, Scanner::Location function_name_location,
-      bool name_is_strict_reserved, FunctionKind kind,
+      FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
       FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
 
@@ -1768,8 +1773,8 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   Expression ParseFunctionLiteral(
       Identifier name, Scanner::Location function_name_location,
-      bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
-      FunctionLiteral::FunctionType function_type,
+      FunctionNameValidity function_name_validity, FunctionKind kind,
+      int function_token_pos, FunctionLiteral::FunctionType function_type,
       FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok,
                                     Scanner::BookmarkScope* bookmark = nullptr);
@@ -2543,9 +2548,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     if (!in_class) kind = WithObjectLiteralBit(kind);
 
     value = this->ParseFunctionLiteral(
-        name, scanner()->location(),
-        false,  // reserved words are allowed here
-        kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
+        name, scanner()->location(), kSkipFunctionNameCheck, kind,
+        RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
         FunctionLiteral::NORMAL_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
@@ -2576,9 +2580,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     FunctionKind kind = FunctionKind::kAccessorFunction;
     if (!in_class) kind = WithObjectLiteralBit(kind);
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
-        name, scanner()->location(),
-        false,  // reserved words are allowed here
-        kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
+        name, scanner()->location(), kSkipFunctionNameCheck, kind,
+        RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
         is_get ? FunctionLiteral::GETTER_ARITY : FunctionLiteral::SETTER_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
@@ -3293,7 +3296,9 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
       function_type = FunctionLiteral::NAMED_EXPRESSION;
     }
     result = this->ParseFunctionLiteral(
-        name, function_name_location, is_strict_reserved_name,
+        name, function_name_location,
+        is_strict_reserved_name ? kFunctionNameIsStrictReserved
+                                : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
         function_token_position, function_type, FunctionLiteral::NORMAL_ARITY,

@@ -871,11 +871,11 @@ Expression* ParserTraits::ParseV8Intrinsic(bool* ok) {
 
 FunctionLiteral* ParserTraits::ParseFunctionLiteral(
     const AstRawString* name, Scanner::Location function_name_location,
-    bool name_is_strict_reserved, FunctionKind kind,
+    FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
     FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
   return parser_->ParseFunctionLiteral(
-      name, function_name_location, name_is_strict_reserved, kind,
+      name, function_name_location, function_name_validity, kind,
       function_token_position, type, arity_restriction, ok);
 }
 
@@ -1227,9 +1227,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
                                   shared_info->end_position());
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
-                                    false,  // Strict mode name already checked.
-                                    shared_info->kind(), RelocInfo::kNoPosition,
-                                    function_type,
+                                    kSkipFunctionNameCheck, shared_info->kind(),
+                                    RelocInfo::kNoPosition, function_type,
                                     FunctionLiteral::NORMAL_ARITY, &ok);
     }
     // Make sure the results agree.
@@ -2194,7 +2193,9 @@ Statement* Parser::ParseFunctionDeclaration(
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
   FunctionLiteral* fun =
-      ParseFunctionLiteral(name, scanner()->location(), is_strict_reserved,
+      ParseFunctionLiteral(name, scanner()->location(),
+                           is_strict_reserved ? kFunctionNameIsStrictReserved
+                                              : kFunctionNameValidityUnknown,
                            is_generator ? FunctionKind::kGeneratorFunction
                                         : FunctionKind::kNormalFunction,
                            pos, FunctionLiteral::DECLARATION,
@@ -3914,8 +3915,8 @@ void ParserTraits::ReindexLiterals(
 
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
-    bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
-    FunctionLiteral::FunctionType function_type,
+    FunctionNameValidity function_name_validity, FunctionKind kind,
+    int function_token_pos, FunctionLiteral::FunctionType function_type,
     FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
@@ -4128,9 +4129,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.
-    CheckFunctionName(language_mode(), kind, function_name,
-                      name_is_strict_reserved, function_name_location,
-                      CHECK_OK);
+    CheckFunctionName(language_mode(), function_name, function_name_validity,
+                      function_name_location, CHECK_OK);
     const bool use_strict_params =
         !parsing_state.is_simple_parameter_list || IsConciseMethod(kind);
     const bool allow_duplicate_parameters =
