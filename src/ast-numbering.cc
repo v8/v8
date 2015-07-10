@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/ast.h"
 #include "src/ast-numbering.h"
 #include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
-
 
 class AstNumberingVisitor final : public AstVisitor {
  public:
@@ -46,7 +43,7 @@ class AstNumberingVisitor final : public AstVisitor {
 
   void IncrementNodeCount() { properties_.add_node_count(1); }
   void DisableSelfOptimization() {
-    properties_.flags()->Add(kDontSelfOptimize);
+    properties_.flags() |= AstProperties::kDontSelfOptimize;
   }
   void DisableOptimization(BailoutReason reason) {
     dont_optimize_reason_ = reason;
@@ -54,10 +51,11 @@ class AstNumberingVisitor final : public AstVisitor {
   }
   void DisableCrankshaft(BailoutReason reason) {
     if (FLAG_turbo_shipping) {
-      return properties_.flags()->Add(kDontCrankshaft);
+      properties_.flags() |= AstProperties::kDontCrankshaft;
+    } else {
+      dont_optimize_reason_ = reason;
+      DisableSelfOptimization();
     }
-    dont_optimize_reason_ = reason;
-    DisableSelfOptimization();
   }
 
   template <typename Node>

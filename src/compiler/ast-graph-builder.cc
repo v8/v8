@@ -3014,7 +3014,7 @@ VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
 uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
   DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
   bool found_eval_scope = false;
-  EnumSet<int, uint32_t> check_depths;
+  uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
     if (s->num_heap_slots() <= 0) continue;
     // TODO(mstarzinger): If we have reached an eval scope, we check all
@@ -3026,15 +3026,15 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
     if (depth > DynamicGlobalAccess::kMaxCheckDepth) {
       return DynamicGlobalAccess::kFullCheckRequired;
     }
-    check_depths.Add(depth);
+    check_depths |= 1 << depth;
   }
-  return check_depths.ToIntegral();
+  return check_depths;
 }
 
 
 uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
   DCHECK_EQ(DYNAMIC_LOCAL, variable->mode());
-  EnumSet<int, uint32_t> check_depths;
+  uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
     if (s->num_heap_slots() <= 0) continue;
     if (!s->calls_sloppy_eval() && s != variable->scope()) continue;
@@ -3042,10 +3042,10 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
     if (depth > DynamicContextAccess::kMaxCheckDepth) {
       return DynamicContextAccess::kFullCheckRequired;
     }
-    check_depths.Add(depth);
+    check_depths |= 1 << depth;
     if (s == variable->scope()) break;
   }
-  return check_depths.ToIntegral();
+  return check_depths;
 }
 
 

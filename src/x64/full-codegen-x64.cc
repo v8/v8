@@ -4974,13 +4974,15 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
     }
 
-    SmiOperationExecutionMode mode;
-    mode.Add(PRESERVE_SOURCE_REGISTER);
-    mode.Add(BAILOUT_ON_NO_OVERFLOW);
+    SmiOperationConstraints constraints =
+        SmiOperationConstraint::kPreserveSourceRegister |
+        SmiOperationConstraint::kBailoutOnNoOverflow;
     if (expr->op() == Token::INC) {
-      __ SmiAddConstant(rax, rax, Smi::FromInt(1), mode, &done, Label::kNear);
+      __ SmiAddConstant(rax, rax, Smi::FromInt(1), constraints, &done,
+                        Label::kNear);
     } else {
-      __ SmiSubConstant(rax, rax, Smi::FromInt(1), mode, &done, Label::kNear);
+      __ SmiSubConstant(rax, rax, Smi::FromInt(1), constraints, &done,
+                        Label::kNear);
     }
     __ jmp(&stub_call, Label::kNear);
     __ bind(&slow);

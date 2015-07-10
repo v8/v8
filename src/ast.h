@@ -10,6 +10,7 @@
 #include "src/assembler.h"
 #include "src/ast-value-factory.h"
 #include "src/bailout-reason.h"
+#include "src/base/flags.h"
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
@@ -137,9 +138,6 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
   friend class AstNodeFactory;
 
 
-enum AstPropertiesFlag { kDontSelfOptimize, kDontCrankshaft };
-
-
 class FeedbackVectorRequirements {
  public:
   FeedbackVectorRequirements(int slots, int ic_slots)
@@ -175,11 +173,18 @@ typedef List<VariableICSlotPair> ICSlotCache;
 
 class AstProperties final BASE_EMBEDDED {
  public:
-  class Flags : public EnumSet<AstPropertiesFlag, int> {};
+  enum Flag {
+    kNoFlags = 0,
+    kDontSelfOptimize = 1 << 0,
+    kDontCrankshaft = 1 << 1
+  };
+
+  typedef base::Flags<Flag> Flags;
 
   explicit AstProperties(Zone* zone) : node_count_(0), spec_(zone) {}
 
-  Flags* flags() { return &flags_; }
+  Flags& flags() { return flags_; }
+  Flags flags() const { return flags_; }
   int node_count() { return node_count_; }
   void add_node_count(int count) { node_count_ += count; }
 
@@ -196,6 +201,8 @@ class AstProperties final BASE_EMBEDDED {
   int node_count_;
   ZoneFeedbackVectorSpec spec_;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 
 
 class AstNode: public ZoneObject {
@@ -2587,7 +2594,7 @@ class FunctionLiteral final : public Expression {
   FunctionKind kind() const { return FunctionKindBits::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
-  AstProperties::Flags* flags() { return ast_properties_.flags(); }
+  AstProperties::Flags flags() const { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }

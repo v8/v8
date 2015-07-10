@@ -1380,10 +1380,8 @@ void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
 }
 
 
-void MacroAssembler::SmiAddConstant(Register dst,
-                                    Register src,
-                                    Smi* constant,
-                                    SmiOperationExecutionMode mode,
+void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant,
+                                    SmiOperationConstraints constraints,
                                     Label* bailout_label,
                                     Label::Distance near_jump) {
   if (constant->value() == 0) {
@@ -1394,12 +1392,12 @@ void MacroAssembler::SmiAddConstant(Register dst,
     DCHECK(!dst.is(kScratchRegister));
     LoadSmiConstant(kScratchRegister, constant);
     addp(dst, kScratchRegister);
-    if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
+    if (constraints & SmiOperationConstraint::kBailoutOnNoOverflow) {
       j(no_overflow, bailout_label, near_jump);
-      DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
+      DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
       subp(dst, kScratchRegister);
-    } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
-      if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
+    } else if (constraints & SmiOperationConstraint::kBailoutOnOverflow) {
+      if (constraints & SmiOperationConstraint::kPreserveSourceRegister) {
         Label done;
         j(no_overflow, &done, Label::kNear);
         subp(dst, kScratchRegister);
@@ -1410,11 +1408,11 @@ void MacroAssembler::SmiAddConstant(Register dst,
         j(overflow, bailout_label, near_jump);
       }
     } else {
-      CHECK(mode.IsEmpty());
+      UNREACHABLE();
     }
   } else {
-    DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
-    DCHECK(mode.Contains(BAILOUT_ON_OVERFLOW));
+    DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
+    DCHECK(constraints & SmiOperationConstraint::kBailoutOnOverflow);
     LoadSmiConstant(dst, constant);
     addp(dst, src);
     j(overflow, bailout_label, near_jump);
@@ -1446,10 +1444,8 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
 }
 
 
-void MacroAssembler::SmiSubConstant(Register dst,
-                                    Register src,
-                                    Smi* constant,
-                                    SmiOperationExecutionMode mode,
+void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant,
+                                    SmiOperationConstraints constraints,
                                     Label* bailout_label,
                                     Label::Distance near_jump) {
   if (constant->value() == 0) {
@@ -1460,12 +1456,12 @@ void MacroAssembler::SmiSubConstant(Register dst,
     DCHECK(!dst.is(kScratchRegister));
     LoadSmiConstant(kScratchRegister, constant);
     subp(dst, kScratchRegister);
-    if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
+    if (constraints & SmiOperationConstraint::kBailoutOnNoOverflow) {
       j(no_overflow, bailout_label, near_jump);
-      DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
+      DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
       addp(dst, kScratchRegister);
-    } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
-      if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
+    } else if (constraints & SmiOperationConstraint::kBailoutOnOverflow) {
+      if (constraints & SmiOperationConstraint::kPreserveSourceRegister) {
         Label done;
         j(no_overflow, &done, Label::kNear);
         addp(dst, kScratchRegister);
@@ -1476,11 +1472,11 @@ void MacroAssembler::SmiSubConstant(Register dst,
         j(overflow, bailout_label, near_jump);
       }
     } else {
-      CHECK(mode.IsEmpty());
+      UNREACHABLE();
     }
   } else {
-    DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
-    DCHECK(mode.Contains(BAILOUT_ON_OVERFLOW));
+    DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
+    DCHECK(constraints & SmiOperationConstraint::kBailoutOnOverflow);
     if (constant->value() == Smi::kMinValue) {
       DCHECK(!dst.is(kScratchRegister));
       movp(dst, src);
