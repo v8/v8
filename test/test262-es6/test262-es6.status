@@ -505,20 +505,6 @@
   'built-ins/GeneratorPrototype/return/try-finally-within-finally': [FAIL],
   'built-ins/GeneratorPrototype/return/try-finally-within-try': [FAIL],
 
-   # https://code.google.com/p/v8/issues/detail?id=4177
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-2': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-3': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-4': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-delete-2': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-delete-3': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-delete-4': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-nonwritable-3': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-nonwritable-4': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-nonwritable-5': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-strict-delete-2': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-strict-delete-3': [FAIL],
-   'language/arguments-object/mapped/mapped-arguments-nonconfigurable-strict-delete-4': [FAIL],
-
    # https://code.google.com/p/v8/issues/detail?id=811
   'language/expressions/assignment/destructuring/array-elem-elision': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-assignment': [FAIL],

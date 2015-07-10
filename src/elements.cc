@@ -930,11 +930,14 @@ class DictionaryElementsAccessor
     obj->set_elements(*new_elements);
   }
 
+  static Object* GetRaw(FixedArrayBase* store, uint32_t entry) {
+    SeededNumberDictionary* backing_store = SeededNumberDictionary::cast(store);
+    return backing_store->ValueAt(entry);
+  }
+
   static Handle<Object> GetImpl(Handle<FixedArrayBase> store, uint32_t entry) {
-    Handle<SeededNumberDictionary> backing_store =
-        Handle<SeededNumberDictionary>::cast(store);
-    Isolate* isolate = backing_store->GetIsolate();
-    return handle(backing_store->ValueAt(entry), isolate);
+    Isolate* isolate = store->GetIsolate();
+    return handle(GetRaw(*store, entry), isolate);
   }
 
   static void SetImpl(FixedArrayBase* store, uint32_t entry, Object* value) {
@@ -1174,6 +1177,12 @@ class FastSmiOrObjectElementsAccessor
   explicit FastSmiOrObjectElementsAccessor(const char* name)
       : FastElementsAccessor<FastElementsAccessorSubclass,
                              KindTraits>(name) {}
+
+  static Object* GetRaw(FixedArray* backing_store, uint32_t entry) {
+    uint32_t index = FastElementsAccessorSubclass::GetIndexForEntryImpl(
+        backing_store, entry);
+    return backing_store->get(index);
+  }
 
   // NOTE: this method violates the handlified function signature convention:
   // raw pointer parameters in the function that allocates.
@@ -1445,9 +1454,9 @@ class SloppyArgumentsElementsAccessor
       // Elements of the arguments object in slow mode might be slow aliases.
       if (result->IsAliasedArgumentsEntry()) {
         DisallowHeapAllocation no_gc;
-        AliasedArgumentsEntry* entry = AliasedArgumentsEntry::cast(*result);
+        AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(*result);
         Context* context = Context::cast(parameter_map->get(0));
-        int context_entry = entry->aliased_context_slot();
+        int context_entry = alias->aliased_context_slot();
         DCHECK(!context->get(context_entry)->IsTheHole());
         return handle(context->get(context_entry), isolate);
       }
@@ -1471,7 +1480,16 @@ class SloppyArgumentsElementsAccessor
       context->set(context_entry, value);
     } else {
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      ArgumentsAccessor::SetImpl(arguments, entry - length, value);
+      Object* current = ArgumentsAccessor::GetRaw(arguments, entry - length);
+      if (current->IsAliasedArgumentsEntry()) {
+        AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(current);
+        Context* context = Context::cast(parameter_map->get(0));
+        int context_entry = alias->aliased_context_slot();
+        DCHECK(!context->get(context_entry)->IsTheHole());
+        context->set(context_entry, value);
+      } else {
+        ArgumentsAccessor::SetImpl(arguments, entry - length, value);
+      }
     }
   }
 
