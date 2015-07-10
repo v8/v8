@@ -56,7 +56,7 @@ class LookupIterator final BASE_EMBEDDED {
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
-        holder_(GetRoot(receiver_, isolate_)),
+        holder_(GetRoot(isolate_, receiver)),
         holder_map_(holder_->map(), isolate_),
         initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
@@ -102,7 +102,7 @@ class LookupIterator final BASE_EMBEDDED {
         name_(),
         index_(index),
         receiver_(receiver),
-        holder_(GetRoot(receiver_, isolate_)),
+        holder_(GetRoot(isolate, receiver, index)),
         holder_map_(holder_->map(), isolate_),
         initial_holder_(holder_),
         number_(DescriptorArray::kNotFound) {
@@ -196,7 +196,8 @@ class LookupIterator final BASE_EMBEDDED {
     DCHECK(IsFound());
     return Handle<T>::cast(holder_);
   }
-  static Handle<JSReceiver> GetRoot(Handle<Object> receiver, Isolate* isolate);
+  static Handle<JSReceiver> GetRoot(Isolate* isolate, Handle<Object> receiver,
+                                    uint32_t index = kMaxUInt32);
   bool HolderIsReceiverOrHiddenPrototype() const;
 
   /* ACCESS_CHECK */

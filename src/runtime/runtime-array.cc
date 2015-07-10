@@ -472,9 +472,9 @@ static bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
     if (!maybe.IsJust()) return false;
     if (maybe.FromJust()) {
       Handle<Object> element_value;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, element_value,
-          Runtime::GetElementOrCharAt(isolate, receiver, i), false);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_value,
+                                       Object::GetElement(isolate, receiver, i),
+                                       false);
       visitor->visit(i, element_value);
     }
   }

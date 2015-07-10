@@ -3458,8 +3458,8 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::Set()", bool);
   auto self = Utils::OpenHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception =
-      i::JSReceiver::SetElement(self, index, value_obj, i::SLOPPY).is_null();
+  has_pending_exception = i::Object::SetElement(isolate, self, index, value_obj,
+                                                i::SLOPPY).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }

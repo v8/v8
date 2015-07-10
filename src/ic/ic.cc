@@ -697,8 +697,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Runtime::GetElementOrCharAt(isolate(), object, index, language_mode()),
-        Object);
+        Object::GetElement(isolate(), object, index, language_mode()), Object);
     return result;
   }
 
@@ -1557,7 +1556,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        JSObject::SetElement(receiver, index, value, language_mode()), Object);
+        Object::SetElement(isolate(), receiver, index, value, language_mode()),
+        Object);
     return value;
   }
 

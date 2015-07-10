@@ -1173,6 +1173,14 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
 }
 
 
+MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
+                                       uint32_t index, Handle<Object> value,
+                                       LanguageMode language_mode) {
+  LookupIterator it(isolate, object, index);
+  return SetProperty(&it, value, language_mode, MAY_BE_STORE_FROM_KEYED);
+}
+
+
 Handle<Object> Object::GetPrototypeSkipHiddenPrototypes(
     Isolate* isolate, Handle<Object> receiver) {
   PrototypeIterator iter(isolate, receiver);

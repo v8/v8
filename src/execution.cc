@@ -551,6 +551,7 @@ MaybeHandle<Object> Execution::ToDetailString(
 MaybeHandle<Object> Execution::ToObject(
     Isolate* isolate, Handle<Object> obj) {
   if (obj->IsSpecObject()) return obj;
+  // TODO(verwaest): Use Object::ToObject but throw an exception on failure.
   RETURN_NATIVE_CALL(to_object, { obj });
 }
 

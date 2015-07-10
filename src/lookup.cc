@@ -59,9 +59,22 @@ void LookupIterator::RestartLookupForNonMaskingInterceptors() {
 }
 
 
-Handle<JSReceiver> LookupIterator::GetRoot(Handle<Object> receiver,
-                                           Isolate* isolate) {
+// static
+Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
+                                           Handle<Object> receiver,
+                                           uint32_t index) {
   if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+  // Strings are the only objects with properties (only elements) directly on
+  // the wrapper. Hence we can skip generating the wrapper for all other cases.
+  if (index != kMaxUInt32 && receiver->IsString() &&
+      index < static_cast<uint32_t>(String::cast(*receiver)->length())) {
+    // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the native
+    // context, ensuring that we don't leak it into JS?
+    Handle<JSFunction> constructor = isolate->string_function();
+    Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
+    Handle<JSValue>::cast(result)->set_value(*receiver);
+    return result;
+  }
   auto root = handle(receiver->GetRootMap(isolate)->prototype(), isolate);
   if (root->IsNull()) {
     unsigned int magic = 0xbbbbbbbb;

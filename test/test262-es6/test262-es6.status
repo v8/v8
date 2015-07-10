@@ -436,9 +436,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4245
   'built-ins/String/prototype/split/S15.5.4.14_A2_T37': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=3088
-  'built-ins/Symbol/auto-boxing-strict': [FAIL],
-
   # The order of adding the name property is wrong
   # https://code.google.com/p/v8/issues/detail?id=4199
   'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],

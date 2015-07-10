@@ -12332,16 +12332,6 @@ void JSObject::ValidateElements(Handle<JSObject> object) {
 }
 
 
-// static
-MaybeHandle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
-                                           uint32_t index, Handle<Object> value,
-                                           LanguageMode language_mode) {
-  Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index);
-  return SetProperty(&it, value, language_mode, MAY_BE_STORE_FROM_KEYED);
-}
-
-
 static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
                                         uint32_t index,
                                         uint32_t* new_capacity) {

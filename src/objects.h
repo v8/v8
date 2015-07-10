@@ -1229,6 +1229,10 @@ class Object {
       Isolate* isolate, Handle<Object> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
 
+  MUST_USE_RESULT static inline MaybeHandle<Object> SetElement(
+      Isolate* isolate, Handle<Object> object, uint32_t index,
+      Handle<Object> value, LanguageMode language_mode);
+
   static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
       Isolate* isolate, Handle<Object> receiver);
 
@@ -1670,10 +1674,6 @@ enum AccessorComponent {
 class JSReceiver: public HeapObject {
  public:
   DECLARE_CAST(JSReceiver)
-
-  MUST_USE_RESULT static MaybeHandle<Object> SetElement(
-      Handle<JSReceiver> object, uint32_t index, Handle<Object> value,
-      LanguageMode language_mode);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(

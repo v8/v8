@@ -814,15 +814,6 @@ class Runtime : public AllStatic {
   // Get the intrinsic function with the given function entry address.
   static const Function* FunctionForEntry(Address ref);
 
-  // TODO(1240886): Some of the following methods are *not* handle safe, but
-  // accept handle arguments. This seems fragile.
-
-  // Support getting the characters in a string using [] notation as
-  // in Firefox/SpiderMonkey, Safari and Opera.
-  MUST_USE_RESULT static MaybeHandle<Object> GetElementOrCharAt(
-      Isolate* isolate, Handle<Object> object, uint32_t index,
-      LanguageMode language_mode = SLOPPY);
-
   MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> key,
       LanguageMode language_mode);

@@ -311,9 +311,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = isolate->factory()->NewFixedArray(2);
     Handle<Object> element_or_char;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, element_or_char,
-        Runtime::GetElementOrCharAt(isolate, obj, index));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_or_char,
+                                       Object::GetElement(isolate, obj, index));
     details->set(0, *element_or_char);
     details->set(1, PropertyDetails::Empty().AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
@@ -1866,8 +1865,8 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
         Smi* position_value = Smi::FromInt(location.position());
         RETURN_FAILURE_ON_EXCEPTION(
             isolate,
-            JSObject::SetElement(array, index, handle(position_value, isolate),
-                                 SLOPPY));
+            Object::SetElement(isolate, array, index,
+                               handle(position_value, isolate), SLOPPY));
         index++;
       }
     }
