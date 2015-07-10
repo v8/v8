@@ -3176,5 +3176,23 @@ void LockingCommandMessageQueue::Clear() {
   queue_.Clear();
 }
 
+
+void DebugCodegen::RecordRelocInfo(MacroAssembler* masm,
+                                   DebugCodegen::SlotLocation location,
+                                   int call_argc) {
+  switch (location) {
+    case PLAIN_DEBUG_BREAK:
+      masm->RecordDebugBreakSlot();
+      return;
+    case DEBUG_BREAK_AT_CALL:
+      DCHECK_LE(0, call_argc);
+      masm->RecordDebugBreakSlotForCall(call_argc);
+      return;
+    case DEBUG_BREAK_AT_CONSTRUCT_CALL:
+      masm->RecordDebugBreakSlotForConstructCall();
+      return;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

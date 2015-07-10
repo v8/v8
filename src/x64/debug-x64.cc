@@ -145,10 +145,13 @@ void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm,
+                                DebugCodegen::SlotLocation location,
+                                int call_argc) {
   // Generate enough nop's to make space for a call instruction.
   Label check_codesize;
   __ bind(&check_codesize);
+  RecordRelocInfo(masm, location, call_argc);
   __ Nop(Assembler::kDebugBreakSlotLength);
   DCHECK_EQ(Assembler::kDebugBreakSlotLength,
             masm->SizeOfCodeGeneratedSince(&check_codesize));

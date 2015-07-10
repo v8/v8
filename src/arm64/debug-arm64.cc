@@ -166,11 +166,13 @@ void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm,
+                                DebugCodegen::SlotLocation location,
+                                int call_argc) {
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the constant pool in the debug break slot code.
   InstructionAccurateScope scope(masm, Assembler::kDebugBreakSlotInstructions);
-
+  RecordRelocInfo(masm, location, call_argc);
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(Assembler::DEBUG_BREAK_NOP);
   }

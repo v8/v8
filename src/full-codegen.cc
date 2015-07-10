@@ -433,8 +433,7 @@ void FullCodeGenerator::SetStatementPosition(
   bool recorded = RecordStatementPosition(masm_, stmt->position());
   if (recorded && insert_break == INSERT_BREAK && info_->is_debug() &&
       !stmt->IsDebuggerStatement()) {
-    masm_->RecordDebugBreakSlot();
-    DebugCodegen::GenerateSlot(masm_);
+    DebugCodegen::GenerateSlot(masm_, DebugCodegen::PLAIN_DEBUG_BREAK);
   }
 }
 
@@ -444,8 +443,7 @@ void FullCodeGenerator::SetExpressionPosition(
   if (expr->position() == RelocInfo::kNoPosition) return;
   bool recorded = RecordPosition(masm_, expr->position());
   if (recorded && insert_break == INSERT_BREAK && info_->is_debug()) {
-    masm_->RecordDebugBreakSlot();
-    DebugCodegen::GenerateSlot(masm_);
+    DebugCodegen::GenerateSlot(masm_, DebugCodegen::PLAIN_DEBUG_BREAK);
   }
 }
 
@@ -454,8 +452,7 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   bool recorded = RecordStatementPosition(masm_, expr->position());
   if (recorded && info_->is_debug()) {
-    masm_->RecordDebugBreakSlot();
-    DebugCodegen::GenerateSlot(masm_);
+    DebugCodegen::GenerateSlot(masm_, DebugCodegen::PLAIN_DEBUG_BREAK);
   }
 }
 
@@ -465,8 +462,7 @@ void FullCodeGenerator::SetCallPosition(Expression* expr, int argc) {
   RecordPosition(masm_, expr->position());
   if (info_->is_debug()) {
     // Always emit a debug break slot before a call.
-    masm_->RecordDebugBreakSlotForCall(argc);
-    DebugCodegen::GenerateSlot(masm_);
+    DebugCodegen::GenerateSlot(masm_, DebugCodegen::DEBUG_BREAK_AT_CALL, argc);
   }
 }
 
@@ -476,8 +472,8 @@ void FullCodeGenerator::SetConstructCallPosition(Expression* expr) {
   RecordPosition(masm_, expr->position());
   if (info_->is_debug()) {
     // Always emit a debug break slot before a construct call.
-    masm_->RecordDebugBreakSlotForConstructCall();
-    DebugCodegen::GenerateSlot(masm_);
+    DebugCodegen::GenerateSlot(masm_,
+                               DebugCodegen::DEBUG_BREAK_AT_CONSTRUCT_CALL);
   }
 }
 

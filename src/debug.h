@@ -791,7 +791,14 @@ class SuppressDebug BASE_EMBEDDED {
 // Code generator routines.
 class DebugCodegen : public AllStatic {
  public:
-  static void GenerateSlot(MacroAssembler* masm);
+  enum SlotLocation {
+    PLAIN_DEBUG_BREAK,
+    DEBUG_BREAK_AT_CALL,
+    DEBUG_BREAK_AT_CONSTRUCT_CALL
+  };
+
+  static void GenerateSlot(MacroAssembler* masm, SlotLocation location,
+                           int call_argc = -1);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
   static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
@@ -801,6 +808,10 @@ class DebugCodegen : public AllStatic {
   // There is no calling conventions here, because it never actually gets
   // called, it only gets returned to.
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
+
+ private:
+  static void RecordRelocInfo(MacroAssembler* masm, SlotLocation location,
+                              int call_argc);
 };
 
 
