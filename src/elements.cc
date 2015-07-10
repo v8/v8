@@ -548,30 +548,15 @@ class ElementsAccessorBase : public ElementsAccessor {
                *holder, *backing_store, index) != kMaxUInt32;
   }
 
-  virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t index,
-                             Handle<FixedArrayBase> backing_store) final {
-    if (!IsExternalArrayElementsKind(ElementsTraits::Kind) &&
-        FLAG_trace_js_array_abuse) {
-      CheckArrayAbuse(holder, "elements read", index);
-    }
-
-    if (IsExternalArrayElementsKind(ElementsTraits::Kind) &&
-        FLAG_trace_external_array_abuse) {
-      CheckArrayAbuse(holder, "external elements read", index);
-    }
-
-    return ElementsAccessorSubclass::GetImpl(holder, index, backing_store);
+  virtual Handle<Object> Get(Handle<FixedArrayBase> backing_store,
+                             uint32_t entry) final {
+    return ElementsAccessorSubclass::GetImpl(backing_store, entry);
   }
 
-  static Handle<Object> GetImpl(Handle<JSObject> obj, uint32_t index,
-                                Handle<FixedArrayBase> backing_store) {
-    if (index <
-        ElementsAccessorSubclass::GetCapacityImpl(*obj, *backing_store)) {
-      return BackingStore::get(Handle<BackingStore>::cast(backing_store),
-                               index);
-    } else {
-      return backing_store->GetIsolate()->factory()->the_hole_value();
-    }
+  static Handle<Object> GetImpl(Handle<FixedArrayBase> backing_store,
+                                uint32_t entry) {
+    uint32_t index = GetIndexForEntryImpl(*backing_store, entry);
+    return BackingStore::get(Handle<BackingStore>::cast(backing_store), index);
   }
 
   virtual void Set(FixedArrayBase* backing_store, uint32_t entry,
@@ -758,10 +743,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t extra = 0;
     for (uint32_t y = 0; y < len1; y++) {
       if (ElementsAccessorSubclass::HasEntryImpl(*from, y)) {
-        uint32_t index =
-            ElementsAccessorSubclass::GetIndexForEntryImpl(*from, y);
-        Handle<Object> value =
-            ElementsAccessorSubclass::GetImpl(receiver, index, from);
+        Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, y);
 
         DCHECK(!value->IsTheHole());
         DCHECK(!value->IsAccessorPair());
@@ -794,10 +776,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t entry = 0;
     for (uint32_t y = 0; y < len1; y++) {
       if (ElementsAccessorSubclass::HasEntryImpl(*from, y)) {
-        uint32_t index =
-            ElementsAccessorSubclass::GetIndexForEntryImpl(*from, y);
-        Handle<Object> value =
-            ElementsAccessorSubclass::GetImpl(receiver, index, from);
+        Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, y);
         DCHECK(!value->IsAccessorPair());
         DCHECK(!value->IsExecutableAccessorInfo());
         if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
@@ -834,11 +813,17 @@ class ElementsAccessorBase : public ElementsAccessor {
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
                                        uint32_t index) {
-    return index < ElementsAccessorSubclass::GetCapacityImpl(holder,
-                                                             backing_store) &&
-                   !BackingStore::cast(backing_store)->is_the_hole(index)
-               ? index
-               : kMaxUInt32;
+    if (IsHoleyElementsKind(kind())) {
+      return index < ElementsAccessorSubclass::GetCapacityImpl(holder,
+                                                               backing_store) &&
+                     !BackingStore::cast(backing_store)->is_the_hole(index)
+                 ? index
+                 : kMaxUInt32;
+    } else {
+      Smi* smi_length = Smi::cast(JSArray::cast(holder)->length());
+      uint32_t length = static_cast<uint32_t>(smi_length->value());
+      return index < length ? index : kMaxUInt32;
+    }
   }
 
   virtual uint32_t GetEntryForIndex(JSObject* holder,
@@ -945,16 +930,11 @@ class DictionaryElementsAccessor
     obj->set_elements(*new_elements);
   }
 
-  static Handle<Object> GetImpl(Handle<JSObject> obj, uint32_t index,
-                                Handle<FixedArrayBase> store) {
+  static Handle<Object> GetImpl(Handle<FixedArrayBase> store, uint32_t entry) {
     Handle<SeededNumberDictionary> backing_store =
         Handle<SeededNumberDictionary>::cast(store);
     Isolate* isolate = backing_store->GetIsolate();
-    int entry = backing_store->FindEntry(index);
-    if (entry != SeededNumberDictionary::kNotFound) {
-      return handle(backing_store->ValueAt(entry), isolate);
-    }
-    return isolate->factory()->the_hole_value();
+    return handle(backing_store->ValueAt(entry), isolate);
   }
 
   static void SetImpl(FixedArrayBase* store, uint32_t entry, Object* value) {
@@ -1373,14 +1353,10 @@ class TypedElementsAccessor
   typedef typename ElementsKindTraits<Kind>::BackingStore BackingStore;
   typedef TypedElementsAccessor<Kind> AccessorClass;
 
-  static Handle<Object> GetImpl(Handle<JSObject> obj, uint32_t index,
-                                Handle<FixedArrayBase> backing_store) {
-    if (index < AccessorClass::GetCapacityImpl(*obj, *backing_store)) {
-      return BackingStore::get(Handle<BackingStore>::cast(backing_store),
-                               index);
-    } else {
-      return backing_store->GetIsolate()->factory()->undefined_value();
-    }
+  static Handle<Object> GetImpl(Handle<FixedArrayBase> backing_store,
+                                uint32_t entry) {
+    uint32_t index = GetIndexForEntryImpl(*backing_store, entry);
+    return BackingStore::get(Handle<BackingStore>::cast(backing_store), index);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
@@ -1396,6 +1372,11 @@ class TypedElementsAccessor
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
     UNREACHABLE();
+  }
+
+  static uint32_t GetIndexForEntryImpl(FixedArrayBase* backing_store,
+                                       uint32_t entry) {
+    return entry;
   }
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
@@ -1439,24 +1420,28 @@ class SloppyArgumentsElementsAccessor
  public:
   explicit SloppyArgumentsElementsAccessor(const char* name)
       : ElementsAccessorBase<SloppyArgumentsElementsAccessorSubclass,
-                             KindTraits>(name) {}
+                             KindTraits>(name) {
+    USE(KindTraits::Kind);
+  }
 
-  static Handle<Object> GetImpl(Handle<JSObject> obj, uint32_t index,
-                                Handle<FixedArrayBase> parameters) {
-    Isolate* isolate = obj->GetIsolate();
+  static Handle<Object> GetImpl(Handle<FixedArrayBase> parameters,
+                                uint32_t entry) {
+    Isolate* isolate = parameters->GetIsolate();
     Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Handle<Object> probe(GetParameterMapArg(*parameter_map, index), isolate);
-    if (!probe->IsTheHole()) {
+    uint32_t length = parameter_map->length() - 2;
+    if (entry < length) {
       DisallowHeapAllocation no_gc;
+      Object* probe = parameter_map->get(entry + 2);
       Context* context = Context::cast(parameter_map->get(0));
-      int context_entry = Handle<Smi>::cast(probe)->value();
+      int context_entry = Smi::cast(probe)->value();
       DCHECK(!context->get(context_entry)->IsTheHole());
       return handle(context->get(context_entry), isolate);
     } else {
       // Object is not mapped, defer to the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)),
                                    isolate);
-      Handle<Object> result = ArgumentsAccessor::GetImpl(obj, index, arguments);
+      Handle<Object> result =
+          ArgumentsAccessor::GetImpl(arguments, entry - length);
       // Elements of the arguments object in slow mode might be slow aliases.
       if (result->IsAliasedArgumentsEntry()) {
         DisallowHeapAllocation no_gc;
@@ -1465,9 +1450,8 @@ class SloppyArgumentsElementsAccessor
         int context_entry = entry->aliased_context_slot();
         DCHECK(!context->get(context_entry)->IsTheHole());
         return handle(context->get(context_entry), isolate);
-      } else {
-        return result;
       }
+      return result;
     }
   }
 

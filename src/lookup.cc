@@ -340,7 +340,7 @@ Handle<Object> LookupIterator::FetchValue() const {
     }
 
     ElementsAccessor* accessor = holder->GetElementsAccessor();
-    return accessor->Get(holder, index_);
+    return accessor->Get(handle(holder->elements()), number_);
   } else if (holder_map_->IsGlobalObjectMap()) {
     result = holder->global_dictionary()->ValueAt(number_);
     DCHECK(result->IsPropertyCell());

@@ -38,17 +38,8 @@ class ElementsAccessor {
     return HasElement(holder, index, handle(holder->elements()));
   }
 
-  // Returns the element with the specified index or undefined if there is no
-  // such element. This method doesn't iterate up the prototype chain.  The
-  // caller can optionally pass in the backing store to use for the check, which
-  // must be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t index,
-                             Handle<FixedArrayBase> backing_store) = 0;
-
-  inline Handle<Object> Get(Handle<JSObject> holder, uint32_t index) {
-    return Get(holder, index, handle(holder->elements()));
-  }
+  virtual Handle<Object> Get(Handle<FixedArrayBase> backing_store,
+                             uint32_t entry) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
