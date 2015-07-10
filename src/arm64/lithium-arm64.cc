@@ -1203,7 +1203,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else if (to.IsSmi()) {
       LOperand* value = UseRegisterAtStart(val);
       LInstruction* result = DefineAsRegister(new(zone()) LSmiTag(value));
-      if (val->CheckFlag(HInstruction::kUint32)) {
+      if (instr->CheckFlag(HValue::kCanOverflow)) {
         result = AssignEnvironment(result);
       }
       return result;
