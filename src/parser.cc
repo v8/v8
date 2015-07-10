@@ -1062,6 +1062,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
+    }
+    if (ok && (is_strict(language_mode()) || allow_harmony_sloppy())) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
 
@@ -4141,6 +4143,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
+    }
+    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
     }
   }

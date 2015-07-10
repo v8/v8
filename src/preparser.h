@@ -3770,6 +3770,8 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(formal_parameters.scope->start_position(),
                               scanner()->location().end_pos, CHECK_OK);
+    }
+    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
       this->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
     }
   }
