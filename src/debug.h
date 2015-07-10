@@ -51,11 +51,7 @@ enum ExceptionBreakType {
 
 
 // Type of exception break.
-enum BreakLocatorType {
-  ALL_BREAK_LOCATIONS = 0,
-  SOURCE_BREAK_LOCATIONS = 1,
-  CALLS_AND_RETURNS = 2
-};
+enum BreakLocatorType { ALL_BREAK_LOCATIONS, CALLS_AND_RETURNS };
 
 
 // The different types of breakpoint position alignments.
@@ -83,13 +79,16 @@ class BreakLocation {
 
   bool IsDebugBreak() const;
   inline bool IsExit() const { return RelocInfo::IsJSReturn(rmode_); }
-  inline bool IsConstructCall() const {
-    return RelocInfo::IsConstructCall(rmode_);
+  inline bool IsCall() const {
+    return IsDebugBreakSlot() && RelocInfo::DebugBreakIsCall(data_);
   }
-  inline bool IsCodeTarget() const { return RelocInfo::IsCodeTarget(rmode_); }
-
-  Handle<Code> CodeTarget() const;
-  Handle<Code> OriginalCodeTarget() const;
+  inline bool IsConstructCall() const {
+    return IsDebugBreakSlot() && RelocInfo::DebugBreakIsConstructCall(data_);
+  }
+  inline int CallArgumentsCount() const {
+    DCHECK(IsCall());
+    return RelocInfo::DebugBreakCallArgumentsCount(data_);
+  }
 
   bool IsStepInLocation() const;
   inline bool HasBreakPoint() const {
@@ -104,13 +103,9 @@ class BreakLocation {
   void SetOneShot();
   void ClearOneShot();
 
+
   inline RelocInfo rinfo() const {
     return RelocInfo(pc(), rmode(), data_, code());
-  }
-
-  inline RelocInfo original_rinfo() const {
-    return RelocInfo(original_pc(), original_rmode(), original_data_,
-                     original_code());
   }
 
   inline int position() const { return position_; }
@@ -118,14 +113,12 @@ class BreakLocation {
 
   inline Address pc() const { return code()->entry() + pc_offset_; }
   inline Address original_pc() const {
-    return original_code()->entry() + original_pc_offset_;
+    return debug_info_->original_code()->entry() + original_pc_offset_;
   }
 
   inline RelocInfo::Mode rmode() const { return rmode_; }
-  inline RelocInfo::Mode original_rmode() const { return original_rmode_; }
 
   inline Code* code() const { return debug_info_->code(); }
-  inline Code* original_code() const { return debug_info_->original_code(); }
 
  private:
   BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
@@ -149,20 +142,13 @@ class BreakLocation {
     }
 
     inline RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
-    inline RelocInfo::Mode original_rmode() {
-      return reloc_iterator_.rinfo()->rmode();
-    }
-
     inline RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
     inline RelocInfo* original_rinfo() {
       return reloc_iterator_original_.rinfo();
     }
 
     inline Address pc() { return rinfo()->pc(); }
-    inline Address original_pc() { return original_rinfo()->pc(); }
-
     int break_index() const { return break_index_; }
-
     inline int position() const { return position_; }
     inline int statement_position() const { return statement_position_; }
 
@@ -194,7 +180,6 @@ class BreakLocation {
   void SetDebugBreak();
   void SetDebugBreakAtReturn();
   void SetDebugBreakAtSlot();
-  void SetDebugBreakAtIC();
 
   inline bool IsDebuggerStatement() const {
     return RelocInfo::IsDebuggerStatement(rmode_);
@@ -807,16 +792,7 @@ class SuppressDebug BASE_EMBEDDED {
 class DebugCodegen : public AllStatic {
  public:
   static void GenerateSlot(MacroAssembler* masm);
-  static void GenerateCallICStubDebugBreak(MacroAssembler* masm);
-  static void GenerateLoadICDebugBreak(MacroAssembler* masm);
-  static void GenerateStoreICDebugBreak(MacroAssembler* masm);
-  static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
-  static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
-  static void GenerateCompareNilICDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
-  static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallConstructStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
   static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
 

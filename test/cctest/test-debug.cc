@@ -439,61 +439,6 @@ static void CheckDebuggerUnloaded(bool check_functions = false) {
 }
 
 
-// Compile a function, set a break point and check that the call at the break
-// location in the code is the expected debug_break function.
-void CheckDebugBreakFunction(DebugLocalContext* env,
-                             const char* source, const char* name,
-                             int position, v8::internal::RelocInfo::Mode mode,
-                             Code* debug_break) {
-  EnableDebugger();
-  i::Debug* debug = CcTest::i_isolate()->debug();
-
-  // Create function and set the break point.
-  Handle<i::JSFunction> fun =
-      v8::Utils::OpenHandle(*CompileFunction(env, source, name));
-  int bp = SetBreakPoint(fun, position);
-
-  // Check that the debug break function is as expected.
-  Handle<i::SharedFunctionInfo> shared(fun->shared());
-  CHECK(Debug::HasDebugInfo(shared));
-  i::BreakLocation location = i::BreakLocation::FromPosition(
-      Debug::GetDebugInfo(shared), i::SOURCE_BREAK_LOCATIONS, position,
-      i::STATEMENT_ALIGNED);
-  i::RelocInfo::Mode actual_mode = location.rmode();
-  if (actual_mode == i::RelocInfo::CODE_TARGET_WITH_ID) {
-    actual_mode = i::RelocInfo::CODE_TARGET;
-  }
-  CHECK_EQ(mode, actual_mode);
-  if (mode != i::RelocInfo::JS_RETURN) {
-    CHECK_EQ(debug_break, *location.CodeTarget());
-  } else {
-    i::RelocInfo rinfo = location.rinfo();
-    CHECK(i::RelocInfo::IsJSReturn(rinfo.rmode()));
-    CHECK(rinfo.IsPatchedReturnSequence());
-  }
-
-  // Clear the break point and check that the debug break function is no longer
-  // there
-  ClearBreakPoint(bp);
-  CHECK(!debug->HasDebugInfo(shared));
-  CHECK(debug->EnsureDebugInfo(shared, fun));
-  location = i::BreakLocation::FromPosition(Debug::GetDebugInfo(shared),
-                                            i::SOURCE_BREAK_LOCATIONS, position,
-                                            i::STATEMENT_ALIGNED);
-  actual_mode = location.rmode();
-  if (actual_mode == i::RelocInfo::CODE_TARGET_WITH_ID) {
-    actual_mode = i::RelocInfo::CODE_TARGET;
-  }
-  CHECK_EQ(mode, actual_mode);
-  if (mode == i::RelocInfo::JS_RETURN) {
-    i::RelocInfo rinfo = location.rinfo();
-    CHECK(!rinfo.IsPatchedReturnSequence());
-  }
-
-  DisableDebugger();
-}
-
-
 // --- D e b u g   E v e n t   H a n d l e r s
 // ---
 // --- The different tests uses a number of debug event handlers.

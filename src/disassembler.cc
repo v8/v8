@@ -216,15 +216,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
           DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
           out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
                            CodeStub::MajorName(major_key, false));
-          switch (major_key) {
-            case CodeStub::CallFunction: {
-              int argc = CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
-              out.AddFormatted("argc = %d", argc);
-              break;
-            }
-            default:
-              out.AddFormatted("minor: %d", minor_key);
-          }
+          out.AddFormatted("minor: %d", minor_key);
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
         }

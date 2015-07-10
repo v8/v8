@@ -1013,11 +1013,6 @@ class CallICStub: public PlatformCodeStub {
     minor_key_ = state.GetExtraICState();
   }
 
-  static int ExtractArgcFromMinorKey(int minor_key) {
-    CallICState state(static_cast<ExtraICState>(minor_key));
-    return state.arg_count();
-  }
-
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
 
   InlineCacheState GetICState() const override { return DEFAULT; }
@@ -1911,10 +1906,6 @@ class CallFunctionStub: public PlatformCodeStub {
       : PlatformCodeStub(isolate) {
     DCHECK(argc >= 0 && argc <= Code::kMaxArguments);
     minor_key_ = ArgcBits::encode(argc) | FlagBits::encode(flags);
-  }
-
-  static int ExtractArgcFromMinorKey(int minor_key) {
-    return ArgcBits::decode(minor_key);
   }
 
  private:

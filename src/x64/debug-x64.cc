@@ -69,9 +69,7 @@ void BreakLocation::SetDebugBreakAtSlot() {
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
-                                          RegList object_regs,
-                                          RegList non_object_regs,
-                                          bool convert_call_to_jmp) {
+                                          RegList object_regs) {
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -86,17 +84,12 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     // make sure that these are correctly updated during GC. Non object values
     // are stored as as two smis causing it to be untouched by GC.
     DCHECK((object_regs & ~kJSCallerSaved) == 0);
-    DCHECK((non_object_regs & ~kJSCallerSaved) == 0);
-    DCHECK((object_regs & non_object_regs) == 0);
     for (int i = 0; i < kNumJSCallerSaved; i++) {
       int r = JSCallerSavedCode(i);
       Register reg = { r };
       DCHECK(!reg.is(kScratchRegister));
       if ((object_regs & (1 << r)) != 0) {
         __ Push(reg);
-      }
-      if ((non_object_regs & (1 << r)) != 0) {
-        __ PushRegisterAsTwoSmis(reg);
       }
     }
 
@@ -119,10 +112,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       if ((object_regs & (1 << r)) != 0) {
         __ Pop(reg);
       }
-      // Reconstruct the 64-bit value from two smis.
-      if ((non_object_regs & (1 << r)) != 0) {
-        __ PopRegisterAsTwoSmis(reg);
-      }
     }
 
     // Read current padding counter and skip corresponding number of words.
@@ -133,11 +122,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     // Get rid of the internal frame.
   }
 
-  // If this call did not replace a call but patched other code then there will
-  // be an unwanted return address left on the stack. Here we get rid of that.
-  if (convert_call_to_jmp) {
-    __ addp(rsp, Immediate(kPCOnStackSize));
-  }
+  // This call did not replace a call , so there will be an unwanted
+  // return address left on the stack. Here we get rid of that.
+  __ addp(rsp, Immediate(kPCOnStackSize));
 
   // Now that the break point has been handled, resume normal execution by
   // jumping to the target address intended by the caller and that was
@@ -149,59 +136,12 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallICStub
-  // ----------- S t a t e -------------
-  //  -- rdx    : type feedback slot (smi)
-  //  -- rdi    : function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rdx.bit() | rdi.bit(), 0, false);
-}
-
-
 void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // Register state just before return from JS function (from codegen-x64.cc).
   // ----------- S t a t e -------------
   //  -- rax: return value
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rax.bit(), 0, true);
-}
-
-
-void DebugCodegen::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-x64.cc).
-  // ----------- S t a t e -------------
-  //  -- rdi : function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rdi.bit(), 0, false);
-}
-
-
-void DebugCodegen::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallConstructStub (from code-stubs-x64.cc).
-  // rax is the actual number of arguments not encoded as a smi, see comment
-  // above IC call.
-  // ----------- S t a t e -------------
-  //  -- rax: number of arguments
-  // -----------------------------------
-  // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rdi.bit(), rax.bit(), false);
-}
-
-
-void DebugCodegen::GenerateCallConstructStubRecordDebugBreak(
-    MacroAssembler* masm) {
-  // Register state for CallConstructStub (from code-stubs-x64.cc).
-  // rax is the actual number of arguments not encoded as a smi, see comment
-  // above IC call.
-  // ----------- S t a t e -------------
-  //  -- rax: number of arguments
-  //  -- rbx: feedback array
-  //  -- rdx: feedback slot (smi)
-  // -----------------------------------
-  // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
-                                rax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, rax.bit());
 }
 
 
@@ -209,7 +149,6 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
   // Generate enough nop's to make space for a call instruction.
   Label check_codesize;
   __ bind(&check_codesize);
-  __ RecordDebugBreakSlot();
   __ Nop(Assembler::kDebugBreakSlotLength);
   DCHECK_EQ(Assembler::kDebugBreakSlotLength,
             masm->SizeOfCodeGeneratedSince(&check_codesize));
@@ -219,7 +158,7 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
 void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
-  Generate_DebugBreakCallHelper(masm, 0, 0, true);
+  Generate_DebugBreakCallHelper(masm, 0);
 }
 
 

@@ -1369,29 +1369,8 @@ static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
 }
 
 
-static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateCallICStubDebugBreak(masm);
-}
-
-
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateReturnDebugBreak(masm);
-}
-
-
-static void Generate_CallFunctionStub_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateCallFunctionStubDebugBreak(masm);
-}
-
-
-static void Generate_CallConstructStub_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateCallConstructStubDebugBreak(masm);
-}
-
-
-static void Generate_CallConstructStub_Recording_DebugBreak(
-    MacroAssembler* masm) {
-  DebugCodegen::GenerateCallConstructStubRecordDebugBreak(masm);
 }
 
 

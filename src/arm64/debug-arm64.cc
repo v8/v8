@@ -94,9 +94,8 @@ void BreakLocation::SetDebugBreakAtSlot() {
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
-                                          RegList object_regs,
-                                          RegList non_object_regs,
-                                          Register scratch) {
+                                          RegList object_regs) {
+  Register scratch = x10;
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -120,29 +119,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     //
     // TODO(jbramley): Why can't this handle callee-saved registers?
     DCHECK((~kCallerSaved.list() & object_regs) == 0);
-    DCHECK((~kCallerSaved.list() & non_object_regs) == 0);
-    DCHECK((object_regs & non_object_regs) == 0);
     DCHECK((scratch.Bit() & object_regs) == 0);
-    DCHECK((scratch.Bit() & non_object_regs) == 0);
-    DCHECK((masm->TmpList()->list() & (object_regs | non_object_regs)) == 0);
+    DCHECK((masm->TmpList()->list() & object_regs) == 0);
     STATIC_ASSERT(kSmiValueSize == 32);
-
-    CPURegList non_object_list =
-        CPURegList(CPURegister::kRegister, kXRegSizeInBits, non_object_regs);
-    while (!non_object_list.IsEmpty()) {
-      // Store each non-object register as two SMIs.
-      Register reg = Register(non_object_list.PopLowestIndex());
-      __ Lsr(scratch, reg, 32);
-      __ SmiTagAndPush(scratch, reg);
-
-      // Stack:
-      //  jssp[12]: reg[63:32]
-      //  jssp[8]: 0x00000000 (SMI tag & padding)
-      //  jssp[4]: reg[31:0]
-      //  jssp[0]: 0x00000000 (SMI tag & padding)
-      STATIC_ASSERT(kSmiTag == 0);
-      STATIC_ASSERT(static_cast<unsigned>(kSmiShift) == kWRegSizeInBits);
-    }
 
     if (object_regs != 0) {
       __ PushXRegList(object_regs);
@@ -162,20 +141,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       __ PopXRegList(object_regs);
     }
 
-    non_object_list =
-        CPURegList(CPURegister::kRegister, kXRegSizeInBits, non_object_regs);
-    while (!non_object_list.IsEmpty()) {
-      // Load each non-object register from two SMIs.
-      // Stack:
-      //  jssp[12]: reg[63:32]
-      //  jssp[8]: 0x00000000 (SMI tag & padding)
-      //  jssp[4]: reg[31:0]
-      //  jssp[0]: 0x00000000 (SMI tag & padding)
-      Register reg = Register(non_object_list.PopHighestIndex());
-      __ Pop(scratch, reg);
-      __ Bfxil(reg, scratch, 32, 32);
-    }
-
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.
 
@@ -193,54 +158,11 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallICStub
-  // ----------- S t a t e -------------
-  //  -- x1 : function
-  //  -- x3 : slot in feedback array
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, x1.Bit() | x3.Bit(), 0, x10);
-}
-
-
 void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
   // care.
-  Generate_DebugBreakCallHelper(masm, x0.Bit(), 0, x10);
-}
-
-
-void DebugCodegen::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-arm64.cc).
-  // ----------- S t a t e -------------
-  //  -- x1 : function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, x1.Bit(), 0, x10);
-}
-
-
-void DebugCodegen::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
-  // Calling convention for CallConstructStub (from code-stubs-arm64.cc).
-  // ----------- S t a t e -------------
-  //  -- x0 : number of arguments (not smi)
-  //  -- x1 : constructor function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, x1.Bit(), x0.Bit(), x10);
-}
-
-
-void DebugCodegen::GenerateCallConstructStubRecordDebugBreak(
-    MacroAssembler* masm) {
-  // Calling convention for CallConstructStub (from code-stubs-arm64.cc).
-  // ----------- S t a t e -------------
-  //  -- x0 : number of arguments (not smi)
-  //  -- x1 : constructor function
-  //  -- x2     : feedback array
-  //  -- x3     : feedback slot (smi)
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(
-      masm, x1.Bit() | x2.Bit() | x3.Bit(), x0.Bit(), x10);
+  Generate_DebugBreakCallHelper(masm, x0.Bit());
 }
 
 
@@ -249,7 +171,6 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
   // the constant pool in the debug break slot code.
   InstructionAccurateScope scope(masm, Assembler::kDebugBreakSlotInstructions);
 
-  __ RecordDebugBreakSlot();
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(Assembler::DEBUG_BREAK_NOP);
   }
@@ -259,7 +180,7 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
 void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
-  Generate_DebugBreakCallHelper(masm, 0, 0, x10);
+  Generate_DebugBreakCallHelper(masm, 0);
 }
 
 

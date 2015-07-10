@@ -1027,6 +1027,8 @@ class Assembler : public AssemblerBase {
 
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot();
+  void RecordDebugBreakSlotForCall(int argc);
+  void RecordDebugBreakSlotForConstructCall();
 
   // Record the emission of a constant pool.
   //

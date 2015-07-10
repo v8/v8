@@ -1105,6 +1105,8 @@ class Assembler : public AssemblerBase {
 
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot();
+  void RecordDebugBreakSlotForCall(int argc);
+  void RecordDebugBreakSlotForConstructCall();
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.

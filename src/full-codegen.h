@@ -676,6 +676,10 @@ class FullCodeGenerator: public AstVisitor {
   // This is used in loop headers where we want to break for each iteration.
   void SetExpressionAsStatementPosition(Expression* expr);
 
+  void SetCallPosition(Expression* expr, int argc);
+
+  void SetConstructCallPosition(Expression* expr);
+
   // Non-local control flow support.
   void EnterTryBlock(int handler_index, Label* handler);
   void ExitTryBlock(int handler_index);

@@ -117,7 +117,6 @@ void BreakLocation::Iterator::Next() {
       continue;
     }
 
-    // Check for break at return.
     if (RelocInfo::IsJSReturn(rmode())) {
       // Set the positions to the end of the function.
       if (debug_info_->shared()->HasSourceCode()) {
@@ -127,43 +126,21 @@ void BreakLocation::Iterator::Next() {
         position_ = 0;
       }
       statement_position_ = position_;
-      break_index_++;
       break;
     }
 
-    if (RelocInfo::IsCodeTarget(rmode())) {
-      // Check for breakable code target. Look in the original code as setting
-      // break points can cause the code targets in the running (debugged) code
-      // to be of a different kind than in the original code.
-      Address target = original_rinfo()->target_address();
-      Code* code = Code::GetCodeFromTargetAddress(target);
-
-      if (RelocInfo::IsConstructCall(rmode()) || code->is_call_stub()) {
-        break_index_++;
-        break;
-      }
-
-      if (code->kind() == Code::STUB &&
-          CodeStub::GetMajorKey(code) == CodeStub::CallFunction) {
-        break_index_++;
-        break;
-      }
-    }
-
-    // Skip below if we only want locations for calls and returns.
-    if (type_ == CALLS_AND_RETURNS) continue;
-
-    if (RelocInfo::IsDebuggerStatement(rmode())) {
-      break_index_++;
+    if (RelocInfo::IsDebugBreakSlot(rmode()) &&
+        (type_ == ALL_BREAK_LOCATIONS ||
+         RelocInfo::DebugBreakIsCall(rinfo()->data()))) {
       break;
     }
 
-    if (RelocInfo::IsDebugBreakSlot(rmode()) && type_ != CALLS_AND_RETURNS) {
-      // There is always a possible break point at a debug break slot.
-      break_index_++;
+    if (RelocInfo::IsDebuggerStatement(rmode()) &&
+        type_ == ALL_BREAK_LOCATIONS) {
       break;
     }
   }
+  break_index_++;
 }
 
 
@@ -311,9 +288,6 @@ void BreakLocation::SetDebugBreak() {
   } else if (IsDebugBreakSlot()) {
     // Patch the code in the break slot.
     SetDebugBreakAtSlot();
-  } else {
-    // Patch the IC call.
-    SetDebugBreakAtIC();
   }
   DCHECK(IsDebugBreak());
 }
@@ -329,13 +303,6 @@ void BreakLocation::ClearDebugBreak() {
   } else if (IsDebugBreakSlot()) {
     // Restore the code in the break slot.
     RestoreFromOriginal(Assembler::kDebugBreakSlotLength);
-  } else {
-    // Restore the IC call.
-    rinfo().set_target_address(original_rinfo().target_address());
-    // Some ICs store data in the feedback vector. Clear this to ensure we
-    // won't miss future stepping requirements.
-    SharedFunctionInfo* shared = debug_info_->shared();
-    shared->feedback_vector()->ClearICSlots(shared);
   }
   DCHECK(!IsDebugBreak());
 }
@@ -348,13 +315,7 @@ void BreakLocation::RestoreFromOriginal(int length_in_bytes) {
 
 
 bool BreakLocation::IsStepInLocation() const {
-  if (IsConstructCall()) return true;
-  if (RelocInfo::IsCodeTarget(rmode())) {
-    HandleScope scope(debug_info_->GetIsolate());
-    Handle<Code> target_code = CodeTarget();
-    return target_code->is_call_stub();
-  }
-  return false;
+  return IsConstructCall() || IsCall();
 }
 
 
@@ -363,71 +324,13 @@ bool BreakLocation::IsDebugBreak() const {
     return rinfo().IsPatchedReturnSequence();
   } else if (IsDebugBreakSlot()) {
     return rinfo().IsPatchedDebugBreakSlotSequence();
-  } else {
-    return Debug::IsDebugBreak(rinfo().target_address());
   }
-}
-
-
-// Find the builtin to use for invoking the debug break
-static Handle<Code> DebugBreakForIC(Handle<Code> code, RelocInfo::Mode mode) {
-  Isolate* isolate = code->GetIsolate();
-
-  // Find the builtin debug break function matching the calling convention
-  // used by the call site.
-  if (code->is_inline_cache_stub()) {
-    DCHECK(code->kind() == Code::CALL_IC);
-    return isolate->builtins()->CallICStub_DebugBreak();
-  }
-  if (RelocInfo::IsConstructCall(mode)) {
-    if (code->has_function_cache()) {
-      return isolate->builtins()->CallConstructStub_Recording_DebugBreak();
-    } else {
-      return isolate->builtins()->CallConstructStub_DebugBreak();
-    }
-  }
-  if (code->kind() == Code::STUB) {
-    DCHECK(CodeStub::GetMajorKey(*code) == CodeStub::CallFunction);
-    return isolate->builtins()->CallFunctionStub_DebugBreak();
-  }
-
-  UNREACHABLE();
-  return Handle<Code>::null();
-}
-
-
-void BreakLocation::SetDebugBreakAtIC() {
-  // Patch the original code with the current address as the current address
-  // might have changed by the inline caching since the code was copied.
-  original_rinfo().set_target_address(rinfo().target_address());
-
-  if (RelocInfo::IsCodeTarget(rmode_)) {
-    Handle<Code> target_code = CodeTarget();
-
-    // Patch the code to invoke the builtin debug break function matching the
-    // calling convention used by the call site.
-    Handle<Code> debug_break_code = DebugBreakForIC(target_code, rmode_);
-    rinfo().set_target_address(debug_break_code->entry());
-  }
+  return false;
 }
 
 
 Handle<Object> BreakLocation::BreakPointObjects() const {
   return debug_info_->GetBreakPointObjects(pc_offset_);
-}
-
-
-Handle<Code> BreakLocation::CodeTarget() const {
-  DCHECK(IsCodeTarget());
-  Address target = rinfo().target_address();
-  return Handle<Code>(Code::GetCodeFromTargetAddress(target));
-}
-
-
-Handle<Code> BreakLocation::OriginalCodeTarget() const {
-  DCHECK(IsCodeTarget());
-  Address target = original_rinfo().target_address();
-  return Handle<Code>(Code::GetCodeFromTargetAddress(target));
 }
 
 
@@ -442,7 +345,7 @@ void BreakLocation::Iterator::RinfoNext() {
   reloc_iterator_original_.next();
 #ifdef DEBUG
   DCHECK(reloc_iterator_.done() == reloc_iterator_original_.done());
-  DCHECK(reloc_iterator_.done() || rmode() == original_rmode());
+  DCHECK(reloc_iterator_.done() || rmode() == original_rinfo()->rmode());
 #endif
 }
 
@@ -941,7 +844,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Find the break point and change it.
   BreakLocation location = BreakLocation::FromPosition(
-      debug_info, SOURCE_BREAK_LOCATIONS, *source_position, STATEMENT_ALIGNED);
+      debug_info, ALL_BREAK_LOCATIONS, *source_position, STATEMENT_ALIGNED);
   *source_position = location.statement_position();
   location.SetBreakPoint(break_point_object);
 
@@ -985,7 +888,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   // Find the break point and change it.
   BreakLocation location = BreakLocation::FromPosition(
-      debug_info, SOURCE_BREAK_LOCATIONS, position, alignment);
+      debug_info, ALL_BREAK_LOCATIONS, position, alignment);
   location.SetBreakPoint(break_point_object);
 
   position = (alignment == STATEMENT_ALIGNED) ? location.statement_position()
@@ -1017,7 +920,7 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
                    break_point_info->code_position()->value();
 
       BreakLocation location =
-          BreakLocation::FromAddress(debug_info, SOURCE_BREAK_LOCATIONS, pc);
+          BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, pc);
       location.ClearBreakPoint(break_point_object);
 
       // If there are no more break points left remove the debug info for this
@@ -1238,27 +1141,7 @@ void Debug::PrepareStep(StepAction step_action,
   BreakLocation location =
       BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
 
-  if (thread_local_.restarter_frame_function_pointer_ == NULL) {
-    if (location.IsCodeTarget()) {
-      Handle<Code> target_code = location.CodeTarget();
-
-      // Check if target code is CallFunction stub.
-      Handle<Code> maybe_call_function_stub = target_code;
-      // If there is a breakpoint at this line look at the original code to
-      // check if it is a CallFunction stub.
-      if (location.IsDebugBreak()) {
-        maybe_call_function_stub = location.OriginalCodeTarget();
-      }
-      if ((maybe_call_function_stub->kind() == Code::STUB &&
-           CodeStub::GetMajorKey(*maybe_call_function_stub) ==
-               CodeStub::CallFunction) ||
-          maybe_call_function_stub->is_call_stub()) {
-        // Save reference to the code as we may need it to find out arguments
-        // count for 'step in' later.
-        call_function_stub = maybe_call_function_stub;
-      }
-    }
-  } else {
+  if (thread_local_.restarter_frame_function_pointer_ != NULL) {
     is_at_restarted_function = true;
   }
 
@@ -1297,24 +1180,7 @@ void Debug::PrepareStep(StepAction step_action,
       Handle<JSFunction> restarted_function(
           JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
       FloodWithOneShot(restarted_function);
-    } else if (!call_function_stub.is_null()) {
-      // If it's CallFunction stub ensure target function is compiled and flood
-      // it with one shot breakpoints.
-      bool is_call_ic = call_function_stub->kind() == Code::CALL_IC;
-
-      // Find out number of arguments from the stub minor key.
-      uint32_t key = call_function_stub->stub_key();
-      // Argc in the stub is the number of arguments passed - not the
-      // expected arguments of the called function.
-      int call_function_arg_count = is_call_ic
-          ? CallICStub::ExtractArgcFromMinorKey(CodeStub::MinorKeyFromKey(key))
-          : CallFunctionStub::ExtractArgcFromMinorKey(
-              CodeStub::MinorKeyFromKey(key));
-
-      DCHECK(is_call_ic ||
-             CodeStub::GetMajorKey(*call_function_stub) ==
-                 CodeStub::MajorKeyFromKey(key));
-
+    } else if (location.IsCall()) {
       // Find target function on the expression stack.
       // Expression stack looks like this (top to bottom):
       // argN
@@ -1322,10 +1188,10 @@ void Debug::PrepareStep(StepAction step_action,
       // arg0
       // Receiver
       // Function to call
-      int expressions_count = frame->ComputeExpressionsCount();
-      DCHECK(expressions_count - 2 - call_function_arg_count >= 0);
-      Object* fun = frame->GetExpression(
-          expressions_count - 2 - call_function_arg_count);
+      int num_expressions_without_args =
+          frame->ComputeExpressionsCount() - location.CallArgumentsCount();
+      DCHECK(num_expressions_without_args >= 2);
+      Object* fun = frame->GetExpression(num_expressions_without_args - 2);
 
       // Flood the actual target of call/apply.
       if (fun->IsJSFunction()) {
@@ -1338,10 +1204,9 @@ void Debug::PrepareStep(StepAction step_action,
         while (fun->IsJSFunction()) {
           Code* code = JSFunction::cast(fun)->shared()->code();
           if (code != apply && code != call) break;
-          DCHECK(expressions_count - i - call_function_arg_count >= 0);
-          fun = frame->GetExpression(expressions_count - i -
-                                     call_function_arg_count);
-          i -= 1;
+          DCHECK(num_expressions_without_args >= i);
+          fun = frame->GetExpression(num_expressions_without_args - i);
+          i--;
         }
       }
 
@@ -2209,27 +2074,6 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
     // Continue just after the slot.
     after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
-  } else {
-    addr = Assembler::target_address_from_return_address(frame->pc());
-    if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
-      // We now know that there is still a debug break call at the target
-      // address, so the break point is still there and the original code will
-      // hold the address to jump to in order to complete the call which is
-      // replaced by a call to DebugBreakXXX.
-
-      // Find the corresponding address in the original code.
-      addr += original_code->instruction_start() - code->instruction_start();
-
-      // Install jump to the call address in the original code. This will be the
-      // call which was overwritten by the call to DebugBreakXXX.
-      after_break_target_ = Assembler::target_address_at(addr, *original_code);
-    } else {
-      // There is no longer a break point present. Don't try to look in the
-      // original code as the running code will have the right address. This
-      // takes care of the case where the last break point is removed from the
-      // function and therefore no "original code" is available.
-      after_break_target_ = Assembler::target_address_at(addr, *code);
-    }
   }
 }
 

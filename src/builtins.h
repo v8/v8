@@ -143,14 +143,6 @@ enum BuiltinExtraArguments {
 #define BUILTIN_LIST_DEBUG_A(V)                                               \
   V(Return_DebugBreak,                         BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
-  V(CallFunctionStub_DebugBreak,               BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
-  V(CallConstructStub_DebugBreak,              BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
-  V(CallConstructStub_Recording_DebugBreak,    BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
-  V(CallICStub_DebugBreak,                     CALL_IC, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
   V(Slot_DebugBreak,                           BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
   V(PlainReturn_LiveEdit,                      BUILTIN, DEBUG_STUB,           \

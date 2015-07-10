@@ -380,23 +380,27 @@ void RelocInfoWriter::WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag) {
 }
 
 
+void RelocInfoWriter::WriteInt(int number) {
+  for (int i = 0; i < kIntSize; i++) {
+    *--pos_ = static_cast<byte>(number);
+    // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
+    number = number >> kBitsPerByte;
+  }
+}
+
+
+void RelocInfoWriter::WriteDebugBreakSlotData(int data) { WriteInt(data); }
+
+
 void RelocInfoWriter::WriteExtraTaggedIntData(int data_delta, int top_tag) {
   WriteExtraTag(kDataJumpExtraTag, top_tag);
-  for (int i = 0; i < kIntSize; i++) {
-    *--pos_ = static_cast<byte>(data_delta);
-    // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
-    data_delta = data_delta >> kBitsPerByte;
-  }
+  WriteInt(data_delta);
 }
 
 
 void RelocInfoWriter::WriteExtraTaggedPoolData(int data, int pool_type) {
   WriteExtraTag(kPoolExtraTag, pool_type);
-  for (int i = 0; i < kIntSize; i++) {
-    *--pos_ = static_cast<byte>(data);
-    // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
-    data = data >> kBitsPerByte;
-  }
+  WriteInt(data);
 }
 
 
@@ -498,10 +502,10 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedData(rinfo->data(), kCommentTag);
     DCHECK(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
   } else if (RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode)) {
-      WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
-      WriteExtraTaggedPoolData(static_cast<int>(rinfo->data()),
-                               RelocInfo::IsConstPool(rmode) ? kConstPoolTag
-                                                             : kVeneerPoolTag);
+    WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
+    WriteExtraTaggedPoolData(
+        static_cast<int>(rinfo->data()),
+        RelocInfo::IsConstPool(rmode) ? kConstPoolTag : kVeneerPoolTag);
   } else {
     DCHECK(rmode > RelocInfo::LAST_COMPACT_ENUM);
     DCHECK(rmode <= RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM);
@@ -513,6 +517,9 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     // None of these modes need a data component.
     DCHECK(0 <= saved_mode && saved_mode < kPoolExtraTag);
     WriteExtraTaggedPC(pc_delta, saved_mode);
+    if (RelocInfo::IsDebugBreakSlot(rmode)) {
+      WriteDebugBreakSlotData(static_cast<int>(rinfo->data()));
+    }
   }
   last_pc_ = rinfo->pc();
   last_mode_ = rmode;
@@ -557,13 +564,19 @@ void RelocIterator::AdvanceReadId() {
 }
 
 
-void RelocIterator::AdvanceReadPoolData() {
+void RelocIterator::AdvanceReadInt() {
   int x = 0;
   for (int i = 0; i < kIntSize; i++) {
     x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
   }
   rinfo_.data_ = x;
 }
+
+
+void RelocIterator::AdvanceReadPoolData() { AdvanceReadInt(); }
+
+
+void RelocIterator::AdvanceReadDebugBreakSlotData() { AdvanceReadInt(); }
 
 
 void RelocIterator::AdvanceReadPosition() {
@@ -718,8 +731,17 @@ void RelocIterator::next() {
         Advance(kIntSize);
       } else {
         AdvanceReadPC();
-        int rmode = extra_tag + RelocInfo::LAST_COMPACT_ENUM + 1;
-        if (SetMode(static_cast<RelocInfo::Mode>(rmode))) return;
+        RelocInfo::Mode rmode = static_cast<RelocInfo::Mode>(
+            extra_tag + RelocInfo::LAST_COMPACT_ENUM + 1);
+        if (RelocInfo::IsDebugBreakSlot(rmode)) {
+          if (SetMode(rmode)) {
+            AdvanceReadDebugBreakSlotData();
+            return;
+          }
+          Advance(kIntSize);
+        } else if (SetMode(rmode)) {
+          return;
+        }
       }
     }
   }
@@ -883,6 +905,14 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     }
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";
+  } else if (IsDebugBreakSlot(rmode_)) {
+    if (DebugBreakIsCall(data_)) {
+      os << " (call with " << DebugBreakCallArgumentsCount(data_) << " args)";
+    } else if (DebugBreakIsConstructCall(data_)) {
+      os << " (construct call)";
+    } else {
+      os << " (slot)";
+    }
   }
 
   os << "\n";
@@ -944,6 +974,20 @@ void RelocInfo::Verify(Isolate* isolate) {
   }
 }
 #endif  // VERIFY_HEAP
+
+
+bool RelocInfo::DebugBreakIsConstructCall(intptr_t data) {
+  return data == static_cast<intptr_t>(kDebugBreakConstructCallSentinel);
+}
+
+
+bool RelocInfo::DebugBreakIsCall(intptr_t data) { return data >= 0; }
+
+
+int RelocInfo::DebugBreakCallArgumentsCount(intptr_t data) {
+  DCHECK(DebugBreakIsCall(data));
+  return static_cast<int>(data);
+}
 
 
 // -----------------------------------------------------------------------------
@@ -1869,7 +1913,23 @@ void Assembler::RecordJSReturn() {
 
 void Assembler::RecordDebugBreakSlot() {
   EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
+  intptr_t data = static_cast<intptr_t>(RelocInfo::kDebugBreakNonCallSentinel);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT, data);
+}
+
+
+void Assembler::RecordDebugBreakSlotForCall(int argc) {
+  EnsureSpace ensure_space(this);
+  intptr_t data = static_cast<intptr_t>(argc);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT, data);
+}
+
+
+void Assembler::RecordDebugBreakSlotForConstructCall() {
+  EnsureSpace ensure_space(this);
+  intptr_t data =
+      static_cast<intptr_t>(RelocInfo::kDebugBreakConstructCallSentinel);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT, data);
 }
 
 

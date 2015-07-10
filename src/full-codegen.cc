@@ -433,6 +433,7 @@ void FullCodeGenerator::SetStatementPosition(
   bool recorded = RecordStatementPosition(masm_, stmt->position());
   if (recorded && insert_break == INSERT_BREAK && info_->is_debug() &&
       !stmt->IsDebuggerStatement()) {
+    masm_->RecordDebugBreakSlot();
     DebugCodegen::GenerateSlot(masm_);
   }
 }
@@ -443,6 +444,7 @@ void FullCodeGenerator::SetExpressionPosition(
   if (expr->position() == RelocInfo::kNoPosition) return;
   bool recorded = RecordPosition(masm_, expr->position());
   if (recorded && insert_break == INSERT_BREAK && info_->is_debug()) {
+    masm_->RecordDebugBreakSlot();
     DebugCodegen::GenerateSlot(masm_);
   }
 }
@@ -451,7 +453,32 @@ void FullCodeGenerator::SetExpressionPosition(
 void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   bool recorded = RecordStatementPosition(masm_, expr->position());
-  if (recorded && info_->is_debug()) DebugCodegen::GenerateSlot(masm_);
+  if (recorded && info_->is_debug()) {
+    masm_->RecordDebugBreakSlot();
+    DebugCodegen::GenerateSlot(masm_);
+  }
+}
+
+
+void FullCodeGenerator::SetCallPosition(Expression* expr, int argc) {
+  if (expr->position() == RelocInfo::kNoPosition) return;
+  RecordPosition(masm_, expr->position());
+  if (info_->is_debug()) {
+    // Always emit a debug break slot before a call.
+    masm_->RecordDebugBreakSlotForCall(argc);
+    DebugCodegen::GenerateSlot(masm_);
+  }
+}
+
+
+void FullCodeGenerator::SetConstructCallPosition(Expression* expr) {
+  if (expr->position() == RelocInfo::kNoPosition) return;
+  RecordPosition(masm_, expr->position());
+  if (info_->is_debug()) {
+    // Always emit a debug break slot before a construct call.
+    masm_->RecordDebugBreakSlotForConstructCall();
+    DebugCodegen::GenerateSlot(masm_);
+  }
 }
 
 

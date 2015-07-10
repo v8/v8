@@ -54,8 +54,7 @@ void BreakLocation::SetDebugBreakAtSlot() {
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
-                                          RegList object_regs,
-                                          RegList non_object_regs) {
+                                          RegList object_regs) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
@@ -71,21 +70,8 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     // make sure that these are correctly updated during GC. Non object values
     // are stored as a smi causing it to be untouched by GC.
     DCHECK((object_regs & ~kJSCallerSaved) == 0);
-    DCHECK((non_object_regs & ~kJSCallerSaved) == 0);
-    DCHECK((object_regs & non_object_regs) == 0);
-    if ((object_regs | non_object_regs) != 0) {
-      for (int i = 0; i < kNumJSCallerSaved; i++) {
-        int r = JSCallerSavedCode(i);
-        Register reg = { r };
-        if ((non_object_regs & (1 << r)) != 0) {
-          if (FLAG_debug_code) {
-            __ tst(reg, Operand(0xc0000000));
-            __ Assert(eq, kUnableToEncodeValueAsSmi);
-          }
-          __ SmiTag(reg);
-        }
-      }
-      __ stm(db_w, sp, object_regs | non_object_regs);
+    if (object_regs != 0) {
+      __ stm(db_w, sp, object_regs);
     }
 
 #ifdef DEBUG
@@ -98,18 +84,15 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ CallStub(&ceb);
 
     // Restore the register values from the expression stack.
-    if ((object_regs | non_object_regs) != 0) {
-      __ ldm(ia_w, sp, object_regs | non_object_regs);
-      for (int i = 0; i < kNumJSCallerSaved; i++) {
-        int r = JSCallerSavedCode(i);
-        Register reg = { r };
-        if ((non_object_regs & (1 << r)) != 0) {
-          __ SmiUntag(reg);
-        }
-        if (FLAG_debug_code &&
-            (((object_regs |non_object_regs) & (1 << r)) == 0)) {
-          __ mov(reg, Operand(kDebugZapValue));
-        }
+    if (object_regs != 0) {
+      __ ldm(ia_w, sp, object_regs);
+    }
+
+    for (int i = 0; i < kNumJSCallerSaved; i++) {
+      int r = JSCallerSavedCode(i);
+      Register reg = {r};
+      if (FLAG_debug_code && ((object_regs & (1 << r)) == 0)) {
+        __ mov(reg, Operand(kDebugZapValue));
       }
     }
 
@@ -130,53 +113,11 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallICStub
-  // ----------- S t a t e -------------
-  //  -- r1 : function
-  //  -- r3 : slot in feedback array (smi)
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit() | r3.bit(), 0);
-}
-
-
 void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
   // care.
-  Generate_DebugBreakCallHelper(masm, r0.bit(), 0);
-}
-
-
-void DebugCodegen::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-arm.cc).
-  // ----------- S t a t e -------------
-  //  -- r1 : function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit(), 0);
-}
-
-
-void DebugCodegen::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
-  // Calling convention for CallConstructStub (from code-stubs-arm.cc)
-  // ----------- S t a t e -------------
-  //  -- r0     : number of arguments (not smi)
-  //  -- r1     : constructor function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit(), r0.bit());
-}
-
-
-void DebugCodegen::GenerateCallConstructStubRecordDebugBreak(
-    MacroAssembler* masm) {
-  // Calling convention for CallConstructStub (from code-stubs-arm.cc)
-  // ----------- S t a t e -------------
-  //  -- r0     : number of arguments (not smi)
-  //  -- r1     : constructor function
-  //  -- r2     : feedback array
-  //  -- r3     : feedback slot (smi)
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit() | r3.bit(), r0.bit());
+  Generate_DebugBreakCallHelper(masm, r0.bit());
 }
 
 
@@ -186,7 +127,6 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
   Assembler::BlockConstPoolScope block_const_pool(masm);
   Label check_codesize;
   __ bind(&check_codesize);
-  __ RecordDebugBreakSlot();
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(MacroAssembler::DEBUG_BREAK_NOP);
   }
@@ -198,7 +138,7 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
 void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
-  Generate_DebugBreakCallHelper(masm, 0, 0);
+  Generate_DebugBreakCallHelper(masm, 0);
 }
 
 

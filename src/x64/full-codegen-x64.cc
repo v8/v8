@@ -2228,6 +2228,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallIC(ic, TypeFeedbackId::None());
       __ movp(rdi, rax);
       __ movp(Operand(rsp, 2 * kPointerSize), rdi);
+
+      SetCallPosition(expr, 1);
       CallFunctionStub stub(isolate(), 1, CALL_AS_METHOD);
       __ CallStub(&stub);
 
@@ -2996,7 +2998,7 @@ void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
     VisitForStackValue(args->at(i));
   }
 
-  SetExpressionPosition(expr);
+  SetCallPosition(expr, arg_count);
   Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, call_type).code();
   __ Move(rdx, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ movp(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
@@ -3108,24 +3110,24 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // function using the given arguments.
     ZoneList<Expression*>* args = expr->arguments();
     int arg_count = args->length();
-      PushCalleeAndWithBaseObject(expr);
+    PushCalleeAndWithBaseObject(expr);
 
-      // Push the arguments.
-      for (int i = 0; i < arg_count; i++) {
-        VisitForStackValue(args->at(i));
-      }
+    // Push the arguments.
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
 
-      // Push a copy of the function (found below the arguments) and resolve
-      // eval.
-      __ Push(Operand(rsp, (arg_count + 1) * kPointerSize));
-      EmitResolvePossiblyDirectEval(arg_count);
+    // Push a copy of the function (found below the arguments) and resolve
+    // eval.
+    __ Push(Operand(rsp, (arg_count + 1) * kPointerSize));
+    EmitResolvePossiblyDirectEval(arg_count);
 
-      // Touch up the callee.
-      __ movp(Operand(rsp, (arg_count + 1) * kPointerSize), rax);
+    // Touch up the callee.
+    __ movp(Operand(rsp, (arg_count + 1) * kPointerSize), rax);
 
-      PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
-    // Record source position for debugger.
-      SetExpressionPosition(expr);
+    PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
+
+    SetCallPosition(expr, arg_count);
     CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
     __ movp(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
     __ CallStub(&stub);
@@ -3196,7 +3198,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetExpressionPosition(expr);
+  SetConstructCallPosition(expr);
 
   // Load function and argument count into rdi and rax.
   __ Set(rax, arg_count);
@@ -3239,7 +3241,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetExpressionPosition(expr);
+  SetConstructCallPosition(expr);
 
   // Load function and argument count into edi and eax.
   __ Set(rax, arg_count);
@@ -4688,7 +4690,7 @@ void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
-  SetExpressionPosition(expr);
+  SetCallPosition(expr, arg_count);
   CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
   __ movp(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub);

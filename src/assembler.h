@@ -506,6 +506,10 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
+  static bool DebugBreakIsConstructCall(intptr_t data);
+  static bool DebugBreakIsCall(intptr_t data);
+  static int DebugBreakCallArgumentsCount(intptr_t data);
+
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -623,6 +627,8 @@ class RelocInfo {
   static const int kDataMask =
       (1 << CODE_TARGET_WITH_ID) | kPositionMask | (1 << COMMENT);
   static const int kApplyMask;  // Modes affected by apply. Depends on arch.
+  static const int kDebugBreakNonCallSentinel = -2;
+  static const int kDebugBreakConstructCallSentinel = -1;
 
  private:
   // On ARM, note that pc_ is the address of the constant pool entry
@@ -690,6 +696,8 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
+  inline void WriteInt(int number);
+  inline void WriteDebugBreakSlotData(int data);
   inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
   inline void WriteExtraTaggedPoolData(int data, int pool_type);
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
@@ -750,7 +758,9 @@ class RelocIterator: public Malloced {
   void ReadTaggedPC();
   void AdvanceReadPC();
   void AdvanceReadId();
+  void AdvanceReadInt();
   void AdvanceReadPoolData();
+  void AdvanceReadDebugBreakSlotData();
   void AdvanceReadPosition();
   void AdvanceReadData();
   void AdvanceReadVariableLengthPCJump();
