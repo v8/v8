@@ -250,7 +250,7 @@
   'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
 
   # BUG(v8:4279).
-  'regress/regress-4279': [PASS, ['isolates and mode == debug', FLAKY]],
+  'regress/regress-4279': [PASS, ['isolates', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
