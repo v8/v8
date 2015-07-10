@@ -349,10 +349,9 @@ class RelocInfo {
   // we do not normally record relocation info.
   static const char* const kFillerCommentString;
 
-  // The minimum size of a comment is equal to three bytes for the extra tagged
-  // pc + the tag for the data, and kPointerSize for the actual pointer to the
-  // comment.
-  static const int kMinRelocCommentSize = 3 + kPointerSize;
+  // The minimum size of a comment is equal to two bytes for the extra tagged
+  // pc and kPointerSize for the actual pointer to the comment.
+  static const int kMinRelocCommentSize = 2 + kPointerSize;
 
   // The maximum size for a call instruction including pc-jump.
   static const int kMaxCallSize = 6;
@@ -387,11 +386,14 @@ class RelocInfo {
     CONST_POOL,
     VENEER_POOL,
 
-    DEOPT_REASON,  // Deoptimization reason index.
+    DEOPT_REASON,       // Deoptimization reason index.
 
-    // add more as needed
+    // This is not an actual reloc mode, but used to encode a long pc jump that
+    // cannot be encoded as part of another record.
+    PC_JUMP,
+
     // Pseudo-types
-    NUMBER_OF_MODES,    // There are at most 15 modes with noncompact encoding.
+    NUMBER_OF_MODES,
     NONE32,             // never recorded 32-bit value
     NONE64,             // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
@@ -399,13 +401,8 @@ class RelocInfo {
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
-    FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
-    LAST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_CODE_ENUM = DEBUG_BREAK,
     LAST_GCED_ENUM = CELL,
-    // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
-    LAST_COMPACT_ENUM = CODE_TARGET_WITH_ID,
-    LAST_STANDARD_NONCOMPACT_ENUM = INTERNAL_REFERENCE_ENCODED
   };
 
   RelocInfo() {}
@@ -417,11 +414,6 @@ class RelocInfo {
   static inline bool IsRealRelocMode(Mode mode) {
     return mode >= FIRST_REAL_RELOC_MODE &&
         mode <= LAST_REAL_RELOC_MODE;
-  }
-  static inline bool IsPseudoRelocMode(Mode mode) {
-    DCHECK(!IsRealRelocMode(mode));
-    return mode >= FIRST_PSEUDO_RELOC_MODE &&
-        mode <= LAST_PSEUDO_RELOC_MODE;
   }
   static inline bool IsConstructCall(Mode mode) {
     return mode == CONSTRUCT_CALL;
@@ -686,23 +678,22 @@ class RelocInfoWriter BASE_EMBEDDED {
   void Finish() { FlushPosition(); }
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
-  // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, ExtraTag, data_delta.
-  // On ia32 and arm this is 1 + 4 + 1 + 1 + 1 + 4 = 12.
-  // On x64 this is 1 + 4 + 1 + 1 + 1 + 8 == 16;
+  // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
+  // On ia32 and arm this is 1 + 4 + 1 + 1 + 4 = 11.
+  // On x64 this is 1 + 4 + 1 + 1 + 8 == 15;
   // Here we use the maximum of the two.
-  static const int kMaxSize = 16;
+  static const int kMaxSize = 15;
 
  private:
-  inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);
-  inline void WriteTaggedPC(uint32_t pc_delta, int tag);
-  inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
-  inline void WriteInt(int number);
-  inline void WriteDebugBreakSlotData(int data);
-  inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
-  inline void WriteExtraTaggedPoolData(int data, int pool_type);
-  inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
-  inline void WriteTaggedData(intptr_t data_delta, int tag);
-  inline void WriteExtraTag(int extra_tag, int top_tag);
+  inline uint32_t WriteLongPCJump(uint32_t pc_delta);
+
+  inline void WriteShortTaggedPC(uint32_t pc_delta, int tag);
+  inline void WriteShortTaggedData(intptr_t data_delta, int tag);
+
+  inline void WriteMode(RelocInfo::Mode rmode);
+  inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);
+  inline void WriteIntData(int data_delta);
+  inline void WriteData(intptr_t data_delta);
   inline void WritePosition(int pc_delta, int pos_delta, RelocInfo::Mode rmode);
 
   void FlushPosition();
@@ -753,21 +744,21 @@ class RelocIterator: public Malloced {
   // *Get* just reads and returns info on current byte.
   void Advance(int bytes = 1) { pos_ -= bytes; }
   int AdvanceGetTag();
-  int GetExtraTag();
-  int GetTopTag();
-  void ReadTaggedPC();
+  RelocInfo::Mode GetMode();
+
+  void AdvanceReadLongPCJump();
+
+  int GetShortDataTypeTag();
+  void ReadShortTaggedPC();
+  void ReadShortTaggedId();
+  void ReadShortTaggedPosition();
+  void ReadShortTaggedData();
+
   void AdvanceReadPC();
   void AdvanceReadId();
   void AdvanceReadInt();
-  void AdvanceReadPoolData();
-  void AdvanceReadDebugBreakSlotData();
   void AdvanceReadPosition();
   void AdvanceReadData();
-  void AdvanceReadVariableLengthPCJump();
-  int GetLocatableTypeTag();
-  void ReadTaggedId();
-  void ReadTaggedPosition();
-  void ReadTaggedData();
 
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
