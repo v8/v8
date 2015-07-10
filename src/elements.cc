@@ -574,14 +574,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual void Set(FixedArrayBase* backing_store, uint32_t index,
+  virtual void Set(FixedArrayBase* backing_store, uint32_t entry,
                    Object* value) final {
-    ElementsAccessorSubclass::SetImpl(backing_store, index, value);
+    ElementsAccessorSubclass::SetImpl(backing_store, entry, value);
   }
 
-  static void SetImpl(FixedArrayBase* backing_store, uint32_t index,
+  static void SetImpl(FixedArrayBase* backing_store, uint32_t entry,
                       Object* value) {
-    BackingStore::cast(backing_store)->SetValue(index, value);
+    BackingStore::cast(backing_store)->SetValue(entry, value);
   }
 
   virtual void Reconfigure(Handle<JSObject> object,
@@ -599,14 +599,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  virtual void Add(Handle<JSObject> object, uint32_t entry,
+  virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) final {
-    ElementsAccessorSubclass::AddImpl(object, entry, value, attributes,
+    ElementsAccessorSubclass::AddImpl(object, index, value, attributes,
                                       new_capacity);
   }
 
-  static void AddImpl(Handle<JSObject> object, uint32_t entry,
+  static void AddImpl(Handle<JSObject> object, uint32_t index,
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
     UNREACHABLE();
@@ -957,10 +957,8 @@ class DictionaryElementsAccessor
     return isolate->factory()->the_hole_value();
   }
 
-  static void SetImpl(FixedArrayBase* store, uint32_t index, Object* value) {
+  static void SetImpl(FixedArrayBase* store, uint32_t entry, Object* value) {
     SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(store);
-    int entry = dictionary->FindEntry(index);
-    DCHECK_NE(SeededNumberDictionary::kNotFound, entry);
     dictionary->ValueAtPut(entry, value);
   }
 
@@ -977,7 +975,7 @@ class DictionaryElementsAccessor
     dictionary->DetailsAtPut(entry, details);
   }
 
-  static void AddImpl(Handle<JSObject> object, uint32_t entry,
+  static void AddImpl(Handle<JSObject> object, uint32_t index,
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
     PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
@@ -986,7 +984,7 @@ class DictionaryElementsAccessor
             ? JSObject::NormalizeElements(object)
             : handle(SeededNumberDictionary::cast(object->elements()));
     Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::AddNumberEntry(dictionary, entry, value,
+        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
                                                details);
     if (attributes != NONE) new_dictionary->set_requires_slow_elements();
     if (dictionary.is_identical_to(new_dictionary)) return;
@@ -1121,7 +1119,7 @@ class FastElementsAccessor
                                                 value, attributes);
   }
 
-  static void AddImpl(Handle<JSObject> object, uint32_t entry,
+  static void AddImpl(Handle<JSObject> object, uint32_t index,
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
     DCHECK_EQ(NONE, attributes);
@@ -1143,7 +1141,7 @@ class FastElementsAccessor
         JSObject::EnsureWritableFastElements(object);
       }
     }
-    FastElementsAccessorSubclass::SetImpl(object->elements(), entry, *value);
+    FastElementsAccessorSubclass::SetImpl(object->elements(), index, *value);
   }
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
@@ -1478,17 +1476,18 @@ class SloppyArgumentsElementsAccessor
     UNREACHABLE();
   }
 
-  static void SetImpl(FixedArrayBase* store, uint32_t index, Object* value) {
+  static void SetImpl(FixedArrayBase* store, uint32_t entry, Object* value) {
     FixedArray* parameter_map = FixedArray::cast(store);
-    Object* probe = GetParameterMapArg(parameter_map, index);
-    if (!probe->IsTheHole()) {
+    uint32_t length = parameter_map->length() - 2;
+    if (entry < length) {
+      Object* probe = parameter_map->get(entry + 2);
       Context* context = Context::cast(parameter_map->get(0));
       int context_entry = Smi::cast(probe)->value();
       DCHECK(!context->get(context_entry)->IsTheHole());
       context->set(context_entry, value);
     } else {
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      ArgumentsAccessor::SetImpl(arguments, index, value);
+      ArgumentsAccessor::SetImpl(arguments, entry - length, value);
     }
   }
 
@@ -1548,9 +1547,8 @@ class SloppyArgumentsElementsAccessor
     if (entry < length) {
       return PropertyDetails(NONE, DATA, 0, PropertyCellType::kNoCell);
     }
-    entry -= length;
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-    return ArgumentsAccessor::GetDetailsImpl(arguments, entry);
+    return ArgumentsAccessor::GetDetailsImpl(arguments, entry - length);
   }
 
   static Object* GetParameterMapArg(FixedArray* parameter_map, uint32_t index) {
@@ -1686,7 +1684,13 @@ class FastSloppyArgumentsElementsAccessor
         static_cast<uint32_t>(old_elements->length()) < new_capacity) {
       GrowCapacityAndConvertImpl(object, new_capacity);
     }
-    SetImpl(object->elements(), index, *value);
+    FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+    // For fast holey objects, the entry equals the index. The code above made
+    // sure that there's enough space to store the value. We cannot convert
+    // index to entry explicitly since the slot still contains the hole, so the
+    // current EntryForIndex would indicate that it is "absent" by returning
+    // kMaxUInt32.
+    FastHoleyObjectElementsAccessor::SetImpl(arguments, index, *value);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,

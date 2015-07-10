@@ -119,13 +119,13 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
-  virtual void Set(FixedArrayBase* backing_store, uint32_t index,
+  virtual void Set(FixedArrayBase* backing_store, uint32_t entry,
                    Object* value) = 0;
   virtual void Reconfigure(Handle<JSObject> object,
                            Handle<FixedArrayBase> backing_store, uint32_t entry,
                            Handle<Object> value,
                            PropertyAttributes attributes) = 0;
-  virtual void Add(Handle<JSObject> object, uint32_t entry,
+  virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
 
