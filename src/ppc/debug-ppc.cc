@@ -138,12 +138,15 @@ void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm,
+                                DebugCodegen::SlotLocation location,
+                                int call_argc) {
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the trampoline pool in the debug break slot code.
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
   Label check_codesize;
   __ bind(&check_codesize);
+  RecordRelocInfo(masm, location, call_argc);
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(MacroAssembler::DEBUG_BREAK_NOP);
   }
