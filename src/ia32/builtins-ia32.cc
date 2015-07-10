@@ -105,12 +105,12 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
                                        Register original_constructor,
                                        Label* count_incremented,
                                        Label* allocated) {
-  int offset = 0;
+  int offset = kPointerSize;
   if (create_memento) {
     // Get the cell or allocation site.
-    __ mov(edi, Operand(esp, kPointerSize * 2));
+    __ mov(edi, Operand(esp, kPointerSize * 3));
     __ push(edi);
-    offset = kPointerSize;
+    offset += kPointerSize;
   }
 
   // Must restore esi (context) and edi (constructor) before calling
@@ -138,7 +138,6 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
-                                           bool use_new_target,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
@@ -163,9 +162,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ SmiTag(eax);
     __ push(eax);
     __ push(edi);
-    if (use_new_target) {
-      __ push(edx);
-    }
+    __ push(edx);
 
     __ cmp(edx, edi);
     Label normal_new;
@@ -393,8 +390,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&allocated);
 
     if (create_memento) {
-      int offset = (use_new_target ? 3 : 2) * kPointerSize;
-      __ mov(ecx, Operand(esp, offset));
+      __ mov(ecx, Operand(esp, 3 * kPointerSize));
       __ cmp(ecx, masm->isolate()->factory()->undefined_value());
       __ j(equal, &count_incremented);
       // ecx is an AllocationSite. We are creating a memento from it, so we
@@ -405,9 +401,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Restore the parameters.
-    if (use_new_target) {
-      __ pop(edx);  // new.target
-    }
+    __ pop(edx);  // new.target
     __ pop(edi);  // Constructor function.
 
     // Retrieve smi-tagged arguments count from the stack.
@@ -416,9 +410,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Push new.target onto the construct frame. This is stored just below the
     // receiver on the stack.
-    if (use_new_target) {
-      __ push(edx);
-    }
+    __ push(edx);
 
     // Push the allocated receiver to the stack. We need two copies
     // because we may have to return the original one and the calling
@@ -452,9 +444,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    // TODO(arv): Remove the "!use_new_target" before supporting optimization
-    // of functions that reference new.target
-    if (!is_api_function && !use_new_target) {
+    if (!is_api_function) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -482,8 +472,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore the arguments count and leave the construct frame. The arguments
     // count is stored below the reciever and the new.target.
     __ bind(&exit);
-    int offset = (use_new_target ? 2 : 1) * kPointerSize;
-    __ mov(ebx, Operand(esp, offset));
+    __ mov(ebx, Operand(esp, 2 * kPointerSize));
 
     // Leave construct frame.
   }
@@ -499,17 +488,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false, false);
-}
-
-
-void Builtins::Generate_JSConstructStubNewTarget(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, true, false);
 }
 
 

@@ -309,7 +309,7 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
                                        Label* allocated) {
   if (create_memento) {
     // Get the cell or allocation site.
-    __ Peek(x4, 2 * kXRegSize);
+    __ Peek(x4, 3 * kXRegSize);
     __ Push(x4);
     __ Push(x1);  // Argument for Runtime_NewObject.
     __ Push(original_constructor);
@@ -331,7 +331,6 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
-                                           bool use_new_target,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- x0     : number of arguments
@@ -364,14 +363,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ SmiTag(argc);
-    if (use_new_target) {
-      __ Push(argc, constructor, original_constructor);
-    } else {
-      __ Push(argc, constructor);
-    }
-    // sp[0]: new.target (if used)
-    // sp[0/1]: Constructor function.
-    // sp[1/2]: number of arguments (smi-tagged)
+    __ Push(argc, constructor, original_constructor);
+    // sp[0]: new.target
+    // sp[1]: Constructor function.
+    // sp[2]: number of arguments (smi-tagged)
 
     Label rt_call, count_incremented, allocated, normal_new;
     __ Cmp(constructor, original_constructor);
@@ -587,8 +582,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Bind(&allocated);
 
     if (create_memento) {
-      int offset = (use_new_target ? 3 : 2) * kXRegSize;
-      __ Peek(x10, offset);
+      __ Peek(x10, 3 * kXRegSize);
       __ JumpIfRoot(x10, Heap::kUndefinedValueRootIndex, &count_incremented);
       // r2 is an AllocationSite. We are creating a memento from it, so we
       // need to increment the memento create count.
@@ -601,9 +595,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Restore the parameters.
-    if (use_new_target) {
-      __ Pop(original_constructor);
-    }
+    __ Pop(original_constructor);
     __ Pop(constructor);
 
     // Reload the number of arguments from the stack.
@@ -612,11 +604,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Peek(argc, 0);  // Load number of arguments.
     __ SmiUntag(argc);
 
-    if (use_new_target) {
-      __ Push(original_constructor, x4, x4);
-    } else {
-      __ Push(x4, x4);
-    }
+    __ Push(original_constructor, x4, x4);
 
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
@@ -628,8 +616,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // x2: address of last argument (caller sp)
     // jssp[0]: receiver
     // jssp[1]: receiver
-    // jssp[2]: new.target (if used)
-    // jssp[2/3]: number of arguments (smi-tagged)
+    // jssp[2]: new.target
+    // jssp[3]: number of arguments (smi-tagged)
     // Compute the start address of the copy in x3.
     __ Add(x3, x2, Operand(argc, LSL, kPointerSizeLog2));
     Label loop, entry, done_copying_arguments;
@@ -660,17 +648,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    // TODO(arv): Remove the "!use_new_target" before supporting optimization
-    // of functions that reference new.target
-    if (!is_api_function && !use_new_target) {
+    if (!is_api_function) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
     // Restore the context from the frame.
     // x0: result
     // jssp[0]: receiver
-    // jssp[1]: new.target (if used)
-    // jssp[1/2]: number of arguments (smi-tagged)
+    // jssp[1]: new.target
+    // jssp[2]: number of arguments (smi-tagged)
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     // If the result is an object (in the ECMA sense), we should get rid
@@ -698,10 +684,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Bind(&exit);
     // x0: result
     // jssp[0]: receiver (newly allocated object)
-    // jssp[1]: new.target (if used)
-    // jssp[1/2]: number of arguments (smi-tagged)
-    int offset = (use_new_target ? 2 : 1) * kXRegSize;
-    __ Peek(x1, offset);
+    // jssp[1]: new.target (original constructor)
+    // jssp[2]: number of arguments (smi-tagged)
+    __ Peek(x1, 2 * kXRegSize);
 
     // Leave construct frame.
   }
@@ -714,17 +699,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false, false);
-}
-
-
-void Builtins::Generate_JSConstructStubNewTarget(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, true, false);
 }
 
 

@@ -1230,6 +1230,12 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
+  // The original constructor.
+  output_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(isolate_->heap()->undefined_value());
+  output_frame->SetFrameSlot(output_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_offset, "new.target\n");
+
   // The newly allocated object was passed as receiver in the artificial
   // constructor stub environment created by HEnvironment::CopyForInlining().
   output_offset -= kPointerSize;
