@@ -85,21 +85,22 @@ TestAll('f()(); let x; function f() { return function() { ++x; } }');
 TestAll('f()(); let x; function f() { return function() { x++; } }');
 TestAll('f()(); const x = 1; function f() { return function() { return x; } }');
 
-// Use before initialization with a dynamic lookup.
-TestAll('eval("x + 1;"); let x;');
-TestAll('eval("x = 1;"); let x;');
-TestAll('eval("x += 1;"); let x;');
-TestAll('eval("++x;"); let x;');
-TestAll('eval("x++;"); let x;');
-TestAll('eval("x"); const x = 1;');
+for (var kw of ['let', 'const']) {
+  // Use before initialization with a dynamic lookup.
+  TestAll(`eval("x"); ${kw} x = 2;`);
+  TestAll(`eval("x + 1;"); ${kw} x = 2;`);
+  TestAll(`eval("x = 1;"); ${kw} x = 2;`);
+  TestAll(`eval("x += 1;"); ${kw} x = 2;`);
+  TestAll(`eval("++x;"); ${kw} x = 2;`);
+  TestAll(`eval("x++;"); ${kw} x = 2;`);
 
-// Use before initialization with check for eval-shadowed bindings.
-TestAll('function f() { eval("var y = 2;"); x + 1; }; f(); let x;');
-// TODO(arv): https://code.google.com/p/v8/issues/detail?id=4284
-// TestAll('function f() { eval("var y = 2;"); x = 1; }; f(); let x;');
-TestAll('function f() { eval("var y = 2;"); x += 1; }; f(); let x;');
-TestAll('function f() { eval("var y = 2;"); ++x; }; f(); let x;');
-TestAll('function f() { eval("var y = 2;"); x++; }; f(); let x;');
+  // Use before initialization with check for eval-shadowed bindings.
+  TestAll(`function f() { eval("var y = 2;"); x + 1; }; f(); ${kw} x = 2;`);
+  TestAll(`function f() { eval("var y = 2;"); x = 1; }; f(); ${kw} x = 2;`);
+  TestAll(`function f() { eval("var y = 2;"); x += 1; }; f(); ${kw} x = 2;`);
+  TestAll(`function f() { eval("var y = 2;"); ++x; }; f(); ${kw} x = 2;`);
+  TestAll(`function f() { eval("var y = 2;"); x++; }; f(); ${kw} x = 2;`);
+}
 
 // Test that variables introduced by function declarations are created and
 // initialized upon entering a function / block scope.
