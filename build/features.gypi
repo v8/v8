@@ -108,7 +108,7 @@
       'DebugBaseCommon': {
         'abstract': 1,
         'variables': {
-          'v8_enable_handle_zapping%': 1,
+          'v8_enable_handle_zapping%': 0,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {
