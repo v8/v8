@@ -3275,54 +3275,58 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
   if (found) return result;
 
   LookupIterator own_lookup(it->GetReceiver(), it->name(), LookupIterator::OWN);
+  for (; own_lookup.IsFound(); own_lookup.Next()) {
+    switch (own_lookup.state()) {
+      case LookupIterator::ACCESS_CHECK:
+        if (!own_lookup.HasAccess()) {
+          return JSObject::SetPropertyWithFailedAccessCheck(&own_lookup, value,
+                                                            SLOPPY);
+        }
+        break;
 
-  switch (own_lookup.state()) {
-    case LookupIterator::NOT_FOUND:
-      return JSObject::AddDataProperty(&own_lookup, value, NONE, language_mode,
-                                       store_mode);
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return RedefineNonconfigurableProperty(it->isolate(), it->name(), value,
+                                               language_mode);
 
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
-      return result;
-
-    case LookupIterator::DATA: {
-      PropertyDetails details = own_lookup.property_details();
-      if (details.IsConfigurable() || !details.IsReadOnly()) {
-        return JSObject::SetOwnPropertyIgnoreAttributes(
-            Handle<JSObject>::cast(it->GetReceiver()), it->name(), value,
-            details.attributes());
-      }
-      return WriteToReadOnlyProperty(&own_lookup, value, language_mode);
-    }
-
-    case LookupIterator::ACCESSOR: {
-      PropertyDetails details = own_lookup.property_details();
-      if (details.IsConfigurable()) {
-        return JSObject::SetOwnPropertyIgnoreAttributes(
-            Handle<JSObject>::cast(it->GetReceiver()), it->name(), value,
-            details.attributes());
+      case LookupIterator::DATA: {
+        PropertyDetails details = own_lookup.property_details();
+        if (details.IsConfigurable() || !details.IsReadOnly()) {
+          return JSObject::SetOwnPropertyIgnoreAttributes(
+              Handle<JSObject>(it->GetReceiver()), it->name(), value,
+              details.attributes());
+        }
+        return WriteToReadOnlyProperty(&own_lookup, value, language_mode);
       }
 
-      return RedefineNonconfigurableProperty(it->isolate(), it->name(), value,
-                                             language_mode);
-    }
+      case LookupIterator::ACCESSOR: {
+        PropertyDetails details = own_lookup.property_details();
+        if (details.IsConfigurable()) {
+          return JSObject::SetOwnPropertyIgnoreAttributes(
+              Handle<JSObject>(it->GetReceiver()), it->name(), value,
+              details.attributes());
+        }
 
-    case LookupIterator::TRANSITION:
-      UNREACHABLE();
-      break;
+        return RedefineNonconfigurableProperty(it->isolate(), it->name(), value,
+                                               language_mode);
+      }
 
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::JSPROXY:
-    case LookupIterator::ACCESS_CHECK: {
-      bool found = false;
-      MaybeHandle<Object> result = SetPropertyInternal(
-          &own_lookup, value, language_mode, store_mode, &found);
-      if (found) return result;
-      return SetDataProperty(&own_lookup, value);
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY: {
+        bool found = false;
+        MaybeHandle<Object> result = SetPropertyInternal(
+            &own_lookup, value, language_mode, store_mode, &found);
+        if (found) return result;
+        break;
+      }
+
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
     }
   }
 
-  UNREACHABLE();
-  return MaybeHandle<Object>();
+  return JSObject::AddDataProperty(&own_lookup, value, NONE, language_mode,
+                                   store_mode);
 }
 
 
