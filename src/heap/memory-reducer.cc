@@ -18,6 +18,7 @@ const int MemoryReducer::kMaxNumberOfGCs = 3;
 
 
 void MemoryReducer::TimerTask::Run() {
+  if (heap_is_torn_down_) return;
   Heap* heap = memory_reducer_->heap();
   Event event;
   event.type = kTimer;
@@ -31,8 +32,10 @@ void MemoryReducer::TimerTask::Run() {
 
 
 void MemoryReducer::NotifyTimer(const Event& event) {
+  DCHECK(nullptr != pending_task_);
   DCHECK_EQ(kTimer, event.type);
   DCHECK_EQ(kWait, state_.action);
+  pending_task_ = nullptr;
   state_ = Step(state_, event);
   if (state_.action == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
@@ -167,9 +170,19 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap()->isolate());
+  DCHECK(nullptr == pending_task_);
+  pending_task_ = new MemoryReducer::TimerTask(this);
   V8::GetCurrentPlatform()->CallDelayedOnForegroundThread(
-      isolate, new MemoryReducer::TimerTask(this),
-      (delay_ms + kSlackMs) / 1000.0);
+      isolate, pending_task_, (delay_ms + kSlackMs) / 1000.0);
+}
+
+
+void MemoryReducer::TearDown() {
+  if (pending_task_ != nullptr) {
+    pending_task_->NotifyHeapTearDown();
+    pending_task_ = nullptr;
+  }
+  state_ = State(kDone, 0, 0);
 }
 
 }  // internal

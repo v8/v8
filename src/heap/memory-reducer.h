@@ -101,7 +101,8 @@ class MemoryReducer {
     bool can_start_incremental_gc;
   };
 
-  explicit MemoryReducer(Heap* heap) : heap_(heap), state_(kDone, 0, 0.0) {}
+  explicit MemoryReducer(Heap* heap)
+      : heap_(heap), state_(kDone, 0, 0.0), pending_task_(nullptr) {}
   // Callbacks.
   void NotifyTimer(const Event& event);
   void NotifyMarkCompact(const Event& event);
@@ -112,6 +113,7 @@ class MemoryReducer {
   static State Step(const State& state, const Event& event);
   // Posts a timer task that will call NotifyTimer after the given delay.
   void ScheduleTimer(double delay_ms);
+  void TearDown();
 
   static const int kLongDelayMs;
   static const int kShortDelayMs;
@@ -123,18 +125,20 @@ class MemoryReducer {
   class TimerTask : public v8::Task {
    public:
     explicit TimerTask(MemoryReducer* memory_reducer)
-        : memory_reducer_(memory_reducer) {}
+        : memory_reducer_(memory_reducer), heap_is_torn_down_(false) {}
     virtual ~TimerTask() {}
+    void NotifyHeapTearDown() { heap_is_torn_down_ = true; }
 
    private:
     // v8::Task overrides.
     void Run() override;
     MemoryReducer* memory_reducer_;
+    bool heap_is_torn_down_;
     DISALLOW_COPY_AND_ASSIGN(TimerTask);
   };
-
   Heap* heap_;
   State state_;
+  TimerTask* pending_task_;
 
   DISALLOW_COPY_AND_ASSIGN(MemoryReducer);
 };
