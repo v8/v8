@@ -3292,7 +3292,7 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
         PropertyDetails details = own_lookup.property_details();
         if (details.IsConfigurable() || !details.IsReadOnly()) {
           return JSObject::SetOwnPropertyIgnoreAttributes(
-              Handle<JSObject>(it->GetReceiver()), it->name(), value,
+              Handle<JSObject>::cast(it->GetReceiver()), it->name(), value,
               details.attributes());
         }
         return WriteToReadOnlyProperty(&own_lookup, value, language_mode);
@@ -3302,7 +3302,7 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
         PropertyDetails details = own_lookup.property_details();
         if (details.IsConfigurable()) {
           return JSObject::SetOwnPropertyIgnoreAttributes(
-              Handle<JSObject>(it->GetReceiver()), it->name(), value,
+              Handle<JSObject>::cast(it->GetReceiver()), it->name(), value,
               details.attributes());
         }
 
