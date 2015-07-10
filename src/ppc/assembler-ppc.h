@@ -591,8 +591,7 @@ class Assembler : public AssemblerBase {
 
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
-  // Manages the jump elimination optimization if the second parameter is true.
-  int branch_offset(Label* L, bool jump_elimination_allowed) {
+  int branch_offset(Label* L) {
     int position = link(L);
     return position - pc_offset();
   }
@@ -753,7 +752,7 @@ class Assembler : public AssemblerBase {
   void bctrl();
 
   // Convenience branch instructions using labels
-  void b(Label* L, LKBit lk = LeaveLK) { b(branch_offset(L, false), lk); }
+  void b(Label* L, LKBit lk = LeaveLK) { b(branch_offset(L), lk); }
 
   inline CRegister cmpi_optimization(CRegister cr) {
     // Check whether the branch is preceeded by an optimizable cmpi against 0.
@@ -798,7 +797,7 @@ class Assembler : public AssemblerBase {
 
     cr = cmpi_optimization(cr);
 
-    int b_offset = branch_offset(L, false);
+    int b_offset = branch_offset(L);
 
     switch (cond) {
       case eq:
@@ -931,7 +930,7 @@ class Assembler : public AssemblerBase {
 
   // Decrement CTR; branch if CTR != 0
   void bdnz(Label* L, LKBit lk = LeaveLK) {
-    bc(branch_offset(L, false), DCBNZ, 0, lk);
+    bc(branch_offset(L), DCBNZ, 0, lk);
   }
 
   // Data-processing instructions
