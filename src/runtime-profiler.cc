@@ -181,10 +181,12 @@ void RuntimeProfiler::OptimizeNow() {
       // Attempt OSR if we are still running unoptimized code even though the
       // the function has long been marked or even already been optimized.
       int ticks = shared_code->profiler_ticks();
-      int allowance = kOSRCodeSizeAllowanceBase +
-                      ticks * kOSRCodeSizeAllowancePerTick;
-      if (shared_code->CodeSize() > allowance) {
-        if (ticks < 255) shared_code->set_profiler_ticks(ticks + 1);
+      int64_t allowance =
+          kOSRCodeSizeAllowanceBase +
+          static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTick;
+      if (shared_code->CodeSize() > allowance &&
+          ticks < Code::ProfilerTicksField::kMax) {
+        shared_code->set_profiler_ticks(ticks + 1);
       } else {
         AttemptOnStackReplacement(function);
       }
