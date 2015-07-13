@@ -113,11 +113,11 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 DynamicGlobalAccess::DynamicGlobalAccess(const Handle<String>& name,
                                          uint32_t check_bitset,
                                          const VectorSlotPair& feedback,
-                                         ContextualMode mode)
+                                         TypeofMode typeof_mode)
     : name_(name),
       check_bitset_(check_bitset),
       feedback_(feedback),
-      mode_(mode) {
+      typeof_mode_(typeof_mode) {
   DCHECK(check_bitset == kFullCheckRequired || check_bitset < 0x80000000U);
 }
 
@@ -143,7 +143,7 @@ size_t hash_value(DynamicGlobalAccess const& access) {
 
 std::ostream& operator<<(std::ostream& os, DynamicGlobalAccess const& access) {
   return os << Brief(*access.name()) << ", " << access.check_bitset() << ", "
-            << access.mode();
+            << access.typeof_mode();
 }
 
 
@@ -198,7 +198,6 @@ bool operator==(LoadNamedParameters const& lhs,
                 LoadNamedParameters const& rhs) {
   return lhs.name() == rhs.name() &&
          lhs.language_mode() == rhs.language_mode() &&
-         lhs.contextual_mode() == rhs.contextual_mode() &&
          lhs.feedback() == rhs.feedback();
 }
 
@@ -210,14 +209,12 @@ bool operator!=(LoadNamedParameters const& lhs,
 
 
 size_t hash_value(LoadNamedParameters const& p) {
-  return base::hash_combine(p.name(), p.language_mode(), p.contextual_mode(),
-                            p.feedback());
+  return base::hash_combine(p.name(), p.language_mode(), p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadNamedParameters const& p) {
-  return os << Brief(*p.name().handle()) << ", " << p.language_mode() << ", "
-            << p.contextual_mode();
+  return os << Brief(*p.name().handle()) << ", " << p.language_mode();
 }
 
 
@@ -259,7 +256,7 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op) {
 bool operator==(LoadGlobalParameters const& lhs,
                 LoadGlobalParameters const& rhs) {
   return lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback() &&
-         lhs.contextual_mode() == rhs.contextual_mode() &&
+         lhs.typeof_mode() == rhs.typeof_mode() &&
          lhs.slot_index() == rhs.slot_index();
 }
 
@@ -271,12 +268,12 @@ bool operator!=(LoadGlobalParameters const& lhs,
 
 
 size_t hash_value(LoadGlobalParameters const& p) {
-  return base::hash_combine(p.name(), p.contextual_mode(), p.slot_index());
+  return base::hash_combine(p.name(), p.typeof_mode(), p.slot_index());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadGlobalParameters const& p) {
-  return os << Brief(*p.name().handle()) << ", " << p.contextual_mode()
+  return os << Brief(*p.name().handle()) << ", " << p.typeof_mode()
             << ", slot: " << p.slot_index();
 }
 
@@ -565,7 +562,7 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
                                              const VectorSlotPair& feedback,
                                              LanguageMode language_mode) {
-  LoadNamedParameters parameters(name, feedback, language_mode, NOT_CONTEXTUAL);
+  LoadNamedParameters parameters(name, feedback, language_mode);
   return new (zone()) Operator1<LoadNamedParameters>(   // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
@@ -619,9 +616,9 @@ const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
 
 const Operator* JSOperatorBuilder::LoadGlobal(const Unique<Name>& name,
                                               const VectorSlotPair& feedback,
-                                              ContextualMode contextual_mode,
+                                              TypeofMode typeof_mode,
                                               int slot_index) {
-  LoadGlobalParameters parameters(name, feedback, contextual_mode, slot_index);
+  LoadGlobalParameters parameters(name, feedback, typeof_mode, slot_index);
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
@@ -668,8 +665,8 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 
 const Operator* JSOperatorBuilder::LoadDynamicGlobal(
     const Handle<String>& name, uint32_t check_bitset,
-    const VectorSlotPair& feedback, ContextualMode mode) {
-  DynamicGlobalAccess access(name, check_bitset, feedback, mode);
+    const VectorSlotPair& feedback, TypeofMode typeof_mode) {
+  DynamicGlobalAccess access(name, check_bitset, feedback, typeof_mode);
   return new (zone()) Operator1<DynamicGlobalAccess>(           // --
       IrOpcode::kJSLoadDynamicGlobal, Operator::kNoProperties,  // opcode
       "JSLoadDynamicGlobal",                                    // name

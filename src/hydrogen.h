@@ -758,8 +758,8 @@ class AstContext {
   virtual void ReturnContinuation(HIfContinuation* continuation,
                                   BailoutId ast_id) = 0;
 
-  void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
-  bool is_for_typeof() { return for_typeof_; }
+  void set_typeof_mode(TypeofMode typeof_mode) { typeof_mode_ = typeof_mode; }
+  TypeofMode typeof_mode() { return typeof_mode_; }
 
  protected:
   AstContext(HOptimizedGraphBuilder* owner, Expression::Context kind);
@@ -779,7 +779,7 @@ class AstContext {
   HOptimizedGraphBuilder* owner_;
   Expression::Context kind_;
   AstContext* outer_;
-  bool for_typeof_;
+  TypeofMode typeof_mode_;
 };
 
 

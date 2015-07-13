@@ -950,7 +950,8 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
   for (int i = 0; i < DynamicGlobalAccess::kMaxCheckDepth; ++i) {
     uint32_t bitset = 1 << i;  // Only single check.
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadDynamicGlobal(name, bitset, feedback, NOT_CONTEXTUAL),
+        javascript()->LoadDynamicGlobal(name, bitset, feedback,
+                                        NOT_INSIDE_TYPEOF),
         vector, context, context, frame_state, frame_state, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(

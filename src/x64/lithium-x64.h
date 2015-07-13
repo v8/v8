@@ -1690,7 +1690,7 @@ class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
   LOperand* temp_vector() { return temps_[0]; }
 
   Handle<Object> name() const { return hydrogen()->name(); }
-  bool for_typeof() const { return hydrogen()->for_typeof(); }
+  TypeofMode typeof_mode() const { return hydrogen()->typeof_mode(); }
 };
 
 

@@ -545,16 +545,13 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code for loading variables.
   void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
-                                     TypeofState typeof_state,
-                                     Label* slow);
+                                     TypeofMode typeof_mode, Label* slow);
   MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(VariableProxy* proxy,
-                                 TypeofState typeof_state,
-                                 Label* slow,
-                                 Label* done);
-  void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofState typeof_state);
+  void EmitDynamicLookupFastCase(VariableProxy* proxy, TypeofMode typeof_mode,
+                                 Label* slow, Label* done);
+  void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofMode typeof_mode);
   void EmitVariableLoad(VariableProxy* proxy,
-                        TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+                        TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(Expression* expression);
 
@@ -654,7 +651,8 @@ class FullCodeGenerator: public AstVisitor {
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(ContextualMode mode, LanguageMode language_mode = SLOPPY,
+  // Inside typeof reference errors are never thrown.
+  void CallLoadIC(TypeofMode typeof_mode, LanguageMode language_mode = SLOPPY,
                   TypeFeedbackId id = TypeFeedbackId::None());
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 

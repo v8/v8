@@ -2948,7 +2948,7 @@ void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
     FrameStateBeforeAndAfter states(this, BeforeId(proxy));
     operand =
         BuildVariableLoad(proxy->var(), expr->expression()->id(), states, pair,
-                          OutputFrameStateCombine::Push(), NOT_CONTEXTUAL);
+                          OutputFrameStateCombine::Push(), INSIDE_TYPEOF);
   } else {
     VisitForValue(expr->expression());
     operand = environment()->Pop();
@@ -3260,7 +3260,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          FrameStateBeforeAndAfter& states,
                                          const VectorSlotPair& feedback,
                                          OutputFrameStateCombine combine,
-                                         ContextualMode contextual_mode) {
+                                         TypeofMode typeof_mode) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
   switch (variable->location()) {
@@ -3283,7 +3283,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
       Node* value = BuildGlobalLoad(script_context, global, name, feedback,
-                                    contextual_mode, slot_index);
+                                    typeof_mode, slot_index);
       states.AddToNode(value, bailout_id, combine);
       return value;
     }
@@ -3339,7 +3339,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       if (mode == DYNAMIC_GLOBAL) {
         uint32_t check_bitset = ComputeBitsetForDynamicGlobal(variable);
         const Operator* op = javascript()->LoadDynamicGlobal(
-            name, check_bitset, feedback, contextual_mode);
+            name, check_bitset, feedback, typeof_mode);
         value = NewNode(op, BuildLoadFeedbackVector(), current_context());
         states.AddToNode(value, bailout_id, combine);
       } else if (mode == DYNAMIC_LOCAL) {
@@ -3364,7 +3364,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       } else if (mode == DYNAMIC) {
         uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
         const Operator* op = javascript()->LoadDynamicGlobal(
-            name, check_bitset, feedback, contextual_mode);
+            name, check_bitset, feedback, typeof_mode);
         value = NewNode(op, BuildLoadFeedbackVector(), current_context());
         states.AddToNode(value, bailout_id, combine);
       }
@@ -3645,9 +3645,9 @@ Node* AstGraphBuilder::BuildNamedSuperStore(Node* receiver, Node* home_object,
 Node* AstGraphBuilder::BuildGlobalLoad(Node* script_context, Node* global,
                                        Handle<Name> name,
                                        const VectorSlotPair& feedback,
-                                       ContextualMode mode, int slot_index) {
-  const Operator* op =
-      javascript()->LoadGlobal(MakeUnique(name), feedback, mode, slot_index);
+                                       TypeofMode typeof_mode, int slot_index) {
+  const Operator* op = javascript()->LoadGlobal(MakeUnique(name), feedback,
+                                                typeof_mode, slot_index);
   Node* node = NewNode(op, script_context, global, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }

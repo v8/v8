@@ -354,13 +354,13 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
                                           LanguageMode language_mode) {
-    return LoadICState(contextual_mode, language_mode).GetExtraICState();
+    return LoadICState(typeof_mode, language_mode).GetExtraICState();
   }
 
-  ContextualMode contextual_mode() const {
-    return LoadICState::GetContextualMode(extra_ic_state());
+  TypeofMode typeof_mode() const {
+    return LoadICState::GetTypeofMode(extra_ic_state());
   }
 
   LanguageMode language_mode() const {
@@ -382,15 +382,8 @@ class LoadIC : public IC {
     DCHECK(IsLoadStub());
   }
 
-  // Returns if this IC is for contextual (no explicit receiver)
-  // access to properties.
-  bool IsUndeclaredGlobal(Handle<Object> receiver) {
-    if (receiver->IsGlobalObject()) {
-      return contextual_mode() == CONTEXTUAL;
-    } else {
-      DCHECK(contextual_mode() != CONTEXTUAL);
-      return false;
-    }
+  bool ShouldThrowReferenceError(Handle<Object> receiver) {
+    return receiver->IsGlobalObject() && typeof_mode() == NOT_INSIDE_TYPEOF;
   }
 
   // Code generator routines.
@@ -452,10 +445,10 @@ class KeyedLoadIC : public LoadIC {
   class IcCheckTypeField
       : public BitField<IcCheckType, LoadICState::kNextBitFieldOffset, 1> {};
 
-  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
                                           LanguageMode language_mode,
                                           IcCheckType key_type) {
-    return LoadICState(contextual_mode, language_mode).GetExtraICState() |
+    return LoadICState(typeof_mode, language_mode).GetExtraICState() |
            IcCheckTypeField::encode(key_type);
   }
 

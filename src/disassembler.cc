@@ -197,8 +197,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
           if (kind == Code::LOAD_IC &&
-              LoadICState::GetContextualMode(code->extra_ic_state()) ==
-                  CONTEXTUAL) {
+              LoadICState::GetTypeofMode(code->extra_ic_state()) ==
+                  NOT_INSIDE_TYPEOF) {
             out.AddFormatted(" contextual,");
           }
           InlineCacheState ic_state = code->ic_state();

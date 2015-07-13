@@ -158,12 +158,12 @@ ContextAccess const& ContextAccessOf(Operator const*);
 class DynamicGlobalAccess final {
  public:
   DynamicGlobalAccess(const Handle<String>& name, uint32_t check_bitset,
-                      const VectorSlotPair& feedback, ContextualMode mode);
+                      const VectorSlotPair& feedback, TypeofMode typeof_mode);
 
   const Handle<String>& name() const { return name_; }
   uint32_t check_bitset() const { return check_bitset_; }
   const VectorSlotPair& feedback() const { return feedback_; }
-  ContextualMode mode() const { return mode_; }
+  TypeofMode typeof_mode() const { return typeof_mode_; }
 
   // Indicates that an inline check is disabled.
   bool RequiresFullCheck() const {
@@ -180,7 +180,7 @@ class DynamicGlobalAccess final {
   const Handle<String> name_;
   const uint32_t check_bitset_;
   const VectorSlotPair feedback_;
-  const ContextualMode mode_;
+  const TypeofMode typeof_mode_;
 };
 
 size_t hash_value(DynamicGlobalAccess const&);
@@ -237,16 +237,11 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 class LoadNamedParameters final {
  public:
   LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
-                      LanguageMode language_mode,
-                      ContextualMode contextual_mode)
-      : name_(name),
-        feedback_(feedback),
-        language_mode_(language_mode),
-        contextual_mode_(contextual_mode) {}
+                      LanguageMode language_mode)
+      : name_(name), feedback_(feedback), language_mode_(language_mode) {}
 
   const Unique<Name>& name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
-  ContextualMode contextual_mode() const { return contextual_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
@@ -254,7 +249,6 @@ class LoadNamedParameters final {
   const Unique<Name> name_;
   const VectorSlotPair feedback_;
   const LanguageMode language_mode_;
-  const ContextualMode contextual_mode_;
 };
 
 bool operator==(LoadNamedParameters const&, LoadNamedParameters const&);
@@ -272,14 +266,14 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 class LoadGlobalParameters final {
  public:
   LoadGlobalParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
-                       ContextualMode contextual_mode, int slot_index)
+                       TypeofMode typeof_mode, int slot_index)
       : name_(name),
         feedback_(feedback),
-        contextual_mode_(contextual_mode),
+        typeof_mode_(typeof_mode),
         slot_index_(slot_index) {}
 
   const Unique<Name>& name() const { return name_; }
-  ContextualMode contextual_mode() const { return contextual_mode_; }
+  TypeofMode typeof_mode() const { return typeof_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
@@ -288,7 +282,7 @@ class LoadGlobalParameters final {
  private:
   const Unique<Name> name_;
   const VectorSlotPair feedback_;
-  const ContextualMode contextual_mode_;
+  const TypeofMode typeof_mode_;
   const int slot_index_;
 };
 
@@ -510,7 +504,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadGlobal(const Unique<Name>& name,
                              const VectorSlotPair& feedback,
-                             ContextualMode contextual_mode = NOT_CONTEXTUAL,
+                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF,
                              int slot_index = -1);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Unique<Name>& name,
@@ -523,7 +517,7 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* LoadDynamicGlobal(const Handle<String>& name,
                                     uint32_t check_bitset,
                                     const VectorSlotPair& feedback,
-                                    ContextualMode mode);
+                                    TypeofMode typeof_mode);
   const Operator* LoadDynamicContext(const Handle<String>& name,
                                      uint32_t check_bitset, size_t depth,
                                      size_t index);

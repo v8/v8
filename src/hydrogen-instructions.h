@@ -5401,12 +5401,12 @@ class HUnknownOSRValue final : public HTemplateInstruction<0> {
 class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadGlobalGeneric, HValue*,
-                                              Handle<String>, bool);
+                                              Handle<String>, TypeofMode);
 
   HValue* context() { return OperandAt(0); }
   HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
-  bool for_typeof() const { return for_typeof_; }
+  TypeofMode typeof_mode() const { return typeof_mode_; }
   FeedbackVectorICSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
@@ -5428,9 +5428,9 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
 
  private:
   HLoadGlobalGeneric(HValue* context, HValue* global_object,
-                     Handle<String> name, bool for_typeof)
+                     Handle<String> name, TypeofMode typeof_mode)
       : name_(name),
-        for_typeof_(for_typeof),
+        typeof_mode_(typeof_mode),
         slot_(FeedbackVectorICSlot::Invalid()) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
@@ -5439,7 +5439,7 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   }
 
   Handle<String> name_;
-  bool for_typeof_;
+  TypeofMode typeof_mode_;
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorICSlot slot_;
 };

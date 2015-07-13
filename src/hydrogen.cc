@@ -4044,7 +4044,7 @@ AstContext::AstContext(HOptimizedGraphBuilder* owner, Expression::Context kind)
     : owner_(owner),
       kind_(kind),
       outer_(owner->ast_context()),
-      for_typeof_(false) {
+      typeof_mode_(NOT_INSIDE_TYPEOF) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
   DCHECK(owner->environment()->frame_type() == JS_FUNCTION);
@@ -4292,7 +4292,7 @@ void HOptimizedGraphBuilder::VisitForValue(Expression* expr,
 
 void HOptimizedGraphBuilder::VisitForTypeOf(Expression* expr) {
   ValueContext for_value(this, ARGUMENTS_NOT_ALLOWED);
-  for_value.set_for_typeof(true);
+  for_value.set_typeof_mode(INSIDE_TYPEOF);
   Visit(expr);
 }
 
@@ -5563,10 +5563,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         HValue* global_object = Add<HLoadNamedField>(
             context(), nullptr,
             HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-        HLoadGlobalGeneric* instr =
-            New<HLoadGlobalGeneric>(global_object,
-                                    variable->name(),
-                                    ast_context()->is_for_typeof());
+        HLoadGlobalGeneric* instr = New<HLoadGlobalGeneric>(
+            global_object, variable->name(), ast_context()->typeof_mode());
         instr->SetVectorAndSlot(handle(current_feedback_vector(), isolate()),
                                 expr->VariableFeedbackSlot());
         return ast_context()->ReturnInstruction(instr, expr->id());

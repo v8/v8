@@ -1369,7 +1369,7 @@ void FullCodeGenerator::EmitSetHomeObjectIfNeeded(Expression* initializer,
 
 
 void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
-                                                      TypeofState typeof_state,
+                                                      TypeofMode typeof_mode,
                                                       Label* slow) {
   Register current = cp;
   Register next = r1;
@@ -1418,7 +1418,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
 
   // All extension objects were empty and it is safe to use a normal global
   // load machinery.
-  EmitGlobalVariableLoad(proxy, typeof_state);
+  EmitGlobalVariableLoad(proxy, typeof_mode);
 }
 
 
@@ -1455,9 +1455,8 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
 
 
 void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
-                                                  TypeofState typeof_state,
-                                                  Label* slow,
-                                                  Label* done) {
+                                                  TypeofMode typeof_mode,
+                                                  Label* slow, Label* done) {
   // Generate fast-case code for variables that might be shadowed by
   // eval-introduced variables.  Eval is used a lot without
   // introducing variables.  In those cases, we do not want to
@@ -1465,7 +1464,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
   // containing the eval.
   Variable* var = proxy->var();
   if (var->mode() == DYNAMIC_GLOBAL) {
-    EmitLoadGlobalCheckExtensions(proxy, typeof_state, slow);
+    EmitLoadGlobalCheckExtensions(proxy, typeof_mode, slow);
     __ jmp(done);
   } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
@@ -1488,7 +1487,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
 
 
 void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
-                                               TypeofState typeof_state) {
+                                               TypeofMode typeof_mode) {
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
@@ -1512,15 +1511,13 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
     __ mov(LoadDescriptor::NameRegister(), Operand(var->name()));
     __ mov(LoadDescriptor::SlotRegister(),
            Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
-    // Inside typeof use a regular load, not a contextual load, to avoid
-    // a reference error.
-    CallLoadIC(typeof_state == NOT_INSIDE_TYPEOF ? CONTEXTUAL : NOT_CONTEXTUAL);
+    CallLoadIC(typeof_mode);
   }
 }
 
 
 void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
-                                         TypeofState typeof_state) {
+                                         TypeofMode typeof_mode) {
   // Record position before possible IC call.
   SetExpressionPosition(proxy);
   PrepareForBailoutForId(proxy->BeforeId(), NO_REGISTERS);
@@ -1532,7 +1529,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       Comment cmnt(masm_, "[ Global variable");
-      EmitGlobalVariableLoad(proxy, typeof_state);
+      EmitGlobalVariableLoad(proxy, typeof_mode);
       context()->Plug(r0);
       break;
     }
@@ -1540,7 +1537,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
     case VariableLocation::CONTEXT: {
-      DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_state);
+      DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_mode);
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context variable"
                                                : "[ Stack variable");
       if (var->binding_needs_init()) {
@@ -1614,12 +1611,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       Label done, slow;
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
-      EmitDynamicLookupFastCase(proxy, typeof_state, &slow, &done);
+      EmitDynamicLookupFastCase(proxy, typeof_mode, &slow, &done);
       __ bind(&slow);
       __ mov(r1, Operand(var->name()));
       __ Push(cp, r1);  // Context and name.
       Runtime::FunctionId function_id =
-          typeof_state == NOT_INSIDE_TYPEOF
+          typeof_mode == NOT_INSIDE_TYPEOF
               ? Runtime::kLoadLookupSlot
               : Runtime::kLoadLookupSlotNoReferenceError;
       __ CallRuntime(function_id, 2);
@@ -2301,7 +2298,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(load_name, Heap::kdone_stringRootIndex);  // "done"
       __ mov(LoadDescriptor::SlotRegister(),
              Operand(SmiFromSlot(expr->DoneFeedbackSlot())));
-      CallLoadIC(NOT_CONTEXTUAL);                           // r0=result.done
+      CallLoadIC(NOT_INSIDE_TYPEOF);  // r0=result.done
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
       __ cmp(r0, Operand(0));
@@ -2312,7 +2309,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(load_name, Heap::kvalue_stringRootIndex);  // "value"
       __ mov(LoadDescriptor::SlotRegister(),
              Operand(SmiFromSlot(expr->ValueFeedbackSlot())));
-      CallLoadIC(NOT_CONTEXTUAL);                            // r0=result.value
+      CallLoadIC(NOT_INSIDE_TYPEOF);                         // r0=result.value
       context()->DropAndPlug(2, r0);                         // drop iter and g
       break;
     }
@@ -2464,7 +2461,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ mov(LoadDescriptor::NameRegister(), Operand(key->value()));
   __ mov(LoadDescriptor::SlotRegister(),
          Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
-  CallLoadIC(NOT_CONTEXTUAL, language_mode());
+  CallLoadIC(NOT_INSIDE_TYPEOF, language_mode());
 }
 
 
@@ -4759,7 +4756,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ mov(LoadDescriptor::NameRegister(), Operand(expr->name()));
   __ mov(LoadDescriptor::SlotRegister(),
          Operand(SmiFromSlot(expr->CallRuntimeFeedbackSlot())));
-  CallLoadIC(NOT_CONTEXTUAL);
+  CallLoadIC(NOT_INSIDE_TYPEOF);
 }
 
 

@@ -325,7 +325,7 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), p.contextual_mode(), p.language_mode(), UNINITIALIZED);
+      isolate(), NOT_INSIDE_TYPEOF, p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   ReplaceWithStubCall(node, callable, flags);
@@ -346,7 +346,7 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
 
   } else {
     Callable callable = CodeFactory::LoadICInOptimizedCode(
-        isolate(), p.contextual_mode(), SLOPPY, UNINITIALIZED);
+        isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
     node->RemoveInput(0);  // script context
     node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
     node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
@@ -483,8 +483,9 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
 void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
   const DynamicGlobalAccess& access = DynamicGlobalAccessOf(node->op());
   Runtime::FunctionId function_id =
-      (access.mode() == CONTEXTUAL) ? Runtime::kLoadLookupSlot
-                                    : Runtime::kLoadLookupSlotNoReferenceError;
+      (access.typeof_mode() == NOT_INSIDE_TYPEOF)
+          ? Runtime::kLoadLookupSlot
+          : Runtime::kLoadLookupSlotNoReferenceError;
   Node* projection = graph()->NewNode(common()->Projection(0), node);
   NodeProperties::ReplaceUses(node, projection, node, node, node);
   node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
