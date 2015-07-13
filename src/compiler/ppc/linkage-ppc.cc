@@ -67,6 +67,12 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   return LH::GetSimplifiedCDescriptor(zone, sig);
 }
 
+
+CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(
+    Zone* zone, const MachineSignature* sig) {
+  return LH::GetInterpreterDispatchDescriptor(zone, sig);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
