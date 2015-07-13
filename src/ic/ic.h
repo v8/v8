@@ -659,9 +659,6 @@ class KeyedStoreIC : public StoreIC {
   static void Clear(Isolate* isolate, Address address, Code* target,
                     Address constant_pool);
 
-  KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
-                                    Handle<Object> key, Handle<Object> value);
-
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 

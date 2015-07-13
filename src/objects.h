@@ -1154,10 +1154,6 @@ class Object {
                                           Handle<Object> object,
                                           Handle<Context> context);
 
-  // Converts this to a Smi if possible.
-  MUST_USE_RESULT static inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
-                                                       Handle<Object> object);
-
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       LookupIterator* it, LanguageMode language_mode = SLOPPY);
 
@@ -2010,7 +2006,6 @@ class JSObject: public JSReceiver {
   // Would we convert a fast elements array to dictionary mode given
   // an access at key?
   bool WouldConvertToSlowElements(uint32_t index);
-  inline bool WouldConvertToSlowElements(Handle<Object> key);
 
   // Computes the new capacity when expanding the elements of a JSObject.
   static uint32_t NewElementsCapacity(uint32_t old_capacity) {

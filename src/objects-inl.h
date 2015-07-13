@@ -1132,19 +1132,6 @@ bool Object::IsMinusZero() const {
 }
 
 
-MaybeHandle<Smi> Object::ToSmi(Isolate* isolate, Handle<Object> object) {
-  if (object->IsSmi()) return Handle<Smi>::cast(object);
-  if (object->IsHeapNumber()) {
-    double value = Handle<HeapNumber>::cast(object)->value();
-    int int_value = FastD2I(value);
-    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
-      return handle(Smi::FromInt(int_value), isolate);
-    }
-  }
-  return Handle<Smi>();
-}
-
-
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object) {
   return ToObject(
@@ -1835,12 +1822,6 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     }
     TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
   }
-}
-
-
-bool JSObject::WouldConvertToSlowElements(Handle<Object> key) {
-  uint32_t index = 0;
-  return key->ToArrayIndex(&index) && WouldConvertToSlowElements(index);
 }
 
 
