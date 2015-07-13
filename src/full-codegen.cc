@@ -1184,7 +1184,9 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(Smi::FromInt(lit->start_position()));
     __ Push(Smi::FromInt(lit->end_position()));
 
-    __ CallRuntime(Runtime::kDefineClass, 6);
+    __ CallRuntime(is_strong(language_mode()) ? Runtime::kDefineClassStrong
+                                              : Runtime::kDefineClass,
+                   6);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
 
     int store_slot_index = 0;

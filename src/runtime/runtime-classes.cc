@@ -93,16 +93,11 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DefineClass) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Script, script, 3);
-  CONVERT_SMI_ARG_CHECKED(start_position, 4);
-  CONVERT_SMI_ARG_CHECKED(end_position, 5);
-
+static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
+                                       Handle<Object> super_class,
+                                       Handle<JSFunction> constructor,
+                                       Handle<Script> script,
+                                       int start_position, int end_position) {
   Handle<Object> prototype_parent;
   Handle<Object> constructor_parent;
 
@@ -113,26 +108,30 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsSpecFunction()) {
       if (Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
-        THROW_NEW_ERROR_RETURN_FAILURE(
+        THROW_NEW_ERROR(
             isolate,
-            NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class));
+            NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class),
+            Object);
       }
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
                                      isolate->factory()->prototype_string(),
-                                     SLOPPY));
+                                     SLOPPY),
+          Object);
       if (!prototype_parent->IsNull() && !prototype_parent->IsSpecObject()) {
-        THROW_NEW_ERROR_RETURN_FAILURE(
+        THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
-                                  prototype_parent));
+                                  prototype_parent),
+            Object);
       }
       constructor_parent = super_class;
     } else {
       // TODO(arv): Should be IsConstructor.
-      THROW_NEW_ERROR_RETURN_FAILURE(
+      THROW_NEW_ERROR(
           isolate,
-          NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class));
+          NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class),
+          Object);
     }
   }
 
@@ -155,42 +154,88 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   JSFunction::SetPrototype(constructor, prototype);
   PropertyAttributes attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   constructor, isolate->factory()->prototype_string(),
-                   prototype, attribs));
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::SetOwnPropertyIgnoreAttributes(
+                          constructor, isolate->factory()->prototype_string(),
+                          prototype, attribs),
+                      Object);
 
   // TODO(arv): Only do this conditionally.
   Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
-  RETURN_FAILURE_ON_EXCEPTION(
+  RETURN_ON_EXCEPTION(
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   constructor, home_object_symbol, prototype, DONT_ENUM));
+                   constructor, home_object_symbol, prototype, DONT_ENUM),
+      Object);
 
   if (!constructor_parent.is_null()) {
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate,
-        JSObject::SetPrototype(constructor, constructor_parent, false));
+    RETURN_ON_EXCEPTION(
+        isolate, JSObject::SetPrototype(constructor, constructor_parent, false),
+        Object);
   }
 
   JSObject::AddProperty(prototype, isolate->factory()->constructor_string(),
                         constructor, DONT_ENUM);
 
   // Install private properties that are used to construct the FunctionToString.
-  RETURN_FAILURE_ON_EXCEPTION(
+  RETURN_ON_EXCEPTION(
       isolate, Object::SetProperty(constructor,
                                    isolate->factory()->class_script_symbol(),
-                                   script, STRICT));
-  RETURN_FAILURE_ON_EXCEPTION(
+                                   script, STRICT),
+      Object);
+  RETURN_ON_EXCEPTION(
       isolate,
       Object::SetProperty(
           constructor, isolate->factory()->class_start_position_symbol(),
-          handle(Smi::FromInt(start_position), isolate), STRICT));
-  RETURN_FAILURE_ON_EXCEPTION(
+          handle(Smi::FromInt(start_position), isolate), STRICT),
+      Object);
+  RETURN_ON_EXCEPTION(
       isolate, Object::SetProperty(
                    constructor, isolate->factory()->class_end_position_symbol(),
-                   handle(Smi::FromInt(end_position), isolate), STRICT));
+                   handle(Smi::FromInt(end_position), isolate), STRICT),
+      Object);
 
-  return *constructor;
+  return constructor;
+}
+
+
+RUNTIME_FUNCTION(Runtime_DefineClass) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 6);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Script, script, 3);
+  CONVERT_SMI_ARG_CHECKED(start_position, 4);
+  CONVERT_SMI_ARG_CHECKED(end_position, 5);
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, DefineClass(isolate, name, super_class, constructor,
+                                   script, start_position, end_position));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_DefineClassStrong) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 6);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Script, script, 3);
+  CONVERT_SMI_ARG_CHECKED(start_position, 4);
+  CONVERT_SMI_ARG_CHECKED(end_position, 5);
+
+  if (super_class->IsNull()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrongExtendNull));
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, DefineClass(isolate, name, super_class, constructor,
+                                   script, start_position, end_position));
+  return *result;
 }
 
 
