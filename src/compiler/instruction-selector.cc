@@ -345,6 +345,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0),
                         buffer->descriptor->GetInputType(0)));
       break;
+    case CallDescriptor::kInterpreterDispatch:
+      buffer->instruction_args.push_back(g.UseRegister(callee));
+      break;
   }
   DCHECK_EQ(1u, buffer->instruction_args.size());
 

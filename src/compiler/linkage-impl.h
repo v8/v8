@@ -233,6 +233,27 @@ class LinkageHelper {
         "c-call");
   }
 
+  static CallDescriptor* GetInterpreterDispatchDescriptor(
+      Zone* zone, const MachineSignature* msig) {
+    DCHECK_EQ(0, msig->parameter_count());
+    LocationSignature::Builder locations(zone, msig->return_count(),
+                                         msig->parameter_count());
+    AddReturnLocations(&locations);
+    LinkageLocation target_loc = LinkageLocation::AnyRegister();
+    return new (zone) CallDescriptor(          // --
+        CallDescriptor::kInterpreterDispatch,  // kind
+        kMachNone,                             // target MachineType
+        target_loc,                            // target location
+        msig,                                  // machine_sig
+        locations.Build(),                     // location_sig
+        0,                                     // js_parameter_count
+        Operator::kNoProperties,               // properties
+        kNoCalleeSaved,                        // callee-saved registers
+        kNoCalleeSaved,                        // callee-saved fp regs
+        CallDescriptor::kSupportsTailCalls,    // flags
+        "interpreter-dispatch");
+  }
+
   static LinkageLocation regloc(Register reg) {
     return LinkageLocation(Register::ToAllocationIndex(reg));
   }

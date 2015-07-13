@@ -26,6 +26,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
+    case CallDescriptor::kInterpreterDispatch:
+      os << "InterpreterDispatch";
+      break;
   }
   return os;
 }
