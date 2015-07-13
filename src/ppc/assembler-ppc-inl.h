@@ -597,12 +597,12 @@ void Assembler::PatchConstantPoolAccessInstruction(
     ConstantPoolEntry::Type type) {
   Address pc = buffer_ + pc_offset;
   bool overflowed = (access == ConstantPoolEntry::OVERFLOWED);
+  CHECK(overflowed != is_int16(offset));
 #ifdef DEBUG
   ConstantPoolEntry::Access access_check =
       static_cast<ConstantPoolEntry::Access>(-1);
   DCHECK(IsConstantPoolLoadStart(pc, &access_check));
   DCHECK(access_check == access);
-  DCHECK(overflowed != is_int16(offset));
 #endif
   if (overflowed) {
     int hi_word = static_cast<int>(offset >> 16);
