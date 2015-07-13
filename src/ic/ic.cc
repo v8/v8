@@ -1545,22 +1545,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
-  // Check if the given name is an array index.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    // Ignore other stores where the receiver is not a JSObject.
-    // TODO(1475): Must check prototype chains of object wrappers.
-    if (!object->IsJSObject()) return value;
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        Object::SetElement(isolate(), receiver, index, value, language_mode()),
-        Object);
-    return value;
-  }
-
   // Observed objects are always modified through the runtime.
   if (object->IsHeapObject() &&
       Handle<HeapObject>::cast(object)->map()->is_observed()) {
@@ -2116,7 +2100,10 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   Handle<Object> store_handle;
   Handle<Code> stub = megamorphic_stub();
 
-  if (key->IsInternalizedString() || key->IsSymbol()) {
+  uint32_t index;
+  if ((key->IsInternalizedString() &&
+       !String::cast(*key)->AsArrayIndex(&index)) ||
+      key->IsSymbol()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), store_handle,
         StoreIC::Store(object, Handle<Name>::cast(key), value,
@@ -2156,8 +2143,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (use_ic) {
-    DCHECK(!object->IsAccessCheckNeeded());
-
     if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       bool key_is_smi_like = !Object::ToSmi(isolate(), key).is_null();

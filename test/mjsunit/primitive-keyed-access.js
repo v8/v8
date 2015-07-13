@@ -41,3 +41,9 @@ assertThrows(function() {
   var sym = Symbol('66');
   sym[62] = 0;
 });
+
+assertThrows(function() {
+  "use strict";
+  var o = "bla";
+  o["0"] = 1;
+});
