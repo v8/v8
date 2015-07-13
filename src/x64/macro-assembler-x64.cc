@@ -5044,13 +5044,21 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   DCHECK(!(scratch0.is(kScratchRegister) && scratch1.is(kScratchRegister)));
   DCHECK(!scratch1.is(scratch0));
   Register current = scratch0;
-  Label loop_again;
+  Label loop_again, end;
 
   movp(current, object);
+  movp(current, FieldOperand(current, HeapObject::kMapOffset));
+  movp(current, FieldOperand(current, Map::kPrototypeOffset));
+  CompareRoot(current, Heap::kNullValueRootIndex);
+  j(equal, &end);
 
   // Loop based on the map going up the prototype chain.
   bind(&loop_again);
   movp(current, FieldOperand(current, HeapObject::kMapOffset));
+  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  CmpInstanceType(current, JS_OBJECT_TYPE);
+  j(below, found);
   movp(scratch1, FieldOperand(current, Map::kBitField2Offset));
   DecodeField<Map::ElementsKindBits>(scratch1);
   cmpp(scratch1, Immediate(DICTIONARY_ELEMENTS));
@@ -5058,6 +5066,8 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   movp(current, FieldOperand(current, Map::kPrototypeOffset));
   CompareRoot(current, Heap::kNullValueRootIndex);
   j(not_equal, &loop_again);
+
+  bind(&end);
 }
 
 

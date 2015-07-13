@@ -6338,10 +6338,10 @@ bool Map::DictionaryElementsInPrototypeChainOnly() {
   }
 
   for (PrototypeIterator iter(this); !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->IsJSProxy()) {
-      // Be conservative, don't walk into proxies.
-      return true;
-    }
+    // Be conservative, don't walk into proxies.
+    if (iter.GetCurrent()->IsJSProxy()) return true;
+    // String wrappers have non-configurable, non-writable elements.
+    if (iter.GetCurrent()->IsStringWrapper()) return true;
 
     if (IsDictionaryElementsKind(
             JSObject::cast(iter.GetCurrent())->map()->elements_kind())) {

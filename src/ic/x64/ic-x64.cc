@@ -541,8 +541,11 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   __ CmpInstanceType(r9, JS_ARRAY_TYPE);
   __ j(equal, &array);
-  // Check that the object is some kind of JSObject.
-  __ CmpInstanceType(r9, FIRST_JS_OBJECT_TYPE);
+  // Check that the object is some kind of JS object EXCEPT JS Value type. In
+  // the case that the object is a value-wrapper object, we enter the runtime
+  // system to make sure that indexing into string objects works as intended.
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  __ CmpInstanceType(r9, JS_OBJECT_TYPE);
   __ j(below, &slow);
 
   // Object case: Check key against length in the elements array.
