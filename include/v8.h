@@ -509,6 +509,10 @@ template <class T> class PersistentBase {
   V8_INLINE bool IsEmpty() const { return val_ == NULL; }
   V8_INLINE void Empty() { val_ = 0; }
 
+  V8_INLINE Local<T> Get(Isolate* isolate) const {
+    return Local<T>::New(isolate, *this);
+  }
+
   template <class S>
   V8_INLINE bool operator==(const PersistentBase<S>& that) const {
     internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
