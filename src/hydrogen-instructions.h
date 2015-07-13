@@ -6069,6 +6069,11 @@ class HObjectAccess final {
     return HObjectAccess(kInobject, PropertyCell::kValueOffset);
   }
 
+  static HObjectAccess ForPropertyCellDetails() {
+    return HObjectAccess(kInobject, PropertyCell::kDetailsOffset,
+                         Representation::Smi());
+  }
+
   static HObjectAccess ForCellValue() {
     return HObjectAccess(kInobject, Cell::kValueOffset);
   }

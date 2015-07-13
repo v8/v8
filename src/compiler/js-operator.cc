@@ -256,9 +256,66 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op) {
 }
 
 
-const LoadNamedParameters& LoadGlobalParametersOf(const Operator* op) {
+bool operator==(LoadGlobalParameters const& lhs,
+                LoadGlobalParameters const& rhs) {
+  return lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback() &&
+         lhs.contextual_mode() == rhs.contextual_mode() &&
+         lhs.slot_index() == rhs.slot_index();
+}
+
+
+bool operator!=(LoadGlobalParameters const& lhs,
+                LoadGlobalParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(LoadGlobalParameters const& p) {
+  return base::hash_combine(p.name(), p.contextual_mode(), p.slot_index());
+}
+
+
+std::ostream& operator<<(std::ostream& os, LoadGlobalParameters const& p) {
+  return os << Brief(*p.name().handle()) << ", " << p.contextual_mode()
+            << ", slot: " << p.slot_index();
+}
+
+
+const LoadGlobalParameters& LoadGlobalParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, op->opcode());
-  return OpParameter<LoadNamedParameters>(op);
+  return OpParameter<LoadGlobalParameters>(op);
+}
+
+
+bool operator==(StoreGlobalParameters const& lhs,
+                StoreGlobalParameters const& rhs) {
+  return lhs.language_mode() == rhs.language_mode() &&
+         lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback() &&
+         lhs.slot_index() == rhs.slot_index();
+}
+
+
+bool operator!=(StoreGlobalParameters const& lhs,
+                StoreGlobalParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(StoreGlobalParameters const& p) {
+  return base::hash_combine(p.language_mode(), p.name(), p.feedback(),
+                            p.slot_index());
+}
+
+
+std::ostream& operator<<(std::ostream& os, StoreGlobalParameters const& p) {
+  return os << p.language_mode() << ", " << Brief(*p.name().handle())
+            << ", slot: " << p.slot_index();
+}
+
+
+const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSStoreGlobal, op->opcode());
+  return OpParameter<StoreGlobalParameters>(op);
 }
 
 
@@ -287,12 +344,6 @@ std::ostream& operator<<(std::ostream& os, StoreNamedParameters const& p) {
 
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSStoreNamed, op->opcode());
-  return OpParameter<StoreNamedParameters>(op);
-}
-
-
-const StoreNamedParameters& StoreGlobalParametersOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kJSStoreGlobal, op->opcode());
   return OpParameter<StoreNamedParameters>(op);
 }
 
@@ -568,24 +619,26 @@ const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
 
 const Operator* JSOperatorBuilder::LoadGlobal(const Unique<Name>& name,
                                               const VectorSlotPair& feedback,
-                                              ContextualMode contextual_mode) {
-  LoadNamedParameters parameters(name, feedback, SLOPPY, contextual_mode);
-  return new (zone()) Operator1<LoadNamedParameters>(    // --
+                                              ContextualMode contextual_mode,
+                                              int slot_index) {
+  LoadGlobalParameters parameters(name, feedback, contextual_mode, slot_index);
+  return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
-      2, 1, 1, 1, 1, 2,                                  // counts
+      3, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
 
 const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
                                                const Unique<Name>& name,
-                                               const VectorSlotPair& feedback) {
-  StoreNamedParameters parameters(language_mode, feedback, name);
-  return new (zone()) Operator1<StoreNamedParameters>(    // --
+                                               const VectorSlotPair& feedback,
+                                               int slot_index) {
+  StoreGlobalParameters parameters(language_mode, feedback, name, slot_index);
+  return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
       "JSStoreGlobal",                                    // name
-      3, 1, 1, 0, 1, 2,                                   // counts
+      4, 1, 1, 0, 1, 2,                                   // counts
       parameters);                                        // parameter
 }
 

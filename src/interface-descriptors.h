@@ -57,6 +57,8 @@ class PlatformInterfaceDescriptor;
   V(ApiGetter)                                \
   V(ArgumentsAccessRead)                      \
   V(StoreArrayLiteralElement)                 \
+  V(LoadGlobalViaContext)                     \
+  V(StoreGlobalViaContext)                    \
   V(MathPowTagged)                            \
   V(MathPowInteger)                           \
   V(ContextOnly)                              \
@@ -423,6 +425,29 @@ class CallConstructDescriptor : public CallInterfaceDescriptor {
 class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
+};
+
+
+class LoadGlobalViaContextDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalViaContextDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register DepthRegister();
+  static const Register SlotRegister();
+  static const Register NameRegister();
+};
+
+
+class StoreGlobalViaContextDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalViaContextDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register DepthRegister();
+  static const Register SlotRegister();
+  static const Register NameRegister();
+  static const Register ValueRegister();
 };
 
 

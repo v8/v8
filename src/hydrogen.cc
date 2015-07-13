@@ -339,7 +339,7 @@ void HBasicBlock::RegisterPredecessor(HBasicBlock* pred) {
     DCHECK(IsLoopHeader() || first_ == NULL);
     HEnvironment* incoming_env = pred->last_environment();
     if (IsLoopHeader()) {
-      DCHECK(phis()->length() == incoming_env->length());
+      DCHECK_EQ(phis()->length(), incoming_env->length());
       for (int i = 0; i < phis_.length(); ++i) {
         phis_[i]->AddInput(incoming_env->values()->at(i));
       }
@@ -994,6 +994,13 @@ void HGraphBuilder::IfBuilder::Finish(HBasicBlock** then_continuation,
     *then_continuation = then_record->block_;
   }
   DCHECK(then_record->next_ == NULL);
+}
+
+
+void HGraphBuilder::IfBuilder::EndUnreachable() {
+  if (captured_) return;
+  Finish();
+  builder()->set_current_block(nullptr);
 }
 
 
@@ -3134,6 +3141,17 @@ void HGraphBuilder::BuildCreateAllocationMemento(
 }
 
 
+HInstruction* HGraphBuilder::BuildGetNativeContext() {
+  // Get the global object, then the native context
+  HValue* global_object = Add<HLoadNamedField>(
+      context(), nullptr,
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  return Add<HLoadNamedField>(global_object, nullptr,
+                              HObjectAccess::ForObservableJSObjectOffset(
+                                  GlobalObject::kNativeContextOffset));
+}
+
+
 HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
   // Get the global object, then the native context
   HInstruction* context = Add<HLoadNamedField>(
@@ -3157,14 +3175,51 @@ HInstruction* HGraphBuilder::BuildGetScriptContext(int context_index) {
 }
 
 
-HInstruction* HGraphBuilder::BuildGetNativeContext() {
-  // Get the global object, then the native context
-  HValue* global_object = Add<HLoadNamedField>(
-      context(), nullptr,
-      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-  return Add<HLoadNamedField>(global_object, nullptr,
-                              HObjectAccess::ForObservableJSObjectOffset(
-                                  GlobalObject::kNativeContextOffset));
+HValue* HGraphBuilder::BuildGetParentContext(HValue* depth, int depth_value) {
+  HValue* script_context = context();
+  if (depth != NULL) {
+    HValue* zero = graph()->GetConstant0();
+
+    Push(script_context);
+    Push(depth);
+
+    LoopBuilder loop(this);
+    loop.BeginBody(2);  // Drop script_context and depth from last environment
+                        // to appease live range building without simulates.
+    depth = Pop();
+    script_context = Pop();
+
+    script_context = Add<HLoadNamedField>(
+        script_context, nullptr,
+        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
+    depth = AddUncasted<HSub>(depth, graph()->GetConstant1());
+    depth->ClearFlag(HValue::kCanOverflow);
+
+    IfBuilder if_break(this);
+    if_break.If<HCompareNumericAndBranch, HValue*>(depth, zero, Token::EQ);
+    if_break.Then();
+    {
+      Push(script_context);  // The result.
+      loop.Break();
+    }
+    if_break.Else();
+    {
+      Push(script_context);
+      Push(depth);
+    }
+    loop.EndBody();
+    if_break.End();
+
+    script_context = Pop();
+  } else if (depth_value > 0) {
+    // Unroll the above loop.
+    for (int i = 0; i < depth_value; i++) {
+      script_context = Add<HLoadNamedField>(
+          script_context, nullptr,
+          HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
+    }
+  }
+  return script_context;
 }
 
 

@@ -1596,6 +1596,7 @@ class HGraphBuilder {
     void Then();
     void Else();
     void End();
+    void EndUnreachable();
 
     void Deopt(Deoptimizer::DeoptReason reason);
     void ThenDeopt(Deoptimizer::DeoptReason reason) {
@@ -1860,6 +1861,10 @@ class HGraphBuilder {
   HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
   HInstruction* BuildGetScriptContext(int context_index);
+  // Builds a loop version if |depth| is specified or unrolls the loop to
+  // |depth_value| iterations otherwise.
+  HValue* BuildGetParentContext(HValue* depth, int depth_value);
+
   HInstruction* BuildGetArrayFunction();
   HValue* BuildArrayBufferViewFieldAccessor(HValue* object,
                                             HValue* checked_object,

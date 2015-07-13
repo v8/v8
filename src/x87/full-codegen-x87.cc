@@ -1410,13 +1410,29 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-  __ mov(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
-  __ mov(LoadDescriptor::NameRegister(), var->name());
-  __ mov(LoadDescriptor::SlotRegister(),
-         Immediate(SmiFromSlot(proxy->VariableFeedbackSlot())));
-  // Inside typeof use a regular load, not a contextual load, to avoid
-  // a reference error.
-  CallLoadIC(typeof_state == NOT_INSIDE_TYPEOF ? CONTEXTUAL : NOT_CONTEXTUAL);
+  if (var->IsGlobalSlot()) {
+    DCHECK(var->index() > 0);
+    DCHECK(var->IsStaticGlobalObjectProperty());
+    // Each var occupies two slots in the context: for reads and writes.
+    int slot_index = var->index();
+    int depth = scope()->ContextChainLength(var->scope());
+    __ mov(LoadGlobalViaContextDescriptor::DepthRegister(),
+           Immediate(Smi::FromInt(depth)));
+    __ mov(LoadGlobalViaContextDescriptor::SlotRegister(),
+           Immediate(Smi::FromInt(slot_index)));
+    __ mov(LoadGlobalViaContextDescriptor::NameRegister(), var->name());
+    LoadGlobalViaContextStub stub(isolate(), depth);
+    __ CallStub(&stub);
+
+  } else {
+    __ mov(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
+    __ mov(LoadDescriptor::NameRegister(), var->name());
+    __ mov(LoadDescriptor::SlotRegister(),
+           Immediate(SmiFromSlot(proxy->VariableFeedbackSlot())));
+    // Inside typeof use a regular load, not a contextual load, to avoid
+    // a reference error.
+    CallLoadIC(typeof_state == NOT_INSIDE_TYPEOF ? CONTEXTUAL : NOT_CONTEXTUAL);
+  }
 }
 
 
@@ -2648,12 +2664,28 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
                                                FeedbackVectorICSlot slot) {
-  if (var->IsUnallocatedOrGlobalSlot()) {
+  if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ mov(StoreDescriptor::NameRegister(), var->name());
     __ mov(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
     if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
     CallStoreIC();
+
+  } else if (var->IsGlobalSlot()) {
+    // Global var, const, or let.
+    DCHECK(var->index() > 0);
+    DCHECK(var->IsStaticGlobalObjectProperty());
+    // Each var occupies two slots in the context: for reads and writes.
+    int slot_index = var->index() + 1;
+    int depth = scope()->ContextChainLength(var->scope());
+    __ mov(StoreGlobalViaContextDescriptor::DepthRegister(),
+           Immediate(Smi::FromInt(depth)));
+    __ mov(StoreGlobalViaContextDescriptor::SlotRegister(),
+           Immediate(Smi::FromInt(slot_index)));
+    __ mov(StoreGlobalViaContextDescriptor::NameRegister(), var->name());
+    DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(eax));
+    StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
+    __ CallStub(&stub);
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.

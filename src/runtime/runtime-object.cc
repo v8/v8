@@ -421,6 +421,70 @@ RUNTIME_FUNCTION(Runtime_ObjectSeal) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(Context, script_context, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
+  DCHECK(script_context->IsScriptContext());
+  DCHECK(script_context->get(index)->IsPropertyCell());
+
+  Handle<GlobalObject> global(script_context->global_object());
+
+  LookupIterator it(global, name, LookupIterator::OWN);
+  if (LookupIterator::DATA == it.state()) {
+    // Now update cell in the script context.
+    Handle<PropertyCell> cell = it.GetPropertyCell();
+    script_context->set(index, *cell);
+  } else {
+    // This is not a fast case, so keep this access in a slow mode.
+    // Store empty_property_cell here to release the outdated property cell.
+    script_context->set(index, isolate->heap()->empty_property_cell());
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
+
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_StoreGlobalViaContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(Context, script_context, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode_arg, 4);
+  DCHECK(script_context->IsScriptContext());
+  DCHECK(script_context->get(index)->IsPropertyCell());
+  LanguageMode language_mode = language_mode_arg;
+
+  Handle<GlobalObject> global(script_context->global_object());
+
+  LookupIterator it(global, name, LookupIterator::OWN);
+  if (LookupIterator::DATA == it.state()) {
+    // Now update cell in the script context.
+    Handle<PropertyCell> cell = it.GetPropertyCell();
+    script_context->set(index, *cell);
+  } else {
+    // This is not a fast case, so keep this access in a slow mode.
+    // Store empty_property_cell here to release the outdated property cell.
+    script_context->set(index, isolate->heap()->empty_property_cell());
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Object::SetProperty(&it, value, language_mode,
+                          Object::CERTAINLY_NOT_STORE_FROM_KEYED));
+
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

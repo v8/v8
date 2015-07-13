@@ -19,6 +19,12 @@ namespace v8 {
 namespace internal {
 
 
+RUNTIME_FUNCTION(UnexpectedStubMiss) {
+  FATAL("Unexpected deopt of a stub");
+  return Smi::FromInt(0);
+}
+
+
 CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
     : call_descriptor_(stub->GetCallInterfaceDescriptor()),
       stack_parameter_count_(no_reg),
@@ -717,6 +723,20 @@ void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kRegExpConstructResultRT)->entry);
+}
+
+
+void LoadGlobalViaContextStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  // Must never deoptimize.
+  descriptor->Initialize(FUNCTION_ADDR(UnexpectedStubMiss));
+}
+
+
+void StoreGlobalViaContextStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  // Must never deoptimize.
+  descriptor->Initialize(FUNCTION_ADDR(UnexpectedStubMiss));
 }
 
 

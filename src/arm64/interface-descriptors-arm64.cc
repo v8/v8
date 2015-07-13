@@ -36,6 +36,17 @@ const Register VectorStoreICDescriptor::VectorRegister() { return x3; }
 const Register StoreTransitionDescriptor::MapRegister() { return x3; }
 
 
+const Register LoadGlobalViaContextDescriptor::DepthRegister() { return x1; }
+const Register LoadGlobalViaContextDescriptor::SlotRegister() { return x2; }
+const Register LoadGlobalViaContextDescriptor::NameRegister() { return x3; }
+
+
+const Register StoreGlobalViaContextDescriptor::DepthRegister() { return x1; }
+const Register StoreGlobalViaContextDescriptor::SlotRegister() { return x2; }
+const Register StoreGlobalViaContextDescriptor::NameRegister() { return x3; }
+const Register StoreGlobalViaContextDescriptor::ValueRegister() { return x0; }
+
+
 const Register ElementTransitionAndStoreDescriptor::MapRegister() { return x3; }
 
 

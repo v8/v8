@@ -1667,7 +1667,7 @@ class VariableProxy final : public Expression {
   void BindTo(Variable* var);
 
   bool UsesVariableFeedbackSlot() const {
-    return var()->IsUnallocatedOrGlobalSlot() || var()->IsLookupSlot();
+    return var()->IsUnallocated() || var()->IsLookupSlot();
   }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(

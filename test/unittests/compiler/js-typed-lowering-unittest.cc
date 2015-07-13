@@ -901,8 +901,8 @@ TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
   for (size_t i = 0; i < arraysize(names); i++) {
     Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadGlobal(name, feedback), global, vector, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+        javascript()->LoadGlobal(name, feedback), context, global, vector,
+        context, EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), matches[i]);

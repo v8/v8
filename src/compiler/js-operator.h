@@ -233,7 +233,7 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 
 
 // Defines the property being loaded from an object by a named load. This is
-// used as a parameter by JSLoadNamed and JSLoadGlobal operators.
+// used as a parameter by JSLoadNamed operators.
 class LoadNamedParameters final {
  public:
   LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
@@ -266,7 +266,74 @@ std::ostream& operator<<(std::ostream&, LoadNamedParameters const&);
 
 const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 
-const LoadNamedParameters& LoadGlobalParametersOf(const Operator* op);
+
+// Defines the property being loaded from an object by a named load. This is
+// used as a parameter by JSLoadGlobal operator.
+class LoadGlobalParameters final {
+ public:
+  LoadGlobalParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+                       ContextualMode contextual_mode, int slot_index)
+      : name_(name),
+        feedback_(feedback),
+        contextual_mode_(contextual_mode),
+        slot_index_(slot_index) {}
+
+  const Unique<Name>& name() const { return name_; }
+  ContextualMode contextual_mode() const { return contextual_mode_; }
+
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+  const int slot_index() const { return slot_index_; }
+
+ private:
+  const Unique<Name> name_;
+  const VectorSlotPair feedback_;
+  const ContextualMode contextual_mode_;
+  const int slot_index_;
+};
+
+bool operator==(LoadGlobalParameters const&, LoadGlobalParameters const&);
+bool operator!=(LoadGlobalParameters const&, LoadGlobalParameters const&);
+
+size_t hash_value(LoadGlobalParameters const&);
+
+std::ostream& operator<<(std::ostream&, LoadGlobalParameters const&);
+
+const LoadGlobalParameters& LoadGlobalParametersOf(const Operator* op);
+
+
+// Defines the property being stored to an object by a named store. This is
+// used as a parameter by JSStoreGlobal operator.
+class StoreGlobalParameters final {
+ public:
+  StoreGlobalParameters(LanguageMode language_mode,
+                        const VectorSlotPair& feedback,
+                        const Unique<Name>& name, int slot_index)
+      : language_mode_(language_mode),
+        name_(name),
+        feedback_(feedback),
+        slot_index_(slot_index) {}
+
+  LanguageMode language_mode() const { return language_mode_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
+  const Unique<Name>& name() const { return name_; }
+  int slot_index() const { return slot_index_; }
+
+ private:
+  const LanguageMode language_mode_;
+  const Unique<Name> name_;
+  const VectorSlotPair feedback_;
+  int slot_index_;
+};
+
+bool operator==(StoreGlobalParameters const&, StoreGlobalParameters const&);
+bool operator!=(StoreGlobalParameters const&, StoreGlobalParameters const&);
+
+size_t hash_value(StoreGlobalParameters const&);
+
+std::ostream& operator<<(std::ostream&, StoreGlobalParameters const&);
+
+const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op);
 
 
 // Defines the property being loaded from an object. This is
@@ -297,7 +364,7 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 
 
 // Defines the property being stored to an object by a named store. This is
-// used as a parameter by JSStoreNamed and JSStoreGlobal operators.
+// used as a parameter by JSStoreNamed operator.
 class StoreNamedParameters final {
  public:
   StoreNamedParameters(LanguageMode language_mode,
@@ -322,8 +389,6 @@ size_t hash_value(StoreNamedParameters const&);
 std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
 
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
-
-const StoreNamedParameters& StoreGlobalParametersOf(const Operator* op);
 
 
 // Defines the property being stored to an object. This is used as a parameter
@@ -445,10 +510,12 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadGlobal(const Unique<Name>& name,
                              const VectorSlotPair& feedback,
-                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
+                             ContextualMode contextual_mode = NOT_CONTEXTUAL,
+                             int slot_index = -1);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Unique<Name>& name,
-                              const VectorSlotPair& feedback);
+                              const VectorSlotPair& feedback,
+                              int slot_index = -1);
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);

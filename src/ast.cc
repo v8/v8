@@ -95,7 +95,7 @@ void VariableProxy::BindTo(Variable* var) {
 void VariableProxy::SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                                            ICSlotCache* cache) {
   variable_feedback_slot_ = slot;
-  if (var()->IsUnallocatedOrGlobalSlot()) {
+  if (var()->IsUnallocated()) {
     cache->Add(VariableICSlotPair(var(), slot));
   }
 }
@@ -106,7 +106,7 @@ FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
-    if (var()->IsUnallocatedOrGlobalSlot()) {
+    if (var()->IsUnallocated()) {
       for (int i = 0; i < cache->length(); i++) {
         VariableICSlotPair& pair = cache->at(i);
         if (pair.variable() == var()) {
@@ -127,7 +127,7 @@ static int GetStoreICSlots(Expression* expr) {
     Property* property = expr->AsProperty();
     LhsKind assign_type = Property::GetAssignType(property);
     if ((assign_type == VARIABLE &&
-         expr->AsVariableProxy()->var()->IsUnallocatedOrGlobalSlot()) ||
+         expr->AsVariableProxy()->var()->IsUnallocated()) ||
         assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
       ic_slots++;
     }
@@ -289,8 +289,7 @@ FeedbackVectorRequirements ClassLiteral::ComputeFeedbackRequirements(
     if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
   }
 
-  if (scope() != NULL &&
-      class_variable_proxy()->var()->IsUnallocatedOrGlobalSlot()) {
+  if (scope() != NULL && class_variable_proxy()->var()->IsUnallocated()) {
     ic_slots++;
   }
 

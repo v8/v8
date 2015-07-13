@@ -1605,7 +1605,221 @@ Handle<Code> StoreGlobalStub::GenerateCode() {
 }
 
 
-template<>
+template <>
+HValue* CodeStubGraphBuilder<LoadGlobalViaContextStub>::BuildCodeStub() {
+  LoadGlobalViaContextStub* stub = casted_stub();
+  int depth_value = stub->depth();
+  HValue* depth = GetParameter(0);
+  HValue* slot_index = GetParameter(1);
+  HValue* name = GetParameter(2);
+
+  // Choose between dynamic or static context script fetching versions.
+  depth = depth_value < LoadGlobalViaContextStub::kDynamicDepth
+              ? nullptr
+              : AddUncasted<HForceRepresentation>(depth, Representation::Smi());
+  slot_index =
+      AddUncasted<HForceRepresentation>(slot_index, Representation::Smi());
+
+  HValue* script_context = BuildGetParentContext(depth, depth_value);
+  HValue* cell =
+      Add<HLoadKeyed>(script_context, slot_index, nullptr, FAST_ELEMENTS);
+
+  HValue* value = Add<HLoadNamedField>(cell, nullptr,
+                                       HObjectAccess::ForPropertyCellValue());
+
+  IfBuilder builder(this);
+  HValue* hole_value = graph()->GetConstantHole();
+  builder.IfNot<HCompareObjectEqAndBranch, HValue*>(value, hole_value);
+  builder.Then();
+  { Push(value); }
+  builder.Else();
+  {
+    Add<HPushArguments>(script_context, slot_index, name);
+    Push(Add<HCallRuntime>(
+        isolate()->factory()->empty_string(),
+        Runtime::FunctionForId(Runtime::kLoadGlobalViaContext), 3));
+  }
+  builder.End();
+  return Pop();
+}
+
+
+Handle<Code> LoadGlobalViaContextStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreGlobalViaContextStub>::BuildCodeStub() {
+  StoreGlobalViaContextStub* stub = casted_stub();
+  int depth_value = stub->depth();
+  HValue* depth = GetParameter(0);
+  HValue* slot_index = GetParameter(1);
+  HValue* name = GetParameter(2);
+  HValue* value = GetParameter(3);
+
+  // Choose between dynamic or static context script fetching versions.
+  depth = depth_value < StoreGlobalViaContextStub::kDynamicDepth
+              ? nullptr
+              : AddUncasted<HForceRepresentation>(depth, Representation::Smi());
+  slot_index =
+      AddUncasted<HForceRepresentation>(slot_index, Representation::Smi());
+
+  HValue* script_context = BuildGetParentContext(depth, depth_value);
+  HValue* cell =
+      Add<HLoadKeyed>(script_context, slot_index, nullptr, FAST_ELEMENTS);
+
+  // Fast case that requires storing to cell.
+  HIfContinuation if_fast_store_continuation(graph()->CreateBasicBlock(),
+                                             graph()->CreateBasicBlock());
+
+  // Fast case that does not require storing to cell.
+  HIfContinuation if_fast_no_store_continuation(graph()->CreateBasicBlock(),
+                                                graph()->CreateBasicBlock());
+
+  // This stub does the same as StoreGlobalStub but in a dynamic manner.
+
+  HValue* cell_contents = Add<HLoadNamedField>(
+      cell, nullptr, HObjectAccess::ForPropertyCellValue());
+
+  IfBuilder if_hole(this);
+  HValue* hole_value = graph()->GetConstantHole();
+  if_hole.IfNot<HCompareObjectEqAndBranch, HValue*>(cell_contents, hole_value);
+  if_hole.Then();
+  {
+    HValue* details = Add<HLoadNamedField>(
+        cell, nullptr, HObjectAccess::ForPropertyCellDetails());
+    HValue* cell_type =
+        BuildDecodeField<PropertyDetails::PropertyCellTypeField>(details);
+
+    // The code below relies on this.
+    STATIC_ASSERT(PropertyCellType::kUndefined < PropertyCellType::kConstant);
+    STATIC_ASSERT(PropertyCellType::kConstant <
+                  PropertyCellType::kConstantType);
+    STATIC_ASSERT(PropertyCellType::kConstant < PropertyCellType::kMutable);
+
+    // Handle all cell type cases.
+    IfBuilder if_not_const(this);
+
+    int cell_type_constant = static_cast<int>(PropertyCellType::kConstant);
+    if_not_const.If<HCompareNumericAndBranch, HValue*>(
+        cell_type, Add<HConstant>(cell_type_constant), Token::GT);
+    if_not_const.Then();
+    {
+      // kConstantType or kMutable.
+      IfBuilder if_const_type(this);
+      int cell_type_constant_type =
+          static_cast<int>(PropertyCellType::kConstantType);
+      if_const_type.If<HCompareNumericAndBranch, HValue*>(
+          cell_type, Add<HConstant>(cell_type_constant_type), Token::EQ);
+      if_const_type.Then();
+      {
+        // Check that either both value and cell_contents are smi or
+        // both have the same map.
+        IfBuilder if_cell_is_smi(this);
+        if_cell_is_smi.If<HIsSmiAndBranch>(cell_contents);
+        if_cell_is_smi.Then();
+        {
+          IfBuilder if_value_is_smi(this);
+          if_value_is_smi.If<HIsSmiAndBranch>(value);
+          if_value_is_smi.Then();
+          {
+            // Both cell_contents and value are smis, do store.
+          }
+          if_value_is_smi.Else();  // Slow case.
+          if_value_is_smi.JoinContinuation(&if_fast_store_continuation);
+        }
+        if_cell_is_smi.Else();
+        {
+          IfBuilder if_value_is_heap_object(this);
+          if_value_is_heap_object.IfNot<HIsSmiAndBranch>(value);
+          if_value_is_heap_object.Then();
+          {
+            // Both cell_contents and value are heap objects, do store.
+            HValue* expected_map = Add<HLoadNamedField>(
+                cell_contents, nullptr, HObjectAccess::ForMap());
+            HValue* map =
+                Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
+            IfBuilder map_check(this);
+            map_check.If<HCompareObjectEqAndBranch>(expected_map, map);
+            map_check.Then();
+            map_check.Else();  // Slow case.
+            map_check.JoinContinuation(&if_fast_store_continuation);
+
+            // The accessor case is handled by the map check above, since
+            // the value must not have a AccessorPair map.
+          }
+          if_value_is_heap_object.Else();  // Slow case.
+          if_value_is_heap_object.JoinContinuation(&if_fast_store_continuation);
+        }
+        if_cell_is_smi.EndUnreachable();
+      }
+      if_const_type.Else();
+      {
+        // Check that the property kind is kData.
+        HValue* kind = BuildDecodeField<PropertyDetails::KindField>(details);
+        HValue* data_kind_value = Add<HConstant>(kData);
+
+        IfBuilder builder(this);
+        builder.If<HCompareNumericAndBranch, HValue*>(kind, data_kind_value,
+                                                      Token::EQ);
+        builder.Then();
+        builder.Else();  // Slow case.
+        builder.JoinContinuation(&if_fast_store_continuation);
+      }
+      if_const_type.EndUnreachable();
+    }
+    if_not_const.Else();
+    {
+      // kUndefined or kConstant, just check that the value matches.
+      IfBuilder builder(this);
+      builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
+      builder.Then();
+      builder.Else();  // Slow case.
+      builder.JoinContinuation(&if_fast_no_store_continuation);
+    }
+    if_not_const.EndUnreachable();
+  }
+  if_hole.Else();  // Slow case.
+  if_hole.JoinContinuation(&if_fast_store_continuation);
+
+  // Do store for fast case.
+  IfBuilder if_fast_store(this, &if_fast_store_continuation);
+  if_fast_store.Then();
+  {
+    // All checks are done, store the value to the cell.
+    Add<HStoreNamedField>(cell, HObjectAccess::ForPropertyCellValue(), value);
+  }
+  if_fast_store.Else();
+  if_fast_store.JoinContinuation(&if_fast_no_store_continuation);
+
+  // Bailout to runtime call for slow case.
+  IfBuilder if_no_fast_store(this, &if_fast_no_store_continuation);
+  if_no_fast_store.Then();
+  {
+    // Nothing else to do.
+  }
+  if_no_fast_store.Else();
+  {
+    // Slow case, call runtime.
+    HInstruction* lang_mode = Add<HConstant>(casted_stub()->language_mode());
+    Add<HPushArguments>(script_context, slot_index, name, value);
+    Add<HPushArguments>(lang_mode);
+    Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                      Runtime::FunctionForId(Runtime::kStoreGlobalViaContext),
+                      5);
+  }
+  if_no_fast_store.End();
+  return value;
+}
+
+
+Handle<Code> StoreGlobalViaContextStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
   HValue* value = GetParameter(ElementsTransitionAndStoreStub::kValueIndex);
   HValue* map = GetParameter(ElementsTransitionAndStoreStub::kMapIndex);

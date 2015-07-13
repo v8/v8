@@ -14,9 +14,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(ishell): remove this once compiler support is landed.
-bool enable_context_globals = false;
-
 // ----------------------------------------------------------------------------
 // Implementation of LocalsMap
 //
@@ -1478,14 +1475,19 @@ void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
   DCHECK(var->scope() == this);
   DCHECK(!var->IsVariable(isolate->factory()->dot_result_string()) ||
          !var->IsStackLocal());
-  if (var->IsUnallocated() && var->IsStaticGlobalObjectProperty()) {
-    DCHECK_EQ(-1, var->index());
-    DCHECK(var->name()->IsString());
-    var->AllocateTo(VariableLocation::GLOBAL, num_heap_slots_);
-    num_global_slots_++;
-    // Each global variable occupies two slots in the context: for reads
-    // and writes.
-    num_heap_slots_ += 2;
+  if (var->IsUnallocated()) {
+    if (var->IsStaticGlobalObjectProperty()) {
+      DCHECK_EQ(-1, var->index());
+      DCHECK(var->name()->IsString());
+      var->AllocateTo(VariableLocation::GLOBAL, num_heap_slots_);
+      num_global_slots_++;
+      // Each global variable occupies two slots in the context: for reads
+      // and writes.
+      num_heap_slots_ += 2;
+    } else {
+      // There must be only DYNAMIC_GLOBAL in the script scope.
+      DCHECK(!is_script_scope() || DYNAMIC_GLOBAL == var->mode());
+    }
   }
 }
 
@@ -1513,7 +1515,7 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
     AllocateNonParameterLocal(isolate, vars[i].var());
   }
 
-  if (enable_context_globals) {
+  if (FLAG_global_var_shortcuts) {
     for (int i = 0; i < var_count; i++) {
       AllocateDeclaredGlobal(isolate, vars[i].var());
     }

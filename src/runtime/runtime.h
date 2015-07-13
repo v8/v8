@@ -438,6 +438,8 @@ namespace internal {
   F(GetPropertyStrong, 2, 1)                         \
   F(KeyedGetProperty, 2, 1)                          \
   F(KeyedGetPropertyStrong, 2, 1)                    \
+  F(LoadGlobalViaContext, 3, 1)                      \
+  F(StoreGlobalViaContext, 5, 1)                     \
   F(AddNamedProperty, 4, 1)                          \
   F(SetProperty, 4, 1)                               \
   F(AddElement, 3, 1)                                \
