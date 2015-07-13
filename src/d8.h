@@ -239,9 +239,19 @@ class Worker {
   ~Worker();
 
   void StartExecuteInThread(Isolate* isolate, const char* script);
+  // Post a message to the worker's incoming message queue. The worker will
+  // take ownership of the SerializationData.
   void PostMessage(SerializationData* data);
+  // Synchronously retrieve messages from the worker's outgoing message queue.
+  // If there is no message in the queue, block until a message is available.
+  // If there are no messages in the queue and the worker is no longer running,
+  // return nullptr.
   SerializationData* GetMessage();
+  // Terminate the worker's event loop. Messages from the worker that have been
+  // queued can still be read via GetMessage().
   void Terminate();
+  // Terminate and join the thread.
+  void WaitForThread();
 
  private:
   class WorkerThread : public base::Thread {
@@ -256,7 +266,11 @@ class Worker {
     Worker* worker_;
   };
 
-  enum State { IDLE, RUNNING, TERMINATED };
+  enum State {
+    IDLE,       // The worker thread hasn't been started yet
+    RUNNING,    // The worker thread is running and hasn't been terminated
+    TERMINATED  // The worker thread has been terminated and will soon finish
+  };
 
   void ExecuteInThread();
   void Cleanup();
@@ -269,6 +283,7 @@ class Worker {
   base::Thread* thread_;
   char* script_;
   base::Atomic32 state_;
+  base::Atomic32 join_called_;
 };
 #endif  // !V8_SHARED
 

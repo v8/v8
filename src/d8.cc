@@ -19,6 +19,7 @@
 
 #ifndef V8_SHARED
 #include <algorithm>
+#include <vector>
 #endif  // !V8_SHARED
 
 #ifdef V8_SHARED
@@ -1612,6 +1613,7 @@ void SerializationDataQueue::Enqueue(SerializationData* data) {
 
 bool SerializationDataQueue::Dequeue(SerializationData** data) {
   base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  *data = NULL;
   if (data_.is_empty()) return false;
   *data = data_.Remove(0);
   return true;
@@ -1638,7 +1640,8 @@ Worker::Worker()
       out_semaphore_(0),
       thread_(NULL),
       script_(NULL),
-      state_(IDLE) {}
+      state_(IDLE),
+      join_called_(false) {}
 
 
 Worker::~Worker() { Cleanup(); }
@@ -1665,6 +1668,8 @@ void Worker::PostMessage(SerializationData* data) {
 SerializationData* Worker::GetMessage() {
   SerializationData* data = NULL;
   while (!out_queue_.Dequeue(&data)) {
+    // If the worker is no longer running, and there are no messages in the
+    // queue, don't expect any more messages from it.
     if (base::NoBarrier_Load(&state_) != RUNNING) break;
     out_semaphore_.Wait();
   }
@@ -1675,9 +1680,21 @@ SerializationData* Worker::GetMessage() {
 
 void Worker::Terminate() {
   if (base::NoBarrier_CompareAndSwap(&state_, RUNNING, TERMINATED) == RUNNING) {
-    // Post NULL to wake the Worker thread message loop.
+    // Post NULL to wake the Worker thread message loop, and tell it to stop
+    // running.
     PostMessage(NULL);
+  }
+}
+
+
+void Worker::WaitForThread() {
+  Terminate();
+
+  if (base::NoBarrier_CompareAndSwap(&join_called_, false, true) == false) {
     thread_->Join();
+  } else {
+    // Tried to call join twice.
+    UNREACHABLE();
   }
 }
 
@@ -1718,13 +1735,11 @@ void Worker::ExecuteInThread() {
           if (onmessage->IsFunction()) {
             Handle<Function> onmessage_fun = Handle<Function>::Cast(onmessage);
             // Now wait for messages
-            bool done = false;
-            while (!done) {
+            while (true) {
               in_semaphore_.Wait();
               SerializationData* data;
               if (!in_queue_.Dequeue(&data)) continue;
               if (data == NULL) {
-                done = true;
                 break;
               }
               int offset = 0;
@@ -1744,11 +1759,9 @@ void Worker::ExecuteInThread() {
   }
   isolate->Dispose();
 
-  if (base::NoBarrier_CompareAndSwap(&state_, RUNNING, TERMINATED) == RUNNING) {
-    // Post NULL to wake the thread waiting on GetMessage() if there is one.
-    out_queue_.Enqueue(NULL);
-    out_semaphore_.Signal();
-  }
+  // Post NULL to wake the thread waiting on GetMessage() if there is one.
+  out_queue_.Enqueue(NULL);
+  out_semaphore_.Signal();
 }
 
 
@@ -2146,18 +2159,12 @@ MaybeLocal<Value> Shell::DeserializeValue(Isolate* isolate,
       break;
     case kSerializationTagString: {
       int length = data.Read<int>(offset);
-      static char s_buffer[128];
-      char* p = s_buffer;
-      bool allocated = false;
-      if (length > static_cast<int>(sizeof(s_buffer))) {
-        p = new char[length];
-        allocated = true;
-      }
-      data.ReadMemory(p, length, offset);
-      MaybeLocal<String> str =
-          String::NewFromUtf8(isolate, p, String::kNormalString, length);
+      CHECK(length >= 0);
+      std::vector<char> buffer(length + 1);  // + 1 so it is never empty.
+      data.ReadMemory(&buffer[0], length, offset);
+      MaybeLocal<String> str = String::NewFromUtf8(
+          isolate, &buffer[0], String::kNormalString, length);
       if (!str.IsEmpty()) result = str.ToLocalChecked();
-      if (allocated) delete[] p;
       break;
     }
     case kSerializationTagArray: {
@@ -2229,7 +2236,7 @@ void Shell::CleanupWorkers() {
 
   for (int i = 0; i < workers_copy.length(); ++i) {
     Worker* worker = workers_copy[i];
-    worker->Terminate();
+    worker->WaitForThread();
     delete worker;
   }
 
