@@ -1640,6 +1640,14 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties, 1);
   NewNode(op, environment()->Pop());  // prototype
   NewNode(op, environment()->Pop());  // literal
+  if (is_strong(language_mode())) {
+    // TODO(conradw): It would be more efficient to define the properties with
+    // the right attributes the first time round.
+    literal =
+        NewNode(javascript()->CallRuntime(Runtime::kObjectFreeze, 1), literal);
+    // Freezing the class object should never deopt.
+    PrepareFrameState(literal, BailoutId::None());
+  }
 
   // Assign to class variable.
   if (expr->scope() != NULL) {
@@ -1652,7 +1660,6 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     BuildVariableAssignment(var, literal, Token::INIT_CONST, feedback,
                             BailoutId::None(), states);
   }
-
   ast_context()->ProduceValue(literal);
 }
 
