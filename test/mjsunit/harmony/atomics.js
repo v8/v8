@@ -344,6 +344,58 @@ function testAtomicOp(op, ia, index, expectedIndex, name) {
   }
 })();
 
+(function TestToNumber() {
+  IntegerTypedArrayConstructors.forEach(function(t) {
+    var sab = new SharedArrayBuffer(1 * t.constr.BYTES_PER_ELEMENT);
+    var sta = new t.constr(sab);
+
+    var valueOf = {valueOf: function(){ return 3;}};
+    var toString = {toString: function(){ return '3';}};
+
+    [false, true, undefined, valueOf, toString].forEach(function(v) {
+      var name = Object.prototype.toString.call(sta) + ' - ' + v;
+
+      // CompareExchange
+      sta[0] = 50;
+      assertEquals(50, Atomics.compareExchange(sta, 0, v, v), name);
+
+      // Store
+      assertEquals(+v, Atomics.store(sta, 0, v), name);
+      assertEquals(v|0, sta[0], name);
+
+      // Add
+      sta[0] = 120;
+      assertEquals(120, Atomics.add(sta, 0, v), name);
+      assertEquals(120 + (v|0), sta[0], name);
+
+      // Sub
+      sta[0] = 70;
+      assertEquals(70, Atomics.sub(sta, 0, v), name);
+      assertEquals(70 - (v|0), sta[0]);
+
+      // And
+      sta[0] = 0x20;
+      assertEquals(0x20, Atomics.and(sta, 0, v), name);
+      assertEquals(0x20 & (v|0), sta[0]);
+
+      // Or
+      sta[0] = 0x3d;
+      assertEquals(0x3d, Atomics.or(sta, 0, v), name);
+      assertEquals(0x3d | (v|0), sta[0]);
+
+      // Xor
+      sta[0] = 0x25;
+      assertEquals(0x25, Atomics.xor(sta, 0, v), name);
+      assertEquals(0x25 ^ (v|0), sta[0]);
+
+      // Exchange
+      sta[0] = 0x09;
+      assertEquals(0x09, Atomics.exchange(sta, 0, v), name);
+      assertEquals(v|0, sta[0]);
+    });
+  });
+})();
+
 (function TestWrapping() {
   IntegerTypedArrayConstructors.forEach(function(t) {
     var sab = new SharedArrayBuffer(10 * t.constr.BYTES_PER_ELEMENT);
