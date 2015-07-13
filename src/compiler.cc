@@ -1515,7 +1515,8 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(function));
+  base::SmartPointer<CompilationInfo> info(
+      new CompilationInfoWithZone(function));
   VMState<COMPILER> state(isolate);
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
@@ -1540,7 +1541,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
 Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   // Take ownership of compilation info.  Deleting compilation info
   // also tears down the zone and the recompile job.
-  SmartPointer<CompilationInfo> info(job->info());
+  base::SmartPointer<CompilationInfo> info(job->info());
   Isolate* isolate = info->isolate();
 
   VMState<COMPILER> state(isolate);

@@ -9,7 +9,6 @@
 #include "src/allocation.h"
 #include "src/hashmap.h"
 #include "src/list.h"
-#include "src/smart-pointers.h"
 #include "src/v8.h"
 #else
 #include "include/v8.h"

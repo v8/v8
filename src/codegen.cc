@@ -183,7 +183,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
          (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
     const char* debug_name;
-    SmartArrayPointer<char> debug_name_holder;
+    base::SmartArrayPointer<char> debug_name_holder;
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
       debug_name = CodeStub::MajorName(major_key, false);

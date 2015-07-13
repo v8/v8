@@ -2526,7 +2526,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   HandleScope scope(isolate);
 
-  SmartPointer<SerializedCodeData> scd(
+  base::SmartPointer<SerializedCodeData> scd(
       SerializedCodeData::FromCachedData(isolate, cached_data, *source));
   if (scd.is_empty()) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");

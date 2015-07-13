@@ -118,7 +118,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* BuildArrayNArgumentsConstructor(JSArrayBuilder* builder,
                                           ElementsKind kind);
 
-  SmartArrayPointer<HParameter*> parameters_;
+  base::SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
   CompilationInfo* info_;
   CodeStubDescriptor descriptor_;

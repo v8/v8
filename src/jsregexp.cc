@@ -596,7 +596,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   if (required_registers > Isolate::kJSRegexpStaticOffsetsVectorSize) {
     output_registers = NewArray<int32_t>(required_registers);
   }
-  SmartArrayPointer<int32_t> auto_release(output_registers);
+  base::SmartArrayPointer<int32_t> auto_release(output_registers);
   if (output_registers == NULL) {
     output_registers = isolate->jsregexp_static_offsets_vector();
   }

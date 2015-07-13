@@ -993,7 +993,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 #endif
 
-  SmartArrayPointer<char> GetFilename() {
+  base::SmartArrayPointer<char> GetFilename() {
     return String::cast(script()->name())->ToCString();
   }
 

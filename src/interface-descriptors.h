@@ -113,7 +113,7 @@ class CallInterfaceDescriptorData {
   // InterfaceDescriptor, and freed on destruction. This is because static
   // arrays of Registers cause creation of runtime static initializers
   // which we don't want.
-  SmartArrayPointer<Register> register_params_;
+  base::SmartArrayPointer<Register> register_params_;
 
   // Specifies types for parameters and return
   Type::FunctionType* function_type_;

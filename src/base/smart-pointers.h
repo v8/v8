@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SMART_POINTERS_H_
-#define V8_SMART_POINTERS_H_
+#ifndef V8_BASE_SMART_POINTERS_H_
+#define V8_BASE_SMART_POINTERS_H_
 
 namespace v8 {
-namespace internal {
+namespace base {
 
-
-template<typename Deallocator, typename T>
+template <typename Deallocator, typename T>
 class SmartPointerBase {
  public:
   // Default constructor. Constructs an empty scoped pointer.
@@ -20,8 +19,7 @@ class SmartPointerBase {
 
   // Copy constructor removes the pointer from the original to avoid double
   // freeing.
-  SmartPointerBase(const SmartPointerBase<Deallocator, T>& rhs)
-      : p_(rhs.p_) {
+  SmartPointerBase(const SmartPointerBase<Deallocator, T>& rhs) : p_(rhs.p_) {
     const_cast<SmartPointerBase<Deallocator, T>&>(rhs).p_ = NULL;
   }
 
@@ -32,14 +30,10 @@ class SmartPointerBase {
   T* get() const { return p_; }
 
   // You can use [n] to index as if it was a plain pointer.
-  T& operator[](size_t i) {
-    return p_[i];
-  }
+  T& operator[](size_t i) { return p_[i]; }
 
   // You can use [n] to index as if it was a plain pointer.
-  const T& operator[](size_t i) const {
-    return p_[i];
-  }
+  const T& operator[](size_t i) const { return p_[i]; }
 
   // We don't have implicit conversion to a T* since that hinders migration:
   // You would not be able to change a method from returning a T* to
@@ -79,7 +73,9 @@ class SmartPointerBase {
   // When the destructor of the scoped pointer is executed the plain pointer
   // is deleted using DeleteArray.  This implies that you must allocate with
   // NewArray.
-  ~SmartPointerBase() { if (p_) Deallocator::Delete(p_); }
+  ~SmartPointerBase() {
+    if (p_) Deallocator::Delete(p_);
+  }
 
  private:
   T* p_;
@@ -88,43 +84,39 @@ class SmartPointerBase {
 // A 'scoped array pointer' that calls DeleteArray on its pointer when the
 // destructor is called.
 
-template<typename T>
+template <typename T>
 struct ArrayDeallocator {
-  static void Delete(T* array) {
-    DeleteArray(array);
-  }
+  static void Delete(T* array) { delete[] array; }
 };
 
 
-template<typename T>
-class SmartArrayPointer: public SmartPointerBase<ArrayDeallocator<T>, T> {
+template <typename T>
+class SmartArrayPointer : public SmartPointerBase<ArrayDeallocator<T>, T> {
  public:
-  SmartArrayPointer() { }
+  SmartArrayPointer() {}
   explicit SmartArrayPointer(T* ptr)
-      : SmartPointerBase<ArrayDeallocator<T>, T>(ptr) { }
+      : SmartPointerBase<ArrayDeallocator<T>, T>(ptr) {}
   SmartArrayPointer(const SmartArrayPointer<T>& rhs)
-      : SmartPointerBase<ArrayDeallocator<T>, T>(rhs) { }
+      : SmartPointerBase<ArrayDeallocator<T>, T>(rhs) {}
 };
 
 
-template<typename T>
+template <typename T>
 struct ObjectDeallocator {
-  static void Delete(T* object) {
-    delete object;
-  }
+  static void Delete(T* object) { delete object; }
 };
 
-
-template<typename T>
-class SmartPointer: public SmartPointerBase<ObjectDeallocator<T>, T> {
+template <typename T>
+class SmartPointer : public SmartPointerBase<ObjectDeallocator<T>, T> {
  public:
-  SmartPointer() { }
+  SmartPointer() {}
   explicit SmartPointer(T* ptr)
-      : SmartPointerBase<ObjectDeallocator<T>, T>(ptr) { }
+      : SmartPointerBase<ObjectDeallocator<T>, T>(ptr) {}
   SmartPointer(const SmartPointer<T>& rhs)
-      : SmartPointerBase<ObjectDeallocator<T>, T>(rhs) { }
+      : SmartPointerBase<ObjectDeallocator<T>, T>(rhs) {}
 };
 
-} }  // namespace v8::internal
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_SMART_POINTERS_H_

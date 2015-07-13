@@ -129,7 +129,7 @@ class StringStream final {
   void OutputToStdOut() { OutputToFile(stdout); }
   void Log(Isolate* isolate);
   Handle<String> ToString(Isolate* isolate);
-  SmartArrayPointer<const char> ToCString() const;
+  base::SmartArrayPointer<const char> ToCString() const;
   int length() const { return length_; }
 
   // Object printing support.

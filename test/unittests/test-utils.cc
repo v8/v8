@@ -75,7 +75,7 @@ inline int64_t GetRandomSeedFromFlag(int random_seed) {
 }  // namespace
 
 TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
-    : rng_(GetRandomSeedFromFlag(internal::FLAG_random_seed)) {}
+    : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
 
 
 TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}

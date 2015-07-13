@@ -11,6 +11,7 @@
 #include "src/assert-scope.h"
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
+#include "src/base/smart-pointers.h"
 #include "src/builtins.h"
 #include "src/checks.h"
 #include "src/elements-kind.h"
@@ -18,7 +19,6 @@
 #include "src/flags.h"
 #include "src/list.h"
 #include "src/property-details.h"
-#include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
 #include "src/unicode-decoder.h"
 #include "src/zone.h"
@@ -8855,12 +8855,11 @@ class String: public Name {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  SmartArrayPointer<char> ToCString(AllowNullsFlag allow_nulls,
-                                    RobustnessFlag robustness_flag,
-                                    int offset,
-                                    int length,
-                                    int* length_output = 0);
-  SmartArrayPointer<char> ToCString(
+  base::SmartArrayPointer<char> ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robustness_flag,
+                                          int offset, int length,
+                                          int* length_output = 0);
+  base::SmartArrayPointer<char> ToCString(
       AllowNullsFlag allow_nulls = DISALLOW_NULLS,
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
@@ -8871,7 +8870,7 @@ class String: public Name {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  SmartArrayPointer<uc16> ToWideCString(
+  base::SmartArrayPointer<uc16> ToWideCString(
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
 
   bool ComputeArrayIndex(uint32_t* index);

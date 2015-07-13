@@ -613,7 +613,7 @@ CodeAgingHelper::CodeAgingHelper() {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  SmartPointer<CodePatcher> patcher(new CodePatcher(
+  base::SmartPointer<CodePatcher> patcher(new CodePatcher(
       young_sequence_.start(), young_sequence_.length() / Assembler::kInstrSize,
       CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());

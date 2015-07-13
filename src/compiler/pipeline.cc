@@ -281,7 +281,7 @@ class PipelineData {
   Zone* graph_zone_;
   Graph* graph_;
   // TODO(dcarney): make this into a ZoneObject.
-  SmartPointer<SourcePositionTable> source_positions_;
+  base::SmartPointer<SourcePositionTable> source_positions_;
   LoopAssignmentAnalysis* loop_assignment_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
@@ -340,12 +340,12 @@ void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
 }
 
 
-SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
+base::SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
   if (info->code_stub() != NULL) {
     CodeStub::Major major_key = info->code_stub()->MajorKey();
     const char* major_name = CodeStub::MajorName(major_key, false);
     size_t len = strlen(major_name) + 1;
-    SmartArrayPointer<char> name(new char[len]);
+    base::SmartArrayPointer<char> name(new char[len]);
     memcpy(name.get(), major_name, len);
     return name;
   } else {
@@ -980,7 +980,7 @@ Handle<Code> Pipeline::GenerateCode() {
   }
 
   ZonePool zone_pool;
-  SmartPointer<PipelineStatistics> pipeline_statistics;
+  base::SmartPointer<PipelineStatistics> pipeline_statistics;
 
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info(), &zone_pool));
@@ -993,7 +993,7 @@ Handle<Code> Pipeline::GenerateCode() {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
       FunctionLiteral* function = info()->function();
-      SmartArrayPointer<char> function_name =
+      base::SmartArrayPointer<char> function_name =
           info()->shared_info()->DebugName()->ToCString();
       int pos = info()->shared_info()->start_position();
       json_of << "{\"function\":\"" << function_name.get()
@@ -1064,7 +1064,7 @@ Handle<Code> Pipeline::GenerateCode() {
   // Bailout here in case target architecture is not supported.
   if (!SupportedTarget()) return Handle<Code>::null();
 
-  SmartPointer<Typer> typer;
+  base::SmartPointer<Typer> typer;
   if (info()->is_typing_enabled()) {
     // Type the graph.
     typer.Reset(new Typer(isolate(), data.graph(), info()->function_type()));
@@ -1152,7 +1152,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool;
   PipelineData data(&zone_pool, info, graph, schedule);
-  SmartPointer<PipelineStatistics> pipeline_statistics;
+  base::SmartPointer<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("test codegen");
@@ -1286,7 +1286,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   PipelineData* data = this->data_;
 
   // Don't track usage for this zone in compiler stats.
-  SmartPointer<Zone> verifier_zone;
+  base::SmartPointer<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
     verifier_zone.Reset(new Zone());
@@ -1294,7 +1294,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
         verifier_zone.get(), config, data->sequence());
   }
 
-  SmartArrayPointer<char> debug_name;
+  base::SmartArrayPointer<char> debug_name;
 #ifdef DEBUG
   debug_name = GetDebugName(data->info());
 #endif

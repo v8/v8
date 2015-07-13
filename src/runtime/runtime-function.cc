@@ -328,9 +328,8 @@ RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles (possibly
 // prefixed by a number of empty handles).
-static SmartArrayPointer<Handle<Object> > GetCallerArguments(Isolate* isolate,
-                                                             int prefix_argc,
-                                                             int* total_argc) {
+static base::SmartArrayPointer<Handle<Object> > GetCallerArguments(
+    Isolate* isolate, int prefix_argc, int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -355,7 +354,7 @@ static SmartArrayPointer<Handle<Object> > GetCallerArguments(Isolate* isolate,
     argument_count--;
 
     *total_argc = prefix_argc + argument_count;
-    SmartArrayPointer<Handle<Object> > param_data(
+    base::SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
@@ -376,7 +375,7 @@ static SmartArrayPointer<Handle<Object> > GetCallerArguments(Isolate* isolate,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = prefix_argc + args_count;
-    SmartArrayPointer<Handle<Object> > param_data(
+    base::SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
@@ -401,7 +400,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   bound_function->shared()->set_inferred_name(isolate->heap()->empty_string());
   // Get all arguments of calling function (Function.prototype.bind).
   int argc = 0;
-  SmartArrayPointer<Handle<Object> > arguments =
+  base::SmartArrayPointer<Handle<Object> > arguments =
       GetCallerArguments(isolate, 0, &argc);
   // Don't count the this-arg.
   if (argc > 0) {
@@ -503,7 +502,7 @@ RUNTIME_FUNCTION(Runtime_NewObjectFromBound) {
          !Handle<JSFunction>::cast(bound_function)->shared()->bound());
 
   int total_argc = 0;
-  SmartArrayPointer<Handle<Object> > param_data =
+  base::SmartArrayPointer<Handle<Object> > param_data =
       GetCallerArguments(isolate, bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     param_data[i] = Handle<Object>(
@@ -535,12 +534,12 @@ RUNTIME_FUNCTION(Runtime_Call) {
   // If there are too many arguments, allocate argv via malloc.
   const int argv_small_size = 10;
   Handle<Object> argv_small_buffer[argv_small_size];
-  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  base::SmartArrayPointer<Handle<Object> > argv_large_buffer;
   Handle<Object>* argv = argv_small_buffer;
   if (argc > argv_small_size) {
     argv = new Handle<Object>[argc];
     if (argv == NULL) return isolate->StackOverflow();
-    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+    argv_large_buffer = base::SmartArrayPointer<Handle<Object> >(argv);
   }
 
   for (int i = 0; i < argc; ++i) {
@@ -574,12 +573,12 @@ RUNTIME_FUNCTION(Runtime_Apply) {
   // If there are too many arguments, allocate argv via malloc.
   const int argv_small_size = 10;
   Handle<Object> argv_small_buffer[argv_small_size];
-  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  base::SmartArrayPointer<Handle<Object> > argv_large_buffer;
   Handle<Object>* argv = argv_small_buffer;
   if (argc > argv_small_size) {
     argv = new Handle<Object>[argc];
     if (argv == NULL) return isolate->StackOverflow();
-    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+    argv_large_buffer = base::SmartArrayPointer<Handle<Object> >(argv);
   }
 
   for (int i = 0; i < argc; ++i) {

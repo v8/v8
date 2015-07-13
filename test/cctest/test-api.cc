@@ -40,12 +40,12 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
+#include "src/base/smart-pointers.h"
 #include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/execution.h"
 #include "src/objects.h"
 #include "src/parser.h"
-#include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"
@@ -16717,8 +16717,8 @@ TEST(ContainsOnlyOneByte) {
   const int length = 512;
   // Ensure word aligned assignment.
   const int aligned_length = length*sizeof(uintptr_t)/sizeof(uint16_t);
-  i::SmartArrayPointer<uintptr_t>
-  aligned_contents(new uintptr_t[aligned_length]);
+  v8::base::SmartArrayPointer<uintptr_t> aligned_contents(
+      new uintptr_t[aligned_length]);
   uint16_t* string_contents =
       reinterpret_cast<uint16_t*>(aligned_contents.get());
   // Set to contain only one byte.

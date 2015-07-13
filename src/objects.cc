@@ -1268,7 +1268,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
-      SmartArrayPointer<char> debug_name =
+      base::SmartArrayPointer<char> debug_name =
           shared->DebugName()->ToCString();
       if (debug_name[0] != 0) {
         os << "<SharedFunctionInfo " << debug_name.get() << ">";
@@ -8455,13 +8455,12 @@ String::FlatContent String::GetFlatContent() {
 }
 
 
-SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                          RobustnessFlag robust_flag,
-                                          int offset,
-                                          int length,
-                                          int* length_return) {
+base::SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                                RobustnessFlag robust_flag,
+                                                int offset, int length,
+                                                int* length_return) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartArrayPointer<char>(NULL);
+    return base::SmartArrayPointer<char>(NULL);
   }
   // Negative length means the to the end of the string.
   if (length < 0) length = kMaxInt - offset;
@@ -8498,13 +8497,13 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
     last = character;
   }
   result[utf8_byte_position] = 0;
-  return SmartArrayPointer<char>(result);
+  return base::SmartArrayPointer<char>(result);
 }
 
 
-SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                          RobustnessFlag robust_flag,
-                                          int* length_return) {
+base::SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                                RobustnessFlag robust_flag,
+                                                int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 
@@ -8530,9 +8529,10 @@ const uc16* String::GetTwoByteData(unsigned start) {
 }
 
 
-SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
+base::SmartArrayPointer<uc16> String::ToWideCString(
+    RobustnessFlag robust_flag) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartArrayPointer<uc16>();
+    return base::SmartArrayPointer<uc16>();
   }
   StringCharacterStream stream(this);
 
@@ -8544,7 +8544,7 @@ SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
     result[i++] = character;
   }
   result[i] = 0;
-  return SmartArrayPointer<uc16>(result);
+  return base::SmartArrayPointer<uc16>(result);
 }
 
 
@@ -10219,7 +10219,7 @@ void JSFunction::SetInstanceClassName(String* name) {
 
 
 void JSFunction::PrintName(FILE* out) {
-  SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
+  base::SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", name.get());
 }
 

@@ -5,9 +5,9 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
+#include "src/base/smart-pointers.h"
 #include "src/heap-snapshot-generator-inl.h"
 #include "src/isolate.h"
-#include "src/smart-pointers.h"
 
 namespace v8 {
 namespace internal {
@@ -66,11 +66,11 @@ class HeapProfiler {
   Heap* heap() const { return ids_->heap(); }
 
   // Mapping from HeapObject addresses to objects' uids.
-  SmartPointer<HeapObjectsMap> ids_;
+  base::SmartPointer<HeapObjectsMap> ids_;
   List<HeapSnapshot*> snapshots_;
-  SmartPointer<StringsStorage> names_;
+  base::SmartPointer<StringsStorage> names_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
-  SmartPointer<AllocationTracker> allocation_tracker_;
+  base::SmartPointer<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
 };
 

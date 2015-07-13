@@ -969,7 +969,7 @@ class MarkCompactCollector {
 
   List<Page*> evacuation_candidates_;
 
-  SmartPointer<FreeList> free_list_old_space_;
+  base::SmartPointer<FreeList> free_list_old_space_;
 
   friend class Heap;
 };

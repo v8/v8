@@ -28,7 +28,7 @@ namespace compiler {
 FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
                             const char* suffix, const char* mode) {
   EmbeddedVector<char, 256> filename(0);
-  SmartArrayPointer<char> function_name;
+  base::SmartArrayPointer<char> function_name;
   if (info->has_shared_info()) {
     function_name = info->shared_info()->DebugName()->ToCString();
     if (strlen(function_name.get()) > 0) {

@@ -455,8 +455,8 @@ class MessageHandler {
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
                                    Handle<Object> message_obj);
   static Handle<String> GetMessage(Isolate* isolate, Handle<Object> data);
-  static SmartArrayPointer<char> GetLocalizedMessage(Isolate* isolate,
-                                                     Handle<Object> data);
+  static base::SmartArrayPointer<char> GetLocalizedMessage(Isolate* isolate,
+                                                           Handle<Object> data);
 };
 } }  // namespace v8::internal
 

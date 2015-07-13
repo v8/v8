@@ -178,7 +178,7 @@ Reduction JSIntrinsicLowering::ReduceIncrementStatsCounter(Node* node) {
   if (!m.HasValue() || !m.Value().handle()->IsString()) {
     return ChangeToUndefined(node);
   }
-  SmartArrayPointer<char> name =
+  base::SmartArrayPointer<char> name =
       Handle<String>::cast(m.Value().handle())->ToCString();
   StatsCounter counter(jsgraph()->isolate(), name.get());
   if (!counter.Enabled()) return ChangeToUndefined(node);

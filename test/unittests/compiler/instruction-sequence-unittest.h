@@ -223,7 +223,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   typedef std::map<int, const Instruction*> Instructions;
   typedef std::vector<BlockCompletion> Completions;
 
-  SmartPointer<RegisterConfiguration> config_;
+  base::SmartPointer<RegisterConfiguration> config_;
   InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;

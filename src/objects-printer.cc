@@ -746,10 +746,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     String* source = String::cast(Script::cast(script())->source());
     int start = start_position();
     int length = end_position() - start;
-    SmartArrayPointer<char> source_string =
-        source->ToCString(DISALLOW_NULLS,
-                          FAST_STRING_TRAVERSAL,
-                          start, length, NULL);
+    base::SmartArrayPointer<char> source_string = source->ToCString(
+        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
     os << source_string.get();
   }
   // Script files are often large, hard to read.

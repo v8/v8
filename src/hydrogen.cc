@@ -7927,7 +7927,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     bool try_inline = FLAG_polymorphic_inlining && !needs_wrapping;
     if (FLAG_trace_inlining && try_inline) {
       Handle<JSFunction> caller = current_info()->closure();
-      SmartArrayPointer<char> caller_name =
+      base::SmartArrayPointer<char> caller_name =
           caller->shared()->DebugName()->ToCString();
       PrintF("Trying to inline the polymorphic call to %s from %s\n",
              name->ToCString().get(),
@@ -8009,9 +8009,9 @@ void HOptimizedGraphBuilder::TraceInline(Handle<JSFunction> target,
                                          Handle<JSFunction> caller,
                                          const char* reason) {
   if (FLAG_trace_inlining) {
-    SmartArrayPointer<char> target_name =
+    base::SmartArrayPointer<char> target_name =
         target->shared()->DebugName()->ToCString();
-    SmartArrayPointer<char> caller_name =
+    base::SmartArrayPointer<char> caller_name =
         caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
       PrintF("Inlined %s called from %s.\n", target_name.get(),

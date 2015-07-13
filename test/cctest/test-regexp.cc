@@ -413,7 +413,7 @@ static void ExpectError(const char* input,
             CcTest::i_isolate(), &zone, &reader, false, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
-  SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
+  v8::base::SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(0, strcmp(expected, str.get()));
 }
 
