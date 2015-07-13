@@ -4537,23 +4537,35 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(Register object,
                                                       Register scratch1,
                                                       Label* found) {
   DCHECK(!scratch1.is(scratch0));
-  Factory* factory = isolate()->factory();
   Register current = scratch0;
-  Label loop_again;
+  Label loop_again, end;
 
   // scratch contained elements pointer.
   mr(current, object);
+  LoadP(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  LoadP(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  CompareRoot(current, Heap::kNullValueRootIndex);
+  beq(&end);
 
   // Loop based on the map going up the prototype chain.
   bind(&loop_again);
   LoadP(current, FieldMemOperand(current, HeapObject::kMapOffset));
+
+  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  lbz(scratch1, FieldMemOperand(current, Map::kInstanceTypeOffset));
+  cmpi(scratch1, Operand(JS_OBJECT_TYPE));
+  blt(found);
+
   lbz(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
   DecodeField<Map::ElementsKindBits>(scratch1);
   cmpi(scratch1, Operand(DICTIONARY_ELEMENTS));
   beq(found);
   LoadP(current, FieldMemOperand(current, Map::kPrototypeOffset));
-  Cmpi(current, Operand(factory->null_value()), r0);
+  CompareRoot(current, Heap::kNullValueRootIndex);
   bne(&loop_again);
+
+  bind(&end);
 }
 
 
