@@ -254,6 +254,12 @@ Matcher<Node*> IsFloat32Max(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsFloat32Min(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat32Abs(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat32Equal(const Matcher<Node*>& lhs_matcher,
+                              const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat32LessThan(const Matcher<Node*>& lhs_matcher,
+                                 const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat32LessThanOrEqual(const Matcher<Node*>& lhs_matcher,
+                                        const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Max(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Min(const Matcher<Node*>& lhs_matcher,
