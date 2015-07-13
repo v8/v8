@@ -311,36 +311,6 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
-static void Generate_Runtime_NewObject(MacroAssembler* masm,
-                                       bool create_memento,
-                                       Register original_constructor,
-                                       Label* count_incremented,
-                                       Label* allocated) {
-  if (create_memento) {
-    // Get the cell or allocation site.
-    __ ldr(r2, MemOperand(sp, 3 * kPointerSize));
-    __ push(r2);
-  }
-
-  __ push(r1);                    // argument for Runtime_NewObject
-  __ push(original_constructor);  // original constructor
-  if (create_memento) {
-    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
-  } else {
-    __ CallRuntime(Runtime::kNewObject, 2);
-  }
-  __ mov(r4, r0);
-
-  // Runtime_NewObjectWithAllocationSite increments allocation count.
-  // Skip the increment.
-  if (create_memento) {
-    __ jmp(count_incremented);
-  } else {
-    __ jmp(allocated);
-  }
-}
-
-
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -373,17 +343,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ push(r1);
     __ push(r3);
 
-    Label rt_call, allocated, normal_new, count_incremented;
-    __ cmp(r1, r3);
-    __ b(eq, &normal_new);
-
-    // Original constructor and function are different.
-    Generate_Runtime_NewObject(masm, create_memento, r3, &count_incremented,
-                               &allocated);
-    __ bind(&normal_new);
-
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
+    Label rt_call, allocated;
     if (FLAG_inline_new) {
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
@@ -392,11 +354,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ tst(r2, r2);
       __ b(ne, &rt_call);
 
+      // Fall back to runtime if the original constructor and function differ.
+      __ cmp(r1, r3);
+      __ b(ne, &rt_call);
+
       // Load the initial map and verify that it is in fact a map.
       // r1: constructor function
       __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
       __ JumpIfSmi(r2, &rt_call);
-      __ CompareObjectType(r2, r3, r4, MAP_TYPE);
+      __ CompareObjectType(r2, r5, r4, MAP_TYPE);
       __ b(ne, &rt_call);
 
       // Check that the constructor is not constructing a JSFunction (see
@@ -404,7 +370,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // initial map's instance type would be JS_FUNCTION_TYPE.
       // r1: constructor function
       // r2: initial map
-      __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE);
+      __ CompareInstanceType(r2, r5, JS_FUNCTION_TYPE);
       __ b(eq, &rt_call);
 
       if (!is_api_function) {
@@ -435,12 +401,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Now allocate the JSObject on the heap.
       // r1: constructor function
       // r2: initial map
+      Label rt_call_reload_new_target;
       __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
       if (create_memento) {
         __ add(r3, r3, Operand(AllocationMemento::kSize / kPointerSize));
       }
 
-      __ Allocate(r3, r4, r5, r6, &rt_call, SIZE_IN_WORDS);
+      __ Allocate(r3, r4, r5, r6, &rt_call_reload_new_target, SIZE_IN_WORDS);
 
       // Allocated the JSObject, now initialize the fields. Map is set to
       // initial map and properties and elements are set to empty fixed array.
@@ -524,13 +491,37 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Continue with JSObject being successfully allocated
       // r4: JSObject
       __ jmp(&allocated);
+
+      // Reload the original constructor and fall-through.
+      __ bind(&rt_call_reload_new_target);
+      __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
     }
 
     // Allocate the new receiver object using the runtime call.
     // r1: constructor function
+    // r3: original constructor
     __ bind(&rt_call);
-    Generate_Runtime_NewObject(masm, create_memento, r1, &count_incremented,
-                               &allocated);
+    if (create_memento) {
+      // Get the cell or allocation site.
+      __ ldr(r2, MemOperand(sp, 3 * kPointerSize));
+      __ push(r2);  // argument 1: allocation site
+    }
+
+    __ push(r1);  // argument 2/1: constructor function
+    __ push(r3);  // argument 3/2: original constructor
+    if (create_memento) {
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+    } else {
+      __ CallRuntime(Runtime::kNewObject, 2);
+    }
+    __ mov(r4, r0);
+
+    // Runtime_NewObjectWithAllocationSite increments allocation count.
+    // Skip the increment.
+    Label count_incremented;
+    if (create_memento) {
+      __ jmp(&count_incremented);
+    }
 
     // Receiver for constructor call allocated.
     // r4: JSObject
@@ -619,9 +610,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
     // r0: result
-    // sp[0]: receiver (newly allocated object)
-    // sp[1]: new.target (if used)
-    // sp[1/2]: number of arguments (smi-tagged)
+    // sp[0]: receiver
+    // sp[1]: new.target
+    // sp[2]: number of arguments (smi-tagged)
     __ JumpIfSmi(r0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than

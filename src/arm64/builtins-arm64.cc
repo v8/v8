@@ -302,33 +302,6 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
-static void Generate_Runtime_NewObject(MacroAssembler* masm,
-                                       bool create_memento,
-                                       Register original_constructor,
-                                       Label* count_incremented,
-                                       Label* allocated) {
-  if (create_memento) {
-    // Get the cell or allocation site.
-    __ Peek(x4, 3 * kXRegSize);
-    __ Push(x4);
-    __ Push(x1);  // Argument for Runtime_NewObject.
-    __ Push(original_constructor);
-    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
-    __ Mov(x4, x0);
-    // If we ended up using the runtime, and we want a memento, then the
-    // runtime call made it for us, and we shouldn't do create count
-    // increment.
-    __ jmp(count_incremented);
-  } else {
-    __ Push(x1);  // Argument for Runtime_NewObject.
-    __ Push(original_constructor);
-    __ CallRuntime(Runtime::kNewObject, 2);
-    __ Mov(x4, x0);
-    __ jmp(allocated);
-  }
-}
-
-
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -368,22 +341,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // sp[1]: Constructor function.
     // sp[2]: number of arguments (smi-tagged)
 
-    Label rt_call, count_incremented, allocated, normal_new;
-    __ Cmp(constructor, original_constructor);
-    __ B(eq, &normal_new);
-    Generate_Runtime_NewObject(masm, create_memento, original_constructor,
-                               &count_incremented, &allocated);
-
-    __ Bind(&normal_new);
-
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
+    Label rt_call, allocated;
     if (FLAG_inline_new) {
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ Mov(x2, Operand(debug_step_in_fp));
       __ Ldr(x2, MemOperand(x2));
       __ Cbnz(x2, &rt_call);
+
+      // Fall back to runtime if the original constructor and function differ.
+      __ Cmp(constructor, original_constructor);
+      __ B(ne, &rt_call);
+
       // Load the initial map and verify that it is in fact a map.
       Register init_map = x2;
       __ Ldr(init_map,
@@ -424,15 +395,18 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Now allocate the JSObject on the heap.
+      Label rt_call_reload_new_target;
       Register obj_size = x3;
       Register new_obj = x4;
       __ Ldrb(obj_size, FieldMemOperand(init_map, Map::kInstanceSizeOffset));
       if (create_memento) {
         __ Add(x7, obj_size,
                Operand(AllocationMemento::kSize / kPointerSize));
-        __ Allocate(x7, new_obj, x10, x11, &rt_call, SIZE_IN_WORDS);
+        __ Allocate(x7, new_obj, x10, x11, &rt_call_reload_new_target,
+                    SIZE_IN_WORDS);
       } else {
-        __ Allocate(obj_size, new_obj, x10, x11, &rt_call, SIZE_IN_WORDS);
+        __ Allocate(obj_size, new_obj, x10, x11, &rt_call_reload_new_target,
+                    SIZE_IN_WORDS);
       }
 
       // Allocated the JSObject, now initialize the fields. Map is set to
@@ -526,12 +500,32 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Continue with JSObject being successfully allocated.
       __ B(&allocated);
+
+      // Reload the original constructor and fall-through.
+      __ Bind(&rt_call_reload_new_target);
+      __ Peek(x3, 0 * kXRegSize);
     }
 
     // Allocate the new receiver object using the runtime call.
+    // x1: constructor function
+    // x3: original constructor
     __ Bind(&rt_call);
-    Generate_Runtime_NewObject(masm, create_memento, constructor,
-                               &count_incremented, &allocated);
+    Label count_incremented;
+    if (create_memento) {
+      // Get the cell or allocation site.
+      __ Peek(x4, 3 * kXRegSize);
+      __ Push(x4, constructor, original_constructor);  // arguments 1-3
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+      __ Mov(x4, x0);
+      // If we ended up using the runtime, and we want a memento, then the
+      // runtime call made it for us, and we shouldn't do create count
+      // increment.
+      __ B(&count_incremented);
+    } else {
+      __ Push(constructor, original_constructor);  // arguments 1-2
+      __ CallRuntime(Runtime::kNewObject, 2);
+      __ Mov(x4, x0);
+    }
 
     // Receiver for constructor call allocated.
     // x4: JSObject

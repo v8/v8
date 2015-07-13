@@ -99,41 +99,6 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
-static void Generate_Runtime_NewObject(MacroAssembler* masm,
-                                       bool create_memento,
-                                       Register original_constructor,
-                                       Label* count_incremented,
-                                       Label* allocated) {
-  int offset = kPointerSize;
-  if (create_memento) {
-    // Get the cell or allocation site.
-    __ movp(rdi, Operand(rsp, kPointerSize * 3));
-    __ Push(rdi);
-    offset += kPointerSize;
-  }
-
-  // Must restore rsi (context) and rdi (constructor) before calling runtime.
-  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ movp(rdi, Operand(rsp, offset));
-  __ Push(rdi);
-  __ Push(original_constructor);
-  if (create_memento) {
-    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
-  } else {
-    __ CallRuntime(Runtime::kNewObject, 2);
-  }
-  __ movp(rbx, rax);  // store result in rbx
-
-  // Runtime_NewObjectWithAllocationSite increments allocation count.
-  // Skip the increment.
-  if (create_memento) {
-    __ jmp(count_incremented);
-  } else {
-    __ jmp(allocated);
-  }
-}
-
-
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -162,21 +127,18 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Push(rdi);
     __ Push(rdx);
 
-    Label rt_call, normal_new, allocated, count_incremented;
-    __ cmpp(rdx, rdi);
-    __ j(equal, &normal_new);
-
-    Generate_Runtime_NewObject(masm, create_memento, rdx, &count_incremented,
-                               &allocated);
-
-    __ bind(&normal_new);
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
+    Label rt_call, allocated;
     if (FLAG_inline_new) {
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ Move(kScratchRegister, debug_step_in_fp);
       __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
+      __ j(not_equal, &rt_call);
+
+      // Fall back to runtime if the original constructor and function differ.
+      __ cmpp(rdx, rdi);
       __ j(not_equal, &rt_call);
 
       // Verified that the constructor is a JSFunction.
@@ -215,12 +177,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ j(not_equal, &allocate);
 
         __ Push(rax);
+        __ Push(rdx);
         __ Push(rdi);
 
         __ Push(rdi);  // constructor
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ Pop(rdi);
+        __ Pop(rdx);
         __ Pop(rax);
         __ movl(rsi, Immediate(Map::kSlackTrackingCounterEnd - 1));
 
@@ -307,10 +271,34 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Allocate the new receiver object using the runtime call.
-    // rdi: function (constructor)
+    // rdx: original constructor
     __ bind(&rt_call);
-    Generate_Runtime_NewObject(masm, create_memento, rdi, &count_incremented,
-                               &allocated);
+    int offset = kPointerSize;
+    if (create_memento) {
+      // Get the cell or allocation site.
+      __ movp(rdi, Operand(rsp, kPointerSize * 3));
+      __ Push(rdi);  // argument 1: allocation site
+      offset += kPointerSize;
+    }
+
+    // Must restore rsi (context) and rdi (constructor) before calling runtime.
+    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ movp(rdi, Operand(rsp, offset));
+    __ Push(rdi);  // argument 2/1: constructor function
+    __ Push(rdx);  // argument 3/2: original constructor
+    if (create_memento) {
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+    } else {
+      __ CallRuntime(Runtime::kNewObject, 2);
+    }
+    __ movp(rbx, rax);  // store result in rbx
+
+    // Runtime_NewObjectWithAllocationSite increments allocation count.
+    // Skip the increment.
+    Label count_incremented;
+    if (create_memento) {
+      __ jmp(&count_incremented);
+    }
 
     // New object allocated.
     // rbx: newly allocated object
