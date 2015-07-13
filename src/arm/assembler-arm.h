@@ -1492,6 +1492,12 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
+  void MaybeCheckConstPool() {
+    if (pc_offset() >= next_buffer_check_) {
+      CheckConstPool(false, true);
+    }
+  }
+
   int EmitEmbeddedConstantPool() {
     DCHECK(FLAG_enable_embedded_constant_pool);
     return constant_pool_builder_.Emit(this);
