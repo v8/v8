@@ -98,7 +98,7 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + 4 + (offset << 2));                 \
+             compare_string, progcounter + 4 + (offset * 4));                  \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -110,7 +110,7 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + (offset << 2));                     \
+             compare_string, progcounter + (offset * 4));                      \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -422,45 +422,45 @@ TEST(Type0) {
                            "60857fff       bnec  a0, a1, 32767", 32767);
   }
 
-  COMPARE_PC_REL_COMPACT(bne(a0, a1, -32768),
-                         "14858000       bne     a0, a1, -32768", -32768);
+  COMPARE_PC_REL_COMPACT(bne(a0, a1, 65535U),
+                         "14858000       bne     a0, a1, 65535U", 65535U);
   COMPARE_PC_REL_COMPACT(bne(a0, a1, -1), "1485ffff       bne     a0, a1, -1",
                          -1);
   COMPARE_PC_REL_COMPACT(bne(a0, a1, 1), "14850001       bne     a0, a1, 1", 1);
   COMPARE_PC_REL_COMPACT(bne(a0, a1, 32767),
                          "14857fff       bne     a0, a1, 32767", 32767);
 
-  COMPARE_PC_REL_COMPACT(beq(a0, a1, -32768),
-                         "10858000       beq     a0, a1, -32768", -32768);
+  COMPARE_PC_REL_COMPACT(beq(a0, a1, 65535U),
+                         "10858000       beq     a0, a1, 65535U", 65535U);
   COMPARE_PC_REL_COMPACT(beq(a0, a1, -1), "1085ffff       beq     a0, a1, -1",
                          -1);
   COMPARE_PC_REL_COMPACT(beq(a0, a1, 1), "10850001       beq     a0, a1, 1", 1);
   COMPARE_PC_REL_COMPACT(beq(a0, a1, 32767),
                          "10857fff       beq     a0, a1, 32767", 32767);
 
-  COMPARE_PC_REL_COMPACT(bltz(a0, -32768), "04808000       bltz    a0, -32768",
-                         -32768);
+  COMPARE_PC_REL_COMPACT(bltz(a0, 65535U), "04808000       bltz    a0, 65535U",
+                         65535U);
   COMPARE_PC_REL_COMPACT(bltz(a0, -1), "0480ffff       bltz    a0, -1", -1);
   COMPARE_PC_REL_COMPACT(bltz(a0, 1), "04800001       bltz    a0, 1", 1);
   COMPARE_PC_REL_COMPACT(bltz(a0, 32767), "04807fff       bltz    a0, 32767",
                          32767);
 
-  COMPARE_PC_REL_COMPACT(bgez(a0, -32768), "04818000       bgez    a0, -32768",
-                         -32768);
+  COMPARE_PC_REL_COMPACT(bgez(a0, 65535U), "04818000       bgez    a0, 65535U",
+                         65535U);
   COMPARE_PC_REL_COMPACT(bgez(a0, -1), "0481ffff       bgez    a0, -1", -1);
   COMPARE_PC_REL_COMPACT(bgez(a0, 1), "04810001       bgez    a0, 1", 1);
   COMPARE_PC_REL_COMPACT(bgez(a0, 32767), "04817fff       bgez    a0, 32767",
                          32767);
 
-  COMPARE_PC_REL_COMPACT(blez(a0, -32768), "18808000       blez    a0, -32768",
-                         -32768);
+  COMPARE_PC_REL_COMPACT(blez(a0, 65535U), "18808000       blez    a0, 65535U",
+                         65535U);
   COMPARE_PC_REL_COMPACT(blez(a0, -1), "1880ffff       blez    a0, -1", -1);
   COMPARE_PC_REL_COMPACT(blez(a0, 1), "18800001       blez    a0, 1", 1);
   COMPARE_PC_REL_COMPACT(blez(a0, 32767), "18807fff       blez    a0, 32767",
                          32767);
 
-  COMPARE_PC_REL_COMPACT(bgtz(a0, -32768), "1c808000       bgtz    a0, -32768",
-                         -32768);
+  COMPARE_PC_REL_COMPACT(bgtz(a0, 65535U), "1c808000       bgtz    a0, 65535U",
+                         65535U);
   COMPARE_PC_REL_COMPACT(bgtz(a0, -1), "1c80ffff       bgtz    a0, -1", -1);
   COMPARE_PC_REL_COMPACT(bgtz(a0, 1), "1c800001       bgtz    a0, 1", 1);
   COMPARE_PC_REL_COMPACT(bgtz(a0, 32767), "1c807fff       bgtz    a0, 32767",
