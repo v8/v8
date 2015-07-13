@@ -173,8 +173,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
     if (FLAG_inline_new) {
-      Label undo_allocation;
-
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ Move(kScratchRegister, debug_step_in_fp);
@@ -266,8 +264,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ j(less, &no_inobject_slack_tracking);
 
         // Allocate object with a slack.
-        __ movzxbp(rsi,
-                   FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
+        __ movzxbp(rsi, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+        __ movzxbp(rax, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
+        __ subp(rsi, rax);
         __ leap(rsi,
                Operand(rbx, rsi, times_pointer_size, JSObject::kHeaderSize));
         // rsi: offset of first field after pre-allocated fields
@@ -298,82 +297,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on. Any
-      // failures need to undo the allocation, so that the heap is in a
-      // consistent state and verifiable.
-      // rax: initial map
-      // rbx: JSObject
-      // rdi: start of next object
+      // and jump into the continuation code at any time from now on.
+      // rbx: JSObject (untagged)
       __ orp(rbx, Immediate(kHeapObjectTag));
 
-      // Check if a non-empty properties array is needed.
-      // Allocate and initialize a FixedArray if it is.
-      // rax: initial map
-      // rbx: JSObject
-      // rdi: start of next object
-      // Calculate total properties described map.
-      __ movzxbp(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
-      __ movzxbp(rcx,
-                 FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
-      __ addp(rdx, rcx);
-      // Calculate unused properties past the end of the in-object properties.
-      __ movzxbp(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
-      __ subp(rdx, rcx);
-      // Done if no extra properties are to be allocated.
-      __ j(zero, &allocated);
-      __ Assert(positive, kPropertyAllocationCountFailed);
-
-      // Scale the number of elements by pointer size and add the header for
-      // FixedArrays to the start of the next object calculation from above.
-      // rbx: JSObject
-      // rdi: start of next object (will be start of FixedArray)
-      // rdx: number of elements in properties array
-      __ Allocate(FixedArray::kHeaderSize,
-                  times_pointer_size,
-                  rdx,
-                  rdi,
-                  rax,
-                  no_reg,
-                  &undo_allocation,
-                  RESULT_CONTAINS_TOP);
-
-      // Initialize the FixedArray.
-      // rbx: JSObject
-      // rdi: FixedArray
-      // rdx: number of elements
-      // rax: start of next object
-      __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
-      __ movp(Operand(rdi, HeapObject::kMapOffset), rcx);  // setup the map
-      __ Integer32ToSmi(rdx, rdx);
-      __ movp(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
-
-      // Initialize the fields to undefined.
-      // rbx: JSObject
-      // rdi: FixedArray
-      // rax: start of next object
-      // rdx: number of elements
-      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-      __ leap(rcx, Operand(rdi, FixedArray::kHeaderSize));
-      __ InitializeFieldsWithFiller(rcx, rax, rdx);
-
-      // Store the initialized FixedArray into the properties field of
-      // the JSObject
-      // rbx: JSObject
-      // rdi: FixedArray
-      __ orp(rdi, Immediate(kHeapObjectTag));  // add the heap tag
-      __ movp(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
-
-
       // Continue with JSObject being successfully allocated
-      // rbx: JSObject
+      // rbx: JSObject (tagged)
       __ jmp(&allocated);
-
-      // Undo the setting of the new top so that the heap is verifiable. For
-      // example, the map's unused properties potentially do not match the
-      // allocated objects unused properties.
-      // rbx: JSObject (previous new top)
-      __ bind(&undo_allocation);
-      __ UndoAllocationInNewSpace(rbx);
     }
 
     // Allocate the new receiver object using the runtime call.

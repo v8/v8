@@ -195,7 +195,6 @@ namespace internal {
   V(kParseScopeError, "Parse/scope error")                                     \
   V(kPossibleDirectCallToEval, "Possible direct call to eval")                 \
   V(kPreconditionsWereNotMet, "Preconditions were not met")                    \
-  V(kPropertyAllocationCountFailed, "Property allocation count failed")        \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                           \
     "Reference to a variable which requires dynamic lookup")                   \
@@ -252,8 +251,6 @@ namespace internal {
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
   V(kUndefinedValueNotLoaded, "Undefined value not loaded")                    \
-  V(kUndoAllocationOfNonAllocatedMemory,                                       \
-    "Undo allocation of non allocated memory")                                 \
   V(kUnexpectedAllocationTop, "Unexpected allocation top")                     \
   V(kUnexpectedColorFound, "Unexpected color bit pattern found")               \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \

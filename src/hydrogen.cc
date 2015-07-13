@@ -9556,9 +9556,9 @@ void HOptimizedGraphBuilder::BuildInlinedCallArray(
 // Checks whether allocation using the given constructor can be inlined.
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
-      constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
-      constructor->initial_map()->instance_size() < HAllocate::kMaxInlineSize &&
-      constructor->initial_map()->InitialPropertiesLength() == 0;
+         constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
+         constructor->initial_map()->instance_size() <
+             HAllocate::kMaxInlineSize;
 }
 
 
@@ -9644,7 +9644,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     DCHECK(constructor->has_initial_map());
     Handle<Map> initial_map(constructor->initial_map());
     int instance_size = initial_map->instance_size();
-    DCHECK(initial_map->InitialPropertiesLength() == 0);
 
     // Allocate an instance of the implicit receiver object.
     HValue* size_in_bytes = Add<HConstant>(instance_size);

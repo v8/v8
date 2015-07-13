@@ -1649,7 +1649,6 @@ class Heap {
   // points to the site.
   MUST_USE_RESULT AllocationResult
       AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure = NOT_TENURED,
-                              bool alloc_props = true,
                               AllocationSite* allocation_site = NULL);
 
   // Allocates a HeapNumber from value.

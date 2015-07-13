@@ -182,7 +182,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // the preconditions is not met, the code bails out to the runtime call.
     Label rt_call;
     if (FLAG_inline_new) {
-      Label undo_allocation;
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
@@ -272,8 +271,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ j(less, &no_inobject_slack_tracking);
 
         // Allocate object with a slack.
-        __ movzx_b(esi,
-                   FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
+        __ movzx_b(esi, FieldOperand(eax, Map::kInObjectPropertiesOffset));
+        __ movzx_b(eax, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
+        __ sub(esi, eax);
         __ lea(esi,
                Operand(ebx, esi, times_pointer_size, JSObject::kHeaderSize));
         // esi: offset of first field after pre-allocated fields
@@ -306,82 +306,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on. Any
-      // failures need to undo the allocation, so that the heap is in a
-      // consistent state and verifiable.
-      // eax: initial map
-      // ebx: JSObject
-      // edi: start of next object
+      // and jump into the continuation code at any time from now on.
+      // ebx: JSObject (untagged)
       __ or_(ebx, Immediate(kHeapObjectTag));
 
-      // Check if a non-empty properties array is needed.
-      // Allocate and initialize a FixedArray if it is.
-      // eax: initial map
-      // ebx: JSObject
-      // edi: start of next object
-      // Calculate the total number of properties described by the map.
-      __ movzx_b(edx, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
-      __ movzx_b(ecx,
-                 FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
-      __ add(edx, ecx);
-      // Calculate unused properties past the end of the in-object properties.
-      __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
-      __ sub(edx, ecx);
-      // Done if no extra properties are to be allocated.
-      __ j(zero, &allocated);
-      __ Assert(positive, kPropertyAllocationCountFailed);
-
-      // Scale the number of elements by pointer size and add the header for
-      // FixedArrays to the start of the next object calculation from above.
-      // ebx: JSObject
-      // edi: start of next object (will be start of FixedArray)
-      // edx: number of elements in properties array
-      __ Allocate(FixedArray::kHeaderSize,
-                  times_pointer_size,
-                  edx,
-                  REGISTER_VALUE_IS_INT32,
-                  edi,
-                  ecx,
-                  no_reg,
-                  &undo_allocation,
-                  RESULT_CONTAINS_TOP);
-
-      // Initialize the FixedArray.
-      // ebx: JSObject
-      // edi: FixedArray
-      // edx: number of elements
-      // ecx: start of next object
-      __ mov(eax, factory->fixed_array_map());
-      __ mov(Operand(edi, FixedArray::kMapOffset), eax);  // setup the map
-      __ SmiTag(edx);
-      __ mov(Operand(edi, FixedArray::kLengthOffset), edx);  // and length
-
-      // Initialize the fields to undefined.
-      // ebx: JSObject
-      // edi: FixedArray
-      // ecx: start of next object
-      __ mov(edx, factory->undefined_value());
-      __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
-      __ InitializeFieldsWithFiller(eax, ecx, edx);
-
-      // Store the initialized FixedArray into the properties field of
-      // the JSObject
-      // ebx: JSObject
-      // edi: FixedArray
-      __ or_(edi, Immediate(kHeapObjectTag));  // add the heap tag
-      __ mov(FieldOperand(ebx, JSObject::kPropertiesOffset), edi);
-
-
       // Continue with JSObject being successfully allocated
-      // ebx: JSObject
+      // ebx: JSObject (tagged)
       __ jmp(&allocated);
-
-      // Undo the setting of the new top so that the heap is verifiable. For
-      // example, the map's unused properties potentially do not match the
-      // allocated objects unused properties.
-      // ebx: JSObject (previous new top)
-      __ bind(&undo_allocation);
-      __ UndoAllocationInNewSpace(ebx);
     }
 
     // Allocate the new receiver object using the runtime call.

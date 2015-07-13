@@ -379,7 +379,6 @@ class Factory final {
   Handle<JSObject> NewJSObjectFromMap(
       Handle<Map> map,
       PretenureFlag pretenure = NOT_TENURED,
-      bool allocate_properties = true,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
   // JS modules are pretenured.

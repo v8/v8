@@ -4304,21 +4304,6 @@ void MacroAssembler::Allocate(Register object_size,
 }
 
 
-void MacroAssembler::UndoAllocationInNewSpace(Register object) {
-  ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address(isolate());
-
-  // Make sure the object has no tag before resetting top.
-  andp(object, Immediate(~kHeapObjectTagMask));
-  Operand top_operand = ExternalOperand(new_space_allocation_top);
-#ifdef DEBUG
-  cmpp(object, top_operand);
-  Check(below, kUndoAllocationOfNonAllocatedMemory);
-#endif
-  movp(top_operand, object);
-}
-
-
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch,
                                         Label* gc_required,

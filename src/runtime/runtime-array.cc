@@ -1113,8 +1113,8 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
       allocation_site = site;
     }
 
-    array = Handle<JSArray>::cast(factory->NewJSObjectFromMap(
-        initial_map, NOT_TENURED, true, allocation_site));
+    array = Handle<JSArray>::cast(
+        factory->NewJSObjectFromMap(initial_map, NOT_TENURED, allocation_site));
   } else {
     array = Handle<JSArray>::cast(factory->NewJSObject(constructor));
 

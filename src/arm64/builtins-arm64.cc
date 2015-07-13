@@ -379,7 +379,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
     if (FLAG_inline_new) {
-      Label undo_allocation;
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ Mov(x2, Operand(debug_step_in_fp));
@@ -455,15 +454,19 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Obtain number of pre-allocated property fields and in-object
       // properties.
-      Register prealloc_fields = x10;
+      Register unused_props = x10;
       Register inobject_props = x11;
-      Register inst_sizes = x11;
-      __ Ldr(inst_sizes, FieldMemOperand(init_map, Map::kInstanceSizesOffset));
-      __ Ubfx(prealloc_fields, inst_sizes,
-              Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
-              kBitsPerByte);
-      __ Ubfx(inobject_props, inst_sizes,
+      Register inst_sizes_or_attrs = x11;
+      Register prealloc_fields = x10;
+      __ Ldr(inst_sizes_or_attrs,
+             FieldMemOperand(init_map, Map::kInstanceAttributesOffset));
+      __ Ubfx(unused_props, inst_sizes_or_attrs,
+              Map::kUnusedPropertyFieldsByte * kBitsPerByte, kBitsPerByte);
+      __ Ldr(inst_sizes_or_attrs,
+             FieldMemOperand(init_map, Map::kInstanceSizesOffset));
+      __ Ubfx(inobject_props, inst_sizes_or_attrs,
               Map::kInObjectPropertiesByte * kBitsPerByte, kBitsPerByte);
+      __ Sub(prealloc_fields, inobject_props, unused_props);
 
       // Calculate number of property fields in the object.
       Register prop_fields = x6;
@@ -518,58 +521,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on. Any
-      // failures need to undo the allocation, so that the heap is in a
-      // consistent state and verifiable.
+      // and jump into the continuation code at any time from now on.
       __ Add(new_obj, new_obj, kHeapObjectTag);
-
-      // Check if a non-empty properties array is needed. Continue with
-      // allocated object if not; allocate and initialize a FixedArray if yes.
-      Register element_count = x3;
-      __ Ldrb(element_count,
-              FieldMemOperand(init_map, Map::kUnusedPropertyFieldsOffset));
-      // The field instance sizes contains both pre-allocated property fields
-      // and in-object properties.
-      __ Add(element_count, element_count, prealloc_fields);
-      __ Subs(element_count, element_count, inobject_props);
-
-      // Done if no extra properties are to be allocated.
-      __ B(eq, &allocated);
-      __ Assert(pl, kPropertyAllocationCountFailed);
-
-      // Scale the number of elements by pointer size and add the header for
-      // FixedArrays to the start of the next object calculation from above.
-      Register new_array = x5;
-      Register array_size = x6;
-      __ Add(array_size, element_count, FixedArray::kHeaderSize / kPointerSize);
-      __ Allocate(array_size, new_array, x11, x12, &undo_allocation,
-                  static_cast<AllocationFlags>(RESULT_CONTAINS_TOP |
-                                               SIZE_IN_WORDS));
-
-      Register array_map = x10;
-      __ LoadRoot(array_map, Heap::kFixedArrayMapRootIndex);
-      __ Str(array_map, MemOperand(new_array, FixedArray::kMapOffset));
-      __ SmiTag(x0, element_count);
-      __ Str(x0, MemOperand(new_array, FixedArray::kLengthOffset));
-
-      // Initialize the fields to undefined.
-      Register elements = x10;
-      __ Add(elements, new_array, FixedArray::kHeaderSize);
-      __ FillFields(elements, element_count, filler);
-
-      // Store the initialized FixedArray into the properties field of the
-      // JSObject.
-      __ Add(new_array, new_array, kHeapObjectTag);
-      __ Str(new_array, FieldMemOperand(new_obj, JSObject::kPropertiesOffset));
 
       // Continue with JSObject being successfully allocated.
       __ B(&allocated);
-
-      // Undo the setting of the new top so that the heap is verifiable. For
-      // example, the map's unused properties potentially do not match the
-      // allocated objects unused properties.
-      __ Bind(&undo_allocation);
-      __ UndoAllocationInNewSpace(new_obj, x14);
     }
 
     // Allocate the new receiver object using the runtime call.

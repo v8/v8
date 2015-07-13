@@ -3223,26 +3223,6 @@ void MacroAssembler::Allocate(Register object_size,
 }
 
 
-void MacroAssembler::UndoAllocationInNewSpace(Register object,
-                                              Register scratch) {
-  ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address(isolate());
-
-  // Make sure the object has no tag before resetting top.
-  Bic(object, object, kHeapObjectTagMask);
-#ifdef DEBUG
-  // Check that the object un-allocated is below the current top.
-  Mov(scratch, new_space_allocation_top);
-  Ldr(scratch, MemOperand(scratch));
-  Cmp(object, scratch);
-  Check(lt, kUndoAllocationOfNonAllocatedMemory);
-#endif
-  // Write the address of the object to un-allocate as the current top.
-  Mov(scratch, new_space_allocation_top);
-  Str(object, MemOperand(scratch));
-}
-
-
 void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register length,
                                            Register scratch1,

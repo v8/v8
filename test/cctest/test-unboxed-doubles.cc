@@ -1017,7 +1017,7 @@ TEST(DoScavenge) {
                            INSERT_TRANSITION).ToHandleChecked();
 
   // Create object in new space.
-  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED, false);
+  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
   obj->WriteToField(0, *heap_number);
@@ -1094,7 +1094,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   }
 
   // Create object in new space.
-  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED, false);
+  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
   obj->WriteToField(0, *heap_number);
@@ -1351,7 +1351,7 @@ TEST(StoreBufferScanOnScavenge) {
                            INSERT_TRANSITION).ToHandleChecked();
 
   // Create object in new space.
-  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED, false);
+  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
   obj->WriteToField(0, *heap_number);
@@ -1423,9 +1423,6 @@ TEST(WriteBarriersInCopyJSObject) {
   my_map = Map::CopyWithField(my_map, name, HeapType::Any(isolate), NONE,
                               Representation::Double(),
                               INSERT_TRANSITION).ToHandleChecked();
-  my_map->set_pre_allocated_property_fields(1);
-  int n_properties = my_map->InitialPropertiesLength();
-  CHECK_GE(n_properties, 0);
 
   int object_size = my_map->instance_size();
 
@@ -1503,7 +1500,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   Handle<HeapObject> obj_value;
   {
     AlwaysAllocateScope always_allocate(isolate);
-    obj = factory->NewJSObjectFromMap(map, TENURED, false);
+    obj = factory->NewJSObjectFromMap(map, TENURED);
     CHECK(old_space->Contains(*obj));
 
     obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS);
@@ -1568,7 +1565,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   Page* ec_page;
   {
     AlwaysAllocateScope always_allocate(isolate);
-    obj = factory->NewJSObjectFromMap(map, TENURED, false);
+    obj = factory->NewJSObjectFromMap(map, TENURED);
     CHECK(old_space->Contains(*obj));
 
     // Make sure |obj_value| is placed on an old-space evacuation candidate.

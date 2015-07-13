@@ -394,7 +394,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
     if (FLAG_inline_new) {
-      Label undo_allocation;
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ li(a2, Operand(debug_step_in_fp));
@@ -484,7 +483,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                   Operand(Map::kSlackTrackingCounterEnd));
 
         // Allocate object with a slack.
-        __ lbu(a0, FieldMemOperand(a2, Map::kPreAllocatedPropertyFieldsOffset));
+        __ lbu(a0, FieldMemOperand(a2, Map::kInObjectPropertiesOffset));
+        __ lbu(a2, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
+        __ subu(a0, a0, a2);
         __ sll(at, a0, kPointerSizeLog2);
         __ addu(a0, t5, at);
         // a0: offset of first field after pre-allocated fields
@@ -526,95 +527,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on. Any
-      // failures need to undo the allocation, so that the heap is in a
-      // consistent state and verifiable.
+      // and jump into the continuation code at any time from now on.
       __ Addu(t4, t4, Operand(kHeapObjectTag));
 
-      // Check if a non-empty properties array is needed. Continue with
-      // allocated object if not; allocate and initialize a FixedArray if yes.
-      // a1: constructor function
-      // t4: JSObject
-      // t5: start of next object (not tagged)
-      __ lbu(a3, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
-      // The field instance sizes contains both pre-allocated property fields
-      // and in-object properties.
-      __ lbu(t6, FieldMemOperand(a2, Map::kPreAllocatedPropertyFieldsOffset));
-      __ Addu(a3, a3, Operand(t6));
-      __ lbu(t6, FieldMemOperand(a2, Map::kInObjectPropertiesOffset));
-      __ subu(a3, a3, t6);
-
-      // Done if no extra properties are to be allocated.
-      __ Branch(&allocated, eq, a3, Operand(zero_reg));
-      __ Assert(greater_equal, kPropertyAllocationCountFailed,
-          a3, Operand(zero_reg));
-
-      // Scale the number of elements by pointer size and add the header for
-      // FixedArrays to the start of the next object calculation from above.
-      // a1: constructor
-      // a3: number of elements in properties array
-      // t4: JSObject
-      // t5: start of next object
-      __ Addu(a0, a3, Operand(FixedArray::kHeaderSize / kPointerSize));
-      __ Allocate(
-          a0,
-          t5,
-          t6,
-          a2,
-          &undo_allocation,
-          static_cast<AllocationFlags>(RESULT_CONTAINS_TOP | SIZE_IN_WORDS));
-
-      // Initialize the FixedArray.
-      // a1: constructor
-      // a3: number of elements in properties array (untagged)
-      // t4: JSObject
-      // t5: start of FixedArray (untagged)
-      __ LoadRoot(t6, Heap::kFixedArrayMapRootIndex);
-      __ mov(a2, t5);
-      __ sw(t6, MemOperand(a2, JSObject::kMapOffset));
-      __ sll(a0, a3, kSmiTagSize);
-      __ sw(a0, MemOperand(a2, FixedArray::kLengthOffset));
-      __ Addu(a2, a2, Operand(2 * kPointerSize));
-
-      DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
-      DCHECK_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
-
-      // Initialize the fields to undefined.
-      // a1: constructor
-      // a2: First element of FixedArray (not tagged)
-      // a3: number of elements in properties array
-      // t4: JSObject
-      // t5: FixedArray (not tagged)
-      __ sll(t3, a3, kPointerSizeLog2);
-      __ addu(t6, a2, t3);  // End of object.
-      DCHECK_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
-      if (!is_api_function || create_memento) {
-        __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
-      } else if (FLAG_debug_code) {
-        __ LoadRoot(t2, Heap::kUndefinedValueRootIndex);
-        __ Assert(eq, kUndefinedValueNotLoaded, t7, Operand(t2));
-      }
-      __ InitializeFieldsWithFiller(a2, t6, t7);
-
-      // Store the initialized FixedArray into the properties field of
-      // the JSObject.
-      // a1: constructor function
-      // t4: JSObject
-      // t5: FixedArray (not tagged)
-      __ Addu(t5, t5, Operand(kHeapObjectTag));  // Add the heap tag.
-      __ sw(t5, FieldMemOperand(t4, JSObject::kPropertiesOffset));
-
       // Continue with JSObject being successfully allocated.
-      // a1: constructor function
-      // a4: JSObject
+      // t4: JSObject
       __ jmp(&allocated);
-
-      // Undo the setting of the new top so that the heap is verifiable. For
-      // example, the map's unused properties potentially do not match the
-      // allocated objects unused properties.
-      // t4: JSObject (previous new top)
-      __ bind(&undo_allocation);
-      __ UndoAllocationInNewSpace(t4, t5);
     }
 
     // Allocate the new receiver object using the runtime call.

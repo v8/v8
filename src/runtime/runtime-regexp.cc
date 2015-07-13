@@ -794,7 +794,7 @@ RUNTIME_FUNCTION(Runtime_RegExpConstructResultRT) {
   Handle<FixedArray> elements = isolate->factory()->NewFixedArray(size);
   Handle<Map> regexp_map(isolate->native_context()->regexp_result_map());
   Handle<JSObject> object =
-      isolate->factory()->NewJSObjectFromMap(regexp_map, NOT_TENURED, false);
+      isolate->factory()->NewJSObjectFromMap(regexp_map, NOT_TENURED);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(size));

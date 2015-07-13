@@ -3171,7 +3171,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
         }
         case JS_OBJECT_TYPE: {
           Handle<JSObject> object =
-              isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED, false);
+              isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED);
           slot->value_ = object;
           Handle<Object> properties = MaterializeAt(frame_index, value_index);
           Handle<Object> elements = MaterializeAt(frame_index, value_index);

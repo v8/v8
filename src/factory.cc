@@ -1596,14 +1596,12 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
 Handle<JSObject> Factory::NewJSObjectFromMap(
     Handle<Map> map,
     PretenureFlag pretenure,
-    bool alloc_props,
     Handle<AllocationSite> allocation_site) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObjectFromMap(
           *map,
           pretenure,
-          alloc_props,
           allocation_site.is_null() ? NULL : *allocation_site),
       JSObject);
 }
@@ -2002,8 +2000,7 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
   DCHECK(size_difference >= 0);
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->InitialPropertiesLength();
-  Handle<FixedArray> properties = NewFixedArray(prop_size, TENURED);
+  Handle<FixedArray> properties = empty_fixed_array();
 
   Heap* heap = isolate()->heap();
   MaybeHandle<SharedFunctionInfo> shared;
@@ -2056,9 +2053,9 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy() {
   Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
-  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObjectFromMap(
-                                    *map, NOT_TENURED, false),
-                     JSGlobalProxy);
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateJSObjectFromMap(*map, NOT_TENURED),
+      JSGlobalProxy);
 }
 
 
@@ -2076,8 +2073,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   DCHECK(map->instance_type() == object->map()->instance_type());
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->InitialPropertiesLength();
-  Handle<FixedArray> properties = NewFixedArray(prop_size, TENURED);
+  Handle<FixedArray> properties = empty_fixed_array();
 
   // In order to keep heap in consistent state there must be no allocations
   // before object re-initialization is finished.

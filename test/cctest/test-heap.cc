@@ -5387,7 +5387,7 @@ TEST(Regress388880) {
     CHECK_EQ(Page::kObjectStartOffset, page->Offset(temp2->address()));
   }
 
-  Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED, false);
+  Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
   o->set_properties(*factory->empty_fixed_array());
 
   // Ensure that the object allocated where we need it.

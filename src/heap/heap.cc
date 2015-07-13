@@ -2722,8 +2722,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
     reinterpret_cast<Map*>(result)
         ->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
   }
+  reinterpret_cast<Map*>(result)->clear_unused();
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
-  reinterpret_cast<Map*>(result)->set_pre_allocated_property_fields(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
@@ -2749,8 +2749,8 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_prototype(null_value(), SKIP_WRITE_BARRIER);
   map->set_constructor_or_backpointer(null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
+  map->clear_unused();
   map->set_inobject_properties(0);
-  map->set_pre_allocated_property_fields(0);
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
@@ -4190,8 +4190,7 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
 
 
 AllocationResult Heap::AllocateJSObjectFromMap(
-    Map* map, PretenureFlag pretenure, bool allocate_properties,
-    AllocationSite* allocation_site) {
+    Map* map, PretenureFlag pretenure, AllocationSite* allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   DCHECK(map->instance_type() != JS_FUNCTION_TYPE);
@@ -4202,17 +4201,7 @@ AllocationResult Heap::AllocateJSObjectFromMap(
   DCHECK(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  FixedArray* properties;
-  if (allocate_properties) {
-    int prop_size = map->InitialPropertiesLength();
-    DCHECK(prop_size >= 0);
-    {
-      AllocationResult allocation = AllocateFixedArray(prop_size, pretenure);
-      if (!allocation.To(&properties)) return allocation;
-    }
-  } else {
-    properties = empty_fixed_array();
-  }
+  FixedArray* properties = empty_fixed_array();
 
   // Allocate the JSObject.
   int size = map->instance_size();
@@ -4236,7 +4225,7 @@ AllocationResult Heap::AllocateJSObject(JSFunction* constructor,
 
   // Allocate the object based on the constructors initial map.
   AllocationResult allocation = AllocateJSObjectFromMap(
-      constructor->initial_map(), pretenure, true, allocation_site);
+      constructor->initial_map(), pretenure, allocation_site);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
   HeapObject* obj;

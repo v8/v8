@@ -2156,7 +2156,8 @@ void JSObject::InitializeBody(Map* map,
   int size = map->instance_size();
   int offset = kHeaderSize;
   if (filler_value != pre_allocated_value) {
-    int pre_allocated = map->pre_allocated_property_fields();
+    int pre_allocated =
+        map->inobject_properties() - map->unused_property_fields();
     DCHECK(pre_allocated * kPointerSize + kHeaderSize <= size);
     for (int i = 0; i < pre_allocated; i++) {
       WRITE_FIELD(this, offset, pre_allocated_value);
@@ -4091,11 +4092,6 @@ int Map::inobject_properties() {
 }
 
 
-int Map::pre_allocated_property_fields() {
-  return READ_BYTE_FIELD(this, kPreAllocatedPropertyFieldsOffset);
-}
-
-
 int Map::GetInObjectPropertyOffset(int index) {
   // Adjust for the number of properties stored in the object.
   index -= inobject_properties();
@@ -4169,12 +4165,7 @@ void Map::set_inobject_properties(int value) {
 }
 
 
-void Map::set_pre_allocated_property_fields(int value) {
-  DCHECK(0 <= value && value < 256);
-  WRITE_BYTE_FIELD(this,
-                   kPreAllocatedPropertyFieldsOffset,
-                   static_cast<byte>(value));
-}
+void Map::clear_unused() { WRITE_BYTE_FIELD(this, kUnusedOffset, 0); }
 
 
 InstanceType Map::instance_type() {

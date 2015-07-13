@@ -1190,7 +1190,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     static const int num_fields = JSRegExp::kInObjectFieldCount;
     initial_map->set_inobject_properties(num_fields);
-    initial_map->set_pre_allocated_property_fields(num_fields);
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
@@ -1300,8 +1299,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     iterator_result_map->AppendDescriptor(&done_descr);
 
     iterator_result_map->set_unused_property_fields(0);
-    iterator_result_map->set_pre_allocated_property_fields(
-        JSGeneratorObject::kResultPropertyCount);
     DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     native_context()->set_iterator_result_map(*iterator_result_map);
@@ -1342,7 +1339,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     // @@iterator method is added later.
 
     map->set_function_with_prototype(true);
-    map->set_pre_allocated_property_fields(2);
     map->set_inobject_properties(2);
     native_context()->set_sloppy_arguments_map(*map);
 
@@ -1360,12 +1356,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<Map> map = isolate->sloppy_arguments_map();
     map = Map::Copy(map, "FastAliasedArguments");
     map->set_elements_kind(FAST_SLOPPY_ARGUMENTS_ELEMENTS);
-    DCHECK_EQ(2, map->pre_allocated_property_fields());
+    DCHECK_EQ(2, map->inobject_properties());
     native_context()->set_fast_aliased_arguments_map(*map);
 
     map = Map::Copy(map, "SlowAliasedArguments");
     map->set_elements_kind(SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    DCHECK_EQ(2, map->pre_allocated_property_fields());
+    DCHECK_EQ(2, map->inobject_properties());
     native_context()->set_slow_aliased_arguments_map(*map);
   }
 
@@ -1412,7 +1408,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     DCHECK_EQ(native_context()->object_function()->prototype(),
               *isolate->initial_object_prototype());
     Map::SetPrototype(map, isolate->initial_object_prototype());
-    map->set_pre_allocated_property_fields(1);
     map->set_inobject_properties(1);
 
     // Copy constructor from the sloppy arguments boilerplate.
@@ -2423,7 +2418,6 @@ bool Genesis::InstallNatives() {
     }
 
     initial_map->set_inobject_properties(2);
-    initial_map->set_pre_allocated_property_fields(2);
     initial_map->set_unused_property_fields(0);
 
     native_context()->set_regexp_result_map(*initial_map);

@@ -6742,8 +6742,6 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
   result->set_inobject_properties(map->inobject_properties());
   result->set_unused_property_fields(map->unused_property_fields());
 
-  result->set_pre_allocated_property_fields(
-      map->pre_allocated_property_fields());
   result->ClearCodeCache(map->GetHeap());
   map->NotifyLeafMapLayoutChange();
   return result;
