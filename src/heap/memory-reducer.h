@@ -114,7 +114,7 @@ class MemoryReducer {
   // Posts a timer task that will call NotifyTimer after the given delay.
   void ScheduleTimer(double delay_ms);
   void TearDown();
-
+  void ClearTask(v8::Task* task);
   static const int kLongDelayMs;
   static const int kShortDelayMs;
   static const int kMaxNumberOfGCs;
@@ -126,7 +126,11 @@ class MemoryReducer {
    public:
     explicit TimerTask(MemoryReducer* memory_reducer)
         : memory_reducer_(memory_reducer), heap_is_torn_down_(false) {}
-    virtual ~TimerTask() {}
+    virtual ~TimerTask() {
+      if (!heap_is_torn_down_) {
+        memory_reducer_->ClearTask(this);
+      }
+    }
     void NotifyHeapTearDown() { heap_is_torn_down_ = true; }
 
    private:
