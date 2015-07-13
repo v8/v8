@@ -3431,7 +3431,7 @@ static inline void UpdateSlot(Isolate* isolate, ObjectVisitor* v,
       break;
     }
     case SlotsBuffer::DEBUG_TARGET_SLOT: {
-      RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT, 0, NULL);
+      RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0, NULL);
       if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(isolate, v);
       break;
     }

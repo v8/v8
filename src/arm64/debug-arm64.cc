@@ -56,6 +56,7 @@ void BreakLocation::SetDebugBreakAtReturn() {
 
 
 void BreakLocation::SetDebugBreakAtSlot() {
+  DCHECK(IsDebugBreakSlot());
   // Patch the code emitted by DebugCodegen::GenerateSlots, changing the debug
   // break slot code from
   //   mov x0, x0    @ nop DEBUG_BREAK_NOP

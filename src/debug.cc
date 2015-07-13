@@ -76,16 +76,27 @@ BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
 BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
                                   BreakLocatorType type)
     : debug_info_(debug_info),
-      type_(type),
-      reloc_iterator_(debug_info->code(),
-                      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE)),
-      reloc_iterator_original_(
-          debug_info->original_code(),
-          ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE)),
+      reloc_iterator_(debug_info->code(), GetModeMask(type)),
+      reloc_iterator_original_(debug_info->original_code(), GetModeMask(type)),
       break_index_(-1),
       position_(1),
       statement_position_(1) {
-  Next();
+  if (!RinfoDone()) Next();
+}
+
+
+int BreakLocation::Iterator::GetModeMask(BreakLocatorType type) {
+  int mask = 0;
+  mask |= RelocInfo::ModeMask(RelocInfo::POSITION);
+  mask |= RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION);
+  mask |= RelocInfo::ModeMask(RelocInfo::JS_RETURN);
+  mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
+  mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
+  if (type == ALL_BREAK_LOCATIONS) {
+    mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
+    mask |= RelocInfo::ModeMask(RelocInfo::DEBUGGER_STATEMENT);
+  }
+  return mask;
 }
 
 
@@ -129,16 +140,9 @@ void BreakLocation::Iterator::Next() {
       break;
     }
 
-    if (RelocInfo::IsDebugBreakSlot(rmode()) &&
-        (type_ == ALL_BREAK_LOCATIONS ||
-         RelocInfo::DebugBreakIsCall(rinfo()->data()))) {
-      break;
-    }
-
-    if (RelocInfo::IsDebuggerStatement(rmode()) &&
-        type_ == ALL_BREAK_LOCATIONS) {
-      break;
-    }
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode()) ||
+           RelocInfo::IsDebuggerStatement(rmode()));
+    break;
   }
   break_index_++;
 }
@@ -1277,7 +1281,7 @@ bool Debug::StepNextContinue(BreakLocation* break_location,
 // object.
 bool Debug::IsDebugBreak(Address addr) {
   Code* code = Code::GetCodeFromTargetAddress(addr);
-  return code->is_debug_stub() && code->extra_ic_state() == DEBUG_BREAK;
+  return code->is_debug_stub();
 }
 
 
@@ -1462,7 +1466,7 @@ static int ComputeCodeOffsetFromPcOffset(Code *code, int pc_offset) {
 static int ComputePcOffsetFromCodeOffset(Code *code, int code_offset) {
   DCHECK_EQ(code->kind(), Code::FUNCTION);
 
-  int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
+  int mask = RelocInfo::kDebugBreakSlotMask |
              RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
              RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
   int reloc = 0;

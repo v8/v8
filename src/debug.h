@@ -80,10 +80,10 @@ class BreakLocation {
   bool IsDebugBreak() const;
   inline bool IsExit() const { return RelocInfo::IsJSReturn(rmode_); }
   inline bool IsCall() const {
-    return IsDebugBreakSlot() && RelocInfo::DebugBreakIsCall(data_);
+    return RelocInfo::IsDebugBreakSlotAtCall(rmode_);
   }
   inline bool IsConstructCall() const {
-    return IsDebugBreakSlot() && RelocInfo::DebugBreakIsConstructCall(data_);
+    return RelocInfo::IsDebugBreakSlotAtConstructCall(rmode_);
   }
   inline int CallArgumentsCount() const {
     DCHECK(IsCall());
@@ -153,11 +153,12 @@ class BreakLocation {
     inline int statement_position() const { return statement_position_; }
 
    private:
+    static int GetModeMask(BreakLocatorType type);
+
     bool RinfoDone() const;
     void RinfoNext();
 
     Handle<DebugInfo> debug_info_;
-    BreakLocatorType type_;
     RelocIterator reloc_iterator_;
     RelocIterator reloc_iterator_original_;
     int break_index_;

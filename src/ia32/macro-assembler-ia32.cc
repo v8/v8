@@ -574,7 +574,7 @@ void MacroAssembler::DebugBreak() {
   Move(eax, Immediate(0));
   mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(isolate(), 1);
-  call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+  call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
 

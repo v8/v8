@@ -364,7 +364,7 @@ class RelocInfo {
     CODE_TARGET,  // Code target which is not any of the above.
     CODE_TARGET_WITH_ID,
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
-    DEBUG_BREAK,     // Code target for the debugger statement.
+    DEBUGGER_STATEMENT,  // Code target for the debugger statement.
     EMBEDDED_OBJECT,
     CELL,
 
@@ -374,7 +374,12 @@ class RelocInfo {
     COMMENT,
     POSITION,            // See comment for kNoPosition above.
     STATEMENT_POSITION,  // See comment for kNoPosition above.
-    DEBUG_BREAK_SLOT,    // Additional code inserted for debug break slot.
+
+    // Additional code inserted for debug break slot.
+    DEBUG_BREAK_SLOT_AT_POSITION,
+    DEBUG_BREAK_SLOT_AT_CALL,
+    DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL,
+
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
@@ -386,7 +391,7 @@ class RelocInfo {
     CONST_POOL,
     VENEER_POOL,
 
-    DEOPT_REASON,       // Deoptimization reason index.
+    DEOPT_REASON,  // Deoptimization reason index.
 
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
@@ -401,9 +406,11 @@ class RelocInfo {
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
-    LAST_CODE_ENUM = DEBUG_BREAK,
+    LAST_CODE_ENUM = DEBUGGER_STATEMENT,
     LAST_GCED_ENUM = CELL,
   };
+
+  STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
 
   RelocInfo() {}
 
@@ -463,10 +470,20 @@ class RelocInfo {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
   static inline bool IsDebugBreakSlot(Mode mode) {
-    return mode == DEBUG_BREAK_SLOT;
+    return IsDebugBreakSlotAtPosition(mode) || IsDebugBreakSlotAtCall(mode) ||
+           IsDebugBreakSlotAtConstructCall(mode);
+  }
+  static inline bool IsDebugBreakSlotAtPosition(Mode mode) {
+    return mode == DEBUG_BREAK_SLOT_AT_POSITION;
+  }
+  static inline bool IsDebugBreakSlotAtCall(Mode mode) {
+    return mode == DEBUG_BREAK_SLOT_AT_CALL;
+  }
+  static inline bool IsDebugBreakSlotAtConstructCall(Mode mode) {
+    return mode == DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL;
   }
   static inline bool IsDebuggerStatement(Mode mode) {
-    return mode == DEBUG_BREAK;
+    return mode == DEBUGGER_STATEMENT;
   }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
@@ -498,8 +515,6 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  static bool DebugBreakIsConstructCall(intptr_t data);
-  static bool DebugBreakIsCall(intptr_t data);
   static int DebugBreakCallArgumentsCount(intptr_t data);
 
   // Read/modify the code target in the branch/call instruction
@@ -618,9 +633,10 @@ class RelocInfo {
   static const int kPositionMask = 1 << POSITION | 1 << STATEMENT_POSITION;
   static const int kDataMask =
       (1 << CODE_TARGET_WITH_ID) | kPositionMask | (1 << COMMENT);
+  static const int kDebugBreakSlotMask =
+      1 << DEBUG_BREAK_SLOT_AT_POSITION | 1 << DEBUG_BREAK_SLOT_AT_CALL |
+      1 << DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL;
   static const int kApplyMask;  // Modes affected by apply. Depends on arch.
-  static const int kDebugBreakNonCallSentinel = -2;
-  static const int kDebugBreakConstructCallSentinel = -1;
 
  private:
   // On ARM, note that pc_ is the address of the constant pool entry

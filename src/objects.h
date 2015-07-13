@@ -290,12 +290,6 @@ enum TransitionFlag {
 };
 
 
-enum DebugExtraICState {
-  DEBUG_BREAK,
-  DEBUG_PREPARE_STEP_IN
-};
-
-
 // Indicates whether the transition is simple: the target map of the transition
 // either extends the current map with a new property, or it modifies the
 // property that was added last to the current map.

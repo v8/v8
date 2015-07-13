@@ -139,15 +139,11 @@ enum BuiltinExtraArguments {
   V(StoreIC_Normal,          STORE_IC)
 
 // Define list of builtins used by the debugger implemented in assembly.
-#define BUILTIN_LIST_DEBUG_A(V)                                               \
-  V(Return_DebugBreak,                         BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
-  V(Slot_DebugBreak,                           BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
-  V(PlainReturn_LiveEdit,                      BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
-  V(FrameDropper_LiveEdit,                     BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)
+#define BUILTIN_LIST_DEBUG_A(V)                                 \
+  V(Return_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)    \
+  V(Slot_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)      \
+  V(PlainReturn_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState) \
+  V(FrameDropper_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState)
 
 // Define list of builtins implemented in JavaScript.
 #define BUILTINS_LIST_JS(V)                \

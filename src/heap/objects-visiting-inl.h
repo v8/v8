@@ -789,8 +789,8 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
-                  RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                  RelocInfo::kDebugBreakSlotMask;
 
   // There are two places where we iterate code bodies: here and the
   // templated CodeIterateBody (below). They should be kept in sync.
@@ -817,8 +817,8 @@ void Code::CodeIterateBody(Heap* heap) {
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
-                  RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                  RelocInfo::kDebugBreakSlotMask;
 
   // There are two places where we iterate code bodies: here and the non-
   // templated CodeIterateBody (above). They should be kept in sync.

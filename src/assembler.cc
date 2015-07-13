@@ -449,7 +449,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) ||
-               RelocInfo::IsDebugBreakSlot(rmode)) {
+               RelocInfo::IsDebugBreakSlotAtCall(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -641,7 +641,7 @@ void RelocIterator::next() {
           }
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
-                   RelocInfo::IsDebugBreakSlot(rmode)) {
+                   RelocInfo::IsDebugBreakSlotAtCall(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -737,8 +737,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case CONSTRUCT_CALL:
       return "code target (js construct call)";
-    case DEBUG_BREAK:
-      return "debug break";
+    case DEBUGGER_STATEMENT:
+      return "debugger statement";
     case CODE_TARGET:
       return "code target";
     case CODE_TARGET_WITH_ID:
@@ -767,8 +767,12 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "constant pool";
     case VENEER_POOL:
       return "veneer pool";
-    case DEBUG_BREAK_SLOT:
-      return "debug break slot";
+    case DEBUG_BREAK_SLOT_AT_POSITION:
+      return "debug break slot at position";
+    case DEBUG_BREAK_SLOT_AT_CALL:
+      return "debug break slot at call";
+    case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
+      return "debug break slot at construct call";
     case CODE_AGE_SEQUENCE:
       return "code_age_sequence";
     case NUMBER_OF_MODES:
@@ -814,14 +818,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     }
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";
-  } else if (IsDebugBreakSlot(rmode_)) {
-    if (DebugBreakIsCall(data_)) {
-      os << " (call with " << DebugBreakCallArgumentsCount(data_) << " args)";
-    } else if (DebugBreakIsConstructCall(data_)) {
-      os << " (construct call)";
-    } else {
-      os << " (slot)";
-    }
   }
 
   os << "\n";
@@ -838,7 +834,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CELL:
       Object::VerifyPointer(target_cell());
       break;
-    case DEBUG_BREAK:
+    case DEBUGGER_STATEMENT:
     case CONSTRUCT_CALL:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
@@ -870,7 +866,9 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_REASON:
     case CONST_POOL:
     case VENEER_POOL:
-    case DEBUG_BREAK_SLOT:
+    case DEBUG_BREAK_SLOT_AT_POSITION:
+    case DEBUG_BREAK_SLOT_AT_CALL:
+    case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
     case NONE32:
     case NONE64:
       break;
@@ -886,16 +884,7 @@ void RelocInfo::Verify(Isolate* isolate) {
 #endif  // VERIFY_HEAP
 
 
-bool RelocInfo::DebugBreakIsConstructCall(intptr_t data) {
-  return data == static_cast<intptr_t>(kDebugBreakConstructCallSentinel);
-}
-
-
-bool RelocInfo::DebugBreakIsCall(intptr_t data) { return data >= 0; }
-
-
 int RelocInfo::DebugBreakCallArgumentsCount(intptr_t data) {
-  DCHECK(DebugBreakIsCall(data));
   return static_cast<int>(data);
 }
 
@@ -1823,23 +1812,20 @@ void Assembler::RecordJSReturn() {
 
 void Assembler::RecordDebugBreakSlot() {
   EnsureSpace ensure_space(this);
-  intptr_t data = static_cast<intptr_t>(RelocInfo::kDebugBreakNonCallSentinel);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT, data);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
 }
 
 
 void Assembler::RecordDebugBreakSlotForCall(int argc) {
   EnsureSpace ensure_space(this);
   intptr_t data = static_cast<intptr_t>(argc);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT, data);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL, data);
 }
 
 
 void Assembler::RecordDebugBreakSlotForConstructCall() {
   EnsureSpace ensure_space(this);
-  intptr_t data =
-      static_cast<intptr_t>(RelocInfo::kDebugBreakConstructCallSentinel);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT, data);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
 }
 
 

@@ -3290,7 +3290,7 @@ void MacroAssembler::DebugBreak() {
   PrepareCEntryFunction(ExternalReference(Runtime::kDebugBreak, isolate()));
   CEntryStub ces(isolate(), 1);
   DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
 

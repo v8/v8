@@ -2902,10 +2902,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&
-       (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
+       (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
-      (rmode == RelocInfo::CONST_POOL) ||
-      (rmode == RelocInfo::VENEER_POOL) ||
+      (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_REASON)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
