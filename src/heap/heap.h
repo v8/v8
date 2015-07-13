@@ -177,6 +177,7 @@ namespace internal {
   V(FixedArray, experimental_natives_source_cache,                             \
     ExperimentalNativesSourceCache)                                            \
   V(FixedArray, extra_natives_source_cache, ExtraNativesSourceCache)           \
+  V(FixedArray, code_stub_natives_source_cache, CodeStubNativesSourceCache)    \
   V(Script, empty_script, EmptyScript)                                         \
   V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
   V(Cell, undefined_cell, UndefinedCell)                                       \
@@ -194,7 +195,9 @@ namespace internal {
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
   V(PropertyCell, array_protector, ArrayProtector)                             \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
-  V(Object, weak_stack_trace_list, WeakStackTraceList)
+  V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
+  V(Object, code_stub_context, CodeStubContext)                                \
+  V(JSObject, code_stub_exports_object, CodeStubExportsObject)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -2411,6 +2414,7 @@ class Heap {
   StrongRootsList* strong_roots_list_;
 
   friend class AlwaysAllocateScope;
+  friend class Bootstrapper;
   friend class Deserializer;
   friend class Factory;
   friend class GCCallbacksScope;

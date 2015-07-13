@@ -25,14 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-natives-as=builtins --noalways-opt --turbo-filter=*
+// Flags: --allow-natives-syntax --noalways-opt --turbo-filter=*
+
+var stubs = %GetCodeStubExportsObject();
 
 const kExtraTypeFeedbackMinusZeroSentinel = 1;
 const kFirstJSFunctionTypeFeedbackIndex = 5;
 const kFirstSlotExtraTypeFeedbackIndex = 5;
 
 (function()  {
-  var stub1 = builtins.MathFloorStub("MathFloorStub", 1);
+  var stub1 = stubs.MathFloorStub("MathFloorStub", 1);
   var tempForTypeVector = function(d) {
     return Math.round(d);
   }

@@ -11660,7 +11660,8 @@ static int GetGlobalObjectsCount() {
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
     if (object->IsJSGlobalObject()) count++;
-  return count;
+  // Subtract one to compensate for the code stub context that is always present
+  return count - 1;
 }
 
 

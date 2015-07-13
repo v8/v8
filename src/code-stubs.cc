@@ -473,11 +473,8 @@ namespace {
 
 Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
   v8::ExtensionConfiguration no_extensions;
-  Handle<Context> ctx = isolate->bootstrapper()->CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Local<v8::ObjectTemplate>(),
-      &no_extensions);
-  Handle<JSBuiltinsObject> builtins = handle(ctx->builtins());
-  MaybeHandle<Object> fun = Object::GetProperty(isolate, builtins, name);
+  MaybeHandle<Object> fun = Object::GetProperty(
+      isolate, isolate->factory()->code_stub_exports_object(), name);
   Handle<JSFunction> function = Handle<JSFunction>::cast(fun.ToHandleChecked());
   DCHECK(!function->IsUndefined() &&
          "JavaScript implementation of stub not found");

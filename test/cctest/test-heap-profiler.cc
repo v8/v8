@@ -95,10 +95,11 @@ class NamedEntriesDetector {
 
 static const v8::HeapGraphNode* GetGlobalObject(
     const v8::HeapSnapshot* snapshot) {
-  CHECK_EQ(2, snapshot->GetRoot()->GetChildrenCount());
-  // The 0th-child is (GC Roots), 1st is the user root.
+  CHECK_EQ(3, snapshot->GetRoot()->GetChildrenCount());
+  // The 0th-child is (GC Roots), 1st is code stubs context, 2nd is the user
+  // root.
   const v8::HeapGraphNode* global_obj =
-      snapshot->GetRoot()->GetChild(1)->GetToNode();
+      snapshot->GetRoot()->GetChild(2)->GetToNode();
   CHECK_EQ(0, strncmp("Object", const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(global_obj))->name(), 6));
   return global_obj;
@@ -960,7 +961,7 @@ TEST(HeapSnapshotJSONSerialization) {
   v8::Local<v8::String> ref_string =
       CompileRun(STRING_LITERAL_FOR_TEST)->ToString(isolate);
 #undef STRING_LITERAL_FOR_TEST
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(ref_string),
+  CHECK_LT(0, strcmp(*v8::String::Utf8Value(ref_string),
                      *v8::String::Utf8Value(string)));
 }
 
@@ -2082,6 +2083,7 @@ TEST(NoDebugObjectInSnapshot) {
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* root = snapshot->GetRoot();
   int globals_count = 0;
+  bool found = false;
   for (int i = 0; i < root->GetChildrenCount(); ++i) {
     const v8::HeapGraphEdge* edge = root->GetChild(i);
     if (edge->GetType() == v8::HeapGraphEdge::kShortcut) {
@@ -2089,10 +2091,13 @@ TEST(NoDebugObjectInSnapshot) {
       const v8::HeapGraphNode* global = edge->GetToNode();
       const v8::HeapGraphNode* foo =
           GetProperty(global, v8::HeapGraphEdge::kProperty, "foo");
-      CHECK(foo);
+      if (foo != nullptr) {
+        found = true;
+      }
     }
   }
-  CHECK_EQ(1, globals_count);
+  CHECK_EQ(2, globals_count);
+  CHECK(found);
 }
 
 

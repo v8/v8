@@ -378,7 +378,8 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
 RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
   DCHECK(args.length() == 0);
   return Smi::FromInt(Natives::GetBuiltinsCount() +
-                      ExtraNatives::GetBuiltinsCount());
+                      ExtraNatives::GetBuiltinsCount() +
+                      CodeStubNatives::GetBuiltinsCount());
 }
 
 

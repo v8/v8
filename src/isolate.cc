@@ -2177,6 +2177,12 @@ bool Isolate::Init(Deserializer* des) {
   // occur, clearing/updating ICs.
   runtime_profiler_ = new RuntimeProfiler(this);
 
+  if (create_heap_objects) {
+    if (!bootstrapper_->CreateCodeStubContext(this)) {
+      return false;
+    }
+  }
+
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
     des->Deserialize(this);

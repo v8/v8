@@ -12,7 +12,7 @@ namespace v8 { class StartupData; }  // Forward declaration.
 namespace v8 {
 namespace internal {
 
-enum NativeType { CORE, EXPERIMENTAL, EXTRAS, D8, TEST };
+enum NativeType { CORE, CODE_STUB, EXPERIMENTAL, EXTRAS, D8, TEST };
 
 template <NativeType type>
 class NativesCollection {
@@ -33,6 +33,7 @@ class NativesCollection {
 };
 
 typedef NativesCollection<CORE> Natives;
+typedef NativesCollection<CODE_STUB> CodeStubNatives;
 typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
 typedef NativesCollection<EXTRAS> ExtraNatives;
 

@@ -48,6 +48,12 @@ FixedArray* GetCache<ExtraNatives>(Heap* heap) {
 }
 
 
+template <>
+FixedArray* GetCache<CodeStubNatives>(Heap* heap) {
+  return heap->code_stub_natives_source_cache();
+}
+
+
 template <class Source>
 Handle<String> Bootstrapper::SourceLookup(int index) {
   DCHECK(0 <= index && index < Source::GetBuiltinsCount());
@@ -74,6 +80,7 @@ template Handle<String> Bootstrapper::SourceLookup<Natives>(int index);
 template Handle<String> Bootstrapper::SourceLookup<ExperimentalNatives>(
     int index);
 template Handle<String> Bootstrapper::SourceLookup<ExtraNatives>(int index);
+template Handle<String> Bootstrapper::SourceLookup<CodeStubNatives>(int index);
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
@@ -142,6 +149,7 @@ void Bootstrapper::TearDown() {
   DeleteNativeSources(isolate_->heap()->natives_source_cache());
   DeleteNativeSources(isolate_->heap()->experimental_natives_source_cache());
   DeleteNativeSources(isolate_->heap()->extra_natives_source_cache());
+  DeleteNativeSources(isolate_->heap()->code_stub_natives_source_cache());
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
@@ -150,7 +158,7 @@ class Genesis BASE_EMBEDDED {
  public:
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
-          v8::ExtensionConfiguration* extensions);
+          v8::ExtensionConfiguration* extensions, ContextType context_type);
   ~Genesis() { }
 
   Isolate* isolate() const { return isolate_; }
@@ -203,7 +211,8 @@ class Genesis BASE_EMBEDDED {
   void HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts);
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> global_object,
-                        Handle<JSFunction> empty_function);
+                        Handle<JSFunction> empty_function,
+                        ContextType context_type);
   void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
@@ -224,7 +233,7 @@ class Genesis BASE_EMBEDDED {
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
-  bool InstallNatives();
+  bool InstallNatives(ContextType context_type);
 
   void InstallTypedArray(
       const char* name,
@@ -350,15 +359,36 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
 Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
-    v8::ExtensionConfiguration* extensions) {
+    v8::ExtensionConfiguration* extensions, ContextType context_type) {
   HandleScope scope(isolate_);
-  Genesis genesis(
-      isolate_, maybe_global_proxy, global_proxy_template, extensions);
+  Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
+                  extensions, context_type);
   Handle<Context> env = genesis.result();
-  if (env.is_null() || !InstallExtensions(env, extensions)) {
+  if (env.is_null() ||
+      (context_type == FULL_CONTEXT && !InstallExtensions(env, extensions))) {
     return Handle<Context>();
   }
   return scope.CloseAndEscape(env);
+}
+
+
+bool Bootstrapper::CreateCodeStubContext(Isolate* isolate) {
+  HandleScope scope(isolate);
+  SaveContext save_context(isolate);
+  BootstrapperActive active(this);
+
+  v8::ExtensionConfiguration no_extensions;
+  Handle<Context> native_context = CreateEnvironment(
+      MaybeHandle<JSGlobalProxy>(), v8::Local<v8::ObjectTemplate>(),
+      &no_extensions, THIN_CONTEXT);
+  isolate->heap()->set_code_stub_context(*native_context);
+  isolate->set_context(*native_context);
+  Handle<JSObject> code_stub_exports =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  JSObject::NormalizeProperties(code_stub_exports, CLEAR_INOBJECT_PROPERTIES, 2,
+                                "container to export to extra natives");
+  isolate->heap()->set_code_stub_exports_object(*code_stub_exports);
+  return InstallCodeStubNatives(isolate);
 }
 
 
@@ -992,7 +1022,8 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
-                               Handle<JSFunction> empty_function) {
+                               Handle<JSFunction> empty_function,
+                               ContextType context_type) {
   // --- N a t i v e   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   native_context()->set_closure(*empty_function);
@@ -1215,6 +1246,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                                    JSRegExp::IRREGEXP, factory->empty_string(),
                                    JSRegExp::Flags(0), 0);
   }
+
+  // Initialize the embedder data slot.
+  Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
+  native_context()->set_embedder_data(*embedder_data);
+
+  if (context_type == THIN_CONTEXT) return;
 
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
@@ -1457,10 +1494,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     native_context()->set_call_as_constructor_delegate(*delegate);
     delegate->shared()->DontAdaptArguments();
   }
-
-  // Initialize the embedder data slot.
-  Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
-  native_context()->set_embedder_data(*embedder_data);
 }
 
 
@@ -1497,18 +1530,21 @@ void Genesis::InitializeExperimentalGlobal() {
 }
 
 
-bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
+bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
       isolate->bootstrapper()->SourceLookup<Natives>(index);
   Handle<Object> global = isolate->global_object();
   Handle<Object> utils = isolate->natives_utils_object();
   Handle<Object> args[] = {global, utils};
-  return CompileNative(isolate, name, source_code, arraysize(args), args);
+
+  return Bootstrapper::CompileNative(
+      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
+      source_code, arraysize(args), args);
 }
 
 
-bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
+bool Bootstrapper::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   HandleScope scope(isolate);
   Vector<const char> name = ExperimentalNatives::GetScriptName(index);
   Handle<String> source_code =
@@ -1516,11 +1552,13 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Handle<Object> global = isolate->global_object();
   Handle<Object> utils = isolate->natives_utils_object();
   Handle<Object> args[] = {global, utils};
-  return CompileNative(isolate, name, source_code, arraysize(args), args);
+  return Bootstrapper::CompileNative(
+      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
+      source_code, arraysize(args), args);
 }
 
 
-bool Genesis::CompileExtraBuiltin(Isolate* isolate, int index) {
+bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   HandleScope scope(isolate);
   Vector<const char> name = ExtraNatives::GetScriptName(index);
   Handle<String> source_code =
@@ -1528,13 +1566,30 @@ bool Genesis::CompileExtraBuiltin(Isolate* isolate, int index) {
   Handle<Object> global = isolate->global_object();
   Handle<Object> exports = isolate->extras_exports_object();
   Handle<Object> args[] = {global, exports};
-  return CompileNative(isolate, name, source_code, arraysize(args), args);
+  return Bootstrapper::CompileNative(
+      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
+      source_code, arraysize(args), args);
 }
 
 
-bool Genesis::CompileNative(Isolate* isolate, Vector<const char> name,
-                            Handle<String> source, int argc,
-                            Handle<Object> argv[]) {
+bool Bootstrapper::CompileCodeStubBuiltin(Isolate* isolate, int index) {
+  HandleScope scope(isolate);
+  Vector<const char> name = CodeStubNatives::GetScriptName(index);
+  Handle<String> source_code =
+      isolate->bootstrapper()->SourceLookup<CodeStubNatives>(index);
+  Handle<JSObject> global(isolate->global_object());
+  Handle<JSObject> exports(isolate->heap()->code_stub_exports_object());
+  Handle<Object> args[] = {global, exports};
+  bool result =
+      CompileNative(isolate, name, global, source_code, arraysize(args), args);
+  return result;
+}
+
+
+bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
+                                 Handle<JSObject> receiver,
+                                 Handle<String> source, int argc,
+                                 Handle<Object> argv[]) {
   SuppressDebug compiling_natives(isolate->debug());
   // During genesis, the boilerplate for stack overflow won't work until the
   // environment has been at least partially initialized. Add a stack check
@@ -1558,7 +1613,6 @@ bool Genesis::CompileNative(Isolate* isolate, Vector<const char> name,
   DCHECK(context->IsNativeContext());
 
   Handle<Context> runtime_context(context->runtime_context());
-  Handle<JSBuiltinsObject> receiver(context->builtins());
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(function_info,
                                                             runtime_context);
@@ -1966,7 +2020,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
 }
 
 
-bool Genesis::InstallNatives() {
+bool Genesis::InstallNatives(ContextType context_type) {
   HandleScope scope(isolate());
 
   // Create a function for the builtins object. Allocate space for the
@@ -2013,6 +2067,14 @@ bool Genesis::InstallNatives() {
   context->set_global_object(*builtins);  // override builtins global object
 
   native_context()->set_runtime_context(*context);
+
+  if (context_type == THIN_CONTEXT) {
+    int js_builtins_script_index = Natives::GetDebuggerCount();
+    if (!Bootstrapper::CompileBuiltin(isolate(), js_builtins_script_index))
+      return false;
+    if (!InstallJSBuiltins(builtins)) return false;
+    return true;
+  }
 
   // Set up the utils object as shared container between native scripts.
   Handle<JSObject> utils = factory()->NewJSObject(isolate()->object_function());
@@ -2312,11 +2374,12 @@ bool Genesis::InstallNatives() {
   }
 
   int i = Natives::GetDebuggerCount();
-  if (!CompileBuiltin(isolate(), i)) return false;
+  if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
+
   if (!InstallJSBuiltins(builtins)) return false;
 
   for (++i; i < Natives::GetBuiltinsCount(); ++i) {
-    if (!CompileBuiltin(isolate(), i)) return false;
+    if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
   }
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
@@ -2507,7 +2570,9 @@ bool Genesis::InstallExperimentalNatives() {
       Vector<const char> script_name = ExperimentalNatives::GetScriptName(i); \
       if (strncmp(script_name.start(), id##_natives[j],                       \
                   script_name.length()) == 0) {                               \
-        if (!CompileExperimentalBuiltin(isolate(), i)) return false;          \
+        if (!Bootstrapper::CompileExperimentalBuiltin(isolate(), i)) {        \
+          return false;                                                       \
+        }                                                                     \
       }                                                                       \
     }                                                                         \
   }
@@ -2528,7 +2593,17 @@ bool Genesis::InstallExperimentalNatives() {
 bool Genesis::InstallExtraNatives() {
   for (int i = ExtraNatives::GetDebuggerCount();
        i < ExtraNatives::GetBuiltinsCount(); i++) {
-    if (!CompileExtraBuiltin(isolate(), i)) return false;
+    if (!Bootstrapper::CompileExtraBuiltin(isolate(), i)) return false;
+  }
+
+  return true;
+}
+
+
+bool Bootstrapper::InstallCodeStubNatives(Isolate* isolate) {
+  for (int i = CodeStubNatives::GetDebuggerCount();
+       i < CodeStubNatives::GetBuiltinsCount(); i++) {
+    if (!CompileCodeStubBuiltin(isolate, i)) return false;
   }
 
   return true;
@@ -3077,7 +3152,8 @@ class NoTrackDoubleFieldsForSerializerScope {
 Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
                  v8::Local<v8::ObjectTemplate> global_proxy_template,
-                 v8::ExtensionConfiguration* extensions)
+                 v8::ExtensionConfiguration* extensions,
+                 ContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
@@ -3145,29 +3221,34 @@ Genesis::Genesis(Isolate* isolate,
     Handle<GlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);
-    InitializeGlobal(global_object, empty_function);
+    InitializeGlobal(global_object, empty_function, context_type);
     InstallJSFunctionResultCaches();
     InitializeNormalizedMapCaches();
-    if (!InstallNatives()) return;
+
+    if (!InstallNatives(context_type)) return;
 
     MakeFunctionInstancePrototypeWritable();
 
-    if (!ConfigureGlobalObjects(global_proxy_template)) return;
+    if (context_type == FULL_CONTEXT) {
+      if (!ConfigureGlobalObjects(global_proxy_template)) return;
+    }
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 
   // Install experimental and extra natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
-  if (!isolate->serializer_enabled()) {
-    InitializeExperimentalGlobal();
-    if (!InstallExperimentalNatives()) return;
-    if (!InstallExtraNatives()) return;
-  }
+  if (context_type == FULL_CONTEXT) {
+    if (!isolate->serializer_enabled()) {
+      InitializeExperimentalGlobal();
+      if (!InstallExperimentalNatives()) return;
+      if (!InstallExtraNatives()) return;
+    }
 
-  // The serializer cannot serialize typed arrays. Reset those typed arrays
-  // for each new context.
-  InitializeBuiltinTypedArrays();
+    // The serializer cannot serialize typed arrays. Reset those typed arrays
+    // for each new context.
+    InitializeBuiltinTypedArrays();
+  }
 
   result_ = native_context();
 }

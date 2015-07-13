@@ -465,6 +465,7 @@ class Context: public FixedArray {
     TO_LENGTH_FUN_INDEX,
     NATIVES_UTILS_OBJECT_INDEX,
     EXTRAS_EXPORTS_OBJECT_INDEX,
+    CODE_STUB_EXPORTS_OBJECT_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

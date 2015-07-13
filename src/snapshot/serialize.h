@@ -396,8 +396,11 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kVariableRepeat = 0x77;
   // Alignment prefixes 0x7d..0x7f
   static const int kAlignmentPrefix = 0x7d;
+  // Used for the source code for compiled stubs, which is in the executable,
+  // but is referred to from external strings in the snapshot.
+  static const int kCodeStubNativesStringResource = 0x5d;
 
-  // 0x5d..0x5f unused
+  // 0x5e..0x5f unused
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -587,6 +590,9 @@ class Deserializer: public SerializerDeserializer {
   // snapshot by chunk index and offset.
   HeapObject* GetBackReferencedObject(int space);
 
+  Object** CopyInNativesSource(Vector<const char> source_vector,
+                               Object** current);
+
   // Cached current isolate.
   Isolate* isolate_;
 
@@ -674,6 +680,11 @@ class Serializer : public SerializerDeserializer {
 
    private:
     void SerializePrologue(AllocationSpace space, int size, Map* map);
+
+    bool SerializeExternalNativeSourceString(
+        int builtin_count,
+        v8::String::ExternalOneByteStringResource** resource_pointer,
+        FixedArray* source_cache, int resource_index);
 
     enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
     // This function outputs or skips the raw data between the last pointer and

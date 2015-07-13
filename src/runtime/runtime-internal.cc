@@ -467,5 +467,12 @@ RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
   RUNTIME_ASSERT(it.frame()->type() == StackFrame::JAVA_SCRIPT);
   return JavaScriptFrame::cast(it.frame())->function();
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetCodeStubExportsObject) {
+  HandleScope shs(isolate);
+  return isolate->heap()->code_stub_exports_object();
+}
+
 }  // namespace internal
 }  // namespace v8

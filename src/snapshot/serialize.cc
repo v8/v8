@@ -575,7 +575,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
   }
 
   isolate_->heap()->set_native_contexts_list(
-      isolate_->heap()->undefined_value());
+      isolate_->heap()->code_stub_context());
 
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
@@ -587,6 +587,13 @@ void Deserializer::Deserialize(Isolate* isolate) {
   // Update data pointers to the external strings containing natives sources.
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
     Object* source = isolate_->heap()->natives_source_cache()->get(i);
+    if (!source->IsUndefined()) {
+      ExternalOneByteString::cast(source)->update_data_cache();
+    }
+  }
+
+  for (int i = 0; i < CodeStubNatives::GetBuiltinsCount(); i++) {
+    Object* source = isolate_->heap()->code_stub_natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
       ExternalOneByteString::cast(source)->update_data_cache();
     }
@@ -907,6 +914,17 @@ Address Deserializer::Allocate(int space_index, int size) {
 }
 
 
+Object** Deserializer::CopyInNativesSource(Vector<const char> source_vector,
+                                           Object** current) {
+  DCHECK(!isolate_->heap()->deserialization_complete());
+  NativesExternalStringResource* resource = new NativesExternalStringResource(
+      source_vector.start(), source_vector.length());
+  Object* resource_obj = reinterpret_cast<Object*>(resource);
+  UnalignedCopy(current++, &resource_obj);
+  return current;
+}
+
+
 bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
                             Address current_object_address) {
   Isolate* const isolate = isolate_;
@@ -1173,17 +1191,15 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK(false);
         break;
 
-      case kNativesStringResource: {
-        DCHECK(!isolate_->heap()->deserialization_complete());
-        int index = source_.Get();
-        Vector<const char> source_vector = Natives::GetScriptSource(index);
-        NativesExternalStringResource* resource =
-            new NativesExternalStringResource(source_vector.start(),
-                                              source_vector.length());
-        Object* resource_obj = reinterpret_cast<Object*>(resource);
-        UnalignedCopy(current++, &resource_obj);
+      case kNativesStringResource:
+        current = CopyInNativesSource(Natives::GetScriptSource(source_.Get()),
+                                      current);
         break;
-      }
+
+      case kCodeStubNativesStringResource:
+        current = CopyInNativesSource(
+            CodeStubNatives::GetScriptSource(source_.Get()), current);
+        break;
 
       // Deserialize raw data of variable length.
       case kVariableRawData: {
@@ -1419,6 +1435,17 @@ void PartialSerializer::Serialize(Object** o) {
     Context* context = Context::cast(*o);
     global_object_ = context->global_object();
     back_reference_map()->AddGlobalProxy(context->global_proxy());
+    // The bootstrap snapshot has a code-stub context. When serializing the
+    // partial snapshot, it is chained into the weak context list on the isolate
+    // and it's next context pointer may point to the code-stub context.  Clear
+    // it before serializing, it will get re-added to the context list
+    // explicitly when it's loaded.
+    if (context->IsNativeContext()) {
+      context->set(Context::NEXT_CONTEXT_LINK,
+                   isolate_->heap()->undefined_value());
+      DCHECK(!context->global_object()->IsUndefined());
+      DCHECK(!context->builtins()->IsUndefined());
+    }
   }
   VisitPointer(o);
   SerializeDeferredObjects();
@@ -1623,7 +1650,10 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
 
 void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
-  DCHECK(!obj->IsJSFunction());
+  // Make sure that all functions are derived from the code-stub context
+  DCHECK(!obj->IsJSFunction() ||
+         JSFunction::cast(obj)->GetCreationContext() ==
+             isolate()->heap()->code_stub_context());
 
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
@@ -2127,24 +2157,43 @@ void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
 }
 
 
-void Serializer::ObjectSerializer::VisitExternalOneByteString(
-    v8::String::ExternalOneByteStringResource** resource_pointer) {
-  Address references_start = reinterpret_cast<Address>(resource_pointer);
-  OutputRawData(references_start);
-  for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source =
-        serializer_->isolate()->heap()->natives_source_cache()->get(i);
+bool Serializer::ObjectSerializer::SerializeExternalNativeSourceString(
+    int builtin_count,
+    v8::String::ExternalOneByteStringResource** resource_pointer,
+    FixedArray* source_cache, int resource_index) {
+  for (int i = 0; i < builtin_count; i++) {
+    Object* source = source_cache->get(i);
     if (!source->IsUndefined()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(source);
       typedef v8::String::ExternalOneByteStringResource Resource;
       const Resource* resource = string->resource();
       if (resource == *resource_pointer) {
-        sink_->Put(kNativesStringResource, "NativesStringResource");
+        sink_->Put(resource_index, "NativesStringResource");
         sink_->PutSection(i, "NativesStringResourceEnd");
         bytes_processed_so_far_ += sizeof(resource);
-        return;
+        return true;
       }
     }
+  }
+  return false;
+}
+
+
+void Serializer::ObjectSerializer::VisitExternalOneByteString(
+    v8::String::ExternalOneByteStringResource** resource_pointer) {
+  Address references_start = reinterpret_cast<Address>(resource_pointer);
+  OutputRawData(references_start);
+  if (SerializeExternalNativeSourceString(
+          Natives::GetBuiltinsCount(), resource_pointer,
+          serializer_->isolate()->heap()->natives_source_cache(),
+          kNativesStringResource)) {
+    return;
+  }
+  if (SerializeExternalNativeSourceString(
+          CodeStubNatives::GetBuiltinsCount(), resource_pointer,
+          serializer_->isolate()->heap()->code_stub_natives_source_cache(),
+          kCodeStubNativesStringResource)) {
+    return;
   }
   // One of the strings in the natives cache should match the resource.  We
   // don't expect any other kinds of external strings here.
