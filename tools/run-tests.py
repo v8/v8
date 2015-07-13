@@ -322,6 +322,15 @@ def RandomSeed():
   return seed
 
 
+def BuildbotToV8Mode(config):
+  """Convert buildbot build configs to configs understood by the v8 runner.
+
+  V8 configs are always lower case and without the additional _x64 suffix for
+  64 bit builds on windows with ninja.
+  """
+  mode = config[:-4] if config.endswith('_x64') else config
+  return mode.lower()
+
 def ProcessOptions(options):
   global VARIANT_FLAGS
   global VARIANTS
@@ -334,7 +343,7 @@ def ProcessOptions(options):
     options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in MODES:
+    if not BuildbotToV8Mode(mode) in MODES:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -531,7 +540,7 @@ def Execute(arch, mode, args, options, suites, workspace):
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(workspace, options.outdir, mode)
-      mode = mode.lower()
+      mode = BuildbotToV8Mode(mode)
     else:
       shell_dir = os.path.join(
           workspace,

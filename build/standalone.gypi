@@ -358,6 +358,19 @@
       'Release': {
         'cflags+': ['<@(release_extra_cflags)'],
       },
+      'conditions': [
+        ['OS=="win"', {
+          'Optdebug_x64': {
+            'inherit_from': ['Optdebug'],
+          },
+          'Debug_x64': {
+            'inherit_from': ['Debug'],
+          },
+          'Release_x64': {
+            'inherit_from': ['Release'],
+          },
+        }],
+      ],
     },
     'conditions':[
       ['(clang==1 or host_clang==1) and OS!="win"', {
