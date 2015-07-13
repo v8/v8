@@ -177,6 +177,13 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
 }
 
 
+void MemoryReducer::ClearTask(v8::Task* task) {
+  if (pending_task_ == task) {
+    pending_task_ = nullptr;
+  }
+}
+
+
 void MemoryReducer::TearDown() {
   if (pending_task_ != nullptr) {
     pending_task_->NotifyHeapTearDown();
