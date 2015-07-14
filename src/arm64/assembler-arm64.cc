@@ -2905,16 +2905,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
-      (rmode == RelocInfo::DEOPT_REASON)) {
+      (rmode == RelocInfo::DEOPT_REASON) ||
+      (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsDeoptReason(rmode)
-           || RelocInfo::IsPosition(rmode)
-           || RelocInfo::IsInternalReference(rmode)
-           || RelocInfo::IsConstPool(rmode)
-           || RelocInfo::IsVeneerPool(rmode));
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsJSReturn(rmode) ||
+           RelocInfo::IsComment(rmode) || RelocInfo::IsDeoptReason(rmode) ||
+           RelocInfo::IsPosition(rmode) ||
+           RelocInfo::IsInternalReference(rmode) ||
+           RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode) ||
+           RelocInfo::IsGeneratorContinuation(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
     constpool_.RecordEntry(data, rmode);

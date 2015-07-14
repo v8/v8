@@ -1061,6 +1061,9 @@ class Assembler : public AssemblerBase {
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
+
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot();
   void RecordDebugBreakSlotForCall(int argc);

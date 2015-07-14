@@ -5099,11 +5099,11 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       Label suspend, continuation, post_runtime, resume;
 
       __ B(&suspend);
-
       // TODO(jbramley): This label is bound here because the following code
       // looks at its pos(). Is it possible to do something more efficient here,
       // perhaps using Adr?
       __ Bind(&continuation);
+      __ RecordGeneratorContinuation();
       __ B(&resume);
 
       __ Bind(&suspend);
@@ -5174,12 +5174,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       EnterTryBlock(handler_index, &l_catch);
       const int try_block_size = TryCatch::kElementCount * kPointerSize;
       __ Push(x0);                                       // result
-      __ B(&l_suspend);
 
+      __ B(&l_suspend);
       // TODO(jbramley): This label is bound here because the following code
       // looks at its pos(). Is it possible to do something more efficient here,
       // perhaps using Adr?
       __ Bind(&l_continuation);
+      __ RecordGeneratorContinuation();
       __ B(&l_resume);
 
       __ Bind(&l_suspend);

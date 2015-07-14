@@ -774,7 +774,9 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
     case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
       return "debug break slot at construct call";
     case CODE_AGE_SEQUENCE:
-      return "code_age_sequence";
+      return "code age sequence";
+    case GENERATOR_CONTINUATION:
+      return "generator continuation";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -869,6 +871,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_POSITION:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
+    case GENERATOR_CONTINUATION:
     case NONE32:
     case NONE64:
       break;
@@ -1807,6 +1810,12 @@ void Assembler::RecordJSReturn() {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::JS_RETURN);
+}
+
+
+void Assembler::RecordGeneratorContinuation() {
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::GENERATOR_CONTINUATION);
 }
 
 

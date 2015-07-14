@@ -1436,56 +1436,58 @@ static void CollectActiveFunctionsFromThread(
 }
 
 
-// Figure out how many bytes of "pc_offset" correspond to actual code by
-// subtracting off the bytes that correspond to constant/veneer pools.  See
-// Assembler::CheckConstPool() and Assembler::CheckVeneerPool(). Note that this
-// is only useful for architectures using constant pools or veneer pools.
-static int ComputeCodeOffsetFromPcOffset(Code *code, int pc_offset) {
-  DCHECK_EQ(code->kind(), Code::FUNCTION);
-  DCHECK(!code->has_debug_break_slots());
-  DCHECK_LE(0, pc_offset);
-  DCHECK_LT(pc_offset, code->instruction_end() - code->instruction_start());
-
-  int mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
-             RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  byte *pc = code->instruction_start() + pc_offset;
-  int code_offset = pc_offset;
-  for (RelocIterator it(code, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->pc() >= pc) break;
-    DCHECK(RelocInfo::IsConstPool(info->rmode()));
-    code_offset -= static_cast<int>(info->data());
-    DCHECK_LE(0, code_offset);
+// Count the number of calls before the current frame PC to find the
+// corresponding PC in the newly recompiled code.
+static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
+                                       Address old_pc) {
+  DCHECK_EQ(old_code->kind(), Code::FUNCTION);
+  DCHECK_EQ(new_code->kind(), Code::FUNCTION);
+  DCHECK(!old_code->has_debug_break_slots());
+  DCHECK(new_code->has_debug_break_slots());
+  int mask = RelocInfo::kCodeTargetMask;
+  int index = 0;
+  intptr_t delta = 0;
+  for (RelocIterator it(old_code, mask); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    Address current_pc = rinfo->pc();
+    // The frame PC is behind the call instruction by the call instruction size.
+    if (current_pc > old_pc) break;
+    index++;
+    delta = old_pc - current_pc;
   }
 
-  return code_offset;
+  RelocIterator it(new_code, mask);
+  for (int i = 1; i < index; i++) it.next();
+  return it.rinfo()->pc() + delta;
 }
 
 
-// The inverse of ComputeCodeOffsetFromPcOffset.
-static int ComputePcOffsetFromCodeOffset(Code *code, int code_offset) {
+// Count the number of continuations at which the current pc offset is at.
+static int ComputeContinuationIndexFromPcOffset(Code* code, int pc_offset) {
   DCHECK_EQ(code->kind(), Code::FUNCTION);
-
-  int mask = RelocInfo::kDebugBreakSlotMask |
-             RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
-             RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  int reloc = 0;
+  DCHECK(!code->has_debug_break_slots());
+  Address pc = code->instruction_start() + pc_offset;
+  int mask = RelocInfo::ModeMask(RelocInfo::GENERATOR_CONTINUATION);
+  int index = 0;
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->pc() - code->instruction_start() - reloc >= code_offset) break;
-    if (RelocInfo::IsDebugBreakSlot(info->rmode())) {
-      reloc += Assembler::kDebugBreakSlotLength;
-    } else {
-      DCHECK(RelocInfo::IsConstPool(info->rmode()));
-      reloc += static_cast<int>(info->data());
-    }
+    index++;
+    RelocInfo* rinfo = it.rinfo();
+    Address current_pc = rinfo->pc();
+    if (current_pc == pc) break;
+    DCHECK(current_pc < pc);
   }
+  return index;
+}
 
-  int pc_offset = code_offset + reloc;
 
-  DCHECK_LT(code->instruction_start() + pc_offset, code->instruction_end());
-
-  return pc_offset;
+// Find the pc offset for the given continuation index.
+static int ComputePcOffsetFromContinuationIndex(Code* code, int index) {
+  DCHECK_EQ(code->kind(), Code::FUNCTION);
+  DCHECK(code->has_debug_break_slots());
+  int mask = RelocInfo::ModeMask(RelocInfo::GENERATOR_CONTINUATION);
+  RelocIterator it(code, mask);
+  for (int i = 1; i < index; i++) it.next();
+  return static_cast<int>(it.rinfo()->pc() - code->instruction_start());
 }
 
 
@@ -1510,13 +1512,8 @@ static void RedirectActivationsToRecompiledCodeOnThread(
       continue;
     }
 
-    int old_pc_offset =
-        static_cast<int>(frame->pc() - frame_code->instruction_start());
-    int code_offset = ComputeCodeOffsetFromPcOffset(*frame_code, old_pc_offset);
-    int new_pc_offset = ComputePcOffsetFromCodeOffset(*new_code, code_offset);
-
-    // Compute the equivalent pc in the new code.
-    byte* new_pc = new_code->instruction_start() + new_pc_offset;
+    Address new_pc =
+        ComputeNewPcForRedirect(*new_code, *frame_code, frame->pc());
 
     if (FLAG_trace_deopt) {
       PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
@@ -1603,8 +1600,8 @@ static void RecompileAndRelocateSuspendedGenerators(
 
     EnsureFunctionHasDebugBreakSlots(fun);
 
-    int code_offset = generators[i]->continuation();
-    int pc_offset = ComputePcOffsetFromCodeOffset(fun->code(), code_offset);
+    int index = generators[i]->continuation();
+    int pc_offset = ComputePcOffsetFromContinuationIndex(fun->code(), index);
     generators[i]->set_continuation(pc_offset);
   }
 }
@@ -1726,11 +1723,11 @@ void Debug::PrepareForBreakPoints() {
           int pc_offset = gen->continuation();
           DCHECK_LT(0, pc_offset);
 
-          int code_offset =
-              ComputeCodeOffsetFromPcOffset(fun->code(), pc_offset);
+          int index =
+              ComputeContinuationIndexFromPcOffset(fun->code(), pc_offset);
 
           // This will be fixed after we recompile the functions.
-          gen->set_continuation(code_offset);
+          gen->set_continuation(index);
 
           suspended_generators.Add(Handle<JSGeneratorObject>(gen, isolate_));
         } else if (obj->IsSharedFunctionInfo()) {
