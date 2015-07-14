@@ -6338,7 +6338,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // ES5 forbids turning a property into an accessor if it's not
   // configurable. See 8.6.1 (Table 5).
-  if (it.IsFound() && (it.IsReadOnly() || !it.IsConfigurable())) {
+  if (it.IsFound() && !it.IsConfigurable()) {
     return it.factory()->undefined_value();
   }
 
