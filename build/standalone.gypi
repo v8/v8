@@ -787,6 +787,12 @@
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
             },
+            'conditions': [
+              ['v8_target_arch=="x64" or v8_target_arch=="arm64" \
+                or v8_target_arch=="mips64el"', {
+                'xcode_settings': {'WARNING_CFLAGS': ['-Wshorten-64-to-32']},
+              }],
+            ],
           }],
         ],
         'target_conditions': [

@@ -355,17 +355,13 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
 #if defined(__MACH_O)
 class MachOTextSection : public MachOSection {
  public:
-  MachOTextSection(uintptr_t align,
-                   uintptr_t addr,
-                   uintptr_t size)
-      : MachOSection("__text",
-                     "__TEXT",
-                     align,
+  MachOTextSection(uint32_t align, uintptr_t addr, uintptr_t size)
+      : MachOSection("__text", "__TEXT", align,
                      MachOSection::S_REGULAR |
                          MachOSection::S_ATTR_SOME_INSTRUCTIONS |
                          MachOSection::S_ATTR_PURE_INSTRUCTIONS),
         addr_(addr),
-        size_(size) { }
+        size_(size) {}
 
  protected:
   virtual void PopulateHeader(Writer::Slot<Header> header) {
@@ -588,7 +584,8 @@ class MachO BASE_EMBEDDED {
     Writer::Slot<MachOSection::Header> headers =
         w->CreateSlotsHere<MachOSection::Header>(sections_.length());
     cmd->fileoff = w->position();
-    header->sizeofcmds = w->position() - load_command_start;
+    header->sizeofcmds =
+        static_cast<uint32_t>(w->position() - load_command_start);
     for (int section = 0; section < sections_.length(); ++section) {
       sections_[section]->PopulateHeader(headers.at(section));
       sections_[section]->WriteBody(headers.at(section), w);
