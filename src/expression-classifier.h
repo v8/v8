@@ -157,8 +157,7 @@ class ExpressionClassifier {
     if (!is_valid_formal_parameter_list_without_duplicates()) return;
     invalid_productions_ |= DistinctFormalParametersProduction;
     duplicate_formal_parameter_error_.location = loc;
-    duplicate_formal_parameter_error_.message =
-        MessageTemplate::kStrictParamDupe;
+    duplicate_formal_parameter_error_.message = MessageTemplate::kParamDupe;
     duplicate_formal_parameter_error_.arg = nullptr;
   }
 

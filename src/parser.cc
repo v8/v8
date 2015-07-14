@@ -2057,7 +2057,7 @@ Variable* Parser::Declare(Declaration* declaration,
         if (declaration_kind == DeclarationDescriptor::NORMAL) {
           ParserTraits::ReportMessage(MessageTemplate::kVarRedeclaration, name);
         } else {
-          ParserTraits::ReportMessage(MessageTemplate::kStrictParamDupe);
+          ParserTraits::ReportMessage(MessageTemplate::kParamDupe);
         }
         *ok = false;
         return nullptr;
