@@ -422,11 +422,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ mov(i.OutputRegister(), esp);
       break;
     case kArchTruncateDoubleToI: {
-      auto input = i.InputDoubleRegister(0);
-      USE(input);
-      DCHECK(input.code() == 0);
-      auto result_reg = i.OutputRegister();
-      __ TruncateX87TOSToI(result_reg);
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fld_d(i.InputOperand(0));
+      }
+      __ TruncateX87TOSToI(i.OutputRegister());
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fstp(0);
+      }
       break;
     }
     case kX87Add:
