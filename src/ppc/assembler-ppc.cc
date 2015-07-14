@@ -212,16 +212,12 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   no_trampoline_pool_before_ = 0;
   trampoline_pool_blocked_nesting_ = 0;
   constant_pool_entry_sharing_blocked_nesting_ = 0;
-  // We leave space (kMaxBlockTrampolineSectionSize)
-  // for BlockTrampolinePoolScope buffer.
-  next_buffer_check_ =
-      FLAG_force_long_branches ? kMaxInt : kMaxCondBranchReach -
-                                               kMaxBlockTrampolineSectionSize;
+  next_trampoline_check_ = kMaxInt;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
   optimizable_cmpi_pos_ = -1;
   trampoline_emitted_ = FLAG_force_long_branches;
-  unbound_labels_count_ = 0;
+  tracked_branch_count_ = 0;
   ClearRecordedAstId();
   relocations_.reserve(128);
 }
@@ -427,9 +423,13 @@ int Assembler::target_at(int pos) {
 }
 
 
-void Assembler::target_at_put(int pos, int target_pos) {
+void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
   Instr instr = instr_at(pos);
   int opcode = instr & kOpcodeMask;
+
+  if (is_branch != nullptr) {
+    *is_branch = (opcode == BX || opcode == BCX);
+  }
 
   switch (opcode) {
     case BX: {
@@ -528,11 +528,7 @@ int Assembler::max_reach_from(int pos) {
 void Assembler::bind_to(Label* L, int pos) {
   DCHECK(0 <= pos && pos <= pc_offset());  // must have a valid binding position
   int32_t trampoline_pos = kInvalidSlotPos;
-  if (L->is_linked() && !trampoline_emitted_) {
-    unbound_labels_count_--;
-    next_buffer_check_ += kTrampolineSlotsSize;
-  }
-
+  bool is_branch = false;
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int32_t offset = pos - fixup_pos;
@@ -546,10 +542,14 @@ void Assembler::bind_to(Label* L, int pos) {
       }
       target_at_put(fixup_pos, trampoline_pos);
     } else {
-      target_at_put(fixup_pos, pos);
+      target_at_put(fixup_pos, pos, &is_branch);
     }
   }
   L->bind_to(pos);
+
+  if (!trampoline_emitted_ && is_branch) {
+    UntrackBranch();
+  }
 
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
@@ -673,10 +673,6 @@ int Assembler::link(Label* L) {
       // should avoid most instances of branch offset overflow.  See
       // target_at() for where this is converted back to kEndOfChain.
       position = pc_offset();
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
     }
     L->link_to(pc_offset());
   }
@@ -2406,46 +2402,29 @@ void Assembler::CheckTrampolinePool() {
   // either trampoline_pool_blocked_nesting_ or no_trampoline_pool_before_,
   // which are both checked here. Also, recursive calls to CheckTrampolinePool
   // are blocked by trampoline_pool_blocked_nesting_.
-  if ((trampoline_pool_blocked_nesting_ > 0) ||
-      (pc_offset() < no_trampoline_pool_before_)) {
-    // Emission is currently blocked; make sure we try again as soon as
-    // possible.
-    if (trampoline_pool_blocked_nesting_ > 0) {
-      next_buffer_check_ = pc_offset() + kInstrSize;
-    } else {
-      next_buffer_check_ = no_trampoline_pool_before_;
-    }
+  if (trampoline_pool_blocked_nesting_ > 0) return;
+  if (pc_offset() < no_trampoline_pool_before_) {
+    next_trampoline_check_ = no_trampoline_pool_before_;
     return;
   }
 
   DCHECK(!trampoline_emitted_);
-  DCHECK(unbound_labels_count_ >= 0);
-  if (unbound_labels_count_ > 0) {
+  if (tracked_branch_count_ > 0) {
+    int size = tracked_branch_count_ * kInstrSize;
+
+    // As we are only going to emit trampoline once, we need to prevent any
+    // further emission.
+    trampoline_emitted_ = true;
+    next_trampoline_check_ = kMaxInt;
+
     // First we emit jump, then we emit trampoline pool.
-    {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      Label after_pool;
-      b(&after_pool);
-
-      int pool_start = pc_offset();
-      for (int i = 0; i < unbound_labels_count_; i++) {
-        b(&after_pool);
-      }
-      bind(&after_pool);
-      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
-
-      trampoline_emitted_ = true;
-      // As we are only going to emit trampoline once, we need to prevent any
-      // further emission.
-      next_buffer_check_ = kMaxInt;
+    b(size + kInstrSize, LeaveLK);
+    for (int i = size; i > 0; i -= kInstrSize) {
+      b(i, LeaveLK);
     }
-  } else {
-    // Number of branches to unbound label at this point is zero, so we can
-    // move next buffer check to maximum.
-    next_buffer_check_ =
-        pc_offset() + kMaxCondBranchReach - kMaxBlockTrampolineSectionSize;
+
+    trampoline_ = Trampoline(pc_offset() - size, tracked_branch_count_);
   }
-  return;
 }
 
 

@@ -465,8 +465,33 @@ void Assembler::CheckBuffer() {
   }
 }
 
+void Assembler::TrackBranch() {
+  DCHECK(!trampoline_emitted_);
+  int count = tracked_branch_count_++;
+  if (count == 0) {
+    // We leave space (kMaxBlockTrampolineSectionSize)
+    // for BlockTrampolinePoolScope buffer.
+    next_trampoline_check_ =
+        pc_offset() + kMaxCondBranchReach - kMaxBlockTrampolineSectionSize;
+  } else {
+    next_trampoline_check_ -= kTrampolineSlotsSize;
+  }
+}
+
+void Assembler::UntrackBranch() {
+  DCHECK(!trampoline_emitted_);
+  DCHECK(tracked_branch_count_ > 0);
+  int count = --tracked_branch_count_;
+  if (count == 0) {
+    // Reset
+    next_trampoline_check_ = kMaxInt;
+  } else {
+    next_trampoline_check_ += kTrampolineSlotsSize;
+  }
+}
+
 void Assembler::CheckTrampolinePoolQuick() {
-  if (pc_offset() >= next_buffer_check_) {
+  if (pc_offset() >= next_trampoline_check_) {
     CheckTrampolinePool();
   }
 }

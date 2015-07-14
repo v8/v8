@@ -592,8 +592,10 @@ class Assembler : public AssemblerBase {
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
   int branch_offset(Label* L) {
-    int position = link(L);
-    return position - pc_offset();
+    if (L->is_unused() && !trampoline_emitted_) {
+      TrackBranch();
+    }
+    return link(L) - pc_offset();
   }
 
   // Puts a labels target address at the given position.
@@ -1423,11 +1425,12 @@ class Assembler : public AssemblerBase {
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
-  // Decode branch instruction at pos and return branch target pos
+  // Decode instruction(s) at pos and return backchain to previous
+  // label reference or kEndOfChain.
   int target_at(int pos);
 
-  // Patch branch instruction at pos to branch to given branch target pos
-  void target_at_put(int pos, int target_pos);
+  // Patch instruction(s) at pos to target target_pos (e.g. branch)
+  void target_at_put(int pos, int target_pos, bool* is_branch = nullptr);
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
@@ -1479,7 +1482,7 @@ class Assembler : public AssemblerBase {
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
   // has been generated.
-  int next_buffer_check_;  // pc offset of next buffer check.
+  int next_trampoline_check_;  // pc offset of next buffer check.
 
   // Emission of the trampoline pool may be blocked in some code sequences.
   int trampoline_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -1506,6 +1509,8 @@ class Assembler : public AssemblerBase {
   inline void CheckBuffer();
   void GrowBuffer(int needed = 0);
   inline void emit(Instr x);
+  inline void TrackBranch();
+  inline void UntrackBranch();
   inline void CheckTrampolinePoolQuick();
 
   // Instruction generation
@@ -1559,7 +1564,7 @@ class Assembler : public AssemblerBase {
   };
 
   int32_t get_trampoline_entry();
-  int unbound_labels_count_;
+  int tracked_branch_count_;
   // If trampoline is emitted, generated code is becoming large. As
   // this is already a slow case which can possibly break our code
   // generation for the extreme case, we use this information to
