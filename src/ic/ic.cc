@@ -1492,6 +1492,27 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
+  // Check if the name is trivially convertible to an index and set the element.
+  uint32_t index;
+  if (kind() == Code::KEYED_STORE_IC && name->AsArrayIndex(&index)) {
+    // Rewrite to the generic keyed store stub.
+    if (FLAG_use_ic) {
+      if (UseVector()) {
+        ConfigureVectorState(MEGAMORPHIC);
+      } else if (!AddressIsDeoptimizedCode()) {
+        set_target(*megamorphic_stub());
+      }
+      TRACE_IC("StoreIC", name);
+      TRACE_GENERIC_IC(isolate(), "StoreIC", "name as array index");
+    }
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(), result,
+        Object::SetElement(isolate(), object, index, value, language_mode()),
+        Object);
+    return result;
+  }
+
   if (object->IsGlobalObject() && name->IsString()) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
