@@ -432,8 +432,11 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
 
   Handle<GlobalObject> global(script_context->global_object());
 
-  LookupIterator it(global, name, LookupIterator::OWN);
-  if (LookupIterator::DATA == it.state()) {
+  LookupIterator it(global, name, LookupIterator::HIDDEN);
+  // Switch to fast mode only if there is a data property and it's not on
+  // a hidden prototype.
+  if (LookupIterator::DATA == it.state() &&
+      it.GetHolder<Object>()->IsJSGlobalObject()) {
     // Now update cell in the script context.
     Handle<PropertyCell> cell = it.GetPropertyCell();
     script_context->set(index, *cell);
@@ -464,8 +467,11 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalViaContext) {
 
   Handle<GlobalObject> global(script_context->global_object());
 
-  LookupIterator it(global, name, LookupIterator::OWN);
-  if (LookupIterator::DATA == it.state()) {
+  LookupIterator it(global, name, LookupIterator::HIDDEN);
+  // Switch to fast mode only if there is a data property and it's not on
+  // a hidden prototype.
+  if (LookupIterator::DATA == it.state() &&
+      it.GetHolder<Object>()->IsJSGlobalObject()) {
     // Now update cell in the script context.
     Handle<PropertyCell> cell = it.GetPropertyCell();
     script_context->set(index, *cell);
