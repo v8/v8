@@ -33,7 +33,7 @@ function CheckSharedIntegerTypedArray(ia) {
 function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
   CheckSharedTypedArray(sta);
   index = $toInteger(index);
-  if (index < 0 || index >= sta.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
   oldValue = $toNumber(oldValue);
@@ -44,7 +44,7 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
 function AtomicsLoadJS(sta, index) {
   CheckSharedTypedArray(sta);
   index = $toInteger(index);
-  if (index < 0 || index >= sta.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
   return %_AtomicsLoad(sta, index);
@@ -53,7 +53,7 @@ function AtomicsLoadJS(sta, index) {
 function AtomicsStoreJS(sta, index, value) {
   CheckSharedTypedArray(sta);
   index = $toInteger(index);
-  if (index < 0 || index >= sta.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
   value = $toNumber(value);
@@ -63,7 +63,7 @@ function AtomicsStoreJS(sta, index, value) {
 function AtomicsAddJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = $toInteger(index);
-  if (index < 0 || index >= ia.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
   value = $toNumber(value);
@@ -73,7 +73,7 @@ function AtomicsAddJS(ia, index, value) {
 function AtomicsSubJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = $toInteger(index);
-  if (index < 0 || index >= ia.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
   value = $toNumber(value);
@@ -83,7 +83,7 @@ function AtomicsSubJS(ia, index, value) {
 function AtomicsAndJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = $toInteger(index);
-  if (index < 0 || index >= ia.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
   value = $toNumber(value);
@@ -93,7 +93,7 @@ function AtomicsAndJS(ia, index, value) {
 function AtomicsOrJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = $toInteger(index);
-  if (index < 0 || index >= ia.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
   value = $toNumber(value);
@@ -103,7 +103,7 @@ function AtomicsOrJS(ia, index, value) {
 function AtomicsXorJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = $toInteger(index);
-  if (index < 0 || index >= ia.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
   value = $toNumber(value);
@@ -113,7 +113,7 @@ function AtomicsXorJS(ia, index, value) {
 function AtomicsExchangeJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = $toInteger(index);
-  if (index < 0 || index >= ia.length) {
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
   value = $toNumber(value);

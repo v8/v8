@@ -123,6 +123,21 @@ function testAtomicOp(op, ia, index, expectedIndex, name) {
     assertEquals(undefined, Atomics.xor(si32a, i, 0), name);
     assertEquals(undefined, Atomics.exchange(si32a, i, 0), name);
   });
+
+  // Monkey-patch length and make sure these functions still return undefined.
+  Object.defineProperty(si32a, 'length', {get: function() { return 1000; }});
+  [2, 100].forEach(function(i) {
+    var name = String(i);
+    assertEquals(undefined, Atomics.compareExchange(si32a, i, 0, 0), name);
+    assertEquals(undefined, Atomics.load(si32a, i), name);
+    assertEquals(undefined, Atomics.store(si32a, i, 0), name);
+    assertEquals(undefined, Atomics.add(si32a, i, 0), name);
+    assertEquals(undefined, Atomics.sub(si32a, i, 0), name);
+    assertEquals(undefined, Atomics.and(si32a, i, 0), name);
+    assertEquals(undefined, Atomics.or(si32a, i, 0), name);
+    assertEquals(undefined, Atomics.xor(si32a, i, 0), name);
+    assertEquals(undefined, Atomics.exchange(si32a, i, 0), name);
+  });
 })();
 
 (function TestGoodIndex() {
