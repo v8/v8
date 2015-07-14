@@ -6449,6 +6449,8 @@ TEST(DestructuringNegativeTests) {
         "false",
         "1",
         "'abc'",
+        "/abc/",
+        "`abc`",
         "class {}",
         "{+2 : x}",
         "{-2 : x}",
@@ -6469,6 +6471,10 @@ TEST(DestructuringNegativeTests) {
         "[...rest,...rest1]",
         "[a,b,...rest,...rest1]",
         "[a,,..rest,...rest1]",
+        "{ x : 3 }",
+        "{ x : 'foo' }",
+        "{ x : /foo/ }",
+        "{ x : `foo` }",
         NULL};
     // clang-format on
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,

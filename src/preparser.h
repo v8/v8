@@ -2170,7 +2170,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::SMI:
     case Token::NUMBER:
       classifier->RecordBindingPatternError(
-          scanner()->location(), MessageTemplate::kUnexpectedTokenNumber);
+          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenNumber);
       Next();
       result =
           this->ExpressionFromLiteral(token, beg_pos, scanner(), factory());
@@ -2190,17 +2190,21 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 
     case Token::STRING: {
       classifier->RecordBindingPatternError(
-          scanner()->location(), MessageTemplate::kUnexpectedTokenString);
+          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenString);
       Consume(Token::STRING);
       result = this->ExpressionFromString(beg_pos, scanner(), factory());
       break;
     }
 
     case Token::ASSIGN_DIV:
+      classifier->RecordBindingPatternError(
+          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
       result = this->ParseRegExpLiteral(true, classifier, CHECK_OK);
       break;
 
     case Token::DIV:
+      classifier->RecordBindingPatternError(
+          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
       result = this->ParseRegExpLiteral(false, classifier, CHECK_OK);
       break;
 
@@ -2302,6 +2306,9 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
+      classifier->RecordBindingPatternError(
+          scanner()->peek_location(),
+          MessageTemplate::kUnexpectedTemplateString);
       result = this->ParseTemplateLiteral(Traits::NoTemplateTag(), beg_pos,
                                           classifier, CHECK_OK);
       break;
