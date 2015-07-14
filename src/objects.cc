@@ -5231,14 +5231,6 @@ MaybeHandle<Object> JSReceiver::DeleteProperty(LookupIterator* it,
           return it->factory()->false_value();
         }
 
-        Handle<JSObject> holder = it->GetHolder<JSObject>();
-        // TODO(verwaest): Remove this temporary compatibility hack when blink
-        // tests are updated.
-        if (!holder.is_identical_to(receiver) &&
-            !(receiver->IsJSGlobalProxy() && holder->IsJSGlobalObject())) {
-          return it->factory()->true_value();
-        }
-
         it->Delete();
 
         if (is_observed) {
