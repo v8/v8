@@ -214,9 +214,9 @@ class SerializationData {
   }
 
  private:
-  i::List<uint8_t> data;
-  i::List<ArrayBuffer::Contents> array_buffer_contents;
-  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents;
+  i::List<uint8_t> data_;
+  i::List<ArrayBuffer::Contents> array_buffer_contents_;
+  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
 };
 
 
@@ -273,7 +273,6 @@ class Worker {
   };
 
   void ExecuteInThread();
-  void Cleanup();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   base::Semaphore in_semaphore_;
