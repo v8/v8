@@ -4507,61 +4507,61 @@ inline void Code::set_can_have_weak_objects(bool value) {
 
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
 }
 
 
 bool Code::has_debug_break_slots() {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
 }
 
 
 void Code::set_has_debug_break_slots(bool value) {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
 }
 
 
 bool Code::is_compiled_optimizable() {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsIsCompiledOptimizable::decode(flags);
 }
 
 
 void Code::set_compiled_optimizable(bool value) {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
 }
 
 
 bool Code::has_reloc_info_for_serialization() {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasRelocInfoForSerialization::decode(flags);
 }
 
 
 void Code::set_has_reloc_info_for_serialization(bool value) {
   DCHECK_EQ(FUNCTION, kind());
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasRelocInfoForSerialization::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
 }
 
 
