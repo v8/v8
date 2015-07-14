@@ -222,6 +222,8 @@ class LookupIterator final BASE_EMBEDDED {
   void TransitionToAccessorProperty(AccessorComponent component,
                                     Handle<Object> accessor,
                                     PropertyAttributes attributes);
+  void TransitionToAccessorPair(Handle<Object> pair,
+                                PropertyAttributes attributes);
   PropertyDetails property_details() const {
     DCHECK(has_property_);
     return property_details_;

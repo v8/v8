@@ -277,9 +277,9 @@ void LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
-  holder_ = receiver;
 
   if (!IsElement() && !receiver->map()->is_dictionary_map()) {
+    holder_ = receiver;
     holder_map_ = Map::TransitionToAccessorProperty(
         handle(receiver->map(), isolate_), name_, component, accessor,
         attributes);
@@ -290,8 +290,6 @@ void LookupIterator::TransitionToAccessorProperty(
     if (!holder_map_->is_dictionary_map()) return;
   }
 
-  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
-                          PropertyCellType::kMutable);
   Handle<AccessorPair> pair;
   if (state() == ACCESSOR && GetAccessors()->IsAccessorPair()) {
     pair = Handle<AccessorPair>::cast(GetAccessors());
@@ -306,6 +304,18 @@ void LookupIterator::TransitionToAccessorProperty(
     pair = factory()->NewAccessorPair();
     pair->set(component, *accessor);
   }
+
+  TransitionToAccessorPair(pair, attributes);
+}
+
+
+void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
+                                              PropertyAttributes attributes) {
+  Handle<JSObject> receiver = GetStoreTarget();
+  holder_ = receiver;
+
+  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
+                          PropertyCellType::kMutable);
 
   if (IsElement()) {
     // TODO(verwaest): Remove this hack once we have a quick way to check the
@@ -331,6 +341,13 @@ void LookupIterator::TransitionToAccessorProperty(
       if (!was_dictionary) heap()->ClearAllICsByKind(Code::KEYED_STORE_IC);
     }
   } else {
+    PropertyNormalizationMode mode = receiver->map()->is_prototype_map()
+                                         ? KEEP_INOBJECT_PROPERTIES
+                                         : CLEAR_INOBJECT_PROPERTIES;
+    // Normalize object to make this operation simple.
+    JSObject::NormalizeProperties(receiver, mode, 0,
+                                  "TransitionToAccessorPair");
+
     JSObject::SetNormalizedProperty(receiver, name_, pair, details);
     JSObject::ReoptimizeIfPrototype(receiver);
   }
