@@ -7264,12 +7264,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
   Isolate* isolate = name->GetIsolate();
 
   // Dictionary maps can always have additional data properties.
-  if (map->is_dictionary_map()) {
-    // For global objects, property cells are inlined. We need to change the
-    // map.
-    if (map->IsGlobalObjectMap()) return Copy(map, "GlobalAccessor");
-    return map;
-  }
+  if (map->is_dictionary_map()) return map;
 
   // Migrate to the newest map before transitioning to the new property.
   map = Update(map);
