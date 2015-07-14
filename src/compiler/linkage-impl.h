@@ -235,7 +235,7 @@ class LinkageHelper {
 
   static CallDescriptor* GetInterpreterDispatchDescriptor(
       Zone* zone, const MachineSignature* msig) {
-    DCHECK_EQ(0, msig->parameter_count());
+    DCHECK_EQ(0U, msig->parameter_count());
     LocationSignature::Builder locations(zone, msig->return_count(),
                                          msig->parameter_count());
     AddReturnLocations(&locations);
