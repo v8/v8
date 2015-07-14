@@ -683,13 +683,7 @@ bool Object::SameValue(Object* other) {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber() && other->IsNumber()) {
-    double this_value = Number();
-    double other_value = other->Number();
-    bool equal = this_value == other_value;
-    // SameValue(NaN, NaN) is true.
-    if (!equal) return std::isnan(this_value) && std::isnan(other_value);
-    // SameValue(0.0, -0.0) is false.
-    return (this_value != 0) || ((1 / this_value) == (1 / other_value));
+    return v8::internal::SameValue(Number(), other->Number());
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
@@ -704,11 +698,7 @@ bool Object::SameValueZero(Object* other) {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber() && other->IsNumber()) {
-    double this_value = Number();
-    double other_value = other->Number();
-    // +0 == -0 is true
-    return this_value == other_value
-        || (std::isnan(this_value) && std::isnan(other_value));
+    return v8::internal::SameValueZero(Number(), other->Number());
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));

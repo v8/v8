@@ -200,6 +200,27 @@ inline double Floor(double x) {
   return std::floor(x);
 }
 
+// Implements the ES5 SameValue operation for floating point types.
+// http://www.ecma-international.org/ecma-262/6.0/#sec-samevalue
+template <typename T>
+bool SameValue(T x, T y) {
+  // SameValue(NaN, NaN) is true.
+  if (x != y) return std::isnan(x) && std::isnan(y);
+  // SameValue(0, -0) is false.
+  if (std::signbit(x) != std::signbit(y)) return false;
+  return true;
+}
+
+
+// Implements the ES6 SameValueZero operation for floating point types.
+// http://www.ecma-international.org/ecma-262/6.0/#sec-samevaluezero
+template <typename T>
+bool SameValueZero(T x, T y) {
+  if (x != y) return std::isnan(x) && std::isnan(y);
+  // SameValueZero doesn't distinguish between 0 and -0.
+  return true;
+}
+
 
 // TODO(svenpanne) Clean up the whole power-of-2 mess.
 inline int32_t WhichPowerOf2Abs(int32_t x) {
