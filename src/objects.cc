@@ -6252,13 +6252,6 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
                                              PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
-  // Make sure that the top context does not change when doing callbacks or
-  // interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  // Try to flatten before operating on the string.
-  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
 
@@ -6302,6 +6295,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (is_observed) {
+    // Make sure the top context isn't changed.
+    AssertNoContextChange ncc(isolate);
     const char* type = preexists ? "reconfigure" : "add";
     RETURN_ON_EXCEPTION(
         isolate, EnqueueChangeRecord(object, type, name, old_value), Object);
@@ -6314,14 +6309,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
 MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
                                           Handle<AccessorInfo> info) {
   Isolate* isolate = object->GetIsolate();
-
-  // Make sure that the top context does not change when doing callbacks or
-  // interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  // Try to flatten before operating on the string.
-  Handle<Name> name(Name::cast(info->name()));
-  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
+  Handle<Name> name(Name::cast(info->name()), isolate);
 
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
@@ -6340,17 +6328,17 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
     it.Next();
   }
 
+  // Ignore accessors on typed arrays.
+  if (it.IsElement() && (object->HasFixedTypedArrayElements() ||
+                         object->HasExternalArrayElements())) {
+    return it.factory()->undefined_value();
+  }
+
   CHECK(GetPropertyAttributes(&it).IsJust());
 
   // ES5 forbids turning a property into an accessor if it's not
   // configurable. See 8.6.1 (Table 5).
   if (it.IsFound() && (it.IsReadOnly() || !it.IsConfigurable())) {
-    return it.factory()->undefined_value();
-  }
-
-  // Ignore accessors on typed arrays.
-  if (it.IsElement() && (object->HasFixedTypedArrayElements() ||
-                         object->HasExternalArrayElements())) {
     return it.factory()->undefined_value();
   }
 
