@@ -387,6 +387,9 @@ class AstGraphBuilder : public AstVisitor {
   // Common for all IterationStatement bodies.
   void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop);
 
+  // Dispatched from VisitCall.
+  void VisitCallSuper(Call* expr);
+
   // Dispatched from VisitCallRuntime.
   void VisitCallJSRuntime(CallRuntime* expr);
 

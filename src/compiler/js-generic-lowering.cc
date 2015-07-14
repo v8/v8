@@ -541,12 +541,16 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(isolate(), zone(), d, arity, flags);
+      Linkage::GetStubCallDescriptor(isolate(), zone(), d, arity - 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
-  Node* construct = NodeProperties::GetValueInput(node, 0);
+  Node* actual_construct = NodeProperties::GetValueInput(node, 0);
+  Node* original_construct = NodeProperties::GetValueInput(node, arity - 1);
+  node->RemoveInput(arity - 1);  // Drop original constructor.
   node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 1));
-  node->InsertInput(zone(), 2, construct);
+  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 2));
+  node->InsertInput(zone(), 2, actual_construct);
+  // TODO(mstarzinger): Pass original constructor in register.
+  CHECK_EQ(actual_construct, original_construct);
   node->InsertInput(zone(), 3, jsgraph()->UndefinedConstant());
   node->set_op(common()->Call(desc));
 }

@@ -2428,11 +2428,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       break;
     }
     case Call::SUPER_CALL:
-      // TODO(dslomov): Implement super calls.
-      callee_value = jsgraph()->UndefinedConstant();
-      receiver_value = jsgraph()->UndefinedConstant();
-      SetStackOverflow();
-      break;
+      return VisitCallSuper(expr);
     case Call::POSSIBLY_EVAL_CALL:
       possibly_eval = true;
       if (callee->AsVariableProxy()->var()->IsLookupSlot()) {
@@ -2499,6 +2495,45 @@ void AstGraphBuilder::VisitCall(Call* expr) {
 }
 
 
+void AstGraphBuilder::VisitCallSuper(Call* expr) {
+  SuperCallReference* super = expr->expression()->AsSuperCallReference();
+  DCHECK_NOT_NULL(super);
+
+  // Prepare the callee to the super call. The super constructor is stored as
+  // the prototype of the constructor we are currently executing.
+  VisitForValue(super->this_function_var());
+  Node* this_function = environment()->Pop();
+  const Operator* op = javascript()->CallRuntime(Runtime::kGetPrototype, 1);
+  Node* super_function = NewNode(op, this_function);
+  // TODO(mstarzinger): This probably needs a proper bailout id.
+  PrepareFrameState(super_function, BailoutId::None());
+  environment()->Push(super_function);
+
+  // Evaluate all arguments to the super call.
+  ZoneList<Expression*>* args = expr->arguments();
+  VisitForValues(args);
+
+  // Original receiver is loaded from the {new.target} variable.
+  VisitForValue(super->new_target_var());
+
+  // Create node to perform the super call.
+  const Operator* call = javascript()->CallConstruct(args->length() + 2);
+  Node* value = ProcessArguments(call, args->length() + 2);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+
+  // TODO(mstarzinger): It sure would be nice if this were desugared. Also we
+  // are still missing the hole-check in the assignment below, fix that.
+  FrameStateBeforeAndAfter states(this, BailoutId::None());
+  BuildVariableAssignment(super->this_var()->var(), value, Token::INIT_CONST,
+                          VectorSlotPair(), BailoutId::None(), states);
+
+  // TODO(mstarzinger): Remove bailout once lowering is correct.
+  SetStackOverflow();
+
+  ast_context()->ProduceValue(value);
+}
+
+
 void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   VisitForValue(expr->expression());
 
@@ -2506,9 +2541,12 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
+  // Original receiver is the same as the callee.
+  environment()->Push(environment()->Peek(args->length()));
+
   // Create node to perform the construct call.
-  const Operator* call = javascript()->CallConstruct(args->length() + 1);
-  Node* value = ProcessArguments(call, args->length() + 1);
+  const Operator* call = javascript()->CallConstruct(args->length() + 2);
+  Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
