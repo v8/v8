@@ -2319,11 +2319,6 @@ class JSObject: public JSReceiver {
                                   Handle<Name> name,
                                   Handle<Object> structure,
                                   PropertyAttributes attributes);
-  static void DefineElementAccessor(Handle<JSObject> object,
-                                    uint32_t index,
-                                    Handle<Object> getter,
-                                    Handle<Object> setter,
-                                    PropertyAttributes attributes);
 
   // Return the hash table backing store or the inline stored identity hash,
   // whatever is found.

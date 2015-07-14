@@ -168,7 +168,7 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Name> GetName() {
     if (name_.is_null()) {
       DCHECK(IsElement());
-      name_ = isolate_->factory()->Uint32ToString(index_);
+      name_ = factory()->Uint32ToString(index_);
     }
     return name_;
   }
@@ -183,6 +183,7 @@ class LookupIterator final BASE_EMBEDDED {
     state_ = NOT_FOUND;
   }
 
+  Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
   Handle<Object> GetReceiver() const { return receiver_; }
   Handle<JSObject> GetStoreTarget() const;

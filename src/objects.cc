@@ -6230,100 +6230,6 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
 }
 
 
-// Try to update an accessor in an elements dictionary. Return true if the
-// update succeeded, and false otherwise.
-static bool UpdateGetterSetterInDictionary(
-    SeededNumberDictionary* dictionary,
-    uint32_t index,
-    Object* getter,
-    Object* setter,
-    PropertyAttributes attributes) {
-  int entry = dictionary->FindEntry(index);
-  if (entry != SeededNumberDictionary::kNotFound) {
-    Object* result = dictionary->ValueAt(entry);
-    PropertyDetails details = dictionary->DetailsAt(entry);
-    if (details.type() == ACCESSOR_CONSTANT && result->IsAccessorPair()) {
-      DCHECK(details.IsConfigurable());
-      if (details.attributes() != attributes) {
-        dictionary->DetailsAtPut(
-            entry, PropertyDetails(attributes, ACCESSOR_CONSTANT, index,
-                                   PropertyCellType::kNoCell));
-      }
-      AccessorPair::cast(result)->SetComponents(getter, setter);
-      return true;
-    }
-  }
-  return false;
-}
-
-
-void JSObject::DefineElementAccessor(Handle<JSObject> object,
-                                     uint32_t index,
-                                     Handle<Object> getter,
-                                     Handle<Object> setter,
-                                     PropertyAttributes attributes) {
-  switch (object->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-      break;
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
-    case EXTERNAL_##TYPE##_ELEMENTS:                                           \
-    case TYPE##_ELEMENTS:                                                      \
-
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-      // Ignore getters and setters on pixel and external array elements.
-      return;
-
-    case DICTIONARY_ELEMENTS:
-      if (UpdateGetterSetterInDictionary(object->element_dictionary(),
-                                         index,
-                                         *getter,
-                                         *setter,
-                                         attributes)) {
-        return;
-      }
-      break;
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
-      // Ascertain whether we have read-only properties or an existing
-      // getter/setter pair in an arguments elements dictionary backing
-      // store.
-      FixedArray* parameter_map = FixedArray::cast(object->elements());
-      uint32_t length = parameter_map->length();
-      Object* probe =
-          index < (length - 2) ? parameter_map->get(index + 2) : NULL;
-      if (probe == NULL || probe->IsTheHole()) {
-        FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-        if (arguments->IsDictionary()) {
-          SeededNumberDictionary* dictionary =
-              SeededNumberDictionary::cast(arguments);
-          if (UpdateGetterSetterInDictionary(dictionary,
-                                             index,
-                                             *getter,
-                                             *setter,
-                                             attributes)) {
-            return;
-          }
-        }
-      }
-      break;
-    }
-  }
-
-  Isolate* isolate = object->GetIsolate();
-  Handle<AccessorPair> accessors = isolate->factory()->NewAccessorPair();
-  accessors->SetComponents(*getter, *setter);
-
-  SetElementCallback(object, index, accessors, attributes);
-}
-
-
 bool Map::DictionaryElementsInPrototypeChainOnly() {
   if (IsDictionaryElementsKind(elements_kind())) {
     return false;
@@ -6431,6 +6337,12 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
     it.Next();
   }
 
+  // Ignore accessors on typed arrays.
+  if (it.IsElement() && (object->HasFixedTypedArrayElements() ||
+                         object->HasExternalArrayElements())) {
+    return it.factory()->undefined_value();
+  }
+
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   bool is_observed = object->map()->is_observed() &&
                      !isolate->IsInternallyUsedPropertyName(name);
@@ -6444,22 +6356,15 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
     }
   }
 
-  if (it.IsElement()) {
-    DefineElementAccessor(it.GetStoreTarget(), it.index(), getter, setter,
-                          attributes);
-  } else {
-    DCHECK(getter->IsSpecFunction() || getter->IsUndefined() ||
-           getter->IsNull());
-    DCHECK(setter->IsSpecFunction() || setter->IsUndefined() ||
-           setter->IsNull());
-    // At least one of the accessors needs to be a new value.
-    DCHECK(!getter->IsNull() || !setter->IsNull());
-    if (!getter->IsNull()) {
-      it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
-    }
-    if (!setter->IsNull()) {
-      it.TransitionToAccessorProperty(ACCESSOR_SETTER, setter, attributes);
-    }
+  DCHECK(getter->IsSpecFunction() || getter->IsUndefined() || getter->IsNull());
+  DCHECK(setter->IsSpecFunction() || setter->IsUndefined() || setter->IsNull());
+  // At least one of the accessors needs to be a new value.
+  DCHECK(!getter->IsNull() || !setter->IsNull());
+  if (!getter->IsNull()) {
+    it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
+  }
+  if (!setter->IsNull()) {
+    it.TransitionToAccessorProperty(ACCESSOR_SETTER, setter, attributes);
   }
 
   if (is_observed) {
