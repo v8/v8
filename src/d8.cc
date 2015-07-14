@@ -216,6 +216,7 @@ Persistent<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
+base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
 #ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
@@ -809,13 +810,19 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #endif  // !V8_SHARED
 
 
-void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  int exit_code = args[0]->Int32Value();
+void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
+  int exit_code = (*args)[0]->Int32Value();
 #ifndef V8_SHARED
   CleanupWorkers();
 #endif  // !V8_SHARED
-  OnExit(args.GetIsolate());
+  OnExit(args->GetIsolate());
   exit(exit_code);
+}
+
+
+void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  base::CallOnce(&quit_once_, &QuitOnce,
+                 const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&args));
 }
 
 
