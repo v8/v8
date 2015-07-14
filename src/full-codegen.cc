@@ -1204,13 +1204,6 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     // Verify that compilation exactly consumed the number of store ic slots
     // that the ClassLiteral node had to offer.
     DCHECK(!FLAG_vector_stores || store_slot_index == lit->slot_count());
-
-    if (is_strong(language_mode())) {
-      // TODO(conradw): It would be more efficient to define the properties with
-      // the right attributes the first time round.
-      __ Push(result_register());
-      __ CallRuntime(Runtime::kObjectFreeze, 1);
-    }
   }
 
   context()->Plug(result_register());

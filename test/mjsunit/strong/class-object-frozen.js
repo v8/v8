@@ -9,25 +9,27 @@
 function getClass() {
   class Foo {
     static get bar() { return 0 }
+    get bar() { return 0 }
   }
   return Foo;
 }
 
 function getClassExpr() {
-  return (class { static get bar() { return 0 } });
+  return (class { static get bar() { return 0 } get bar() { return 0 } });
 }
 
 function getClassStrong() {
   "use strong";
   class Foo {
     static get bar() { return 0 }
+    get bar() { return 0 }
   }
   return Foo;
 }
 
 function getClassExprStrong() {
   "use strong";
-  return (class { static get bar() { return 0 } });
+  return (class { static get bar() { return 0 } get bar() { return 0 } });
 }
 
 function addProperty(o) {
@@ -39,28 +41,41 @@ function convertPropertyToData(o) {
   Object.defineProperty(o, "bar", { value: 1 });
 }
 
-assertDoesNotThrow(function(){addProperty(getClass())});
-assertDoesNotThrow(function(){convertPropertyToData(getClass())});
-assertDoesNotThrow(function(){addProperty(getClassExpr())});
-assertDoesNotThrow(function(){convertPropertyToData(getClassExpr())});
+function testWeakClass(classFunc) {
+  assertDoesNotThrow(function(){addProperty(classFunc())});
+  assertDoesNotThrow(function(){addProperty(classFunc().prototype)});
+  assertDoesNotThrow(function(){convertPropertyToData(classFunc())});
+  assertDoesNotThrow(function(){convertPropertyToData(classFunc().prototype)});
+}
 
-assertThrows(function(){addProperty(getClassStrong())}, TypeError);
-assertThrows(function(){convertPropertyToData(getClassStrong())}, TypeError);
-assertThrows(function(){addProperty(getClassExprStrong())}, TypeError);
-assertThrows(function(){convertPropertyToData(getClassExprStrong())},
-             TypeError);
+function testStrongClass(classFunc) {
+  assertThrows(function(){addProperty(classFunc())}, TypeError);
+  assertThrows(function(){addProperty(classFunc().prototype)}, TypeError);
+  assertThrows(function(){convertPropertyToData(classFunc())}, TypeError);
+  assertThrows(function(){convertPropertyToData(classFunc().prototype)},
+               TypeError);
+}
+
+testWeakClass(getClass);
+testWeakClass(getClassExpr);
+
+testStrongClass(getClassStrong);
+testStrongClass(getClassExprStrong);
 
 // Check strong classes don't freeze their parents.
 (function() {
-  "use strong";
   let parent = getClass();
 
-  class Foo extends parent {
-    static get bar() { return 0 }
+  let classFunc = function() {
+    "use strong";
+    class Foo extends parent {
+      static get bar() { return 0 }
+      get bar() { return 0 }
+    }
+    return Foo;
   }
 
-  assertThrows(function(){addProperty(Foo)}, TypeError);
-  assertThrows(function(){convertPropertyToData(Foo)}, TypeError);
+  testStrongClass(classFunc);
   assertDoesNotThrow(function(){addProperty(parent)});
   assertDoesNotThrow(function(){convertPropertyToData(parent)});
 })();
@@ -69,12 +84,15 @@ assertThrows(function(){convertPropertyToData(getClassExprStrong())},
 (function() {
   let parent = getClassStrong();
 
-  class Foo extends parent {
-    static get bar() { return 0 }
+  let classFunc = function() {
+    class Foo extends parent {
+      static get bar() { return 0 }
+      get bar() { return 0 }
+    }
+    return Foo;
   }
 
   assertThrows(function(){addProperty(parent)}, TypeError);
   assertThrows(function(){convertPropertyToData(parent)}, TypeError);
-  assertDoesNotThrow(function(){addProperty(Foo)});
-  assertDoesNotThrow(function(){convertPropertyToData(Foo)});
+  testWeakClass(classFunc);
 })();

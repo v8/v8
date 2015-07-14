@@ -1643,9 +1643,15 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   if (is_strong(language_mode())) {
     // TODO(conradw): It would be more efficient to define the properties with
     // the right attributes the first time round.
+    // Freeze the prototype.
+    proto =
+        NewNode(javascript()->CallRuntime(Runtime::kObjectFreeze, 1), proto);
+    // Freezing the prototype should never deopt.
+    PrepareFrameState(proto, BailoutId::None());
+    // Freeze the constructor.
     literal =
         NewNode(javascript()->CallRuntime(Runtime::kObjectFreeze, 1), literal);
-    // Freezing the class object should never deopt.
+    // Freezing the constructor should never deopt.
     PrepareFrameState(literal, BailoutId::None());
   }
 
