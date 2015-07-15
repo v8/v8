@@ -1612,10 +1612,12 @@ class ArrayLiteral final : public MaterializedLiteral {
   };
 
  protected:
-  ArrayLiteral(Zone* zone, ZoneList<Expression*>* values, int literal_index,
-               bool is_strong, int pos)
+  ArrayLiteral(Zone* zone, ZoneList<Expression*>* values,
+               int first_spread_index, int literal_index, bool is_strong,
+               int pos)
       : MaterializedLiteral(zone, literal_index, is_strong, pos),
-        values_(values) {}
+        values_(values),
+        first_spread_index_(first_spread_index) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
 
  private:
@@ -1623,6 +1625,7 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
+  int first_spread_index_;
 };
 
 
@@ -3452,8 +3455,15 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 int literal_index,
                                 bool is_strong,
                                 int pos) {
-    return new (zone_) ArrayLiteral(zone_, values, literal_index, is_strong,
-                                    pos);
+    return new (zone_)
+        ArrayLiteral(zone_, values, -1, literal_index, is_strong, pos);
+  }
+
+  ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
+                                int first_spread_index, int literal_index,
+                                bool is_strong, int pos) {
+    return new (zone_) ArrayLiteral(zone_, values, first_spread_index,
+                                    literal_index, is_strong, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,

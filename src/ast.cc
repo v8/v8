@@ -505,9 +505,12 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   if (!constant_elements_.is_null()) return;
 
+  int constants_length =
+      first_spread_index_ >= 0 ? first_spread_index_ : values()->length();
+
   // Allocate a fixed array to hold all the object literals.
   Handle<JSArray> array = isolate->factory()->NewJSArray(
-      FAST_HOLEY_SMI_ELEMENTS, values()->length(), values()->length(),
+      FAST_HOLEY_SMI_ELEMENTS, constants_length, constants_length,
       Strength::WEAK, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   // Fill in the literals.
@@ -515,9 +518,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   int depth_acc = 1;
   bool is_holey = false;
   int array_index = 0;
-  for (int n = values()->length(); array_index < n; array_index++) {
+  for (; array_index < constants_length; array_index++) {
     Expression* element = values()->at(array_index);
-    if (element->IsSpread()) break;
+    DCHECK(!element->IsSpread());
     MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
     if (m_literal != NULL) {
       m_literal->BuildConstants(isolate);
@@ -543,9 +546,6 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
         .Assert();
   }
 
-  if (array_index != values()->length()) {
-    JSArray::SetLength(array, array_index);
-  }
   JSObject::ValidateElements(array);
   Handle<FixedArrayBase> element_values(array->elements());
 
