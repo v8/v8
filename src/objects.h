@@ -2102,6 +2102,8 @@ class JSObject: public JSReceiver {
   static Handle<SeededNumberDictionary> NormalizeElements(
       Handle<JSObject> object);
 
+  void RequireSlowElements(SeededNumberDictionary* dictionary);
+
   // Transform slow named properties to fast variants.
   static void MigrateSlowToFast(Handle<JSObject> object,
                                 int unused_property_fields, const char* reason);

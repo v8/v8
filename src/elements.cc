@@ -950,7 +950,7 @@ class DictionaryElementsAccessor
                               Handle<Object> value,
                               PropertyAttributes attributes) {
     SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(*store);
-    if (attributes != NONE) dictionary->set_requires_slow_elements();
+    if (attributes != NONE) object->RequireSlowElements(dictionary);
     dictionary->ValueAtPut(entry, *value);
     PropertyDetails details = dictionary->DetailsAt(entry);
     details = PropertyDetails(attributes, DATA, details.dictionary_index(),
@@ -969,7 +969,7 @@ class DictionaryElementsAccessor
     Handle<SeededNumberDictionary> new_dictionary =
         SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
                                                details);
-    if (attributes != NONE) new_dictionary->set_requires_slow_elements();
+    if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (dictionary.is_identical_to(new_dictionary)) return;
     object->set_elements(*new_dictionary);
   }
@@ -1614,7 +1614,7 @@ class SlowSloppyArgumentsElementsAccessor
     Handle<SeededNumberDictionary> new_dictionary =
         SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
                                                details);
-    if (attributes != NONE) new_dictionary->set_requires_slow_elements();
+    if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (*dictionary != *new_dictionary) {
       FixedArray::cast(object->elements())->set(1, *new_dictionary);
     }
@@ -1647,6 +1647,10 @@ class SlowSloppyArgumentsElementsAccessor
           SeededNumberDictionary::cast(parameter_map->get(1)));
       arguments = SeededNumberDictionary::AddNumberEntry(arguments, entry,
                                                          value, details);
+      // If the attributes were NONE, we would have called set rather than
+      // reconfigure.
+      DCHECK_NE(NONE, attributes);
+      object->RequireSlowElements(*arguments);
       parameter_map->set(1, *arguments);
     } else {
       Handle<FixedArrayBase> arguments(

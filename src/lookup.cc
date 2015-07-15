@@ -318,16 +318,12 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
                           PropertyCellType::kMutable);
 
   if (IsElement()) {
-    // TODO(verwaest): Remove this hack once we have a quick way to check the
-    // prototype chain in element setters.
     // TODO(verwaest): Move code into the element accessor.
-    bool was_dictionary = receiver->HasDictionaryElements();
     Handle<SeededNumberDictionary> dictionary =
         JSObject::NormalizeElements(receiver);
-    was_dictionary = was_dictionary && dictionary->requires_slow_elements();
 
     dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, details);
-    dictionary->set_requires_slow_elements();
+    receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {
       FixedArray* parameter_map = FixedArray::cast(receiver->elements());
@@ -338,7 +334,6 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
       FixedArray::cast(receiver->elements())->set(1, *dictionary);
     } else {
       receiver->set_elements(*dictionary);
-      if (!was_dictionary) heap()->ClearAllICsByKind(Code::KEYED_STORE_IC);
     }
   } else {
     PropertyNormalizationMode mode = receiver->map()->is_prototype_map()
