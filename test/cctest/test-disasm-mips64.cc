@@ -98,7 +98,7 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + 4 + (offset << 2));                 \
+             compare_string, progcounter + 4 + (offset * 4));                  \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -110,7 +110,7 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + (offset << 2));                     \
+             compare_string, progcounter + (offset * 4));                      \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }

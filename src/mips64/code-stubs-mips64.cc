@@ -3198,11 +3198,9 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   DCHECK(!a4.is(code_));
 
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCode + 1));
-  __ And(a4,
-         code_,
-         Operand(kSmiTagMask |
-                 ((~String::kMaxOneByteCharCode) << kSmiTagSize)));
+  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCodeU + 1));
+  __ And(a4, code_, Operand(kSmiTagMask |
+                            ((~String::kMaxOneByteCharCodeU) << kSmiTagSize)));
   __ Branch(&slow_case_, ne, a4, Operand(zero_reg));
 
 
