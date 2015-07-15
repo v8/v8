@@ -309,17 +309,6 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
 
 template <class T>
-v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
-    v8::EscapableHandleScope* scope) {
-  v8::internal::Handle<T> handle;
-  if (!is_null()) {
-    handle = *this;
-  }
-  return Utils::OpenHandle(*scope->Escape(Utils::ToLocal(handle)), true);
-}
-
-
-template <class T>
 inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
   return reinterpret_cast<T*>(obj.location());
 }

@@ -3797,7 +3797,8 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
                                  isolate, self, toStringTag).ToHandle(&tag);
     RETURN_ON_FAILED_EXECUTION(String);
     if (tag->IsString()) {
-      class_name = i::Handle<i::String>::cast(tag).EscapeFrom(&handle_scope);
+      class_name = Utils::OpenHandle(*handle_scope.Escape(
+          Utils::ToLocal(i::Handle<i::String>::cast(tag))));
     }
   }
   const char* prefix = "[object ";
