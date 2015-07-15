@@ -625,27 +625,35 @@ void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   PropertyAttributes roc_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
-  // Add length.
   if (function_mode == BOUND_FUNCTION) {
-    Handle<String> length_string = isolate()->factory()->length_string();
-    DataDescriptor d(length_string, 0, roc_attribs, Representation::Tagged());
-    map->AppendDescriptor(&d);
+    {  // Add length.
+      Handle<String> length_string = isolate()->factory()->length_string();
+      DataDescriptor d(length_string, 0, roc_attribs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+    {  // Add name.
+      Handle<String> name_string = isolate()->factory()->name_string();
+      DataDescriptor d(name_string, 1, roc_attribs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
   } else {
     DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
            function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
            function_mode == FUNCTION_WITHOUT_PROTOTYPE);
-    Handle<AccessorInfo> length =
-        Accessors::FunctionLengthInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, roc_attribs);
-    map->AppendDescriptor(&d);
-  }
-  Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), roc_attribs);
-  {  // Add name.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
-                                 roc_attribs);
-    map->AppendDescriptor(&d);
+    {  // Add length.
+      Handle<AccessorInfo> length =
+          Accessors::FunctionLengthInfo(isolate(), roc_attribs);
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                   length, roc_attribs);
+      map->AppendDescriptor(&d);
+    }
+    {  // Add name.
+      Handle<AccessorInfo> name =
+          Accessors::FunctionNameInfo(isolate(), roc_attribs);
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                   roc_attribs);
+      map->AppendDescriptor(&d);
+    }
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
     // Add prototype.
