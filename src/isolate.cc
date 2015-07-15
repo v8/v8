@@ -2437,7 +2437,9 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
     return cell_reports_intact;
   }
 
-  if (initial_array_proto->elements() != heap()->empty_fixed_array()) {
+  FixedArrayBase* elements = initial_array_proto->elements();
+  if (elements != heap()->empty_fixed_array() &&
+      elements != heap()->empty_slow_element_dictionary()) {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }
@@ -2448,7 +2450,10 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }
-  if (initial_object_proto->elements() != heap()->empty_fixed_array()) {
+
+  elements = initial_object_proto->elements();
+  if (elements != heap()->empty_fixed_array() &&
+      elements != heap()->empty_slow_element_dictionary()) {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }

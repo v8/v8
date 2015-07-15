@@ -2276,8 +2276,8 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object, const char* type, Handle<Name> name,
       Handle<Object> old_value);
 
-  // Gets the current elements capacity and the number of used elements.
-  void GetElementsCapacityAndUsage(int* capacity, int* used);
+  // Gets the number of currently used elements.
+  int GetFastElementsUsage();
 
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSObject> object,
@@ -2332,7 +2332,7 @@ class JSObject: public JSReceiver {
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSObject> object);
 
   static Handle<SeededNumberDictionary> GetNormalizedElementDictionary(
-      Handle<JSObject> object);
+      Handle<JSObject> object, Handle<FixedArrayBase> elements);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).

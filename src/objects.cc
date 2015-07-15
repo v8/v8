@@ -4799,6 +4799,24 @@ void JSObject::RequireSlowElements(SeededNumberDictionary* dictionary) {
 }
 
 
+Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
+    Handle<JSObject> object, Handle<FixedArrayBase> elements) {
+  DCHECK(!object->HasDictionaryElements());
+  DCHECK(!object->HasSlowArgumentsElements());
+  Isolate* isolate = object->GetIsolate();
+  // Ensure that notifications fire if the array or object prototypes are
+  // normalizing.
+  isolate->UpdateArrayProtectorOnNormalizeElements(object);
+  int length = object->IsJSArray()
+                   ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
+                   : elements->length();
+  int used = object->GetFastElementsUsage();
+  Handle<SeededNumberDictionary> dictionary =
+      SeededNumberDictionary::New(isolate, used);
+  return CopyFastElementsToDictionary(elements, length, dictionary);
+}
+
+
 Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     Handle<JSObject> object) {
   DCHECK(!object->HasExternalArrayElements() &&
@@ -4806,34 +4824,23 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
   Isolate* isolate = object->GetIsolate();
 
   // Find the backing store.
-  Handle<FixedArrayBase> array(FixedArrayBase::cast(object->elements()));
-  bool is_arguments =
-      (array->map() == isolate->heap()->sloppy_arguments_elements_map());
+  Handle<FixedArrayBase> elements(object->elements(), isolate);
+  bool is_arguments = object->HasSloppyArgumentsElements();
   if (is_arguments) {
-    array = handle(FixedArrayBase::cast(
-        Handle<FixedArray>::cast(array)->get(1)));
+    FixedArray* parameter_map = FixedArray::cast(*elements);
+    elements = handle(FixedArrayBase::cast(parameter_map->get(1)), isolate);
   }
-  if (array->IsDictionary()) return Handle<SeededNumberDictionary>::cast(array);
+
+  if (elements->IsDictionary()) {
+    return Handle<SeededNumberDictionary>::cast(elements);
+  }
 
   DCHECK(object->HasFastSmiOrObjectElements() ||
          object->HasFastDoubleElements() ||
          object->HasFastArgumentsElements());
 
-  // Ensure that notifications fire if the array or object prototypes are
-  // normalizing.
-  isolate->UpdateArrayProtectorOnNormalizeElements(object);
-
-  // Compute the effective length and allocate a new backing store.
-  int length = object->IsJSArray()
-      ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
-      : array->length();
-  int old_capacity = 0;
-  int used_elements = 0;
-  object->GetElementsCapacityAndUsage(&old_capacity, &used_elements);
   Handle<SeededNumberDictionary> dictionary =
-      SeededNumberDictionary::New(isolate, used_elements);
-
-  dictionary = CopyFastElementsToDictionary(array, length, dictionary);
+      GetNormalizedElementDictionary(object, elements);
 
   // Switch to using the dictionary as the backing storage for elements.
   ElementsKind target_kind =
@@ -5473,30 +5480,6 @@ bool JSObject::IsExtensible() {
 }
 
 
-Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
-    Handle<JSObject> object) {
-  DCHECK(!object->elements()->IsDictionary());
-  Isolate* isolate = object->GetIsolate();
-  int length = object->IsJSArray()
-                   ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
-                   : object->elements()->length();
-  if (length > 0) {
-    int capacity = 0;
-    int used = 0;
-    object->GetElementsCapacityAndUsage(&capacity, &used);
-    Handle<SeededNumberDictionary> new_element_dictionary =
-        SeededNumberDictionary::New(isolate, used);
-
-    // Move elements to a dictionary; avoid calling NormalizeElements to avoid
-    // unnecessary transitions.
-    return CopyFastElementsToDictionary(handle(object->elements()), length,
-                                        new_element_dictionary);
-  }
-  // No existing elements, use a pre-allocated empty backing store
-  return isolate->factory()->empty_slow_element_dictionary();
-}
-
-
 template <typename Dictionary>
 static void ApplyAttributesToDictionary(Dictionary* dictionary,
                                         const PropertyAttributes attributes) {
@@ -5554,9 +5537,15 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;
-  if (!object->elements()->IsDictionary()) {
-    new_element_dictionary = GetNormalizedElementDictionary(object);
-    isolate->UpdateArrayProtectorOnNormalizeElements(object);
+  if (!object->HasDictionaryElements()) {
+    int length =
+        object->IsJSArray()
+            ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
+            : object->elements()->length();
+    new_element_dictionary =
+        length == 0 ? isolate->factory()->empty_slow_element_dictionary()
+                    : GetNormalizedElementDictionary(
+                          object, handle(object->elements()));
   }
 
   Handle<Symbol> transition_marker;
@@ -12130,9 +12119,7 @@ static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
   // If the fast-case backing storage takes up roughly three times as
   // much space (in machine words) as a dictionary backing storage
   // would, the object should have slow elements.
-  int old_capacity = 0;
-  int used_elements = 0;
-  object->GetElementsCapacityAndUsage(&old_capacity, &used_elements);
+  int used_elements = object->GetFastElementsUsage();
   int dictionary_size = SeededNumberDictionary::ComputeCapacity(used_elements) *
                         SeededNumberDictionary::kEntrySize;
   return 3 * static_cast<uint32_t>(dictionary_size) <= *new_capacity;
@@ -12499,79 +12486,48 @@ MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
 }
 
 
-void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
-  *capacity = 0;
-  *used = 0;
+template <typename BackingStore>
+static int FastHoleyElementsUsage(JSObject* object, BackingStore* store) {
+  int limit = object->IsJSArray()
+                  ? Smi::cast(JSArray::cast(object)->length())->value()
+                  : store->length();
+  int used = 0;
+  for (int i = 0; i < limit; ++i) {
+    if (!store->is_the_hole(i)) ++used;
+  }
+  return used;
+}
 
-  FixedArrayBase* backing_store_base = FixedArrayBase::cast(elements());
-  FixedArray* backing_store = NULL;
+
+int JSObject::GetFastElementsUsage() {
+  FixedArrayBase* store = elements();
   switch (GetElementsKind()) {
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-      backing_store_base =
-          FixedArray::cast(FixedArray::cast(backing_store_base)->get(1));
-      backing_store = FixedArray::cast(backing_store_base);
-      if (backing_store->IsDictionary()) {
-        SeededNumberDictionary* dictionary =
-            SeededNumberDictionary::cast(backing_store);
-        *capacity = dictionary->Capacity();
-        *used = dictionary->NumberOfElements();
-        break;
-      }
-      // Fall through.
     case FAST_SMI_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
     case FAST_ELEMENTS:
-      if (IsJSArray()) {
-        *capacity = backing_store_base->length();
-        *used = Smi::cast(JSArray::cast(this)->length())->value();
-        break;
-      }
-      // Fall through if packing is not guaranteed.
+      // Only JSArray have packed elements.
+      return Smi::cast(JSArray::cast(this)->length())->value();
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+      store = FixedArray::cast(FixedArray::cast(store)->get(1));
+    // Fall through.
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
-      backing_store = FixedArray::cast(backing_store_base);
-      *capacity = backing_store->length();
-      for (int i = 0; i < *capacity; ++i) {
-        if (!backing_store->get(i)->IsTheHole()) ++(*used);
-      }
-      break;
-    case DICTIONARY_ELEMENTS: {
-      SeededNumberDictionary* dictionary = element_dictionary();
-      *capacity = dictionary->Capacity();
-      *used = dictionary->NumberOfElements();
-      break;
-    }
-    case FAST_DOUBLE_ELEMENTS:
-      if (IsJSArray()) {
-        *capacity = backing_store_base->length();
-        *used = Smi::cast(JSArray::cast(this)->length())->value();
-        break;
-      }
-      // Fall through if packing is not guaranteed.
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
-      *capacity = elements()->length();
-      if (*capacity == 0) break;
-      FixedDoubleArray * elms = FixedDoubleArray::cast(elements());
-      for (int i = 0; i < *capacity; i++) {
-        if (!elms->is_the_hole(i)) ++(*used);
-      }
-      break;
-    }
+      return FastHoleyElementsUsage(this, FixedArray::cast(store));
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+      if (elements()->length() == 0) return 0;
+      return FastHoleyElementsUsage(this, FixedDoubleArray::cast(store));
 
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
     case EXTERNAL_##TYPE##_ELEMENTS:                                         \
     case TYPE##_ELEMENTS:                                                    \
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-    {
-      // External arrays are considered 100% used.
-      FixedArrayBase* external_array = FixedArrayBase::cast(elements());
-      *capacity = external_array->length();
-      *used = external_array->length();
-      break;
-    }
+    UNREACHABLE();
   }
+  return 0;
 }
 
 

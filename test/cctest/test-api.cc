@@ -16976,8 +16976,6 @@ TEST(VerifyArrayPrototypeGuarantees) {
   // Break fast array hole handling by prototype structure changes.
   BreakArrayGuarantees("[].__proto__.__proto__ = { funny: true };");
   // By sending elements to dictionary mode.
-  BreakArrayGuarantees("Object.freeze(Array.prototype);");
-  BreakArrayGuarantees("Object.freeze(Object.prototype);");
   BreakArrayGuarantees(
       "Object.defineProperty(Array.prototype, 0, {"
       "  get: function() { return 3; }});");
