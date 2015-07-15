@@ -1031,27 +1031,29 @@ function StringEndsWith(searchString /* position */) {  // length == 1
 function StringIncludes(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.includes");
 
-  var s = TO_STRING_INLINE(this);
+  var string = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
-  var ss = TO_STRING_INLINE(searchString);
+  searchString = TO_STRING_INLINE(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     pos = %_Arguments(1);  // position
-    pos = $toInteger(pos);
+    pos = TO_INTEGER(pos);
   }
 
-  var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
-  var ss_len = ss.length;
-  if (ss_len + start > s_len) {
+  var stringLength = string.length;
+  if (pos < 0) pos = 0;
+  if (pos > stringLength) pos = stringLength;
+  var searchStringLength = searchString.length;
+
+  if (searchStringLength + pos > stringLength) {
     return false;
   }
 
-  return %StringIndexOf(s, ss, start) !== -1;
+  return %StringIndexOf(string, searchString, pos) !== -1;
 }
 
 
