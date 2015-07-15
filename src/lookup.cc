@@ -132,29 +132,15 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   Handle<JSObject> holder = GetHolder<JSObject>();
 
   if (IsElement()) {
-    ElementsKind old_kind = holder_map_->elements_kind();
-    holder_map_ = Map::PrepareForDataElement(holder_map_, value);
-    ElementsKind new_kind = holder_map_->elements_kind();
-    if (new_kind != old_kind) {
-      // TODO(verwaest): Handle element migration in MigrateToMap.
-      JSObject::UpdateAllocationSite(holder, new_kind);
-      if (IsFastDoubleElementsKind(old_kind) !=
-          IsFastDoubleElementsKind(new_kind)) {
-        uint32_t capacity = holder->elements()->length();
-        ElementsAccessor* accessor = ElementsAccessor::ForKind(new_kind);
-        accessor->GrowCapacityAndConvert(holder, capacity);
-        // GrowCapacityAndConvert migrated the object. No reloading of property
-        // infomation is necessary for elements.
-        return;
-      } else if (FLAG_trace_elements_transitions) {
-        Handle<FixedArrayBase> elements(holder->elements());
-        JSObject::PrintElementsTransition(stdout, holder, old_kind, elements,
-                                          new_kind, elements);
-      }
-    }
+    ElementsKind kind = holder_map_->elements_kind();
+    ElementsKind to = value->OptimalElementsKind();
+    if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
+    to = IsMoreGeneralElementsKindTransition(kind, to) ? to : kind;
+    JSObject::TransitionElementsKind(holder, to);
+    holder_map_ = handle(holder->map(), isolate_);
 
     // Copy the backing store if it is copy-on-write.
-    if (IsFastSmiOrObjectElementsKind(new_kind)) {
+    if (IsFastSmiOrObjectElementsKind(to)) {
       JSObject::EnsureWritableFastElements(holder);
     }
 

@@ -695,8 +695,7 @@ bool Object::IsJSReceiver() const {
 
 bool Object::IsJSObject() const {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
+  return IsHeapObject() && HeapObject::cast(this)->map()->IsJSObjectMap();
 }
 
 
