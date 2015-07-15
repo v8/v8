@@ -2607,18 +2607,25 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // r0 : number of arguments
   // r1 : the function to call
   // r2 : feedback vector
-  // r3 : (only if r2 is not the megamorphic symbol) slot in feedback
-  //      vector (Smi)
+  // r3 : slot in feedback vector (Smi, for RecordCallTarget)
+  // r4 : original constructor (for IsSuperConstructorCall)
   Label slow, non_function_call;
 
   // Check that the function is not a smi.
   __ JumpIfSmi(r1, &non_function_call);
   // Check that the function is a JSFunction.
-  __ CompareObjectType(r1, r4, r4, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r5, r5, JS_FUNCTION_TYPE);
   __ b(ne, &slow);
 
   if (RecordCallTarget()) {
+    if (IsSuperConstructorCall()) {
+      __ push(r4);
+    }
+    // TODO(mstarzinger): Consider tweaking target recording to avoid push/pop.
     GenerateRecordCallTarget(masm);
+    if (IsSuperConstructorCall()) {
+      __ pop(r4);
+    }
 
     __ add(r5, r2, Operand::PointerOffsetFromSmiKey(r3));
     if (FLAG_pretenuring_call_new) {
@@ -2642,9 +2649,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // Pass function as original constructor.
   if (IsSuperConstructorCall()) {
-    __ mov(r4, Operand(1 * kPointerSize));
-    __ add(r4, r4, Operand(r0, LSL, kPointerSizeLog2));
-    __ ldr(r3, MemOperand(sp, r4));
+    __ mov(r3, r4);
   } else {
     __ mov(r3, r1);
   }
@@ -2658,10 +2663,10 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // r0: number of arguments
   // r1: called object
-  // r4: object type
+  // r5: object type
   Label do_call;
   __ bind(&slow);
-  __ cmp(r4, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
   __ b(ne, &non_function_call);
   __ GetBuiltinFunction(r1, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);

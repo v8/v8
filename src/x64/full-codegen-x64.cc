@@ -3250,9 +3250,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
       expr->expression()->AsSuperCallReference();
   DCHECK_NOT_NULL(super_call_ref);
 
-  VariableProxy* new_target_proxy = super_call_ref->new_target_var();
-  VisitForStackValue(new_target_proxy);
-
   EmitLoadSuperConstructor(super_call_ref);
   __ Push(result_register());
 
@@ -3267,7 +3264,11 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   // constructor invocation.
   SetConstructCallPosition(expr);
 
-  // Load function and argument count into edi and eax.
+  // Load original constructor into rcx.
+  VisitForAccumulatorValue(super_call_ref->new_target_var());
+  __ movp(rcx, result_register());
+
+  // Load function and argument count into rdi and rax.
   __ Set(rax, arg_count);
   __ movp(rdi, Operand(rsp, arg_count * kPointerSize));
 
@@ -3286,8 +3287,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
   __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
-
-  __ Drop(1);
 
   RecordJSReturnSite(expr);
 
@@ -4211,11 +4210,14 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ CallRuntime(Runtime::kGetPrototype, 1);
   __ Push(result_register());
 
+  // Load original constructor into rcx.
+  __ movp(rcx, Operand(rsp, 1 * kPointerSize));
+
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
   __ movp(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
-  __ Cmp(rcx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ movp(rbx, Operand(rdx, StandardFrameConstants::kContextOffset));
+  __ Cmp(rbx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &adaptor_frame);
   // default constructor has no arguments, so no adaptor frame means no args.
   __ movp(rax, Immediate(0));
@@ -4224,17 +4226,17 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   // Copy arguments from adaptor frame.
   {
     __ bind(&adaptor_frame);
-    __ movp(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiToInteger64(rcx, rcx);
+    __ movp(rbx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiToInteger64(rbx, rbx);
 
-    __ movp(rax, rcx);
-    __ leap(rdx, Operand(rdx, rcx, times_pointer_size,
+    __ movp(rax, rbx);
+    __ leap(rdx, Operand(rdx, rbx, times_pointer_size,
                          StandardFrameConstants::kCallerSPOffset));
     Label loop;
     __ bind(&loop);
     __ Push(Operand(rdx, -1 * kPointerSize));
     __ subp(rdx, Immediate(kPointerSize));
-    __ decp(rcx);
+    __ decp(rbx);
     __ j(not_zero, &loop);
   }
 

@@ -2985,7 +2985,8 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // x0 : number of arguments
   // x1 : the function to call
   // x2 : feedback vector
-  // x3 : slot in feedback vector (smi) (if r2 is not the megamorphic symbol)
+  // x3 : slot in feedback vector (Smi, for RecordCallTarget)
+  // x4 : original constructor (for IsSuperConstructorCall)
   Register function = x1;
   Label slow, non_function_call;
 
@@ -2997,7 +2998,14 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
                          &slow);
 
   if (RecordCallTarget()) {
+    if (IsSuperConstructorCall()) {
+      __ Push(x4);
+    }
+    // TODO(mstarzinger): Consider tweaking target recording to avoid push/pop.
     GenerateRecordCallTarget(masm, x0, function, x2, x3, x4, x5, x11);
+    if (IsSuperConstructorCall()) {
+      __ Pop(x4);
+    }
 
     __ Add(x5, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
     if (FLAG_pretenuring_call_new) {
@@ -3020,9 +3028,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   }
 
   if (IsSuperConstructorCall()) {
-    __ Mov(x4, Operand(1 * kPointerSize));
-    __ Add(x4, x4, Operand(x0, LSL, kPointerSizeLog2));
-    __ Peek(x3, x4);
+    __ Mov(x3, x4);
   } else {
     __ Mov(x3, function);
   }

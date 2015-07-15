@@ -2743,17 +2743,24 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // a0 : number of arguments
   // a1 : the function to call
   // a2 : feedback vector
-  // a3 : (only if a2 is not undefined) slot in feedback vector (Smi)
+  // a3 : slot in feedback vector (Smi, for RecordCallTarget)
+  // t0 : original constructor (for IsSuperConstructorCall)
   Label slow, non_function_call;
 
   // Check that the function is not a smi.
   __ JumpIfSmi(a1, &non_function_call);
   // Check that the function is a JSFunction.
-  __ GetObjectType(a1, t0, t0);
-  __ Branch(&slow, ne, t0, Operand(JS_FUNCTION_TYPE));
+  __ GetObjectType(a1, t1, t1);
+  __ Branch(&slow, ne, t1, Operand(JS_FUNCTION_TYPE));
 
   if (RecordCallTarget()) {
+    if (IsSuperConstructorCall()) {
+      __ push(t0);
+    }
     GenerateRecordCallTarget(masm);
+    if (IsSuperConstructorCall()) {
+      __ pop(t0);
+    }
 
     __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
     __ Addu(t1, a2, at);
@@ -2778,11 +2785,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // Pass function as original constructor.
   if (IsSuperConstructorCall()) {
-    __ li(t0, Operand(1 * kPointerSize));
-    __ sll(at, a0, kPointerSizeLog2);
-    __ Addu(t0, t0, Operand(at));
-    __ Addu(at, sp, Operand(t0));
-    __ lw(a3, MemOperand(at, 0));
+    __ mov(a3, t0);
   } else {
     __ mov(a3, a1);
   }
@@ -2797,10 +2800,10 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // a0: number of arguments
   // a1: called object
-  // t0: object type
+  // t1: object type
   Label do_call;
   __ bind(&slow);
-  __ Branch(&non_function_call, ne, t0, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ Branch(&non_function_call, ne, t1, Operand(JS_FUNCTION_PROXY_TYPE));
   __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);
 

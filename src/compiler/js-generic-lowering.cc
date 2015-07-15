@@ -549,9 +549,8 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 2));
   node->InsertInput(zone(), 2, actual_construct);
-  // TODO(mstarzinger): Pass original constructor in register.
-  CHECK_EQ(actual_construct, original_construct);
-  node->InsertInput(zone(), 3, jsgraph()->UndefinedConstant());
+  node->InsertInput(zone(), 3, original_construct);
+  node->InsertInput(zone(), 4, jsgraph()->UndefinedConstant());
   node->set_op(common()->Call(desc));
 }
 

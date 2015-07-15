@@ -3259,9 +3259,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
       expr->expression()->AsSuperCallReference();
   DCHECK_NOT_NULL(super_call_ref);
 
-  VariableProxy* new_target_proxy = super_call_ref->new_target_var();
-  VisitForStackValue(new_target_proxy);
-
   EmitLoadSuperConstructor(super_call_ref);
   __ push(result_register());
 
@@ -3275,6 +3272,10 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   SetConstructCallPosition(expr);
+
+  // Load original constructor into ecx.
+  VisitForAccumulatorValue(super_call_ref->new_target_var());
+  __ mov(ecx, result_register());
 
   // Load function and argument count into edi and eax.
   __ Move(eax, Immediate(arg_count));
@@ -3295,8 +3296,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
   __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
-
-  __ Drop(1);
 
   RecordJSReturnSite(expr);
 
@@ -4223,11 +4222,14 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ CallRuntime(Runtime::kGetPrototype, 1);
   __ push(result_register());
 
+  // Load original constructor into ecx.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-  __ cmp(ecx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ mov(ebx, Operand(edx, StandardFrameConstants::kContextOffset));
+  __ cmp(ebx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &adaptor_frame);
   // default constructor has no arguments, so no adaptor frame means no args.
   __ mov(eax, Immediate(0));
@@ -4236,17 +4238,17 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   // Copy arguments from adaptor frame.
   {
     __ bind(&adaptor_frame);
-    __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiUntag(ecx);
+    __ mov(ebx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ SmiUntag(ebx);
 
-    __ mov(eax, ecx);
-    __ lea(edx, Operand(edx, ecx, times_pointer_size,
+    __ mov(eax, ebx);
+    __ lea(edx, Operand(edx, ebx, times_pointer_size,
                         StandardFrameConstants::kCallerSPOffset));
     Label loop;
     __ bind(&loop);
     __ push(Operand(edx, -1 * kPointerSize));
     __ sub(edx, Immediate(kPointerSize));
-    __ dec(ecx);
+    __ dec(ebx);
     __ j(not_zero, &loop);
   }
 

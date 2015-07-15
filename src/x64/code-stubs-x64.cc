@@ -2029,19 +2029,25 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CallConstructStub::Generate(MacroAssembler* masm) {
   // rax : number of arguments
   // rbx : feedback vector
-  // rdx : (only if rbx is not the megamorphic symbol) slot in feedback
-  //       vector (Smi)
+  // rcx : original constructor (for IsSuperConstructorCall)
+  // rdx : slot in feedback vector (Smi, for RecordCallTarget)
   // rdi : constructor function
   Label slow, non_function_call;
 
   // Check that function is not a smi.
   __ JumpIfSmi(rdi, &non_function_call);
   // Check that function is a JSFunction.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, r11);
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
+    if (IsSuperConstructorCall()) {
+      __ Push(rcx);
+    }
     GenerateRecordCallTarget(masm);
+    if (IsSuperConstructorCall()) {
+      __ Pop(rcx);
+    }
 
     __ SmiToInteger32(rdx, rdx);
     if (FLAG_pretenuring_call_new) {
@@ -2066,7 +2072,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // Pass original constructor to construct stub.
   if (IsSuperConstructorCall()) {
-    __ movp(rdx, Operand(rsp, rax, times_pointer_size, 2 * kPointerSize));
+    __ movp(rdx, rcx);
   } else {
     __ movp(rdx, rdi);
   }
@@ -2081,10 +2087,10 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   // rdi: called object
   // rax: number of arguments
-  // rcx: object map
+  // r11: object map
   Label do_call;
   __ bind(&slow);
-  __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
+  __ CmpInstanceType(r11, JS_FUNCTION_PROXY_TYPE);
   __ j(not_equal, &non_function_call);
   __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);

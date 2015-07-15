@@ -1503,9 +1503,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ push(r0);  // limit
     __ mov(r1, Operand::Zero());  // initial index
     __ push(r1);
-    // Push newTarget and callee functions
-    __ ldr(r0, MemOperand(fp, kNewTargetOffset));
-    __ push(r0);
+    // Push the constructor function as callee.
     __ ldr(r0, MemOperand(fp, kFunctionOffset));
     __ push(r0);
 
@@ -1516,12 +1514,11 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     // Use undefined feedback vector
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ ldr(r1, MemOperand(fp, kFunctionOffset));
+    __ ldr(r4, MemOperand(fp, kNewTargetOffset));
 
     // Call the function.
     CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
     __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
-
-    __ Drop(1);
 
     // Leave internal frame.
   }

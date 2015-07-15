@@ -1536,24 +1536,24 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
 
     Generate_CheckStackOverflow(masm, kFunctionOffset, argc, kArgcIsSmiTagged);
 
-    // Push current limit and index, constructor & newTarget
+    // Push current limit and index & constructor function as callee.
     __ Mov(x1, 0);  // Initial index.
-    __ Ldr(newTarget, MemOperand(fp, kNewTargetOffset));
-    __ Push(argc, x1, newTarget, function);
+    __ Push(argc, x1, function);
 
     // Copy all arguments from the array to the stack.
     Generate_PushAppliedArguments(
         masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
 
-    __ Ldr(x1, MemOperand(fp, kFunctionOffset));
     // Use undefined feedback vector
     __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
+    __ Ldr(x1, MemOperand(fp, kFunctionOffset));
+    __ Ldr(x4, MemOperand(fp, kNewTargetOffset));
 
     // Call the function.
     CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
     __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
 
-    __ Drop(1);
+    // Leave internal frame.
   }
   __ Drop(kStackSize);
   __ Ret();
