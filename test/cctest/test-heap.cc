@@ -973,6 +973,22 @@ TEST(Iteration) {
 }
 
 
+TEST(EmptyHandleEscapeFrom) {
+  CcTest::InitializeVM();
+
+  v8::HandleScope scope(CcTest::isolate());
+  Handle<JSObject> runaway;
+
+  {
+      v8::EscapableHandleScope nested(CcTest::isolate());
+      Handle<JSObject> empty;
+      runaway = empty.EscapeFrom(&nested);
+  }
+
+  CHECK(runaway.is_null());
+}
+
+
 static int LenFromSize(int size) {
   return (size - FixedArray::kHeaderSize) / kPointerSize;
 }
