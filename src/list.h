@@ -5,6 +5,8 @@
 #ifndef V8_LIST_H_
 #define V8_LIST_H_
 
+#include <algorithm>
+
 #include "src/checks.h"
 #include "src/utils.h"
 
@@ -136,6 +138,9 @@ class List {
 
   // Drop the last 'count' elements from the list.
   INLINE(void RewindBy(int count)) { Rewind(length_ - count); }
+
+  // Swaps the contents of the two lists.
+  INLINE(void Swap(List<T, AllocationPolicy>* list));
 
   // Halve the capacity if fill level is less than a quarter.
   INLINE(void Trim(AllocationPolicy allocator = AllocationPolicy()));

@@ -97,6 +97,7 @@ void CcTest::Run() {
   }
   callback_();
   if (initialize_) {
+    EmptyMessageQueues(isolate_);
     isolate_->Exit();
   }
 }

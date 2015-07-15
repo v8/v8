@@ -28,6 +28,7 @@
 #ifndef CCTEST_H_
 #define CCTEST_H_
 
+#include "include/libplatform/libplatform.h"
 #include "src/v8.h"
 
 #ifndef TEST
@@ -592,6 +593,13 @@ static inline void EnableDebugger() {
 
 
 static inline void DisableDebugger() { v8::Debug::SetDebugEventListener(NULL); }
+
+
+static inline void EmptyMessageQueues(v8::Isolate* isolate) {
+  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
+                                       isolate))
+    ;
+}
 
 
 // Helper class for new allocations tracking and checking.

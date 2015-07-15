@@ -349,6 +349,7 @@ bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
       return false;
     }
     result = script->Run();
+    EmptyMessageQueues(isolate);
     data->realm_current_ = data->realm_switch_;
   }
   if (result.IsEmpty()) {
@@ -2006,6 +2007,11 @@ void Shell::CollectGarbage(Isolate* isolate) {
     // unreachable persistent handles.
     isolate->LowMemoryNotification();
   }
+}
+
+
+void Shell::EmptyMessageQueues(Isolate* isolate) {
+  while (v8::platform::PumpMessageLoop(g_platform, isolate)) continue;
 }
 
 

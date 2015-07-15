@@ -125,6 +125,12 @@ bool List<T, P>::RemoveElement(const T& elm) {
   return false;
 }
 
+template <typename T, class P>
+void List<T, P>::Swap(List<T, P>* list) {
+  std::swap(data_, list->data_);
+  std::swap(length_, list->length_);
+  std::swap(capacity_, list->capacity_);
+}
 
 template<typename T, class P>
 void List<T, P>::Allocate(int length, P allocator) {

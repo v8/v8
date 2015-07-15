@@ -3275,6 +3275,7 @@ TEST(TwoPassPhantomCallbacks) {
   }
   CHECK_EQ(static_cast<int>(kLength), instance_counter);
   CcTest::heap()->CollectAllGarbage();
+  EmptyMessageQueues(isolate);
   CHECK_EQ(0, instance_counter);
 }
 
@@ -3293,6 +3294,7 @@ TEST(TwoPassPhantomCallbacksNestedGc) {
   array[15]->MarkTriggerGc();
   CHECK_EQ(static_cast<int>(kLength), instance_counter);
   CcTest::heap()->CollectAllGarbage();
+  EmptyMessageQueues(isolate);
   CHECK_EQ(0, instance_counter);
 }
 
@@ -3342,6 +3344,8 @@ class PhantomStdMapTraits : public v8::StdMapTraits<K, V> {
     CHECK_EQ(IntKeyToVoidPointer(key),
              v8::Object::GetAlignedPointerFromInternalField(value, 0));
   }
+  static void OnWeakCallback(
+      const v8::WeakCallbackInfo<WeakCallbackDataType>&) {}
   static void DisposeWeak(
       const v8::WeakCallbackInfo<WeakCallbackDataType>& info) {
     K key = KeyFromWeakCallbackInfo(info);
@@ -6806,6 +6810,7 @@ THREADED_TEST(GCFromWeakCallbacks) {
                             v8::WeakCallbackType::kParameter);
       object.handle.MarkIndependent();
       invoke_gc[outer_gc]();
+      EmptyMessageQueues(isolate);
       CHECK(object.flag);
     }
   }
@@ -11885,6 +11890,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   handle3.SetWeak(&handle3, HandleCreatingCallback1,
                   v8::WeakCallbackType::kParameter);
   CcTest::heap()->CollectAllGarbage();
+  EmptyMessageQueues(isolate);
 }
 
 

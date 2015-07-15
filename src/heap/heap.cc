@@ -1306,7 +1306,8 @@ bool Heap::PerformGarbageCollection(
     AllowHeapAllocation allow_allocation;
     GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
     freed_global_handles =
-        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
+        isolate_->global_handles()->PostGarbageCollectionProcessing(
+            collector, gc_callback_flags);
   }
   gc_post_processing_depth_--;
 

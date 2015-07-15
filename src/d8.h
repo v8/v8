@@ -366,6 +366,7 @@ class Shell : public i::AllStatic {
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
+  static void EmptyMessageQueues(Isolate* isolate);
 
 #ifndef V8_SHARED
   // TODO(binji): stupid implementation for now. Is there an easy way to hash an
