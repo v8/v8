@@ -243,6 +243,7 @@ class CallSite {
     "Cannot convert a Symbol wrapper object to a primitive value")             \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \
+  T(SimdToNumber, "Cannot convert a SIMD value to a number")                   \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
   T(ValueAndAccessor,                                                          \
     "Invalid property.  A property cannot both have accessors and be "         \

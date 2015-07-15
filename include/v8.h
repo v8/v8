@@ -74,6 +74,7 @@ class CpuProfiler;
 class Data;
 class Date;
 class External;
+class Float32x4Object;
 class Function;
 class FunctionTemplate;
 class HeapProfiler;
@@ -1799,6 +1800,12 @@ class V8_EXPORT Value : public Data {
    * This is an experimental feature.
    */
   bool IsSymbolObject() const;
+
+  /**
+   * Returns true if this value is a Float32x4 object.
+   * This is an experimental feature.
+   */
+  bool IsFloat32x4Object() const;
 
   /**
    * Returns true if this value is a NativeError.
@@ -3845,6 +3852,23 @@ class V8_EXPORT SharedArrayBuffer : public Object {
 
 
 /**
+ * An instance of Float32x4 constructor.
+ * (ES7 draft http://littledan.github.io/simd.html).
+ * This API is experimental and may change significantly.
+ */
+class V8_EXPORT Float32x4 : public Value {
+ public:
+  static Local<Float32x4> New(Isolate* isolate, float w, float x, float y,
+                              float z);
+  V8_INLINE static Float32x4* Cast(Value* obj);
+
+ private:
+  Float32x4();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
  * An instance of the built-in Date constructor (ECMA-262, 15.9).
  */
 class V8_EXPORT Date : public Object {
@@ -3941,6 +3965,24 @@ class V8_EXPORT SymbolObject : public Object {
   Local<Symbol> ValueOf() const;
 
   V8_INLINE static SymbolObject* Cast(v8::Value* obj);
+
+ private:
+  static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * A Float32x4 object.
+ * (ES7 draft http://littledan.github.io/simd.html).
+ * This is an experimental feature. Use at your own risk.
+ */
+class V8_EXPORT Float32x4Object : public Object {
+ public:
+  static Local<Value> New(Isolate* isolate, Local<Float32x4> value);
+
+  Local<Float32x4> ValueOf() const;
+
+  V8_INLINE static Float32x4Object* Cast(v8::Value* obj);
 
  private:
   static void CheckCast(v8::Value* obj);
@@ -6943,7 +6985,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 81;
+  static const int kContextEmbedderDataIndex = 82;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -7857,6 +7899,14 @@ SymbolObject* SymbolObject::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<SymbolObject*>(value);
+}
+
+
+Float32x4Object* Float32x4Object::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Float32x4Object*>(value);
 }
 
 

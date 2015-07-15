@@ -968,6 +968,7 @@ std::ostream& operator<<(std::ostream& os, const ToBooleanStub::Types& s) {
   if (s.Contains(ToBooleanStub::STRING)) p.Add("String");
   if (s.Contains(ToBooleanStub::SYMBOL)) p.Add("Symbol");
   if (s.Contains(ToBooleanStub::HEAP_NUMBER)) p.Add("HeapNumber");
+  if (s.Contains(ToBooleanStub::SIMD_VALUE)) p.Add("SimdValue");
   return os << ")";
 }
 
@@ -1000,6 +1001,9 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
     return value != 0 && !std::isnan(value);
+  } else if (object->IsFloat32x4()) {
+    Add(SIMD_VALUE);
+    return true;
   } else {
     // We should never see an internal object at runtime here!
     UNREACHABLE();
@@ -1009,10 +1013,10 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
 
 
 bool ToBooleanStub::Types::NeedsMap() const {
-  return Contains(ToBooleanStub::SPEC_OBJECT)
-      || Contains(ToBooleanStub::STRING)
-      || Contains(ToBooleanStub::SYMBOL)
-      || Contains(ToBooleanStub::HEAP_NUMBER);
+  return Contains(ToBooleanStub::SPEC_OBJECT) ||
+         Contains(ToBooleanStub::STRING) || Contains(ToBooleanStub::SYMBOL) ||
+         Contains(ToBooleanStub::HEAP_NUMBER) ||
+         Contains(ToBooleanStub::SIMD_VALUE);
 }
 
 

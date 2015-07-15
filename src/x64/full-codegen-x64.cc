@@ -5184,6 +5184,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(rax, if_false);
     __ CmpObjectType(rax, SYMBOL_TYPE, rdx);
     Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->float32x4_string())) {
+    __ JumpIfSmi(rax, if_false);
+    __ CmpObjectType(rax, FLOAT32X4_TYPE, rdx);
+    Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     __ CompareRoot(rax, Heap::kTrueValueRootIndex);
     __ j(equal, if_true);

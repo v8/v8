@@ -295,6 +295,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
+    // Call runtime on identical SIMD values since we must throw a TypeError.
+    __ Branch(slow, eq, t4, Operand(FLOAT32X4_TYPE));
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -309,6 +311,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
+    // Call runtime on identical SIMD values since we must throw a TypeError.
+    __ Branch(slow, eq, t4, Operand(FLOAT32X4_TYPE));
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics,
       // since we need to throw a TypeError. Smis and heap numbers have

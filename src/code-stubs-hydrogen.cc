@@ -389,19 +389,27 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
             { Push(Add<HConstant>(factory->function_string())); }
             is_function.Else();
             {
-              // Is it an undetectable object?
-              IfBuilder is_undetectable(this);
-              is_undetectable.If<HIsUndetectableAndBranch>(object);
-              is_undetectable.Then();
+              IfBuilder is_float32x4(this);
+              is_float32x4.If<HCompareNumericAndBranch>(
+                  instance_type, Add<HConstant>(FLOAT32X4_TYPE), Token::EQ);
+              is_float32x4.Then();
+              { Push(Add<HConstant>(factory->float32x4_string())); }
+              is_float32x4.Else();
               {
-                // typeof an undetectable object is 'undefined'.
-                Push(undefined_string);
-              }
-              is_undetectable.Else();
-              {
-                // For any kind of object not handled above, the spec rule for
-                // host objects gives that it is okay to return "object".
-                Push(object_string);
+                // Is it an undetectable object?
+                IfBuilder is_undetectable(this);
+                is_undetectable.If<HIsUndetectableAndBranch>(object);
+                is_undetectable.Then();
+                {
+                  // typeof an undetectable object is 'undefined'.
+                  Push(undefined_string);
+                }
+                is_undetectable.Else();
+                {
+                  // For any kind of object not handled above, the spec rule for
+                  // host objects gives that it is okay to return "object".
+                  Push(object_string);
+                }
               }
             }
             is_function.End();

@@ -1158,7 +1158,8 @@ Representation HBranch::observed_input_representation(int index) {
   if (expected_input_types_.Contains(ToBooleanStub::NULL_TYPE) ||
       expected_input_types_.Contains(ToBooleanStub::SPEC_OBJECT) ||
       expected_input_types_.Contains(ToBooleanStub::STRING) ||
-      expected_input_types_.Contains(ToBooleanStub::SYMBOL)) {
+      expected_input_types_.Contains(ToBooleanStub::SYMBOL) ||
+      expected_input_types_.Contains(ToBooleanStub::SIMD_VALUE)) {
     return Representation::Tagged();
   }
   if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
@@ -1323,6 +1324,8 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
     }
     case SYMBOL_TYPE:
       return heap->symbol_string();
+    case FLOAT32X4_TYPE:
+      return heap->float32x4_string();
     case JS_FUNCTION_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return heap->function_string();

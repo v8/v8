@@ -82,7 +82,8 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
     obj = cell->value();
   }
 
-  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol()) {
+  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol() ||
+      obj->IsFloat32x4()) {
     return Handle<Object>(obj, isolate());
   }
 
