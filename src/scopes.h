@@ -280,13 +280,12 @@ class Scope: public ZoneObject {
   bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_arrow_scope() const { return scope_type_ == ARROW_SCOPE; }
-  bool is_declaration_scope() const {
-    return is_eval_scope() || is_function_scope() ||
-        is_module_scope() || is_script_scope();
-  }
+  bool is_declaration_scope() const { return is_declaration_scope_; }
   bool is_strict_eval_scope() const {
     return is_eval_scope() && is_strict(language_mode_);
   }
+
+  void set_is_declaration_scope() { is_declaration_scope_ = true; }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
@@ -613,6 +612,9 @@ class Scope: public ZoneObject {
   // True if it doesn't need scope resolution (e.g., if the scope was
   // constructed based on a serialized scope info or a catch context).
   bool already_resolved_;
+
+  // True if it holds 'var' declarations.
+  bool is_declaration_scope_;
 
   // Computed as variables are declared.
   int num_var_or_const_;

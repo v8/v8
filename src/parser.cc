@@ -1016,7 +1016,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
   FunctionLiteral* result = NULL;
   {
-    // TODO(wingo): Add an outer GLOBAL_SCOPE corresponding to the native
+    // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
     // context, which will have the "this" binding for script scopes.
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
     info->set_script_scope(scope);
@@ -4345,11 +4345,11 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   // Everything inside an eagerly parsed function will be parsed eagerly
   // (see comment above).
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
-  ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8, zone());
+  ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
   if (fvar != NULL) {
     VariableProxy* fproxy = scope_->NewUnresolved(factory(), function_name);
     fproxy->BindTo(fvar);
-    body->Add(factory()->NewExpressionStatement(
+    result->Add(factory()->NewExpressionStatement(
         factory()->NewAssignment(fvar_init_op,
                                  fproxy,
                                  factory()->NewThisFunction(pos),
@@ -4361,60 +4361,80 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   // For concise constructors, check that they are constructed,
   // not called.
   if (i::IsConstructor(kind)) {
-    AddAssertIsConstruct(body, pos);
+    AddAssertIsConstruct(result, pos);
   }
 
-  auto init_block =
+  ZoneList<Statement*>* body = result;
+  Scope* inner_scope = nullptr;
+  Block* inner_block = nullptr;
+  Block* init_block =
       BuildParameterInitializationBlock(formal_parameters, CHECK_OK);
   if (init_block != nullptr) {
     body->Add(init_block, zone());
+    // Wrap the actual function body into an inner scope.
+    inner_block = factory()->NewBlock(NULL, 8, true, RelocInfo::kNoPosition);
+    body->Add(inner_block, zone());
+    body = inner_block->statements();
+    inner_scope = NewScope(scope_, BLOCK_SCOPE);
+    inner_scope->set_is_declaration_scope();
+    inner_scope->set_start_position(scanner()->location().beg_pos);
   }
 
-  // For generators, allocate and yield an iterator on function entry.
-  if (IsGeneratorFunction(kind)) {
-    ZoneList<Expression*>* arguments =
-        new(zone()) ZoneList<Expression*>(0, zone());
-    CallRuntime* allocation = factory()->NewCallRuntime(
-        ast_value_factory()->empty_string(),
-        Runtime::FunctionForId(Runtime::kCreateJSGeneratorObject), arguments,
-        pos);
-    VariableProxy* init_proxy = factory()->NewVariableProxy(
-        function_state_->generator_object_variable());
-    Assignment* assignment = factory()->NewAssignment(
-        Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
-    VariableProxy* get_proxy = factory()->NewVariableProxy(
-        function_state_->generator_object_variable());
-    Yield* yield = factory()->NewYield(
-        get_proxy, assignment, Yield::kInitial, RelocInfo::kNoPosition);
-    body->Add(factory()->NewExpressionStatement(
-        yield, RelocInfo::kNoPosition), zone());
-  }
+  {
+    BlockState block_state(&scope_, inner_scope ? inner_scope : scope_);
 
-  ParseStatementList(body, Token::RBRACE, CHECK_OK);
+    // For generators, allocate and yield an iterator on function entry.
+    if (IsGeneratorFunction(kind)) {
+      ZoneList<Expression*>* arguments =
+          new(zone()) ZoneList<Expression*>(0, zone());
+      CallRuntime* allocation = factory()->NewCallRuntime(
+          ast_value_factory()->empty_string(),
+          Runtime::FunctionForId(Runtime::kCreateJSGeneratorObject), arguments,
+          pos);
+      VariableProxy* init_proxy = factory()->NewVariableProxy(
+          function_state_->generator_object_variable());
+      Assignment* assignment = factory()->NewAssignment(
+          Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
+      VariableProxy* get_proxy = factory()->NewVariableProxy(
+          function_state_->generator_object_variable());
+      Yield* yield = factory()->NewYield(
+          get_proxy, assignment, Yield::kInitial, RelocInfo::kNoPosition);
+      body->Add(factory()->NewExpressionStatement(
+          yield, RelocInfo::kNoPosition), zone());
+    }
 
-  if (IsGeneratorFunction(kind)) {
-    VariableProxy* get_proxy = factory()->NewVariableProxy(
-        function_state_->generator_object_variable());
-    Expression* undefined =
-        factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
-    Yield* yield = factory()->NewYield(get_proxy, undefined, Yield::kFinal,
-                                       RelocInfo::kNoPosition);
-    body->Add(factory()->NewExpressionStatement(
-        yield, RelocInfo::kNoPosition), zone());
-  }
+    ParseStatementList(body, Token::RBRACE, CHECK_OK);
 
-  if (IsSubclassConstructor(kind)) {
-    body->Add(
-        factory()->NewReturnStatement(
-            this->ThisExpression(scope_, factory(), RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition),
-        zone());
+    if (IsGeneratorFunction(kind)) {
+      VariableProxy* get_proxy = factory()->NewVariableProxy(
+          function_state_->generator_object_variable());
+      Expression* undefined =
+          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
+      Yield* yield = factory()->NewYield(get_proxy, undefined, Yield::kFinal,
+                                         RelocInfo::kNoPosition);
+      body->Add(factory()->NewExpressionStatement(
+          yield, RelocInfo::kNoPosition), zone());
+    }
+
+    if (IsSubclassConstructor(kind)) {
+      body->Add(
+          factory()->NewReturnStatement(
+              this->ThisExpression(scope_, factory(), RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+              zone());
+    }
   }
 
   Expect(Token::RBRACE, CHECK_OK);
   scope_->set_end_position(scanner()->location().end_pos);
+  if (inner_scope != nullptr) {
+    DCHECK(inner_block != nullptr);
+    inner_scope->set_end_position(scanner()->location().end_pos);
+    inner_scope = inner_scope->FinalizeBlockScope();
+    inner_block->set_scope(inner_scope);
+  }
 
-  return body;
+  return result;
 }
 
 

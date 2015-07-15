@@ -716,6 +716,52 @@
 }());
 
 
+(function TestParameterScoping() {
+  var x = 1;
+
+  function f1({a = x}) { var x = 2; return a; }
+  assertEquals(1, f1({}));
+  function f2({a = x}) { function x() {}; return a; }
+  assertEquals(1, f2({}));
+  function f3({a = x}) { 'use strict'; let x = 2; return a; }
+  assertEquals(1, f3({}));
+  function f4({a = x}) { 'use strict'; const x = 2; return a; }
+  assertEquals(1, f4({}));
+  function f5({a = x}) { 'use strict'; function x() {}; return a; }
+  assertEquals(1, f5({}));
+
+  var g1 = ({a = x}) => { var x = 2; return a; };
+  assertEquals(1, g1({}));
+  var g2 = ({a = x}) => { function x() {}; return a; };
+  assertEquals(1, g2({}));
+  var g3 = ({a = x}) => { 'use strict'; let x = 2; return a; };
+  assertEquals(1, g3({}));
+  var g4 = ({a = x}) => { 'use strict'; const x = 2; return a; };
+  assertEquals(1, g4({}));
+  var g5 = ({a = x}) => { 'use strict'; function x() {}; return a; };
+  assertEquals(1, g5({}));
+
+  var f6 = function f({x = f}) { var f; return x; }
+  assertSame(f6, f6({}));
+  var f7 = function f({x = f}) { function f() {}; return x; }
+  assertSame(f7, f7({}));
+  var f8 = function f({x = f}) { 'use strict'; let f; return x; }
+  assertSame(f8, f8({}));
+  var f9 = function f({x = f}) { 'use strict'; const f = 0; return x; }
+  assertSame(f9, f9({}));
+  var f10 = function f({x = f}) { 'use strict'; function f() {}; return x; }
+  assertSame(f10, f10({}));
+  var f11 = function f({f = 7, x = f}) { return x; }
+  assertSame(7, f11({}));
+
+  var y = 'a';
+  function f20({[y]: x}) { var y = 'b'; return x; }
+  assertEquals(1, f20({a: 1, b: 2}));
+  var g20 = ({[y]: x}) => { var y = 'b'; return x; };
+  assertEquals(1, g20({a: 1, b: 2}));
+})();
+
+
 (function TestDuplicatesInParameters() {
   assertThrows("'use strict';function f(x,x){}", SyntaxError);
   assertThrows("'use strict';function f({x,x}){}", SyntaxError);
@@ -725,8 +771,9 @@
   assertThrows("'use strict';var f = (x, {x}) => {};", SyntaxError);
 
   function ok(x) { var x; }; ok();
-  assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
-  assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
+  // TODO(rossberg): Check for variable collision.
+  // assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
+  // assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
 }());
 
 

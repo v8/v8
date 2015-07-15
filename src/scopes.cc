@@ -151,6 +151,9 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
                         FunctionKind function_kind) {
   outer_scope_ = outer_scope;
   scope_type_ = scope_type;
+  is_declaration_scope_ =
+      is_eval_scope() || is_function_scope() ||
+      is_module_scope() || is_script_scope();
   function_kind_ = function_kind;
   scope_name_ = ast_value_factory_->empty_string();
   dynamics_ = nullptr;
@@ -1363,7 +1366,7 @@ bool Scope::HasArgumentsParameter(Isolate* isolate) {
 
 void Scope::AllocateStackSlot(Variable* var) {
   if (is_block_scope()) {
-    DeclarationScope()->AllocateStackSlot(var);
+    outer_scope()->DeclarationScope()->AllocateStackSlot(var);
   } else {
     var->AllocateTo(VariableLocation::LOCAL, num_stack_slots_++);
   }
