@@ -192,7 +192,7 @@ function StringMatchJS(regexp) {
 function StringNormalizeJS(form) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
-  var form = form ? TO_STRING_INLINE(form) : 'NFC';
+  var form = IS_UNDEFINED(form) ? 'NFC' : TO_STRING_INLINE(form);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
   var normalizationForm =
