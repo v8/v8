@@ -2869,13 +2869,12 @@ class PointersUpdatingVisitor : public ObjectVisitor {
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
-    DCHECK((RelocInfo::IsJSReturn(rinfo->rmode()) &&
-            rinfo->IsPatchedReturnSequence()) ||
-           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-            rinfo->IsPatchedDebugBreakSlotSequence()));
-    Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
+    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+           rinfo->IsPatchedDebugBreakSlotSequence());
+    Object* target =
+        Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
     VisitPointer(&target);
-    rinfo->set_call_address(Code::cast(target)->instruction_start());
+    rinfo->set_debug_call_address(Code::cast(target)->instruction_start());
   }
 
   static inline void UpdateSlot(Heap* heap, Object** slot) {
@@ -3433,11 +3432,6 @@ static inline void UpdateSlot(Isolate* isolate, ObjectVisitor* v,
     case SlotsBuffer::DEBUG_TARGET_SLOT: {
       RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0, NULL);
       if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(isolate, v);
-      break;
-    }
-    case SlotsBuffer::JS_RETURN_SLOT: {
-      RelocInfo rinfo(addr, RelocInfo::JS_RETURN, 0, NULL);
-      if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(isolate, v);
       break;
     }
     case SlotsBuffer::EMBEDDED_OBJECT_SLOT: {
@@ -4529,8 +4523,6 @@ static inline SlotsBuffer::SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
     return SlotsBuffer::EMBEDDED_OBJECT_SLOT;
   } else if (RelocInfo::IsDebugBreakSlot(rmode)) {
     return SlotsBuffer::DEBUG_TARGET_SLOT;
-  } else if (RelocInfo::IsJSReturn(rmode)) {
-    return SlotsBuffer::JS_RETURN_SLOT;
   }
   UNREACHABLE();
   return SlotsBuffer::NUMBER_OF_SLOT_TYPES;

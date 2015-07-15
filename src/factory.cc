@@ -2269,13 +2269,6 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Get the original code of the function.
-  Handle<Code> code(shared->code());
-
-  // Create a copy of the code before allocating the debug info object to avoid
-  // allocation while setting up the debug info object.
-  Handle<Code> original_code(*Factory::CopyCode(code));
-
   // Allocate initial fixed array for active break points before allocating the
   // debug info object to avoid allocation while setting up the debug info
   // object.
@@ -2288,8 +2281,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
-  debug_info->set_original_code(*original_code);
-  debug_info->set_code(*code);
+  debug_info->set_code(shared->code());
   debug_info->set_break_points(*break_points);
 
   // Link debug info to function.

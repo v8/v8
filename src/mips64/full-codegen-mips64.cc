@@ -490,12 +490,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     EmitProfilingCounterReset();
     __ bind(&ok);
 
-#ifdef DEBUG
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    masm_->bind(&check_exit_codesize);
-#endif
-
     // Make sure that the constant pool is not emitted inside of the return
     // sequence.
     { Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
@@ -504,7 +498,6 @@ void FullCodeGenerator::EmitReturnSequence() {
       int32_t arg_count = info_->scope()->num_parameters() + 1;
       int32_t sp_delta = arg_count * kPointerSize;
       SetReturnPosition(function());
-      __ RecordJSReturn();
       masm_->mov(sp, fp);
       int no_frame_start = masm_->pc_offset();
       masm_->MultiPop(static_cast<RegList>(fp.bit() | ra.bit()));
@@ -512,13 +505,6 @@ void FullCodeGenerator::EmitReturnSequence() {
       masm_->Jump(ra);
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
-
-#ifdef DEBUG
-    // Check that the size of the code used for returning is large enough
-    // for the debugger's requirements.
-    DCHECK(Assembler::kJSReturnSequenceInstructions <=
-           masm_->InstructionsGeneratedSince(&check_exit_codesize));
-#endif
   }
 }
 

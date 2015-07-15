@@ -213,16 +213,6 @@ Code* IC::GetCode() const {
 }
 
 
-Code* IC::GetOriginalCode() const {
-  HandleScope scope(isolate());
-  Handle<SharedFunctionInfo> shared(GetSharedFunctionInfo(), isolate());
-  DCHECK(Debug::HasDebugInfo(shared));
-  Code* original_code = Debug::GetDebugInfo(shared)->original_code();
-  DCHECK(original_code->IsCode());
-  return original_code;
-}
-
-
 bool IC::AddressIsOptimizedCode() const {
   Code* host =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;

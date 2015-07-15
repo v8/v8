@@ -1370,12 +1370,14 @@ static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateReturnDebugBreak(masm);
+  DebugCodegen::GenerateDebugBreakStub(masm,
+                                       DebugCodegen::SAVE_RESULT_REGISTER);
 }
 
 
 static void Generate_Slot_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateSlotDebugBreak(masm);
+  DebugCodegen::GenerateDebugBreakStub(masm,
+                                       DebugCodegen::IGNORE_RESULT_REGISTER);
 }
 
 

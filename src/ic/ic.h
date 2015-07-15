@@ -131,8 +131,6 @@ class IC {
   SharedFunctionInfo* GetSharedFunctionInfo() const;
   // Get the code object of the caller.
   Code* GetCode() const;
-  // Get the original (non-breakpointed) code object of the caller.
-  Code* GetOriginalCode() const;
 
   bool AddressIsOptimizedCode() const;
   inline bool AddressIsDeoptimizedCode() const;

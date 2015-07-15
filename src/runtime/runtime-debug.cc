@@ -1390,19 +1390,20 @@ class ScopeIterator {
       return;
     }
 
-    // Get the debug info (create it if it does not exist).
-    if (!isolate->debug()->EnsureDebugInfo(shared_info, function_)) {
-      // Return if ensuring debug info failed.
-      return;
-    }
-
     // Currently it takes too much time to find nested scopes due to script
     // parsing. Sometimes we want to run the ScopeIterator as fast as possible
     // (for example, while collecting async call stacks on every
     // addEventListener call), even if we drop some nested scopes.
     // Later we may optimize getting the nested scopes (cache the result?)
     // and include nested scopes into the "fast" iteration case as well.
-    if (!ignore_nested_scopes) {
+
+    if (!ignore_nested_scopes && !shared_info->debug_info()->IsUndefined()) {
+      // The source position at return is always the end of the function,
+      // which is not consistent with the current scope chain. Therefore all
+      // nested with, catch and block contexts are skipped, and we can only
+      // inspect the function scope.
+      // This can only happen if we set a break point inside right before the
+      // return, which requires a debug info to be available.
       Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
 
       // PC points to the instruction after the current one, possibly a break
@@ -1413,11 +1414,7 @@ class ScopeIterator {
       BreakLocation location =
           BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
 
-      // Within the return sequence at the moment it is not possible to
-      // get a source position which is consistent with the current scope chain.
-      // Thus all nested with, catch and block contexts are skipped and we only
-      // provide the function scope.
-      ignore_nested_scopes = location.IsExit();
+      ignore_nested_scopes = location.IsReturn();
     }
 
     if (ignore_nested_scopes) {

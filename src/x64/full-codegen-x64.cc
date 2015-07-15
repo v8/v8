@@ -467,35 +467,14 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ Pop(rax);
     EmitProfilingCounterReset();
     __ bind(&ok);
-#ifdef DEBUG
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    masm_->bind(&check_exit_codesize);
-#endif
+
     SetReturnPosition(function());
-    __ RecordJSReturn();
-    // Do not use the leave instruction here because it is too short to
-    // patch with the code required by the debugger.
-    __ movp(rsp, rbp);
-    __ popq(rbp);
     int no_frame_start = masm_->pc_offset();
+    __ leave();
 
     int arg_count = info_->scope()->num_parameters() + 1;
     int arguments_bytes = arg_count * kPointerSize;
     __ Ret(arguments_bytes, rcx);
-
-    // Add padding that will be overwritten by a debugger breakpoint.  We
-    // have just generated at least 7 bytes: "movp rsp, rbp; pop rbp; ret k"
-    // (3 + 1 + 3) for x64 and at least 6 (2 + 1 + 3) bytes for x32.
-    const int kPadding = Assembler::kJSReturnSequenceLength -
-                         kPointerSize == kInt64Size ? 7 : 6;
-    for (int i = 0; i < kPadding; ++i) {
-      masm_->int3();
-    }
-    // Check that the size of the code used for returning is large enough
-    // for the debugger's requirements.
-    DCHECK(Assembler::kJSReturnSequenceLength <=
-           masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 
     info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }

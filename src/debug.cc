@@ -59,16 +59,11 @@ static v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
 
 
 BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
-                             RelocInfo* original_rinfo, int position,
-                             int statement_position)
+                             int position, int statement_position)
     : debug_info_(debug_info),
       pc_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
-      original_pc_offset_(static_cast<int>(
-          original_rinfo->pc() - debug_info->original_code()->entry())),
       rmode_(rinfo->rmode()),
-      original_rmode_(original_rinfo->rmode()),
       data_(rinfo->data()),
-      original_data_(original_rinfo->data()),
       position_(position),
       statement_position_(statement_position) {}
 
@@ -77,11 +72,10 @@ BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
                                   BreakLocatorType type)
     : debug_info_(debug_info),
       reloc_iterator_(debug_info->code(), GetModeMask(type)),
-      reloc_iterator_original_(debug_info->original_code(), GetModeMask(type)),
       break_index_(-1),
       position_(1),
       statement_position_(1) {
-  if (!RinfoDone()) Next();
+  if (!Done()) Next();
 }
 
 
@@ -89,7 +83,7 @@ int BreakLocation::Iterator::GetModeMask(BreakLocatorType type) {
   int mask = 0;
   mask |= RelocInfo::ModeMask(RelocInfo::POSITION);
   mask |= RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION);
-  mask |= RelocInfo::ModeMask(RelocInfo::JS_RETURN);
+  mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
   if (type == ALL_BREAK_LOCATIONS) {
@@ -102,15 +96,15 @@ int BreakLocation::Iterator::GetModeMask(BreakLocatorType type) {
 
 void BreakLocation::Iterator::Next() {
   DisallowHeapAllocation no_gc;
-  DCHECK(!RinfoDone());
+  DCHECK(!Done());
 
   // Iterate through reloc info for code and original code stopping at each
   // breakable code target.
   bool first = break_index_ == -1;
-  while (!RinfoDone()) {
-    if (!first) RinfoNext();
+  while (!Done()) {
+    if (!first) reloc_iterator_.next();
     first = false;
-    if (RinfoDone()) return;
+    if (Done()) return;
 
     // Whenever a statement position or (plain) position is passed update the
     // current value of these.
@@ -128,7 +122,10 @@ void BreakLocation::Iterator::Next() {
       continue;
     }
 
-    if (RelocInfo::IsJSReturn(rmode())) {
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode()) ||
+           RelocInfo::IsDebuggerStatement(rmode()));
+
+    if (RelocInfo::IsDebugBreakSlotAtReturn(rmode())) {
       // Set the positions to the end of the function.
       if (debug_info_->shared()->HasSourceCode()) {
         position_ = debug_info_->shared()->end_position() -
@@ -137,11 +134,8 @@ void BreakLocation::Iterator::Next() {
         position_ = 0;
       }
       statement_position_ = position_;
-      break;
     }
 
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode()) ||
-           RelocInfo::IsDebuggerStatement(rmode()));
     break;
   }
   break_index_++;
@@ -152,6 +146,7 @@ void BreakLocation::Iterator::Next() {
 // the address.
 BreakLocation BreakLocation::FromAddress(Handle<DebugInfo> debug_info,
                                          BreakLocatorType type, Address pc) {
+  DCHECK(debug_info->code()->has_debug_break_slots());
   Iterator it(debug_info, type);
   it.SkipTo(BreakIndexFromAddress(debug_info, type, pc));
   return it.GetBreakLocation();
@@ -163,6 +158,7 @@ BreakLocation BreakLocation::FromAddress(Handle<DebugInfo> debug_info,
 void BreakLocation::FromAddressSameStatement(Handle<DebugInfo> debug_info,
                                              BreakLocatorType type, Address pc,
                                              List<BreakLocation>* result_out) {
+  DCHECK(debug_info->code()->has_debug_break_slots());
   int break_index = BreakIndexFromAddress(debug_info, type, pc);
   Iterator it(debug_info, type);
   it.SkipTo(break_index);
@@ -195,6 +191,7 @@ int BreakLocation::BreakIndexFromAddress(Handle<DebugInfo> debug_info,
 BreakLocation BreakLocation::FromPosition(Handle<DebugInfo> debug_info,
                                           BreakLocatorType type, int position,
                                           BreakPositionAlignment alignment) {
+  DCHECK(debug_info->code()->has_debug_break_slots());
   // Run through all break points to locate the one closest to the source
   // position.
   int closest_break = 0;
@@ -286,13 +283,11 @@ void BreakLocation::SetDebugBreak() {
   // handler as the handler and the function is the same.
   if (IsDebugBreak()) return;
 
-  if (IsExit()) {
-    // Patch the frame exit code with a break point.
-    SetDebugBreakAtReturn();
-  } else if (IsDebugBreakSlot()) {
-    // Patch the code in the break slot.
-    SetDebugBreakAtSlot();
-  }
+  DCHECK(IsDebugBreakSlot());
+  Builtins* builtins = debug_info_->GetIsolate()->builtins();
+  Handle<Code> target =
+      IsReturn() ? builtins->Return_DebugBreak() : builtins->Slot_DebugBreak();
+  DebugCodegen::PatchDebugBreakSlot(pc(), target);
   DCHECK(IsDebugBreak());
 }
 
@@ -301,20 +296,9 @@ void BreakLocation::ClearDebugBreak() {
   // Debugger statement always calls debugger. No need to modify it.
   if (IsDebuggerStatement()) return;
 
-  if (IsExit()) {
-    // Restore the frame exit code with a break point.
-    RestoreFromOriginal(Assembler::kJSReturnSequenceLength);
-  } else if (IsDebugBreakSlot()) {
-    // Restore the code in the break slot.
-    RestoreFromOriginal(Assembler::kDebugBreakSlotLength);
-  }
+  DCHECK(IsDebugBreakSlot());
+  DebugCodegen::ClearDebugBreakSlot(pc());
   DCHECK(!IsDebugBreak());
-}
-
-
-void BreakLocation::RestoreFromOriginal(int length_in_bytes) {
-  memcpy(pc(), original_pc(), length_in_bytes);
-  CpuFeatures::FlushICache(pc(), length_in_bytes);
 }
 
 
@@ -324,9 +308,7 @@ bool BreakLocation::IsStepInLocation() const {
 
 
 bool BreakLocation::IsDebugBreak() const {
-  if (IsExit()) {
-    return rinfo().IsPatchedReturnSequence();
-  } else if (IsDebugBreakSlot()) {
+  if (IsDebugBreakSlot()) {
     return rinfo().IsPatchedDebugBreakSlotSequence();
   }
   return false;
@@ -335,22 +317,6 @@ bool BreakLocation::IsDebugBreak() const {
 
 Handle<Object> BreakLocation::BreakPointObjects() const {
   return debug_info_->GetBreakPointObjects(pc_offset_);
-}
-
-
-bool BreakLocation::Iterator::RinfoDone() const {
-  DCHECK(reloc_iterator_.done() == reloc_iterator_original_.done());
-  return reloc_iterator_.done();
-}
-
-
-void BreakLocation::Iterator::RinfoNext() {
-  reloc_iterator_.next();
-  reloc_iterator_original_.next();
-#ifdef DEBUG
-  DCHECK(reloc_iterator_.done() == reloc_iterator_original_.done());
-  DCHECK(reloc_iterator_.done() || rmode() == original_rinfo()->rmode());
-#endif
 }
 
 
@@ -1150,14 +1116,14 @@ void Debug::PrepareStep(StepAction step_action,
   }
 
   // If this is the last break code target step out is the only possibility.
-  if (location.IsExit() || step_action == StepOut) {
+  if (location.IsReturn() || step_action == StepOut) {
     if (step_action == StepOut) {
       // Skip step_count frames starting with the current one.
       while (step_count-- > 0 && !frames_it.done()) {
         frames_it.Advance();
       }
     } else {
-      DCHECK(location.IsExit());
+      DCHECK(location.IsReturn());
       frames_it.Advance();
     }
     // Skip native and extension functions on the stack.
@@ -1263,7 +1229,7 @@ bool Debug::StepNextContinue(BreakLocation* break_location,
   // statement is hit.
   if (step_action == StepNext || step_action == StepIn) {
     // Never continue if returning from function.
-    if (break_location->IsExit()) return false;
+    if (break_location->IsReturn()) return false;
 
     // Continue if we are still on the same frame and in the same statement.
     int current_statement_position =
@@ -2015,67 +1981,8 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
   if (LiveEdit::SetAfterBreakTarget(this)) return;  // LiveEdit did the job.
 
-  HandleScope scope(isolate_);
-  PrepareForBreakPoints();
-
-  // Get the executing function in which the debug break occurred.
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
-  Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared, function)) {
-    // Return if we failed to retrieve the debug info.
-    return;
-  }
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
-  Handle<Code> code(debug_info->code());
-  Handle<Code> original_code(debug_info->original_code());
-#ifdef DEBUG
-  // Get the code which is actually executing.
-  Handle<Code> frame_code(frame->LookupCode());
-  DCHECK(frame_code.is_identical_to(code));
-#endif
-
-  // Find the call address in the running code. This address holds the call to
-  // either a DebugBreakXXX or to the debug break return entry code if the
-  // break point is still active after processing the break point.
-  Address addr = Assembler::break_address_from_return_address(frame->pc());
-
-  // Check if the location is at JS exit or debug break slot.
-  bool at_js_return = false;
-  bool break_at_js_return_active = false;
-  bool at_debug_break_slot = false;
-  RelocIterator it(debug_info->code());
-  while (!it.done() && !at_js_return && !at_debug_break_slot) {
-    if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
-      at_js_return = (it.rinfo()->pc() ==
-          addr - Assembler::kPatchReturnSequenceAddressOffset);
-      break_at_js_return_active = it.rinfo()->IsPatchedReturnSequence();
-    }
-    if (RelocInfo::IsDebugBreakSlot(it.rinfo()->rmode())) {
-      at_debug_break_slot = (it.rinfo()->pc() ==
-          addr - Assembler::kPatchDebugBreakSlotAddressOffset);
-    }
-    it.next();
-  }
-
-  // Handle the jump to continue execution after break point depending on the
-  // break location.
-  if (at_js_return) {
-    // If the break point at return is still active jump to the corresponding
-    // place in the original code. If not the break point was removed during
-    // break point processing.
-    if (break_at_js_return_active) {
-      addr += original_code->instruction_start() - code->instruction_start();
-    }
-
-    // Move back to where the call instruction sequence started.
-    after_break_target_ = addr - Assembler::kPatchReturnSequenceAddressOffset;
-  } else if (at_debug_break_slot) {
-    // Address of where the debug break slot starts.
-    addr = addr - Assembler::kPatchDebugBreakSlotAddressOffset;
-
-    // Continue just after the slot.
-    after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
-  }
+  // Continue just after the slot.
+  after_break_target_ = frame->pc();
 }
 
 
@@ -2085,9 +1992,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   // If there are no break points this cannot be break at return, as
   // the debugger statement and stack guard debug break cannot be at
   // return.
-  if (!has_break_points_) {
-    return false;
-  }
+  if (!has_break_points_) return false;
 
   PrepareForBreakPoints();
 
@@ -2106,17 +2011,11 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   DCHECK(frame_code.is_identical_to(code));
 #endif
 
-  // Find the call address in the running code.
-  Address addr = Assembler::break_address_from_return_address(frame->pc());
-
-  // Check if the location is at JS return.
-  RelocIterator it(debug_info->code());
-  while (!it.done()) {
-    if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
-      return (it.rinfo()->pc() ==
-          addr - Assembler::kPatchReturnSequenceAddressOffset);
-    }
-    it.next();
+  // Find the reloc info matching the start of the debug break slot.
+  Address slot_pc = frame->pc() - Assembler::kDebugBreakSlotLength;
+  int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
+  for (RelocIterator it(debug_info->code(), mask); !it.done(); it.next()) {
+    if (it.rinfo()->pc() == slot_pc) return true;
   }
   return false;
 }
@@ -3175,24 +3074,6 @@ void LockingCommandMessageQueue::Put(const CommandMessage& message) {
 void LockingCommandMessageQueue::Clear() {
   base::LockGuard<base::Mutex> lock_guard(&mutex_);
   queue_.Clear();
-}
-
-
-void DebugCodegen::RecordRelocInfo(MacroAssembler* masm,
-                                   DebugCodegen::SlotLocation location,
-                                   int call_argc) {
-  switch (location) {
-    case PLAIN_DEBUG_BREAK:
-      masm->RecordDebugBreakSlot();
-      return;
-    case DEBUG_BREAK_AT_CALL:
-      DCHECK_LE(0, call_argc);
-      masm->RecordDebugBreakSlotForCall(call_argc);
-      return;
-    case DEBUG_BREAK_AT_CONSTRUCT_CALL:
-      masm->RecordDebugBreakSlotForConstructCall();
-      return;
-  }
 }
 
 }  // namespace internal

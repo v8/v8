@@ -2901,16 +2901,15 @@ void Assembler::GrowBuffer() {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
-  if (((rmode >= RelocInfo::JS_RETURN) &&
+  if (((rmode >= RelocInfo::COMMENT) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_REASON) ||
       (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsJSReturn(rmode) ||
-           RelocInfo::IsComment(rmode) || RelocInfo::IsDeoptReason(rmode) ||
-           RelocInfo::IsPosition(rmode) ||
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode) ||
+           RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode) ||
            RelocInfo::IsGeneratorContinuation(rmode));

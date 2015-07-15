@@ -335,7 +335,6 @@ class SlotsBuffer {
     CODE_TARGET_SLOT,
     CODE_ENTRY_SLOT,
     DEBUG_TARGET_SLOT,
-    JS_RETURN_SLOT,
     NUMBER_OF_SLOT_TYPES
   };
 
@@ -355,8 +354,6 @@ class SlotsBuffer {
         return "CODE_ENTRY_SLOT";
       case DEBUG_TARGET_SLOT:
         return "DEBUG_TARGET_SLOT";
-      case JS_RETURN_SLOT:
-        return "JS_RETURN_SLOT";
       case NUMBER_OF_SLOT_TYPES:
         return "NUMBER_OF_SLOT_TYPES";
     }

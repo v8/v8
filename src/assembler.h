@@ -370,13 +370,13 @@ class RelocInfo {
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
-    JS_RETURN,  // Marks start of the ExitJSFrame code.
     COMMENT,
     POSITION,            // See comment for kNoPosition above.
     STATEMENT_POSITION,  // See comment for kNoPosition above.
 
     // Additional code inserted for debug break slot.
     DEBUG_BREAK_SLOT_AT_POSITION,
+    DEBUG_BREAK_SLOT_AT_RETURN,
     DEBUG_BREAK_SLOT_AT_CALL,
     DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL,
 
@@ -442,9 +442,6 @@ class RelocInfo {
   static inline bool IsGCRelocMode(Mode mode) {
     return mode <= LAST_GCED_ENUM;
   }
-  static inline bool IsJSReturn(Mode mode) {
-    return mode == JS_RETURN;
-  }
   static inline bool IsComment(Mode mode) {
     return mode == COMMENT;
   }
@@ -473,11 +470,15 @@ class RelocInfo {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
   static inline bool IsDebugBreakSlot(Mode mode) {
-    return IsDebugBreakSlotAtPosition(mode) || IsDebugBreakSlotAtCall(mode) ||
+    return IsDebugBreakSlotAtPosition(mode) || IsDebugBreakSlotAtReturn(mode) ||
+           IsDebugBreakSlotAtCall(mode) ||
            IsDebugBreakSlotAtConstructCall(mode);
   }
   static inline bool IsDebugBreakSlotAtPosition(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_POSITION;
+  }
+  static inline bool IsDebugBreakSlotAtReturn(Mode mode) {
+    return mode == DEBUG_BREAK_SLOT_AT_RETURN;
   }
   static inline bool IsDebugBreakSlotAtCall(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_CALL;
@@ -507,10 +508,11 @@ class RelocInfo {
   Code* host() const { return host_; }
   void set_host(Code* host) { host_ = host; }
 
-  // Apply a relocation by delta bytes
-  INLINE(void apply(intptr_t delta,
-                    ICacheFlushMode icache_flush_mode =
-                        FLUSH_ICACHE_IF_NEEDED));
+  // Apply a relocation by delta bytes. When the code object is moved, PC
+  // relative addresses have to be updated as well as absolute addresses
+  // inside the code (internal references).
+  // Do not forget to flush the icache afterwards!
+  INLINE(void apply(intptr_t delta));
 
   // Is the pointer this relocation info refers to coded like a plain pointer
   // or is it strange in some way (e.g. relative or patched into a series of
@@ -596,11 +598,8 @@ class RelocInfo {
   // Read/modify the address of a call instruction. This is used to relocate
   // the break points where straight-line code is patched with a call
   // instruction.
-  INLINE(Address call_address());
-  INLINE(void set_call_address(Address target));
-  INLINE(Object* call_object());
-  INLINE(void set_call_object(Object* target));
-  INLINE(Object** call_object_address());
+  INLINE(Address debug_call_address());
+  INLINE(void set_debug_call_address(Address target));
 
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
@@ -640,9 +639,9 @@ class RelocInfo {
   static const int kDataMask =
       (1 << CODE_TARGET_WITH_ID) | kPositionMask | (1 << COMMENT);
   static const int kDebugBreakSlotMask =
-      1 << DEBUG_BREAK_SLOT_AT_POSITION | 1 << DEBUG_BREAK_SLOT_AT_CALL |
-      1 << DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL;
-  static const int kApplyMask;  // Modes affected by apply. Depends on arch.
+      1 << DEBUG_BREAK_SLOT_AT_POSITION | 1 << DEBUG_BREAK_SLOT_AT_RETURN |
+      1 << DEBUG_BREAK_SLOT_AT_CALL | 1 << DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL;
+  static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
   // On ARM, note that pc_ is the address of the constant pool entry

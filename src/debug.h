@@ -78,7 +78,10 @@ class BreakLocation {
                                     BreakPositionAlignment alignment);
 
   bool IsDebugBreak() const;
-  inline bool IsExit() const { return RelocInfo::IsJSReturn(rmode_); }
+
+  inline bool IsReturn() const {
+    return RelocInfo::IsDebugBreakSlotAtReturn(rmode_);
+  }
   inline bool IsCall() const {
     return RelocInfo::IsDebugBreakSlotAtCall(rmode_);
   }
@@ -112,17 +115,13 @@ class BreakLocation {
   inline int statement_position() const { return statement_position_; }
 
   inline Address pc() const { return code()->entry() + pc_offset_; }
-  inline Address original_pc() const {
-    return debug_info_->original_code()->entry() + original_pc_offset_;
-  }
 
   inline RelocInfo::Mode rmode() const { return rmode_; }
 
   inline Code* code() const { return debug_info_->code(); }
 
  private:
-  BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
-                RelocInfo* original_rinfo, int position,
+  BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo, int position,
                 int statement_position);
 
   class Iterator {
@@ -130,11 +129,11 @@ class BreakLocation {
     Iterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
 
     BreakLocation GetBreakLocation() {
-      return BreakLocation(debug_info_, rinfo(), original_rinfo(), position(),
+      return BreakLocation(debug_info_, rinfo(), position(),
                            statement_position());
     }
 
-    inline bool Done() const { return RinfoDone(); }
+    inline bool Done() const { return reloc_iterator_.done(); }
     void Next();
 
     void SkipTo(int count) {
@@ -143,10 +142,6 @@ class BreakLocation {
 
     inline RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
     inline RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
-    inline RelocInfo* original_rinfo() {
-      return reloc_iterator_original_.rinfo();
-    }
-
     inline Address pc() { return rinfo()->pc(); }
     int break_index() const { return break_index_; }
     inline int position() const { return position_; }
@@ -155,12 +150,8 @@ class BreakLocation {
    private:
     static int GetModeMask(BreakLocatorType type);
 
-    bool RinfoDone() const;
-    void RinfoNext();
-
     Handle<DebugInfo> debug_info_;
     RelocIterator reloc_iterator_;
-    RelocIterator reloc_iterator_original_;
     int break_index_;
     int position_;
     int statement_position_;
@@ -175,12 +166,8 @@ class BreakLocation {
   static int BreakIndexFromAddress(Handle<DebugInfo> debug_info,
                                    BreakLocatorType type, Address pc);
 
-  void ClearDebugBreak();
-  void RestoreFromOriginal(int length_in_bytes);
-
   void SetDebugBreak();
-  void SetDebugBreakAtReturn();
-  void SetDebugBreakAtSlot();
+  void ClearDebugBreak();
 
   inline bool IsDebuggerStatement() const {
     return RelocInfo::IsDebuggerStatement(rmode_);
@@ -191,11 +178,8 @@ class BreakLocation {
 
   Handle<DebugInfo> debug_info_;
   int pc_offset_;
-  int original_pc_offset_;
   RelocInfo::Mode rmode_;
-  RelocInfo::Mode original_rmode_;
   intptr_t data_;
-  intptr_t original_data_;
   int position_;
   int statement_position_;
 };
@@ -792,16 +776,14 @@ class SuppressDebug BASE_EMBEDDED {
 // Code generator routines.
 class DebugCodegen : public AllStatic {
  public:
-  enum SlotLocation {
-    PLAIN_DEBUG_BREAK,
-    DEBUG_BREAK_AT_CALL,
-    DEBUG_BREAK_AT_CONSTRUCT_CALL
+  enum DebugBreakCallHelperMode {
+    SAVE_RESULT_REGISTER,
+    IGNORE_RESULT_REGISTER
   };
 
-  static void GenerateSlot(MacroAssembler* masm, SlotLocation location,
-                           int call_argc = -1);
-  static void GenerateReturnDebugBreak(MacroAssembler* masm);
-  static void GenerateSlotDebugBreak(MacroAssembler* masm);
+  static void GenerateDebugBreakStub(MacroAssembler* masm,
+                                     DebugBreakCallHelperMode mode);
+
   static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
 
   // FrameDropper is a code replacement for a JavaScript frame with possibly
@@ -810,9 +792,12 @@ class DebugCodegen : public AllStatic {
   // called, it only gets returned to.
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
 
- private:
-  static void RecordRelocInfo(MacroAssembler* masm, SlotLocation location,
-                              int call_argc);
+
+  static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
+                           int call_argc = -1);
+
+  static void PatchDebugBreakSlot(Address pc, Handle<Code> code);
+  static void ClearDebugBreakSlot(Address pc);
 };
 
 

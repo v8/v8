@@ -498,11 +498,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     EmitProfilingCounterReset();
     __ bind(&ok);
 
-#ifdef DEBUG
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    __ bind(&check_exit_codesize);
-#endif
     // Make sure that the constant pool is not emitted inside of the return
     // sequence.
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
@@ -511,7 +506,6 @@ void FullCodeGenerator::EmitReturnSequence() {
       SetReturnPosition(function());
       // TODO(svenpanne) The code below is sometimes 4 words, sometimes 5!
       PredictableCodeSizeScope predictable(masm_, -1);
-      __ RecordJSReturn();
       int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);
       { ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
         __ add(sp, sp, Operand(sp_delta));
@@ -519,13 +513,6 @@ void FullCodeGenerator::EmitReturnSequence() {
         info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
       }
     }
-
-#ifdef DEBUG
-    // Check that the size of the code used for returning is large enough
-    // for the debugger's requirements.
-    DCHECK(Assembler::kJSReturnSequenceInstructions <=
-           masm_->InstructionsGeneratedSince(&check_exit_codesize));
-#endif
   }
 }
 

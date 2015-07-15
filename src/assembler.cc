@@ -747,8 +747,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "property cell";
     case RUNTIME_ENTRY:
       return "runtime entry";
-    case JS_RETURN:
-      return "js return";
     case COMMENT:
       return "comment";
     case POSITION:
@@ -769,6 +767,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "veneer pool";
     case DEBUG_BREAK_SLOT_AT_POSITION:
       return "debug break slot at position";
+    case DEBUG_BREAK_SLOT_AT_RETURN:
+      return "debug break slot at return";
     case DEBUG_BREAK_SLOT_AT_CALL:
       return "debug break slot at call";
     case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
@@ -860,7 +860,6 @@ void RelocInfo::Verify(Isolate* isolate) {
       break;
     }
     case RUNTIME_ENTRY:
-    case JS_RETURN:
     case COMMENT:
     case POSITION:
     case STATEMENT_POSITION:
@@ -869,6 +868,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CONST_POOL:
     case VENEER_POOL:
     case DEBUG_BREAK_SLOT_AT_POSITION:
+    case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
     case GENERATOR_CONTINUATION:
@@ -1806,35 +1806,17 @@ void Assembler::RecordComment(const char* msg) {
 }
 
 
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
 void Assembler::RecordGeneratorContinuation() {
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::GENERATOR_CONTINUATION);
 }
 
 
-void Assembler::RecordDebugBreakSlot() {
+void Assembler::RecordDebugBreakSlot(RelocInfo::Mode mode, int call_argc) {
   EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
-}
-
-
-void Assembler::RecordDebugBreakSlotForCall(int argc) {
-  EnsureSpace ensure_space(this);
-  intptr_t data = static_cast<intptr_t>(argc);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL, data);
-}
-
-
-void Assembler::RecordDebugBreakSlotForConstructCall() {
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
+  DCHECK(RelocInfo::IsDebugBreakSlot(mode));
+  intptr_t data = static_cast<intptr_t>(call_argc);
+  RecordRelocInfo(mode, data);
 }
 
 

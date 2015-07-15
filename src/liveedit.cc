@@ -1188,13 +1188,6 @@ void LiveEdit::ReplaceFunctionCode(
     }
   }
 
-  if (shared_info->debug_info()->IsDebugInfo()) {
-    Handle<DebugInfo> debug_info(DebugInfo::cast(shared_info->debug_info()));
-    Handle<Code> new_original_code =
-        isolate->factory()->CopyCode(compile_info_wrapper.GetFunctionCode());
-    debug_info->set_original_code(*new_original_code);
-  }
-
   int start_position = compile_info_wrapper.GetStartPosition();
   int end_position = compile_info_wrapper.GetEndPosition();
   shared_info->set_start_position(start_position);

@@ -464,26 +464,14 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ pop(eax);
     EmitProfilingCounterReset();
     __ bind(&ok);
-#ifdef DEBUG
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    masm_->bind(&check_exit_codesize);
-#endif
+
     SetReturnPosition(function());
-    __ RecordJSReturn();
-    // Do not use the leave instruction here because it is too short to
-    // patch with the code required by the debugger.
-    __ mov(esp, ebp);
     int no_frame_start = masm_->pc_offset();
-    __ pop(ebp);
+    __ leave();
 
     int arg_count = info_->scope()->num_parameters() + 1;
     int arguments_bytes = arg_count * kPointerSize;
     __ Ret(arguments_bytes, ecx);
-    // Check that the size of the code used for returning is large enough
-    // for the debugger's requirements.
-    DCHECK(Assembler::kJSReturnSequenceLength <=
-           masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
     info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }

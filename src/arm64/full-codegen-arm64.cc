@@ -492,34 +492,23 @@ void FullCodeGenerator::EmitReturnSequence() {
     EmitProfilingCounterReset();
     __ Bind(&ok);
 
-    // Make sure that the constant pool is not emitted inside of the return
-    // sequence. This sequence can get patched when the debugger is used. See
-    // debug-arm64.cc:BreakLocation::SetDebugBreakAtReturn().
-    {
-      InstructionAccurateScope scope(masm_,
-                                     Assembler::kJSReturnSequenceInstructions);
-      SetReturnPosition(function());
-      __ RecordJSReturn();
-      // This code is generated using Assembler methods rather than Macro
-      // Assembler methods because it will be patched later on, and so the size
-      // of the generated code must be consistent.
-      const Register& current_sp = __ StackPointer();
-      // Nothing ensures 16 bytes alignment here.
-      DCHECK(!current_sp.Is(csp));
-      __ mov(current_sp, fp);
-      int no_frame_start = masm_->pc_offset();
-      __ ldp(fp, lr, MemOperand(current_sp, 2 * kXRegSize, PostIndex));
-      // Drop the arguments and receiver and return.
-      // TODO(all): This implementation is overkill as it supports 2**31+1
-      // arguments, consider how to improve it without creating a security
-      // hole.
-      __ ldr_pcrel(ip0, (3 * kInstructionSize) >> kLoadLiteralScaleLog2);
-      __ add(current_sp, current_sp, ip0);
-      __ ret();
-      int32_t arg_count = info_->scope()->num_parameters() + 1;
-      __ dc64(kXRegSize * arg_count);
-      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
-    }
+    SetReturnPosition(function());
+    const Register& current_sp = __ StackPointer();
+    // Nothing ensures 16 bytes alignment here.
+    DCHECK(!current_sp.Is(csp));
+    __ Mov(current_sp, fp);
+    int no_frame_start = masm_->pc_offset();
+    __ Ldp(fp, lr, MemOperand(current_sp, 2 * kXRegSize, PostIndex));
+    // Drop the arguments and receiver and return.
+    // TODO(all): This implementation is overkill as it supports 2**31+1
+    // arguments, consider how to improve it without creating a security
+    // hole.
+    __ ldr_pcrel(ip0, (3 * kInstructionSize) >> kLoadLiteralScaleLog2);
+    __ Add(current_sp, current_sp, ip0);
+    __ Ret();
+    int32_t arg_count = info_->scope()->num_parameters() + 1;
+    __ dc64(kXRegSize * arg_count);
+    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }
 

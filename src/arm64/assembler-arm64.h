@@ -893,9 +893,6 @@ class Assembler : public AssemblerBase {
   // instruction stream that call will return from.
   inline static Address return_address_from_call_start(Address pc);
 
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
-
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -955,24 +952,12 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  // Number of instructions generated for the return sequence in
-  // FullCodeGenerator::EmitReturnSequence.
-  static const int kJSReturnSequenceInstructions = 7;
-  static const int kJSReturnSequenceLength =
-      kJSReturnSequenceInstructions * kInstructionSize;
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  static const int kPatchReturnSequenceAddressOffset =  0;
   static const int kPatchDebugBreakSlotAddressOffset =  0;
 
   // Number of instructions necessary to be able to later patch it to a call.
-  // See DebugCodegen::GenerateSlot() and
-  // BreakLocation::SetDebugBreakAtSlot().
-  static const int kDebugBreakSlotInstructions = 4;
+  static const int kDebugBreakSlotInstructions = 5;
   static const int kDebugBreakSlotLength =
     kDebugBreakSlotInstructions * kInstructionSize;
-
-  static const int kPatchDebugBreakSlotReturnOffset = 2 * kInstructionSize;
 
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -1022,16 +1007,11 @@ class Assembler : public AssemblerBase {
 
   int buffer_space() const;
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
-
   // Mark generator continuation.
   void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
-  void RecordDebugBreakSlotForCall(int argc);
-  void RecordDebugBreakSlotForConstructCall();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record the emission of a constant pool.
   //

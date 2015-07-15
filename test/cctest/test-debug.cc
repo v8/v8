@@ -412,13 +412,10 @@ void CheckDebuggerUnloaded(bool check_functions) {
     if (check_functions) {
       if (obj->IsJSFunction()) {
         JSFunction* fun = JSFunction::cast(obj);
-        for (RelocIterator it(fun->shared()->code()); !it.done(); it.next()) {
-          RelocInfo::Mode rmode = it.rinfo()->rmode();
-          if (RelocInfo::IsCodeTarget(rmode)) {
-            CHECK(!Debug::IsDebugBreak(it.rinfo()->target_address()));
-          } else if (RelocInfo::IsJSReturn(rmode)) {
-            CHECK(!it.rinfo()->IsPatchedReturnSequence());
-          }
+        for (RelocIterator it(fun->shared()->code(),
+                              RelocInfo::kDebugBreakSlotMask);
+             !it.done(); it.next()) {
+          CHECK(!it.rinfo()->IsPatchedDebugBreakSlotSequence());
         }
       }
     }
