@@ -503,6 +503,61 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
 }
 
 
+void TypeFeedbackVector::Print() {
+  OFStream os(stdout);
+  TypeFeedbackVectorPrint(os);
+  os << std::flush;
+}
+
+
+void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "TypeFeedbackVector");
+  os << " - length: " << length();
+  if (length() == 0) {
+    os << " (empty)\n";
+    return;
+  }
+
+  os << "\n - ics with type info: " << ic_with_type_info_count();
+  os << "\n - generic ics: " << ic_generic_count();
+
+  if (Slots() > 0) {
+    for (int i = 0; i < Slots(); i++) {
+      FeedbackVectorSlot slot(i);
+      os << "\n Slot " << i << " [" << GetIndex(slot)
+         << "]: " << Brief(Get(slot));
+    }
+  }
+
+  if (ICSlots() > 0) {
+    DCHECK(elements_per_ic_slot() == 2);
+
+    for (int i = 0; i < ICSlots(); i++) {
+      FeedbackVectorICSlot slot(i);
+      Code::Kind kind = GetKind(slot);
+      os << "\n ICSlot " << i;
+      if (kind == Code::LOAD_IC) {
+        LoadICNexus nexus(this, slot);
+        os << " LOAD_IC " << Code::ICState2String(nexus.StateFromFeedback());
+      } else if (kind == Code::KEYED_LOAD_IC) {
+        KeyedLoadICNexus nexus(this, slot);
+        os << " KEYED_LOAD_IC "
+           << Code::ICState2String(nexus.StateFromFeedback());
+      } else {
+        DCHECK(kind == Code::CALL_IC);
+        CallICNexus nexus(this, slot);
+        os << " CALL_IC " << Code::ICState2String(nexus.StateFromFeedback());
+      }
+
+      os << "\n  [" << GetIndex(slot) << "]: " << Brief(Get(slot));
+      os << "\n  [" << (GetIndex(slot) + 1)
+         << "]: " << Brief(get(GetIndex(slot) + 1));
+    }
+  }
+  os << "\n";
+}
+
+
 void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ValueObject");
   value()->Print(os);
@@ -761,7 +816,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - length = " << length();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
   os << "\n - feedback_vector = ";
-  feedback_vector()->FixedArrayPrint(os);
+  feedback_vector()->TypeFeedbackVectorPrint(os);
   os << "\n";
 }
 

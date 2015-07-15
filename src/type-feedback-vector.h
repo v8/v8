@@ -192,6 +192,13 @@ class TypeFeedbackVector : public FixedArray {
   static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
                                          Handle<TypeFeedbackVector> vector);
 
+#ifdef OBJECT_PRINT
+  // For gdb debugging.
+  void Print();
+#endif  // OBJECT_PRINT
+
+  DECLARE_PRINTER(TypeFeedbackVector)
+
   // Clears the vector slots and the vector ic slots.
   void ClearSlots(SharedFunctionInfo* shared) { ClearSlotsImpl(shared, true); }
   void ClearSlotsAtGCTime(SharedFunctionInfo* shared) {
