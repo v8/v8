@@ -286,9 +286,6 @@
   'built-ins/Boolean/prototype/valueOf/S15.6.4.3_A1_T1': [FAIL],
   'built-ins/Boolean/prototype/valueOf/S15.6.4.3_A1_T2': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4118
-  'built-ins/Object/getOwnPropertyNames/15.2.3.4-4-44': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=3087
   'built-ins/Array/prototype/every/15.4.4.16-3-12': [FAIL],
   'built-ins/Array/prototype/every/15.4.4.16-3-14': [FAIL],
