@@ -21735,7 +21735,6 @@ TEST(Map) {
   CHECK_EQ(3, contents->Get(2).As<v8::Int32>()->Value());
   CHECK_EQ(4, contents->Get(3).As<v8::Int32>()->Value());
 
-  map = v8::Map::FromArray(env.local(), contents).ToLocalChecked();
   CHECK_EQ(2U, map->Size());
 
   CHECK(map->Has(env.local(), v8::Integer::New(isolate, 1)).FromJust());
@@ -21769,16 +21768,6 @@ TEST(Map) {
 }
 
 
-TEST(MapFromArrayOddLength) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  LocalContext env;
-  // Odd lengths result in a null MaybeLocal.
-  Local<v8::Array> contents = v8::Array::New(isolate, 41);
-  CHECK(v8::Map::FromArray(env.local(), contents).IsEmpty());
-}
-
-
 TEST(Set) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -21800,7 +21789,6 @@ TEST(Set) {
   CHECK_EQ(1, keys->Get(0).As<v8::Int32>()->Value());
   CHECK_EQ(2, keys->Get(1).As<v8::Int32>()->Value());
 
-  set = v8::Set::FromArray(env.local(), keys).ToLocalChecked();
   CHECK_EQ(2U, set->Size());
 
   CHECK(set->Has(env.local(), v8::Integer::New(isolate, 1)).FromJust());

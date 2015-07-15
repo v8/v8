@@ -3015,8 +3015,9 @@ class V8_EXPORT Map : public Object {
    * in the same manner as the array returned from AsArray().
    * Guaranteed to be side-effect free if the array contains no holes.
    */
-  static V8_WARN_UNUSED_RESULT MaybeLocal<Map> FromArray(Local<Context> context,
-                                                         Local<Array> array);
+  static V8_WARN_UNUSED_RESULT V8_DEPRECATED(
+      "Use mutation methods instead",
+      MaybeLocal<Map> FromArray(Local<Context> context, Local<Array> array));
 
   V8_INLINE static Map* Cast(Value* obj);
 
@@ -3054,8 +3055,9 @@ class V8_EXPORT Set : public Object {
    * Creates a new Set containing the items in array.
    * Guaranteed to be side-effect free if the array contains no holes.
    */
-  static V8_WARN_UNUSED_RESULT MaybeLocal<Set> FromArray(Local<Context> context,
-                                                         Local<Array> array);
+  static V8_WARN_UNUSED_RESULT V8_DEPRECATED(
+      "Use mutation methods instead",
+      MaybeLocal<Set> FromArray(Local<Context> context, Local<Array> array));
 
   V8_INLINE static Set* Cast(Value* obj);
 
