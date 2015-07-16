@@ -6858,6 +6858,9 @@ class SharedFunctionInfo: public HeapObject {
                                                reason));
   }
 
+  // Tells whether this function should be subject to debugging.
+  inline bool IsSubjectToDebugging();
+
   // Check whether or not this function is inlineable.
   bool IsInlineable();
 
@@ -7249,12 +7252,6 @@ class JSFunction: public JSObject {
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();
-
-  // Tells whether this function is defined in a native script.
-  inline bool IsFromNativeScript();
-
-  // Tells whether this function is defined in an extension script.
-  inline bool IsFromExtensionScript();
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();

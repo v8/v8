@@ -926,9 +926,6 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<JSFunction> function,
                              BreakLocatorType type) {
-  // Do not ever break in native and extension functions.
-  if (!function->IsSubjectToDebugging()) return;
-
   PrepareForBreakPoints();
 
   // Make sure the function is compiled and has set up the debug info.
@@ -951,8 +948,7 @@ void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
   Handle<Object> bindee(new_bindings->get(JSFunction::kBoundFunctionIndex),
                         isolate_);
 
-  if (!bindee.is_null() && bindee->IsJSFunction() &&
-      JSFunction::cast(*bindee)->IsSubjectToDebugging()) {
+  if (!bindee.is_null() && bindee->IsJSFunction()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
     FloodWithOneShotGeneric(bindee_function);
   }
@@ -1881,20 +1877,22 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
 // Ensures the debug information is present for shared.
 bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
                             Handle<JSFunction> function) {
-  Isolate* isolate = shared->GetIsolate();
+  if (!shared->IsSubjectToDebugging()) return false;
 
   // Return if we already have the debug info for shared.
   if (HasDebugInfo(shared)) {
     DCHECK(shared->is_compiled());
+    DCHECK(shared->code()->has_debug_break_slots());
     return true;
   }
 
   // There will be at least one break point when we are done.
   has_break_points_ = true;
 
-  // Ensure function is compiled. Return false if this failed.
-  if (!function.is_null() &&
-      !Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
+  if (function.is_null()) {
+    DCHECK(shared->is_compiled());
+    DCHECK(shared->code()->has_debug_break_slots());
+  } else if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
 
@@ -1904,7 +1902,9 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   shared->feedback_vector()->ClearICSlots(*shared);
 
   // Create the debug info object.
-  Handle<DebugInfo> debug_info = isolate->factory()->NewDebugInfo(shared);
+  DCHECK(shared->is_compiled());
+  DCHECK(shared->code()->has_debug_break_slots());
+  Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
 
   // Add debug info to the list.
   DebugInfoListNode* node = new DebugInfoListNode(*debug_info);
