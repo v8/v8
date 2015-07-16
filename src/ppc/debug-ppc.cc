@@ -12,36 +12,39 @@
 namespace v8 {
 namespace internal {
 
-void BreakLocation::SetDebugBreakAtReturn() {
-  // Patch the code changing the return from JS function sequence from
-  //
-  //   LeaveFrame
-  //   blr
-  //
-  // to a call to the debug break return code.
-  // this uses a FIXED_SEQUENCE to load an address constant
-  //
-  //   mov r0, <address>
-  //   mtlr r0
-  //   blrl
-  //   bkpt
-  //
-  CodePatcher patcher(pc(), Assembler::kJSReturnSequenceInstructions);
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(patcher.masm());
-  patcher.masm()->mov(
-      v8::internal::r0,
-      Operand(reinterpret_cast<intptr_t>(debug_info_->GetIsolate()
-                                             ->builtins()
-                                             ->Return_DebugBreak()
-                                             ->entry())));
-  patcher.masm()->mtctr(v8::internal::r0);
-  patcher.masm()->bctrl();
-  patcher.masm()->bkpt(0);
+#define __ ACCESS_MASM(masm)
+
+
+void EmitDebugBreakSlot(MacroAssembler* masm) {
+  Label check_size;
+  __ bind(&check_size);
+  for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
+    __ nop(MacroAssembler::DEBUG_BREAK_NOP);
+  }
+  DCHECK_EQ(Assembler::kDebugBreakSlotInstructions,
+            masm->InstructionsGeneratedSince(&check_size));
 }
 
 
-void BreakLocation::SetDebugBreakAtSlot() {
-  DCHECK(IsDebugBreakSlot());
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
+                                int call_argc) {
+  // Generate enough nop's to make space for a call instruction. Avoid emitting
+  // the trampoline pool in the debug break slot code.
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
+  masm->RecordDebugBreakSlot(mode, call_argc);
+  EmitDebugBreakSlot(masm);
+}
+
+
+void DebugCodegen::ClearDebugBreakSlot(Address pc) {
+  CodePatcher patcher(pc, Assembler::kDebugBreakSlotInstructions);
+  EmitDebugBreakSlot(patcher.masm());
+}
+
+
+void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
+  DCHECK_EQ(Code::BUILTIN, code->kind());
+  CodePatcher patcher(pc, Assembler::kDebugBreakSlotInstructions);
   // Patch the code changing the debug break slot code from
   //
   //   ori r3, r3, 0
@@ -56,22 +59,17 @@ void BreakLocation::SetDebugBreakAtSlot() {
   //   mtlr r0
   //   blrl
   //
-  CodePatcher patcher(pc(), Assembler::kDebugBreakSlotInstructions);
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(patcher.masm());
-  patcher.masm()->mov(
-      v8::internal::r0,
-      Operand(reinterpret_cast<intptr_t>(
-          debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry())));
+  patcher.masm()->mov(v8::internal::r0,
+                      Operand(reinterpret_cast<intptr_t>(code->entry())));
   patcher.masm()->mtctr(v8::internal::r0);
   patcher.masm()->bctrl();
 }
 
 
-#define __ ACCESS_MASM(masm)
-
-
-static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
-                                          RegList object_regs) {
+void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
+                                          DebugBreakCallHelperMode mode) {
+  __ RecordComment("Debug break");
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
@@ -83,35 +81,22 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ LoadSmiLiteral(ip, Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
     __ push(ip);
 
-    // Store the registers containing live values on the expression stack to
-    // make sure that these are correctly updated during GC. Non object values
-    // are stored as a smi causing it to be untouched by GC.
-    DCHECK((object_regs & ~kJSCallerSaved) == 0);
-    if (object_regs != 0) {
-      __ MultiPush(object_regs);
-    }
+    if (mode == SAVE_RESULT_REGISTER) __ push(r3);
 
-#ifdef DEBUG
-    __ RecordComment("// Calling from debug break to runtime - come in - over");
-#endif
     __ mov(r3, Operand::Zero());  // no arguments
     __ mov(r4, Operand(ExternalReference::debug_break(masm->isolate())));
 
     CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);
 
-    // Restore the register values from the expression stack.
-    if (object_regs != 0) {
-      __ MultiPop(object_regs);
-    }
-
-    for (int i = 0; i < kNumJSCallerSaved; i++) {
-      int r = JSCallerSavedCode(i);
-      Register reg = {r};
-      if (FLAG_debug_code && ((object_regs & (1 << r)) == 0)) {
+    if (FLAG_debug_code) {
+      for (int i = 0; i < kNumJSCallerSaved; i++) {
+        Register reg = {JSCallerSavedCode(i)};
         __ mov(reg, Operand(kDebugZapValue));
       }
     }
+
+    if (mode == SAVE_RESULT_REGISTER) __ pop(r3);
 
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.
@@ -127,38 +112,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ mov(ip, Operand(after_break_target));
   __ LoadP(ip, MemOperand(ip));
   __ JumpToJSEntry(ip);
-}
-
-
-void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
-  // In places other than IC call sites it is expected that r3 is TOS which
-  // is an object - this is not generally the case so this should be used with
-  // care.
-  Generate_DebugBreakCallHelper(masm, r3.bit());
-}
-
-
-void DebugCodegen::GenerateSlot(MacroAssembler* masm,
-                                DebugCodegen::SlotLocation location,
-                                int call_argc) {
-  // Generate enough nop's to make space for a call instruction. Avoid emitting
-  // the trampoline pool in the debug break slot code.
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
-  Label check_codesize;
-  __ bind(&check_codesize);
-  RecordRelocInfo(masm, location, call_argc);
-  for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
-    __ nop(MacroAssembler::DEBUG_BREAK_NOP);
-  }
-  DCHECK_EQ(Assembler::kDebugBreakSlotInstructions,
-            masm->InstructionsGeneratedSince(&check_codesize));
-}
-
-
-void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
-  // In the places where a debug break slot is inserted no registers can contain
-  // object pointers.
-  Generate_DebugBreakCallHelper(masm, 0);
 }
 
 

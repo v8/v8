@@ -643,9 +643,6 @@ class Assembler : public AssemblerBase {
   // in the instruction stream that the call will return to.
   INLINE(static Address return_address_from_call_start(Address pc));
 
-  // Return the code target address of the patch debug break slot
-  INLINE(static Address break_address_from_return_address(Address pc));
-
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -696,14 +693,6 @@ class Assembler : public AssemblerBase {
   static const int kCallTargetAddressOffset =
       (kMovInstructions + 2) * kInstrSize;
 
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  // Patched return sequence is a FIXED_SEQUENCE:
-  //   mov r0, <address>
-  //   mtlr r0
-  //   blrl
-  static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize;
-
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
   // Patched debug break slot code is a FIXED_SEQUENCE:
@@ -711,13 +700,6 @@ class Assembler : public AssemblerBase {
   //   mtlr r0
   //   blrl
   static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
-
-  // This is the length of the BreakLocation::SetDebugBreakAtReturn()
-  // code patch FIXED_SEQUENCE
-  static const int kJSReturnSequenceInstructions =
-      kMovInstructionsNoConstantPool + 3;
-  static const int kJSReturnSequenceLength =
-      kJSReturnSequenceInstructions * kInstrSize;
 
   // This is the length of the code sequence from SetDebugBreakAtSlot()
   // FIXED_SEQUENCE
@@ -1297,16 +1279,11 @@ class Assembler : public AssemblerBase {
 
   // Debugging
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
-
   // Mark generator continuation.
   void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
-  void RecordDebugBreakSlotForCall(int argc);
-  void RecordDebugBreakSlotForConstructCall();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.

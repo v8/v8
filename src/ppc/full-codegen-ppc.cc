@@ -491,11 +491,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     EmitProfilingCounterReset();
     __ bind(&ok);
 
-#ifdef DEBUG
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    __ bind(&check_exit_codesize);
-#endif
     // Make sure that the constant pool is not emitted inside of the return
     // sequence.
     {
@@ -503,26 +498,10 @@ void FullCodeGenerator::EmitReturnSequence() {
       int32_t arg_count = info_->scope()->num_parameters() + 1;
       int32_t sp_delta = arg_count * kPointerSize;
       SetReturnPosition(function());
-      __ RecordJSReturn();
       int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT, sp_delta);
-#if V8_TARGET_ARCH_PPC64
-      // With 64bit we may need nop() instructions to ensure we have
-      // enough space to SetDebugBreakAtReturn()
-      if (is_int16(sp_delta)) {
-        if (!FLAG_enable_embedded_constant_pool) masm_->nop();
-        masm_->nop();
-      }
-#endif
       __ blr();
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
-
-#ifdef DEBUG
-    // Check that the size of the code used for returning is large enough
-    // for the debugger's requirements.
-    DCHECK(Assembler::kJSReturnSequenceInstructions <=
-           masm_->InstructionsGeneratedSince(&check_exit_codesize));
-#endif
   }
 }
 
