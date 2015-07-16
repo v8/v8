@@ -27,8 +27,3 @@ load('ecmascript_simd.js');
 load('base.js');
 
 })();
-
-// ecmascript_simd_tests logs errors to the console.
-var console = {
-  log: function(x) { print(x); },
-};

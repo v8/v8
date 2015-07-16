@@ -1877,7 +1877,6 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sharedarraybuffer)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_atomics)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_new_target)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_concat_spreadable)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_simd)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1983,32 +1982,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
       JSArrayBuffer::kSizeWithInternalFields,
       isolate()->initial_object_prototype(), Builtins::kIllegal);
   native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
-}
-
-
-void Genesis::InitializeGlobal_harmony_simd() {
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<String> name = factory->InternalizeUtf8String("SIMD");
-  Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(
-      cons,
-      Handle<Object>(native_context()->initial_object_prototype(), isolate));
-  cons->SetInstanceClassName(*name);
-  Handle<JSObject> simd_object = factory->NewJSObject(cons, TENURED);
-  DCHECK(simd_object->IsJSObject());
-  JSObject::AddProperty(global, name, simd_object, DONT_ENUM);
-
-  Handle<JSFunction> float32x4_function =
-      InstallFunction(simd_object, "Float32x4", JS_VALUE_TYPE, JSValue::kSize,
-                      isolate->initial_object_prototype(), Builtins::kIllegal);
-  // Set the instance class name since InstallFunction only does this when
-  // we install on the GlobalObject.
-  float32x4_function->SetInstanceClassName(*factory->Float32x4_string());
-  native_context()->set_float32x4_function(*float32x4_function);
 }
 
 
@@ -2596,8 +2569,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_new_target_natives[] = {nullptr};
   static const char* harmony_concat_spreadable_natives[] = {
       "native harmony-concat-spreadable.js", nullptr};
-  static const char* harmony_simd_natives[] = {"native harmony-simd.js",
-                                               nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

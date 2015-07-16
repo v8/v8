@@ -227,8 +227,6 @@ namespace internal {
   V(constructor_string, "constructor")                         \
   V(dot_result_string, ".result")                              \
   V(eval_string, "eval")                                       \
-  V(float32x4_string, "float32x4")                             \
-  V(Float32x4_string, "Float32x4")                             \
   V(function_string, "function")                               \
   V(Function_string, "Function")                               \
   V(length_string, "length")                                   \
