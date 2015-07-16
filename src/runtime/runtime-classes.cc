@@ -524,11 +524,5 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   UNIMPLEMENTED();
   return nullptr;
 }
-
-
-RUNTIME_FUNCTION(Runtime_CallSuperWithSpread) {
-  UNIMPLEMENTED();
-  return nullptr;
-}
 }  // namespace internal
 }  // namespace v8

@@ -2584,8 +2584,7 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   // TODO(mstarzinger): This bailout is a gigantic hack, the owner is ashamed.
   if (function->function_id == Runtime::kInlineGeneratorNext ||
       function->function_id == Runtime::kInlineGeneratorThrow ||
-      function->function_id == Runtime::kInlineDefaultConstructorCallSuper ||
-      function->function_id == Runtime::kInlineCallSuperWithSpread) {
+      function->function_id == Runtime::kInlineDefaultConstructorCallSuper) {
     ast_context()->ProduceValue(jsgraph()->TheHoleConstant());
     return SetStackOverflow();
   }

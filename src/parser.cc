@@ -5931,16 +5931,16 @@ Expression* Parser::SpreadCall(Expression* function,
                                int pos) {
   if (function->IsSuperCallReference()) {
     // Super calls
-    // %_CallSuperWithSpread(%ReflectConstruct(<super>, args, new.target))
-    args->InsertAt(0, function, zone());
-    args->Add(function->AsSuperCallReference()->new_target_var(), zone());
-    Expression* result = factory()->NewCallRuntime(
-        ast_value_factory()->reflect_construct_string(), NULL, args, pos);
-    args = new (zone()) ZoneList<Expression*>(1, zone());
-    args->Add(result, zone());
-    return factory()->NewCallRuntime(
+    // %ReflectConstruct(%GetPrototype(<this-function>), args, new.target))
+    ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
+    tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
+    Expression* get_prototype = factory()->NewCallRuntime(
         ast_value_factory()->empty_string(),
-        Runtime::FunctionForId(Runtime::kInlineCallSuperWithSpread), args, pos);
+        Runtime::FunctionForId(Runtime::kGetPrototype), tmp, pos);
+    args->InsertAt(0, get_prototype, zone());
+    args->Add(function->AsSuperCallReference()->new_target_var(), zone());
+    return factory()->NewCallRuntime(
+        ast_value_factory()->reflect_construct_string(), NULL, args, pos);
   } else {
     if (function->IsProperty()) {
       // Method calls

@@ -4725,44 +4725,6 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitCallSuperWithSpread(CallRuntime* expr) {
-  // Assert: expr === CallRuntime("ReflectConstruct")
-  DCHECK_EQ(1, expr->arguments()->length());
-  CallRuntime* call = expr->arguments()->at(0)->AsCallRuntime();
-
-  ZoneList<Expression*>* args = call->arguments();
-  DCHECK_EQ(3, args->length());
-
-  SuperCallReference* super_call_ref = args->at(0)->AsSuperCallReference();
-  DCHECK_NOT_NULL(super_call_ref);
-
-  // Load ReflectConstruct function
-  EmitLoadJSRuntimeFunction(call);
-
-  // Push the target function under the receiver.
-  __ ld(at, MemOperand(sp, 0));
-  __ push(at);
-  __ sd(v0, MemOperand(sp, kPointerSize));
-
-  // Push super constructor
-  EmitLoadSuperConstructor(super_call_ref);
-  __ Push(result_register());
-
-  // Push arguments array
-  VisitForStackValue(args->at(1));
-
-  // Push NewTarget
-  DCHECK(args->at(2)->IsVariableProxy());
-  VisitForStackValue(args->at(2));
-
-  EmitCallJSRuntimeFunction(call);
-
-  // Restore context register.
-  __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  context()->DropAndPlug(1, v0);
-}
-
-
 void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   // Push the builtins object as the receiver.
   Register receiver = LoadDescriptor::ReceiverRegister();
