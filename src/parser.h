@@ -1155,6 +1155,8 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
       SingletonLogger* logger, Scanner::BookmarkScope* bookmark = nullptr);
 
+  bool IsSimpleParameterList(
+      const ParserFormalParameterParsingState& formal_parameters);
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameterParsingState& formal_parameters, bool* ok);
 
@@ -1338,6 +1340,7 @@ void ParserTraits::DeclareFormalParameter(
 void ParserTraits::AddParameterInitializationBlock(
     const ParserFormalParameterParsingState& formal_parameters,
     ZoneList<v8::internal::Statement*>* body, bool* ok) {
+  if (parser_->IsSimpleParameterList(formal_parameters)) return;
   auto* init_block =
       parser_->BuildParameterInitializationBlock(formal_parameters, ok);
   if (!*ok) return;

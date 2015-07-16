@@ -4307,16 +4307,23 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var) {
 }
 
 
+bool Parser::IsSimpleParameterList(
+    const ParserFormalParameterParsingState& formal_parameters) {
+  for (auto parameter : formal_parameters.params) {
+    if (parameter.pattern != nullptr) return false;
+  }
+  return true;
+}
+
+
 Block* Parser::BuildParameterInitializationBlock(
     const ParserFormalParameterParsingState& formal_parameters, bool* ok) {
+  DCHECK(!IsSimpleParameterList(formal_parameters));
   DCHECK(scope_->is_function_scope());
-  Block* init_block = nullptr;
+  Block* init_block =
+      factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
   for (auto parameter : formal_parameters.params) {
     if (parameter.pattern == nullptr) continue;
-    if (init_block == nullptr) {
-      init_block = factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
-    }
-
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.parser = this;
@@ -4342,6 +4349,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameterParsingState& formal_parameters, Variable* fvar,
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
+  bool is_simple_parameter_list = IsSimpleParameterList(formal_parameters);
+
   // Everything inside an eagerly parsed function will be parsed eagerly
   // (see comment above).
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
@@ -4367,17 +4376,13 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   ZoneList<Statement*>* body = result;
   Scope* inner_scope = nullptr;
   Block* inner_block = nullptr;
-  Block* init_block =
-      BuildParameterInitializationBlock(formal_parameters, CHECK_OK);
-  if (init_block != nullptr) {
-    body->Add(init_block, zone());
-    // Wrap the actual function body into an inner scope.
-    inner_block = factory()->NewBlock(NULL, 8, true, RelocInfo::kNoPosition);
-    body->Add(inner_block, zone());
-    body = inner_block->statements();
+  if (!is_simple_parameter_list) {
     inner_scope = NewScope(scope_, BLOCK_SCOPE);
     inner_scope->set_is_declaration_scope();
     inner_scope->set_start_position(scanner()->location().beg_pos);
+    inner_block = factory()->NewBlock(NULL, 8, true, RelocInfo::kNoPosition);
+    inner_block->set_scope(inner_scope);
+    body = inner_block->statements();
   }
 
   {
@@ -4427,11 +4432,20 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
   Expect(Token::RBRACE, CHECK_OK);
   scope_->set_end_position(scanner()->location().end_pos);
-  if (inner_scope != nullptr) {
-    DCHECK(inner_block != nullptr);
+
+  if (!is_simple_parameter_list) {
+    DCHECK_NOT_NULL(inner_scope);
+    DCHECK_EQ(body, inner_block->statements());
+    scope_->SetLanguageMode(inner_scope->language_mode());
+    Block* init_block =
+        BuildParameterInitializationBlock(formal_parameters, CHECK_OK);
+    DCHECK_NOT_NULL(init_block);
+
     inner_scope->set_end_position(scanner()->location().end_pos);
     inner_scope = inner_scope->FinalizeBlockScope();
-    inner_block->set_scope(inner_scope);
+
+    result->Add(init_block, zone());
+    result->Add(inner_block, zone());
   }
 
   return result;
