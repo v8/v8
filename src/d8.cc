@@ -202,11 +202,11 @@ CounterMap* Shell::counter_map_;
 base::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
-base::Mutex Shell::context_mutex_;
+base::LazyMutex Shell::context_mutex_;
 const base::TimeTicks Shell::kInitialTicks =
     base::TimeTicks::HighResolutionNow();
 Persistent<Context> Shell::utility_context_;
-base::Mutex Shell::workers_mutex_;
+base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
 i::List<SharedArrayBuffer::Contents> Shell::externalized_shared_contents_;
@@ -699,7 +699,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&workers_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
     if (!allow_new_workers_) return;
 
     Worker* worker = new Worker;
@@ -1203,7 +1203,7 @@ void Shell::InitializeDebugger(Isolate* isolate) {
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
 #ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
-  base::LockGuard<base::Mutex> lock_guard(&context_mutex_);
+  base::LockGuard<base::Mutex> lock_guard(context_mutex_.Pointer());
 #endif  // !V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
@@ -2252,7 +2252,7 @@ void Shell::CleanupWorkers() {
   // create a new Worker, it would deadlock.
   i::List<Worker*> workers_copy;
   {
-    base::LockGuard<base::Mutex> lock_guard(&workers_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
     allow_new_workers_ = false;
     workers_copy.AddAll(workers_);
     workers_.Clear();
@@ -2266,7 +2266,7 @@ void Shell::CleanupWorkers() {
 
   // Now that all workers are terminated, we can re-enable Worker creation.
   {
-    base::LockGuard<base::Mutex> lock_guard(&workers_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
     allow_new_workers_ = true;
   }
 

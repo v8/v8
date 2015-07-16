@@ -481,10 +481,10 @@ class Shell : public i::AllStatic {
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
   static base::OS::MemoryMappedFile* counters_file_;
-  static base::Mutex context_mutex_;
+  static base::LazyMutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
 
-  static base::Mutex workers_mutex_;
+  static base::LazyMutex workers_mutex_;
   static bool allow_new_workers_;
   static i::List<Worker*> workers_;
   static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
