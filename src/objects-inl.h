@@ -2214,15 +2214,9 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 
 void Object::VerifyApiCallResultType() {
 #if DEBUG
-  if (!(IsSmi() ||
-        IsString() ||
-        IsSymbol() ||
-        IsSpecObject() ||
-        IsHeapNumber() ||
-        IsUndefined() ||
-        IsTrue() ||
-        IsFalse() ||
-        IsNull())) {
+  if (!(IsSmi() || IsString() || IsSymbol() || IsSpecObject() ||
+        IsHeapNumber() || IsFloat32x4() || IsUndefined() || IsTrue() ||
+        IsFalse() || IsNull())) {
     FATAL("API call returned invalid object");
   }
 #endif  // DEBUG

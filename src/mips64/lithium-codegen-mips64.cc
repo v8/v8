@@ -2282,6 +2282,14 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ Branch(instr->TrueLabel(chunk_), eq, scratch, Operand(SYMBOL_TYPE));
       }
 
+      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
+        // Symbol value -> true.
+        const Register scratch = scratch1();
+        __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+        __ Branch(instr->TrueLabel(chunk_), eq, scratch,
+                  Operand(FLOAT32X4_TYPE));
+      }
+
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
         DoubleRegister dbl_scratch = double_scratch0();
@@ -5850,6 +5858,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ GetObjectType(input, input, scratch);
     *cmp1 = scratch;
     *cmp2 = Operand(SYMBOL_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->float32x4_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ GetObjectType(input, input, scratch);
+    *cmp1 = scratch;
+    *cmp2 = Operand(FLOAT32X4_TYPE);
     final_branch_condition = eq;
 
   } else if (String::Equals(type_name, factory->boolean_string())) {

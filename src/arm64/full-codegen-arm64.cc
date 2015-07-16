@@ -4883,6 +4883,12 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(x0, if_false);
     __ CompareObjectType(x0, x0, x1, SYMBOL_TYPE);
     Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->float32x4_string())) {
+    ASM_LOCATION(
+        "FullCodeGenerator::EmitLiteralCompareTypeof float32x4_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, FLOAT32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof boolean_string");
     __ JumpIfRoot(x0, Heap::kTrueValueRootIndex, if_true);

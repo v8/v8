@@ -5115,6 +5115,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(eax, if_false);
     __ CmpObjectType(eax, SYMBOL_TYPE, edx);
     Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->float32x4_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, FLOAT32X4_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     __ cmp(eax, isolate()->factory()->true_value());
     __ j(equal, if_true);

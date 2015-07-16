@@ -881,6 +881,7 @@
         '../../src/runtime/runtime-proxy.cc',
         '../../src/runtime/runtime-regexp.cc',
         '../../src/runtime/runtime-scopes.cc',
+        '../../src/runtime/runtime-simd.cc',
         '../../src/runtime/runtime-strings.cc',
         '../../src/runtime/runtime-symbol.cc',
         '../../src/runtime/runtime-test.cc',
@@ -1798,6 +1799,7 @@
           '../../src/harmony-spread.js',
           '../../src/harmony-object.js',
           '../../src/harmony-sharedarraybuffer.js',
+          '../../src/harmony-simd.js',
         ],
         'code_stub_library_files': [
           '../../src/macros.py',
