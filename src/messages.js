@@ -86,7 +86,6 @@ function NoSideEffectToString(obj) {
     return str;
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
-  if (IS_FLOAT32X4(obj)) return %_CallFunction(obj, $float32x4ToString);
   if (IS_OBJECT(obj)
       && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");

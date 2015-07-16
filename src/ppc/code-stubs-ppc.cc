@@ -266,9 +266,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ cmpi(r7, Operand(SYMBOL_TYPE));
     __ beq(slow);
-    // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ cmpi(r7, Operand(FLOAT32X4_TYPE));
-    __ beq(slow);
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -286,9 +283,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
       __ bge(slow);
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpi(r7, Operand(SYMBOL_TYPE));
-      __ beq(slow);
-      // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmpi(r7, Operand(FLOAT32X4_TYPE));
       __ beq(slow);
       if (is_strong(strength)) {
         // Call the runtime on anything that is converted in the semantics,

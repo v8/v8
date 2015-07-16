@@ -107,8 +107,6 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
     function_index = Context::SYMBOL_FUNCTION_INDEX;
   } else if (map()->instance_type() == HEAP_NUMBER_TYPE) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (map()->instance_type() == FLOAT32X4_TYPE) {
-    function_index = Context::FLOAT32X4_FUNCTION_INDEX;
   } else if (*map() == isolate()->heap()->boolean_map()) {
     function_index = Context::BOOLEAN_FUNCTION_INDEX;
   } else {

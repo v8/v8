@@ -1926,12 +1926,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ B(eq, true_label);
       }
 
-      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
-        // SIMD value -> true.
-        __ CompareInstanceType(map, scratch, FLOAT32X4_TYPE);
-        __ B(eq, true_label);
-      }
-
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         Label not_heap_number;
         __ JumpIfNotRoot(map, Heap::kHeapNumberMapRootIndex, &not_heap_number);
@@ -5967,15 +5961,6 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     // Check for undetectable objects => false.
     __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
     EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
-
-  } else if (String::Equals(type_name, factory->float32x4_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, FLOAT32X4_TYPE);
-    EmitBranch(instr, eq);
 
   } else {
     __ B(false_label);

@@ -239,43 +239,32 @@ TEST(SimdObjects) {
 
   HandleScope sc(isolate);
 
-  Handle<Float32x4> value = factory->NewFloat32x4(1, 2, 3, 4);
+  Handle<Object> value = factory->NewFloat32x4(1, 2, 3, 4);
   CHECK(value->IsFloat32x4());
   CHECK(value->BooleanValue());  // SIMD values map to true.
-  CHECK_EQ(value->get_lane(0), 1);
-  CHECK_EQ(value->get_lane(1), 2);
-  CHECK_EQ(value->get_lane(2), 3);
-  CHECK_EQ(value->get_lane(3), 4);
 
-  CheckSimdLanes<Float32x4, float, 4>(*value);
+  Float32x4* float32x4 = *Handle<Float32x4>::cast(value);
+  CheckSimdLanes<Float32x4, float, 4>(float32x4);
 
-  // Check all lanes, and special lane values.
-  value->set_lane(0, 0);
-  CHECK_EQ(0, value->get_lane(0));
-  value->set_lane(1, -0.0);
-  CHECK_EQ(-0.0, value->get_lane(1));
-  CHECK(std::signbit(value->get_lane(1)));  // Sign bit is preserved.
+  // Check ToString for SIMD values.
+  // TODO(bbudge): Switch to Check* style function to test ToString().
+  value = factory->NewFloat32x4(1, 2, 3, 4);
+  float32x4 = *Handle<Float32x4>::cast(value);
+  std::ostringstream os;
+  float32x4->Float32x4Print(os);
+  CHECK_EQ("1, 2, 3, 4", os.str());
+
+  // Check unusual lane values.
+  float32x4->set_lane(0, 0);
+  CHECK_EQ(0, float32x4->get_lane(0));
+  float32x4->set_lane(1, -0.0);
+  CHECK_EQ(-0.0, float32x4->get_lane(1));
   float quiet_NaN = std::numeric_limits<float>::quiet_NaN();
   float signaling_NaN = std::numeric_limits<float>::signaling_NaN();
-  value->set_lane(2, quiet_NaN);
-  CHECK(std::isnan(value->get_lane(2)));
-  value->set_lane(3, signaling_NaN);
-  CHECK(std::isnan(value->get_lane(3)));
-
-  // Check SIMD value printing.
-  {
-    value = factory->NewFloat32x4(1, 2, 3, 4);
-    std::ostringstream os;
-    value->Float32x4Print(os);
-    CHECK_EQ("1, 2, 3, 4", os.str());
-  }
-  {
-    value = factory->NewFloat32x4(0, -0.0, quiet_NaN, signaling_NaN);
-    std::ostringstream os;
-    value->Float32x4Print(os);
-    // Value printing doesn't preserve signed zeroes.
-    CHECK_EQ("0, 0, NaN, NaN", os.str());
-  }
+  float32x4->set_lane(2, quiet_NaN);
+  CHECK(std::isnan(float32x4->get_lane(2)));
+  float32x4->set_lane(3, signaling_NaN);
+  CHECK(std::isnan(float32x4->get_lane(3)));
 }
 
 

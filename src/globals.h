@@ -466,6 +466,7 @@ class String;
 class Symbol;
 class Name;
 class Struct;
+class Symbol;
 class Variable;
 class RelocInfo;
 class Deserializer;

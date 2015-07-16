@@ -2849,7 +2849,6 @@ class ToBooleanStub: public HydrogenCodeStub {
     STRING,
     SYMBOL,
     HEAP_NUMBER,
-    SIMD_VALUE,
     NUMBER_OF_TYPES
   };
 

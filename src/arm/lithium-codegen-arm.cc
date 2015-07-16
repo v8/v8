@@ -2268,12 +2268,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ b(eq, instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
-        // SIMD value -> true.
-        __ CompareInstanceType(map, ip, FLOAT32X4_TYPE);
-        __ b(eq, instr->TrueLabel(chunk_));
-      }
-
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
         DwVfpRegister dbl_scratch = double_scratch0();
@@ -5685,11 +5679,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     // Check for undetectable objects => false.
     __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
     __ tst(scratch, Operand(1 << Map::kIsUndetectable));
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->float32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, FLOAT32X4_TYPE);
     final_branch_condition = eq;
 
   } else {
