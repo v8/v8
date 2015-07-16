@@ -2735,19 +2735,8 @@ void Debug::HandleDebugBreak() {
   bool debug_command_only = isolate_->stack_guard()->CheckDebugCommand() &&
                             !isolate_->stack_guard()->CheckDebugBreak();
 
-  bool is_debugger_statement = !isolate_->stack_guard()->CheckDebugCommand() &&
-                               !isolate_->stack_guard()->CheckDebugBreak();
-
   isolate_->stack_guard()->ClearDebugBreak();
 
-  if (is_debugger_statement) {
-    // If we have been called via 'debugger' Javascript statement,
-    // we might not be prepared for breakpoints.
-    // TODO(dslomov,yangguo): CheckDebugBreak may race with RequestDebugBreak.
-    // Revisit this to clean-up.
-    HandleScope handle_scope(isolate_);
-    PrepareForBreakPoints();
-  }
   ProcessDebugMessages(debug_command_only);
 }
 
