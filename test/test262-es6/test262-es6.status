@@ -439,11 +439,6 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
-  # new.target
-  # https://code.google.com/p/v8/issues/detail?id=3887
-  'language/expressions/arrow-function/lexical-new.target': [FAIL],
-  'language/expressions/arrow-function/lexical-new.target-closure-returned': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=2160
   'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-1': [FAIL],
   'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-2': [FAIL],
