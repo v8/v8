@@ -44,13 +44,13 @@ var InnerArrayIndexOf;
 var InnerArrayJoin;
 var InnerArrayLastIndexOf;
 var InnerArrayMap;
-var InnerArrayReverse;
 var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var IsNaN;
 var MathMax;
 var MathMin;
+var PackedArrayReverse;
 
 utils.Import(function(from) {
   ArrayFrom = from.ArrayFrom;
@@ -68,13 +68,13 @@ utils.Import(function(from) {
   InnerArrayMap = from.InnerArrayMap;
   InnerArrayReduce = from.InnerArrayReduce;
   InnerArrayReduceRight = from.InnerArrayReduceRight;
-  InnerArrayReverse = from.InnerArrayReverse;
   InnerArraySome = from.InnerArraySome;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   IsNaN = from.IsNaN;
   MathMax = from.MathMax;
   MathMin = from.MathMin;
+  PackedArrayReverse = from.PackedArrayReverse;
 });
 
 // -------------------------------------------------------------------
@@ -179,7 +179,7 @@ function TypedArrayReverse() {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayReverse(this, length);
+  return PackedArrayReverse(this, length);
 }
 
 

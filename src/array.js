@@ -587,14 +587,25 @@ function SparseReverse(array, len) {
   }
 }
 
-
-function InnerArrayReverse(array, len) {
+function PackedArrayReverse(array, len) {
   var j = len - 1;
   for (var i = 0; i < j; i++, j--) {
     var current_i = array[i];
-    if (!IS_UNDEFINED(current_i) || i in array) {
-      var current_j = array[j];
-      if (!IS_UNDEFINED(current_j) || j in array) {
+    var current_j = array[j];
+    array[i] = current_j;
+    array[j] = current_i;
+  }
+  return array;
+}
+
+
+function GenericArrayReverse(array, len) {
+  var j = len - 1;
+  for (var i = 0; i < j; i++, j--) {
+    if (i in array) {
+      var current_i = array[i];
+      if (j in array) {
+        var current_j = array[j];
         array[i] = current_j;
         array[j] = current_i;
       } else {
@@ -602,8 +613,8 @@ function InnerArrayReverse(array, len) {
         delete array[i];
       }
     } else {
-      var current_j = array[j];
-      if (!IS_UNDEFINED(current_j) || j in array) {
+      if (j in array) {
+        var current_j = array[j];
         array[i] = current_j;
         delete array[j];
       }
@@ -618,14 +629,17 @@ function ArrayReverse() {
 
   var array = TO_OBJECT_INLINE(this);
   var len = TO_UINT32(array.length);
+  var isArray = IS_ARRAY(array);
 
-  if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
+  if (UseSparseVariant(array, len, isArray, len)) {
     %NormalizeElements(array);
     SparseReverse(array, len);
     return array;
+  } else if (isArray && %_HasFastPackedElements(array)) {
+    return PackedArrayReverse(array, len);
+  } else {
+    return GenericArrayReverse(array, len);
   }
-
-  return InnerArrayReverse(array, len);
 }
 
 
@@ -1688,10 +1702,10 @@ utils.Export(function(to) {
   to.InnerArrayMap = InnerArrayMap;
   to.InnerArrayReduce = InnerArrayReduce;
   to.InnerArrayReduceRight = InnerArrayReduceRight;
-  to.InnerArrayReverse = InnerArrayReverse;
   to.InnerArraySome = InnerArraySome;
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
+  to.PackedArrayReverse = PackedArrayReverse;
 });
 
 $arrayConcat = ArrayConcatJS;
