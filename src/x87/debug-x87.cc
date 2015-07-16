@@ -13,64 +13,50 @@
 namespace v8 {
 namespace internal {
 
-// Patch the code at the current PC with a call to the target address.
-// Additional guard int3 instructions can be added if required.
-void PatchCodeWithCall(Address pc, Address target, int guard_bytes) {
-  // Call instruction takes up 5 bytes and int3 takes up one byte.
-  static const int kCallCodeSize = 5;
-  int code_size = kCallCodeSize + guard_bytes;
-
-  // Create a code patcher.
-  CodePatcher patcher(pc, code_size);
-
-// Add a label for checking the size of the code used for returning.
-#ifdef DEBUG
-  Label check_codesize;
-  patcher.masm()->bind(&check_codesize);
-#endif
-
-  // Patch the code.
-  patcher.masm()->call(target, RelocInfo::NONE32);
-
-  // Check that the size of the code generated is as expected.
-  DCHECK_EQ(kCallCodeSize,
-            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
-
-  // Add the requested number of int3 instructions after the call.
-  DCHECK_GE(guard_bytes, 0);
-  for (int i = 0; i < guard_bytes; i++) {
-    patcher.masm()->int3();
-  }
-
-  CpuFeatures::FlushICache(pc, code_size);
-}
-
-
-// Patch the JS frame exit code with a debug break call. See
-// CodeGenerator::VisitReturnStatement and VirtualFrame::Exit in codegen-x87.cc
-// for the precise return instructions sequence.
-void BreakLocation::SetDebugBreakAtReturn() {
-  DCHECK(Assembler::kJSReturnSequenceLength >=
-         Assembler::kCallInstructionLength);
-  PatchCodeWithCall(
-      pc(), debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry(),
-      Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
-}
-
-
-void BreakLocation::SetDebugBreakAtSlot() {
-  DCHECK(IsDebugBreakSlot());
-  Isolate* isolate = debug_info_->GetIsolate();
-  PatchCodeWithCall(
-      pc(), isolate->builtins()->Slot_DebugBreak()->entry(),
-      Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
-}
-
-
 #define __ ACCESS_MASM(masm)
 
-static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
-                                          RegList object_regs) {
+
+void EmitDebugBreakSlot(MacroAssembler* masm) {
+  Label check_codesize;
+  __ bind(&check_codesize);
+  __ Nop(Assembler::kDebugBreakSlotLength);
+  DCHECK_EQ(Assembler::kDebugBreakSlotLength,
+            masm->SizeOfCodeGeneratedSince(&check_codesize));
+}
+
+
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
+                                int call_argc) {
+  // Generate enough nop's to make space for a call instruction.
+  masm->RecordDebugBreakSlot(mode, call_argc);
+  EmitDebugBreakSlot(masm);
+}
+
+
+void DebugCodegen::ClearDebugBreakSlot(Address pc) {
+  CodePatcher patcher(pc, Assembler::kDebugBreakSlotLength);
+  EmitDebugBreakSlot(patcher.masm());
+}
+
+
+void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
+  DCHECK_EQ(Code::BUILTIN, code->kind());
+  static const int kSize = Assembler::kDebugBreakSlotLength;
+  CodePatcher patcher(pc, kSize);
+
+  // Add a label for checking the size of the code used for returning.
+  Label check_codesize;
+  patcher.masm()->bind(&check_codesize);
+  patcher.masm()->call(code->entry(), RelocInfo::NONE32);
+  // Check that the size of the code generated is as expected.
+  DCHECK_EQ(kSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
+}
+
+
+void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
+                                          DebugBreakCallHelperMode mode) {
+  __ RecordComment("Debug break");
+
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -81,56 +67,27 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     }
     __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
 
-    // Store the registers containing live values on the expression stack to
-    // make sure that these are correctly updated during GC. Non object values
-    // are stored as a smi causing it to be untouched by GC.
-    DCHECK((object_regs & ~kJSCallerSaved) == 0);
-    for (int i = 0; i < kNumJSCallerSaved; i++) {
-      int r = JSCallerSavedCode(i);
-      Register reg = { r };
-      if ((object_regs & (1 << r)) != 0) {
-        __ push(reg);
-      }
-    }
+    if (mode == SAVE_RESULT_REGISTER) __ push(eax);
 
-#ifdef DEBUG
-    __ RecordComment("// Calling from debug break to runtime - come in - over");
-#endif
     __ Move(eax, Immediate(0));  // No arguments.
     __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
 
     CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);
 
-    // Automatically find register that could be used after register restore.
-    // We need one register for padding skip instructions.
-    Register unused_reg = { -1 };
-
-    // Restore the register values containing object pointers from the
-    // expression stack.
-    for (int i = kNumJSCallerSaved; --i >= 0;) {
-      int r = JSCallerSavedCode(i);
-      Register reg = { r };
-      if (FLAG_debug_code) {
+    if (FLAG_debug_code) {
+      for (int i = 0; i < kNumJSCallerSaved; ++i) {
+        Register reg = {JSCallerSavedCode(i)};
         __ Move(reg, Immediate(kDebugZapValue));
-      }
-      bool taken = reg.code() == esi.code();
-      if ((object_regs & (1 << r)) != 0) {
-        __ pop(reg);
-        taken = true;
-      }
-      if (!taken) {
-        unused_reg = reg;
       }
     }
 
-    DCHECK(unused_reg.code() != -1);
+    if (mode == SAVE_RESULT_REGISTER) __ pop(eax);
 
-    // Read current padding counter and skip corresponding number of words.
-    __ pop(unused_reg);
+    __ pop(ebx);
     // We divide stored value by 2 (untagging) and multiply it by word's size.
     STATIC_ASSERT(kSmiTagSize == 1 && kSmiShiftSize == 0);
-    __ lea(esp, Operand(esp, unused_reg, times_half_pointer_size, 0));
+    __ lea(esp, Operand(esp, ebx, times_half_pointer_size, 0));
 
     // Get rid of the internal frame.
   }
@@ -145,33 +102,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference::debug_after_break_target_address(masm->isolate());
   __ jmp(Operand::StaticVariable(after_break_target));
-}
-
-
-void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
-  // Register state just before return from JS function (from codegen-x87.cc).
-  // ----------- S t a t e -------------
-  //  -- eax: return value
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit());
-}
-
-
-void DebugCodegen::GenerateSlot(MacroAssembler* masm,
-                                DebugCodegen::SlotLocation location,
-                                int call_argc) {
-  // Generate enough nop's to make space for a call instruction.
-  Label check_codesize;
-  __ bind(&check_codesize);
-  RecordRelocInfo(masm, location, call_argc);
-  __ Nop(Assembler::kDebugBreakSlotLength);
-  DCHECK_EQ(Assembler::kDebugBreakSlotLength,
-            masm->SizeOfCodeGeneratedSince(&check_codesize));
-}
-
-
-void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
-  Generate_DebugBreakCallHelper(masm, 0);
 }
 
 
