@@ -169,11 +169,11 @@ void CallConstructDescriptor::InitializePlatformSpecific(
   // r3 : number of arguments
   // r4 : the function to call
   // r5 : feedback vector
-  // r6 : (only if r5 is not the megamorphic symbol) slot in feedback
-  //      vector (Smi)
+  // r6 : slot in feedback vector (Smi, for RecordCallTarget)
+  // r7 : original constructor (for IsSuperConstructorCall)
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-  Register registers[] = {r3, r4, r5};
+  Register registers[] = {r3, r4, r7, r5};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
