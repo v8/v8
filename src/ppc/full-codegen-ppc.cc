@@ -4444,10 +4444,9 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   __ lwz(r3, FieldMemOperand(r3, String::kHashFieldOffset));
   // PPC - assume ip is free
   __ mov(ip, Operand(String::kContainsCachedArrayIndexMask));
-  __ and_(r0, r3, ip);
-  __ cmpi(r0, Operand::Zero());
+  __ and_(r0, r3, ip, SetRC);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through, cr0);
 
   context()->Plug(if_true, if_false);
 }
