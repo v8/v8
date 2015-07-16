@@ -544,7 +544,7 @@ function GetPositionInLine(message) {
   var start_position = %MessageGetStartPosition(message);
   var location = script.locationFromPosition(start_position, false);
   if (location == null) return -1;
-  return start_position - location.start;
+  return location.column;
 }
 
 

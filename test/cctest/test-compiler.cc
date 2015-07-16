@@ -566,6 +566,32 @@ TEST(CompileFunctionInContextNonIdentifierArgs) {
 }
 
 
+TEST(CompileFunctionInContextScriptOrigin) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::ScriptOrigin origin(v8_str("test"),
+                          v8::Integer::New(CcTest::isolate(), 22),
+                          v8::Integer::New(CcTest::isolate(), 41));
+  v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 0, NULL, 0, NULL);
+  CHECK(!fun.IsEmpty());
+  v8::TryCatch try_catch;
+  CcTest::isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+  fun->Call(env->Global(), 0, NULL);
+  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.Exception().IsEmpty());
+  v8::Local<v8::StackTrace> stack =
+      v8::Exception::GetStackTrace(try_catch.Exception());
+  CHECK(!stack.IsEmpty());
+  CHECK(stack->GetFrameCount() > 0);
+  v8::Local<v8::StackFrame> frame = stack->GetFrame(0);
+  CHECK_EQ(23, frame->GetLineNumber());
+  CHECK_EQ(42 + strlen("throw "), static_cast<unsigned>(frame->GetColumn()));
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                  const char* property_name) {

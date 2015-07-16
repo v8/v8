@@ -1150,7 +1150,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
-    ParseRestriction restriction, int scope_position) {
+    ParseRestriction restriction, int line_offset, int column_offset,
+    Handle<Object> script_name, ScriptOriginOptions options) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -1159,11 +1160,17 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<SharedFunctionInfo> maybe_shared_info =
       compilation_cache->LookupEval(source, outer_info, context, language_mode,
-                                    scope_position);
+                                    line_offset);
   Handle<SharedFunctionInfo> shared_info;
 
   if (!maybe_shared_info.ToHandle(&shared_info)) {
     Handle<Script> script = isolate->factory()->NewScript(source);
+    if (!script_name.is_null()) {
+      script->set_name(*script_name);
+      script->set_line_offset(Smi::FromInt(line_offset));
+      script->set_column_offset(Smi::FromInt(column_offset));
+    }
+    script->set_origin_options(options);
     Zone zone;
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info);
@@ -1190,7 +1197,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       DCHECK(is_sloppy(language_mode) ||
              is_strict(shared_info->language_mode()));
       compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 scope_position);
+                                 line_offset);
     }
   } else if (shared_info->ic_age() != isolate->heap()->global_ic_age()) {
     shared_info->ResetForNewContext(isolate->heap()->global_ic_age());

@@ -648,7 +648,9 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
-      ParseRestriction restriction, int scope_position);
+      ParseRestriction restriction, int line_offset, int column_offset = 0,
+      Handle<Object> script_name = Handle<Object>(),
+      ScriptOriginOptions options = ScriptOriginOptions());
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> CompileScript(
