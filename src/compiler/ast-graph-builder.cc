@@ -2513,7 +2513,7 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
-  // Original receiver is loaded from the {new.target} variable.
+  // Original constructor is loaded from the {new.target} variable.
   VisitForValue(super->new_target_var());
 
   // Create node to perform the super call.
@@ -2521,14 +2521,10 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
 
-  // TODO(mstarzinger): It sure would be nice if this were desugared. Also we
-  // are still missing the hole-check in the assignment below, fix that.
+  // TODO(mstarzinger): It sure would be nice if this were desugared.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(super->this_var()->var(), value, Token::INIT_CONST,
-                          VectorSlotPair(), BailoutId::None(), states);
-
-  // TODO(mstarzinger): Remove bailout once lowering is correct.
-  SetStackOverflow();
+                          VectorSlotPair(), expr->id(), states);
 
   ast_context()->ProduceValue(value);
 }
@@ -2541,7 +2537,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
-  // Original receiver is the same as the callee.
+  // Original constructor is the same as the callee.
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
@@ -3272,9 +3268,9 @@ Node* AstGraphBuilder::BuildHoleCheckSilent(Node* value, Node* for_hole,
 }
 
 
-Node* AstGraphBuilder::BuildHoleCheckThrow(Node* value, Variable* variable,
-                                           Node* not_hole,
-                                           BailoutId bailout_id) {
+Node* AstGraphBuilder::BuildHoleCheckThenThrow(Node* value, Variable* variable,
+                                               Node* not_hole,
+                                               BailoutId bailout_id) {
   IfBuilder hole_check(this);
   Node* the_hole = jsgraph()->TheHoleConstant();
   Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
@@ -3284,6 +3280,23 @@ Node* AstGraphBuilder::BuildHoleCheckThrow(Node* value, Variable* variable,
   environment()->Push(error);
   hole_check.Else();
   environment()->Push(not_hole);
+  hole_check.End();
+  return environment()->Pop();
+}
+
+
+Node* AstGraphBuilder::BuildHoleCheckElseThrow(Node* value, Variable* variable,
+                                               Node* for_hole,
+                                               BailoutId bailout_id) {
+  IfBuilder hole_check(this);
+  Node* the_hole = jsgraph()->TheHoleConstant();
+  Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
+  hole_check.If(check);
+  hole_check.Then();
+  environment()->Push(for_hole);
+  hole_check.Else();
+  Node* error = BuildThrowReferenceError(variable, bailout_id);
+  environment()->Push(error);
   hole_check.End();
   return environment()->Pop();
 }
@@ -3358,7 +3371,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         if (value->op() == the_hole->op()) {
           value = BuildThrowReferenceError(variable, bailout_id);
         } else if (value->opcode() == IrOpcode::kPhi || variable->is_this()) {
-          value = BuildHoleCheckThrow(value, variable, value, bailout_id);
+          value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
         }
       }
       return value;
@@ -3379,7 +3392,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         value = BuildHoleCheckSilent(value, undefined, value);
       } else if (mode == LET || mode == CONST) {
         // Perform check for uninitialized let/const variables.
-        value = BuildHoleCheckThrow(value, variable, value, bailout_id);
+        value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
       }
       return value;
     }
@@ -3410,7 +3423,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
           value = BuildHoleCheckSilent(value, undefined, value);
         } else if (local_mode == LET || local_mode == CONST) {
           // Perform check for uninitialized let/const variables.
-          value = BuildHoleCheckThrow(value, local, value, bailout_id);
+          value = BuildHoleCheckThenThrow(value, local, value, bailout_id);
         }
       } else if (mode == DYNAMIC) {
         uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
@@ -3519,7 +3532,15 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (current->op() == the_hole->op()) {
           value = BuildThrowReferenceError(variable, bailout_id);
         } else if (value->opcode() == IrOpcode::kPhi) {
-          value = BuildHoleCheckThrow(current, variable, value, bailout_id);
+          value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+        }
+      } else if (mode == CONST && op == Token::INIT_CONST) {
+        // Perform an initialization check for const {this} variables.
+        // Note that the {this} variable is the only const variable being able
+        // to trigger bind operations outside the TDZ, via {super} calls.
+        Node* current = environment()->Lookup(variable);
+        if (current->op() != the_hole->op() && variable->is_this()) {
+          value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op != Token::INIT_CONST) {
         // Assignment to const is exception in all modes.
@@ -3527,7 +3548,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (current->op() == the_hole->op()) {
           return BuildThrowReferenceError(variable, bailout_id);
         } else if (value->opcode() == IrOpcode::kPhi) {
-          BuildHoleCheckThrow(current, variable, value, bailout_id);
+          BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         }
         return BuildThrowConstAssignError(bailout_id);
       }
@@ -3555,13 +3576,23 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
-        value = BuildHoleCheckThrow(current, variable, value, bailout_id);
+        value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+      } else if (mode == CONST && op == Token::INIT_CONST) {
+        // Perform an initialization check for const {this} variables.
+        // Note that the {this} variable is the only const variable being able
+        // to trigger bind operations outside the TDZ, via {super} calls.
+        if (variable->is_this()) {
+          const Operator* op =
+              javascript()->LoadContext(depth, variable->index(), false);
+          Node* current = NewNode(op, current_context());
+          value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
+        }
       } else if (mode == CONST && op != Token::INIT_CONST) {
         // Assignment to const is exception in all modes.
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
-        BuildHoleCheckThrow(current, variable, value, bailout_id);
+        BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         return BuildThrowConstAssignError(bailout_id);
       }
       const Operator* op = javascript()->StoreContext(depth, variable->index());

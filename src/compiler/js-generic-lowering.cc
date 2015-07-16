@@ -537,7 +537,7 @@ void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
 
 void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
-  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
+  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   CallDescriptor* desc =
