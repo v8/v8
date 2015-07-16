@@ -59,6 +59,12 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 }
 
 
+bool Expression::IsValidReferenceExpressionOrThis() const {
+  return IsValidReferenceExpression() ||
+         (IsVariableProxy() && AsVariableProxy()->is_this());
+}
+
+
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
                              int end_position)
     : Expression(zone, start_position),

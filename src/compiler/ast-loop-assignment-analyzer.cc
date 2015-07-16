@@ -161,11 +161,6 @@ void ALAA::VisitProperty(Property* e) {
 void ALAA::VisitCall(Call* e) {
   Visit(e->expression());
   VisitExpressions(e->arguments());
-  // TODO(mstarzinger): It sure would be nice if this were desugared.
-  if (e->GetCallType(isolate()) == Call::SUPER_CALL) {
-    SuperCallReference* super = e->expression()->AsSuperCallReference();
-    AnalyzeAssignment(super->this_var()->var());
-  }
 }
 
 

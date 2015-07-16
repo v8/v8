@@ -644,9 +644,6 @@ class FullCodeGenerator: public AstVisitor {
       FeedbackVectorICSlot slot = FeedbackVectorICSlot::Invalid());
 
   void EmitLoadSuperConstructor(SuperCallReference* super_call_ref);
-  void EmitInitializeThisAfterSuper(
-      SuperCallReference* super_call_ref,
-      FeedbackVectorICSlot slot = FeedbackVectorICSlot::Invalid());
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());

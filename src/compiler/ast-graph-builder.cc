@@ -2016,7 +2016,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
                                            const VectorSlotPair& feedback,
                                            BailoutId bailout_id) {
-  DCHECK(expr->IsValidReferenceExpression());
+  DCHECK(expr->IsValidReferenceExpressionOrThis());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->AsProperty();
@@ -2090,7 +2090,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
 
 
 void AstGraphBuilder::VisitAssignment(Assignment* expr) {
-  DCHECK(expr->target()->IsValidReferenceExpression());
+  DCHECK(expr->target()->IsValidReferenceExpressionOrThis());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
@@ -2520,12 +2520,6 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   const Operator* call = javascript()->CallConstruct(args->length() + 2);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
-
-  // TODO(mstarzinger): It sure would be nice if this were desugared.
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(super->this_var()->var(), value, Token::INIT_CONST,
-                          VectorSlotPair(), expr->id(), states);
-
   ast_context()->ProduceValue(value);
 }
 
@@ -2627,7 +2621,7 @@ void AstGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
-  DCHECK(expr->expression()->IsValidReferenceExpression());
+  DCHECK(expr->expression()->IsValidReferenceExpressionOrThis());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->expression()->AsProperty();

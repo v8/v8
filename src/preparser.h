@@ -947,10 +947,16 @@ class PreParserExpression {
                                ExpressionTypeField::encode(kCallExpression));
   }
 
+  static PreParserExpression SuperCallReference() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kSuperCallReference));
+  }
+
   static PreParserExpression NoTemplateTag() {
-    return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(
-                                  kNoTemplateTagExpression));
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kNoTemplateTagExpression));
   }
 
   bool IsIdentifier() const {
@@ -995,6 +1001,11 @@ class PreParserExpression {
   bool IsCall() const {
     return TypeField::decode(code_) == kExpression &&
            ExpressionTypeField::decode(code_) == kCallExpression;
+  }
+
+  bool IsSuperCallReference() const {
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kSuperCallReference;
   }
 
   bool IsValidReferenceExpression() const {
@@ -1045,6 +1056,7 @@ class PreParserExpression {
     kThisPropertyExpression,
     kPropertyExpression,
     kCallExpression,
+    kSuperCallReference,
     kNoTemplateTagExpression
   };
 
@@ -1528,7 +1540,7 @@ class PreParserTraits {
   static PreParserExpression SuperCallReference(Scope* scope,
                                                 PreParserFactory* factory,
                                                 int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::SuperCallReference();
   }
 
   static PreParserExpression NewTargetExpression(Scope* scope,
@@ -3184,12 +3196,22 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // they are actually direct calls to eval is determined at run time.
         this->CheckPossibleEvalCall(result, scope_);
 
+        bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
           args = Traits::PrepareSpreadArguments(args);
           result = Traits::SpreadCall(result, args, pos);
         } else {
           result = factory()->NewCall(result, args, pos);
         }
+
+        // Explicit calls to the super constructor using super() perform an
+        // implicit binding assignment to the 'this' variable.
+        if (is_super_call) {
+          ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
+          result = factory()->NewAssignment(Token::INIT_CONST, this_expr,
+                                            result, pos);
+        }
+
         if (fni_ != NULL) fni_->RemoveLastFunction();
         break;
       }
@@ -3462,10 +3484,15 @@ ParserBase<Traits>::ParseStrongSuperCallExpression(
   function_state_->set_super_location(super_loc);
   if (spread_pos.IsValid()) {
     args = Traits::PrepareSpreadArguments(args);
-    return Traits::SpreadCall(expr, args, pos);
+    expr = Traits::SpreadCall(expr, args, pos);
   } else {
-    return factory()->NewCall(expr, args, pos);
+    expr = factory()->NewCall(expr, args, pos);
   }
+
+  // Explicit calls to the super constructor using super() perform an implicit
+  // binding assignment to the 'this' variable.
+  ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
+  return factory()->NewAssignment(Token::INIT_CONST, this_expr, expr, pos);
 }
 
 
