@@ -85,6 +85,8 @@
   'ecma/String/15.5.4.8-1': [FAIL],
   'ecma/String/15.5.4.9-1': [FAIL],
 
+  # ToLength, not ToUint32, is called on RegExps' lastIndex property
+  'ecma_3/RegExp/15.10.6.2-2': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 
