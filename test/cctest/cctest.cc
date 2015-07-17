@@ -137,7 +137,10 @@ static void PrintTestList(CcTest* current) {
 
 
 class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
-  virtual void* Allocate(size_t length) { return malloc(length); }
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
   virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
   virtual void Free(void* data, size_t length) { free(data); }
   // TODO(dslomov): Remove when v8:2823 is fixed.

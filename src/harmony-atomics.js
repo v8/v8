@@ -13,18 +13,31 @@
 
 var GlobalObject = global.Object;
 
+var MathMax;
+
+utils.Import(function(from) {
+  MathMax = from.MathMax;
+});
+
 // -------------------------------------------------------------------
 
 
 function CheckSharedTypedArray(sta) {
-  if (!%_IsSharedTypedArray(sta)) {
+  if (!%IsSharedTypedArray(sta)) {
     throw MakeTypeError(kNotSharedTypedArray, sta);
   }
 }
 
 function CheckSharedIntegerTypedArray(ia) {
-  if (!%_IsSharedIntegerTypedArray(ia)) {
+  if (!%IsSharedIntegerTypedArray(ia)) {
     throw MakeTypeError(kNotIntegerSharedTypedArray, ia);
+  }
+}
+
+function CheckSharedInteger32TypedArray(ia) {
+  CheckSharedIntegerTypedArray(ia);
+  if (%_ClassOf(ia) !== 'Int32Array') {
+    throw MakeTypeError(kNotInt32SharedTypedArray, ia);
   }
 }
 
@@ -124,6 +137,50 @@ function AtomicsIsLockFreeJS(size) {
   return %_AtomicsIsLockFree(size);
 }
 
+// Futexes
+
+function AtomicsFutexWaitJS(ia, index, value, timeout) {
+  CheckSharedInteger32TypedArray(ia);
+  index = $toInteger(index);
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
+    return UNDEFINED;
+  }
+  if (IS_UNDEFINED(timeout)) {
+    timeout = INFINITY;
+  } else {
+    timeout = $toNumber(timeout);
+    if (NUMBER_IS_NAN(timeout)) {
+      timeout = INFINITY;
+    } else {
+      timeout = MathMax(0, timeout);
+    }
+  }
+  return %AtomicsFutexWait(ia, index, value, timeout);
+}
+
+function AtomicsFutexWakeJS(ia, index, count) {
+  CheckSharedInteger32TypedArray(ia);
+  index = $toInteger(index);
+  if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
+    return UNDEFINED;
+  }
+  count = MathMax(0, $toInteger(count));
+  return %AtomicsFutexWake(ia, index, count);
+}
+
+function AtomicsFutexWakeOrRequeueJS(ia, index1, count, value, index2) {
+  CheckSharedInteger32TypedArray(ia);
+  index1 = $toInteger(index1);
+  count = MathMax(0, $toInteger(count));
+  value = $toInt32(value);
+  index2 = $toInteger(index2);
+  if (index1 < 0 || index1 >= %_TypedArrayGetLength(ia) ||
+      index2 < 0 || index2 >= %_TypedArrayGetLength(ia)) {
+    return UNDEFINED;
+  }
+  return %AtomicsFutexWakeOrRequeue(ia, index1, count, value, index2);
+}
+
 // -------------------------------------------------------------------
 
 function AtomicsConstructor() {}
@@ -136,6 +193,13 @@ var Atomics = new AtomicsConstructor();
 
 %AddNamedProperty(Atomics, symbolToStringTag, "Atomics", READ_ONLY | DONT_ENUM);
 
+// These must match the values in src/futex-emulation.h
+utils.InstallConstants(Atomics, [
+  "OK", 0,
+  "NOTEQUAL", -1,
+  "TIMEDOUT", -2,
+]);
+
 utils.InstallFunctions(Atomics, DONT_ENUM, [
   "compareExchange", AtomicsCompareExchangeJS,
   "load", AtomicsLoadJS,
@@ -147,6 +211,9 @@ utils.InstallFunctions(Atomics, DONT_ENUM, [
   "xor", AtomicsXorJS,
   "exchange", AtomicsExchangeJS,
   "isLockFree", AtomicsIsLockFreeJS,
+  "futexWait", AtomicsFutexWaitJS,
+  "futexWake", AtomicsFutexWakeJS,
+  "futexWakeOrRequeue", AtomicsFutexWakeOrRequeueJS,
 ]);
 
 })

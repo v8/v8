@@ -15,6 +15,7 @@
 #include "src/date.h"
 #include "src/execution.h"
 #include "src/frames.h"
+#include "src/futex-emulation.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
 #include "src/hashmap.h"
@@ -1130,6 +1131,8 @@ class Isolate {
     return array_buffer_allocator_;
   }
 
+  FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
+
  protected:
   explicit Isolate(bool enable_serializer);
 
@@ -1362,6 +1365,8 @@ class Isolate {
   List<Object*> partial_snapshot_cache_;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+
+  FutexWaitListNode futex_wait_list_node_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

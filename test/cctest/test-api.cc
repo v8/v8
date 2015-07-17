@@ -44,6 +44,7 @@
 #include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/execution.h"
+#include "src/futex-emulation.h"
 #include "src/objects.h"
 #include "src/parser.h"
 #include "src/unicode-inl.h"
@@ -21888,4 +21889,39 @@ TEST(CompatibleReceiverCheckOnCachedICHandler) {
       "test(0);\n"
       "result;\n",
       0);
+}
+
+class FutexInterruptionThread : public v8::base::Thread {
+ public:
+  explicit FutexInterruptionThread(v8::Isolate* isolate)
+      : Thread(Options("FutexInterruptionThread")), isolate_(isolate) {}
+
+  virtual void Run() {
+    // Wait a bit before terminating.
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
+    v8::V8::TerminateExecution(isolate_);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+};
+
+
+TEST(FutexInterruption) {
+  i::FLAG_harmony_sharedarraybuffer = true;
+  i::FLAG_harmony_atomics = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  FutexInterruptionThread timeout_thread(isolate);
+
+  v8::TryCatch try_catch(CcTest::isolate());
+  timeout_thread.Start();
+
+  CompileRun(
+      "var ab = new SharedArrayBuffer(4);"
+      "var i32a = new Int32Array(ab);"
+      "Atomics.futexWait(i32a, 0, 0);");
+  CHECK(try_catch.HasTerminated());
 }
