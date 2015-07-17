@@ -117,12 +117,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(ebx);
-      __ push(ebx);
-    }
-
     // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(ebx);
+    __ push(ebx);
     __ SmiTag(eax);
     __ push(eax);
     __ push(edi);
@@ -254,7 +251,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ mov(Operand(esi, AllocationMemento::kMapOffset),
                factory->allocation_memento_map());
         // Get the cell or undefined.
-        __ mov(edx, Operand(esp, kPointerSize*2));
+        __ mov(edx, Operand(esp, 3 * kPointerSize));
+        __ AssertUndefinedOrAllocationSite(edx);
         __ mov(Operand(esi, AllocationMemento::kAllocationSiteOffset),
                edx);
       } else {
@@ -422,11 +420,12 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- edx: original constructor
   // -----------------------------------
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    // Preserve allocation site.
+    __ AssertUndefinedOrAllocationSite(ebx);
+    __ push(ebx);
 
     // Preserve actual arguments count.
     __ SmiTag(eax);
