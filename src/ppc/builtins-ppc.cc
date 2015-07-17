@@ -328,14 +328,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(r5, r7);
-      __ push(r5);
-    }
-
     // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(r5, r7);
     __ SmiTag(r3);
-    __ Push(r3, r4, r6);
+    __ Push(r5, r3, r4, r6);
 
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
@@ -470,7 +466,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ LoadRoot(r10, Heap::kAllocationMementoMapRootIndex);
         __ StoreP(r10, MemOperand(r8, AllocationMemento::kMapOffset));
         // Load the AllocationSite
-        __ LoadP(r10, MemOperand(sp, 2 * kPointerSize));
+        __ LoadP(r10, MemOperand(sp, 3 * kPointerSize));
+        __ AssertUndefinedOrAllocationSite(r10, r3);
         __ StoreP(r10,
                   MemOperand(r8, AllocationMemento::kAllocationSiteOffset));
         __ addi(r8, r8, Operand(AllocationMemento::kAllocationSiteOffset +
@@ -654,11 +651,10 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
+
+    __ AssertUndefinedOrAllocationSite(r5, r7);
 
     // Smi-tagged arguments count.
     __ mr(r7, r3);
@@ -667,8 +663,8 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // receiver is the hole.
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
 
-    // smi arguments count, new.target, receiver
-    __ Push(r7, r6, ip);
+    // allocation site, smi arguments count, new.target, receiver
+    __ Push(r5, r7, r6, ip);
 
     // Set up pointer to last argument.
     __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset));
