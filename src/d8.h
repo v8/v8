@@ -99,7 +99,7 @@ class LineEditor {
   LineEditor(Type type, const char* name);
   virtual ~LineEditor() { }
 
-  virtual Handle<String> Prompt(const char* prompt) = 0;
+  virtual Local<String> Prompt(const char* prompt) = 0;
   virtual bool Open(Isolate* isolate) { return true; }
   virtual bool Close() { return true; }
   virtual void AddHistory(const char* str) { }
@@ -163,7 +163,7 @@ class SourceGroup {
 #endif  // !V8_SHARED
 
   void ExitShell(int exit_code);
-  Handle<String> ReadFile(Isolate* isolate, const char* name);
+  Local<String> ReadFile(Isolate* isolate, const char* name);
 
   const char** argv_;
   int begin_offset_;
@@ -349,17 +349,17 @@ class Shell : public i::AllStatic {
  public:
   enum SourceType { SCRIPT, MODULE };
 
-  static Local<Script> CompileString(
+  static MaybeLocal<Script> CompileString(
       Isolate* isolate, Local<String> source, Local<Value> name,
       v8::ScriptCompiler::CompileOptions compile_options,
       SourceType source_type);
-  static bool ExecuteString(Isolate* isolate, Handle<String> source,
-                            Handle<Value> name, bool print_result,
+  static bool ExecuteString(Isolate* isolate, Local<String> source,
+                            Local<Value> name, bool print_result,
                             bool report_exceptions,
                             SourceType source_type = SCRIPT);
   static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
-  static Handle<String> ReadFile(Isolate* isolate, const char* name);
+  static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
   static int RunMain(Isolate* isolate, int argc, char* argv[]);
   static int Main(int argc, char* argv[]);
@@ -371,8 +371,8 @@ class Shell : public i::AllStatic {
 #ifndef V8_SHARED
   // TODO(binji): stupid implementation for now. Is there an easy way to hash an
   // object for use in i::HashMap? By pointer?
-  typedef i::List<Handle<Object>> ObjectList;
-  static bool SerializeValue(Isolate* isolate, Handle<Value> value,
+  typedef i::List<Local<Object>> ObjectList;
+  static bool SerializeValue(Isolate* isolate, Local<Value> value,
                              const ObjectList& to_transfer,
                              ObjectList* seen_objects,
                              SerializationData* out_data);
@@ -380,9 +380,8 @@ class Shell : public i::AllStatic {
                                             const SerializationData& data,
                                             int* offset);
   static void CleanupWorkers();
-  static Handle<Array> GetCompletions(Isolate* isolate,
-                                      Handle<String> text,
-                                      Handle<String> full);
+  static Local<Array> GetCompletions(Isolate* isolate, Local<String> text,
+                                     Local<String> full);
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
                                int min,
@@ -392,9 +391,9 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static Local<Object> DebugMessageDetails(Isolate* isolate,
-                                           Handle<String> message);
+                                           Local<String> message);
   static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
-                                                Handle<String> command);
+                                                Local<String> command);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !V8_SHARED
@@ -419,7 +418,7 @@ class Shell : public i::AllStatic {
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static Handle<String> ReadFromStdin(Isolate* isolate);
+  static Local<String> ReadFromStdin(Isolate* isolate);
   static void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args.GetReturnValue().Set(ReadFromStdin(args.GetIsolate()));
   }
@@ -464,17 +463,17 @@ class Shell : public i::AllStatic {
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void AddOSMethods(v8::Isolate* isolate,
-                           Handle<ObjectTemplate> os_template);
+                           Local<ObjectTemplate> os_template);
 
   static const char* kPrompt;
   static ShellOptions options;
   static ArrayBuffer::Allocator* array_buffer_allocator;
 
  private:
-  static Persistent<Context> evaluation_context_;
+  static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
 #ifndef V8_SHARED
-  static Persistent<Context> utility_context_;
+  static Global<Context> utility_context_;
   static CounterMap* counter_map_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
@@ -496,7 +495,7 @@ class Shell : public i::AllStatic {
   static void InitializeDebugger(Isolate* isolate);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
-  static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
 };
 
 
