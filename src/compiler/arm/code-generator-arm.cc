@@ -316,8 +316,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   ArmOperandConverter i(this, instr);
 
-  masm()->MaybeCheckConstPool();
-
   switch (ArchOpcodeField::decode(instr->opcode())) {
     case kArchCallCodeObject: {
       EnsureSpaceForLazyDeopt();

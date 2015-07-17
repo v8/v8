@@ -432,7 +432,9 @@ void Assembler::CheckBuffer() {
   if (buffer_space() <= kGap) {
     GrowBuffer();
   }
-  MaybeCheckConstPool();
+  if (pc_offset() >= next_buffer_check_) {
+    CheckConstPool(false, true);
+  }
 }
 
 
