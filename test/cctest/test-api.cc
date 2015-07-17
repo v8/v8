@@ -8140,7 +8140,45 @@ THREADED_TEST(CrossDomainIsPropertyEnumerable) {
 }
 
 
-THREADED_TEST(CrossDomainForIn) {
+THREADED_TEST(CrossDomainFor) {
+  LocalContext env1;
+  v8::HandleScope handle_scope(env1->GetIsolate());
+  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
+
+  Local<Value> foo = v8_str("foo");
+  Local<Value> bar = v8_str("bar");
+
+  // Set to the same domain.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  env1->Global()->Set(v8_str("prop"), v8_num(3));
+  env2->Global()->Set(v8_str("env1"), env1->Global());
+
+  // Change env2 to a different domain and set env1's global object
+  // as the __proto__ of an object in env2 and enumerate properties
+  // in for-in. It shouldn't enumerate properties on env1's global
+  // object.
+  env2->SetSecurityToken(bar);
+  {
+    Context::Scope scope_env2(env2);
+    Local<Value> result = CompileRun(
+        "(function() {"
+        "  try {"
+        "    for (var p in env1) {"
+        "      if (p == 'prop') return false;"
+        "    }"
+        "    return true;"
+        "  } catch (e) {"
+        "    return false;"
+        "  }"
+        "})()");
+    CHECK(result->IsTrue());
+  }
+}
+
+
+THREADED_TEST(CrossDomainForInOnPrototype) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
   v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
@@ -8169,9 +8207,9 @@ THREADED_TEST(CrossDomainForIn) {
         "    for (var p in obj) {"
         "      if (p == 'prop') return false;"
         "    }"
-        "    return true;"
-        "  } catch (e) {"
         "    return false;"
+        "  } catch (e) {"
+        "    return true;"
         "  }"
         "})()");
     CHECK(result->IsTrue());
@@ -8627,9 +8665,9 @@ TEST(AccessControl) {
       "        return false;"
       "      }"
       "    }"
-      "    return true;"
-      "  } catch (e) {"
       "    return false;"
+      "  } catch (e) {"
+      "    return true;"
       "  }"
       "})()");
   CHECK(value->IsTrue());
@@ -8673,7 +8711,7 @@ TEST(AccessControlES5) {
   global1->Set(v8_str("other"), global0);
 
   // Regression test for issue 1154.
-  CHECK(CompileRun("Object.keys(other)").IsEmpty());
+  CHECK(CompileRun("Object.keys(other).length == 0")->BooleanValue());
   CHECK(CompileRun("other.blocked_prop").IsEmpty());
 
   // Regression test for issue 1027.

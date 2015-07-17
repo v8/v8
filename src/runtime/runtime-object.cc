@@ -984,20 +984,6 @@ RUNTIME_FUNCTION(Runtime_OwnKeys) {
   CONVERT_ARG_CHECKED(JSObject, raw_object, 0);
   Handle<JSObject> object(raw_object);
 
-  if (object->IsJSGlobalProxy()) {
-    // Do access checks before going to the global object.
-    if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
-      isolate->ReportFailedAccessCheck(object);
-      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-      return *isolate->factory()->NewJSArray(0);
-    }
-
-    PrototypeIterator iter(isolate, object);
-    // If proxy is detached we simply return an empty array.
-    if (iter.IsAtEnd()) return *isolate->factory()->NewJSArray(0);
-    object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-  }
-
   Handle<FixedArray> contents;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, contents, JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY));

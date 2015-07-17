@@ -6151,10 +6151,13 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   Handle<JSFunction> arguments_function(
       JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
 
+  PrototypeIterator::WhereToEnd end = type == OWN_ONLY
+                                          ? PrototypeIterator::END_AT_NON_HIDDEN
+                                          : PrototypeIterator::END_AT_NULL;
   // Only collect keys if access is permitted.
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
+       !iter.IsAtEnd(end); iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
       Handle<JSProxy> proxy(JSProxy::cast(*PrototypeIterator::GetCurrent(iter)),
                             isolate);
@@ -6181,7 +6184,11 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() && !isolate->MayAccess(current)) {
-      return content;
+      if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+        isolate->ReportFailedAccessCheck(current);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
+      }
+      break;
     }
 
     // Compute the element keys.
@@ -6241,10 +6248,6 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       }
       DCHECK(ContainsOnlyValidKeys(content));
     }
-
-    // If we only want own properties we bail out after the first
-    // iteration.
-    if (type == OWN_ONLY) break;
   }
   return content;
 }
