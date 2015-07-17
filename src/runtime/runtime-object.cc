@@ -193,10 +193,7 @@ MaybeHandle<Object> Runtime::GetPrototype(Isolate* isolate,
     if (PrototypeIterator::GetCurrent(iter)->IsAccessCheckNeeded() &&
         !isolate->MayAccess(
             Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)))) {
-      isolate->ReportFailedAccessCheck(
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-      return isolate->factory()->undefined_value();
+      return isolate->factory()->null_value();
     }
     iter.AdvanceIgnoringProxies();
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
