@@ -8,7 +8,8 @@
 namespace v8 {
 
 
-void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {}
+void Shell::AddOSMethods(Isolate* isolate, Handle<ObjectTemplate> os_templ) {
+}
 
 
 }  // namespace v8

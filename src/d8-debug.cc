@@ -29,30 +29,24 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
 
   // Get the toJSONProtocol function on the event and get the JSON format.
   Local<String> to_json_fun_name =
-      String::NewFromUtf8(isolate, "toJSONProtocol", NewStringType::kNormal)
-          .ToLocalChecked();
-  Local<Object> event_data = event_details.GetEventData();
+      String::NewFromUtf8(isolate, "toJSONProtocol");
+  Handle<Object> event_data = event_details.GetEventData();
   Local<Function> to_json_fun =
-      Local<Function>::Cast(event_data->Get(isolate->GetCurrentContext(),
-                                            to_json_fun_name).ToLocalChecked());
-  Local<Value> event_json;
-  if (!to_json_fun->Call(isolate->GetCurrentContext(), event_data, 0, NULL)
-           .ToLocal(&event_json)) {
+      Local<Function>::Cast(event_data->Get(to_json_fun_name));
+  Local<Value> event_json = to_json_fun->Call(event_data, 0, NULL);
+  if (try_catch.HasCaught()) {
     Shell::ReportException(isolate, &try_catch);
     return;
   }
 
   // Print the event details.
-  Local<Object> details =
-      Shell::DebugMessageDetails(isolate, Local<String>::Cast(event_json));
+  Handle<Object> details =
+      Shell::DebugMessageDetails(isolate, Handle<String>::Cast(event_json));
   if (try_catch.HasCaught()) {
     Shell::ReportException(isolate, &try_catch);
     return;
   }
-  String::Utf8Value str(
-      details->Get(isolate->GetCurrentContext(),
-                   String::NewFromUtf8(isolate, "text", NewStringType::kNormal)
-                       .ToLocalChecked()).ToLocalChecked());
+  String::Utf8Value str(details->Get(String::NewFromUtf8(isolate, "text")));
   if (str.length() == 0) {
     // Empty string is used to signal not to process this event.
     return;
@@ -61,18 +55,15 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
 
   // Get the debug command processor.
   Local<String> fun_name =
-      String::NewFromUtf8(isolate, "debugCommandProcessor",
-                          NewStringType::kNormal).ToLocalChecked();
-  Local<Object> exec_state = event_details.GetExecutionState();
-  Local<Function> fun = Local<Function>::Cast(
-      exec_state->Get(isolate->GetCurrentContext(), fun_name).ToLocalChecked());
-  Local<Value> cmd_processor_value;
-  if (!fun->Call(isolate->GetCurrentContext(), exec_state, 0, NULL)
-           .ToLocal(&cmd_processor_value)) {
+      String::NewFromUtf8(isolate, "debugCommandProcessor");
+  Handle<Object> exec_state = event_details.GetExecutionState();
+  Local<Function> fun = Local<Function>::Cast(exec_state->Get(fun_name));
+  Local<Object> cmd_processor =
+      Local<Object>::Cast(fun->Call(exec_state, 0, NULL));
+  if (try_catch.HasCaught()) {
     Shell::ReportException(isolate, &try_catch);
     return;
   }
-  Local<Object> cmd_processor = Local<Object>::Cast(cmd_processor_value);
 
   static const int kBufferSize = 256;
   bool running = false;
@@ -88,9 +79,8 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
     TryCatch try_catch(isolate);
 
     // Convert the debugger command to a JSON debugger request.
-    Local<Value> request = Shell::DebugCommandToJSONRequest(
-        isolate, String::NewFromUtf8(isolate, command, NewStringType::kNormal)
-                     .ToLocalChecked());
+    Handle<Value> request = Shell::DebugCommandToJSONRequest(
+        isolate, String::NewFromUtf8(isolate, command));
     if (try_catch.HasCaught()) {
       Shell::ReportException(isolate, &try_catch);
       continue;
@@ -102,50 +92,39 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
       continue;
     }
 
-    Local<String> fun_name;
-    Local<Function> fun;
+    Handle<String> fun_name;
+    Handle<Function> fun;
     // All the functions used below take one argument.
     static const int kArgc = 1;
-    Local<Value> args[kArgc];
+    Handle<Value> args[kArgc];
 
     // Invoke the JavaScript to convert the debug command line to a JSON
     // request, invoke the JSON request and convert the JSON respose to a text
     // representation.
-    fun_name = String::NewFromUtf8(isolate, "processDebugRequest",
-                                   NewStringType::kNormal).ToLocalChecked();
-    fun = Local<Function>::Cast(cmd_processor->Get(isolate->GetCurrentContext(),
-                                                   fun_name).ToLocalChecked());
+    fun_name = String::NewFromUtf8(isolate, "processDebugRequest");
+    fun = Handle<Function>::Cast(cmd_processor->Get(fun_name));
     args[0] = request;
-    Local<Value> response_val;
-    if (!fun->Call(isolate->GetCurrentContext(), cmd_processor, kArgc, args)
-             .ToLocal(&response_val)) {
+    Handle<Value> response_val = fun->Call(cmd_processor, kArgc, args);
+    if (try_catch.HasCaught()) {
       Shell::ReportException(isolate, &try_catch);
       continue;
     }
-    Local<String> response = Local<String>::Cast(response_val);
+    Handle<String> response = Handle<String>::Cast(response_val);
 
     // Convert the debugger response into text details and the running state.
-    Local<Object> response_details =
+    Handle<Object> response_details =
         Shell::DebugMessageDetails(isolate, response);
     if (try_catch.HasCaught()) {
       Shell::ReportException(isolate, &try_catch);
       continue;
     }
     String::Utf8Value text_str(
-        response_details->Get(isolate->GetCurrentContext(),
-                              String::NewFromUtf8(isolate, "text",
-                                                  NewStringType::kNormal)
-                                  .ToLocalChecked()).ToLocalChecked());
+        response_details->Get(String::NewFromUtf8(isolate, "text")));
     if (text_str.length() > 0) {
       printf("%s\n", *text_str);
     }
-    running = response_details->Get(isolate->GetCurrentContext(),
-                                    String::NewFromUtf8(isolate, "running",
-                                                        NewStringType::kNormal)
-                                        .ToLocalChecked())
-                  .ToLocalChecked()
-                  ->ToBoolean(isolate->GetCurrentContext())
-                  .ToLocalChecked()
+    running = response_details->Get(String::NewFromUtf8(isolate, "running"))
+                  ->ToBoolean(isolate)
                   ->Value();
   }
 }
