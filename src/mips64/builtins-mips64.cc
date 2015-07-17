@@ -336,14 +336,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(a2, t0);
-      __ push(a2);
-    }
-
     // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(a2, t0);
     __ SmiTag(a0);
-    __ Push(a0, a1, a3);
+    __ Push(a2, a0, a1, a3);
 
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
@@ -476,7 +472,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ sd(t3, MemOperand(t1));
         __ Daddu(t1, t1, kPointerSize);
         // Load the AllocationSite.
-        __ ld(t3, MemOperand(sp, 2 * kPointerSize));
+        __ ld(t3, MemOperand(sp, 3 * kPointerSize));
+        __ AssertUndefinedOrAllocationSite(t3, a0);
         DCHECK_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
         __ sd(t3, MemOperand(t1));
         __ Daddu(t1, t1, kPointerSize);
@@ -658,11 +655,11 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ AssertUndefinedOrAllocationSite(a2, t0);
+    __ push(a2);
 
     __ mov(a4, a0);
     __ SmiTag(a4);

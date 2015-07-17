@@ -324,22 +324,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-    // Preserve the three incoming parameters on the stack.
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(x2, x10);
-      __ Push(x2);
-    }
-
+    // Preserve the four incoming parameters on the stack.
     Register argc = x0;
     Register constructor = x1;
+    Register allocation_site = x2;
     Register original_constructor = x3;
 
     // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(allocation_site, x10);
     __ SmiTag(argc);
-    __ Push(argc, constructor, original_constructor);
+    __ Push(allocation_site, argc, constructor, original_constructor);
     // sp[0]: new.target
     // sp[1]: Constructor function.
     // sp[2]: number of arguments (smi-tagged)
+    // sp[3]: allocation site
 
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
@@ -483,7 +481,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         DCHECK_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
         __ Str(x14, MemOperand(first_prop, kPointerSize, PostIndex));
         // Load the AllocationSite
-        __ Peek(x14, 2 * kXRegSize);
+        __ Peek(x14, 3 * kXRegSize);
+        __ AssertUndefinedOrAllocationSite(x14, x10);
         DCHECK_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
         __ Str(x14, MemOperand(first_prop, kPointerSize, PostIndex));
         first_prop = NoReg;
@@ -669,18 +668,18 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   // -----------------------------------
   ASM_LOCATION("Builtins::Generate_JSConstructStubForDerived");
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ AssertUndefinedOrAllocationSite(x2, x10);
     __ Mov(x4, x0);
     __ SmiTag(x4);
     __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
-    __ Push(x4, x3, x10);
-    // sp[0]: number of arguments
+    __ Push(x2, x4, x3, x10);
+    // sp[0]: receiver (the hole)
     // sp[1]: new.target
-    // sp[2]: receiver (the hole)
+    // sp[2]: number of arguments
+    // sp[3]: allocation site
 
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);

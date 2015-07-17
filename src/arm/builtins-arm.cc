@@ -332,12 +332,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(r2, r4);
-      __ push(r2);
-    }
-
     // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(r2, r4);
+    __ push(r2);
     __ SmiTag(r0);
     __ push(r0);
     __ push(r1);
@@ -476,7 +473,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         DCHECK_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
         __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
         // Load the AllocationSite
-        __ ldr(r6, MemOperand(sp, 2 * kPointerSize));
+        __ ldr(r6, MemOperand(sp, 3 * kPointerSize));
+        __ AssertUndefinedOrAllocationSite(r6, r0);
         DCHECK_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
         __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
       } else {
@@ -664,11 +662,11 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ AssertUndefinedOrAllocationSite(r2, r4);
+    __ push(r2);
 
     __ mov(r4, r0);
     __ SmiTag(r4);

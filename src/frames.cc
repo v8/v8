@@ -738,8 +738,8 @@ Object* JavaScriptFrame::GetOriginalConstructor() const {
   }
   DCHECK(IsConstructFrame(fp));
   STATIC_ASSERT(ConstructFrameConstants::kOriginalConstructorOffset ==
-                StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize);
-  return GetExpression(fp, 2);
+                StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize);
+  return GetExpression(fp, 3);
 }
 
 
