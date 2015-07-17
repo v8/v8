@@ -8724,6 +8724,11 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
   obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
   obj_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL);
 
+  // Add an accessor accessible by cross-domain JS code.
+  obj_template->SetAccessor(
+      v8_str("accessible_prop"), EchoGetter, EchoSetter, v8::Handle<Value>(),
+      v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
+
   // Create an environment
   v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
   context0->Enter();
@@ -8746,11 +8751,15 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
   // global object should be blocked by access checks on the global
   // proxy object.  Accessing the object that requires access checks
   // is blocked by the access checks on the object itself.
-  value = CompileRun("Object.getOwnPropertyNames(other).length == 0");
-  CHECK(value.IsEmpty());
+  value = CompileRun(
+      "var names = Object.getOwnPropertyNames(other);"
+      "names.length == 1 && names[0] == 'accessible_prop';");
+  CHECK(value->BooleanValue());
 
-  value = CompileRun("Object.getOwnPropertyNames(object).length == 0");
-  CHECK(value.IsEmpty());
+  value = CompileRun(
+      "var names = Object.getOwnPropertyNames(object);"
+      "names.length == 1 && names[0] == 'accessible_prop';");
+  CHECK(value->BooleanValue());
 
   context1->Exit();
   context0->Exit();
@@ -19364,7 +19373,6 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
   CheckCorrectThrow("%GetPropertyNames(other)");
   // PROPERTY_ATTRIBUTES_NONE = 0
-  CheckCorrectThrow("%GetOwnPropertyNames(other, 0)");
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("
                         "other, 'x', null, null, 1)");
 

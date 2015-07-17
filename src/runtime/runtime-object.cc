@@ -810,19 +810,6 @@ RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
 }
 
 
-// Find the length of the prototype chain that is to be handled as one. If a
-// prototype object is hidden it is to be viewed as part of the the object it
-// is prototype for.
-static int OwnPrototypeChainLength(JSObject* obj) {
-  int count = 1;
-  for (PrototypeIterator iter(obj->GetIsolate(), obj);
-       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    count++;
-  }
-  return count;
-}
-
-
 // Return the names of the own named properties.
 // args[0]: object
 // args[1]: PropertyAttributes as int
@@ -832,47 +819,18 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   if (!args[0]->IsJSObject()) {
     return isolate->heap()->undefined_value();
   }
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(filter_value, 1);
   PropertyAttributes filter = static_cast<PropertyAttributes>(filter_value);
 
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (obj->IsJSGlobalProxy()) {
-    // Only collect names if access is permitted.
-    if (obj->IsAccessCheckNeeded() && !isolate->MayAccess(obj)) {
-      isolate->ReportFailedAccessCheck(obj);
-      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-      return *isolate->factory()->NewJSArray(0);
-    }
-    PrototypeIterator iter(isolate, obj);
-    obj = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-  }
-
-  // Find the number of objects making up this.
-  int length = OwnPrototypeChainLength(*obj);
-
   // Find the number of own properties for each of the objects.
-  ScopedVector<int> own_property_count(length);
   int total_property_count = 0;
-  {
-    PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
-    for (int i = 0; i < length; i++) {
-      DCHECK(!iter.IsAtEnd());
-      Handle<JSObject> jsproto =
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-      // Only collect names if access is permitted.
-      if (jsproto->IsAccessCheckNeeded() && !isolate->MayAccess(jsproto)) {
-        isolate->ReportFailedAccessCheck(jsproto);
-        RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-        return *isolate->factory()->NewJSArray(0);
-      }
-      int n;
-      n = jsproto->NumberOfOwnProperties(filter);
-      own_property_count[i] = n;
-      total_property_count += n;
-      iter.Advance();
-    }
+  for (PrototypeIterator iter(isolate, object,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+    Handle<JSObject> jsproto =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    total_property_count += jsproto->NumberOfOwnProperties(filter);
   }
 
   // Allocate an array with storage for all the property names.
@@ -882,53 +840,69 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   // Get the property names.
   int next_copy_index = 0;
   int hidden_strings = 0;
-  {
-    PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
-    for (int i = 0; i < length; i++) {
-      DCHECK(!iter.IsAtEnd());
-      Handle<JSObject> jsproto =
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-      jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
-      // Names from hidden prototypes may already have been added
-      // for inherited function template instances. Count the duplicates
-      // and stub them out; the final copy pass at the end ignores holes.
-      for (int j = next_copy_index; j < next_copy_index + own_property_count[i];
-           j++) {
-        Object* name_from_hidden_proto = names->get(j);
-        if (isolate->IsInternallyUsedPropertyName(name_from_hidden_proto)) {
-          hidden_strings++;
-        } else {
-          for (int k = 0; k < next_copy_index; k++) {
-            Object* name = names->get(k);
-            if (name_from_hidden_proto == name) {
-              names->set(j, isolate->heap()->hidden_string());
-              hidden_strings++;
-              break;
-            }
+  Handle<Object> hidden_string = isolate->factory()->hidden_string();
+  for (PrototypeIterator iter(isolate, object,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+    Handle<JSObject> jsproto =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    int own = jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
+    // Names from hidden prototypes may already have been added
+    // for inherited function template instances. Count the duplicates
+    // and stub them out; the final copy pass at the end ignores holes.
+    for (int j = next_copy_index; j < next_copy_index + own; j++) {
+      Object* name_from_hidden_proto = names->get(j);
+      if (isolate->IsInternallyUsedPropertyName(name_from_hidden_proto)) {
+        hidden_strings++;
+      } else {
+        for (int k = 0; k < next_copy_index; k++) {
+          Object* name = names->get(k);
+          if (name_from_hidden_proto == name) {
+            names->set(j, *hidden_string);
+            hidden_strings++;
+            break;
           }
         }
       }
-      next_copy_index += own_property_count[i];
+    }
+    next_copy_index += own;
+  }
 
-      iter.Advance();
+  CHECK_EQ(total_property_count, next_copy_index);
+
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    for (int i = 0; i < total_property_count; i++) {
+      Handle<Name> name(Name::cast(names->get(i)));
+      if (name.is_identical_to(hidden_string)) continue;
+      LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+      if (!JSObject::AllCanRead(&it)) {
+        names->set(i, *hidden_string);
+        hidden_strings++;
+      }
     }
   }
 
   // Filter out name of hidden properties object and
   // hidden prototype duplicates.
   if (hidden_strings > 0) {
-    Handle<FixedArray> old_names = names;
-    names = isolate->factory()->NewFixedArray(names->length() - hidden_strings);
-    int dest_pos = 0;
-    for (int i = 0; i < total_property_count; i++) {
-      Object* name = old_names->get(i);
-      if (isolate->IsInternallyUsedPropertyName(name)) {
-        hidden_strings--;
-        continue;
+    if (hidden_strings == total_property_count) {
+      names = isolate->factory()->empty_fixed_array();
+    } else {
+      int i;
+      for (i = 0; i < total_property_count; i++) {
+        Object* name = names->get(i);
+        if (name == *hidden_string) break;
       }
-      names->set(dest_pos++, name);
+      int dest_pos = i;
+      for (; i < total_property_count; i++) {
+        Object* name = names->get(i);
+        if (name == *hidden_string) continue;
+        names->set(dest_pos++, name);
+      }
+
+      isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
+          *names, hidden_strings);
     }
-    DCHECK_EQ(0, hidden_strings);
   }
 
   return *isolate->factory()->NewJSArrayWithElements(names);
