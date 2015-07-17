@@ -4191,7 +4191,9 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 
       case LookupIterator::ACCESS_CHECK:
         if (!it->HasAccess()) {
-          return SetPropertyWithFailedAccessCheck(it, value);
+          it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
+          RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
+          return value;
         }
         break;
 
