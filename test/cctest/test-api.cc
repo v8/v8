@@ -8169,9 +8169,9 @@ THREADED_TEST(CrossDomainForIn) {
         "    for (var p in obj) {"
         "      if (p == 'prop') return false;"
         "    }"
-        "    return false;"
-        "  } catch (e) {"
         "    return true;"
+        "  } catch (e) {"
+        "    return false;"
         "  }"
         "})()");
     CHECK(result->IsTrue());
@@ -8627,9 +8627,9 @@ TEST(AccessControl) {
       "        return false;"
       "      }"
       "    }"
-      "    return false;"
-      "  } catch (e) {"
       "    return true;"
+      "  } catch (e) {"
+      "    return false;"
       "  }"
       "})()");
   CHECK(value->IsTrue());
@@ -19371,7 +19371,6 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%HasProperty(other, 'x')");
   CheckCorrectThrow("%HasElement(other, 1)");
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
-  CheckCorrectThrow("%GetPropertyNames(other)");
   // PROPERTY_ATTRIBUTES_NONE = 0
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("
                         "other, 'x', null, null, 1)");

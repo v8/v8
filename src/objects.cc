@@ -6181,9 +6181,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() && !isolate->MayAccess(current)) {
-      isolate->ReportFailedAccessCheck(current);
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
-      break;
+      return content;
     }
 
     // Compute the element keys.
