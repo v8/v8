@@ -480,14 +480,7 @@ ResourceConstraints::ResourceConstraints()
       max_old_space_size_(0),
       max_executable_size_(0),
       stack_limit_(NULL),
-      max_available_threads_(0),
       code_range_size_(0) { }
-
-void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
-                                            uint64_t virtual_memory_limit,
-                                            uint32_t number_of_processors) {
-  ConfigureDefaults(physical_memory, virtual_memory_limit);
-}
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
@@ -5376,15 +5369,6 @@ void v8::V8::SetReturnAddressLocationResolver(
   i::V8::SetReturnAddressLocationResolver(return_address_resolver);
 }
 
-void v8::V8::SetArrayBufferAllocator(
-    ArrayBuffer::Allocator* allocator) {
-  if (!Utils::ApiCheck(i::V8::ArrayBufferAllocator() == NULL,
-                       "v8::V8::SetArrayBufferAllocator",
-                       "ArrayBufferAllocator might only be set once"))
-    return;
-  i::V8::SetArrayBufferAllocator(allocator);
-}
-
 
 bool v8::V8::Dispose() {
   i::V8::TearDown();
@@ -7100,20 +7084,11 @@ Isolate* Isolate::GetCurrent() {
 }
 
 
-Isolate* Isolate::New() {
-  Isolate::CreateParams create_params;
-  return New(create_params);
-}
-
-
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  if (params.array_buffer_allocator != NULL) {
-    isolate->set_array_buffer_allocator(params.array_buffer_allocator);
-  } else {
-    isolate->set_array_buffer_allocator(i::V8::ArrayBufferAllocator());
-  }
+  CHECK(params.array_buffer_allocator != NULL);
+  isolate->set_array_buffer_allocator(params.array_buffer_allocator);
   if (params.snapshot_blob != NULL) {
     isolate->set_snapshot_blob(params.snapshot_blob);
   } else {

@@ -1114,11 +1114,6 @@ class V8_EXPORT Script {
    * Returns the corresponding context-unbound script.
    */
   Local<UnboundScript> GetUnboundScript();
-
-  V8_DEPRECATED("Use GetUnboundScript()->GetId()",
-                int GetId()) {
-    return GetUnboundScript()->GetId();
-  }
 };
 
 
@@ -4810,12 +4805,6 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit);
 
-  // Deprecated, will be removed soon.
-  V8_DEPRECATED("Use two-args version instead",
-                void ConfigureDefaults(uint64_t physical_memory,
-                                       uint64_t virtual_memory_limit,
-                                       uint32_t number_of_processors));
-
   int max_semi_space_size() const { return max_semi_space_size_; }
   void set_max_semi_space_size(int value) { max_semi_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
@@ -4825,14 +4814,6 @@ class V8_EXPORT ResourceConstraints {
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
-  V8_DEPRECATED("Unused, will be removed", int max_available_threads() const) {
-    return max_available_threads_;
-  }
-  // Set the number of threads available to V8, assuming at least 1.
-  V8_DEPRECATED("Unused, will be removed",
-                void set_max_available_threads(int value)) {
-    max_available_threads_ = value;
-  }
   size_t code_range_size() const { return code_range_size_; }
   void set_code_range_size(size_t value) {
     code_range_size_ = value;
@@ -4843,7 +4824,6 @@ class V8_EXPORT ResourceConstraints {
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
-  int max_available_threads_;
   size_t code_range_size_;
 };
 
@@ -5375,8 +5355,6 @@ class V8_EXPORT Isolate {
    * V8::Initialize() must have run prior to this.
    */
   static Isolate* New(const CreateParams& params);
-
-  static V8_DEPRECATED("Always pass CreateParams", Isolate* New());
 
   /**
    * Returns the entered isolate for the current thread or NULL in
@@ -5976,16 +5954,6 @@ class V8_EXPORT V8 {
   V8_INLINE static V8_DEPRECATE_SOON(
       "Use isolate version", void SetAllowCodeGenerationFromStringsCallback(
                                  AllowCodeGenerationFromStringsCallback that));
-
-  /**
-   * Set allocator to use for ArrayBuffer memory.
-   * The allocator should be set only once. The allocator should be set
-   * before any code tha uses ArrayBuffers is executed.
-   * This allocator is used in all isolates.
-   */
-  static V8_DEPRECATE_SOON(
-      "Use isolate version",
-      void SetArrayBufferAllocator(ArrayBuffer::Allocator* allocator));
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

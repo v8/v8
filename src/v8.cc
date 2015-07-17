@@ -35,7 +35,6 @@ V8_DECLARE_ONCE(init_natives_once);
 V8_DECLARE_ONCE(init_snapshot_once);
 #endif
 
-v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 v8::Platform* V8::platform_ = NULL;
 
 

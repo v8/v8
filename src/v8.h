@@ -69,15 +69,6 @@ class V8 : public AllStatic {
   // Support for entry hooking JITed code.
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
 
-  static v8::ArrayBuffer::Allocator* ArrayBufferAllocator() {
-    return array_buffer_allocator_;
-  }
-
-  static void SetArrayBufferAllocator(v8::ArrayBuffer::Allocator *allocator) {
-    CHECK_NULL(array_buffer_allocator_);
-    array_buffer_allocator_ = allocator;
-  }
-
   static void InitializePlatform(v8::Platform* platform);
   static void ShutdownPlatform();
   static v8::Platform* GetCurrentPlatform();
@@ -89,8 +80,6 @@ class V8 : public AllStatic {
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
-  // Allocator for external array buffers.
-  static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
   // v8::Platform to use.
   static v8::Platform* platform_;
 };
