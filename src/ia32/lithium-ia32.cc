@@ -1629,8 +1629,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::ADD, instr);
   } else if (instr->representation().IsExternal()) {
-    DCHECK(instr->left()->representation().IsExternal());
-    DCHECK(instr->right()->representation().IsInteger32());
+    DCHECK(instr->IsConsistentExternalRepresentation());
     DCHECK(!instr->CheckFlag(HValue::kCanOverflow));
     bool use_lea = LAddI::UseLea(instr);
     LOperand* left = UseRegisterAtStart(instr->left());

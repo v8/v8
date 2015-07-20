@@ -1630,8 +1630,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     }
     return result;
   } else if (instr->representation().IsExternal()) {
-    DCHECK(instr->left()->representation().IsExternal());
-    DCHECK(instr->right()->representation().IsInteger32());
+    DCHECK(instr->IsConsistentExternalRepresentation());
     DCHECK(!instr->CheckFlag(HValue::kCanOverflow));
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseRegisterOrConstantAtStart(instr->right());

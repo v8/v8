@@ -1432,6 +1432,17 @@ HValue* HBitwise::Canonicalize() {
 }
 
 
+// static
+HInstruction* HAdd::New(Isolate* isolate, Zone* zone, HValue* context,
+                        HValue* left, HValue* right, Strength strength,
+                        ExternalAddType external_add_type) {
+  // For everything else, you should use the other factory method without
+  // ExternalAddType.
+  DCHECK_EQ(external_add_type, AddOfExternalAndTagged);
+  return new (zone) HAdd(context, left, right, strength, external_add_type);
+}
+
+
 Representation HAdd::RepresentationFromInputs() {
   Representation left_rep = left()->representation();
   if (left_rep.IsExternal()) {
@@ -1445,7 +1456,11 @@ Representation HAdd::RequiredInputRepresentation(int index) {
   if (index == 2) {
     Representation left_rep = left()->representation();
     if (left_rep.IsExternal()) {
-      return Representation::Integer32();
+      if (external_add_type_ == AddOfExternalAndTagged) {
+        return Representation::Tagged();
+      } else {
+        return Representation::Integer32();
+      }
     }
   }
   return HArithmeticBinaryOperation::RequiredInputRepresentation(index);

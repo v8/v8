@@ -4830,11 +4830,21 @@ class HPower final : public HTemplateInstruction<2> {
 };
 
 
+enum ExternalAddType {
+  AddOfExternalAndTagged,
+  AddOfExternalAndInt32,
+  NoExternalAdd
+};
+
+
 class HAdd final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
                            HValue* left, HValue* right,
                            Strength strength = Strength::WEAK);
+  static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
+                           HValue* left, HValue* right, Strength strength,
+                           ExternalAddType external_add_type);
 
   // Add is only commutative if two integer values are added and not if two
   // tagged values are added (because it might be a String concatenation).
@@ -4877,6 +4887,14 @@ class HAdd final : public HArithmeticBinaryOperation {
 
   Representation RequiredInputRepresentation(int index) override;
 
+  bool IsConsistentExternalRepresentation() {
+    return left()->representation().IsExternal() &&
+           ((external_add_type_ == AddOfExternalAndInt32 &&
+             right()->representation().IsInteger32()) ||
+            (external_add_type_ == AddOfExternalAndTagged &&
+             right()->representation().IsTagged()));
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
  protected:
@@ -4885,10 +4903,35 @@ class HAdd final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HAdd(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HArithmeticBinaryOperation(context, left, right, strength) {
+  HAdd(HValue* context, HValue* left, HValue* right, Strength strength,
+       ExternalAddType external_add_type = NoExternalAdd)
+      : HArithmeticBinaryOperation(context, left, right, strength),
+        external_add_type_(external_add_type) {
     SetFlag(kCanOverflow);
+    switch (external_add_type_) {
+      case AddOfExternalAndTagged:
+        DCHECK(left->representation().IsExternal());
+        DCHECK(right->representation().IsTagged());
+        SetDependsOnFlag(kNewSpacePromotion);
+        break;
+
+      case NoExternalAdd:
+        // This is a bit of a hack: The call to this constructor is generated
+        // by a macro that also supports sub and mul, so it doesn't pass in
+        // a value for external_add_type but uses the default.
+        if (left->representation().IsExternal()) {
+          external_add_type_ = AddOfExternalAndInt32;
+        }
+        break;
+
+      case AddOfExternalAndInt32:
+        // See comment above.
+        UNREACHABLE();
+        break;
+    }
   }
+
+  ExternalAddType external_add_type_;
 };
 
 
