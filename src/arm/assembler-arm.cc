@@ -1325,7 +1325,8 @@ int Assembler::branch_offset(Label* L) {
 
   // Block the emission of the constant pool, since the branch instruction must
   // be emitted at the pc offset recorded by the label.
-  BlockConstPoolFor(1);
+  if (!is_const_pool_blocked()) BlockConstPoolFor(1);
+
   return target_pos - (pc_offset() + kPcLoadDelta);
 }
 
@@ -3838,7 +3839,10 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     bind(&size_check);
 
     // Emit jump over constant pool if necessary.
-    if (require_jump) b(size - kPcLoadDelta);
+    Label after_pool;
+    if (require_jump) {
+      b(&after_pool);
+    }
 
     // Put down constant pool marker "Undefined instruction".
     // The data size helps disassembly know what to print.
@@ -3922,6 +3926,10 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     RecordComment("]");
 
     DCHECK_EQ(size, SizeOfCodeGeneratedSince(&size_check));
+
+    if (after_pool.is_linked()) {
+      bind(&after_pool);
+    }
   }
 
   // Since a constant pool was just emitted, move the check offset forward by
