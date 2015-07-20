@@ -1446,10 +1446,6 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
 
-  DCHECK(page->owner() == heap->code_space());
-  heap->mark_compact_collector()->EnsureSweepingCompleted(
-      page, reinterpret_cast<PagedSpace*>(page->owner()));
-
   Address addr = page->skip_list()->StartFor(inner_pointer);
 
   Address top = heap->code_space()->top();
