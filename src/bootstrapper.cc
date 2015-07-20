@@ -1987,6 +1987,8 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 
 
 void Genesis::InitializeGlobal_harmony_simd() {
+  if (!FLAG_harmony_simd) return;
+
   Handle<JSGlobalObject> global(
       JSGlobalObject::cast(native_context()->global_object()));
   Isolate* isolate = global->GetIsolate();
