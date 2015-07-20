@@ -584,11 +584,6 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
     return;
   }
 
-  // Visit implicit declaration of the function name.
-  if (scope->is_function_scope() && scope->function() != NULL) {
-    VisitVariableDeclaration(scope->function());
-  }
-
   // Visit declarations within the function scope.
   VisitDeclarations(scope->declarations());
 

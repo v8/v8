@@ -119,6 +119,9 @@ class Scope: public ZoneObject {
   // outer scope. Only possible for function scopes; at most one variable.
   void DeclareFunctionVar(VariableDeclaration* declaration) {
     DCHECK(is_function_scope());
+    // Handle implicit declaration of the function name in named function
+    // expressions before other declarations.
+    decls_.InsertAt(0, declaration, zone());
     function_ = declaration;
   }
 

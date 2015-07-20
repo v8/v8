@@ -358,15 +358,6 @@ void FullCodeGenerator::Generate() {
   } else {
     PrepareForBailoutForId(BailoutId::FunctionEntry(), NO_REGISTERS);
     { Comment cmnt(masm_, "[ Declarations");
-      // For named function expressions, declare the function name as a
-      // constant.
-      if (scope()->is_function_scope() && scope()->function() != NULL) {
-        VariableDeclaration* function = scope()->function();
-        DCHECK(function->proxy()->var()->mode() == CONST ||
-               function->proxy()->var()->mode() == CONST_LEGACY);
-        DCHECK(!function->proxy()->var()->IsUnallocatedOrGlobalSlot());
-        VisitVariableDeclaration(function);
-      }
       VisitDeclarations(scope()->declarations());
     }
     { Comment cmnt(masm_, "[ Stack check");

@@ -538,10 +538,6 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   }
 
   VisitDeclarations(scope->declarations());
-  if (scope->is_function_scope() && scope->function() != NULL) {
-    // Visit the name of the named function expression.
-    Visit(scope->function());
-  }
   VisitStatements(node->body());
 
   return Finish(node);

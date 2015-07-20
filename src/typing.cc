@@ -36,11 +36,6 @@ void AstTyper::Run(CompilationInfo* info) {
   AstTyper* visitor = new(info->zone()) AstTyper(info);
   Scope* scope = info->scope();
 
-  // Handle implicit declaration of the function name in named function
-  // expressions before other declarations.
-  if (scope->is_function_scope() && scope->function() != NULL) {
-    RECURSE(visitor->VisitVariableDeclaration(scope->function()));
-  }
   RECURSE(visitor->VisitDeclarations(scope->declarations()));
   RECURSE(visitor->VisitStatements(info->function()->body()));
 }
