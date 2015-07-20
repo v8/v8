@@ -520,6 +520,13 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   // Initialize control scope.
   ControlScope control(this);
 
+  // TODO(mstarzinger): For now we cannot assume that the {this} parameter is
+  // not {the_hole}, because for derived classes {this} has a TDZ and the
+  // JSConstructStubForDerived magically passes {the_hole} as a receiver.
+  if (scope->has_this_declaration() && scope->receiver()->is_const_mode()) {
+    env.RawParameterBind(0, jsgraph()->TheHoleConstant());
+  }
+
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
   if (scope->has_this_declaration()) {
@@ -3352,12 +3359,9 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         }
       } else if (mode == LET || mode == CONST) {
         // Perform check for uninitialized let/const variables.
-        // TODO(mstarzinger): For now we cannot use the below optimization for
-        // the {this} parameter, because JSConstructStubForDerived magically
-        // passes {the_hole} as a receiver.
         if (value->op() == the_hole->op()) {
           value = BuildThrowReferenceError(variable, bailout_id);
-        } else if (value->opcode() == IrOpcode::kPhi || variable->is_this()) {
+        } else if (value->opcode() == IrOpcode::kPhi) {
           value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
         }
       }
