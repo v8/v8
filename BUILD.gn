@@ -630,6 +630,8 @@ source_set("v8_base") {
     "src/builtins.cc",
     "src/builtins.h",
     "src/bytecodes-irregexp.h",
+    "src/cancelable-task.cc",
+    "src/cancelable-task.h",
     "src/cached-powers.cc",
     "src/cached-powers.h",
     "src/char-predicates.cc",

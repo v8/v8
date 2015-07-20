@@ -6,11 +6,14 @@
 #define V8_ISOLATE_H_
 
 #include <queue>
+#include <set>
+
 #include "include/v8-debug.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomicops.h"
 #include "src/builtins.h"
+#include "src/cancelable-task.h"
 #include "src/contexts.h"
 #include "src/date.h"
 #include "src/execution.h"
@@ -1133,6 +1136,9 @@ class Isolate {
 
   FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
 
+  void RegisterCancelableTask(CancelableTask* task);
+  void RemoveCancelableTask(CancelableTask* task);
+
  protected:
   explicit Isolate(bool enable_serializer);
 
@@ -1367,6 +1373,8 @@ class Isolate {
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
 
   FutexWaitListNode futex_wait_list_node_;
+
+  std::set<CancelableTask*> cancelable_tasks_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

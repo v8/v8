@@ -1904,6 +1904,11 @@ void Isolate::Deinit() {
   delete basic_block_profiler_;
   basic_block_profiler_ = NULL;
 
+  for (CancelableTask* task : cancelable_tasks_) {
+    task->Cancel();
+  }
+  cancelable_tasks_.clear();
+
   heap_.TearDown();
   logger_->TearDown();
 
@@ -2780,6 +2785,18 @@ void Isolate::CheckDetachedContextsAfterGC() {
     heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
         *detached_contexts, length - new_length);
   }
+}
+
+
+void Isolate::RegisterCancelableTask(CancelableTask* task) {
+  cancelable_tasks_.insert(task);
+}
+
+
+void Isolate::RemoveCancelableTask(CancelableTask* task) {
+  auto removed = cancelable_tasks_.erase(task);
+  USE(removed);
+  DCHECK(removed == 1);
 }
 
 

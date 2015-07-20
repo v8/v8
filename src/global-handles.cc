@@ -495,25 +495,23 @@ class GlobalHandles::NodeIterator {
   DISALLOW_COPY_AND_ASSIGN(NodeIterator);
 };
 
-class GlobalHandles::PendingPhantomCallbacksSecondPassTask : public v8::Task {
+class GlobalHandles::PendingPhantomCallbacksSecondPassTask
+    : public v8::internal::CancelableTask {
  public:
   // Takes ownership of the contents of pending_phantom_callbacks, leaving it in
   // the same state it would be after a call to Clear().
   PendingPhantomCallbacksSecondPassTask(
       List<PendingPhantomCallback>* pending_phantom_callbacks, Isolate* isolate)
-      : isolate_(isolate) {
+      : CancelableTask(isolate) {
     pending_phantom_callbacks_.Swap(pending_phantom_callbacks);
   }
 
-  ~PendingPhantomCallbacksSecondPassTask() override {}
-
-  void Run() override {
+  void RunInternal() override {
     InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate_);
   }
 
  private:
   List<PendingPhantomCallback> pending_phantom_callbacks_;
-  Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
 };
@@ -845,7 +843,7 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
     if (synchronous_second_pass) {
       InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate());
     } else {
-      auto* task = new PendingPhantomCallbacksSecondPassTask(
+      auto task = new PendingPhantomCallbacksSecondPassTask(
           &pending_phantom_callbacks_, isolate());
       V8::GetCurrentPlatform()->CallOnForegroundThread(
           reinterpret_cast<v8::Isolate*>(isolate()), task);
