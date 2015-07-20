@@ -249,6 +249,14 @@ Reduction JSInliner::Reduce(Node* node) {
     return NoChange();
   }
 
+  if (function->shared()->HasDebugInfo()) {
+    // Function contains break points.
+    TRACE("Not inlining %s into %s because callee may contain break points\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   // Disallow cross native-context inlining for now. This means that all parts
   // of the resulting code will operate on the same global object.
   // This also prevents cross context leaks for asm.js code, where we could

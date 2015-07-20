@@ -1396,14 +1396,14 @@ class ScopeIterator {
     // Later we may optimize getting the nested scopes (cache the result?)
     // and include nested scopes into the "fast" iteration case as well.
 
-    if (!ignore_nested_scopes && !shared_info->debug_info()->IsUndefined()) {
+    if (!ignore_nested_scopes && shared_info->HasDebugInfo()) {
       // The source position at return is always the end of the function,
       // which is not consistent with the current scope chain. Therefore all
       // nested with, catch and block contexts are skipped, and we can only
       // inspect the function scope.
       // This can only happen if we set a break point inside right before the
       // return, which requires a debug info to be available.
-      Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
+      Handle<DebugInfo> debug_info(shared_info->GetDebugInfo());
 
       // PC points to the instruction after the current one, possibly a break
       // location as well. So the "- 1" to exclude it from the search.
@@ -1818,59 +1818,14 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
   JavaScriptFrameIterator frame_it(isolate, id);
   RUNTIME_ASSERT(!frame_it.done());
 
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  frame_it.frame()->Summarize(&frames);
-  FrameSummary summary = frames.first();
-
-  Handle<JSFunction> fun = Handle<JSFunction>(summary.function());
-  Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(fun->shared());
-
-  if (!isolate->debug()->EnsureDebugInfo(shared, fun)) {
-    return isolate->heap()->undefined_value();
+  List<int> positions;
+  isolate->debug()->GetStepinPositions(frame_it.frame(), id, &positions);
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> array = factory->NewFixedArray(positions.length());
+  for (int i = 0; i < positions.length(); ++i) {
+    array->set(i, Smi::FromInt(positions[i]));
   }
-
-  Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared);
-
-  // Find range of break points starting from the break point where execution
-  // has stopped.
-  Address call_pc = summary.pc() - 1;
-  List<BreakLocation> locations;
-  BreakLocation::FromAddressSameStatement(debug_info, ALL_BREAK_LOCATIONS,
-                                          call_pc, &locations);
-
-  Handle<JSArray> array = isolate->factory()->NewJSArray(locations.length());
-
-  int index = 0;
-  for (BreakLocation location : locations) {
-    bool accept;
-    if (location.pc() > summary.pc()) {
-      accept = true;
-    } else {
-      StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
-      // The break point is near our pc. Could be a step-in possibility,
-      // that is currently taken by active debugger call.
-      if (break_frame_id == StackFrame::NO_ID) {
-        // We are not stepping.
-        accept = false;
-      } else {
-        JavaScriptFrameIterator additional_frame_it(isolate, break_frame_id);
-        // If our frame is a top frame and we are stepping, we can do step-in
-        // at this place.
-        accept = additional_frame_it.frame()->id() == id;
-      }
-    }
-    if (accept) {
-      if (location.IsStepInLocation()) {
-        Smi* position_value = Smi::FromInt(location.position());
-        RETURN_FAILURE_ON_EXCEPTION(
-            isolate,
-            Object::SetElement(isolate, array, index,
-                               handle(position_value, isolate), SLOPPY));
-        index++;
-      }
-    }
-  }
-  return *array;
+  return *factory->NewJSArrayWithElements(array, FAST_SMI_ELEMENTS);
 }
 
 

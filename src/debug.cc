@@ -36,7 +36,6 @@ Debug::Debug(Isolate* isolate)
       is_active_(false),
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
-      has_break_points_(false),
       break_disabled_(false),
       in_debug_event_listener_(false),
       break_on_exception_(false),
@@ -146,7 +145,6 @@ void BreakLocation::Iterator::Next() {
 // the address.
 BreakLocation BreakLocation::FromAddress(Handle<DebugInfo> debug_info,
                                          BreakLocatorType type, Address pc) {
-  DCHECK(debug_info->code()->has_debug_break_slots());
   Iterator it(debug_info, type);
   it.SkipTo(BreakIndexFromAddress(debug_info, type, pc));
   return it.GetBreakLocation();
@@ -158,7 +156,6 @@ BreakLocation BreakLocation::FromAddress(Handle<DebugInfo> debug_info,
 void BreakLocation::FromAddressSameStatement(Handle<DebugInfo> debug_info,
                                              BreakLocatorType type, Address pc,
                                              List<BreakLocation>* result_out) {
-  DCHECK(debug_info->code()->has_debug_break_slots());
   int break_index = BreakIndexFromAddress(debug_info, type, pc);
   Iterator it(debug_info, type);
   it.SkipTo(break_index);
@@ -191,7 +188,6 @@ int BreakLocation::BreakIndexFromAddress(Handle<DebugInfo> debug_info,
 BreakLocation BreakLocation::FromPosition(Handle<DebugInfo> debug_info,
                                           BreakLocatorType type, int position,
                                           BreakPositionAlignment alignment) {
-  DCHECK(debug_info->code()->has_debug_break_slots());
   // Run through all break points to locate the one closest to the source
   // position.
   int closest_break = 0;
@@ -222,7 +218,6 @@ BreakLocation BreakLocation::FromPosition(Handle<DebugInfo> debug_info,
 void BreakLocation::SetBreakPoint(Handle<Object> break_point_object) {
   // If there is not already a real break point here patch code with debug
   // break.
-  DCHECK(code()->has_debug_break_slots());
   if (!HasBreakPoint()) SetDebugBreak();
   DCHECK(IsDebugBreak() || IsDebuggerStatement());
   // Set the break point information.
@@ -607,7 +602,7 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   // Get the debug info (create it if it does not exist).
   Handle<SharedFunctionInfo> shared =
       Handle<SharedFunctionInfo>(frame->function()->shared());
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   // Find the break point where execution has stopped.
   // PC points to the instruction after the current one, possibly a break
@@ -780,26 +775,10 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
 }
 
 
-// Check whether the function has debug information.
-bool Debug::HasDebugInfo(Handle<SharedFunctionInfo> shared) {
-  return !shared->debug_info()->IsUndefined();
-}
-
-
-// Return the debug info for this function. EnsureDebugInfo must be called
-// prior to ensure the debug info has been generated for shared.
-Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
-  DCHECK(HasDebugInfo(shared));
-  return Handle<DebugInfo>(DebugInfo::cast(shared->debug_info()));
-}
-
-
 bool Debug::SetBreakPoint(Handle<JSFunction> function,
                           Handle<Object> break_point_object,
                           int* source_position) {
   HandleScope scope(isolate_);
-
-  PrepareForBreakPoints();
 
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
@@ -808,7 +787,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
     return true;
   }
 
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
   DCHECK(*source_position >= 0);
 
@@ -828,8 +807,6 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    int* source_position,
                                    BreakPositionAlignment alignment) {
   HandleScope scope(isolate_);
-
-  PrepareForBreakPoints();
 
   // Obtain shared function info for the function.
   Handle<Object> result =
@@ -852,7 +829,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
     position = *source_position - shared->start_position();
   }
 
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
   DCHECK(position >= 0);
 
@@ -926,8 +903,6 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<JSFunction> function,
                              BreakLocatorType type) {
-  PrepareForBreakPoints();
-
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
@@ -936,8 +911,8 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
   }
 
   // Flood the function with break points.
-  for (BreakLocation::Iterator it(GetDebugInfo(shared), type); !it.Done();
-       it.Next()) {
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+  for (BreakLocation::Iterator it(debug_info, type); !it.Done(); it.Next()) {
     it.GetBreakLocation().SetOneShot();
   }
 }
@@ -1033,12 +1008,17 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 }
 
 
+FrameSummary GetFirstFrameSummary(JavaScriptFrame* frame) {
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  frame->Summarize(&frames);
+  return frames.first();
+}
+
+
 void Debug::PrepareStep(StepAction step_action,
                         int step_count,
                         StackFrame::Id frame_id) {
   HandleScope scope(isolate_);
-
-  PrepareForBreakPoints();
 
   DCHECK(in_debug_scope());
 
@@ -1084,32 +1064,24 @@ void Debug::PrepareStep(StepAction step_action,
     return;
   }
 
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  frames_it.frame()->Summarize(&frames);
-  FrameSummary summary = frames.first();
-
   // Get the debug info (create it if it does not exist).
+  FrameSummary summary = GetFirstFrameSummary(frame);
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
     // Return if ensuring debug info failed.
     return;
   }
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
 
-  // Compute whether or not the target is a call target.
-  bool is_at_restarted_function = false;
-  Handle<Code> call_function_stub;
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+  // Refresh frame summary if the code has been recompiled for debugging.
+  if (shared->code() != *summary.code()) summary = GetFirstFrameSummary(frame);
 
   // PC points to the instruction after the current one, possibly a break
   // location as well. So the "- 1" to exclude it from the search.
   Address call_pc = summary.pc() - 1;
   BreakLocation location =
       BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
-
-  if (thread_local_.restarter_frame_function_pointer_ != NULL) {
-    is_at_restarted_function = true;
-  }
 
   // If this is the last break code target step out is the only possibility.
   if (location.IsReturn() || step_action == StepOut) {
@@ -1142,7 +1114,7 @@ void Debug::PrepareStep(StepAction step_action,
   if (step_action != StepNext && step_action != StepMin) {
     // If there's restarter frame on top of the stack, just get the pointer
     // to function which is going to be restarted.
-    if (is_at_restarted_function) {
+    if (thread_local_.restarter_frame_function_pointer_ != NULL) {
       Handle<JSFunction> restarted_function(
           JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
       FloodWithOneShot(restarted_function);
@@ -1253,10 +1225,10 @@ Handle<Object> Debug::GetSourceBreakLocations(
     BreakPositionAlignment position_alignment) {
   Isolate* isolate = shared->GetIsolate();
   Heap* heap = isolate->heap();
-  if (!HasDebugInfo(shared)) {
+  if (!shared->HasDebugInfo()) {
     return Handle<Object>(heap->undefined_value(), isolate);
   }
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   if (debug_info->GetBreakPointCount() == 0) {
     return Handle<Object>(heap->undefined_value(), isolate);
   }
@@ -1369,42 +1341,12 @@ void Debug::ClearStepNext() {
 }
 
 
-static void CollectActiveFunctionsFromThread(
-    Isolate* isolate,
-    ThreadLocalTop* top,
-    List<Handle<JSFunction> >* active_functions,
-    Object* active_code_marker) {
-  // Find all non-optimized code functions with activation frames
-  // on the stack. This includes functions which have optimized
-  // activations (including inlined functions) on the stack as the
-  // non-optimized code is needed for the lazy deoptimization.
-  for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (frame->is_optimized()) {
-      List<JSFunction*> functions(FLAG_max_inlining_levels + 1);
-      frame->GetFunctions(&functions);
-      for (int i = 0; i < functions.length(); i++) {
-        JSFunction* function = functions[i];
-        active_functions->Add(Handle<JSFunction>(function));
-        function->shared()->code()->set_gc_metadata(active_code_marker);
-      }
-    } else if (frame->function()->IsJSFunction()) {
-      JSFunction* function = frame->function();
-      DCHECK(frame->LookupCode()->kind() == Code::FUNCTION);
-      active_functions->Add(Handle<JSFunction>(function));
-      function->shared()->code()->set_gc_metadata(active_code_marker);
-    }
-  }
-}
-
-
 // Count the number of calls before the current frame PC to find the
 // corresponding PC in the newly recompiled code.
 static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
                                        Address old_pc) {
   DCHECK_EQ(old_code->kind(), Code::FUNCTION);
   DCHECK_EQ(new_code->kind(), Code::FUNCTION);
-  DCHECK(!old_code->has_debug_break_slots());
   DCHECK(new_code->has_debug_break_slots());
   int mask = RelocInfo::kCodeTargetMask;
   int index = 0;
@@ -1427,7 +1369,6 @@ static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
 // Count the number of continuations at which the current pc offset is at.
 static int ComputeContinuationIndexFromPcOffset(Code* code, int pc_offset) {
   DCHECK_EQ(code->kind(), Code::FUNCTION);
-  DCHECK(!code->has_debug_break_slots());
   Address pc = code->instruction_start() + pc_offset;
   int mask = RelocInfo::ModeMask(RelocInfo::GENERATOR_CONTINUATION);
   int index = 0;
@@ -1453,301 +1394,120 @@ static int ComputePcOffsetFromContinuationIndex(Code* code, int index) {
 }
 
 
-static void RedirectActivationsToRecompiledCodeOnThread(
-    Isolate* isolate,
-    ThreadLocalTop* top) {
-  for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-
-    if (frame->is_optimized() || !frame->function()->IsJSFunction()) continue;
-
-    JSFunction* function = frame->function();
-
-    DCHECK(frame->LookupCode()->kind() == Code::FUNCTION);
-
-    Handle<Code> frame_code(frame->LookupCode());
-    if (frame_code->has_debug_break_slots()) continue;
-
-    Handle<Code> new_code(function->shared()->code());
-    if (new_code->kind() != Code::FUNCTION ||
-        !new_code->has_debug_break_slots()) {
-      continue;
-    }
-
-    Address new_pc =
-        ComputeNewPcForRedirect(*new_code, *frame_code, frame->pc());
-
-    if (FLAG_trace_deopt) {
-      PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
-             "with %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
-             "for debugging, "
-             "changing pc from %08" V8PRIxPTR " to %08" V8PRIxPTR "\n",
-             reinterpret_cast<intptr_t>(
-                 frame_code->instruction_start()),
-             reinterpret_cast<intptr_t>(
-                 frame_code->instruction_start()) +
-             frame_code->instruction_size(),
-             frame_code->instruction_size(),
-             reinterpret_cast<intptr_t>(new_code->instruction_start()),
-             reinterpret_cast<intptr_t>(new_code->instruction_start()) +
-             new_code->instruction_size(),
-             new_code->instruction_size(),
-             reinterpret_cast<intptr_t>(frame->pc()),
-             reinterpret_cast<intptr_t>(new_pc));
-    }
-
-    if (FLAG_enable_embedded_constant_pool) {
-      // Update constant pool pointer for new code.
-      frame->set_constant_pool(new_code->constant_pool());
-    }
-
-    // Patch the return address to return into the code with
-    // debug break slots.
-    frame->set_pc(new_pc);
-  }
-}
-
-
-class ActiveFunctionsCollector : public ThreadVisitor {
+class RedirectActiveFunctions : public ThreadVisitor {
  public:
-  explicit ActiveFunctionsCollector(List<Handle<JSFunction> >* active_functions,
-                                    Object* active_code_marker)
-      : active_functions_(active_functions),
-        active_code_marker_(active_code_marker) { }
+  explicit RedirectActiveFunctions(SharedFunctionInfo* shared)
+      : shared_(shared) {
+    DCHECK(shared->HasDebugCode());
+  }
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    CollectActiveFunctionsFromThread(isolate,
-                                     top,
-                                     active_functions_,
-                                     active_code_marker_);
+    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      JSFunction* function = frame->function();
+      if (frame->is_optimized()) continue;
+      if (!function->Inlines(shared_)) continue;
+
+      Code* frame_code = frame->LookupCode();
+      DCHECK(frame_code->kind() == Code::FUNCTION);
+      if (frame_code->has_debug_break_slots()) continue;
+
+      Code* new_code = function->shared()->code();
+      Address old_pc = frame->pc();
+      Address new_pc = ComputeNewPcForRedirect(new_code, frame_code, old_pc);
+
+      if (FLAG_trace_deopt) {
+        PrintF("Replacing pc for debugging: %08" V8PRIxPTR " => %08" V8PRIxPTR
+               "\n",
+               reinterpret_cast<intptr_t>(old_pc),
+               reinterpret_cast<intptr_t>(new_pc));
+      }
+
+      if (FLAG_enable_embedded_constant_pool) {
+        // Update constant pool pointer for new code.
+        frame->set_constant_pool(new_code->constant_pool());
+      }
+
+      // Patch the return address to return into the code with
+      // debug break slots.
+      frame->set_pc(new_pc);
+    }
   }
 
  private:
-  List<Handle<JSFunction> >* active_functions_;
-  Object* active_code_marker_;
+  SharedFunctionInfo* shared_;
+  DisallowHeapAllocation no_gc_;
 };
 
 
-class ActiveFunctionsRedirector : public ThreadVisitor {
- public:
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    RedirectActivationsToRecompiledCodeOnThread(isolate, top);
+bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
+  DCHECK(shared->is_compiled());
+
+  if (isolate_->concurrent_recompilation_enabled()) {
+    isolate_->optimizing_compile_dispatcher()->Flush();
   }
-};
 
+  List<Handle<JSFunction> > functions;
+  List<Handle<JSGeneratorObject> > suspended_generators;
 
-static void EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function) {
-  if (function->code()->kind() == Code::FUNCTION &&
-      function->code()->has_debug_break_slots()) {
-    // Nothing to do. Function code already had debug break slots.
-    return;
+  if (!shared->optimized_code_map()->IsSmi()) {
+    shared->ClearOptimizedCodeMap();
   }
-  // Make sure that the shared full code is compiled with debug
-  // break slots.
-  if (!function->shared()->code()->has_debug_break_slots()) {
-    MaybeHandle<Code> code = Compiler::GetDebugCode(function);
-    // Recompilation can fail.  In that case leave the code as it was.
-    if (!code.is_null()) function->ReplaceCode(*code.ToHandleChecked());
-  } else {
-    // Simply use shared code if it has debug break slots.
-    function->ReplaceCode(function->shared()->code());
-  }
-}
 
+  // Make sure we abort incremental marking.
+  isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                                      "prepare for break points");
 
-static void RecompileAndRelocateSuspendedGenerators(
-    const List<Handle<JSGeneratorObject> > &generators) {
-  for (int i = 0; i < generators.length(); i++) {
-    Handle<JSFunction> fun(generators[i]->function());
+  {
+    HeapIterator iterator(isolate_->heap());
+    HeapObject* obj;
+    bool include_generators = shared->is_generator();
 
-    EnsureFunctionHasDebugBreakSlots(fun);
-
-    int index = generators[i]->continuation();
-    int pc_offset = ComputePcOffsetFromContinuationIndex(fun->code(), index);
-    generators[i]->set_continuation(pc_offset);
-  }
-}
-
-
-static bool SkipSharedFunctionInfo(SharedFunctionInfo* shared,
-                                   Object* active_code_marker) {
-  if (!shared->allows_lazy_compilation()) return true;
-  Object* script = shared->script();
-  if (!script->IsScript()) return true;
-  if (Script::cast(script)->type()->value() == Script::TYPE_NATIVE) return true;
-  Code* shared_code = shared->code();
-  return shared_code->gc_metadata() == active_code_marker;
-}
-
-
-static inline bool HasDebugBreakSlots(Code* code) {
-  return code->kind() == Code::FUNCTION && code->has_debug_break_slots();
-}
-
-
-void Debug::PrepareForBreakPoints() {
-  // If preparing for the first break point make sure to deoptimize all
-  // functions as debugging does not work with optimized code.
-  if (!has_break_points_) {
-    if (isolate_->concurrent_recompilation_enabled()) {
-      isolate_->optimizing_compile_dispatcher()->Flush();
-    }
-
-    Deoptimizer::DeoptimizeAll(isolate_);
-
-    Handle<Code> lazy_compile = isolate_->builtins()->CompileLazy();
-
-    // There will be at least one break point when we are done.
-    has_break_points_ = true;
-
-    // Keep the list of activated functions in a handlified list as it
-    // is used both in GC and non-GC code.
-    List<Handle<JSFunction> > active_functions(100);
-
-    // A list of all suspended generators.
-    List<Handle<JSGeneratorObject> > suspended_generators;
-
-    // A list of all generator functions.  We need to recompile all functions,
-    // but we don't know until after visiting the whole heap which generator
-    // functions have suspended activations and which do not.  As in the case of
-    // functions with activations on the stack, we need to be careful with
-    // generator functions with suspended activations because although they
-    // should be recompiled, recompilation can fail, and we need to avoid
-    // leaving the heap in an inconsistent state.
-    //
-    // We could perhaps avoid this list and instead re-use the GC metadata
-    // links.
-    List<Handle<JSFunction> > generator_functions;
-
-    {
-      // We are going to iterate heap to find all functions without
-      // debug break slots.
-      Heap* heap = isolate_->heap();
-      heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                              "preparing for breakpoints");
-      HeapIterator iterator(heap);
-
-      // Ensure no GC in this scope as we are going to use gc_metadata
-      // field in the Code object to mark active functions.
-      DisallowHeapAllocation no_allocation;
-
-      Object* active_code_marker = heap->the_hole_value();
-
-      CollectActiveFunctionsFromThread(isolate_,
-                                       isolate_->thread_local_top(),
-                                       &active_functions,
-                                       active_code_marker);
-      ActiveFunctionsCollector active_functions_collector(&active_functions,
-                                                          active_code_marker);
-      isolate_->thread_manager()->IterateArchivedThreads(
-          &active_functions_collector);
-
-      // Scan the heap for all non-optimized functions which have no
-      // debug break slots and are not active or inlined into an active
-      // function and mark them for lazy compilation.
-      HeapObject* obj = NULL;
-      while (((obj = iterator.next()) != NULL)) {
-        if (obj->IsJSFunction()) {
-          JSFunction* function = JSFunction::cast(obj);
-          SharedFunctionInfo* shared = function->shared();
-          if (SkipSharedFunctionInfo(shared, active_code_marker)) continue;
-          if (shared->is_generator()) {
-            generator_functions.Add(Handle<JSFunction>(function, isolate_));
-            continue;
-          }
-          if (HasDebugBreakSlots(function->code())) continue;
-          Code* fallback = HasDebugBreakSlots(shared->code()) ? shared->code()
-                                                              : *lazy_compile;
-          Code::Kind kind = function->code()->kind();
-          if (kind == Code::FUNCTION ||
-              (kind == Code::BUILTIN &&  // Abort in-flight compilation.
-               (function->IsInOptimizationQueue() ||
-                function->IsMarkedForOptimization() ||
-                function->IsMarkedForConcurrentOptimization()))) {
-            function->ReplaceCode(fallback);
-          }
-          if (kind == Code::OPTIMIZED_FUNCTION) {
-            // Optimized code can only get here if DeoptimizeAll did not
-            // deoptimize turbo fan code.
-            DCHECK(!FLAG_turbo_asm_deoptimization);
-            DCHECK(function->shared()->asm_function());
-            DCHECK(function->code()->is_turbofanned());
-            function->ReplaceCode(fallback);
-          }
-        } else if (obj->IsJSGeneratorObject()) {
-          JSGeneratorObject* gen = JSGeneratorObject::cast(obj);
-          if (!gen->is_suspended()) continue;
-
-          JSFunction* fun = gen->function();
-          DCHECK_EQ(fun->code()->kind(), Code::FUNCTION);
-          if (fun->code()->has_debug_break_slots()) continue;
-
-          int pc_offset = gen->continuation();
-          DCHECK_LT(0, pc_offset);
-
-          int index =
-              ComputeContinuationIndexFromPcOffset(fun->code(), pc_offset);
-
-          // This will be fixed after we recompile the functions.
-          gen->set_continuation(index);
-
-          suspended_generators.Add(Handle<JSGeneratorObject>(gen, isolate_));
-        } else if (obj->IsSharedFunctionInfo()) {
-          SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-          if (SkipSharedFunctionInfo(shared, active_code_marker)) continue;
-          if (shared->is_generator()) continue;
-          if (HasDebugBreakSlots(shared->code())) continue;
-          shared->ReplaceCode(*lazy_compile);
+    while ((obj = iterator.next())) {
+      if (obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(obj);
+        if (!function->Inlines(*shared)) continue;
+        if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
+          Deoptimizer::DeoptimizeFunction(function);
         }
-      }
-
-      // Clear gc_metadata field.
-      for (int i = 0; i < active_functions.length(); i++) {
-        Handle<JSFunction> function = active_functions[i];
-        function->shared()->code()->set_gc_metadata(Smi::FromInt(0));
+        functions.Add(handle(function));
+      } else if (include_generators && obj->IsJSGeneratorObject()) {
+        JSGeneratorObject* generator_obj = JSGeneratorObject::cast(obj);
+        if (!generator_obj->is_suspended()) continue;
+        JSFunction* function = generator_obj->function();
+        if (!function->Inlines(*shared)) continue;
+        int pc_offset = generator_obj->continuation();
+        int index =
+            ComputeContinuationIndexFromPcOffset(function->code(), pc_offset);
+        generator_obj->set_continuation(index);
+        suspended_generators.Add(handle(generator_obj));
       }
     }
-
-    // Recompile generator functions that have suspended activations, and
-    // relocate those activations.
-    RecompileAndRelocateSuspendedGenerators(suspended_generators);
-
-    // Mark generator functions that didn't have suspended activations for lazy
-    // recompilation.  Note that this set does not include any active functions.
-    for (int i = 0; i < generator_functions.length(); i++) {
-      Handle<JSFunction> &function = generator_functions[i];
-      if (function->code()->kind() != Code::FUNCTION) continue;
-      if (function->code()->has_debug_break_slots()) continue;
-      function->ReplaceCode(*lazy_compile);
-      function->shared()->ReplaceCode(*lazy_compile);
-    }
-
-    // Now recompile all functions with activation frames and and
-    // patch the return address to run in the new compiled code.  It could be
-    // that some active functions were recompiled already by the suspended
-    // generator recompilation pass above; a generator with suspended
-    // activations could also have active activations.  That's fine.
-    for (int i = 0; i < active_functions.length(); i++) {
-      Handle<JSFunction> function = active_functions[i];
-      Handle<SharedFunctionInfo> shared(function->shared());
-      if (!shared->allows_lazy_compilation()) {
-        // Ignore functions that cannot be recompiled. Fortunately, those are
-        // only ones that are not subject to debugging in the first place.
-        DCHECK(!function->IsSubjectToDebugging());
-        continue;
-      }
-      if (shared->code()->kind() == Code::BUILTIN) continue;
-
-      EnsureFunctionHasDebugBreakSlots(function);
-    }
-
-    RedirectActivationsToRecompiledCodeOnThread(isolate_,
-                                                isolate_->thread_local_top());
-
-    ActiveFunctionsRedirector active_functions_redirector;
-    isolate_->thread_manager()->IterateArchivedThreads(
-          &active_functions_redirector);
   }
+
+  if (!shared->HasDebugCode()) {
+    DCHECK(functions.length() > 0);
+    if (Compiler::GetDebugCode(functions.first()).is_null()) {
+      return false;
+    }
+  }
+
+  for (Handle<JSFunction> const function : functions) {
+    function->ReplaceCode(shared->code());
+  }
+
+  for (Handle<JSGeneratorObject> const generator_obj : suspended_generators) {
+    int index = generator_obj->continuation();
+    int pc_offset = ComputePcOffsetFromContinuationIndex(shared->code(), index);
+    generator_obj->set_continuation(pc_offset);
+  }
+
+  // Update PCs on the stack to point to recompiled code.
+  RedirectActiveFunctions redirect_visitor(*shared);
+  redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
+  isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
+
+  return true;
 }
 
 
@@ -1799,20 +1559,12 @@ class SharedFunctionInfoFinder {
 };
 
 
-template <typename C>
-bool Debug::CompileToRevealInnerFunctions(C* compilable) {
-  HandleScope scope(isolate_);
-  // Force compiling inner functions that require context.
-  // TODO(yangguo): remove this hack.
-  bool has_break_points = has_break_points_;
-  has_break_points_ = true;
-  Handle<C> compilable_handle(compilable);
-  bool result = !Compiler::GetUnoptimizedCode(compilable_handle).is_null();
-  has_break_points_ = has_break_points;
-  return result;
-}
-
-
+// We need to find a SFI for a literal that may not yet have been compiled yet,
+// and there may not be a JSFunction referencing it. Find the SFI closest to
+// the given position, compile it to reveal possible inner SFIs and repeat.
+// While we are at this, also ensure code with debug break slots so that we do
+// not have to compile a SFI without JSFunction, which is paifu for those that
+// cannot be compiled without context (need to find outer compilable SFI etc.)
 Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
                                                      int position) {
   while (true) {
@@ -1832,19 +1584,20 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       }
       shared = finder.Result();
       if (shared == NULL) break;
-      // We found it if it's already compiled.
-      if (shared->is_compiled()) return handle(shared);
+      // We found it if it's already compiled and has debug code.
+      if (shared->HasDebugCode()) return handle(shared);
     }
     // If not, compile to reveal inner functions, if possible.
     if (shared->allows_lazy_compilation_without_context()) {
-      if (!CompileToRevealInnerFunctions(shared)) break;
+      HandleScope scope(isolate_);
+      if (Compiler::GetDebugCode(handle(shared)).is_null()) break;
       continue;
     }
 
     // If not possible, comb the heap for the best suitable compile target.
     JSFunction* closure;
     {
-      HeapIterator it(isolate_->heap(), HeapIterator::kNoFiltering);
+      HeapIterator it(isolate_->heap());
       SharedFunctionInfoFinder finder(position);
       while (HeapObject* object = it.next()) {
         JSFunction* candidate_closure = NULL;
@@ -1865,9 +1618,11 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       closure = finder.ResultClosure();
       shared = finder.Result();
     }
-    if (closure == NULL ? !CompileToRevealInnerFunctions(shared)
-                        : !CompileToRevealInnerFunctions(closure)) {
-      break;
+    HandleScope scope(isolate_);
+    if (closure == NULL) {
+      if (Compiler::GetDebugCode(handle(shared)).is_null()) break;
+    } else {
+      if (Compiler::GetDebugCode(handle(closure)).is_null()) break;
     }
   }
   return isolate_->factory()->undefined_value();
@@ -1880,21 +1635,15 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   if (!shared->IsSubjectToDebugging()) return false;
 
   // Return if we already have the debug info for shared.
-  if (HasDebugInfo(shared)) {
-    DCHECK(shared->is_compiled());
-    DCHECK(shared->code()->has_debug_break_slots());
-    return true;
-  }
-
-  // There will be at least one break point when we are done.
-  has_break_points_ = true;
+  if (shared->HasDebugInfo()) return true;
 
   if (function.is_null()) {
-    DCHECK(shared->is_compiled());
-    DCHECK(shared->code()->has_debug_break_slots());
+    DCHECK(shared->HasDebugCode());
   } else if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
     return false;
   }
+
+  if (!PrepareFunctionForBreakPoints(shared)) return false;
 
   // Make sure IC state is clean. This is so that we correctly flood
   // accessor pairs when stepping in.
@@ -1902,8 +1651,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   shared->feedback_vector()->ClearICSlots(*shared);
 
   // Create the debug info object.
-  DCHECK(shared->is_compiled());
-  DCHECK(shared->code()->has_debug_break_slots());
+  DCHECK(shared->HasDebugCode());
   Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
 
   // Add debug info to the list.
@@ -1923,10 +1671,6 @@ void Debug::RemoveDebugInfo(DebugInfoListNode* prev, DebugInfoListNode* node) {
     prev->set_next(node->next());
   }
   delete node;
-
-  // If there are no more debug info objects there are not more break
-  // points.
-  has_break_points_ = debug_info_list_ != NULL;
 }
 
 
@@ -1989,21 +1733,13 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
-  // If there are no break points this cannot be break at return, as
-  // the debugger statement and stack guard debug break cannot be at
-  // return.
-  if (!has_break_points_) return false;
-
-  PrepareForBreakPoints();
-
   // Get the executing function in which the debug break occurred.
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared, function)) {
-    // Return if we failed to retrieve the debug info.
-    return false;
-  }
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+
+  // With no debug info there are no break points, so we can't be at a return.
+  if (!shared->HasDebugInfo()) return false;
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   Handle<Code> code(debug_info->code());
 #ifdef DEBUG
   // Get the code which is actually executing.
@@ -2014,7 +1750,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   // Find the reloc info matching the start of the debug break slot.
   Address slot_pc = frame->pc() - Assembler::kDebugBreakSlotLength;
   int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
-  for (RelocIterator it(debug_info->code(), mask); !it.done(); it.next()) {
+  for (RelocIterator it(*code, mask); !it.done(); it.next()) {
     if (it.rinfo()->pc() == slot_pc) return true;
   }
   return false;
@@ -2065,6 +1801,44 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Get the scripts from the cache.
   return script_cache_->GetScripts();
+}
+
+
+void Debug::GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
+                               List<int>* results_out) {
+  FrameSummary summary = GetFirstFrameSummary(frame);
+
+  Handle<JSFunction> fun = Handle<JSFunction>(summary.function());
+  Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(fun->shared());
+
+  if (!EnsureDebugInfo(shared, fun)) return;
+
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+  // Refresh frame summary if the code has been recompiled for debugging.
+  if (shared->code() != *summary.code()) summary = GetFirstFrameSummary(frame);
+
+  // Find range of break points starting from the break point where execution
+  // has stopped.
+  Address call_pc = summary.pc() - 1;
+  List<BreakLocation> locations;
+  BreakLocation::FromAddressSameStatement(debug_info, ALL_BREAK_LOCATIONS,
+                                          call_pc, &locations);
+
+  for (BreakLocation location : locations) {
+    if (location.pc() <= summary.pc()) {
+      // The break point is near our pc. Could be a step-in possibility,
+      // that is currently taken by active debugger call.
+      if (break_frame_id() == StackFrame::NO_ID) {
+        continue;  // We are not stepping.
+      } else {
+        JavaScriptFrameIterator frame_it(isolate_, break_frame_id());
+        // If our frame is a top frame and we are stepping, we can do step-in
+        // at this place.
+        if (frame_it.frame()->id() != frame_id) continue;
+      }
+    }
+    if (location.IsStepInLocation()) results_out->Add(location.position());
+  }
 }
 
 

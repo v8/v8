@@ -5462,6 +5462,24 @@ bool SharedFunctionInfo::is_simple_parameter_list() {
 }
 
 
+bool SharedFunctionInfo::HasDebugInfo() {
+  bool has_debug_info = debug_info()->IsStruct();
+  DCHECK(!has_debug_info || HasDebugCode());
+  return has_debug_info;
+}
+
+
+DebugInfo* SharedFunctionInfo::GetDebugInfo() {
+  DCHECK(HasDebugInfo());
+  return DebugInfo::cast(debug_info());
+}
+
+
+bool SharedFunctionInfo::HasDebugCode() {
+  return code()->kind() == Code::FUNCTION && code()->has_debug_break_slots();
+}
+
+
 bool SharedFunctionInfo::IsApiFunction() {
   return function_data()->IsFunctionTemplateInfo();
 }

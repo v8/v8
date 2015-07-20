@@ -338,11 +338,10 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 
 OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->IsOptimizing());
-  DCHECK(!info()->IsCompilingForDebugging());
 
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
-  if (isolate()->debug()->has_break_points()) {
-    return RetryOptimization(kDebuggerHasBreakPoints);
+  if (info()->shared_info()->HasDebugInfo()) {
+    return AbortOptimization(kFunctionBeingDebugged);
   }
 
   // Limit the number of times we try to optimize functions.
@@ -905,18 +904,6 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-MaybeHandle<Code> Compiler::GetUnoptimizedCode(
-    Handle<SharedFunctionInfo> shared) {
-  DCHECK(!shared->GetIsolate()->has_pending_exception());
-  DCHECK(!shared->is_compiled());
-
-  Zone zone;
-  ParseInfo parse_info(&zone, shared);
-  CompilationInfo info(&parse_info);
-  return GetUnoptimizedCodeCommon(&info);
-}
-
-
 bool Compiler::EnsureCompiled(Handle<JSFunction> function,
                               ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
@@ -979,42 +966,38 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 }
 
 
-// Compile full code for debugging. This code will have debug break slots
-// and deoptimization information. Deoptimization information is required
-// in case that an optimized version of this function is still activated on
-// the stack. It will also make sure that the full code is compiled with
-// the same flags as the previous version, that is flags which can change
-// the code generated. The current method of mapping from already compiled
-// full code without debug break slots to full code with debug break slots
-// depends on the generated code is otherwise exactly the same.
-// If compilation fails, just keep the existing code.
-MaybeHandle<Code> Compiler::GetDebugCode(Handle<JSFunction> function) {
-  CompilationInfoWithZone info(function);
-  Isolate* isolate = info.isolate();
-  VMState<COMPILER> state(isolate);
-
-  info.MarkAsDebug();
-
-  DCHECK(!isolate->has_pending_exception());
-  Handle<Code> old_code(function->shared()->code());
-  DCHECK(old_code->kind() == Code::FUNCTION);
-  DCHECK(!old_code->has_debug_break_slots());
-
-  info.MarkCompilingForDebugging();
-  if (old_code->is_compiled_optimizable()) {
-    info.EnableDeoptimizationSupport();
-  } else {
-    info.MarkNonOptimizable();
+MaybeHandle<Code> CompileForDebugging(CompilationInfo* info) {
+  info->MarkAsDebug();
+  VMState<COMPILER> state(info->isolate());
+  if (info->shared_info()->is_compiled()) {
+    if (info->shared_info()->code()->is_compiled_optimizable()) {
+      info->EnableDeoptimizationSupport();
+    } else {
+      info->MarkNonOptimizable();
+    }
   }
-  MaybeHandle<Code> maybe_new_code = GetUnoptimizedCodeCommon(&info);
+  MaybeHandle<Code> maybe_new_code = GetUnoptimizedCodeCommon(info);
   Handle<Code> new_code;
   if (!maybe_new_code.ToHandle(&new_code)) {
-    isolate->clear_pending_exception();
-  } else {
-    DCHECK_EQ(old_code->is_compiled_optimizable(),
-              new_code->is_compiled_optimizable());
+    info->isolate()->clear_pending_exception();
   }
   return maybe_new_code;
+}
+
+
+MaybeHandle<Code> Compiler::GetDebugCode(Handle<JSFunction> function) {
+  CompilationInfoWithZone info(function);
+  VMState<COMPILER> state(info.isolate());
+  return CompileForDebugging(&info);
+}
+
+
+MaybeHandle<Code> Compiler::GetDebugCode(Handle<SharedFunctionInfo> shared) {
+  DCHECK(shared->allows_lazy_compilation_without_context());
+  Zone zone;
+  ParseInfo parse_info(&zone, shared);
+  CompilationInfo info(&parse_info);
+  return CompileForDebugging(&info);
 }
 
 
@@ -1065,12 +1048,13 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   { VMState<COMPILER> state(info->isolate());
     if (parse_info->literal() == NULL) {
       // Parse the script if needed (if it's already parsed, function() is
-      // non-NULL).
+      // non-NULL). If compiling for debugging, we may eagerly compile inner
+      // functions, so do not parse lazily in that case.
       ScriptCompiler::CompileOptions options = parse_info->compile_options();
       bool parse_allow_lazy = (options == ScriptCompiler::kConsumeParserCache ||
                                String::cast(script->source())->length() >
                                    FLAG_min_preparse_length) &&
-                              !Compiler::DebuggerWantsEagerCompilation(isolate);
+                              !info->is_debug();
 
       parse_info->set_allow_lazy_parsing(parse_allow_lazy);
       if (!parse_allow_lazy &&
@@ -1180,6 +1164,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_parse_restriction(restriction);
     parse_info.set_context(context);
 
+    // If we eval from debug code, compile for debugging as well.
+    if (outer_info->HasDebugCode()) info.MarkAsDebug();
     Debug::RecordEvalCaller(script);
 
     shared_info = CompileToplevel(&info);
@@ -1371,9 +1357,13 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // We found an existing shared function info. If it's already compiled,
   // don't worry about compiling it, and simply return it. If it's not yet
   // compiled, continue to decide whether to eagerly compile.
+  // Carry on if we are compiling eager to obtain code for debugging,
+  // unless we already have code with debut break slots.
   Handle<SharedFunctionInfo> existing;
   if (maybe_existing.ToHandle(&existing) && existing->is_compiled()) {
-    return existing;
+    if (!outer_info->is_debug() || existing->HasDebugCode()) {
+      return existing;
+    }
   }
 
   Zone zone;
@@ -1384,6 +1374,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_first_compile()) info.MarkAsFirstCompile();
+  if (outer_info->is_debug()) info.MarkAsDebug();
 
   LiveEditFunctionTracker live_edit_tracker(isolate, literal);
   // Determine if the function can be lazily compiled. This is necessary to
@@ -1396,9 +1387,11 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // of functions without an outer context when setting a breakpoint through
   // Debug::FindSharedFunctionInfoInScript.
   bool allow_lazy_without_ctx = literal->AllowsLazyCompilationWithoutContext();
-  bool allow_lazy =
-      literal->AllowsLazyCompilation() &&
-      !DebuggerWantsEagerCompilation(isolate, allow_lazy_without_ctx);
+  // Compile eagerly for live edit. When compiling debug code, eagerly compile
+  // unless we can lazily compile without the context.
+  bool allow_lazy = literal->AllowsLazyCompilation() &&
+                    !LiveEditFunctionTracker::IsActive(isolate) &&
+                    (!info.is_debug() || allow_lazy_without_ctx);
 
   if (outer_info->parse_info()->is_toplevel() && outer_info->will_serialize()) {
     // Make sure that if the toplevel code (possibly to be serialized),
@@ -1463,8 +1456,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
     return result;
   } else if (!lazy) {
-    // We have additional data from compilation now.
-    DCHECK(!existing->is_compiled());
+    // Assert that we are not overwriting (possibly patched) debug code.
+    DCHECK(!existing->HasDebugCode());
     existing->ReplaceCode(*info.code());
     existing->set_scope_info(*scope_info);
     existing->set_feedback_vector(*info.feedback_vector());
@@ -1478,6 +1471,10 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
                                              ConcurrencyMode mode,
                                              BailoutId osr_ast_id,
                                              JavaScriptFrame* osr_frame) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  if (shared->HasDebugInfo()) return MaybeHandle<Code>();
+
   Handle<Code> cached_code;
   if (GetCodeFromOptimizedCodeMap(
           function, osr_ast_id).ToHandle(&cached_code)) {
@@ -1492,10 +1489,8 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     return cached_code;
   }
 
-  Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   if (!shared->is_compiled() ||
       shared->scope_info() == ScopeInfo::Empty(isolate)) {
     // The function was never compiled. Compile it unoptimized first.
@@ -1557,19 +1552,18 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);
 
+  DCHECK(!shared->HasDebugInfo());
+
   // 1) Optimization on the concurrent thread may have failed.
   // 2) The function may have already been optimized by OSR.  Simply continue.
   //    Except when OSR already disabled optimization for some reason.
   // 3) The code may have already been invalidated due to dependency change.
-  // 4) Debugger may have been activated.
-  // 5) Code generation may have failed.
+  // 4) Code generation may have failed.
   if (job->last_status() == OptimizedCompileJob::SUCCEEDED) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(kOptimizationDisabled);
     } else if (info->dependencies()->HasAborted()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
-    } else if (isolate->debug()->has_break_points()) {
-      job->RetryOptimization(kDebuggerHasBreakPoints);
     } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
@@ -1592,15 +1586,6 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
     PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
   }
   return Handle<Code>::null();
-}
-
-
-bool Compiler::DebuggerWantsEagerCompilation(Isolate* isolate,
-                                             bool allow_lazy_without_ctx) {
-  if (LiveEditFunctionTracker::IsActive(isolate)) return true;
-  Debug* debug = isolate->debug();
-  bool debugging = debug->is_active() || debug->has_break_points();
-  return debugging && !allow_lazy_without_ctx;
 }
 
 

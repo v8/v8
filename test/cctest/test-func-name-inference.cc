@@ -80,7 +80,6 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   CHECK_NE(0, func_pos);
 
   // Obtain SharedFunctionInfo for the function.
-  isolate->debug()->PrepareForBreakPoints();
   Handle<SharedFunctionInfo> shared_func_info =
       Handle<SharedFunctionInfo>::cast(
           isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos));

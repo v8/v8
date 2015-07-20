@@ -438,8 +438,10 @@ class Debug {
   void HandleStepIn(Handle<Object> function_obj, bool is_constructor);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
-  // Purge all code objects that have no debug break slots.
-  void PrepareForBreakPoints();
+  void GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
+                          List<int>* results_out);
+
+  bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -447,7 +449,6 @@ class Debug {
   bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
                        Handle<JSFunction> function);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
-  static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
   template <typename C>
   bool CompileToRevealInnerFunctions(C* compilable);
@@ -492,6 +493,11 @@ class Debug {
            break_id() == id;
   }
 
+  bool RequiresEagerCompilation(bool allows_lazy_without_ctx = false) {
+    return LiveEditFunctionTracker::IsActive(isolate_) ||
+           (is_active() && !allows_lazy_without_ctx);
+  }
+
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
@@ -505,7 +511,6 @@ class Debug {
 
   inline bool is_active() const { return is_active_; }
   inline bool is_loaded() const { return !debug_context_.is_null(); }
-  inline bool has_break_points() const { return has_break_points_; }
   inline bool in_debug_scope() const {
     return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
   }

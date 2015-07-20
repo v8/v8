@@ -49,7 +49,6 @@ namespace internal {
   V(kCopyBuffersOverlap, "Copy buffers overlap")                               \
   V(kCouldNotGenerateZero, "Could not generate +0.0")                          \
   V(kCouldNotGenerateNegativeZero, "Could not generate -0.0")                  \
-  V(kDebuggerHasBreakPoints, "Debugger has break points")                      \
   V(kDebuggerStatement, "DebuggerStatement")                                   \
   V(kDeclarationInCatchContext, "Declaration in catch context")                \
   V(kDeclarationInWithContext, "Declaration in with context")                  \
@@ -85,6 +84,7 @@ namespace internal {
     "ForInStatement with non-local each variable")                             \
   V(kForOfStatement, "ForOfStatement")                                         \
   V(kFrameIsExpectedToBeAligned, "Frame is expected to be aligned")            \
+  V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
   V(kFunctionWithIllegalRedeclaration, "Function with illegal redeclaration")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \

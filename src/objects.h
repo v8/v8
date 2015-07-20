@@ -6668,6 +6668,13 @@ class SharedFunctionInfo: public HeapObject {
   inline int start_position_and_type() const;
   inline void set_start_position_and_type(int value);
 
+  // The function is subject to debugging if a debug info is attached.
+  inline bool HasDebugInfo();
+  inline DebugInfo* GetDebugInfo();
+
+  // A function has debug code if the compiled code has debug break slots.
+  inline bool HasDebugCode();
+
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
 
@@ -7252,6 +7259,9 @@ class JSFunction: public JSObject {
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();
+
+  // Tells whether this function inlines the given shared function info.
+  bool Inlines(SharedFunctionInfo* candidate);
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();

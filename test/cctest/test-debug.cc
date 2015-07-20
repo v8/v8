@@ -155,7 +155,7 @@ static v8::Local<v8::Function> CompileFunction(v8::Isolate* isolate,
 static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f = v8::Utils::OpenHandle(*fun);
   Handle<v8::internal::SharedFunctionInfo> shared(f->shared());
-  return Debug::HasDebugInfo(shared);
+  return shared->HasDebugInfo();
 }
 
 

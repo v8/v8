@@ -120,18 +120,17 @@ class CompilationInfo {
     kMustNotHaveEagerFrame = 1 << 4,
     kDeoptimizationSupport = 1 << 5,
     kDebug = 1 << 6,
-    kCompilingForDebugging = 1 << 7,
-    kSerializing = 1 << 8,
-    kContextSpecializing = 1 << 9,
-    kFrameSpecializing = 1 << 10,
-    kInliningEnabled = 1 << 11,
-    kTypingEnabled = 1 << 12,
-    kDisableFutureOptimization = 1 << 13,
-    kSplittingEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15,
-    kDeoptimizationEnabled = 1 << 16,
-    kSourcePositionsEnabled = 1 << 17,
-    kFirstCompile = 1 << 18,
+    kSerializing = 1 << 7,
+    kContextSpecializing = 1 << 8,
+    kFrameSpecializing = 1 << 9,
+    kInliningEnabled = 1 << 10,
+    kTypingEnabled = 1 << 11,
+    kDisableFutureOptimization = 1 << 12,
+    kSplittingEnabled = 1 << 13,
+    kTypeFeedbackEnabled = 1 << 14,
+    kDeoptimizationEnabled = 1 << 15,
+    kSourcePositionsEnabled = 1 << 16,
+    kFirstCompile = 1 << 17,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -207,6 +206,8 @@ class CompilationInfo {
     return GetFlag(kMustNotHaveEagerFrame);
   }
 
+  // Compiles marked as debug produce unoptimized code with debug break slots.
+  // Inner functions that cannot be compiled w/o context are compiled eagerly.
   void MarkAsDebug() { SetFlag(kDebug); }
 
   bool is_debug() const { return GetFlag(kDebug); }
@@ -270,8 +271,6 @@ class CompilationInfo {
   }
   void SetCode(Handle<Code> code) { code_ = code; }
 
-  void MarkCompilingForDebugging() { SetFlag(kCompilingForDebugging); }
-  bool IsCompilingForDebugging() { return GetFlag(kCompilingForDebugging); }
   void MarkNonOptimizable() {
     SetMode(CompilationInfo::NONOPT);
   }
@@ -627,10 +626,11 @@ class Compiler : public AllStatic {
       Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
       Handle<JSFunction> function);
-  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
-      Handle<SharedFunctionInfo> shared);
+
   MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
       Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
+      Handle<SharedFunctionInfo> shared);
 
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* info);
@@ -682,10 +682,6 @@ class Compiler : public AllStatic {
   // Generate and return code from previously queued optimization job.
   // On failure, return the empty handle.
   static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
-
-  // TODO(titzer): move this method out of the compiler.
-  static bool DebuggerWantsEagerCompilation(
-      Isolate* isolate, bool allow_lazy_without_ctx = false);
 };
 
 
