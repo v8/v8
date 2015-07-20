@@ -542,7 +542,7 @@ utils.SetUpLockedPrototype(SourceSlice,
 function GetPositionInLine(message) {
   var script = %MessageGetScript(message);
   var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, false);
+  var location = script.locationFromPosition(start_position, true);
   if (location == null) return -1;
   return location.column;
 }
