@@ -104,6 +104,7 @@ class LCodeGen;
   V(LoadFieldByIndex)                        \
   V(LoadFunctionPrototype)                   \
   V(LoadGlobalGeneric)                       \
+  V(LoadGlobalViaContext)                    \
   V(LoadKeyedExternal)                       \
   V(LoadKeyedFixed)                          \
   V(LoadKeyedFixedDouble)                    \
@@ -152,6 +153,7 @@ class LCodeGen;
   V(StoreCodeEntry)                          \
   V(StoreContextSlot)                        \
   V(StoreFrameContext)                       \
+  V(StoreGlobalViaContext)                   \
   V(StoreKeyedExternal)                      \
   V(StoreKeyedFixed)                         \
   V(StoreKeyedFixedDouble)                   \
@@ -1673,6 +1675,23 @@ class LIsUndetectableAndBranch final : public LControlInstruction<1, 1> {
 };
 
 
+class LLoadGlobalViaContext final : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LLoadGlobalViaContext(LOperand* context) { inputs_[0] = context; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalViaContext, "load-global-via-context")
+  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalViaContext)
+
+  void PrintDataTo(StringStream* stream) override;
+
+  LOperand* context() { return inputs_[0]; }
+
+  Handle<Object> name() const { return hydrogen()->name(); }
+  int depth() const { return hydrogen()->depth(); }
+  int slot_index() const { return hydrogen()->slot_index(); }
+};
+
+
 class LLoadContextSlot final : public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LLoadContextSlot(LOperand* context) {
@@ -2452,6 +2471,29 @@ class LStackCheck final : public LTemplateInstruction<0, 1, 0> {
 
  private:
   Label done_label_;
+};
+
+
+class LStoreGlobalViaContext final : public LTemplateInstruction<0, 2, 0> {
+ public:
+  LStoreGlobalViaContext(LOperand* context, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = value;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* value() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalViaContext,
+                               "store-global-via-context")
+  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalViaContext)
+
+  void PrintDataTo(StringStream* stream) override;
+
+  Handle<Object> name() const { return hydrogen()->name(); }
+  int depth() { return hydrogen()->depth(); }
+  int slot_index() { return hydrogen()->slot_index(); }
+  LanguageMode language_mode() { return hydrogen()->language_mode(); }
 };
 
 

@@ -337,6 +337,12 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 }
 
 
+void LLoadGlobalViaContext::PrintDataTo(StringStream* stream) {
+  stream->Add(String::cast(*name())->ToCString().get());
+  stream->Add(" depth:%d slot:%d", depth(), slot_index());
+}
+
+
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   std::ostringstream os;
@@ -352,6 +358,14 @@ void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" <- ");
   value()->PrintTo(stream);
+}
+
+
+void LStoreGlobalViaContext::PrintDataTo(StringStream* stream) {
+  stream->Add(String::cast(*name())->ToCString().get());
+  stream->Add(" <- ");
+  value()->PrintTo(stream);
+  stream->Add(" depth:%d slot:%d", depth(), slot_index());
 }
 
 
@@ -2097,6 +2111,15 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoLoadGlobalViaContext(
+    HLoadGlobalViaContext* instr) {
+  LOperand* context = UseFixed(instr->context(), cp);
+  DCHECK(instr->slot_index() > 0);
+  LLoadGlobalViaContext* result = new (zone()) LLoadGlobalViaContext(context);
+  return MarkAsCall(DefineFixed(result, v0), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
   LInstruction* result =
@@ -2380,6 +2403,19 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
   LStoreNamedGeneric* result =
       new (zone()) LStoreNamedGeneric(context, obj, val, slot, vector);
+  return MarkAsCall(result, instr);
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalViaContext(
+    HStoreGlobalViaContext* instr) {
+  LOperand* context = UseFixed(instr->context(), cp);
+  LOperand* value = UseFixed(instr->value(),
+                             StoreGlobalViaContextDescriptor::ValueRegister());
+  DCHECK(instr->slot_index() > 0);
+
+  LStoreGlobalViaContext* result =
+      new (zone()) LStoreGlobalViaContext(context, value);
   return MarkAsCall(result, instr);
 }
 

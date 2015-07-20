@@ -820,6 +820,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kLeaveInlined:
     case HValue::kLoadFieldByIndex:
     case HValue::kLoadGlobalGeneric:
+    case HValue::kLoadGlobalViaContext:
     case HValue::kLoadNamedField:
     case HValue::kLoadNamedGeneric:
     case HValue::kLoadRoot:
@@ -833,6 +834,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
     case HValue::kStoreFrameContext:
+    case HValue::kStoreGlobalViaContext:
     case HValue::kStoreKeyed:
     case HValue::kStoreNamedField:
     case HValue::kStoreNamedGeneric:
@@ -3582,6 +3584,13 @@ std::ostream& HStoreNamedGeneric::PrintDataTo(
 }
 
 
+std::ostream& HStoreGlobalViaContext::PrintDataTo(
+    std::ostream& os) const {  // NOLINT
+  return os << name()->ToCString().get() << " = " << NameOf(value())
+            << " depth:" << depth() << " slot:" << slot_index();
+}
+
+
 std::ostream& HStoreNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << NameOf(object()) << access_ << " = " << NameOf(value());
   if (NeedsWriteBarrier()) os << " (write-barrier)";
@@ -3629,6 +3638,13 @@ std::ostream& HTransitionElementsKind::PrintDataTo(
 std::ostream& HLoadGlobalGeneric::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   return os << name()->ToCString().get() << " ";
+}
+
+
+std::ostream& HLoadGlobalViaContext::PrintDataTo(
+    std::ostream& os) const {  // NOLINT
+  return os << name()->ToCString().get() << " "
+            << "depth:" << depth() << " slot:" << slot_index();
 }
 
 

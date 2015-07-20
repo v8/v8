@@ -3060,6 +3060,23 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 }
 
 
+void LCodeGen::DoLoadGlobalViaContext(LLoadGlobalViaContext* instr) {
+  DCHECK(ToRegister(instr->context()).is(cp));
+  DCHECK(ToRegister(instr->result()).is(r3));
+
+  __ mov(LoadGlobalViaContextDescriptor::DepthRegister(),
+         Operand(Smi::FromInt(instr->depth())));
+  __ mov(LoadGlobalViaContextDescriptor::SlotRegister(),
+         Operand(Smi::FromInt(instr->slot_index())));
+  __ mov(LoadGlobalViaContextDescriptor::NameRegister(),
+         Operand(instr->name()));
+
+  Handle<Code> stub =
+      CodeFactory::LoadGlobalViaContext(isolate(), instr->depth()).code();
+  CallCode(stub, RelocInfo::CODE_TARGET, instr);
+}
+
+
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -4460,6 +4477,25 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
                         isolate(), instr->language_mode(),
                         instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoStoreGlobalViaContext(LStoreGlobalViaContext* instr) {
+  DCHECK(ToRegister(instr->context()).is(cp));
+  DCHECK(ToRegister(instr->value())
+             .is(StoreGlobalViaContextDescriptor::ValueRegister()));
+
+  __ mov(StoreGlobalViaContextDescriptor::DepthRegister(),
+         Operand(Smi::FromInt(instr->depth())));
+  __ mov(StoreGlobalViaContextDescriptor::SlotRegister(),
+         Operand(Smi::FromInt(instr->slot_index())));
+  __ mov(StoreGlobalViaContextDescriptor::NameRegister(),
+         Operand(instr->name()));
+
+  Handle<Code> stub =
+      CodeFactory::StoreGlobalViaContext(isolate(), instr->depth(),
+                                         instr->language_mode()).code();
+  CallCode(stub, RelocInfo::CODE_TARGET, instr);
 }
 
 
