@@ -25,7 +25,7 @@ namespace v8 {
 class ReadLineEditor: public LineEditor {
  public:
   ReadLineEditor() : LineEditor(LineEditor::READLINE, "readline") { }
-  virtual Handle<String> Prompt(const char* prompt);
+  virtual Local<String> Prompt(const char* prompt);
   virtual bool Open(Isolate* isolate);
   virtual bool Close();
   virtual void AddHistory(const char* str);
@@ -80,10 +80,10 @@ bool ReadLineEditor::Close() {
 }
 
 
-Handle<String> ReadLineEditor::Prompt(const char* prompt) {
+Local<String> ReadLineEditor::Prompt(const char* prompt) {
   char* result = NULL;
   result = readline(prompt);
-  if (result == NULL) return Handle<String>();
+  if (result == NULL) return Local<String>();
   AddHistory(result);
   return String::NewFromUtf8(isolate_, result);
 }
@@ -118,10 +118,10 @@ char** ReadLineEditor::AttemptedCompletion(const char* text,
 
 char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
-  static Persistent<Array> current_completions;
+  static Global<Array> current_completions;
   Isolate* isolate = read_line_editor.isolate_;
   HandleScope scope(isolate);
-  Handle<Array> completions;
+  Local<Array> completions;
   if (state == 0) {
     Local<String> full_text = String::NewFromUtf8(isolate,
                                                   rl_line_buffer,
@@ -136,8 +136,8 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     completions = Local<Array>::New(isolate, current_completions);
   }
   if (current_index < completions->Length()) {
-    Handle<Integer> index = Integer::New(isolate, current_index);
-    Handle<Value> str_obj = completions->Get(index);
+    Local<Integer> index = Integer::New(isolate, current_index);
+    Local<Value> str_obj = completions->Get(index);
     current_index++;
     String::Utf8Value str(str_obj);
     return strdup(*str);
