@@ -25,6 +25,7 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-builtin-reducer.h"
+#include "src/compiler/js-context-relaxation.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
@@ -704,6 +705,7 @@ struct GenericLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    JSContextRelaxation context_relaxing;
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -713,6 +715,7 @@ struct GenericLoweringPhase {
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
     TailCallOptimization tco(data->common(), data->graph());
+    AddReducer(data, &graph_reducer, &context_relaxing);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &generic_lowering);

@@ -214,7 +214,8 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(
   const FrameStateFunctionInfo* state_info =
       jsgraph_->common()->CreateFrameStateFunctionInfo(
           FrameStateType::kArgumentsAdaptor,
-          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info);
+          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info,
+          CALL_MAINTAINS_NATIVE_CONTEXT);
 
   const Operator* op = jsgraph_->common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);

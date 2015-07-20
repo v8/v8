@@ -449,9 +449,9 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
                          local_zone),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
-          FrameStateType::kJavaScriptFunction,
-          info->num_parameters_including_this(),
-          info->scope()->num_stack_slots(), info->shared_info())),
+          FrameStateType::kJavaScriptFunction, info->num_parameters() + 1,
+          info->scope()->num_stack_slots(), info->shared_info(),
+          CALL_MAINTAINS_NATIVE_CONTEXT)),
       js_type_feedback_(js_type_feedback) {
   InitializeAstVisitor(info->isolate(), local_zone);
 }

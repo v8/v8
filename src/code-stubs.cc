@@ -506,6 +506,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   CompilationInfo info(&parse_info);
   info.SetFunctionType(GetCallInterfaceDescriptor().GetFunctionType());
   info.MarkAsContextSpecializing();
+  info.MarkAsDeoptimizationEnabled();
   info.SetStub(this);
   return info.GenerateCodeStub();
 }
