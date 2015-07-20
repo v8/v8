@@ -253,10 +253,10 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
     if (directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
         scope_->SetLanguageMode(
-            static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
+            static_cast<LanguageMode>(scope_->language_mode() | STRICT));
       } else if (statement.IsUseStrongLiteral() && allow_strong_mode()) {
         scope_->SetLanguageMode(static_cast<LanguageMode>(
-            scope_->language_mode() | STRICT_BIT | STRONG_BIT));
+            scope_->language_mode() | STRONG));
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }
@@ -1151,7 +1151,7 @@ PreParserExpression PreParser::ParseClassLiteral(
   Scope* scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, scope);
   scope_->SetLanguageMode(
-      static_cast<LanguageMode>(class_language_mode | STRICT_BIT));
+      static_cast<LanguageMode>(class_language_mode | STRICT));
   // TODO(marja): Make PreParser use scope names too.
   // scope_->SetScopeName(name);
 

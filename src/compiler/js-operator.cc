@@ -512,7 +512,7 @@ CACHED_OP_LIST(CACHED)
         return &cache_.k##Name##StrictOperator;                         \
       case STRONG:                                                      \
         return &cache_.k##Name##StrongOperator;                         \
-      case STRONG_BIT:                                                  \
+      default:                                                          \
         break; /* %*!%^$#@ */                                           \
     }                                                                   \
     UNREACHABLE();                                                      \

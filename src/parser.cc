@@ -346,7 +346,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
                                  : FunctionKind::kDefaultBaseConstructor;
   Scope* function_scope = NewScope(scope, FUNCTION_SCOPE, kind);
   function_scope->SetLanguageMode(
-      static_cast<LanguageMode>(language_mode | STRICT_BIT));
+      static_cast<LanguageMode>(language_mode | STRICT));
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -1327,12 +1327,12 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           // / "use strong" directives, do the strict mode changes only once.
           if (is_sloppy(scope_->language_mode())) {
             scope_->SetLanguageMode(static_cast<LanguageMode>(
-                scope_->language_mode() | STRICT_BIT));
+                scope_->language_mode() | STRICT));
           }
 
           if (use_strong_found) {
             scope_->SetLanguageMode(static_cast<LanguageMode>(
-                scope_->language_mode() | STRONG_BIT));
+                scope_->language_mode() | STRONG));
           }
           // Because declarations in strict eval code don't leak into the scope
           // of the eval call, it is likely that functions declared in strict
@@ -1432,7 +1432,7 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
 
   DCHECK(scope_->is_module_scope());
   scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
 
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem(CHECK_OK);
@@ -4517,7 +4517,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, block_scope);
   scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT_BIT));
+      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
   scope_->SetScopeName(name);
 
   VariableProxy* proxy = NULL;
