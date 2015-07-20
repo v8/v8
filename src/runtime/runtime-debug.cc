@@ -529,6 +529,7 @@ class FrameInspector {
   Object* GetContext() {
     return is_optimized_ ? deoptimized_frame_->GetContext() : frame_->context();
   }
+  JavaScriptFrame* GetArgumentsFrame() { return frame_; }
 
   // To inspect all the provided arguments the frame might need to be
   // replaced with the arguments frame.
@@ -959,9 +960,7 @@ static void UpdateStackLocalsFromMaterializedObject(
     Isolate* isolate, Handle<JSObject> target, Handle<ScopeInfo> scope_info,
     JavaScriptFrame* frame, int inlined_jsframe_index) {
   if (inlined_jsframe_index != 0 || frame->is_optimized()) {
-    // Optimized frames are not supported.
-    // TODO(yangguo): make sure all code deoptimized when debugger is active
-    //                and assert that this cannot happen.
+    // Optimized frames are not supported. Simply give up.
     return;
   }
 
@@ -994,7 +993,7 @@ static void UpdateStackLocalsFromMaterializedObject(
 
 MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalContext(
     Isolate* isolate, Handle<JSObject> target, Handle<JSFunction> function,
-    JavaScriptFrame* frame) {
+    Handle<Context> frame_context) {
   HandleScope scope(isolate);
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
@@ -1002,7 +1001,6 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalContext(
   if (!scope_info->HasContext()) return target;
 
   // Third fill all context locals.
-  Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->declaration_context());
   ScopeInfo::CopyContextLocalsToScopeObject(scope_info, function_context,
                                             target);
@@ -1058,16 +1056,17 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeScriptScope(
 
 
 MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalScope(
-    Isolate* isolate, JavaScriptFrame* frame, int inlined_jsframe_index) {
-  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+    Isolate* isolate, FrameInspector* frame_inspector) {
+  Handle<JSFunction> function(JSFunction::cast(frame_inspector->GetFunction()));
 
   Handle<JSObject> local_scope =
       isolate->factory()->NewJSObject(isolate->object_function());
   MaterializeStackLocalsWithFrameInspector(isolate, local_scope, function,
-                                           &frame_inspector);
+                                           frame_inspector);
 
-  return MaterializeLocalContext(isolate, local_scope, function, frame);
+  Handle<Context> frame_context(Context::cast(frame_inspector->GetContext()));
+
+  return MaterializeLocalContext(isolate, local_scope, function, frame_context);
 }
 
 
@@ -1096,13 +1095,10 @@ static bool SetContextLocalValue(Isolate* isolate, Handle<ScopeInfo> scope_info,
 
 
 static bool SetLocalVariableValue(Isolate* isolate, JavaScriptFrame* frame,
-                                  int inlined_jsframe_index,
                                   Handle<String> variable_name,
                                   Handle<Object> new_value) {
-  if (inlined_jsframe_index != 0 || frame->is_optimized()) {
-    // Optimized frames are not supported.
-    return false;
-  }
+  // Optimized frames are not supported.
+  if (frame->is_optimized()) return false;
 
   Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
@@ -1311,15 +1307,13 @@ static bool SetCatchVariableValue(Isolate* isolate, Handle<Context> context,
 static Handle<JSObject> MaterializeBlockScope(Isolate* isolate,
                                               Handle<ScopeInfo> scope_info,
                                               Handle<Context> context,
-                                              JavaScriptFrame* frame,
-                                              int inlined_jsframe_index) {
+                                              FrameInspector* frame_inspector) {
   Handle<JSObject> block_scope =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  if (frame != nullptr) {
-    FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
+  if (frame_inspector != nullptr) {
     MaterializeStackLocalsWithFrameInspector(isolate, block_scope, scope_info,
-                                             &frame_inspector);
+                                             frame_inspector);
   }
 
   if (!context.is_null()) {
@@ -1370,21 +1364,26 @@ class ScopeIterator {
     ScopeTypeModule
   };
 
-  ScopeIterator(Isolate* isolate, JavaScriptFrame* frame,
-                int inlined_jsframe_index, bool ignore_nested_scopes = false)
+  ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
+                bool ignore_nested_scopes = false)
       : isolate_(isolate),
-        frame_(frame),
-        inlined_jsframe_index_(inlined_jsframe_index),
-        function_(frame->function()),
-        context_(Context::cast(frame->context())),
+        frame_inspector_(frame_inspector),
         nested_scope_chain_(4),
         seen_script_scope_(false),
         failed_(false) {
+    if (!frame_inspector->GetContext()->IsContext() ||
+        !frame_inspector->GetFunction()->IsJSFunction()) {
+      // Optimized frame, context or function cannot be materialized. Give up.
+      return;
+    }
+
+    context_ = Handle<Context>(Context::cast(frame_inspector->GetContext()));
+
     // Catch the case when the debugger stops in an internal function.
-    Handle<SharedFunctionInfo> shared_info(function_->shared());
+    Handle<SharedFunctionInfo> shared_info(function()->shared());
     Handle<ScopeInfo> scope_info(shared_info->scope_info());
     if (shared_info->script() == isolate->heap()->undefined_value()) {
-      while (context_->closure() == *function_) {
+      while (context_->closure() == function()) {
         context_ = Handle<Context>(context_->previous(), isolate_);
       }
       return;
@@ -1408,7 +1407,7 @@ class ScopeIterator {
 
       // PC points to the instruction after the current one, possibly a break
       // location as well. So the "- 1" to exclude it from the search.
-      Address call_pc = frame->pc() - 1;
+      Address call_pc = frame()->pc() - 1;
 
       // Find the break point where execution has stopped.
       BreakLocation location =
@@ -1421,7 +1420,7 @@ class ScopeIterator {
       if (scope_info->HasContext()) {
         context_ = Handle<Context>(context_->declaration_context(), isolate_);
       } else {
-        while (context_->closure() == *function_) {
+        while (context_->closure() == function()) {
           context_ = Handle<Context>(context_->previous(), isolate_);
         }
       }
@@ -1446,7 +1445,7 @@ class ScopeIterator {
         } else {
           DCHECK(scope_info->scope_type() == EVAL_SCOPE);
           info.set_eval();
-          info.set_context(Handle<Context>(function_->context()));
+          info.set_context(Handle<Context>(function()->context()));
         }
         if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
@@ -1454,7 +1453,7 @@ class ScopeIterator {
         RetrieveScopeChain(scope, shared_info);
       } else {
         // Function code
-        ParseInfo info(&zone, function_);
+        ParseInfo info(&zone, Handle<JSFunction>(function()));
         if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
@@ -1465,15 +1464,11 @@ class ScopeIterator {
 
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
       : isolate_(isolate),
-        frame_(NULL),
-        inlined_jsframe_index_(0),
-        function_(function),
+        frame_inspector_(NULL),
         context_(function->context()),
         seen_script_scope_(false),
         failed_(false) {
-    if (function->IsBuiltin()) {
-      context_ = Handle<Context>();
-    }
+    if (function->IsBuiltin()) context_ = Handle<Context>();
   }
 
   // More scopes?
@@ -1584,7 +1579,7 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
         DCHECK(nested_scope_chain_.length() == 1);
-        return MaterializeLocalScope(isolate_, frame_, inlined_jsframe_index_);
+        return MaterializeLocalScope(isolate_, frame_inspector_);
       case ScopeIterator::ScopeTypeWith:
         // Return the with object.
         return Handle<JSObject>(JSObject::cast(CurrentContext()->extension()));
@@ -1600,11 +1595,11 @@ class ScopeIterator {
           Handle<Context> context = scope_info->HasContext()
                                         ? CurrentContext()
                                         : Handle<Context>::null();
-          return MaterializeBlockScope(isolate_, scope_info, context, frame_,
-                                       inlined_jsframe_index_);
+          return MaterializeBlockScope(isolate_, scope_info, context,
+                                       frame_inspector_);
         } else {
           return MaterializeBlockScope(isolate_, Handle<ScopeInfo>::null(),
-                                       CurrentContext(), nullptr, 0);
+                                       CurrentContext(), nullptr);
         }
       }
       case ScopeIterator::ScopeTypeModule:
@@ -1631,8 +1626,8 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeGlobal:
         break;
       case ScopeIterator::ScopeTypeLocal:
-        return SetLocalVariableValue(isolate_, frame_, inlined_jsframe_index_,
-                                     variable_name, new_value);
+        return SetLocalVariableValue(isolate_, frame(), variable_name,
+                                     new_value);
       case ScopeIterator::ScopeTypeWith:
         break;
       case ScopeIterator::ScopeTypeCatch:
@@ -1647,7 +1642,7 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeBlock:
         return SetBlockVariableValue(
             isolate_, HasContext() ? CurrentContext() : Handle<Context>::null(),
-            CurrentScopeInfo(), frame_, variable_name, new_value);
+            CurrentScopeInfo(), frame(), variable_name, new_value);
       case ScopeIterator::ScopeTypeModule:
         // TODO(2399): should we implement it?
         break;
@@ -1694,7 +1689,7 @@ class ScopeIterator {
 
       case ScopeIterator::ScopeTypeLocal: {
         os << "Local:\n";
-        function_->shared()->scope_info()->Print();
+        function()->shared()->scope_info()->Print();
         if (!CurrentContext().is_null()) {
           CurrentContext()->Print(os);
           if (CurrentContext()->has_extension()) {
@@ -1747,18 +1742,24 @@ class ScopeIterator {
 
  private:
   Isolate* isolate_;
-  JavaScriptFrame* frame_;
-  int inlined_jsframe_index_;
-  Handle<JSFunction> function_;
+  FrameInspector* const frame_inspector_;
   Handle<Context> context_;
   List<Handle<ScopeInfo> > nested_scope_chain_;
   bool seen_script_scope_;
   bool failed_;
 
+  inline JavaScriptFrame* frame() {
+    return frame_inspector_->GetArgumentsFrame();
+  }
+
+  inline JSFunction* function() {
+    return JSFunction::cast(frame_inspector_->GetFunction());
+  }
+
   void RetrieveScopeChain(Scope* scope,
                           Handle<SharedFunctionInfo> shared_info) {
     if (scope != NULL) {
-      int source_position = shared_info->code()->SourcePosition(frame_->pc());
+      int source_position = frame_inspector_->GetSourcePosition();
       scope->GetNestedScopeChain(isolate_, &nested_scope_chain_,
                                  source_position);
     } else {
@@ -1789,10 +1790,11 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
+  FrameInspector frame_inspector(frame, 0, isolate);
 
   // Count the visible scopes.
   int n = 0;
-  for (ScopeIterator it(isolate, frame, 0); !it.Done(); it.Next()) {
+  for (ScopeIterator it(isolate, &frame_inspector); !it.Done(); it.Next()) {
     n++;
   }
 
@@ -1917,10 +1919,11 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
+  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   // Find the requested scope.
   int n = 0;
-  ScopeIterator it(isolate, frame, inlined_jsframe_index);
+  ScopeIterator it(isolate, &frame_inspector);
   for (; !it.Done() && n < index; it.Next()) {
     n++;
   }
@@ -1962,9 +1965,10 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
+  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   List<Handle<JSObject> > result(4);
-  ScopeIterator it(isolate, frame, inlined_jsframe_index, ignore_nested_scopes);
+  ScopeIterator it(isolate, &frame_inspector, ignore_nested_scopes);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
@@ -2065,8 +2069,9 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
     StackFrame::Id id = UnwrapFrameId(wrapped_id);
     JavaScriptFrameIterator frame_it(isolate, id);
     JavaScriptFrame* frame = frame_it.frame();
+    FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
-    ScopeIterator it(isolate, frame, inlined_jsframe_index);
+    ScopeIterator it(isolate, &frame_inspector);
     res = SetScopeVariableValue(&it, index, variable_name, new_value);
   } else {
     CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
@@ -2086,7 +2091,9 @@ RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
   // Print the scopes for the top frame.
   StackFrameLocator locator(isolate);
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  for (ScopeIterator it(isolate, frame, 0); !it.Done(); it.Next()) {
+  FrameInspector frame_inspector(frame, 0, isolate);
+
+  for (ScopeIterator it(isolate, &frame_inspector); !it.Done(); it.Next()) {
     it.DebugPrint();
   }
 #endif
@@ -2479,7 +2486,7 @@ class EvaluationContextBuilder {
     Handle<Context> inner_context;
 
     bool stop = false;
-    for (ScopeIterator it(isolate, frame, inlined_jsframe_index);
+    for (ScopeIterator it(isolate, &frame_inspector);
          !it.Failed() && !it.Done() && !stop; it.Next()) {
       ScopeIterator::ScopeType scope_type = it.Type();
 
