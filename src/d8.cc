@@ -917,7 +917,8 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     printf("\n");
     Local<Value> stack_trace_string;
     if (try_catch->StackTrace(isolate->GetCurrentContext())
-            .ToLocal(&stack_trace_string)) {
+            .ToLocal(&stack_trace_string) &&
+        stack_trace_string->IsString()) {
       v8::String::Utf8Value stack_trace(
           Local<String>::Cast(stack_trace_string));
       printf("%s\n", ToCString(stack_trace));
