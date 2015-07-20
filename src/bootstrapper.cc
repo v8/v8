@@ -1935,22 +1935,21 @@ void Genesis::InitializeGlobal_harmony_unicode_regexps() {
 
 void Genesis::InitializeGlobal_harmony_reflect() {
   Handle<JSObject> builtins(native_context()->builtins());
-  // Install references to functions of the Reflect object
-  if (FLAG_harmony_reflect || FLAG_harmony_spreadcalls) {
-    Handle<JSFunction> apply = InstallFunction(
-        builtins, "$reflectApply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kReflectApply);
-    Handle<JSFunction> construct = InstallFunction(
-        builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
-    apply->shared()->set_internal_formal_parameter_count(3);
-    apply->shared()->set_length(3);
 
-    construct->shared()->set_internal_formal_parameter_count(3);
-    construct->shared()->set_length(2);
-  }
+  Handle<JSFunction> apply = InstallFunction(
+      builtins, "$reflectApply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      MaybeHandle<JSObject>(), Builtins::kReflectApply);
+  apply->shared()->set_internal_formal_parameter_count(3);
+  apply->shared()->set_length(3);
+
+  Handle<JSFunction> construct = InstallFunction(
+      builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
+  construct->shared()->set_internal_formal_parameter_count(3);
+  construct->shared()->set_length(2);
 
   if (!FLAG_harmony_reflect) return;
+
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context()->global_object()));
   Handle<String> reflect_string =

@@ -521,8 +521,49 @@ RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
 
 
 RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
-  UNIMPLEMENTED();
-  return nullptr;
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, actual_constructor, 1);
+  JavaScriptFrameIterator it(isolate);
+
+  // Prepare the callee to the super call. The super constructor is stored as
+  // the prototype of the constructor we are currently executing.
+  Handle<Object> super_constructor;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, super_constructor,
+      Runtime::GetPrototype(isolate, actual_constructor));
+
+  // Find the frame that holds the actual arguments passed to the function.
+  it.AdvanceToArgumentsFrame();
+  JavaScriptFrame* frame = it.frame();
+
+  // Prepare the array containing all passed arguments.
+  int argument_count = frame->GetArgumentsLength();
+  Handle<FixedArray> elements =
+      isolate->factory()->NewUninitializedFixedArray(argument_count);
+  for (int i = 0; i < argument_count; ++i) {
+    elements->set(i, frame->GetParameter(i));
+  }
+  Handle<JSArray> arguments = isolate->factory()->NewJSArrayWithElements(
+      elements, FAST_ELEMENTS, argument_count);
+
+  // Call $reflectConstruct(<super>, <args>, <new.target>) now.
+  Handle<Object> reflect;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, reflect,
+      Object::GetProperty(isolate,
+                          handle(isolate->native_context()->builtins()),
+                          "$reflectConstruct"));
+  RUNTIME_ASSERT(reflect->IsJSFunction());  // Depends on --harmony-reflect.
+  Handle<Object> argv[] = {super_constructor, arguments, original_constructor};
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, reflect, isolate->factory()->undefined_value(),
+                      arraysize(argv), argv));
+
+  return *result;
 }
 }  // namespace internal
 }  // namespace v8

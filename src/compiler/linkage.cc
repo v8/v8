@@ -194,6 +194,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
       return 0;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
+    case Runtime::kInlineDefaultConstructorCallSuper:
     case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
