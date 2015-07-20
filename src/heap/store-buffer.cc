@@ -468,17 +468,9 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               }
             }
           } else {
-            if (!page->SweepingCompleted()) {
-              heap_->mark_compact_collector()->SweepInParallel(page, owner);
-              if (!page->SweepingCompleted()) {
-                // We were not able to sweep that page, i.e., a concurrent
-                // sweeper thread currently owns this page.
-                // TODO(hpayer): This may introduce a huge pause here. We
-                // just care about finish sweeping of the scan on scavenge page.
-                heap_->mark_compact_collector()->EnsureSweepingCompleted();
-              }
-            }
             CHECK(page->owner() == heap_->old_space());
+            heap_->mark_compact_collector()->EnsureSweepingCompleted(page,
+                                                                     owner);
             HeapObjectIterator iterator(page, NULL);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
