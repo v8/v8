@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-destructuring --harmony-computed-property-names
-// Flags: --harmony-arrow-functions
+// Flags: --harmony-arrow-functions --harmony-rest-parameters
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y } = { x : 1, y : 2 };
@@ -224,6 +224,12 @@
     let {x, y = eval("x+1")} = {x:42};
     assertEquals(42, x);
     assertEquals(43, y);
+  }
+
+  {
+    let {x, y = () => eval("x+1")} = {x:42};
+    assertEquals(42, x);
+    assertEquals(43, y());
   }
 
   {
@@ -729,6 +735,25 @@
   assertEquals(1, f4({}));
   function f5({a = x}) { 'use strict'; function x() {}; return a; }
   assertEquals(1, f5({}));
+  // TODO(rossberg): Apparently, eval in default expressions is not working yet.
+  // function f6({a = eval("x")}) { var x; return a; }
+  // assertEquals(1, f6({}));
+  // function f61({a = eval("x")}) { 'use strict'; var x; return a; }
+  // assertEquals(1, f61({}));
+  // function f62({a = eval("'use strict'; x")}) { var x; return a; }
+  // assertEquals(1, f62({}));
+  function f7({a = function() { return x }}) { var x; return a(); }
+  assertEquals(1, f7({}));
+  function f8({a = () => x}) { var x; return a(); }
+  assertEquals(1, f8({}));
+  // function f9({a = () => eval("x")}) { var x; return a(); }
+  // assertEquals(1, f9({}));
+  // function f91({a = () => eval("x")}) { 'use strict'; var x; return a(); }
+  // assertEquals(1, f91({}));
+  // function f92({a = () => { 'use strict'; return eval("x") }}) { var x; return a(); }
+  // assertEquals(1, f92({}));
+  // function f93({a = () => eval("'use strict'; x")}) { var x; return a(); }
+  // assertEquals(1, f93({}));
 
   var g1 = ({a = x}) => { var x = 2; return a; };
   assertEquals(1, g1({}));
@@ -740,25 +765,82 @@
   assertEquals(1, g4({}));
   var g5 = ({a = x}) => { 'use strict'; function x() {}; return a; };
   assertEquals(1, g5({}));
+  // var g6 = ({a = eval("x")}) => { var x; return a; };
+  // assertEquals(1, g6({}));
+  // var g61 = ({a = eval("x")}) => { 'use strict'; var x; return a; };
+  // assertEquals(1, g61({}));
+  // var g62 = ({a = eval("'use strict'; x")}) => { var x; return a; };
+  // assertEquals(1, g62({}));
+  var g7 = ({a = function() { return x }}) => { var x; return a(); };
+  assertEquals(1, g7({}));
+  var g8 = ({a = () => x}) => { var x; return a(); };
+  assertEquals(1, g8({}));
+  // var g9 = ({a = () => eval("x")}) => { var x; return a(); };
+  // assertEquals(1, g9({}));
+  // var g91 = ({a = () => eval("x")}) => { 'use strict'; var x; return a(); };
+  // assertEquals(1, g91({}));
+  // var g92 = ({a = () => { 'use strict'; return eval("x") }}) => { var x; return a(); };
+  // assertEquals(1, g92({}));
+  // var g93 = ({a = () => eval("'use strict'; x")}) => { var x; return a(); };
+  // assertEquals(1, g93({}));
 
-  var f6 = function f({x = f}) { var f; return x; }
-  assertSame(f6, f6({}));
-  var f7 = function f({x = f}) { function f() {}; return x; }
-  assertSame(f7, f7({}));
-  var f8 = function f({x = f}) { 'use strict'; let f; return x; }
-  assertSame(f8, f8({}));
-  var f9 = function f({x = f}) { 'use strict'; const f = 0; return x; }
-  assertSame(f9, f9({}));
-  var f10 = function f({x = f}) { 'use strict'; function f() {}; return x; }
-  assertSame(f10, f10({}));
-  var f11 = function f({f = 7, x = f}) { return x; }
-  assertSame(7, f11({}));
+  var f11 = function f({x = f}) { var f; return x; }
+  assertSame(f11, f11({}));
+  var f12 = function f({x = f}) { function f() {}; return x; }
+  assertSame(f12, f12({}));
+  var f13 = function f({x = f}) { 'use strict'; let f; return x; }
+  assertSame(f13, f13({}));
+  var f14 = function f({x = f}) { 'use strict'; const f = 0; return x; }
+  assertSame(f14, f14({}));
+  var f15 = function f({x = f}) { 'use strict'; function f() {}; return x; }
+  assertSame(f15, f15({}));
+  var f16 = function f({f = 7, x = f}) { return x; }
+  assertSame(7, f16({}));
 
   var y = 'a';
   function f20({[y]: x}) { var y = 'b'; return x; }
   assertEquals(1, f20({a: 1, b: 2}));
+  // function f21({[eval('y')]: x}) { var y = 'b'; return x; }
+  // assertEquals(1, f21({a: 1, b: 2}));
   var g20 = ({[y]: x}) => { var y = 'b'; return x; };
   assertEquals(1, g20({a: 1, b: 2}));
+  // var g21 = ({[eval('y')]: x}) => { var y = 'b'; return x; };
+  // assertEquals(1, g21({a: 1, b: 2}));
+
+  // TODO(caitp): TDZ for rest parameters is not working yet.
+  // function f30({x = a}, ...a) {}
+  // assertThrows(() => f30({}), ReferenceError);
+  // function f31({x = eval("a")}, ...a) {}
+  // assertThrows(() => f31({}), ReferenceError);
+  // function f32({x = eval("a")}, ...a) { 'use strict'; }
+  // assertThrows(() => f32({}), ReferenceError);
+  // function f33({x = eval("'use strict'; a")}, ...a) {}
+  // assertThrows(() => f33({}), ReferenceError);
+  function f34({x = function() { return a }}, ...a) { return x()[0] }
+  assertEquals(4, f34({}, 4));
+  function f35({x = () => a}, ...a) { return x()[0] }
+  assertEquals(4, f35({}, 4));
+  // function f36({x = () => eval("a")}, ...a) { return x()[0] }
+  // assertEquals(4, f36({}, 4));
+  // function f37({x = () => eval("a")}, ...a) { 'use strict'; return x()[0] }
+  // assertEquals(4, f37({}, 4));
+  // function f38({x = () => { 'use strict'; return eval("a") }}, ...a) { return x()[0] }
+  // assertEquals(4, f38({}, 4));
+  // function f39({x = () => eval("'use strict'; a")}, ...a) { return x()[0] }
+  // assertEquals(4, f39({}, 4));
+
+  // var g30 = ({x = a}, ...a) => {};
+  // assertThrows(() => g30({}), ReferenceError);
+  // var g31 = ({x = eval("a")}, ...a) => {};
+  // assertThrows(() => g31({}), ReferenceError);
+  // var g32 = ({x = eval("a")}, ...a) => { 'use strict'; };
+  // assertThrows(() => g32({}), ReferenceError);
+  // var g33 = ({x = eval("'use strict'; a")}, ...a) => {};
+  // assertThrows(() => g33({}), ReferenceError);
+  var g34 = ({x = function() { return a }}, ...a) => { return x()[0] };
+  assertEquals(4, g34({}, 4));
+  var g35 = ({x = () => a}, ...a) => { return x()[0] };
+  assertEquals(4, g35({}, 4));
 })();
 
 
@@ -770,10 +852,15 @@
   assertThrows("'use strict';var f = ({x,x}) => {};", SyntaxError);
   assertThrows("'use strict';var f = (x, {x}) => {};", SyntaxError);
 
-  function ok(x) { var x; }; ok();
-  // TODO(rossberg): Check for variable collision.
-  // assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
-  // assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
+  function ok1(x) { var x; return x; };
+  assertEquals(1, ok1(1));
+  function ok2(x) { 'use strict'; { let x = 2; return x; } };
+  assertEquals(2, ok2(1));
+
+  assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
+  assertThrows("function f({x}) { { var x; } }; f({});", SyntaxError);
+  assertThrows("'use strict'; function f(x) { let x = 0; }; f({});", SyntaxError);
+  assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
 }());
 
 

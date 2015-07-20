@@ -575,12 +575,21 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   int length = decls_.length();
   for (int i = 0; i < length; i++) {
     Declaration* decl = decls_[i];
-    if (decl->mode() != VAR) continue;
+    if (decl->mode() != VAR && !is_block_scope()) continue;
     const AstRawString* name = decl->proxy()->raw_name();
 
     // Iterate through all scopes until and including the declaration scope.
+    // If the declaration scope is a (declaration) block scope, also continue
+    // (that is to handle the special inner scope of functions with
+    // destructuring parameters, which may not shadow any variables from
+    // the surrounding function scope).
     Scope* previous = NULL;
     Scope* current = decl->scope();
+    // Lexical vs lexical conflicts within the same scope have already been
+    // captured in Parser::Declare. The only conflicts we still need to check
+    // are lexical vs VAR, or any declarations within a declaration block scope
+    // vs lexical declarations in its surrounding (function) scope.
+    if (decl->mode() != VAR) current = current->outer_scope_;
     do {
       // There is a conflict if there exists a non-VAR binding.
       Variable* other_var = current->variables_.Lookup(name);
@@ -589,7 +598,7 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
       }
       previous = current;
       current = current->outer_scope_;
-    } while (!previous->is_declaration_scope());
+    } while (!previous->is_declaration_scope() || previous->is_block_scope());
   }
   return NULL;
 }

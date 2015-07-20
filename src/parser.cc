@@ -4443,6 +4443,9 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
     inner_scope->set_end_position(scanner()->location().end_pos);
     inner_scope = inner_scope->FinalizeBlockScope();
+    if (inner_scope != nullptr) {
+      CheckConflictingVarDeclarations(inner_scope, CHECK_OK);
+    }
 
     result->Add(init_block, zone());
     result->Add(inner_block, zone());
