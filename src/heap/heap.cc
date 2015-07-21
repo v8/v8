@@ -1641,6 +1641,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
+  GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   RelocationLock relocation_lock(this);
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
@@ -1692,35 +1693,54 @@ void Heap::Scavenge() {
   promotion_queue_.Initialize();
 
   ScavengeVisitor scavenge_visitor(this);
-  // Copy roots.
-  IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
-
-  // Copy objects reachable from the old generation.
   {
+    // Copy roots.
+    GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
+    IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
+  }
+
+  {
+    // Copy objects reachable from the old generation.
+    GCTracer::Scope gc_scope(tracer(),
+                             GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
     StoreBufferRebuildScope scope(this, store_buffer(),
                                   &ScavengeStoreBufferCallback);
     store_buffer()->IteratePointersToNewSpace(&ScavengeObject);
   }
 
-  // Copy objects reachable from the encountered weak collections list.
-  scavenge_visitor.VisitPointer(&encountered_weak_collections_);
-  // Copy objects reachable from the encountered weak cells.
-  scavenge_visitor.VisitPointer(&encountered_weak_cells_);
-
-  // Copy objects reachable from the code flushing candidates list.
-  MarkCompactCollector* collector = mark_compact_collector();
-  if (collector->is_code_flushing_enabled()) {
-    collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
+  {
+    GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_WEAK);
+    // Copy objects reachable from the encountered weak collections list.
+    scavenge_visitor.VisitPointer(&encountered_weak_collections_);
+    // Copy objects reachable from the encountered weak cells.
+    scavenge_visitor.VisitPointer(&encountered_weak_cells_);
   }
 
-  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+  {
+    // Copy objects reachable from the code flushing candidates list.
+    GCTracer::Scope gc_scope(tracer(),
+                             GCTracer::Scope::SCAVENGER_CODE_FLUSH_CANDIDATES);
+    MarkCompactCollector* collector = mark_compact_collector();
+    if (collector->is_code_flushing_enabled()) {
+      collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
+    }
+  }
 
-  while (isolate()->global_handles()->IterateObjectGroups(
-      &scavenge_visitor, &IsUnscavengedHeapObject)) {
+  {
+    GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
-  isolate()->global_handles()->RemoveObjectGroups();
-  isolate()->global_handles()->RemoveImplicitRefGroups();
+
+  {
+    GCTracer::Scope gc_scope(tracer(),
+                             GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
+    while (isolate()->global_handles()->IterateObjectGroups(
+        &scavenge_visitor, &IsUnscavengedHeapObject)) {
+      new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+    }
+    isolate()->global_handles()->RemoveObjectGroups();
+    isolate()->global_handles()->RemoveImplicitRefGroups();
+  }
 
   isolate()->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
       &IsUnscavengedHeapObject);
