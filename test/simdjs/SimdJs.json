@@ -31,9 +31,8 @@
     "test/simdjs/data/src/benchmarks/memcpy.js"
   ],
   "run_count": 5,
-  "run_count_android_arm": 1,
-  "run_count_android_arm64": 3,
   "run_count_arm": 3,
+  "run_count_arm64": 3,
   "tests": [
     {
       "flags": [
@@ -308,8 +307,7 @@
       ]
     }
   ],
-  "timeout_android_arm": 180,
-  "timeout_android_arm64": 120,
-  "timeout_arm": 120,
+  "timeout_arm": 240,
+  "timeout_arm64": 120,
   "units": "ms"
 }
