@@ -557,6 +557,34 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
 }
 
 
+void Marking::SetAllMarkBitsInRange(MarkBit start, MarkBit end) {
+  MarkBit::CellType* start_cell = start.cell();
+  MarkBit::CellType* end_cell = end.cell();
+  MarkBit::CellType start_mask = ~(start.mask() - 1);
+  MarkBit::CellType end_mask = (end.mask() << 1) - 1;
+
+  if (start_cell == end_cell) {
+    *start_cell |= start_mask & end_mask;
+  } else {
+    *start_cell |= start_mask;
+    for (MarkBit::CellType* cell = start_cell + 1; cell < end_cell; cell++) {
+      *cell = ~0;
+    }
+    *end_cell |= end_mask;
+  }
+}
+
+
+void Marking::ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
+                                                      MarkBit end) {
+  MarkBit::CellType* start_cell = start.cell();
+  MarkBit::CellType* end_cell = end.cell();
+  for (MarkBit::CellType* cell = start_cell; cell <= end_cell; cell++) {
+    *cell = 0;
+  }
+}
+
+
 void Marking::TransferMark(Address old_start, Address new_start) {
   // This is only used when resizing an object.
   DCHECK(MemoryChunk::FromAddress(old_start) ==
@@ -749,6 +777,7 @@ void MarkCompactCollector::AbortCompaction() {
     }
     compacting_ = false;
     evacuation_candidates_.Rewind(0);
+    invalidated_code_.Rewind(0);
   }
   DCHECK_EQ(0, evacuation_candidates_.length());
 }
@@ -3231,23 +3260,6 @@ void MarkCompactCollector::VerifyIsSlotInLiveObject(Address slot,
 }
 
 
-void MarkCompactCollector::RemoveObjectSlots(Address start_slot,
-                                             Address end_slot) {
-  // Remove entries by replacing them with an old-space slot containing a smi
-  // that is located in an unmovable page.
-  int npages = evacuation_candidates_.length();
-  for (int i = 0; i < npages; i++) {
-    Page* p = evacuation_candidates_[i];
-    DCHECK(p->IsEvacuationCandidate() ||
-           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
-    if (p->IsEvacuationCandidate()) {
-      SlotsBuffer::RemoveObjectSlots(heap_, p->slots_buffer(), start_slot,
-                                     end_slot);
-    }
-  }
-}
-
-
 void MarkCompactCollector::EvacuateNewSpace() {
   // There are soft limits in the allocation code, designed trigger a mark
   // sweep collection by failing allocations.  But since we are already in
@@ -3559,18 +3571,121 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
 }
 
 
+static bool SetMarkBitsUnderInvalidatedCode(Code* code, bool value) {
+  Page* p = Page::FromAddress(code->address());
+
+  if (p->IsEvacuationCandidate() || p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+    return false;
+  }
+
+  Address code_start = code->address();
+  Address code_end = code_start + code->Size();
+
+  uint32_t start_index = MemoryChunk::FastAddressToMarkbitIndex(code_start);
+  uint32_t end_index =
+      MemoryChunk::FastAddressToMarkbitIndex(code_end - kPointerSize);
+
+  // TODO(hpayer): Filter out invalidated code in
+  // ClearInvalidSlotsBufferEntries.
+  Bitmap* b = p->markbits();
+
+  MarkBit start_mark_bit = b->MarkBitFromIndex(start_index);
+  MarkBit end_mark_bit = b->MarkBitFromIndex(end_index);
+
+  if (value) {
+    Marking::SetAllMarkBitsInRange(start_mark_bit, end_mark_bit);
+  } else {
+    Marking::ClearAllMarkBitsOfCellsContainedInRange(start_mark_bit,
+                                                     end_mark_bit);
+  }
+
+  return true;
+}
+
+
+static bool IsOnInvalidatedCodeObject(Address addr) {
+  // We did not record any slots in large objects thus
+  // we can safely go to the page from the slot address.
+  Page* p = Page::FromAddress(addr);
+
+  // First check owner's identity because old space is swept concurrently or
+  // lazily and might still have non-zero mark-bits on some pages.
+  if (p->owner()->identity() != CODE_SPACE) return false;
+
+  // In code space only bits on evacuation candidates (but we don't record
+  // any slots on them) and under invalidated code objects are non-zero.
+  MarkBit mark_bit =
+      p->markbits()->MarkBitFromIndex(Page::FastAddressToMarkbitIndex(addr));
+
+  return Marking::IsBlackOrGrey(mark_bit);
+}
+
+
+void MarkCompactCollector::InvalidateCode(Code* code) {
+  if (heap_->incremental_marking()->IsCompacting() &&
+      !ShouldSkipEvacuationSlotRecording(code)) {
+    DCHECK(compacting_);
+
+    // If the object is white than no slots were recorded on it yet.
+    MarkBit mark_bit = Marking::MarkBitFrom(code);
+    if (Marking::IsWhite(mark_bit)) return;
+
+    invalidated_code_.Add(code);
+  }
+}
+
+
 // Return true if the given code is deoptimized or will be deoptimized.
 bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
   return code->is_optimized_code() && code->marked_for_deoptimization();
 }
 
 
+bool MarkCompactCollector::MarkInvalidatedCode() {
+  bool code_marked = false;
+
+  int length = invalidated_code_.length();
+  for (int i = 0; i < length; i++) {
+    Code* code = invalidated_code_[i];
+
+    if (SetMarkBitsUnderInvalidatedCode(code, true)) {
+      code_marked = true;
+    }
+  }
+
+  return code_marked;
+}
+
+
+void MarkCompactCollector::RemoveDeadInvalidatedCode() {
+  int length = invalidated_code_.length();
+  for (int i = 0; i < length; i++) {
+    if (!IsMarked(invalidated_code_[i])) invalidated_code_[i] = NULL;
+  }
+}
+
+
+void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
+  int length = invalidated_code_.length();
+  for (int i = 0; i < length; i++) {
+    Code* code = invalidated_code_[i];
+    if (code != NULL) {
+      code->Iterate(visitor);
+      SetMarkBitsUnderInvalidatedCode(code, false);
+    }
+  }
+  invalidated_code_.Rewind(0);
+}
+
+
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   Heap::RelocationLock relocation_lock(heap());
 
+  bool code_slots_filtering_required;
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_SWEEP_NEWSPACE);
+    code_slots_filtering_required = MarkInvalidatedCode();
     EvacuationScope evacuation_scope(this);
     EvacuateNewSpace();
   }
@@ -3617,7 +3732,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_UPDATE_POINTERS_TO_EVACUATED);
-    SlotsBuffer::UpdateSlotsRecordedIn(heap_, migration_slots_buffer_);
+    SlotsBuffer::UpdateSlotsRecordedIn(heap_, migration_slots_buffer_,
+                                       code_slots_filtering_required);
     if (FLAG_trace_fragmentation_verbose) {
       PrintF("  migration slots buffer: %d\n",
              SlotsBuffer::SizeOfChain(migration_slots_buffer_));
@@ -3651,7 +3767,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
              p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
 
       if (p->IsEvacuationCandidate()) {
-        SlotsBuffer::UpdateSlotsRecordedIn(heap_, p->slots_buffer());
+        SlotsBuffer::UpdateSlotsRecordedIn(heap_, p->slots_buffer(),
+                                           code_slots_filtering_required);
         if (FLAG_trace_fragmentation_verbose) {
           PrintF("  page %p slots buffer: %d\n", reinterpret_cast<void*>(p),
                  SlotsBuffer::SizeOfChain(p->slots_buffer()));
@@ -3706,6 +3823,10 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
+
+  // Visit invalidated code (we ignored all slots on it) and clear mark-bits
+  // under it.
+  ProcessInvalidatedCode(&updating_visitor);
 
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
@@ -4296,6 +4417,8 @@ void MarkCompactCollector::SweepSpaces() {
       StartSweeperThreads();
     }
   }
+  RemoveDeadInvalidatedCode();
+
   {
     GCTracer::Scope sweep_scope(heap()->tracer(),
                                 GCTracer::Scope::MC_SWEEP_CODE);
@@ -4452,41 +4575,6 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
 }
 
 
-void SlotsBuffer::RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
-                                    Address start_slot, Address end_slot) {
-  // Remove entries by replacing them with an old-space slot containing a smi
-  // that is located in an unmovable page.
-  const ObjectSlot kRemovedEntry = HeapObject::RawField(
-      heap->empty_fixed_array(), FixedArrayBase::kLengthOffset);
-  DCHECK(Page::FromAddress(reinterpret_cast<Address>(kRemovedEntry))
-             ->NeverEvacuate());
-
-  while (buffer != NULL) {
-    SlotsBuffer::ObjectSlot* slots = buffer->slots_;
-    intptr_t slots_count = buffer->idx_;
-    bool is_typed_slot = false;
-
-    for (int slot_idx = 0; slot_idx < slots_count; ++slot_idx) {
-      ObjectSlot slot = slots[slot_idx];
-      if (!IsTypedSlot(slot)) {
-        Address slot_address = reinterpret_cast<Address>(slot);
-        if (slot_address >= start_slot && slot_address < end_slot) {
-          slots[slot_idx] = kRemovedEntry;
-          if (is_typed_slot) {
-            slots[slot_idx - 1] = kRemovedEntry;
-          }
-        }
-        is_typed_slot = false;
-      } else {
-        is_typed_slot = true;
-        DCHECK(slot_idx < slots_count);
-      }
-    }
-    buffer = buffer->next();
-  }
-}
-
-
 void SlotsBuffer::VerifySlots(Heap* heap, SlotsBuffer* buffer) {
   while (buffer != NULL) {
     SlotsBuffer::ObjectSlot* slots = buffer->slots_;
@@ -4623,6 +4711,28 @@ void SlotsBuffer::UpdateSlots(Heap* heap) {
       DCHECK(slot_idx < idx_);
       UpdateSlot(heap->isolate(), &v, DecodeSlotType(slot),
                  reinterpret_cast<Address>(slots_[slot_idx]));
+    }
+  }
+}
+
+
+void SlotsBuffer::UpdateSlotsWithFilter(Heap* heap) {
+  PointersUpdatingVisitor v(heap);
+
+  for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
+    ObjectSlot slot = slots_[slot_idx];
+    if (!IsTypedSlot(slot)) {
+      if (!IsOnInvalidatedCodeObject(reinterpret_cast<Address>(slot))) {
+        PointersUpdatingVisitor::UpdateSlot(heap, slot);
+      }
+    } else {
+      ++slot_idx;
+      DCHECK(slot_idx < idx_);
+      Address pc = reinterpret_cast<Address>(slots_[slot_idx]);
+      if (!IsOnInvalidatedCodeObject(pc)) {
+        UpdateSlot(heap->isolate(), &v, DecodeSlotType(slot),
+                   reinterpret_cast<Address>(slots_[slot_idx]));
+      }
     }
   }
 }

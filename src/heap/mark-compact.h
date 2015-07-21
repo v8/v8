@@ -116,6 +116,10 @@ class Marking {
     markbit.Next().Set();
   }
 
+  static void SetAllMarkBitsInRange(MarkBit start, MarkBit end);
+  static void ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
+                                                      MarkBit end);
+
   void TransferMark(Address old_start, Address new_start);
 
 #ifdef DEBUG
@@ -321,12 +325,6 @@ class SlotsBuffer {
     slots_[idx_++] = slot;
   }
 
-  // Should be used for testing only.
-  ObjectSlot Get(intptr_t i) {
-    DCHECK(i >= 0 && i < kNumberOfElements);
-    return slots_[i];
-  }
-
   enum SlotType {
     EMBEDDED_OBJECT_SLOT,
     OBJECT_SLOT,
@@ -362,6 +360,8 @@ class SlotsBuffer {
 
   void UpdateSlots(Heap* heap);
 
+  void UpdateSlotsWithFilter(Heap* heap);
+
   SlotsBuffer* next() { return next_; }
 
   static int SizeOfChain(SlotsBuffer* buffer) {
@@ -374,9 +374,14 @@ class SlotsBuffer {
 
   inline bool HasSpaceForTypedSlot() { return idx_ < kNumberOfElements - 1; }
 
-  static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer) {
+  static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer,
+                                    bool code_slots_filtering_required) {
     while (buffer != NULL) {
-      buffer->UpdateSlots(heap);
+      if (code_slots_filtering_required) {
+        buffer->UpdateSlotsWithFilter(heap);
+      } else {
+        buffer->UpdateSlots(heap);
+      }
       buffer = buffer->next();
     }
   }
@@ -414,10 +419,6 @@ class SlotsBuffer {
   // marking, when the whole transitive closure is known and must be called
   // before sweeping when mark bits are still intact.
   static void RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer);
-
-  // Eliminate all slots that are within the given address range.
-  static void RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
-                                Address start_slot, Address end_slot);
 
   // Ensures that there are no invalid slots in the chain of slots buffers.
   static void VerifySlots(Heap* heap, SlotsBuffer* buffer);
@@ -666,6 +667,8 @@ class MarkCompactCollector {
 
   bool TryPromoteObject(HeapObject* object, int object_size);
 
+  void InvalidateCode(Code* code);
+
   void ClearMarkbits();
 
   bool abort_incremental_marking() const { return abort_incremental_marking_; }
@@ -738,17 +741,16 @@ class MarkCompactCollector {
   bool IsSlotInLiveObject(Address slot);
   void VerifyIsSlotInLiveObject(Address slot, HeapObject* object);
 
-  // Removes all the slots in the slot buffers that are within the given
-  // address range.
-  void RemoveObjectSlots(Address start_slot, Address end_slot);
-
  private:
   class SweeperTask;
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
+  bool MarkInvalidatedCode();
   bool WillBeDeoptimized(Code* code);
+  void RemoveDeadInvalidatedCode();
+  void ProcessInvalidatedCode(ObjectVisitor* visitor);
   void EvictPopularEvacuationCandidate(Page* page);
   void ClearInvalidSlotsBufferEntries(PagedSpace* space);
   void ClearInvalidStoreAndSlotsBufferEntries();
@@ -965,6 +967,7 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
+  List<Code*> invalidated_code_;
 
   base::SmartPointer<FreeList> free_list_old_space_;
 
