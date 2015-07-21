@@ -638,8 +638,8 @@ template <class T> class PersistentBase {
   friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
-  PersistentBase(PersistentBase& other) = delete;  // NOLINT
-  void operator=(PersistentBase&) = delete;
+  PersistentBase(const PersistentBase& other) = delete;  // NOLINT
+  void operator=(const PersistentBase&) = delete;
   V8_INLINE static T* New(Isolate* isolate, T* that);
 
   T* val_;
@@ -845,8 +845,8 @@ class Global : public PersistentBase<T> {
  private:
   template <class F>
   friend class ReturnValue;
-  Global(Global&) = delete;
-  void operator=(Global&) = delete;
+  Global(const Global&) = delete;
+  void operator=(const Global&) = delete;
   V8_INLINE T* operator*() const { return this->val_; }
 };
 
