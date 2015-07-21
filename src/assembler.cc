@@ -158,6 +158,10 @@ AssemblerBase::~AssemblerBase() {
 // -----------------------------------------------------------------------------
 // Implementation of PredictableCodeSizeScope
 
+PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler)
+    : PredictableCodeSizeScope(assembler, -1) {}
+
+
 PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler,
                                                    int expected_size)
     : assembler_(assembler),

@@ -5848,8 +5848,8 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ cmp(sp, Operand(ip));
     __ b(hs, &done);
     Handle<Code> stack_check = isolate()->builtins()->StackCheck();
-    PredictableCodeSizeScope predictable(masm(),
-        CallCodeSize(stack_check, RelocInfo::CODE_TARGET));
+    PredictableCodeSizeScope predictable(masm());
+    predictable.ExpectSize(CallCodeSize(stack_check, RelocInfo::CODE_TARGET));
     DCHECK(instr->context()->IsRegister());
     DCHECK(ToRegister(instr->context()).is(cp));
     CallCode(stack_check, RelocInfo::CODE_TARGET, instr);

@@ -4677,8 +4677,9 @@ void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
-    int code_size = masm->CallStubSize(&stub) + 2 * Assembler::kInstrSize;
-    PredictableCodeSizeScope predictable(masm, code_size);
+    PredictableCodeSizeScope predictable(masm);
+    predictable.ExpectSize(masm->CallStubSize(&stub) +
+                           2 * Assembler::kInstrSize);
     __ push(lr);
     __ CallStub(&stub);
     __ pop(lr);

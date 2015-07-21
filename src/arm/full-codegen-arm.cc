@@ -355,7 +355,8 @@ void FullCodeGenerator::Generate() {
       __ cmp(sp, Operand(ip));
       __ b(hs, &ok);
       Handle<Code> stack_check = isolate()->builtins()->StackCheck();
-      PredictableCodeSizeScope predictable(masm_,
+      PredictableCodeSizeScope predictable(masm_);
+      predictable.ExpectSize(
           masm_->CallSize(stack_check, RelocInfo::CODE_TARGET));
       __ Call(stack_check, RelocInfo::CODE_TARGET);
       __ bind(&ok);
