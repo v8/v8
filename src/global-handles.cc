@@ -840,7 +840,7 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
     }
   }
   if (pending_phantom_callbacks_.length() > 0) {
-    if (synchronous_second_pass) {
+    if (FLAG_optimize_for_size || FLAG_predictable || synchronous_second_pass) {
       InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate());
     } else {
       auto task = new PendingPhantomCallbacksSecondPassTask(
