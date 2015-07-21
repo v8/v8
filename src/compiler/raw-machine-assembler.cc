@@ -12,16 +12,14 @@ namespace internal {
 namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
-                                         const MachineSignature* machine_sig,
+                                         CallDescriptor* call_descriptor,
                                          MachineType word,
                                          MachineOperatorBuilder::Flags flags)
     : GraphBuilder(isolate, graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word, flags),
       common_(zone()),
-      machine_sig_(machine_sig),
-      call_descriptor_(
-          Linkage::GetSimplifiedCDescriptor(graph->zone(), machine_sig)),
+      call_descriptor_(call_descriptor),
       parameters_(NULL),
       current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
