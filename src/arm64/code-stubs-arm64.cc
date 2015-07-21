@@ -2748,18 +2748,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
 static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
                                        Register argc, Register function,
-                                       Register feedback_vector,
-                                       Register index) {
+                                       Register feedback_vector, Register index,
+                                       Register orig_construct) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(argc);
-  __ Push(argc, function, feedback_vector, index);
+  __ Push(argc, function, feedback_vector, index, orig_construct);
 
   DCHECK(feedback_vector.Is(x2) && index.Is(x3));
   __ CallStub(stub);
 
-  __ Pop(index, feedback_vector, function, argc);
+  __ Pop(orig_construct, index, feedback_vector, function, argc);
   __ SmiUntag(argc);
 }
 
@@ -2767,17 +2767,18 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
 static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
                                      Register function,
                                      Register feedback_vector, Register index,
-                                     Register scratch1, Register scratch2,
-                                     Register scratch3) {
+                                     Register orig_construct, Register scratch1,
+                                     Register scratch2, Register scratch3) {
   ASM_LOCATION("GenerateRecordCallTarget");
   DCHECK(!AreAliased(scratch1, scratch2, scratch3, argc, function,
-                     feedback_vector, index));
+                     feedback_vector, index, orig_construct));
   // Cache the called function in a feedback vector slot. Cache states are
   // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
   //  argc :            number of arguments to the construct function
   //  function :        the function to call
   //  feedback_vector : the feedback vector
   //  index :           slot in feedback vector (smi)
+  //  orig_construct :  original constructor
   Label initialize, done, miss, megamorphic, not_array_function;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
@@ -2856,7 +2857,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
     // slot.
     CreateAllocationSiteStub create_stub(masm->isolate());
     CallStubInRecordCallTarget(masm, &create_stub, argc, function,
-                               feedback_vector, index);
+                               feedback_vector, index, orig_construct);
     __ B(&done);
 
     __ Bind(&not_array_function);
@@ -2864,7 +2865,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
 
   CreateWeakCellStub create_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &create_stub, argc, function,
-                             feedback_vector, index);
+                             feedback_vector, index, orig_construct);
   __ Bind(&done);
 }
 
@@ -3004,14 +3005,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
                          &slow);
 
   if (RecordCallTarget()) {
-    if (IsSuperConstructorCall()) {
-      __ Push(x4);
-    }
-    // TODO(mstarzinger): Consider tweaking target recording to avoid push/pop.
-    GenerateRecordCallTarget(masm, x0, function, x2, x3, x4, x5, x11);
-    if (IsSuperConstructorCall()) {
-      __ Pop(x4);
-    }
+    GenerateRecordCallTarget(masm, x0, function, x2, x3, x4, x5, x11, x12);
 
     __ Add(x5, x2, Operand::UntagSmiAndScale(x3, kPointerSizeLog2));
     if (FLAG_pretenuring_call_new) {

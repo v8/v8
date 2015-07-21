@@ -907,6 +907,25 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 }
 
 
+void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
+                         const CPURegister& dst2, const CPURegister& dst3,
+                         const CPURegister& dst4, const CPURegister& dst5,
+                         const CPURegister& dst6, const CPURegister& dst7) {
+  // It is not valid to pop into the same register more than once in one
+  // instruction, not even into the zero register.
+  DCHECK(!AreAliased(dst0, dst1, dst2, dst3, dst4, dst5, dst6, dst7));
+  DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3, dst4, dst5, dst6, dst7));
+  DCHECK(dst0.IsValid());
+
+  int count = 5 + dst5.IsValid() + dst6.IsValid() + dst7.IsValid();
+  int size = dst0.SizeInBytes();
+
+  PopHelper(4, size, dst0, dst1, dst2, dst3);
+  PopHelper(count - 4, size, dst4, dst5, dst6, dst7);
+  PopPostamble(count, size);
+}
+
+
 void MacroAssembler::Push(const Register& src0, const FPRegister& src1) {
   int size = src0.SizeInBytes() + src1.SizeInBytes();
 

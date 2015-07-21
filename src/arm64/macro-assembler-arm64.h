@@ -569,6 +569,10 @@ class MacroAssembler : public Assembler {
             const CPURegister& src6 = NoReg, const CPURegister& src7 = NoReg);
   void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
            const CPURegister& dst2 = NoReg, const CPURegister& dst3 = NoReg);
+  void Pop(const CPURegister& dst0, const CPURegister& dst1,
+           const CPURegister& dst2, const CPURegister& dst3,
+           const CPURegister& dst4, const CPURegister& dst5 = NoReg,
+           const CPURegister& dst6 = NoReg, const CPURegister& dst7 = NoReg);
   void Push(const Register& src0, const FPRegister& src1);
 
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
