@@ -169,7 +169,7 @@ Heap::Heap()
 #endif
 
   // Ensure old_generation_size_ is a multiple of kPageSize.
-  DCHECK(MB >= Page::kPageSize);
+  DCHECK((max_old_generation_size_ & (Page::kPageSize - 1)) == 0);
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   set_native_contexts_list(NULL);
@@ -5367,6 +5367,13 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
     max_executable_size_ = static_cast<intptr_t>(FLAG_max_executable_size) * MB;
   }
 
+  if (Page::kPageSize > MB) {
+    max_semi_space_size_ = ROUND_UP(max_semi_space_size_, Page::kPageSize);
+    max_old_generation_size_ =
+        ROUND_UP(max_old_generation_size_, Page::kPageSize);
+    max_executable_size_ = ROUND_UP(max_executable_size_, Page::kPageSize);
+  }
+
   if (FLAG_stress_compaction) {
     // This will cause more frequent GCs when stressing.
     max_semi_space_size_ = Page::kPageSize;
@@ -5392,12 +5399,6 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
     reserved_semispace_size_ = max_semi_space_size_;
   }
 
-  // The max executable size must be less than or equal to the max old
-  // generation size.
-  if (max_executable_size_ > max_old_generation_size_) {
-    max_executable_size_ = max_old_generation_size_;
-  }
-
   // The new space size must be a power of two to support single-bit testing
   // for containment.
   max_semi_space_size_ =
@@ -5416,7 +5417,8 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
                      max_semi_space_size_ / MB);
       }
     } else {
-      initial_semispace_size_ = initial_semispace_size;
+      initial_semispace_size_ =
+          ROUND_UP(initial_semispace_size, Page::kPageSize);
     }
   }
 
@@ -5441,7 +5443,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
                      max_semi_space_size_ / MB);
       }
     } else {
-      target_semispace_size_ = target_semispace_size;
+      target_semispace_size_ = ROUND_UP(target_semispace_size, Page::kPageSize);
     }
   }
 
@@ -5456,6 +5458,12 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
   max_old_generation_size_ =
       Max(static_cast<intptr_t>(paged_space_count * Page::kPageSize),
           max_old_generation_size_);
+
+  // The max executable size must be less than or equal to the max old
+  // generation size.
+  if (max_executable_size_ > max_old_generation_size_) {
+    max_executable_size_ = max_old_generation_size_;
+  }
 
   if (FLAG_initial_old_space_size > 0) {
     initial_old_generation_size_ = FLAG_initial_old_space_size * MB;

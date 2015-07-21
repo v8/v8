@@ -17263,10 +17263,12 @@ class InitDefaultIsolateThread : public v8::base::Thread {
   void Run() {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    const intptr_t pageSizeMult =
+        v8::internal::Page::kPageSize / v8::internal::MB;
     switch (testCase_) {
       case SetResourceConstraints: {
-        create_params.constraints.set_max_semi_space_size(1);
-        create_params.constraints.set_max_old_space_size(4);
+        create_params.constraints.set_max_semi_space_size(1 * pageSizeMult);
+        create_params.constraints.set_max_old_space_size(4 * pageSizeMult);
         break;
       }
       default:
