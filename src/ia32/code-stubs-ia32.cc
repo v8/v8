@@ -1916,38 +1916,57 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
+                                       bool is_super) {
   // eax : number of arguments to the construct function
-  // ebx : Feedback vector
+  // ebx : feedback vector
   // edx : slot in feedback vector (Smi)
   // edi : the function to call
-  FrameScope scope(masm, StackFrame::INTERNAL);
+  // esp[0]: original receiver (for IsSuperConstructorCall)
+  if (is_super) {
+    __ pop(ecx);
+  }
 
-  // Number-of-arguments register must be smi-tagged to call out.
-  __ SmiTag(eax);
-  __ push(eax);
-  __ push(edi);
-  __ push(edx);
-  __ push(ebx);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  __ CallStub(stub);
+    // Number-of-arguments register must be smi-tagged to call out.
+    __ SmiTag(eax);
+    __ push(eax);
+    __ push(edi);
+    __ push(edx);
+    __ push(ebx);
+    if (is_super) {
+      __ push(ecx);
+    }
 
-  __ pop(ebx);
-  __ pop(edx);
-  __ pop(edi);
-  __ pop(eax);
-  __ SmiUntag(eax);
+    __ CallStub(stub);
+
+    if (is_super) {
+      __ pop(ecx);
+    }
+    __ pop(ebx);
+    __ pop(edx);
+    __ pop(edi);
+    __ pop(eax);
+    __ SmiUntag(eax);
+  }
+
+  if (is_super) {
+    __ push(ecx);
+  }
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // eax : number of arguments to the construct function
-  // ebx : Feedback vector
+  // ebx : feedback vector
   // edx : slot in feedback vector (Smi)
   // edi : the function to call
+  // esp[0]: original receiver (for IsSuperConstructorCall)
   Isolate* isolate = masm->isolate();
   Label initialize, done, miss, megamorphic, not_array_function;
 
@@ -2016,14 +2035,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     // Create an AllocationSite if we don't already have it, store it in the
     // slot.
     CreateAllocationSiteStub create_stub(isolate);
-    CallStubInRecordCallTarget(masm, &create_stub);
+    CallStubInRecordCallTarget(masm, &create_stub, is_super);
     __ jmp(&done);
 
     __ bind(&not_array_function);
   }
 
   CreateWeakCellStub create_stub(isolate);
-  CallStubInRecordCallTarget(masm, &create_stub);
+  CallStubInRecordCallTarget(masm, &create_stub, is_super);
   __ bind(&done);
 }
 
@@ -2163,7 +2182,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    GenerateRecordCallTarget(masm, IsSuperConstructorCall());
 
     if (FLAG_pretenuring_call_new) {
       // Put the AllocationSite from the feedback vector into ebx.
@@ -2205,7 +2224,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // edi: called object
   // eax: number of arguments
   // ecx: object map
-  // esp[0]: original receiver
+  // esp[0]: original receiver (for IsSuperConstructorCall)
   Label do_call;
   __ bind(&slow);
   __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
