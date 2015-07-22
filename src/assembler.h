@@ -1026,6 +1026,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference stress_deopt_count(Isolate* isolate);
 
+  static ExternalReference fixed_typed_array_base_data_offset();
+
  private:
   explicit ExternalReference(void* address)
       : address_(address) {}

@@ -1512,6 +1512,12 @@ ExternalReference ExternalReference::debug_step_in_fp_address(
 }
 
 
+ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
+  return ExternalReference(reinterpret_cast<void*>(
+      FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
+}
+
+
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();
 }

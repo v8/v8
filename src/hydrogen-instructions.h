@@ -4895,6 +4895,8 @@ class HAdd final : public HArithmeticBinaryOperation {
              right()->representation().IsTagged()));
   }
 
+  ExternalAddType external_add_type() const { return external_add_type_; }
+
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
  protected:
@@ -4913,6 +4915,8 @@ class HAdd final : public HArithmeticBinaryOperation {
         DCHECK(left->representation().IsExternal());
         DCHECK(right->representation().IsTagged());
         SetDependsOnFlag(kNewSpacePromotion);
+        ClearFlag(HValue::kCanOverflow);
+        SetFlag(kHasNoObservableSideEffects);
         break;
 
       case NoExternalAdd:
@@ -6028,6 +6032,12 @@ class HObjectAccess final {
                          Representation::Tagged());
   }
 
+  static HObjectAccess ForFixedTypedArrayBaseExternalPointer() {
+    return HObjectAccess::ForObservableJSObjectOffset(
+        FixedTypedArrayBase::kExternalPointerOffset,
+        Representation::External());
+  }
+
   static HObjectAccess ForStringHashField() {
     return HObjectAccess(kInobject,
                          String::kHashFieldOffset,
@@ -6648,11 +6658,11 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
   Representation RequiredInputRepresentation(int index) override {
     // kind_fast:                 tagged[int32] (none)
     // kind_double:               tagged[int32] (none)
-    // kind_fixed_typed_array:    tagged[int32] (none)
+    // kind_fixed_typed_array:    external[int32] (none)
     // kind_external:             external[int32] (none)
     if (index == 0) {
-      return is_external() ? Representation::External()
-          : Representation::Tagged();
+      return is_typed_elements() ? Representation::External()
+                                 : Representation::Tagged();
     }
     if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
@@ -7113,8 +7123,8 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
     // kind_fixed_typed_array:  tagged[int32] = (double | int32)
     // kind_external:           external[int32] = (double | int32)
     if (index == 0) {
-      return is_external() ? Representation::External()
-                           : Representation::Tagged();
+      return is_typed_elements() ? Representation::External()
+                                 : Representation::Tagged();
     } else if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
           OperandAt(1)->representation());

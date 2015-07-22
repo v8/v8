@@ -53,13 +53,17 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 }
 
 
+static bool IsTypedArrayElementsKind(ElementsKind elements_kind) {
+  return IsFixedTypedArrayElementsKind(elements_kind) ||
+         IsExternalArrayElementsKind(elements_kind);
+}
+
+
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
 
-  if (IsExternalArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayElementsKind(elements_kind)) {
     return 0;
-  } else if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
   } else {
     return FixedArray::kHeaderSize - kHeapObjectTag;
   }
@@ -132,12 +136,6 @@ ElementsKind GetNextTransitionElementsKind(ElementsKind kind) {
       return GetFastElementsKindFromSequenceIndex(index + 1);
     }
   }
-}
-
-
-static bool IsTypedArrayElementsKind(ElementsKind elements_kind) {
-  return IsFixedTypedArrayElementsKind(elements_kind) ||
-      IsExternalArrayElementsKind(elements_kind);
 }
 
 

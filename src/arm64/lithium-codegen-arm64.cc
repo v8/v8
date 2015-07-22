@@ -1476,9 +1476,14 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 void LCodeGen::DoAddE(LAddE* instr) {
   Register result = ToRegister(instr->result());
   Register left = ToRegister(instr->left());
-  Operand right = (instr->right()->IsConstantOperand())
-      ? ToInteger32(LConstantOperand::cast(instr->right()))
-      : Operand(ToRegister32(instr->right()), SXTW);
+  Operand right = Operand(x0);  // Dummy initialization.
+  if (instr->hydrogen()->external_add_type() == AddOfExternalAndTagged) {
+    right = Operand(ToRegister(instr->right()));
+  } else if (instr->right()->IsConstantOperand()) {
+    right = ToInteger32(LConstantOperand::cast(instr->right()));
+  } else {
+    right = Operand(ToRegister32(instr->right()), SXTW);
+  }
 
   DCHECK(!instr->hydrogen()->CheckFlag(HValue::kCanOverflow));
   __ Add(result, left, right);

@@ -807,6 +807,10 @@ int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
 int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
                                    const Representation& r) const {
   HConstant* constant = chunk_->LookupConstant(op);
+  if (r.IsExternal()) {
+    return reinterpret_cast<int32_t>(
+        constant->ExternalReferenceValue().address());
+  }
   int32_t value = constant->Integer32Value();
   if (r.IsInteger32()) return value;
   DCHECK(r.IsSmiOrTagged());
@@ -4494,7 +4498,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (operand_value->IsRegister()) {
       Register value = ToRegister(operand_value);
       __ Store(value, operand, representation);
-    } else if (representation.IsInteger32()) {
+    } else if (representation.IsInteger32() || representation.IsExternal()) {
       Immediate immediate = ToImmediate(operand_value, representation);
       DCHECK(!instr->hydrogen()->NeedsWriteBarrier());
       __ mov(operand, immediate);

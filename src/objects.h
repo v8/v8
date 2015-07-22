@@ -4536,6 +4536,10 @@ class FixedTypedArrayBase: public FixedArrayBase {
   // [base_pointer]: For now, points to the FixedTypedArrayBase itself.
   DECL_ACCESSORS(base_pointer, Object)
 
+  // [external_pointer]: For now, contains the offset between base_pointer and
+  // the start of the data.
+  DECL_ACCESSORS(external_pointer, void)
+
   // Dispatched behavior.
   inline void FixedTypedArrayBaseIterateBody(ObjectVisitor* v);
 
@@ -4544,11 +4548,12 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   DECLARE_CAST(FixedTypedArrayBase)
 
-  static const int kBasePointerOffset =
-      FixedArrayBase::kHeaderSize + kPointerSize;
-  static const int kHeaderSize = kBasePointerOffset + kPointerSize;
+  static const int kBasePointerOffset = FixedArrayBase::kHeaderSize;
+  static const int kExternalPointerOffset = kBasePointerOffset + kPointerSize;
+  static const int kHeaderSize =
+      DOUBLE_POINTER_ALIGN(kExternalPointerOffset + kPointerSize);
 
-  static const int kDataOffset = DOUBLE_POINTER_ALIGN(kHeaderSize);
+  static const int kDataOffset = kHeaderSize;
 
   inline int size();
 

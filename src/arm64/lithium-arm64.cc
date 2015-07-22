@@ -2388,10 +2388,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
             !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
            (instr->value()->representation().IsDouble() &&
             IsDoubleOrFloatElementsKind(instr->elements_kind())));
-    DCHECK((instr->is_fixed_typed_array() &&
-            instr->elements()->representation().IsTagged()) ||
-           (instr->is_external() &&
-            instr->elements()->representation().IsExternal()));
+    DCHECK(instr->elements()->representation().IsExternal());
     return new(zone()) LStoreKeyedExternal(elements, key, val, temp);
 
   } else if (instr->value()->representation().IsDouble()) {

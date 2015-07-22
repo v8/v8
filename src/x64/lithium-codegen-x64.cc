@@ -458,6 +458,11 @@ bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
 }
 
 
+bool LCodeGen::IsExternalConstant(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsExternal();
+}
+
+
 bool LCodeGen::IsDehoistedKeyConstant(LConstantOperand* op) const {
   return op->IsConstantOperand() &&
       chunk_->IsDehoistedKey(chunk_->LookupConstant(op));
@@ -4218,6 +4223,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         __ movl(operand, Immediate(value));
       }
 
+    } else if (IsExternalConstant(operand_value)) {
+      DCHECK(!hinstr->NeedsWriteBarrier());
+      ExternalReference ptr = ToExternalReference(operand_value);
+      __ Move(kScratchRegister, ptr);
+      __ movp(operand, kScratchRegister);
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       DCHECK(!hinstr->NeedsWriteBarrier());

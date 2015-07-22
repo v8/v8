@@ -3833,8 +3833,23 @@ void ExternalFloat64Array::set(int index, double value) {
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
 
+void* FixedTypedArrayBase::external_pointer() const {
+  intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
+  return reinterpret_cast<void*>(ptr);
+}
+
+
+void FixedTypedArrayBase::set_external_pointer(void* value,
+                                               WriteBarrierMode mode) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(this, kExternalPointerOffset, ptr);
+}
+
+
 void* FixedTypedArrayBase::DataPtr() {
-  return FIELD_ADDR(this, kDataOffset);
+  return reinterpret_cast<void*>(
+      reinterpret_cast<intptr_t>(base_pointer()) +
+      reinterpret_cast<intptr_t>(external_pointer()));
 }
 
 
@@ -3915,8 +3930,7 @@ double Float64ArrayTraits::defaultValue() {
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   DCHECK((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(
-      FIELD_ADDR(this, kDataOffset));
+  ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
   return ptr[index];
 }
 
@@ -3924,8 +3938,7 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   DCHECK((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(
-      FIELD_ADDR(this, kDataOffset));
+  ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
   ptr[index] = value;
 }
 

@@ -2458,7 +2458,14 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       backing_store = Add<HLoadNamedField>(
           elements, nullptr, HObjectAccess::ForExternalArrayExternalPointer());
     } else {
-      backing_store = elements;
+      HValue* external_pointer = Add<HLoadNamedField>(
+          elements, nullptr,
+          HObjectAccess::ForFixedTypedArrayBaseExternalPointer());
+      HValue* base_pointer = Add<HLoadNamedField>(
+          elements, nullptr,
+          HObjectAccess::ForFixedTypedArrayBaseBasePointer());
+      backing_store = AddUncasted<HAdd>(external_pointer, base_pointer,
+                                        Strength::WEAK, AddOfExternalAndTagged);
     }
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       NoObservableSideEffectsScope no_effects(this);
@@ -10019,15 +10026,23 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   Add<HStoreNamedField>(
       elements, HObjectAccess::ForFixedTypedArrayBaseBasePointer(), elements);
 
+  Add<HStoreNamedField>(
+      elements, HObjectAccess::ForFixedTypedArrayBaseExternalPointer(),
+      Add<HConstant>(ExternalReference::fixed_typed_array_base_data_offset()));
+
   HValue* filler = Add<HConstant>(static_cast<int32_t>(0));
 
   if (initialize) {
     LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
 
+    HValue* backing_store = AddUncasted<HAdd>(
+        Add<HConstant>(ExternalReference::fixed_typed_array_base_data_offset()),
+        elements, Strength::WEAK, AddOfExternalAndTagged);
+
     HValue* key = builder.BeginBody(
         Add<HConstant>(static_cast<int32_t>(0)),
         length, Token::LT);
-    Add<HStoreKeyed>(elements, key, filler, fixed_elements_kind);
+    Add<HStoreKeyed>(backing_store, key, filler, fixed_elements_kind);
 
     builder.EndBody();
   }
