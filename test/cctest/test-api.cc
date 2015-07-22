@@ -20989,43 +20989,50 @@ TEST(StreamingProducesParserCache) {
 }
 
 
-TEST(StreamingWithDebuggingDoesNotProduceParserCache) {
-  // If the debugger is active, we should just not produce parser cache at
-  // all. This is a regeression test: We used to produce a parser cache without
-  // any data in it (just headers).
+TEST(StreamingWithDebuggingEnabledLate) {
+  // The streaming parser can only parse lazily, i.e. inner functions are not
+  // fully parsed. However, we may compile inner functions eagerly when
+  // debugging. Make sure that we can deal with this when turning on debugging
+  // after streaming parser has already finished parsing.
   i::FLAG_min_preparse_length = 0;
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
+  const char* chunks[] = {"with({x:1}) {",
+                          "  var foo = function foo(y) {",
+                          "    return x + y;",
+                          "  };",
+                          "  foo(2);",
+                          "}",
                           NULL};
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-
-  // Make the debugger active by setting a breakpoint.
-  CompileRun("function break_here() { }");
-  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*env->Global()->Get(v8_str("break_here"))));
-  EnableDebugger();
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  int position = 0;
-  debug->SetBreakPoint(func, i::Handle<i::Object>(v8::internal::Smi::FromInt(1),
-                                                  CcTest::i_isolate()),
-                       &position);
+  v8::TryCatch try_catch(isolate);
 
   v8::ScriptCompiler::StreamedSource source(
       new TestSourceStream(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
-      v8::ScriptCompiler::StartStreamingScript(
-          isolate, &source, v8::ScriptCompiler::kProduceParserCache);
+      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
 
-  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
-  // task here in the main thread.
   task->Run();
   delete task;
 
-  // Check that we got no cached data.
-  CHECK(source.GetCachedData() == NULL);
+  CHECK(!try_catch.HasCaught());
+
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  char* full_source = TestSourceStream::FullSourceString(chunks);
+
+  EnableDebugger();
+
+  v8::Handle<Script> script = v8::ScriptCompiler::Compile(
+      isolate, &source, v8_str(full_source), origin);
+
+  Maybe<uint32_t> result =
+      script->Run(env.local()).ToLocalChecked()->Uint32Value(env.local());
+  CHECK_EQ(3, result.FromMaybe(0));
+
+  delete[] full_source;
+
   DisableDebugger();
 }
 

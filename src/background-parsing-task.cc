@@ -31,15 +31,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->set_hash_seed(isolate->heap()->HashSeed());
   info->set_global();
   info->set_unicode_cache(&source_->unicode_cache);
-
-  bool disable_lazy = isolate->debug()->RequiresEagerCompilation();
-  if (disable_lazy && options == ScriptCompiler::kProduceParserCache) {
-    // Producing cached data while parsing eagerly is not supported.
-    options = ScriptCompiler::kNoCompileOptions;
-  }
-
   info->set_compile_options(options);
-  info->set_allow_lazy_parsing(!disable_lazy);
+  info->set_allow_lazy_parsing(true);
 }
 
 

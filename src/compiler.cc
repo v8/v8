@@ -1072,6 +1072,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
     }
 
+    DCHECK(!info->is_debug() || !parse_info->allow_lazy_parsing());
+
     info->MarkAsFirstCompile();
 
     FunctionLiteral* lit = info->function();
@@ -1333,8 +1335,10 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
 
   CompilationInfo compile_info(parse_info);
-  // TODO(marja): FLAG_serialize_toplevel is not honoured and won't be; when the
-  // real code caching lands, streaming needs to be adapted to use it.
+
+  // If compiling for debugging, parse eagerly from scratch.
+  if (compile_info.is_debug()) parse_info->set_literal(NULL);
+
   return CompileToplevel(&compile_info);
 }
 

@@ -493,11 +493,6 @@ class Debug {
            break_id() == id;
   }
 
-  bool RequiresEagerCompilation(bool allows_lazy_without_ctx = false) {
-    return LiveEditFunctionTracker::IsActive(isolate_) ||
-           (is_active() && !allows_lazy_without_ctx);
-  }
-
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
