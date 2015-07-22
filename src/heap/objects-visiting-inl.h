@@ -419,10 +419,10 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       // Add the shared function info holding an optimized code map to
       // the code flusher for processing of code maps after marking.
       collector->code_flusher()->AddOptimizedCodeMap(shared);
-      // Treat all references within the code map weakly by marking the
+      // Treat some references within the code map weakly by marking the
       // code map itself but not pushing it onto the marking deque.
       FixedArray* code_map = FixedArray::cast(shared->optimized_code_map());
-      StaticVisitor::MarkObjectWithoutPush(heap, code_map);
+      MarkOptimizedCodeMap(heap, code_map);
     }
     if (IsFlushable(heap, shared)) {
       // This function's code looks flushable. But we have to postpone
@@ -584,6 +584,23 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
   int num_transitions = TransitionArray::NumberOfTransitions(transitions);
   for (int i = 0; i < num_transitions; ++i) {
     StaticVisitor::VisitPointer(heap, transitions->GetKeySlot(i));
+  }
+}
+
+
+template <typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::MarkOptimizedCodeMap(
+    Heap* heap, FixedArray* code_map) {
+  if (!StaticVisitor::MarkObjectWithoutPush(heap, code_map)) return;
+
+  // Mark the context-independent entry in the optimized code map. Depending on
+  // the age of the code object, we treat it as a strong or a weak reference.
+  Object* shared_object = code_map->get(SharedFunctionInfo::kSharedCodeIndex);
+  if (FLAG_turbo_preserve_shared_code && shared_object->IsCode() &&
+      FLAG_age_code && !Code::cast(shared_object)->IsOld()) {
+    StaticVisitor::VisitPointer(
+        heap,
+        code_map->RawFieldOfElementAt(SharedFunctionInfo::kSharedCodeIndex));
   }
 }
 

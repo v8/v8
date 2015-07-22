@@ -417,7 +417,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // Skip the weak next code link in a code object.
   INLINE(static void VisitNextCodeLink(Heap* heap, Object** slot)) {}
 
-  // TODO(mstarzinger): This should be made protected once refactoring is done.
   // Mark non-optimize code for functions inlined into the given optimized
   // code. This will prevent it from being flushed.
   static void MarkInlinedFunctionsCode(Heap* heap, Code* code);
@@ -439,6 +438,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // treating transitions or back pointers weak.
   static void MarkMapContents(Heap* heap, Map* map);
   static void MarkTransitionArray(Heap* heap, TransitionArray* transitions);
+
+  // Mark pointers in the optimized code map that should act as strong
+  // references, possibly treating some entries weak.
+  static void MarkOptimizedCodeMap(Heap* heap, FixedArray* code_map);
 
   // Code flushing support.
   INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));

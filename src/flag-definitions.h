@@ -431,6 +431,7 @@ DEFINE_BOOL(turbo_stress_loop_peeling, false,
 DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
 DEFINE_BOOL(turbo_cache_shared_code, true, "cache context-independent code")
+DEFINE_BOOL(turbo_preserve_shared_code, false, "keep context-independent code")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
