@@ -140,6 +140,10 @@ class LifetimePosition final {
     return LifetimePosition(kMaxInt);
   }
 
+  static inline LifetimePosition FromInt(int value) {
+    return LifetimePosition(value);
+  }
+
  private:
   static const int kHalfStep = 2;
   static const int kStep = 2 * kHalfStep;

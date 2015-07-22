@@ -43,6 +43,7 @@
         'base/utils/random-number-generator-unittest.cc',
         'char-predicates-unittest.cc',
         'compiler/change-lowering-unittest.cc',
+        'compiler/coalesced-live-ranges-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
