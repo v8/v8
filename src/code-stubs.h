@@ -2946,35 +2946,13 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
     return StoreModeBits::decode(sub_minor_key());
   }
 
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  enum ParameterIndices {
-    kValueIndex,
-    kMapIndex,
-    kKeyIndex,
-    kObjectIndex,
-    kParameterCount
-  };
-
-  static const Register ValueRegister() {
-    return ElementTransitionAndStoreDescriptor::ValueRegister();
-  }
-  static const Register MapRegister() {
-    return ElementTransitionAndStoreDescriptor::MapRegister();
-  }
-  static const Register KeyRegister() {
-    return ElementTransitionAndStoreDescriptor::NameRegister();
-  }
-  static const Register ObjectRegister() {
-    return ElementTransitionAndStoreDescriptor::ReceiverRegister();
-  }
-
  private:
   class FromBits : public BitField<ElementsKind, 0, 8> {};
   class ToBits : public BitField<ElementsKind, 8, 8> {};
   class IsJSArrayBits : public BitField<bool, 16, 1> {};
   class StoreModeBits : public BitField<KeyedAccessStoreMode, 17, 4> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ElementTransitionAndStore);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
   DEFINE_HYDROGEN_CODE_STUB(ElementsTransitionAndStore, HydrogenCodeStub);
 };
 

@@ -1829,10 +1829,10 @@ Handle<Code> StoreGlobalViaContextStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
-  HValue* value = GetParameter(ElementsTransitionAndStoreStub::kValueIndex);
-  HValue* map = GetParameter(ElementsTransitionAndStoreStub::kMapIndex);
-  HValue* key = GetParameter(ElementsTransitionAndStoreStub::kKeyIndex);
-  HValue* object = GetParameter(ElementsTransitionAndStoreStub::kObjectIndex);
+  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
+  HValue* key = GetParameter(StoreTransitionDescriptor::kNameIndex);
+  HValue* value = GetParameter(StoreTransitionDescriptor::kValueIndex);
+  HValue* map = GetParameter(StoreTransitionDescriptor::kMapIndex);
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.

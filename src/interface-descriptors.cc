@@ -148,14 +148,6 @@ void StoreGlobalViaContextDescriptor::InitializePlatformSpecific(
 }
 
 
-void ElementTransitionAndStoreDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ValueRegister(), MapRegister(), NameRegister(),
-                          ReceiverRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void InstanceofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {left(), right()};

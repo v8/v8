@@ -47,9 +47,6 @@ const Register StoreGlobalViaContextDescriptor::NameRegister() { return a3; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return a0; }
 
 
-const Register ElementTransitionAndStoreDescriptor::MapRegister() { return a3; }
-
-
 const Register InstanceofDescriptor::left() { return a0; }
 const Register InstanceofDescriptor::right() { return a1; }
 

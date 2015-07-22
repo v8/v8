@@ -17,7 +17,6 @@ class PlatformInterfaceDescriptor;
   V(Load)                                     \
   V(Store)                                    \
   V(StoreTransition)                          \
-  V(ElementTransitionAndStore)                \
   V(VectorStoreICTrampoline)                  \
   V(VectorStoreIC)                            \
   V(Instanceof)                               \
@@ -265,14 +264,6 @@ class StoreTransitionDescriptor : public StoreDescriptor {
     kMapIndex,
     kParameterCount
   };
-  static const Register MapRegister();
-};
-
-
-class ElementTransitionAndStoreDescriptor : public StoreDescriptor {
- public:
-  DECLARE_DESCRIPTOR(ElementTransitionAndStoreDescriptor, StoreDescriptor)
-
   static const Register MapRegister();
 };
 

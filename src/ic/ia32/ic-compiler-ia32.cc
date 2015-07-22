@@ -69,7 +69,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(MapHandleList* maps,
   // Polymorphic keyed stores may use the map register
   Register map_reg = scratch1();
   DCHECK(kind() != Code::KEYED_STORE_IC ||
-         map_reg.is(ElementTransitionAndStoreDescriptor::MapRegister()));
+         map_reg.is(StoreTransitionDescriptor::MapRegister()));
   __ mov(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = maps->length();
   int number_of_handled_maps = 0;

@@ -47,9 +47,6 @@ const Register StoreGlobalViaContextDescriptor::NameRegister() { return x3; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return x0; }
 
 
-const Register ElementTransitionAndStoreDescriptor::MapRegister() { return x3; }
-
-
 const Register InstanceofDescriptor::left() {
   // Object to check (instanceof lhs).
   return x11;

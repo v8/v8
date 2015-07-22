@@ -46,11 +46,6 @@ const Register StoreGlobalViaContextDescriptor::NameRegister() { return ecx; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }
 
 
-const Register ElementTransitionAndStoreDescriptor::MapRegister() {
-  return ebx;
-}
-
-
 const Register InstanceofDescriptor::left() { return eax; }
 const Register InstanceofDescriptor::right() { return edx; }
 
