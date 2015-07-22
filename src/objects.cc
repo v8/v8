@@ -9542,7 +9542,10 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     // Always trim even when array is cleared because of heap verifier.
     GetHeap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(code_map,
                                                                 length - dst);
-    if (code_map->length() == kEntriesStart) ClearOptimizedCodeMap();
+    if (code_map->length() == kEntriesStart &&
+        code_map->get(kSharedCodeIndex)->IsUndefined()) {
+      ClearOptimizedCodeMap();
+    }
   }
 }
 
@@ -9554,7 +9557,8 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   // Always trim even when array is cleared because of heap verifier.
   GetHeap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(code_map,
                                                               shrink_by);
-  if (code_map->length() == kEntriesStart) {
+  if (code_map->length() == kEntriesStart &&
+      code_map->get(kSharedCodeIndex)->IsUndefined()) {
     ClearOptimizedCodeMap();
   }
 }

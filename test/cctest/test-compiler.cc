@@ -456,6 +456,64 @@ TEST(OptimizedCodeSharing2) {
 }
 
 
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub without context-dependent entries.
+TEST(OptimizedCodeSharing3) {
+  if (FLAG_stress_compaction) return;
+  FLAG_allow_natives_syntax = true;
+  FLAG_cache_optimized_code = true;
+  FLAG_turbo_cache_shared_code = true;
+  const char* flag = "--turbo-filter=*";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Script> script = v8_compile(
+      "function MakeClosure() {"
+      "  return function() { return x; };"
+      "}");
+  Handle<Code> reference_code;
+  {
+    LocalContext env;
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(CcTest::isolate(), 23));
+    script->GetUnboundScript()->BindToCurrentContext()->Run();
+    CompileRun(
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());");
+    Handle<JSFunction> fun0 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure0"))));
+    CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    reference_code = handle(fun0->code());
+    // Evict only the context-dependent entry from the optimized code map. This
+    // leaves it in a state where only the context-independent entry exists.
+    fun0->shared()->TrimOptimizedCodeMap(SharedFunctionInfo::kEntryLength);
+  }
+  for (int i = 0; i < 10; i++) {
+    LocalContext env;
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(CcTest::isolate(), i));
+    script->GetUnboundScript()->BindToCurrentContext()->Run();
+    CompileRun(
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());"
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
+    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
+    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK_EQ(*reference_code, fun1->code());
+    CHECK_EQ(*reference_code, fun2->code());
+  }
+}
+
+
 TEST(CompileFunctionInContext) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
