@@ -49,8 +49,6 @@
         'compiler/codegen-tester.h',
         'compiler/function-tester.h',
         'compiler/graph-builder-tester.h',
-        'compiler/simplified-graph-builder.cc',
-        'compiler/simplified-graph-builder.h',
         'compiler/test-basic-block-profiler.cc',
         'compiler/test-branch-combine.cc',
         'compiler/test-changes-lowering.cc',
