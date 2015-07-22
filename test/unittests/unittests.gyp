@@ -66,6 +66,7 @@
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
         'compiler/js-type-feedback-unittest.cc',
+        'compiler/linkage-tail-call-unittest.cc',
         'compiler/liveness-analyzer-unittest.cc',
         'compiler/load-elimination-unittest.cc',
         'compiler/loop-peeling-unittest.cc',
