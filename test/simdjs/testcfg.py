@@ -14,10 +14,9 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-SIMDJS_ARCHIVE_REVISION = "07e2713e0c9ea19feb0732d5bd84770c87310d79"
-SIMDJS_ARCHIVE_MD5 = "cf6bddf99f18800b68e782054268ee3c"
-SIMDJS_URL = (
-    "https://github.com/johnmccutchan/ecmascript_simd/archive/%s.tar.gz")
+SIMDJS_ARCHIVE_REVISION = "99ef44bd4f22acd203c01e524131bc7f2a7eab68"
+SIMDJS_ARCHIVE_MD5 = "1428773887924fa5a784bf0843615740"
+SIMDJS_URL = ("https://github.com/tc39/ecmascript_simd/archive/%s.tar.gz")
 
 SIMDJS_SUITE_PATH = ["data", "src"]
 

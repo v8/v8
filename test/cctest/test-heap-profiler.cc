@@ -488,7 +488,7 @@ TEST(HeapSnapshotFloat32x4) {
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  CompileRun("a = SIMD.float32x4(1, 2, 3, 4);\n");
+  CompileRun("a = SIMD.Float32x4(1, 2, 3, 4);\n");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);

@@ -325,7 +325,7 @@ test(function() {
 
 // kSimdToNumber
 test(function() {
-  1 + SIMD.float32x4(1, 2, 3, 4);
+  1 + SIMD.Float32x4(1, 2, 3, 4);
 }, "Cannot convert a SIMD value to a number", TypeError);
 
 // kUndefinedOrNullToObject

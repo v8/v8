@@ -15,12 +15,12 @@ function lanesForType(typeName) {
 function isValidSimdString(string, value, type, lanes) {
   var simdFn = SIMD[type],
       parseFn =
-          type.indexOf('float') === 0 ? Number.parseFloat : Number.parseInt,
+          type.indexOf('Float') === 0 ? Number.parseFloat : Number.parseInt,
       indexOfOpenParen = string.indexOf('(');
-  // Check prefix for correct type name.
-  if (string.substr(0, indexOfOpenParen).toUpperCase() !== type.toUpperCase())
+  // Check prefix (e.g. SIMD.Float32x4.)
+  if (string.substr(0, indexOfOpenParen) !== 'SIMD.' + type)
     return false;
-  // Remove type name and open parenthesis.
+  // Remove type name (e.g. SIMD.Float32x4) and open parenthesis.
   string = string.substr(indexOfOpenParen + 1);
   var laneStrings = string.split(',');
   if (laneStrings.length !== lanes)
@@ -90,7 +90,7 @@ function TestConstructor(type, lanes) {
 
   // The constructor expects values for all lanes.
   switch (type) {
-    case 'float32x4':
+    case 'Float32x4':
       // The constructor expects values for all lanes.
       assertThrows(function () { simdFn() }, TypeError)
       assertThrows(function () { simdFn(0) }, TypeError)
@@ -115,12 +115,13 @@ function TestConstructor(type, lanes) {
 
 
 function TestType(type, lanes) {
+  var typeofString = type.charAt(0).toLowerCase() + type.slice(1);
   for (var i in values) {
-    assertEquals(type, typeof values[i])
-    assertTrue(typeof values[i] === type)
+    assertEquals(typeofString, typeof values[i])
+    assertTrue(typeof values[i] === typeofString)
     assertTrue(typeof Object(values[i]) === 'object')
     assertEquals(null, %_ClassOf(values[i]))
-    assertEquals("Float32x4", %_ClassOf(Object(values[i])))
+    assertEquals(type, %_ClassOf(Object(values[i])))
   }
 }
 
@@ -245,28 +246,28 @@ function TestSameValue(type, lanes) {
   // SIMD value types.
   // All lanes checked.
   // TODO(bbudge): use loops to test lanes when replaceLane is defined.
-  assertTrue(sameValueBoth(SIMD.float32x4(1, 2, 3, 4),
-                           SIMD.float32x4(1, 2, 3, 4)));
-  assertFalse(sameValueBoth(SIMD.float32x4(1, 2, 3, 4),
-                            SIMD.float32x4(NaN, 2, 3, 4)));
-  assertFalse(sameValueBoth(SIMD.float32x4(1, 2, 3, 4),
-                            SIMD.float32x4(1, NaN, 3, 4)));
-  assertFalse(sameValueBoth(SIMD.float32x4(1, 2, 3, 4),
-                            SIMD.float32x4(1, 2, NaN, 4)));
-  assertFalse(sameValueBoth(SIMD.float32x4(1, 2, 3, 4),
-                            SIMD.float32x4(1, 2, 3, NaN)));
+  assertTrue(sameValueBoth(SIMD.Float32x4(1, 2, 3, 4),
+                           SIMD.Float32x4(1, 2, 3, 4)));
+  assertFalse(sameValueBoth(SIMD.Float32x4(1, 2, 3, 4),
+                            SIMD.Float32x4(NaN, 2, 3, 4)));
+  assertFalse(sameValueBoth(SIMD.Float32x4(1, 2, 3, 4),
+                            SIMD.Float32x4(1, NaN, 3, 4)));
+  assertFalse(sameValueBoth(SIMD.Float32x4(1, 2, 3, 4),
+                            SIMD.Float32x4(1, 2, NaN, 4)));
+  assertFalse(sameValueBoth(SIMD.Float32x4(1, 2, 3, 4),
+                            SIMD.Float32x4(1, 2, 3, NaN)));
   // Special values.
   // TODO(bbudge): use loops to test lanes when replaceLane is defined.
-  assertTrue(sameValueBoth(SIMD.float32x4(NaN, 2, 3, 4),
-                           SIMD.float32x4(NaN, 2, 3, 4)));
-  assertTrue(sameValueBoth(SIMD.float32x4(+0, 2, 3, 4),
-                           SIMD.float32x4(+0, 2, 3, 4)));
-  assertTrue(sameValueBoth(SIMD.float32x4(-0, 2, 3, 4),
-                           SIMD.float32x4(-0, 2, 3, 4)));
-  assertTrue(sameValueZeroOnly(SIMD.float32x4(+0, 2, 3, 4),
-                               SIMD.float32x4(-0, 2, 3, 4)));
-  assertTrue(sameValueZeroOnly(SIMD.float32x4(-0, 2, 3, 4),
-                               SIMD.float32x4(+0, 2, 3, 4)));
+  assertTrue(sameValueBoth(SIMD.Float32x4(NaN, 2, 3, 4),
+                           SIMD.Float32x4(NaN, 2, 3, 4)));
+  assertTrue(sameValueBoth(SIMD.Float32x4(+0, 2, 3, 4),
+                           SIMD.Float32x4(+0, 2, 3, 4)));
+  assertTrue(sameValueBoth(SIMD.Float32x4(-0, 2, 3, 4),
+                           SIMD.Float32x4(-0, 2, 3, 4)));
+  assertTrue(sameValueZeroOnly(SIMD.Float32x4(+0, 2, 3, 4),
+                               SIMD.Float32x4(-0, 2, 3, 4)));
+  assertTrue(sameValueZeroOnly(SIMD.Float32x4(-0, 2, 3, 4),
+                               SIMD.Float32x4(+0, 2, 3, 4)));
 }
 
 
@@ -382,7 +383,7 @@ function TestReflectApply(type) {
 
 
 function TestSIMDTypes() {
-  var types = [ 'float32x4' ];
+  var types = [ 'Float32x4' ];
   for (var i = 0; i < types.length; ++i) {
     var type = types[i],
         lanes = lanesForType(type);

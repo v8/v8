@@ -44,7 +44,20 @@ function Float32x4ToString() {
       x = GlobalFloat32x4.extractLane(value, 1),
       y = GlobalFloat32x4.extractLane(value, 2),
       z = GlobalFloat32x4.extractLane(value, 3);
-  return "Float32x4(" + w + ", " + x + ", " + y + ", " + z + ")";
+  return "SIMD.Float32x4(" + w + ", " + x + ", " + y + ", " + z + ")";
+}
+
+function Float32x4ToLocaleString() {
+  if (!(IS_FLOAT32X4(this) || IS_FLOAT32X4_WRAPPER(this))) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Float32x4.prototype.toLocaleString", this);
+  }
+  var value = %_ValueOf(this);
+  var w = GlobalFloat32x4.extractLane(value, 0).toLocaleString(),
+      x = GlobalFloat32x4.extractLane(value, 1).toLocaleString(),
+      y = GlobalFloat32x4.extractLane(value, 2).toLocaleString(),
+      z = GlobalFloat32x4.extractLane(value, 3).toLocaleString();
+  return "SIMD.Float32x4(" + w + ", " + x + ", " + y + ", " + z + ")";
 }
 
 function Float32x4ValueOf() {
@@ -64,18 +77,19 @@ function Float32x4ExtractLaneJS(value, lane) {
 // -------------------------------------------------------------------
 
 %AddNamedProperty(GlobalSIMD, symbolToStringTag, 'SIMD', READ_ONLY | DONT_ENUM);
-%AddNamedProperty(GlobalSIMD, 'float32x4', GlobalFloat32x4, DONT_ENUM);
 
 %SetCode(GlobalFloat32x4, Float32x4Constructor);
 %FunctionSetPrototype(GlobalFloat32x4, {});
 %AddNamedProperty(
     GlobalFloat32x4.prototype, 'constructor', GlobalFloat32x4, DONT_ENUM);
 %AddNamedProperty(
-    GlobalFloat32x4, symbolToStringTag, 'Float32x4', DONT_ENUM | READ_ONLY);
+    GlobalFloat32x4.prototype, symbolToStringTag, 'Float32x4',
+    DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalFloat32x4.prototype, DONT_ENUM, [
-  'valueOf', Float32x4ValueOf,
+  'toLocaleString', Float32x4ToLocaleString,
   'toString', Float32x4ToString,
+  'valueOf', Float32x4ValueOf,
 ]);
 
 utils.InstallFunctions(GlobalFloat32x4, DONT_ENUM, [
