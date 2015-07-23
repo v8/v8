@@ -1761,8 +1761,6 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
 
     if (!is_component_build) {
       sources += [
-        "src/d8-debug.cc",
-        "src/d8-debug.h",
         "$target_gen_dir/d8-js.cc",
       ]
     }

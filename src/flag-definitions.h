@@ -804,8 +804,6 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
 DEFINE_BOOL(dump_counters, false, "Dump counters on exit")
 
-DEFINE_BOOL(debugger, false, "Enable JavaScript debugger")
-
 DEFINE_STRING(map_counters, "", "Map counters to a file")
 DEFINE_ARGS(js_arguments,
             "Pass all remaining arguments to the script. Alias for \"--\".")

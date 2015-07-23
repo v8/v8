@@ -390,11 +390,6 @@ class Shell : public i::AllStatic {
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
-  static Local<Object> DebugMessageDetails(Isolate* isolate,
-                                           Local<String> message);
-  static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
-                                                Local<String> command);
-
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !V8_SHARED
 
@@ -492,7 +487,6 @@ class Shell : public i::AllStatic {
   static void InstallUtilityScript(Isolate* isolate);
 #endif  // !V8_SHARED
   static void Initialize(Isolate* isolate);
-  static void InitializeDebugger(Isolate* isolate);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);

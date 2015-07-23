@@ -75,8 +75,6 @@
         }],
         [ 'component!="shared_library"', {
           'sources': [
-            'd8-debug.h',
-            'd8-debug.cc',
             '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
           ],
           'conditions': [
