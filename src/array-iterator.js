@@ -138,6 +138,10 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   'keys', ArrayKeys
 ]);
 
+// TODO(adam): Remove this call once 'values' is in the above
+// InstallFunctions block, as it'll be redundant.
+utils.SetFunctionName(ArrayValues, 'values');
+
 %AddNamedProperty(GlobalArray.prototype, symbolIterator, ArrayValues,
                   DONT_ENUM);
 
