@@ -499,6 +499,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
   chunk->set_parallel_sweeping(SWEEPING_DONE);
+  chunk->mutex_ = NULL;
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
   chunk->available_in_large_free_list_ = 0;
@@ -765,6 +766,7 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
 
   delete chunk->slots_buffer();
   delete chunk->skip_list();
+  delete chunk->mutex();
 
   base::VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {

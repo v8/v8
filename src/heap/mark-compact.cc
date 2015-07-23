@@ -4284,12 +4284,19 @@ int MarkCompactCollector::SweepInParallel(PagedSpace* space,
 
 int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
   int max_freed = 0;
-  if (page->TryParallelSweeping()) {
+  if (page->TryLock()) {
+    // If this page was already swept in the meantime, we can return here.
+    if (page->parallel_sweeping() != MemoryChunk::SWEEPING_PENDING) {
+      page->mutex()->Unlock();
+      return 0;
+    }
+    page->set_parallel_sweeping(MemoryChunk::SWEEPING_IN_PROGRESS);
     FreeList* free_list = free_list_old_space_.get();
     FreeList private_free_list(space);
     max_freed = Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
                       IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
     free_list->Concatenate(&private_free_list);
+    page->mutex()->Unlock();
   }
   return max_freed;
 }
