@@ -3883,7 +3883,13 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   DCHECK(!parameters->has_rest);
 
   bool is_rest = expr->IsSpread();
-  if (is_rest) expr = expr->AsSpread()->expression();
+  if (is_rest) {
+    expr = expr->AsSpread()->expression();
+    parameters->has_rest = true;
+  }
+  if (parameters->is_simple) {
+    parameters->is_simple = !is_rest && expr->IsVariableProxy();
+  }
 
   if (expr->IsVariableProxy()) {
     // When the formal parameter was originally seen, it was parsed as a
@@ -4299,17 +4305,9 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var) {
 }
 
 
-bool Parser::IsSimpleParameterList(const ParserFormalParameters& parameters) {
-  for (auto parameter : parameters.params) {
-    if (parameter.pattern != nullptr) return false;
-  }
-  return true;
-}
-
-
 Block* Parser::BuildParameterInitializationBlock(
     const ParserFormalParameters& parameters, bool* ok) {
-  DCHECK(!IsSimpleParameterList(parameters));
+  DCHECK(!parameters.is_simple);
   DCHECK(scope_->is_function_scope());
   Block* init_block =
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
@@ -4340,7 +4338,6 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, Variable* fvar,
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
-  bool is_simple_parameter_list = IsSimpleParameterList(parameters);
   // Everything inside an eagerly parsed function will be parsed eagerly
   // (see comment above).
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
@@ -4366,7 +4363,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   ZoneList<Statement*>* body = result;
   Scope* inner_scope = nullptr;
   Block* inner_block = nullptr;
-  if (!is_simple_parameter_list) {
+  if (!parameters.is_simple) {
     inner_scope = NewScope(scope_, BLOCK_SCOPE);
     inner_scope->set_is_declaration_scope();
     inner_scope->set_start_position(scanner()->location().beg_pos);
@@ -4423,7 +4420,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   Expect(Token::RBRACE, CHECK_OK);
   scope_->set_end_position(scanner()->location().end_pos);
 
-  if (!is_simple_parameter_list) {
+  if (!parameters.is_simple) {
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(body, inner_block->statements());
     scope_->SetLanguageMode(inner_scope->language_mode());
