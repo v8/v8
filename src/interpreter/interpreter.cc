@@ -30,13 +30,13 @@ void Interpreter::Initialize(bool create_heap_objects) {
         static_cast<int>(Bytecode::kLast) + 1, TENURED);
     isolate_->heap()->public_set_interpreter_table(*handler_table);
 
-#define GENERATE_CODE(Name, _)                                     \
-    {                                                              \
-      compiler::InterpreterAssembler assembler(isolate_, &zone,     \
-                                               Bytecode::k##Name); \
-      Do##Name(&assembler);                                        \
-      handler_table->set(static_cast<int>(Bytecode::k##Name),      \
-                         *assembler.GenerateCode());               \
+#define GENERATE_CODE(Name, _)                                         \
+    {                                                                  \
+      compiler::InterpreterAssembler assembler(isolate_, &zone,        \
+                                               Bytecode::k##Name);     \
+      Do##Name(&assembler);                                            \
+      Handle<Code> code = assembler.GenerateCode();                    \
+      handler_table->set(static_cast<int>(Bytecode::k##Name), *code);  \
     }
     BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
