@@ -2827,7 +2827,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       //
       //   return (temp = expr) === undefined ? this :
       //       %_IsSpecObject(temp) ? temp : throw new TypeError(...);
-      Variable* temp = scope_->DeclarationScope()->NewTemporary(
+      Variable* temp = scope_->NewTemporary(
           ast_value_factory()->empty_string());
       Assignment* assign = factory()->NewAssignment(
           Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
@@ -3181,9 +3181,9 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
   ForOfStatement* for_of = stmt->AsForOfStatement();
 
   if (for_of != NULL) {
-    Variable* iterator = scope_->DeclarationScope()->NewTemporary(
+    Variable* iterator = scope_->NewTemporary(
         ast_value_factory()->dot_iterator_string());
-    Variable* result = scope_->DeclarationScope()->NewTemporary(
+    Variable* result = scope_->NewTemporary(
         ast_value_factory()->dot_result_string());
 
     Expression* assign_iterator;
@@ -3299,7 +3299,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //   make statement: temp_x = x.
   for (int i = 0; i < names->length(); i++) {
     VariableProxy* proxy = NewUnresolved(names->at(i), LET);
-    Variable* temp = scope_->DeclarationScope()->NewTemporary(temp_name);
+    Variable* temp = scope_->NewTemporary(temp_name);
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
     Assignment* assignment = factory()->NewAssignment(
         Token::ASSIGN, temp_proxy, proxy, RelocInfo::kNoPosition);
@@ -3312,7 +3312,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   Variable* first = NULL;
   // Make statement: first = 1.
   if (next) {
-    first = scope_->DeclarationScope()->NewTemporary(temp_name);
+    first = scope_->NewTemporary(temp_name);
     VariableProxy* first_proxy = factory()->NewVariableProxy(first);
     Expression* const1 = factory()->NewSmiLiteral(1, RelocInfo::kNoPosition);
     Assignment* assignment = factory()->NewAssignment(
@@ -3392,7 +3392,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     ignore_completion_block->AddStatement(clear_first_or_next, zone());
   }
 
-  Variable* flag = scope_->DeclarationScope()->NewTemporary(temp_name);
+  Variable* flag = scope_->NewTemporary(temp_name);
   // Make statement: flag = 1.
   {
     VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
@@ -3578,7 +3578,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         //     let x;  // for TDZ
         //   }
 
-        Variable* temp = scope_->DeclarationScope()->NewTemporary(
+        Variable* temp = scope_->NewTemporary(
             ast_value_factory()->dot_for_string());
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
@@ -4007,7 +4007,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // Calling a generator returns a generator object.  That object is stored
       // in a temporary variable, a definition that is used by "yield"
       // expressions. This also marks the FunctionState as a generator.
-      Variable* temp = scope_->DeclarationScope()->NewTemporary(
+      Variable* temp = scope_->NewTemporary(
           ast_value_factory()->dot_generator_object_string());
       function_state.set_generator_object_variable(temp);
     }

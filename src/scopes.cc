@@ -527,26 +527,15 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 }
 
 
-Variable* Scope::NewInternal(const AstRawString* name) {
-  DCHECK(!already_resolved());
-  Variable* var = new(zone()) Variable(this,
-                                       name,
-                                       INTERNAL,
-                                       Variable::NORMAL,
-                                       kCreatedInitialized);
-  internals_.Add(var, zone());
-  return var;
-}
-
-
 Variable* Scope::NewTemporary(const AstRawString* name) {
   DCHECK(!already_resolved());
-  Variable* var = new(zone()) Variable(this,
+  Scope* scope = this->TemporaryScope();
+  Variable* var = new(zone()) Variable(scope,
                                        name,
                                        TEMPORARY,
                                        Variable::NORMAL,
                                        kCreatedInitialized);
-  temps_.Add(var, zone());
+  scope->temps_.Add(var, zone());
   return var;
 }
 
@@ -766,6 +755,15 @@ int Scope::ContextChainLength(Scope* scope) {
 Scope* Scope::DeclarationScope() {
   Scope* scope = this;
   while (!scope->is_declaration_scope()) {
+    scope = scope->outer_scope();
+  }
+  return scope;
+}
+
+
+Scope* Scope::TemporaryScope() {
+  Scope* scope = this;
+  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
     scope = scope->outer_scope();
   }
   return scope;
@@ -1354,7 +1352,6 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // always context-allocated.
   if (has_forced_context_allocation()) return true;
   if (var->mode() == TEMPORARY) return false;
-  if (var->mode() == INTERNAL) return true;
   if (is_catch_scope() || is_module_scope()) return true;
   if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
   return var->has_forced_context_allocation() ||
@@ -1609,7 +1606,8 @@ void Scope::AllocateModules() {
       DCHECK(!scope->already_resolved());
       DCHECK(scope->module_descriptor_->IsFrozen());
       DCHECK_NULL(scope->module_var_);
-      scope->module_var_ = NewInternal(ast_value_factory_->dot_module_string());
+      scope->module_var_ =
+          NewTemporary(ast_value_factory_->dot_module_string());
       ++num_modules_;
     }
   }

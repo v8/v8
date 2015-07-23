@@ -140,7 +140,6 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
                                          PropertyAttributes* attributes,
                                          BindingFlags* binding_flags) {
   switch (mode) {
-    case INTERNAL:  // Fall through.
     case VAR:
       *attributes = NONE;
       *binding_flags = MUTABLE_IS_INITIALIZED;

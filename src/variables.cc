@@ -24,7 +24,6 @@ const char* Variable::Mode2String(VariableMode mode) {
     case DYNAMIC: return "DYNAMIC";
     case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
     case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
-    case INTERNAL: return "INTERNAL";
     case TEMPORARY: return "TEMPORARY";
   }
   UNREACHABLE();

@@ -564,7 +564,7 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
     }
     // Cache as not found. Mode, location, init flag and maybe assigned flag
     // don't matter.
-    context_slot_cache->Update(scope_info, name, INTERNAL,
+    context_slot_cache->Update(scope_info, name, TEMPORARY,
                                VariableLocation::CONTEXT, kNeedsInitialization,
                                kNotAssigned, -1);
   }

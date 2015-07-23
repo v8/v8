@@ -830,7 +830,6 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
           USE(result);
           break;
         }
-        case INTERNAL:
         case TEMPORARY:
         case DYNAMIC:
         case DYNAMIC_GLOBAL:
