@@ -34,13 +34,7 @@ class RawMachineAssembler {
     Label() : block_(NULL), used_(false), bound_(false) {}
     ~Label() { DCHECK(bound_ || !used_); }
 
-    BasicBlock* block() { return block_; }
-
    private:
-    // Private constructor for exit label.
-    explicit Label(BasicBlock* block)
-        : block_(block), used_(false), bound_(false) {}
-
     BasicBlock* block_;
     bool used_;
     bool bound_;
