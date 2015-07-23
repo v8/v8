@@ -27,8 +27,6 @@ Debug.LiveEdit = new function() {
   // Forward declaration for minifier.
   var FunctionStatus;
 
-  var NEEDS_STEP_IN_PROPERTY_NAME = "stack_update_needs_step_in";
-
   // Applies the change to the script.
   // The change is in form of list of chunks encoded in a single array as
   // a series of triplets (pos1_start, pos1_end, pos2_end)
@@ -149,12 +147,9 @@ Debug.LiveEdit = new function() {
     var dropped_functions_number =
         CheckStackActivations(replaced_function_infos, change_log);
 
-    preview_description.stack_modified = dropped_functions_number != 0;
-
     // Our current implementation requires client to manually issue "step in"
-    // command for correct stack state.
-    preview_description[NEEDS_STEP_IN_PROPERTY_NAME] =
-        preview_description.stack_modified;
+    // command for correct stack state if the stack was modified.
+    preview_description.stack_modified = dropped_functions_number != 0;
 
     // Start with breakpoints. Convert their line/column positions and
     // temporary remove.
@@ -1102,19 +1097,6 @@ Debug.LiveEdit = new function() {
 
     return ProcessOldNode(old_code_tree);
   }
-
-  // Restarts call frame and returns value similar to what LiveEdit returns.
-  function RestartFrame(frame_mirror) {
-    var result = frame_mirror.restart();
-    if (IS_STRING(result)) {
-      throw new Failure("Failed to restart frame: " + result);
-    }
-    var result = {};
-    result[NEEDS_STEP_IN_PROPERTY_NAME] = true;
-    return result;
-  }
-  // Function is public.
-  this.RestartFrame = RestartFrame;
 
   // Functions are public for tests.
   this.TestApi = {
