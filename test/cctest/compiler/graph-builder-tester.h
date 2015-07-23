@@ -9,7 +9,6 @@
 #include "test/cctest/cctest.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph-builder.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/operator-properties.h"
@@ -41,8 +40,7 @@ class GraphAndBuilders {
 template <typename ReturnType>
 class GraphBuilderTester : public HandleAndZoneScope,
                            private GraphAndBuilders,
-                           public CallHelper<ReturnType>,
-                           public GraphBuilder {
+                           public CallHelper<ReturnType> {
  public:
   explicit GraphBuilderTester(MachineType p0 = kMachNone,
                               MachineType p1 = kMachNone,
@@ -54,7 +52,6 @@ class GraphBuilderTester : public HandleAndZoneScope,
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
                             p2, p3, p4)),
-        GraphBuilder(main_isolate(), main_graph_),
         effect_(NULL),
         return_(NULL),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
@@ -69,8 +66,10 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return parameters_[index];
   }
 
+  Isolate* isolate() { return main_isolate(); }
+  Graph* graph() const { return main_graph_; }
   Zone* zone() const { return graph()->zone(); }
-  Factory* factory() const { return isolate()->factory(); }
+  Factory* factory() { return isolate()->factory(); }
   CommonOperatorBuilder* common() { return &main_common_; }
   MachineOperatorBuilder* machine() { return &main_machine_; }
   SimplifiedOperatorBuilder* simplified() { return &main_simplified_; }
@@ -190,9 +189,47 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(simplified()->StoreElement(access), object, index, value);
   }
 
+  Node* NewNode(const Operator* op) {
+    return MakeNode(op, 0, static_cast<Node**>(NULL));
+  }
+
+  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
+    Node* buffer[] = {n1, n2};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5) {
+    Node* buffer[] = {n1, n2, n3, n4, n5};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(nodes), nodes);
+  }
+
+  Node* NewNode(const Operator* op, int value_input_count,
+                Node** value_inputs) {
+    return MakeNode(op, value_input_count, value_inputs);
+  }
+
  protected:
-  virtual Node* MakeNode(const Operator* op, int value_input_count,
-                         Node** value_inputs, bool incomplete) final {
+  Node* MakeNode(const Operator* op, int value_input_count,
+                 Node** value_inputs) {
     DCHECK(op->ValueInputCount() == value_input_count);
 
     DCHECK(!OperatorProperties::HasContextInput(op));
@@ -205,8 +242,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
     Node* result = NULL;
     if (!has_control && !has_effect) {
-      result =
-          graph()->NewNode(op, value_input_count, value_inputs, incomplete);
+      result = graph()->NewNode(op, value_input_count, value_inputs);
     } else {
       int input_count_with_deps = value_input_count;
       if (has_control) ++input_count_with_deps;
@@ -220,7 +256,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
       if (has_control) {
         *current_input++ = graph()->start();
       }
-      result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
+      result = graph()->NewNode(op, input_count_with_deps, buffer);
       if (has_effect) {
         effect_ = result;
       }

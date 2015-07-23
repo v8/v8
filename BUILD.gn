@@ -694,7 +694,6 @@ source_set("v8_base") {
     "src/compiler/frame-states.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
-    "src/compiler/graph-builder.h",
     "src/compiler/graph-reducer.cc",
     "src/compiler/graph-reducer.h",
     "src/compiler/graph-replay.cc",

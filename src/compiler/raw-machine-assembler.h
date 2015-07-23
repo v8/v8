@@ -6,7 +6,7 @@
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph-builder.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
@@ -21,7 +21,7 @@ class BasicBlock;
 class Schedule;
 
 
-class RawMachineAssembler : public GraphBuilder {
+class RawMachineAssembler {
  public:
   class Label {
    public:
@@ -47,8 +47,10 @@ class RawMachineAssembler : public GraphBuilder {
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
-  ~RawMachineAssembler() override {}
+  ~RawMachineAssembler() {}
 
+  Isolate* isolate() const { return isolate_; }
+  Graph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
@@ -511,9 +513,46 @@ class RawMachineAssembler : public GraphBuilder {
   // MachineAssembler is invalid after export.
   Schedule* Export();
 
+  Node* NewNode(const Operator* op) {
+    return MakeNode(op, 0, static_cast<Node**>(NULL));
+  }
+
+  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
+    Node* buffer[] = {n1, n2};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5) {
+    Node* buffer[] = {n1, n2, n3, n4, n5};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(nodes), nodes);
+  }
+
+  Node* NewNode(const Operator* op, int value_input_count,
+                Node** value_inputs) {
+    return MakeNode(op, value_input_count, value_inputs);
+  }
+
  protected:
-  Node* MakeNode(const Operator* op, int input_count, Node** inputs,
-                 bool incomplete) final;
+  Node* MakeNode(const Operator* op, int input_count, Node** inputs);
 
   bool ScheduleValid() { return schedule_ != NULL; }
 
@@ -527,6 +566,8 @@ class RawMachineAssembler : public GraphBuilder {
   BasicBlock* EnsureBlock(Label* label);
   BasicBlock* CurrentBlock();
 
+  Isolate* isolate_;
+  Graph* graph_;
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;

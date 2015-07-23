@@ -15,7 +15,8 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
                                          CallDescriptor* call_descriptor,
                                          MachineType word,
                                          MachineOperatorBuilder::Flags flags)
-    : GraphBuilder(isolate, graph),
+    : isolate_(isolate),
+      graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word, flags),
       common_(zone()),
@@ -241,10 +242,10 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 
 
 Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
-                                    Node** inputs, bool incomplete) {
+                                    Node** inputs) {
   DCHECK(ScheduleValid());
   DCHECK(current_block_ != NULL);
-  Node* node = graph()->NewNode(op, input_count, inputs, incomplete);
+  Node* node = graph()->NewNode(op, input_count, inputs);
   BasicBlock* block = op->opcode() == IrOpcode::kParameter ? schedule()->start()
                                                            : CurrentBlock();
   if (op->opcode() != IrOpcode::kReturn) {
