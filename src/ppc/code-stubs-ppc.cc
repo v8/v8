@@ -2544,32 +2544,43 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
+                                       bool is_super) {
   // r3 : number of arguments to the construct function
-  // r5 : Feedback vector
-  // r6 : slot in feedback vector (Smi)
   // r4 : the function to call
+  // r5 : feedback vector
+  // r6 : slot in feedback vector (Smi)
+  // r7 : original constructor (for IsSuperConstructorCall)
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(r3);
-  __ Push(r6, r5, r4, r3);
+  if (is_super) {
+    __ Push(r6, r5, r4, r3, r7);
+  } else {
+    __ Push(r6, r5, r4, r3);
+  }
 
   __ CallStub(stub);
 
-  __ Pop(r6, r5, r4, r3);
+  if (is_super) {
+    __ Pop(r6, r5, r4, r3, r7);
+  } else {
+    __ Pop(r6, r5, r4, r3);
+  }
   __ SmiUntag(r3);
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // r3 : number of arguments to the construct function
   // r4 : the function to call
-  // r5 : Feedback vector
+  // r5 : feedback vector
   // r6 : slot in feedback vector (Smi)
+  // r7 : original constructor (for IsSuperConstructorCall)
   Label initialize, done, miss, megamorphic, not_array_function;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
@@ -2577,24 +2588,24 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   DCHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->uninitialized_symbol());
 
-  // Load the cache state into r7.
-  __ SmiToPtrArrayOffset(r7, r6);
-  __ add(r7, r5, r7);
-  __ LoadP(r7, FieldMemOperand(r7, FixedArray::kHeaderSize));
+  // Load the cache state into r8.
+  __ SmiToPtrArrayOffset(r8, r6);
+  __ add(r8, r5, r8);
+  __ LoadP(r8, FieldMemOperand(r8, FixedArray::kHeaderSize));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  // We don't know if r7 is a WeakCell or a Symbol, but it's harmless to read at
+  // We don't know if r8 is a WeakCell or a Symbol, but it's harmless to read at
   // this position in a symbol (see static asserts in type-feedback-vector.h).
   Label check_allocation_site;
-  Register feedback_map = r8;
-  Register weak_value = r9;
-  __ LoadP(weak_value, FieldMemOperand(r7, WeakCell::kValueOffset));
+  Register feedback_map = r9;
+  Register weak_value = r10;
+  __ LoadP(weak_value, FieldMemOperand(r8, WeakCell::kValueOffset));
   __ cmp(r4, weak_value);
   __ beq(&done);
-  __ CompareRoot(r7, Heap::kmegamorphic_symbolRootIndex);
+  __ CompareRoot(r8, Heap::kmegamorphic_symbolRootIndex);
   __ beq(&done);
-  __ LoadP(feedback_map, FieldMemOperand(r7, HeapObject::kMapOffset));
+  __ LoadP(feedback_map, FieldMemOperand(r8, HeapObject::kMapOffset));
   __ CompareRoot(feedback_map, Heap::kWeakCellMapRootIndex);
   __ bne(FLAG_pretenuring_call_new ? &miss : &check_allocation_site);
 
@@ -2612,8 +2623,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
     __ bne(&miss);
 
     // Make sure the function is the Array() function
-    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r7);
-    __ cmp(r4, r7);
+    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r8);
+    __ cmp(r4, r8);
     __ bne(&megamorphic);
     __ b(&done);
   }
@@ -2622,15 +2633,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ CompareRoot(r7, Heap::kuninitialized_symbolRootIndex);
+  __ CompareRoot(r8, Heap::kuninitialized_symbolRootIndex);
   __ beq(&initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ SmiToPtrArrayOffset(r7, r6);
-  __ add(r7, r5, r7);
+  __ SmiToPtrArrayOffset(r8, r6);
+  __ add(r8, r5, r8);
   __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
-  __ StoreP(ip, FieldMemOperand(r7, FixedArray::kHeaderSize), r0);
+  __ StoreP(ip, FieldMemOperand(r8, FixedArray::kHeaderSize), r0);
   __ jmp(&done);
 
   // An uninitialized cache is patched with the function
@@ -2638,22 +2649,22 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   if (!FLAG_pretenuring_call_new) {
     // Make sure the function is the Array() function.
-    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r7);
-    __ cmp(r4, r7);
+    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r8);
+    __ cmp(r4, r8);
     __ bne(&not_array_function);
 
     // The target function is the Array constructor,
     // Create an AllocationSite if we don't already have it, store it in the
     // slot.
     CreateAllocationSiteStub create_stub(masm->isolate());
-    CallStubInRecordCallTarget(masm, &create_stub);
+    CallStubInRecordCallTarget(masm, &create_stub, is_super);
     __ b(&done);
 
     __ bind(&not_array_function);
   }
 
   CreateWeakCellStub create_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &create_stub);
+  CallStubInRecordCallTarget(masm, &create_stub, is_super);
   __ bind(&done);
 }
 
@@ -2796,14 +2807,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ bne(&slow);
 
   if (RecordCallTarget()) {
-    if (IsSuperConstructorCall()) {
-      __ push(r7);
-    }
-    // TODO(mstarzinger): Consider tweaking target recording to avoid push/pop.
-    GenerateRecordCallTarget(masm);
-    if (IsSuperConstructorCall()) {
-      __ pop(r7);
-    }
+    GenerateRecordCallTarget(masm, IsSuperConstructorCall());
 
     __ SmiToPtrArrayOffset(r8, r6);
     __ add(r8, r5, r8);
