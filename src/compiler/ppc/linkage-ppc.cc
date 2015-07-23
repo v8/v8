@@ -17,6 +17,8 @@ struct PPCLinkageHelperTraits {
   static Register ReturnValue2Reg() { return r4; }
   static Register JSCallFunctionReg() { return r4; }
   static Register ContextReg() { return cp; }
+  static Register InterpreterBytecodePointerReg() { return r14; }
+  static Register InterpreterDispatchTableReg() { return r15; }
   static Register RuntimeCallFunctionReg() { return r4; }
   static Register RuntimeCallArgCountReg() { return r3; }
   static RegList CCalleeSaveRegisters() {
@@ -68,9 +70,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
 }
 
 
-CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(
-    Zone* zone, const MachineSignature* sig) {
-  return LH::GetInterpreterDispatchDescriptor(zone, sig);
+CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
+  return LH::GetInterpreterDispatchDescriptor(zone);
 }
 
 }  // namespace compiler
