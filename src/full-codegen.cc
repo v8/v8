@@ -274,6 +274,26 @@ bool FullCodeGenerator::ShouldInlineSmiCase(Token::Value op) {
 }
 
 
+void FullCodeGenerator::EffectContext::Plug(Variable* var) const {
+  DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(Variable* var) const {
+  DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+  codegen()->GetVar(result_register(), var);
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Variable* var) const {
+  DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+  // For simplicity we always test the accumulator register.
+  codegen()->GetVar(result_register(), var);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
+  codegen()->DoTest(this);
+}
+
+
 void FullCodeGenerator::EffectContext::Plug(Register reg) const {
 }
 
@@ -294,6 +314,9 @@ void FullCodeGenerator::TestContext::Plug(Register reg) const {
   codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
+
+
+void FullCodeGenerator::EffectContext::Plug(bool flag) const {}
 
 
 void FullCodeGenerator::EffectContext::PlugTOS() const {
@@ -394,11 +417,99 @@ void FullCodeGenerator::VisitDeclarations(
 }
 
 
+void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* variable = proxy->var();
+  switch (variable->location()) {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED:
+      // TODO(rossberg)
+      break;
+
+    case VariableLocation::CONTEXT: {
+      Comment cmnt(masm_, "[ ImportDeclaration");
+      EmitDebugCheckDeclarationContext(variable);
+      // TODO(rossberg)
+      break;
+    }
+
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
+    case VariableLocation::LOOKUP:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+  Comment cmnt(masm_, "[ VariableProxy");
+  EmitVariableLoad(expr);
+}
+
+
 int FullCodeGenerator::DeclareGlobalsFlags() {
   DCHECK(DeclareGlobalsLanguageMode::is_valid(language_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |
          DeclareGlobalsNativeFlag::encode(is_native()) |
          DeclareGlobalsLanguageMode::encode(language_mode());
+}
+
+
+void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
+  // Load the arguments on the stack and call the stub.
+  SubStringStub stub(isolate());
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 3);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  __ CallStub(&stub);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
+  // Load the arguments on the stack and call the stub.
+  RegExpExecStub stub(isolate());
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 4);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  VisitForStackValue(args->at(3));
+  __ CallStub(&stub);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
+  // Load the arguments on the stack and call the runtime function.
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 2);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
+  __ CallStub(&stub);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(2, args->length());
+
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  StringCompareStub stub(isolate());
+  __ CallStub(&stub);
+  context()->Plug(result_register());
 }
 
 
