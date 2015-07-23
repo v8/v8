@@ -1187,7 +1187,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       scope->SetLanguageMode(shared_info->language_mode());
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
-      ParserFormalParameterParsingState parsing_state(scope);
+      ParserFormalParameters formals(scope);
       Checkpoint checkpoint(this);
       {
         // Parsing patterns as variable reference expression creates
@@ -1196,20 +1196,19 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         BlockState block_state(&scope_, scope);
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
-          ParseFormalParameterList(&parsing_state, &formals_classifier, &ok);
+          ParseFormalParameterList(&formals, &formals_classifier, &ok);
           if (ok) ok = Check(Token::RPAREN);
         } else {
           // BindingIdentifier
           const bool is_rest = false;
-          ParseFormalParameter(is_rest, &parsing_state, &formals_classifier,
-                               &ok);
+          ParseFormalParameter(is_rest, &formals, &formals_classifier, &ok);
         }
       }
 
       if (ok) {
-        checkpoint.Restore(&parsing_state.materialized_literals_count);
+        checkpoint.Restore(&formals.materialized_literals_count);
         Expression* expression =
-            ParseArrowFunctionLiteral(parsing_state, formals_classifier, &ok);
+            ParseArrowFunctionLiteral(formals, formals_classifier, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -3844,10 +3843,10 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 
 void ParserTraits::ParseArrowFunctionFormalParameters(
-    ParserFormalParameterParsingState* parsing_state, Expression* expr,
-    const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-    bool* ok) {
-  if (parsing_state->scope->num_parameters() >= Code::kMaxArguments) {
+    ParserFormalParameters* parameters, Expression* expr,
+    const Scanner::Location& params_loc,
+    Scanner::Location* duplicate_loc, bool* ok) {
+  if (parameters->scope->num_parameters() >= Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
     return;
@@ -3873,7 +3872,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     DCHECK_EQ(binop->op(), Token::COMMA);
     Expression* left = binop->left();
     Expression* right = binop->right();
-    ParseArrowFunctionFormalParameters(parsing_state, left, params_loc,
+    ParseArrowFunctionFormalParameters(parameters, left, params_loc,
                                        duplicate_loc, ok);
     if (!*ok) return;
     // LHS of comma expression should be unparenthesized.
@@ -3881,13 +3880,10 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   }
 
   // Only the right-most expression may be a rest parameter.
-  DCHECK(!parsing_state->has_rest);
+  DCHECK(!parameters->has_rest);
 
-  bool is_rest = false;
-  if (expr->IsSpread()) {
-    is_rest = true;
-    expr = expr->AsSpread()->expression();
-  }
+  bool is_rest = expr->IsSpread();
+  if (is_rest) expr = expr->AsSpread()->expression();
 
   if (expr->IsVariableProxy()) {
     // When the formal parameter was originally seen, it was parsed as a
@@ -3899,19 +3895,18 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   }
 
   ExpressionClassifier classifier;
-  DeclareFormalParameter(parsing_state, expr, &classifier, is_rest);
+  DeclareFormalParameter(parameters, expr, is_rest, &classifier);
   if (!duplicate_loc->IsValid()) {
     *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
   }
 }
 
 
-void ParserTraits::ReindexLiterals(
-    const ParserFormalParameterParsingState& parsing_state) {
+void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
   if (parser_->function_state_->materialized_literal_count() > 0) {
     AstLiteralReindexer reindexer;
 
-    for (const auto p : parsing_state.params) {
+    for (const auto p : parameters.params) {
       if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
     }
     DCHECK(reindexer.count() <=
@@ -3950,7 +3945,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
-  int num_parameters = 0;
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
@@ -3988,6 +3982,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                      : NewScope(scope_, FUNCTION_SCOPE, kind);
   scope->SetLanguageMode(language_mode);
   ZoneList<Statement*>* body = NULL;
+  int arity = 0;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
@@ -3996,7 +3991,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       parenthesized_function_ ? FunctionLiteral::kShouldEagerCompile
                               : FunctionLiteral::kShouldLazyCompile;
   bool should_be_used_once_hint = false;
-  // Parse function body.
+  // Parse function.
   {
     AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope, kind,
@@ -4020,14 +4015,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Expect(Token::LPAREN, CHECK_OK);
     int start_position = scanner()->location().beg_pos;
     scope_->set_start_position(start_position);
-    ParserFormalParameterParsingState parsing_state(scope);
-    num_parameters =
-        ParseFormalParameterList(&parsing_state, &formals_classifier, CHECK_OK);
+    ParserFormalParameters formals(scope);
+    arity = ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
-    CheckArityRestrictions(num_parameters, arity_restriction,
-                           parsing_state.has_rest, start_position,
+    CheckArityRestrictions(arity, arity_restriction,
+                           formals.has_rest, start_position,
                            formals_end_position, CHECK_OK);
     Expect(Token::LBRACE, CHECK_OK);
 
@@ -4119,7 +4113,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
     }
     if (!is_lazily_parsed) {
-      body = ParseEagerFunctionBody(function_name, pos, parsing_state, fvar,
+      body = ParseEagerFunctionBody(function_name, pos, formals, fvar,
                                     fvar_init_op, kind, CHECK_OK);
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
@@ -4142,10 +4136,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // function, since the function can declare itself strict.
     CheckFunctionName(language_mode, function_name, function_name_validity,
                       function_name_location, CHECK_OK);
-    const bool use_strict_params =
-        !parsing_state.is_simple_parameter_list || IsConciseMethod(kind);
     const bool allow_duplicate_parameters =
-        is_sloppy(language_mode) && !use_strict_params;
+        is_sloppy(language_mode) && formals.is_simple && !IsConciseMethod(kind);
     ValidateFormalParameters(&formals_classifier, language_mode,
                              allow_duplicate_parameters, CHECK_OK);
 
@@ -4166,7 +4158,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, ast_value_factory(), scope, body,
-      materialized_literal_count, expected_property_count, num_parameters,
+      materialized_literal_count, expected_property_count, arity,
       duplicate_parameters, function_type, FunctionLiteral::kIsFunction,
       eager_compile_hint, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
@@ -4307,9 +4299,8 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var) {
 }
 
 
-bool Parser::IsSimpleParameterList(
-    const ParserFormalParameterParsingState& formal_parameters) {
-  for (auto parameter : formal_parameters.params) {
+bool Parser::IsSimpleParameterList(const ParserFormalParameters& parameters) {
+  for (auto parameter : parameters.params) {
     if (parameter.pattern != nullptr) return false;
   }
   return true;
@@ -4317,12 +4308,12 @@ bool Parser::IsSimpleParameterList(
 
 
 Block* Parser::BuildParameterInitializationBlock(
-    const ParserFormalParameterParsingState& formal_parameters, bool* ok) {
-  DCHECK(!IsSimpleParameterList(formal_parameters));
+    const ParserFormalParameters& parameters, bool* ok) {
+  DCHECK(!IsSimpleParameterList(parameters));
   DCHECK(scope_->is_function_scope());
   Block* init_block =
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
-  for (auto parameter : formal_parameters.params) {
+  for (auto parameter : parameters.params) {
     if (parameter.pattern == nullptr) continue;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
@@ -4347,10 +4338,9 @@ Block* Parser::BuildParameterInitializationBlock(
 
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
-    const ParserFormalParameterParsingState& formal_parameters, Variable* fvar,
+    const ParserFormalParameters& parameters, Variable* fvar,
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
-  bool is_simple_parameter_list = IsSimpleParameterList(formal_parameters);
-
+  bool is_simple_parameter_list = IsSimpleParameterList(parameters);
   // Everything inside an eagerly parsed function will be parsed eagerly
   // (see comment above).
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
@@ -4437,8 +4427,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(body, inner_block->statements());
     scope_->SetLanguageMode(inner_scope->language_mode());
-    Block* init_block =
-        BuildParameterInitializationBlock(formal_parameters, CHECK_OK);
+    Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
     DCHECK_NOT_NULL(init_block);
 
     inner_scope->set_end_position(scanner()->location().end_pos);
