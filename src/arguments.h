@@ -269,9 +269,6 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #endif
 
 
-#define DECLARE_RUNTIME_FUNCTION(Name)    \
-Object* Name(int args_length, Object** args_object, Isolate* isolate)
-
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                        \
 static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));  \
 Type Name(int args_length, Object** args_object, Isolate* isolate) {     \

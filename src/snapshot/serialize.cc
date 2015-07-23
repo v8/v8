@@ -60,7 +60,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
       "Heap::NewSpaceAllocationTopAddress()");
-  Add(ExternalReference::debug_break(isolate).address(), "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address(isolate).address(),
       "Debug::step_in_fp_addr()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
@@ -218,20 +217,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
     ExternalReference ref(
         static_cast<Runtime::FunctionId>(runtime_functions[i].id), isolate);
-    Add(ref.address(), runtime_functions[i].name);
-  }
-
-  static const RefTableEntry inline_caches[] = {
-#define IC_ENTRY(name)          \
-  { IC::k##name, "IC::" #name } \
-  ,
-      IC_UTIL_LIST(IC_ENTRY)
-#undef IC_ENTRY
-  };
-
-  for (unsigned i = 0; i < arraysize(inline_caches); ++i) {
-    ExternalReference ref(
-        IC_Utility(static_cast<IC::UtilityId>(inline_caches[i].id)), isolate);
     Add(ref.address(), runtime_functions[i].name);
   }
 

@@ -71,7 +71,8 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (mode == SAVE_RESULT_REGISTER) __ Push(rax);
 
     __ Set(rax, 0);  // No arguments (argc == 0).
-    __ Move(rbx, ExternalReference::debug_break(masm->isolate()));
+    __ Move(rbx, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
+                                   masm->isolate()));
 
     CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);

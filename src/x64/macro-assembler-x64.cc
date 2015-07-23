@@ -3555,7 +3555,8 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
 
 void MacroAssembler::DebugBreak() {
   Set(rax, 0);  // No arguments.
-  LoadAddress(rbx, ExternalReference(Runtime::kDebugBreak, isolate()));
+  LoadAddress(rbx,
+              ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
   CEntryStub ces(isolate(), 1);
   DCHECK(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);

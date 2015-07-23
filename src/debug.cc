@@ -693,15 +693,6 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
 }
 
 
-RUNTIME_FUNCTION(Debug_Break) {
-  // Get the top-most JavaScript frame.
-  JavaScriptFrameIterator it(isolate);
-  isolate->debug()->Break(args, it.frame());
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return isolate->heap()->undefined_value();
-}
-
-
 // Check the break point objects for whether one or more are actually
 // triggered. This function returns a JSArray with the break point objects
 // which is triggered.

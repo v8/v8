@@ -152,6 +152,7 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)            \
+  F(HandleDebuggerStatement, 0, 1)             \
   F(DebugBreak, 0, 1)                          \
   F(SetDebugEventListener, 2, 1)               \
   F(ScheduleBreak, 0, 1)                       \
@@ -725,7 +726,37 @@ namespace internal {
   F(LoadLookupSlotNoReferenceError, 2, 2)
 
 
+// Most intrinsics are implemented in the runtime/ directory, but ICs are
+// implemented in ic.cc for now.
+#define FOR_EACH_INTRINSIC_IC(F)             \
+  F(LoadIC_Miss, 3, 1)                       \
+  F(KeyedLoadIC_Miss, 3, 1)                  \
+  F(CallIC_Miss, 3, 1)                       \
+  F(CallIC_Customization_Miss, 3, 1)         \
+  F(StoreIC_Miss, 3, 1)                      \
+  F(StoreIC_Slow, 3, 1)                      \
+  F(KeyedStoreIC_Miss, 3, 1)                 \
+  F(KeyedStoreIC_Slow, 3, 1)                 \
+  F(StoreCallbackProperty, 5, 1)             \
+  F(LoadPropertyWithInterceptorOnly, 3, 1)   \
+  F(LoadPropertyWithInterceptor, 3, 1)       \
+  F(LoadElementWithInterceptor, 2, 1)        \
+  F(StorePropertyWithInterceptor, 3, 1)      \
+  F(CompareIC_Miss, 3, 1)                    \
+  F(BinaryOpIC_Miss, 2, 1)                   \
+  F(CompareNilIC_Miss, 1, 1)                 \
+  F(Unreachable, 0, 1)                       \
+  F(ToBooleanIC_Miss, 1, 1)                  \
+  F(KeyedLoadIC_MissFromStubFailure, 4, 1)   \
+  F(KeyedStoreIC_MissFromStubFailure, 3, 1)  \
+  F(StoreIC_MissFromStubFailure, 3, 1)       \
+  F(ElementsTransitionAndStoreIC_Miss, 4, 1) \
+  F(BinaryOpIC_MissWithAllocationSite, 3, 1) \
+  F(LoadIC_MissFromStubFailure, 0, 1)
+
+
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
+  FOR_EACH_INTRINSIC_IC(F)                  \
   FOR_EACH_INTRINSIC_ARRAY(F)               \
   FOR_EACH_INTRINSIC_ATOMICS(F)             \
   FOR_EACH_INTRINSIC_CLASSES(F)             \
@@ -762,6 +793,12 @@ namespace internal {
   FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 
+
+#define F(name, nargs, ressize)                                 \
+  Object* Runtime_##name(int args_length, Object** args_object, \
+                         Isolate* isolate);
+FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
+#undef F
 
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.

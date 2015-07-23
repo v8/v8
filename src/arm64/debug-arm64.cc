@@ -92,7 +92,8 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (mode == SAVE_RESULT_REGISTER) __ Push(x0);
 
     __ Mov(x0, 0);  // No arguments.
-    __ Mov(x1, ExternalReference::debug_break(masm->isolate()));
+    __ Mov(x1, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
+                                 masm->isolate()));
 
     CEntryStub stub(masm->isolate(), 1);
     __ CallStub(&stub);

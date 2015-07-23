@@ -3287,7 +3287,8 @@ void MacroAssembler::Push(Handle<Object> handle) {
 
 void MacroAssembler::DebugBreak() {
   PrepareCEntryArgs(0);
-  PrepareCEntryFunction(ExternalReference(Runtime::kDebugBreak, isolate()));
+  PrepareCEntryFunction(
+      ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
   CEntryStub ces(isolate(), 1);
   DCHECK(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
@@ -4559,9 +4560,9 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst, Register left,
 }
 
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
+                                 SaveFPRegsMode save_doubles,
+                                 BranchDelaySlot bd) {
   // All parameters are on the stack. v0 has the return value after call.
 
   // If the expected number of arguments of the runtime function is
@@ -4576,7 +4577,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference(f, isolate()));
   CEntryStub stub(isolate(), 1, save_doubles);
-  CallStub(&stub);
+  CallStub(&stub, TypeFeedbackId::None(), al, zero_reg, Operand(zero_reg), bd);
 }
 
 

@@ -19,6 +19,17 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
+  // Get the top-most JavaScript frame.
+  JavaScriptFrameIterator it(isolate);
+  isolate->debug()->Break(args, it.frame());
+  isolate->debug()->SetAfterBreakTarget(it.frame());
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
   isolate->debug()->HandleDebugBreak();
   return isolate->heap()->undefined_value();
 }

@@ -313,9 +313,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
   int arg_count = 4;
-  __ TailCallExternalReference(ref, arg_count, 1);
+  __ TailCallRuntime(Runtime::kLoadIC_Miss, arg_count, 1);
 }
 
 
@@ -344,10 +343,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
   int arg_count = 4;
-  __ TailCallExternalReference(ref, arg_count, 1);
+  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss, arg_count, 1);
 }
 
 
@@ -472,9 +469,7 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
           StoreDescriptor::ValueRegister());
 
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, 3, 1);
 }
 
 
@@ -776,9 +771,7 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
           StoreDescriptor::ValueRegister());
 
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kStoreIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Miss, 3, 1);
 }
 
 

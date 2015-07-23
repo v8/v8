@@ -80,7 +80,8 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (mode == SAVE_RESULT_REGISTER) __ push(v0);
 
     __ PrepareCEntryArgs(0);  // No arguments.
-    __ PrepareCEntryFunction(ExternalReference::debug_break(masm->isolate()));
+    __ PrepareCEntryFunction(ExternalReference(
+        Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate()));
 
     CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);

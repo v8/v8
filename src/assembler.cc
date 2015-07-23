@@ -995,11 +995,6 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 }
 
 
-ExternalReference::ExternalReference(const IC_Utility& ic_utility,
-                                     Isolate* isolate)
-  : address_(Redirect(isolate, ic_utility.address())) {}
-
-
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
 
@@ -1498,11 +1493,6 @@ ExternalReference ExternalReference::mod_two_doubles_operation(
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(modulo),
                                     BUILTIN_FP_FP_CALL));
-}
-
-
-ExternalReference ExternalReference::debug_break(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Debug_Break)));
 }
 
 

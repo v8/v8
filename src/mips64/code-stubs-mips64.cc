@@ -1942,10 +1942,7 @@ void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
   __ Push(receiver, key);  // Receiver, key.
 
   // Perform tail call to the entry.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kLoadElementWithInterceptor),
-                        masm->isolate()),
-      2, 1);
+  __ TailCallRuntime(Runtime::kLoadElementWithInterceptor, 2, 1);
 
   __ bind(&slow);
   PropertyAccessCompiler::TailCallBuiltin(
@@ -3117,11 +3114,10 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
   __ Push(a1, a2, a3);
 
   // Call the entry.
-  IC::UtilityId id = GetICState() == DEFAULT ? IC::kCallIC_Miss
-                                             : IC::kCallIC_Customization_Miss;
-
-  ExternalReference miss = ExternalReference(IC_Utility(id), masm->isolate());
-  __ CallExternalReference(miss, 3);
+  Runtime::FunctionId id = GetICState() == DEFAULT
+                               ? Runtime::kCallIC_Miss  //
+                               : Runtime::kCallIC_Customization_Miss;
+  __ CallRuntime(id, 3);
 
   // Move result to a1 and exit the internal frame.
   __ mov(a1, v0);
@@ -4038,14 +4034,13 @@ void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
 void CompareICStub::GenerateMiss(MacroAssembler* masm) {
   {
     // Call the runtime system in a fresh internal frame.
-    ExternalReference miss =
-        ExternalReference(IC_Utility(IC::kCompareIC_Miss), isolate());
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1, a0);
     __ Push(ra, a1, a0);
     __ li(a4, Operand(Smi::FromInt(op())));
     __ daddiu(sp, sp, -kPointerSize);
-    __ CallExternalReference(miss, 3, USE_DELAY_SLOT);
+    __ CallRuntime(Runtime::kCompareIC_Miss, 3, kDontSaveFPRegs,
+                   USE_DELAY_SLOT);
     __ sd(a4, MemOperand(sp));  // In the delay slot.
     // Compute the entry point of the rewritten stub.
     __ Daddu(a2, v0, Operand(Code::kHeaderSize - kHeapObjectTag));

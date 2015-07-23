@@ -805,7 +805,6 @@ class RelocIterator: public Malloced {
 // External function
 
 //----------------------------------------------------------------------------
-class IC_Utility;
 class SCTableReference;
 class Debug_Address;
 
@@ -874,8 +873,6 @@ class ExternalReference BASE_EMBEDDED {
   ExternalReference(Runtime::FunctionId id, Isolate* isolate);
 
   ExternalReference(const Runtime::Function* f, Isolate* isolate);
-
-  ExternalReference(const IC_Utility& ic_utility, Isolate* isolate);
 
   explicit ExternalReference(StatsCounter* counter);
 
@@ -990,9 +987,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
-
-  // Function Debug::Break()
-  static ExternalReference debug_break(Isolate* isolate);
 
   // Used to check if single stepping is enabled in generated code.
   static ExternalReference debug_step_in_fp_address(Isolate* isolate);
