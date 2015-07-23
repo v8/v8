@@ -23,6 +23,8 @@ struct X64LinkageHelperTraits {
   static Register ReturnValue2Reg() { return rdx; }
   static Register JSCallFunctionReg() { return rdi; }
   static Register ContextReg() { return rsi; }
+  static Register InterpreterBytecodePointerReg() { return rbx; }
+  static Register InterpreterDispatchTableReg() { return rdi; }
   static Register RuntimeCallFunctionReg() { return rbx; }
   static Register RuntimeCallArgCountReg() { return rax; }
   static RegList CCalleeSaveRegisters() {
@@ -89,9 +91,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
 }
 
 
-CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(
-    Zone* zone, const MachineSignature* sig) {
-  return LH::GetInterpreterDispatchDescriptor(zone, sig);
+CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
+  return LH::GetInterpreterDispatchDescriptor(zone);
 }
 
 }  // namespace compiler

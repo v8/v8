@@ -17,6 +17,8 @@ struct MipsLinkageHelperTraits {
   static Register ReturnValue2Reg() { return v1; }
   static Register JSCallFunctionReg() { return a1; }
   static Register ContextReg() { return cp; }
+  static Register InterpreterBytecodePointerReg() { return s0; }
+  static Register InterpreterDispatchTableReg() { return s1; }
   static Register RuntimeCallFunctionReg() { return a1; }
   static Register RuntimeCallArgCountReg() { return a0; }
   static RegList CCalleeSaveRegisters() {
@@ -69,9 +71,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
 }
 
 
-CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(
-    Zone* zone, const MachineSignature* sig) {
-  return LH::GetInterpreterDispatchDescriptor(zone, sig);
+CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
+  return LH::GetInterpreterDispatchDescriptor(zone);
 }
 
 }  // namespace compiler

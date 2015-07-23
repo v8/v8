@@ -3465,6 +3465,9 @@ void Heap::CreateInitialObjects() {
 
   set_weak_stack_trace_list(Smi::FromInt(0));
 
+  // Will be filled in by Interpreter::Initialize().
+  set_interpreter_table(empty_fixed_array());
+
   set_allocation_sites_scratchpad(
       *factory->NewFixedArray(kAllocationSiteScratchpadSize, TENURED));
   InitializeAllocationSitesScratchpad();

@@ -60,6 +60,8 @@
         'compiler/instruction-selector-unittest.h',
         'compiler/instruction-sequence-unittest.cc',
         'compiler/instruction-sequence-unittest.h',
+        'compiler/interpreter-assembler-unittest.cc',
+        'compiler/interpreter-assembler-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
         'compiler/js-context-relaxation-unittest.cc',
         'compiler/js-intrinsic-lowering-unittest.cc',

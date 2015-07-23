@@ -17,6 +17,8 @@ struct Arm64LinkageHelperTraits {
   static Register ReturnValue2Reg() { return x1; }
   static Register JSCallFunctionReg() { return x1; }
   static Register ContextReg() { return cp; }
+  static Register InterpreterBytecodePointerReg() { return x19; }
+  static Register InterpreterDispatchTableReg() { return x20; }
   static Register RuntimeCallFunctionReg() { return x1; }
   static Register RuntimeCallArgCountReg() { return x0; }
   static RegList CCalleeSaveRegisters() {
@@ -72,9 +74,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
 }
 
 
-CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(
-    Zone* zone, const MachineSignature* sig) {
-  return LH::GetInterpreterDispatchDescriptor(zone, sig);
+CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
+  return LH::GetInterpreterDispatchDescriptor(zone);
 }
 
 }  // namespace compiler

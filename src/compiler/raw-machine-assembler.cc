@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/raw-machine-assembler.h"
+
 #include "src/code-factory.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/scheduler.h"
 
 namespace v8 {

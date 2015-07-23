@@ -25,6 +25,7 @@
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/ic/stub-cache.h"
+#include "src/interpreter/interpreter.h"
 #include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
@@ -1891,6 +1892,9 @@ void Isolate::Deinit() {
   Sampler* sampler = logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
 
+  delete interpreter_;
+  interpreter_ = NULL;
+
   delete deoptimizer_data_;
   deoptimizer_data_ = NULL;
   builtins_.TearDown();
@@ -2121,6 +2125,7 @@ bool Isolate::Init(Deserializer* des) {
       new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
+  interpreter_ = new interpreter::Interpreter(this);
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);
@@ -2167,6 +2172,10 @@ bool Isolate::Init(Deserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
+
+  if (FLAG_ignition) {
+    interpreter_->Initialize(create_heap_objects);
+  }
 
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);

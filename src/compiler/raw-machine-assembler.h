@@ -5,13 +5,13 @@
 #ifndef V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
+#include "src/assembler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-
 
 namespace v8 {
 namespace internal {
@@ -66,6 +66,7 @@ class RawMachineAssembler {
   const MachineSignature* machine_sig() const {
     return call_descriptor_->GetMachineSignature();
   }
+  BasicBlock* CurrentBlock();
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -126,12 +127,12 @@ class RawMachineAssembler {
     return NewNode(machine()->Load(rep), base, index, graph()->start(),
                    graph()->start());
   }
-  void Store(MachineType rep, Node* base, Node* value) {
-    Store(rep, base, IntPtrConstant(0), value);
+  Node* Store(MachineType rep, Node* base, Node* value) {
+    return Store(rep, base, IntPtrConstant(0), value);
   }
-  void Store(MachineType rep, Node* base, Node* index, Node* value) {
-    NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)), base,
-            index, value, graph()->start(), graph()->start());
+  Node* Store(MachineType rep, Node* base, Node* index, Node* value) {
+    return NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
+                   base, index, value, graph()->start(), graph()->start());
   }
 
   // Arithmetic Operations.
@@ -474,8 +475,8 @@ class RawMachineAssembler {
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return Load(rep, PointerConstant(address), Int32Constant(offset));
   }
-  void StoreToPointer(void* address, MachineType rep, Node* node) {
-    Store(rep, PointerConstant(address), node);
+  Node* StoreToPointer(void* address, MachineType rep, Node* node) {
+    return Store(rep, PointerConstant(address), node);
   }
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
@@ -579,7 +580,6 @@ class RawMachineAssembler {
   Node* MakeNode(const Operator* op, int input_count, Node** inputs);
   BasicBlock* Use(Label* label);
   BasicBlock* EnsureBlock(Label* label);
-  BasicBlock* CurrentBlock();
 
   Isolate* isolate_;
   Graph* graph_;

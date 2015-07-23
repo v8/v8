@@ -134,6 +134,11 @@ Matcher<Node*> IsTailCall(
     const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
     const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
@@ -240,6 +245,8 @@ Matcher<Node*> IsUint32LessThan(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsUint32LessThanOrEqual(const Matcher<Node*>& lhs_matcher,
                                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt64Add(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeInt32ToFloat64(const Matcher<Node*>& input_matcher);
@@ -285,6 +292,8 @@ Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
                              const Matcher<Node*>& context_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
+Matcher<Node*> IsLoadFramePointer();
 
 }  // namespace compiler
 }  // namespace internal

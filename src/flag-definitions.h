@@ -269,13 +269,19 @@ DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 // Flags for optimization types.
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
-            "speed.")
+            "speed")
 
 DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL(string_slices, true, "use string slices")
+
+// Flags for Ignition.
+DEFINE_BOOL(ignition, false, "use ignition interpreter")
+DEFINE_STRING(ignition_filter, "~~", "filter for ignition interpreter")
+DEFINE_BOOL(trace_ignition_codegen, false,
+            "trace the codegen of ignition interpreter bytecode handlers")
 
 // Flags for Crankshaft.
 DEFINE_BOOL(crankshaft, true, "use crankshaft")

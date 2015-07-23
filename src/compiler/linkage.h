@@ -241,8 +241,7 @@ class Linkage : public ZoneObject {
   // Creates a call descriptor for interpreter handler code stubs. These are not
   // intended to be called directly but are instead dispatched to by the
   // interpreter.
-  static CallDescriptor* GetInterpreterDispatchDescriptor(
-      Zone* zone, const MachineSignature* sig);
+  static CallDescriptor* GetInterpreterDispatchDescriptor(Zone* zone);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {
@@ -279,6 +278,11 @@ class Linkage : public ZoneObject {
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;
+
+  // Special parameter indices used to pass fixed register data through
+  // interpreter dispatches.
+  static const int kInterpreterBytecodeParameter = 0;
+  static const int kInterpreterDispatchTableParameter = 1;
 
  private:
   CallDescriptor* const incoming_;

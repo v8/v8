@@ -197,7 +197,8 @@ namespace internal {
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, code_stub_context, CodeStubContext)                                \
-  V(JSObject, code_stub_exports_object, CodeStubExportsObject)
+  V(JSObject, code_stub_exports_object, CodeStubExportsObject)                 \
+  V(FixedArray, interpreter_table, InterpreterTable)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -1002,6 +1003,10 @@ class Heap {
 
   void public_set_materialized_objects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;
+  }
+
+  void public_set_interpreter_table(FixedArray* table) {
+    roots_[kInterpreterTableRootIndex] = table;
   }
 
   // Generated code can embed this address to get access to the roots.

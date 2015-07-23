@@ -233,18 +233,25 @@ class LinkageHelper {
         "c-call");
   }
 
-  static CallDescriptor* GetInterpreterDispatchDescriptor(
-      Zone* zone, const MachineSignature* msig) {
-    DCHECK_EQ(0U, msig->parameter_count());
-    LocationSignature::Builder locations(zone, msig->return_count(),
-                                         msig->parameter_count());
-    AddReturnLocations(&locations);
+  static CallDescriptor* GetInterpreterDispatchDescriptor(Zone* zone) {
+    MachineSignature::Builder types(zone, 0, 2);
+    LocationSignature::Builder locations(zone, 0, 2);
+
+    // Add registers for fixed parameters passed via interpreter dispatch.
+    STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeParameter);
+    types.AddParam(kMachPtr);
+    locations.AddParam(regloc(LinkageTraits::InterpreterBytecodePointerReg()));
+
+    STATIC_ASSERT(1 == Linkage::kInterpreterDispatchTableParameter);
+    types.AddParam(kMachPtr);
+    locations.AddParam(regloc(LinkageTraits::InterpreterDispatchTableReg()));
+
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
     return new (zone) CallDescriptor(          // --
         CallDescriptor::kInterpreterDispatch,  // kind
         kMachNone,                             // target MachineType
         target_loc,                            // target location
-        msig,                                  // machine_sig
+        types.Build(),                         // machine_sig
         locations.Build(),                     // location_sig
         0,                                     // js_parameter_count
         Operator::kNoProperties,               // properties
