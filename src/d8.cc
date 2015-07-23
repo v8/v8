@@ -1391,7 +1391,7 @@ void Shell::RunShell(Isolate* isolate) {
   printf("V8 version %s\n", V8::GetVersion());
   while (true) {
     HandleScope inner_scope(isolate);
-    printf(" d8>");
+    printf("d8> ");
 #if defined(__native_client__)
     // Native Client libc is used to being embedded in Chrome and
     // has trouble recognizing when to flush.
