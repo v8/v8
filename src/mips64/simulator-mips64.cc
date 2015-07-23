@@ -3791,6 +3791,7 @@ void Simulator::DecodeTypeRegisterSPECIAL(
       break;
     case DSLL:
       set_register(rd_reg, alu_out);
+      TraceRegWr(alu_out);
       break;
     case DIV:
     case DDIV:
@@ -4411,7 +4412,6 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     default:
       UNREACHABLE();
   }
-
 
   // ---------- Raise exceptions triggered.
   SignalExceptions();

@@ -5059,4 +5059,56 @@ TEST(r6_balc) {
 }
 
 
+uint32_t run_bal(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ mov(t0, ra);
+  __ bal(offset);       // Equivalent for "BGEZAL zero_reg, offset".
+  __ nop();
+
+  __ mov(ra, t0);
+  __ jr(ra);
+  __ nop();
+
+  __ li(v0, 1);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+    reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(bal) {
+  CcTest::InitializeVM();
+
+  struct TestCaseBal {
+    int16_t  offset;
+    uint32_t  expected_res;
+  };
+
+  struct TestCaseBal tc[] = {
+    // offset, expected_res
+    {       4,      1 },
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBal);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_bal(tc[i].offset));
+  }
+}
+
+
 #undef __

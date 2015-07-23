@@ -5366,4 +5366,104 @@ TEST(r6_balc) {
 }
 
 
+uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ dsll(v0, a0, sa_value);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res =
+    reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, rt_value, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(dsll) {
+  CcTest::InitializeVM();
+
+  struct TestCaseDsll {
+    uint64_t  rt_value;
+    uint16_t  sa_value;
+    uint64_t  expected_res;
+  };
+
+  struct TestCaseDsll tc[] = {
+    // rt_value,           sa_value, expected_res
+    {  0xffffffffffffffff,    0,      0xffffffffffffffff },
+    {  0xffffffffffffffff,   16,      0xffffffffffff0000 },
+    {  0xffffffffffffffff,   31,      0xffffffff80000000 },
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDsll);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res,
+            run_dsll(tc[i].rt_value, tc[i].sa_value));
+  }
+}
+
+
+uint64_t run_bal(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ mov(t0, ra);
+  __ bal(offset);       // Equivalent for "BGEZAL zero_reg, offset".
+  __ nop();
+
+  __ mov(ra, t0);
+  __ jr(ra);
+  __ nop();
+
+  __ li(v0, 1);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res =
+    reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(bal) {
+  CcTest::InitializeVM();
+
+  struct TestCaseBal {
+    int16_t  offset;
+    uint64_t  expected_res;
+  };
+
+  struct TestCaseBal tc[] = {
+    // offset, expected_res
+    {       4,      1 },
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBal);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_bal(tc[i].offset));
+  }
+}
+
+
 #undef __

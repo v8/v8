@@ -1510,9 +1510,13 @@ void Decoder::DecodeTypeImmediateREGIMM(Instruction* instr) {
     case BGEZ:
       Format(instr, "bgez    'rs, 'imm16u -> 'imm16p4s2");
       break;
-    case BGEZAL:
-      Format(instr, "bgezal  'rs, 'imm16u -> 'imm16p4s2");
+    case BGEZAL: {
+      if (instr->RsValue() == 0)
+        Format(instr, "bal     'imm16s -> 'imm16p4s2");
+      else
+        Format(instr, "bgezal  'rs, 'imm16u -> 'imm16p4s2");
       break;
+    }
     case BGEZALL:
       Format(instr, "bgezall 'rs, 'imm16u -> 'imm16p4s2");
       break;
