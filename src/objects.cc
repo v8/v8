@@ -3649,19 +3649,6 @@ Handle<Map> Map::FindTransitionedMap(Handle<Map> map,
 static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
   Map* current_map = map;
 
-  // Support for legacy API: SetIndexedPropertiesTo{External,Pixel}Data
-  // allows to change elements from arbitrary kind to any ExternalArray
-  // elements kind. Satisfy its requirements, checking whether we already
-  // have the cached transition.
-  if (IsExternalArrayElementsKind(to_kind) &&
-      !IsFixedTypedArrayElementsKind(map->elements_kind())) {
-    Map* next_map = map->ElementsTransitionMap();
-    if (next_map != NULL && next_map->elements_kind() == to_kind) {
-      return next_map;
-    }
-    return map;
-  }
-
   ElementsKind kind = map->elements_kind();
   while (kind != to_kind) {
     Map* next_map = current_map->ElementsTransitionMap();
