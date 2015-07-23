@@ -175,8 +175,15 @@ class TestSuite(object):
         print("Unused rule: %s -> %s" % (rule, self.wildcards[rule]))
 
   def FilterTestCasesByArgs(self, args):
+    """Filter test cases based on command-line arguments.
+
+    An argument with an asterisk in the end will match all test cases
+    that have the argument as a prefix. Without asterisk, only exact matches
+    will be used with the exeption of the test-suite name as argument.
+    """
     filtered = []
-    filtered_args = []
+    globs = []
+    exact_matches = []
     for a in args:
       argpath = a.split(os.path.sep)
       if argpath[0] != self.name:
@@ -186,10 +193,16 @@ class TestSuite(object):
       path = os.path.sep.join(argpath[1:])
       if path[-1] == '*':
         path = path[:-1]
-      filtered_args.append(path)
+        globs.append(path)
+      else:
+        exact_matches.append(path)
     for t in self.tests:
-      for a in filtered_args:
+      for a in globs:
         if t.path.startswith(a):
+          filtered.append(t)
+          break
+      for a in exact_matches:
+        if t.path == a:
           filtered.append(t)
           break
     self.tests = filtered
