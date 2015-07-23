@@ -497,10 +497,30 @@ void FullCodeGenerator::EmitReturnSequence() {
 }
 
 
+void FullCodeGenerator::EffectContext::Plug(Variable* var) const {
+  DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(Variable* var) const {
+  DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+  codegen()->GetVar(result_register(), var);
+}
+
+
 void FullCodeGenerator::StackValueContext::Plug(Variable* var) const {
   DCHECK(var->IsStackAllocated() || var->IsContextSlot());
   codegen()->GetVar(result_register(), var);
   __ push(result_register());
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Variable* var) const {
+  DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+  // For simplicity we always test the accumulator register.
+  codegen()->GetVar(result_register(), var);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
+  codegen()->DoTest(this);
 }
 
 
@@ -651,6 +671,9 @@ void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
   DCHECK(materialize_true == true_label_);
   DCHECK(materialize_false == false_label_);
 }
+
+
+void FullCodeGenerator::EffectContext::Plug(bool flag) const {}
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
@@ -901,6 +924,35 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       break;
     }
   }
+}
+
+
+void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* variable = proxy->var();
+  switch (variable->location()) {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED:
+      // TODO(rossberg)
+      break;
+
+    case VariableLocation::CONTEXT: {
+      Comment cmnt(masm_, "[ ImportDeclaration");
+      EmitDebugCheckDeclarationContext(variable);
+      // TODO(rossberg)
+      break;
+    }
+
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
+    case VariableLocation::LOOKUP:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
+  // TODO(rossberg)
 }
 
 
@@ -1233,6 +1285,12 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
     __ CallRuntime(Runtime::kNewClosure, 3);
   }
   context()->Plug(r3);
+}
+
+
+void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+  Comment cmnt(masm_, "[ VariableProxy");
+  EmitVariableLoad(expr);
 }
 
 
@@ -3856,6 +3914,33 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
+  // Load the arguments on the stack and call the stub.
+  SubStringStub stub(isolate());
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 3);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  __ CallStub(&stub);
+  context()->Plug(r3);
+}
+
+
+void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
+  // Load the arguments on the stack and call the stub.
+  RegExpExecStub stub(isolate());
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 4);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  VisitForStackValue(args->at(3));
+  __ CallStub(&stub);
+  context()->Plug(r3);
+}
+
+
 void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
@@ -4001,6 +4086,18 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
+  // Load the arguments on the stack and call the runtime function.
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 2);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
+  __ CallStub(&stub);
+  context()->Plug(r3);
+}
+
+
 void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
@@ -4025,6 +4122,18 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
                       kDontSaveFPRegs);
 
   __ bind(&done);
+  context()->Plug(r3);
+}
+
+
+void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(args->length(), 1);
+  // Load the argument into r3 and call the stub.
+  VisitForAccumulatorValue(args->at(0));
+
+  NumberToStringStub stub(isolate());
+  __ CallStub(&stub);
   context()->Plug(r3);
 }
 
@@ -4138,6 +4247,18 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
 
   __ pop(r4);
   StringAddStub stub(isolate(), STRING_ADD_CHECK_BOTH, NOT_TENURED);
+  __ CallStub(&stub);
+  context()->Plug(r3);
+}
+
+
+void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(2, args->length());
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  StringCompareStub stub(isolate());
   __ CallStub(&stub);
   context()->Plug(r3);
 }
