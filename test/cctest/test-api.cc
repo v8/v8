@@ -21029,7 +21029,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
 
   Maybe<uint32_t> result =
       script->Run(env.local()).ToLocalChecked()->Uint32Value(env.local());
-  CHECK_EQ(3, result.FromMaybe(0));
+  CHECK_EQ(3U, result.FromMaybe(0));
 
   delete[] full_source;
 
