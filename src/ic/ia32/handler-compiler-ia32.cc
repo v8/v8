@@ -351,11 +351,20 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 }
 
 
+void NamedStoreHandlerCompiler::GeneratePushMap(Register map_reg,
+                                                Register scratch) {
+  // Get the return address, push the argument and then continue.
+  __ pop(scratch);
+  __ push(map_reg);
+  __ push(scratch);
+}
+
+
 void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
+                                                   Register map_reg,
                                                    Register scratch,
                                                    Label* miss) {
   Handle<WeakCell> cell = Map::WeakCellForMap(transition);
-  Register map_reg = StoreTransitionDescriptor::MapRegister();
   DCHECK(!map_reg.is(scratch));
   __ LoadWeakValue(map_reg, cell, miss);
   if (transition->CanBeDeprecated()) {

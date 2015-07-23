@@ -2478,8 +2478,12 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   Handle<Object> value = args.at<Object>(2);
   Handle<Object> result;
 
+  // Bailouts from transitioning stores may have the map to transition to as an
+  // extra argument.
+  DCHECK(args.length() < 4 || args.at<Object>(3)->IsMap());
+
   if (FLAG_vector_stores) {
-    DCHECK(args.length() == 5);
+    DCHECK(args.length() == 5 || args.length() == 6);
     Handle<Smi> slot = args.at<Smi>(3);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
     FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());

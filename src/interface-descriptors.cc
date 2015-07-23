@@ -100,11 +100,16 @@ void StoreDescriptor::InitializePlatformSpecific(
 }
 
 
-void StoreTransitionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          MapRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+Type::FunctionType*
+StoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Type::FunctionType* function = Type::FunctionType::New(
+      AnyTagged(), Type::Undefined(), 4, isolate->interface_descriptor_zone());
+  function->InitParameter(0, AnyTagged());  // Receiver
+  function->InitParameter(1, AnyTagged());  // Name
+  function->InitParameter(2, AnyTagged());  // Value
+  function->InitParameter(3, AnyTagged());  // Map
+  return function;
 }
 
 
@@ -131,7 +136,7 @@ Type::FunctionType*
 StoreGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Type::FunctionType* function = Type::FunctionType::New(
-      AnyTagged(), Type::Undefined(), 5, isolate->interface_descriptor_zone());
+      AnyTagged(), Type::Undefined(), 4, isolate->interface_descriptor_zone());
   function->InitParameter(0, SmiType());
   function->InitParameter(1, SmiType());
   function->InitParameter(2, AnyTagged());

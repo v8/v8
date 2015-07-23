@@ -465,11 +465,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
+  Register transition_map_reg = StoreTransitionDescriptor::MapRegister();
+  bool push_map_on_stack = transition_map_reg.is(no_reg);
+  Register map_reg = push_map_on_stack ? scratch1() : transition_map_reg;
+
   if (details.type() == DATA_CONSTANT) {
-    GenerateRestoreMap(transition, scratch2(), &miss);
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    Register map_reg = StoreTransitionDescriptor::MapRegister();
+    GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
     GenerateConstantCheck(map_reg, descriptor, value(), scratch2(), &miss);
+    if (push_map_on_stack) {
+      GeneratePushMap(map_reg, scratch2());
+    }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
@@ -484,7 +490,10 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
 
-    GenerateRestoreMap(transition, scratch2(), &miss);
+    GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
+    if (push_map_on_stack) {
+      GeneratePushMap(map_reg, scratch2());
+    }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate(),
                              FieldIndex::ForDescriptor(*transition, descriptor),

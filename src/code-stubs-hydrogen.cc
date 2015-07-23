@@ -48,7 +48,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
  protected:
   virtual HValue* BuildCodeStub() = 0;
-  int GetParameterCount() const {
+  int GetParameterCount() const { return descriptor_.GetParameterCount(); }
+  int GetRegisterParameterCount() const {
     return descriptor_.GetRegisterParameterCount();
   }
   HParameter* GetParameter(int parameter) {
@@ -138,6 +139,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   }
 
   int param_count = GetParameterCount();
+  int register_param_count = GetRegisterParameterCount();
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
   Goto(next_block);
@@ -148,11 +150,16 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
     Representation r = GetParameterRepresentation(i);
-    HParameter* param = Add<HParameter>(i,
-                                        HParameter::REGISTER_PARAMETER, r);
+    HParameter* param;
+    if (i >= register_param_count) {
+      param = Add<HParameter>(i - register_param_count,
+                              HParameter::STACK_PARAMETER, r);
+    } else {
+      param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
+    }
     start_environment->Bind(i, param);
     parameters_[i] = param;
-    if (IsParameterCountRegister(i)) {
+    if (i < register_param_count && IsParameterCountRegister(i)) {
       param->set_type(HType::Smi());
       stack_parameter_count = param;
       arguments_length_ = stack_parameter_count;
@@ -161,7 +168,9 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 
   DCHECK(!runtime_stack_params || arguments_length_ != NULL);
   if (!runtime_stack_params) {
-    stack_parameter_count = graph()->GetConstantMinus1();
+    stack_parameter_count =
+        Add<HConstant>(param_count - register_param_count - 1);
+    // graph()->GetConstantMinus1();
     arguments_length_ = graph()->GetConstant0();
   }
 

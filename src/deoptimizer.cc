@@ -1421,6 +1421,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   //                                         reg = saved frame
   //                                         reg = JSFunction context
   //
+  // Caller stack params contain the register parameters to the stub first,
+  // and then, if the descriptor specifies a constant number of stack
+  // parameters, the stack parameters as well.
 
   TranslatedFrame* translated_frame =
       &(translated_state_.frames()[frame_index]);
@@ -1436,11 +1439,12 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
   int param_count = descriptor.GetRegisterParameterCount();
+  int stack_param_count = descriptor.GetStackParameterCount();
   CHECK_EQ(translated_frame->height(), param_count);
   CHECK_GE(param_count, 0);
 
-  int height_in_bytes = kPointerSize * param_count + sizeof(Arguments) +
-      kPointerSize;
+  int height_in_bytes = kPointerSize * (param_count + stack_param_count) +
+                        sizeof(Arguments) + kPointerSize;
   int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
   int input_frame_size = input_->GetFrameSize();
   int output_frame_size = height_in_bytes + fixed_frame_size;
@@ -1513,7 +1517,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "function (stub failure sentinel)\n");
 
-  intptr_t caller_arg_count = 0;
+  intptr_t caller_arg_count = stack_param_count;
   bool arg_count_known = !descriptor.stack_parameter_count().is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
@@ -1561,6 +1565,20 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     }
   }
 
+  // Copy constant stack parameters to the failure frame. If the number of stack
+  // parameters is not known in the descriptor, the arguments object is the way
+  // to access them.
+  for (int i = 0; i < stack_param_count; i++) {
+    output_frame_offset -= kPointerSize;
+    Object** stack_parameter = reinterpret_cast<Object**>(
+        frame_ptr + StandardFrameConstants::kCallerSPOffset +
+        (stack_param_count - i - 1) * kPointerSize);
+    value = reinterpret_cast<intptr_t>(*stack_parameter);
+    output_frame->SetFrameSlot(output_frame_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_frame_offset,
+                         "stack parameter\n");
+  }
+
   CHECK_EQ(0u, output_frame_offset);
 
   if (!arg_count_known) {
@@ -1590,8 +1608,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
   StubFunctionMode function_mode = descriptor.function_mode();
-  StubFailureTrampolineStub(isolate_,
-                            function_mode).FindCodeInCache(&trampoline);
+  StubFailureTrampolineStub(isolate_, function_mode)
+      .FindCodeInCache(&trampoline);
   DCHECK(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));

@@ -69,17 +69,13 @@ class PlatformInterfaceDescriptor;
 class CallInterfaceDescriptorData {
  public:
   CallInterfaceDescriptorData()
-      : stack_paramater_count_(-1),
-        register_param_count_(-1),
-        function_type_(nullptr) {}
+      : register_param_count_(-1), function_type_(nullptr) {}
 
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptorData.
 
-  void InitializePlatformIndependent(int stack_paramater_count,
-                                     Type::FunctionType* function_type) {
+  void InitializePlatformIndependent(Type::FunctionType* function_type) {
     function_type_ = function_type;
-    stack_paramater_count_ = stack_paramater_count;
   }
 
   // TODO(mvstanton): Instead of taking parallel arrays register and
@@ -92,12 +88,11 @@ class CallInterfaceDescriptorData {
 
   bool IsInitialized() const { return register_param_count_ >= 0; }
 
+  int param_count() const { return function_type_->Arity(); }
   int register_param_count() const { return register_param_count_; }
   Register register_param(int index) const { return register_params_[index]; }
   Register* register_params() const { return register_params_.get(); }
-  Type* register_param_type(int index) const {
-    return function_type_->Parameter(index);
-  }
+  Type* param_type(int index) const { return function_type_->Parameter(index); }
   PlatformInterfaceDescriptor* platform_specific_descriptor() const {
     return platform_specific_descriptor_;
   }
@@ -105,7 +100,6 @@ class CallInterfaceDescriptorData {
   Type::FunctionType* function_type() const { return function_type_; }
 
  private:
-  int stack_paramater_count_;
   int register_param_count_;
 
   // The Register params are allocated dynamically by the
@@ -142,6 +136,8 @@ class CallInterfaceDescriptor {
   CallInterfaceDescriptor(Isolate* isolate, CallDescriptors::Key key)
       : data_(isolate->call_descriptor_data(key)) {}
 
+  int GetParameterCount() const { return data()->param_count(); }
+
   int GetRegisterParameterCount() const {
     return data()->register_param_count();
   }
@@ -155,8 +151,8 @@ class CallInterfaceDescriptor {
   }
 
   Type* GetParameterType(int index) const {
-    DCHECK(index < data()->register_param_count());
-    return data()->register_param_type(index);
+    DCHECK(index < data()->param_count());
+    return data()->param_type(index);
   }
 
   // Some platforms have extra information to associate with the descriptor.
@@ -194,7 +190,7 @@ class CallInterfaceDescriptor {
       Type::FunctionType* function_type =
           BuildCallInterfaceDescriptorFunctionType(isolate,
                                                    d->register_param_count());
-      d->InitializePlatformIndependent(0, function_type);
+      d->InitializePlatformIndependent(function_type);
     }
   }
 
@@ -254,7 +250,8 @@ class StoreDescriptor : public CallInterfaceDescriptor {
 
 class StoreTransitionDescriptor : public StoreDescriptor {
  public:
-  DECLARE_DESCRIPTOR(StoreTransitionDescriptor, StoreDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreTransitionDescriptor,
+                                               StoreDescriptor)
 
   // Extends StoreDescriptor with Map parameter.
   enum ParameterIndices {
@@ -264,6 +261,8 @@ class StoreTransitionDescriptor : public StoreDescriptor {
     kMapIndex,
     kParameterCount
   };
+
+  // MapRegister() is no_reg on ia32, instead it's on the stack.
   static const Register MapRegister();
 };
 
