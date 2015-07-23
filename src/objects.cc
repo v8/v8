@@ -14701,9 +14701,10 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
     PretenureFlag pretenure) {
   DCHECK(0 <= at_least_space_for);
   DCHECK(!capacity_option || base::bits::IsPowerOfTwo32(at_least_space_for));
+
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
-                     : isolate->serializer_enabled()
+                     : isolate->creating_default_snapshot()
                            ? ComputeCapacityForSerialization(at_least_space_for)
                            : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
@@ -15693,6 +15694,14 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
 
   isolate->factory()->set_string_table(table);
   return Handle<String>::cast(string);
+}
+
+
+String* StringTable::LookupKeyIfExists(Isolate* isolate, HashTableKey* key) {
+  Handle<StringTable> table = isolate->factory()->string_table();
+  int entry = table->FindEntry(key);
+  if (entry != kNotFound) return String::cast(table->KeyAt(entry));
+  return NULL;
 }
 
 
