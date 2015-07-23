@@ -5,6 +5,7 @@
 #ifndef V8_ELEMENTS_KIND_H_
 #define V8_ELEMENTS_KIND_H_
 
+#include "src/base/macros.h"
 #include "src/checks.h"
 
 namespace v8 {
@@ -115,7 +116,7 @@ inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
 
 
 inline bool IsFastElementsKind(ElementsKind kind) {
-  DCHECK(FIRST_FAST_ELEMENTS_KIND == 0);
+  STATIC_ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
 }
 
