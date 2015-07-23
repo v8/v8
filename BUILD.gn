@@ -1751,7 +1751,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       "//build/config/sanitizers:deps",
     ]
 
-    # TODO(jochen): Add support for readline and vtunejit.
+    # TODO(jochen): Add support for vtunejit.
 
     if (is_posix) {
       sources += [ "src/d8-posix.cc" ]

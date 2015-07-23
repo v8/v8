@@ -93,26 +93,6 @@ class CounterMap {
 #endif  // !V8_SHARED
 
 
-class LineEditor {
- public:
-  enum Type { DUMB = 0, READLINE = 1 };
-  LineEditor(Type type, const char* name);
-  virtual ~LineEditor() { }
-
-  virtual Local<String> Prompt(const char* prompt) = 0;
-  virtual bool Open(Isolate* isolate) { return true; }
-  virtual bool Close() { return true; }
-  virtual void AddHistory(const char* str) { }
-
-  const char* name() { return name_; }
-  static LineEditor* Get() { return current_; }
- private:
-  Type type_;
-  const char* name_;
-  static LineEditor* current_;
-};
-
-
 class SourceGroup {
  public:
   SourceGroup() :
@@ -380,8 +360,6 @@ class Shell : public i::AllStatic {
                                             const SerializationData& data,
                                             int* offset);
   static void CleanupWorkers();
-  static Local<Array> GetCompletions(Isolate* isolate, Local<String> text,
-                                     Local<String> full);
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
                                int min,

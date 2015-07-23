@@ -167,37 +167,6 @@ class PerIsolateData {
 };
 
 
-LineEditor *LineEditor::current_ = NULL;
-
-
-LineEditor::LineEditor(Type type, const char* name)
-    : type_(type), name_(name) {
-  if (current_ == NULL || current_->type_ < type) current_ = this;
-}
-
-
-class DumbLineEditor: public LineEditor {
- public:
-  explicit DumbLineEditor(Isolate* isolate)
-      : LineEditor(LineEditor::DUMB, "dumb"), isolate_(isolate) { }
-  virtual Local<String> Prompt(const char* prompt);
-
- private:
-  Isolate* isolate_;
-};
-
-
-Local<String> DumbLineEditor::Prompt(const char* prompt) {
-  printf("%s", prompt);
-#if defined(__native_client__)
-  // Native Client libc is used to being embedded in Chrome and
-  // has trouble recognizing when to flush.
-  fflush(stdout);
-#endif
-  return Shell::ReadFromStdin(isolate_);
-}
-
-
 #ifndef V8_SHARED
 CounterMap* Shell::counter_map_;
 base::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
@@ -216,7 +185,6 @@ i::List<SharedArrayBuffer::Contents> Shell::externalized_shared_contents_;
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
-const char* Shell::kPrompt = "d8> ";
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
 #ifndef V8_SHARED
@@ -919,28 +887,6 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
 
 
 #ifndef V8_SHARED
-Local<Array> Shell::GetCompletions(Isolate* isolate, Local<String> text,
-                                   Local<String> full) {
-  EscapableHandleScope handle_scope(isolate);
-  v8::Local<v8::Context> utility_context =
-      v8::Local<v8::Context>::New(isolate, utility_context_);
-  v8::Context::Scope context_scope(utility_context);
-  Local<Object> global = utility_context->Global();
-  Local<Value> fun = global->Get(utility_context,
-                                 String::NewFromUtf8(isolate, "GetCompletions",
-                                                     NewStringType::kNormal)
-                                     .ToLocalChecked()).ToLocalChecked();
-  static const int kArgc = 3;
-  v8::Local<v8::Context> evaluation_context =
-      v8::Local<v8::Context>::New(isolate, evaluation_context_);
-  Local<Value> argv[kArgc] = {evaluation_context->Global(), text, full};
-  Local<Value> val = Local<Function>::Cast(fun)
-                         ->Call(utility_context, global, kArgc, argv)
-                         .ToLocalChecked();
-  return handle_scope.Escape(Local<Array>::Cast(val));
-}
-
-
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
   int i;
   for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
@@ -1285,8 +1231,6 @@ inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
 
 
 void Shell::OnExit(v8::Isolate* isolate) {
-  LineEditor* line_editor = LineEditor::Get();
-  if (line_editor) line_editor->Close();
 #ifndef V8_SHARED
   reinterpret_cast<i::Isolate*>(isolate)->DumpAndResetCompilationStats();
   if (i::FLAG_dump_counters) {
@@ -1444,12 +1388,16 @@ void Shell::RunShell(Isolate* isolate) {
   Local<String> name =
       String::NewFromUtf8(isolate, "(d8)", NewStringType::kNormal)
           .ToLocalChecked();
-  LineEditor* console = LineEditor::Get();
-  printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
-  console->Open(isolate);
+  printf("V8 version %s\n", V8::GetVersion());
   while (true) {
     HandleScope inner_scope(isolate);
-    Local<String> input = console->Prompt(Shell::kPrompt);
+    printf(" d8>");
+#if defined(__native_client__)
+    // Native Client libc is used to being embedded in Chrome and
+    // has trouble recognizing when to flush.
+    fflush(stdout);
+#endif
+    Local<String> input = Shell::ReadFromStdin(isolate);
     if (input.IsEmpty()) break;
     ExecuteString(isolate, input, name, true, true);
   }
@@ -2434,7 +2382,6 @@ int Shell::Main(int argc, char* argv[]) {
   }
 #endif
   Isolate* isolate = Isolate::New(create_params);
-  DumbLineEditor dumb_line_editor(isolate);
   {
     Isolate::Scope scope(isolate);
     Initialize(isolate);

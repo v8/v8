@@ -28,7 +28,6 @@
 {
   'variables': {
     'v8_code': 1,
-    'console%': '',
     # Enable support for Intel VTune. Supported on ia32/x64 only
     'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 1,
@@ -60,10 +59,6 @@
       'conditions': [
         [ 'want_separate_host_toolset==1', {
           'toolsets': [ '<(v8_toolset_for_d8)', ],
-        }],
-        [ 'console=="readline"', {
-          'libraries': [ '-lreadline', ],
-          'sources': [ 'd8-readline.cc' ],
         }],
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
            or OS=="openbsd" or OS=="solaris" or OS=="android" \

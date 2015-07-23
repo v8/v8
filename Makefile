@@ -44,10 +44,6 @@ endif
 ifdef component
   GYPFLAGS += -Dcomponent=$(component)
 endif
-# console=readline
-ifdef console
-  GYPFLAGS += -Dconsole=$(console)
-endif
 # disassembler=on
 ifeq ($(disassembler), on)
   GYPFLAGS += -Dv8_enable_disassembler=1
