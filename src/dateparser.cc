@@ -80,7 +80,12 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
   }
 
   if (!IsHour(hour) || !IsMinute(minute) ||
-      !IsSecond(second) || !IsMillisecond(millisecond)) return false;
+      !IsSecond(second) || !IsMillisecond(millisecond)) {
+    // A 24th hour is allowed if minutes, seconds, and milliseconds are 0
+    if (hour != 24 || minute != 0 || second != 0 || millisecond != 0) {
+      return false;
+    }
+  }
 
   output->set(HOUR, Smi::FromInt(hour));
   output->set(MINUTE, Smi::FromInt(minute));
