@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-new-target --harmony-reflect
+// Flags: --harmony-new-target --harmony-reflect --harmony-destructuring
 // Flags: --harmony-rest-parameters --harmony-arrow-functions
 
 
@@ -367,4 +367,18 @@
   a1 = 2;
   a2 = 3;
   f(1, 2, 3);
+})();
+
+
+(function TestOtherScopes() {
+  function f1() { return eval("'use strict'; new.target") }
+  assertSame(f1, new f1);
+  function f2() { with ({}) return new.target }
+  assertSame(f2, new f2);
+  function f3({a}) { return new.target }
+  assertSame(f3, new f3({}));
+  function f4(...a) { return new.target }
+  assertSame(f4, new f4);
+  function f5() { 'use strict'; { let x; return new.target } }
+  assertSame(f5, new f5);
 })();

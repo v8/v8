@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-arrow-functions --allow-natives-syntax
-// Flags: --harmony-spreadcalls
+// Flags: --harmony-spreadcalls --harmony-destructuring
+// Flags: --harmony-rest-parameters --harmony-sloppy
 
 (function TestSuperNamedLoads() {
   function Base() { }
@@ -2119,6 +2120,34 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   let d = new Derived();
   assertSame(1, d.arrow());
+})();
+
+
+(function TestSuperInOtherScopes() {
+  var p = {x: 99};
+  var o0 = {__proto__: p, f() { return eval("'use strict'; super.x") }};
+  assertEquals(p.x, o0.f());
+  var o1 = {__proto__: p, f() { with ({}) return super.x }};
+  assertEquals(p.x, o1.f());
+  var o2 = {__proto__: p, f({a}) { return super.x }};
+  assertEquals(p.x, o2.f({}));
+  var o3 = {__proto__: p, f(...a) { return super.x }};
+  assertEquals(p.x, o3.f());
+  var o4 = {__proto__: p, f() { 'use strict'; { let x; return super.x } }};
+  assertEquals(p.x, o4.f());
+})();
+
+
+(function TestSuperCallInOtherScopes() {
+  class C {constructor() { this.x = 99 }}
+  class D0 extends C {constructor() { eval("'use strict'; super()") }}
+  assertEquals(99, (new D0).x);
+  class D2 extends C {constructor({a}) { super() }}
+  assertEquals(99, (new D2({})).x);
+  class D3 extends C {constructor(...a) { super() }}
+  assertEquals(99, (new D3()).x);
+  class D4 extends C {constructor() { { let x; super() } }}
+  assertEquals(99, (new D4).x);
 })();
 
 

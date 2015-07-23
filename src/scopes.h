@@ -483,14 +483,13 @@ class Scope: public ZoneObject {
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
-  // Find the script scope.
-  // Used in modules implemenetation to find hosting scope.
-  // TODO(rossberg): is this needed?
-  Scope* ScriptScope();
-
-  // Find the first function, global, or eval scope.  This is the scope
-  // where var declarations will be hoisted to in the implementation.
+  // Find the first function, script, eval or (declaration) block scope. This is
+  // the scope where var declarations will be hoisted to in the implementation.
   Scope* DeclarationScope();
+
+  // Find the first (non-arrow) function or script scope.  This is where
+  // 'this' is bound, and what determines the function kind.
+  Scope* ReceiverScope();
 
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 

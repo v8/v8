@@ -763,15 +763,6 @@ int Scope::ContextChainLength(Scope* scope) {
 }
 
 
-Scope* Scope::ScriptScope() {
-  Scope* scope = this;
-  while (!scope->is_script_scope()) {
-    scope = scope->outer_scope();
-  }
-  return scope;
-}
-
-
 Scope* Scope::DeclarationScope() {
   Scope* scope = this;
   while (!scope->is_declaration_scope()) {
@@ -779,6 +770,17 @@ Scope* Scope::DeclarationScope() {
   }
   return scope;
 }
+
+
+Scope* Scope::ReceiverScope() {
+  Scope* scope = this;
+  while (!scope->is_script_scope() &&
+         (!scope->is_function_scope() || scope->is_arrow_scope())) {
+    scope = scope->outer_scope();
+  }
+  return scope;
+}
+
 
 
 Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {

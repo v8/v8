@@ -3504,13 +3504,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
   int pos = position();
   Expect(Token::SUPER, CHECK_OK);
 
-  Scope* scope = scope_->DeclarationScope();
-  while (scope->is_eval_scope() || scope->is_arrow_scope()) {
-    scope = scope->outer_scope();
-    DCHECK_NOT_NULL(scope);
-    scope = scope->DeclarationScope();
-  }
-
+  Scope* scope = scope_->ReceiverScope();
   FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       i::IsConstructor(kind)) {
@@ -3548,14 +3542,7 @@ ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
   Consume(Token::PERIOD);
   ExpectContextualKeyword(CStrVector("target"), CHECK_OK);
 
-  Scope* scope = scope_->DeclarationScope();
-  while (scope->is_eval_scope() || scope->is_arrow_scope()) {
-    scope = scope->outer_scope();
-    DCHECK_NOT_NULL(scope);
-    scope = scope->DeclarationScope();
-  }
-
-  if (!scope->is_function_scope()) {
+  if (!scope_->ReceiverScope()->is_function_scope()) {
     ReportMessageAt(scanner()->location(),
                     MessageTemplate::kUnexpectedNewTarget);
     *ok = false;
