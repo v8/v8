@@ -20,7 +20,13 @@ namespace compiler {
 class BasicBlock;
 class Schedule;
 
-
+// The RawMachineAssembler produces a low-level IR graph. All nodes are wired
+// into a graph and also placed into a schedule immediately, hence subsequent
+// code generation can happen without the need for scheduling.
+//
+// In order to create a schedule on-the-fly, the assembler keeps track of basic
+// blocks by having one current basic block being populated and by referencing
+// other basic blocks through the use of labels.
 class RawMachineAssembler {
  public:
   class Label {
@@ -51,6 +57,7 @@ class RawMachineAssembler {
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
+  Schedule* schedule() { return schedule_; }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
@@ -59,6 +66,15 @@ class RawMachineAssembler {
   const MachineSignature* machine_sig() const {
     return call_descriptor_->GetMachineSignature();
   }
+
+  // Finalizes the schedule and exports it to be used for code generation. Note
+  // that this RawMachineAssembler becomes invalid after export.
+  Schedule* Export();
+
+  // ===========================================================================
+  // The following utility methods create new nodes with specific operators and
+  // place them into the current basic block. They don't perform control flow,
+  // hence will not switch the current basic block.
 
   Node* UndefinedConstant() {
     Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
@@ -117,6 +133,7 @@ class RawMachineAssembler {
     NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)), base,
             index, value, graph()->start(), graph()->start());
   }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return NewNode(machine()->WordAnd(), a, b);
@@ -464,11 +481,6 @@ class RawMachineAssembler {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
 
-  // Control flow.
-  void Goto(Label* label);
-  void Branch(Node* condition, Label* true_val, Label* false_val);
-  void Switch(Node* index, Label* default_label, int32_t* case_values,
-              Label** case_labels, size_t case_count);
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
@@ -495,6 +507,16 @@ class RawMachineAssembler {
                        MachineType arg7_type, Node* function, Node* arg0,
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
+
+  // ===========================================================================
+  // The following utility methods deal with control flow, hence might switch
+  // the current basic block or create new basic blocks for labels.
+
+  // Control flow.
+  void Goto(Label* label);
+  void Branch(Node* condition, Label* true_val, Label* false_val);
+  void Switch(Node* index, Label* default_label, int32_t* case_values,
+              Label** case_labels, size_t case_count);
   void Return(Node* value);
   void Bind(Label* label);
   void Deoptimize(Node* state);
@@ -510,8 +532,10 @@ class RawMachineAssembler {
     return NewNode(common()->Phi(type, 4), n1, n2, n3, n4);
   }
 
-  // MachineAssembler is invalid after export.
-  Schedule* Export();
+  // ===========================================================================
+  // The following generic node creation methods can be used for operators that
+  // are not covered by the above utility methods. There should rarely be a need
+  // to do that outside of testing though.
 
   Node* NewNode(const Operator* op) {
     return MakeNode(op, 0, static_cast<Node**>(NULL));
@@ -551,17 +575,8 @@ class RawMachineAssembler {
     return MakeNode(op, value_input_count, value_inputs);
   }
 
- protected:
-  Node* MakeNode(const Operator* op, int input_count, Node** inputs);
-
-  bool ScheduleValid() { return schedule_ != NULL; }
-
-  Schedule* schedule() {
-    DCHECK(ScheduleValid());
-    return schedule_;
-  }
-
  private:
+  Node* MakeNode(const Operator* op, int input_count, Node** inputs);
   BasicBlock* Use(Label* label);
   BasicBlock* EnsureBlock(Label* label);
   BasicBlock* CurrentBlock();
