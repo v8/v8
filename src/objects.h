@@ -4254,8 +4254,6 @@ class BytecodeArray : public FixedArrayBase {
   // Accessors for frame size and the number of locals
   inline int frame_size() const;
   inline void set_frame_size(int value);
-  inline int number_of_locals() const;
-  inline void set_number_of_locals(int value);
 
   DECLARE_CAST(BytecodeArray)
 
@@ -4269,8 +4267,7 @@ class BytecodeArray : public FixedArrayBase {
 
   // Layout description.
   static const int kFrameSizeOffset = FixedArrayBase::kHeaderSize;
-  static const int kNumberOfLocalsOffset = kFrameSizeOffset + kIntSize;
-  static const int kHeaderSize = kNumberOfLocalsOffset + kIntSize;
+  static const int kHeaderSize = kFrameSizeOffset + kIntSize;
 
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 

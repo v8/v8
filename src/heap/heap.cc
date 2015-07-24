@@ -3068,7 +3068,9 @@ bool Heap::CreateInitialMaps() {
       set_empty_byte_array(byte_array);
 
       BytecodeArray* bytecode_array;
-      if (!AllocateBytecodeArray(0, nullptr).To(&bytecode_array)) {
+      AllocationResult allocation =
+          AllocateBytecodeArray(0, nullptr, kPointerSize);
+      if (!allocation.To(&bytecode_array)) {
         return false;
       }
       set_empty_bytecode_array(bytecode_array);
@@ -3821,7 +3823,8 @@ AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 
 
 AllocationResult Heap::AllocateBytecodeArray(int length,
-                                             const byte* const raw_bytecodes) {
+                                             const byte* const raw_bytecodes,
+                                             int frame_size) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
@@ -3836,6 +3839,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   result->set_map_no_write_barrier(bytecode_array_map());
   BytecodeArray* instance = BytecodeArray::cast(result);
   instance->set_length(length);
+  instance->set_frame_size(frame_size);
   CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
 
   return result;

@@ -3639,8 +3639,17 @@ void BytecodeArray::set(int index, byte value) {
 }
 
 
-INT_ACCESSORS(BytecodeArray, frame_size, kFrameSizeOffset)
-INT_ACCESSORS(BytecodeArray, number_of_locals, kNumberOfLocalsOffset)
+void BytecodeArray::set_frame_size(int frame_size) {
+  // We need at least one stack slot for the return register.
+  DCHECK_GE(frame_size, kPointerSize);
+  DCHECK(IsAligned(frame_size, static_cast<unsigned>(kPointerSize)));
+  WRITE_INT_FIELD(this, kFrameSizeOffset, frame_size);
+}
+
+
+int BytecodeArray::frame_size() const {
+  return READ_INT_FIELD(this, kFrameSizeOffset);
+}
 
 
 Address BytecodeArray::GetFirstBytecodeAddress() {
