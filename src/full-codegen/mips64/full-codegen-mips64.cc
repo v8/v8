@@ -5277,21 +5277,21 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 
 void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
-  Scope* declaration_scope = scope()->DeclarationScope();
-  if (declaration_scope->is_script_scope() ||
-      declaration_scope->is_module_scope()) {
+  Scope* closure_scope = scope()->ClosureScope();
+  if (closure_scope->is_script_scope() ||
+      closure_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.  Pass a smi sentinel and let the runtime look up the empty
     // function.
     __ li(at, Operand(Smi::FromInt(0)));
-  } else if (declaration_scope->is_eval_scope()) {
+  } else if (closure_scope->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval
     // code.  Fetch it from the context.
     __ ld(at, ContextOperand(cp, Context::CLOSURE_INDEX));
   } else {
-    DCHECK(declaration_scope->is_function_scope());
+    DCHECK(closure_scope->is_function_scope());
     __ ld(at, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   }
   __ push(at);

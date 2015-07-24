@@ -484,8 +484,10 @@ class Scope: public ZoneObject {
 
   // Find the first non-block declaration scope. This should be either a script,
   // function, or eval scope. Same as DeclarationScope(), but skips
-  // declaration "block" scopes. Used for declaring temporaries.
-  Scope* TemporaryScope();
+  // declaration "block" scopes. Used for differentiating associated
+  // function objects (i.e., the scope for which a function prologue allocates
+  // a context) or declaring temporaries.
+  Scope* ClosureScope();
 
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.

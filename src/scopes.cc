@@ -529,7 +529,7 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
   DCHECK(!already_resolved());
-  Scope* scope = this->TemporaryScope();
+  Scope* scope = this->ClosureScope();
   Variable* var = new(zone()) Variable(scope,
                                        name,
                                        TEMPORARY,
@@ -761,7 +761,7 @@ Scope* Scope::DeclarationScope() {
 }
 
 
-Scope* Scope::TemporaryScope() {
+Scope* Scope::ClosureScope() {
   Scope* scope = this;
   while (!scope->is_declaration_scope() || scope->is_block_scope()) {
     scope = scope->outer_scope();
