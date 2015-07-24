@@ -1022,6 +1022,11 @@ inline Operand ContextOperand(Register context, int index) {
 }
 
 
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
+}
+
+
 inline Operand GlobalObjectOperand() {
   return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
