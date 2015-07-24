@@ -5285,7 +5285,7 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
 
   // Load the PropertyCell value at the specified slot.
   __ sll(at, slot_reg, kPointerSizeLog2);
-  __ Addu(at, at, Operand(cp));
+  __ Addu(at, at, Operand(context_reg));
   __ Addu(at, at, Context::SlotOffset(0));
   __ lw(result_reg, MemOperand(at));
   __ lw(result_reg, FieldMemOperand(result_reg, PropertyCell::kValueOffset));
@@ -5298,8 +5298,7 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Fallback to the runtime.
   __ bind(&slow_case);
   __ SmiTag(slot_reg);
-  __ Drop(1);  // Pop return address.
-  __ Push(slot_reg, name_reg, result_reg);
+  __ Push(slot_reg, name_reg);
   __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
 }
 
@@ -5327,7 +5326,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
 
   // Load the PropertyCell at the specified slot.
   __ sll(at, slot_reg, kPointerSizeLog2);
-  __ Addu(at, at, Operand(cp));
+  __ Addu(at, at, Operand(context_reg));
   __ Addu(at, at, Context::SlotOffset(0));
   __ lw(cell_reg, MemOperand(at));
 
@@ -5410,8 +5409,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Fallback to the runtime.
   __ bind(&slow_case);
   __ SmiTag(slot_reg);
-  __ Drop(1);  // Pop return address.
-  __ Push(slot_reg, name_reg, value_reg, cell_reg);
+  __ Push(slot_reg, name_reg, value_reg);
   __ TailCallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
