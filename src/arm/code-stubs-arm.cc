@@ -5057,6 +5057,160 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
+  Register context = cp;
+  Register result = r0;
+  Register slot = r2;
+  Register name = r3;
+  Label slow_case;
+
+  // Go up the context chain to the script context.
+  for (int i = 0; i < depth(); ++i) {
+    __ ldr(result, ContextOperand(context, Context::PREVIOUS_INDEX));
+    context = result;
+  }
+
+  // Load the PropertyCell value at the specified slot.
+  __ add(result, context, Operand(slot, LSL, kPointerSizeLog2));
+  __ ldr(result, ContextOperand(result));
+  __ ldr(result, FieldMemOperand(result, PropertyCell::kValueOffset));
+
+  // If the result is not the_hole, return. Otherwise, handle in the runtime.
+  __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+  __ Ret(ne);
+
+  // Fallback to runtime.
+  __ bind(&slow_case);
+  __ SmiTag(slot);
+  __ push(slot);
+  __ push(name);
+  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
+}
+
+
+void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
+  Register value = r0;
+  Register slot = r2;
+  Register name = r3;
+
+  Register cell = r1;
+  Register cell_details = r4;
+  Register cell_value = r5;
+  Register cell_value_map = r6;
+  Register scratch = r9;
+
+  Register context = cp;
+  Register context_temp = cell;
+
+  Label fast_heapobject_case, fast_smi_case, slow_case;
+
+  if (FLAG_debug_code) {
+    __ CompareRoot(value, Heap::kTheHoleValueRootIndex);
+    __ Check(ne, kUnexpectedValue);
+    __ AssertName(name);
+  }
+
+  // Go up the context chain to the script context.
+  for (int i = 0; i < depth(); i++) {
+    __ ldr(context_temp, ContextOperand(context, Context::PREVIOUS_INDEX));
+    context = context_temp;
+  }
+
+  // Load the PropertyCell at the specified slot.
+  __ add(cell, context, Operand(slot, LSL, kPointerSizeLog2));
+  __ ldr(cell, ContextOperand(cell));
+
+  // Load PropertyDetails for the cell (actually only the cell_type and kind).
+  __ ldr(cell_details, FieldMemOperand(cell, PropertyCell::kDetailsOffset));
+  __ SmiUntag(cell_details);
+  __ and_(cell_details, cell_details,
+          Operand(PropertyDetails::PropertyCellTypeField::kMask |
+                  PropertyDetails::KindField::kMask));
+
+  // Check if PropertyCell holds mutable data.
+  Label not_mutable_data;
+  __ cmp(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                   PropertyCellType::kMutable) |
+                               PropertyDetails::KindField::encode(kData)));
+  __ b(ne, &not_mutable_data);
+  __ JumpIfSmi(value, &fast_smi_case);
+
+  __ bind(&fast_heapobject_case);
+  __ str(value, FieldMemOperand(cell, PropertyCell::kValueOffset));
+  // RecordWriteField clobbers the value register, so we copy it before the
+  // call.
+  __ mov(r4, Operand(value));
+  __ RecordWriteField(cell, PropertyCell::kValueOffset, r4, scratch,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ Ret();
+
+  __ bind(&not_mutable_data);
+  // Check if PropertyCell value matches the new value (relevant for Constant,
+  // ConstantType and Undefined cells).
+  Label not_same_value;
+  __ ldr(cell_value, FieldMemOperand(cell, PropertyCell::kValueOffset));
+  __ cmp(cell_value, value);
+  __ b(ne, &not_same_value);
+
+  if (FLAG_debug_code) {
+    Label done;
+    // This can only be true for Constant, ConstantType and Undefined cells,
+    // because we never store the_hole via this stub.
+    __ cmp(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                     PropertyCellType::kConstant) |
+                                 PropertyDetails::KindField::encode(kData)));
+    __ b(eq, &done);
+    __ cmp(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                     PropertyCellType::kConstantType) |
+                                 PropertyDetails::KindField::encode(kData)));
+    __ b(eq, &done);
+    __ cmp(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                     PropertyCellType::kUndefined) |
+                                 PropertyDetails::KindField::encode(kData)));
+    __ Check(eq, kUnexpectedValue);
+    __ bind(&done);
+  }
+  __ Ret();
+  __ bind(&not_same_value);
+
+  // Check if PropertyCell contains data with constant type.
+  __ cmp(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                   PropertyCellType::kConstantType) |
+                               PropertyDetails::KindField::encode(kData)));
+  __ b(ne, &slow_case);
+
+  // Now either both old and new values must be smis or both must be heap
+  // objects with same map.
+  Label value_is_heap_object;
+  __ JumpIfNotSmi(value, &value_is_heap_object);
+  __ JumpIfNotSmi(cell_value, &slow_case);
+  // Old and new values are smis, no need for a write barrier here.
+  __ bind(&fast_smi_case);
+  __ str(value, FieldMemOperand(cell, PropertyCell::kValueOffset));
+  __ Ret();
+
+  __ bind(&value_is_heap_object);
+  __ JumpIfSmi(cell_value, &slow_case);
+
+  __ ldr(cell_value_map, FieldMemOperand(cell_value, HeapObject::kMapOffset));
+  __ ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ cmp(cell_value_map, scratch);
+  __ b(eq, &fast_heapobject_case);
+
+  // Fallback to runtime.
+  __ bind(&slow_case);
+  __ SmiTag(slot);
+  __ push(slot);
+  __ push(name);
+  __ push(value);
+  __ TailCallRuntime(is_strict(language_mode())
+                         ? Runtime::kStoreGlobalViaContext_Strict
+                         : Runtime::kStoreGlobalViaContext_Sloppy,
+                     3, 1);
+}
+
+
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
   return ref0.address() - ref1.address();
 }

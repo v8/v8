@@ -726,20 +726,6 @@ void RegExpConstructResultStub::InitializeDescriptor(
 }
 
 
-void LoadGlobalViaContextStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  // Must never deoptimize.
-  descriptor->Initialize(FUNCTION_ADDR(UnexpectedStubMiss));
-}
-
-
-void StoreGlobalViaContextStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  // Must never deoptimize.
-  descriptor->Initialize(FUNCTION_ADDR(UnexpectedStubMiss));
-}
-
-
 void TransitionElementsKindStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(

@@ -1396,57 +1396,50 @@ class StoreGlobalStub : public HandlerStub {
 };
 
 
-class LoadGlobalViaContextStub : public HydrogenCodeStub {
+class LoadGlobalViaContextStub final : public PlatformCodeStub {
  public:
-  // Use the loop version for depths higher than this one.
-  static const int kDynamicDepth = 7;
+  static const int kMaximumDepth = 15;
 
   LoadGlobalViaContextStub(Isolate* isolate, int depth)
-      : HydrogenCodeStub(isolate) {
-    if (depth > kDynamicDepth) depth = kDynamicDepth;
-    set_sub_minor_key(DepthBits::encode(depth));
+      : PlatformCodeStub(isolate) {
+    minor_key_ = DepthBits::encode(depth);
   }
 
-  int depth() const { return DepthBits::decode(sub_minor_key()); }
+  int depth() const { return DepthBits::decode(minor_key_); }
 
  private:
-  class DepthBits : public BitField<unsigned int, 0, 3> {};
-  STATIC_ASSERT(kDynamicDepth <= DepthBits::kMax);
+  class DepthBits : public BitField<int, 0, 4> {};
+  STATIC_ASSERT(DepthBits::kMax == kMaximumDepth);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalViaContext);
-  DEFINE_HYDROGEN_CODE_STUB(LoadGlobalViaContext, HydrogenCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(LoadGlobalViaContext, PlatformCodeStub);
 };
 
 
-class StoreGlobalViaContextStub : public HydrogenCodeStub {
+class StoreGlobalViaContextStub final : public PlatformCodeStub {
  public:
-  // Use the loop version for depths higher than this one.
-  static const int kDynamicDepth = 7;
+  static const int kMaximumDepth = 15;
 
   StoreGlobalViaContextStub(Isolate* isolate, int depth,
                             LanguageMode language_mode)
-      : HydrogenCodeStub(isolate) {
-    if (depth > kDynamicDepth) depth = kDynamicDepth;
-    set_sub_minor_key(DepthBits::encode(depth) |
-                      LanguageModeBits::encode(language_mode));
+      : PlatformCodeStub(isolate) {
+    minor_key_ =
+        DepthBits::encode(depth) | LanguageModeBits::encode(language_mode);
   }
 
-  int depth() const { return DepthBits::decode(sub_minor_key()); }
-
+  int depth() const { return DepthBits::decode(minor_key_); }
   LanguageMode language_mode() const {
-    return LanguageModeBits::decode(sub_minor_key());
+    return LanguageModeBits::decode(minor_key_);
   }
 
  private:
-  class DepthBits : public BitField<unsigned int, 0, 4> {};
-  STATIC_ASSERT(kDynamicDepth <= DepthBits::kMax);
-
+  class DepthBits : public BitField<int, 0, 4> {};
+  STATIC_ASSERT(DepthBits::kMax == kMaximumDepth);
   class LanguageModeBits : public BitField<LanguageMode, 4, 2> {};
   STATIC_ASSERT(LANGUAGE_END == 3);
 
- private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreGlobalViaContext);
-  DEFINE_HYDROGEN_CODE_STUB(StoreGlobalViaContext, HydrogenCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(StoreGlobalViaContext, PlatformCodeStub);
 };
 
 

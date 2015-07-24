@@ -3384,16 +3384,20 @@ void LCodeGen::DoLoadGlobalViaContext(LLoadGlobalViaContext* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
   DCHECK(ToRegister(instr->result()).is(x0));
 
-  __ Mov(LoadGlobalViaContextDescriptor::DepthRegister(),
-         Operand(Smi::FromInt(instr->depth())));
-  __ Mov(LoadGlobalViaContextDescriptor::SlotRegister(),
-         Operand(Smi::FromInt(instr->slot_index())));
-  __ Mov(LoadGlobalViaContextDescriptor::NameRegister(),
-         Operand(instr->name()));
-
-  Handle<Code> stub =
-      CodeFactory::LoadGlobalViaContext(isolate(), instr->depth()).code();
-  CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  int const slot = instr->slot_index();
+  int const depth = instr->depth();
+  if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
+    __ Mov(LoadGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
+    __ Mov(LoadGlobalViaContextDescriptor::NameRegister(),
+           Operand(instr->name()));
+    Handle<Code> stub =
+        CodeFactory::LoadGlobalViaContext(isolate(), depth).code();
+    CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(Smi::FromInt(slot));
+    __ Push(instr->name());
+    __ CallRuntime(Runtime::kLoadGlobalViaContext, 2);
+  }
 }
 
 
@@ -5540,17 +5544,25 @@ void LCodeGen::DoStoreGlobalViaContext(LStoreGlobalViaContext* instr) {
   DCHECK(ToRegister(instr->value())
              .is(StoreGlobalViaContextDescriptor::ValueRegister()));
 
-  __ Mov(StoreGlobalViaContextDescriptor::DepthRegister(),
-         Operand(Smi::FromInt(instr->depth())));
-  __ Mov(StoreGlobalViaContextDescriptor::SlotRegister(),
-         Operand(Smi::FromInt(instr->slot_index())));
-  __ Mov(StoreGlobalViaContextDescriptor::NameRegister(),
-         Operand(instr->name()));
-
-  Handle<Code> stub =
-      CodeFactory::StoreGlobalViaContext(isolate(), instr->depth(),
-                                         instr->language_mode()).code();
-  CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  int const slot = instr->slot_index();
+  int const depth = instr->depth();
+  if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
+    __ Mov(StoreGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
+    __ Mov(StoreGlobalViaContextDescriptor::NameRegister(),
+           Operand(instr->name()));
+    Handle<Code> stub = CodeFactory::StoreGlobalViaContext(
+                            isolate(), depth, instr->language_mode())
+                            .code();
+    CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(Smi::FromInt(slot));
+    __ Push(instr->name());
+    __ Push(StoreGlobalViaContextDescriptor::ValueRegister());
+    __ CallRuntime(is_strict(instr->language_mode())
+                       ? Runtime::kStoreGlobalViaContext_Strict
+                       : Runtime::kStoreGlobalViaContext_Sloppy,
+                   3);
+  }
 }
 
 

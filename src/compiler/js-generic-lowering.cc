@@ -338,10 +338,10 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   if (p.slot_index() >= 0) {
     Callable callable = CodeFactory::LoadGlobalViaContext(isolate(), 0);
     Node* script_context = node->InputAt(0);
-    node->ReplaceInput(0, jsgraph()->SmiConstant(0));
-    node->ReplaceInput(1, jsgraph()->SmiConstant(p.slot_index()));
-    node->ReplaceInput(2, jsgraph()->HeapConstant(p.name()));
-    node->ReplaceInput(3, script_context);  // Replace old context.
+    node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
+    node->ReplaceInput(1, jsgraph()->HeapConstant(p.name()));
+    node->ReplaceInput(2, script_context);  // Set new context...
+    node->RemoveInput(3);                   // ...instead of old one.
     ReplaceWithStubCall(node, callable, flags);
 
   } else {
@@ -397,11 +397,11 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
         CodeFactory::StoreGlobalViaContext(isolate(), 0, p.language_mode());
     Node* script_context = node->InputAt(0);
     Node* value = node->InputAt(2);
-    node->ReplaceInput(0, jsgraph()->SmiConstant(0));
-    node->ReplaceInput(1, jsgraph()->SmiConstant(p.slot_index()));
-    node->ReplaceInput(2, jsgraph()->HeapConstant(p.name()));
-    node->ReplaceInput(3, value);
-    node->ReplaceInput(4, script_context);  // Replace old context.
+    node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
+    node->ReplaceInput(1, jsgraph()->HeapConstant(p.name()));
+    node->ReplaceInput(2, value);
+    node->ReplaceInput(3, script_context);  // Set new context...
+    node->RemoveInput(4);                   // ...instead of old one.
     ReplaceWithStubCall(node, callable, flags);
 
   } else {
