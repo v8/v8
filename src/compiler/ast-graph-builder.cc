@@ -1663,9 +1663,10 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     DCHECK_NOT_NULL(expr->class_variable_proxy());
     Variable* var = expr->class_variable_proxy()->var();
     FrameStateBeforeAndAfter states(this, BailoutId::None());
-    VectorSlotPair feedback = CreateVectorSlotPair(
-        FLAG_vector_stores ? expr->GetNthSlot(store_slot_index++)
-                           : FeedbackVectorICSlot::Invalid());
+    VectorSlotPair feedback =
+        CreateVectorSlotPair(FLAG_vector_stores && var->IsUnallocated()
+                                 ? expr->GetNthSlot(store_slot_index++)
+                                 : FeedbackVectorICSlot::Invalid());
     BuildVariableAssignment(var, literal, Token::INIT_CONST, feedback,
                             BailoutId::None(), states);
   }
@@ -1972,6 +1973,9 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       FrameStateBeforeAndAfter states(this, subexpr->id());
       Node* value = environment()->Pop();
       Node* index = jsgraph()->Constant(array_index);
+      // TODO(turbofan): More efficient code could be generated here. Consider
+      // that the store will be generic because we don't have a feedback vector
+      // slot.
       Node* store = BuildKeyedStore(literal, index, value, VectorSlotPair(),
                                     TypeFeedbackId::None());
       states.AddToNode(store, expr->GetIdForElement(array_index),

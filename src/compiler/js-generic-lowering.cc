@@ -359,10 +359,14 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StorePropertyParameters& p = StorePropertyParametersOf(node->op());
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
+  // We have a special case where we do keyed stores but don't have a type
+  // feedback vector slot allocated to support it. In this case, install
+  // the megamorphic keyed store stub which needs neither vector nor slot.
+  bool use_vector_slot = FLAG_vector_stores && p.feedback().index() != -1;
   Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
-      isolate(), language_mode, UNINITIALIZED);
-  if (FLAG_vector_stores) {
-    DCHECK(p.feedback().index() != -1);
+      isolate(), language_mode,
+      (use_vector_slot || !FLAG_vector_stores) ? UNINITIALIZED : MEGAMORPHIC);
+  if (use_vector_slot) {
     node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   } else {
     node->RemoveInput(3);
