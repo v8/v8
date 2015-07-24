@@ -74,7 +74,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
              AstValueFactory* ast_value_factory, FunctionKind function_kind)
     : inner_scopes_(4, zone),
       variables_(zone),
-      internals_(4, zone),
       temps_(4, zone),
       params_(4, zone),
       unresolved_(16, zone),
@@ -97,7 +96,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
              Handle<ScopeInfo> scope_info, AstValueFactory* value_factory)
     : inner_scopes_(4, zone),
       variables_(zone),
-      internals_(4, zone),
       temps_(4, zone),
       params_(4, zone),
       unresolved_(16, zone),
@@ -123,7 +121,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
              AstValueFactory* value_factory)
     : inner_scopes_(1, zone),
       variables_(zone),
-      internals_(0, zone),
       temps_(0, zone),
       params_(0, zone),
       unresolved_(0, zone),
@@ -344,7 +341,6 @@ void Scope::Initialize() {
 
 Scope* Scope::FinalizeBlockScope() {
   DCHECK(is_block_scope());
-  DCHECK(internals_.is_empty());
   DCHECK(temps_.is_empty());
   DCHECK(params_.is_empty());
 
@@ -496,8 +492,8 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               int declaration_group_start) {
   DCHECK(!already_resolved());
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
-  // introduces during variable allocation, INTERNAL variables are allocated
-  // explicitly, and TEMPORARY variables are allocated via NewTemporary().
+  // introduces during variable allocation, and TEMPORARY variables are
+  // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, kind, init_flag,
@@ -615,15 +611,6 @@ void Scope::CollectStackAndContextLocals(
   DCHECK(stack_locals != NULL);
   DCHECK(context_locals != NULL);
   DCHECK(context_globals != NULL);
-
-  // Collect internals which are always allocated on the heap.
-  for (int i = 0; i < internals_.length(); i++) {
-    Variable* var = internals_[i];
-    if (var->is_used()) {
-      DCHECK(var->IsContextSlot());
-      context_locals->Add(var, zone());
-    }
-  }
 
   // Collect temporaries which are always allocated on the stack, unless the
   // context as a whole has forced context allocation.
@@ -977,13 +964,6 @@ void Scope::Print(int n) {
     Indent(n1, "// temporary vars:\n");
     for (int i = 0; i < temps_.length(); i++) {
       PrintVar(n1, temps_[i]);
-    }
-  }
-
-  if (internals_.length() > 0) {
-    Indent(n1, "// internal vars:\n");
-    for (int i = 0; i < internals_.length(); i++) {
-      PrintVar(n1, internals_[i]);
     }
   }
 
@@ -1507,10 +1487,6 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   // All variables that have no rewrite yet are non-parameter locals.
   for (int i = 0; i < temps_.length(); i++) {
     AllocateNonParameterLocal(isolate, temps_[i]);
-  }
-
-  for (int i = 0; i < internals_.length(); i++) {
-    AllocateNonParameterLocal(isolate, internals_[i]);
   }
 
   ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
