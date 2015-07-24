@@ -112,7 +112,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   // with deoptimization support.
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
-  if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
@@ -1159,8 +1158,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_parse_restriction(restriction);
     parse_info.set_context(context);
 
-    // If we eval from debug code, compile for debugging as well.
-    if (outer_info->HasDebugCode()) info.MarkAsDebug();
+    info.MarkAsDebug();
     Debug::RecordEvalCaller(script);
 
     shared_info = CompileToplevel(&info);
