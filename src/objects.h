@@ -5060,11 +5060,6 @@ class Code: public HeapObject {
   inline bool has_debug_break_slots();
   inline void set_has_debug_break_slots(bool value);
 
-  // [compiled_with_optimizing]: For FUNCTION kind, tells if it has
-  // been compiled with IsOptimizing set to true.
-  inline bool is_compiled_optimizable();
-  inline void set_compiled_optimizable(bool value);
-
   // [has_reloc_info_for_serialization]: For FUNCTION kind, tells if its
   // reloc info includes runtime and external references to support
   // serialization/deserialization.
@@ -5359,9 +5354,9 @@ class Code: public HeapObject {
   class FullCodeFlagsHasDeoptimizationSupportField:
       public BitField<bool, 0, 1> {};  // NOLINT
   class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
-  class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
   class FullCodeFlagsHasRelocInfoForSerialization
-      : public BitField<bool, 3, 1> {};
+      : public BitField<bool, 2, 1> {};
+  // Bit 3 in this bitfield is unused.
   class ProfilerTicksField : public BitField<int, 4, 28> {};
 
   // Flags layout.  BitField<type, shift, size>.

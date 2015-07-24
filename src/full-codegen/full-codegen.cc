@@ -59,7 +59,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateHandlerTable(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_has_reloc_info_for_serialization(info->will_serialize());
-  code->set_compiled_optimizable(info->IsOptimizable());
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
   code->set_back_edge_table_offset(table_offset);

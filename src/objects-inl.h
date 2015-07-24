@@ -4567,21 +4567,6 @@ void Code::set_has_debug_break_slots(bool value) {
 }
 
 
-bool Code::is_compiled_optimizable() {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsIsCompiledOptimizable::decode(flags);
-}
-
-
-void Code::set_compiled_optimizable(bool value) {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
-  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
-}
-
-
 bool Code::has_reloc_info_for_serialization() {
   DCHECK_EQ(FUNCTION, kind());
   unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);

@@ -969,13 +969,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 MaybeHandle<Code> CompileForDebugging(CompilationInfo* info) {
   info->MarkAsDebug();
   VMState<COMPILER> state(info->isolate());
-  if (info->shared_info()->is_compiled()) {
-    if (info->shared_info()->code()->is_compiled_optimizable()) {
-      info->EnableDeoptimizationSupport();
-    } else {
-      info->MarkNonOptimizable();
-    }
-  }
   MaybeHandle<Code> maybe_new_code = GetUnoptimizedCodeCommon(info);
   Handle<Code> new_code;
   if (!maybe_new_code.ToHandle(&new_code)) {
