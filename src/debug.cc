@@ -14,7 +14,7 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/list.h"
 #include "src/log.h"

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_FULL_CODEGEN_H_
-#define V8_FULL_CODEGEN_H_
+#ifndef V8_FULL_CODEGEN_FULL_CODEGEN_H_
+#define V8_FULL_CODEGEN_FULL_CODEGEN_H_
 
 #include "src/v8.h"
 
@@ -1086,4 +1086,4 @@ class BackEdgeTable {
 
 } }  // namespace v8::internal
 
-#endif  // V8_FULL_CODEGEN_H_
+#endif  // V8_FULL_CODEGEN_FULL_CODEGEN_H_

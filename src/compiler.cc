@@ -14,7 +14,7 @@
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/gdb-jit.h"
 #include "src/hydrogen.h"
 #include "src/lithium.h"

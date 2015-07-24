@@ -4,14 +4,14 @@
 
 #include "src/v8.h"
 
-#if V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
 
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/debug.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
 #include "src/parser.h"
 #include "src/scopes.h"
@@ -90,7 +90,7 @@ class JumpPatchSite BASE_EMBEDDED {
 //   o esp: stack pointer (pointing to return address)
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
-// frames-x87.h for its layout.
+// frames-ia32.h for its layout.
 void FullCodeGenerator::Generate() {
   CompilationInfo* info = info_;
   profiling_counter_ = isolate()->factory()->NewCell(
@@ -219,7 +219,10 @@ void FullCodeGenerator::Generate() {
         __ mov(Operand(esi, context_offset), eax);
         // Update the write barrier. This clobbers eax and ebx.
         if (need_write_barrier) {
-          __ RecordWriteContextSlot(esi, context_offset, eax, ebx,
+          __ RecordWriteContextSlot(esi,
+                                    context_offset,
+                                    eax,
+                                    ebx,
                                     kDontSaveFPRegs);
         } else if (FLAG_debug_code) {
           Label done;
@@ -474,24 +477,24 @@ void FullCodeGenerator::StackValueContext::Plug(Variable* var) const {
 
 
 void FullCodeGenerator::EffectContext::Plug(Heap::RootListIndex index) const {
-  UNREACHABLE();  // Not used on X87.
+  UNREACHABLE();  // Not used on IA32.
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Heap::RootListIndex index) const {
-  UNREACHABLE();  // Not used on X87.
+  UNREACHABLE();  // Not used on IA32.
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(
     Heap::RootListIndex index) const {
-  UNREACHABLE();  // Not used on X87.
+  UNREACHABLE();  // Not used on IA32.
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
-  UNREACHABLE();  // Not used on X87.
+  UNREACHABLE();  // Not used on IA32.
 }
 
 
@@ -859,9 +862,13 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       VisitForAccumulatorValue(declaration->fun());
       __ mov(ContextOperand(esi, variable->index()), result_register());
       // We know that we have written a function, which is not a smi.
-      __ RecordWriteContextSlot(esi, Context::SlotOffset(variable->index()),
-                                result_register(), ecx, kDontSaveFPRegs,
-                                EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+      __ RecordWriteContextSlot(esi,
+                                Context::SlotOffset(variable->index()),
+                                result_register(),
+                                ecx,
+                                kDontSaveFPRegs,
+                                EMIT_REMEMBERED_SET,
+                                OMIT_SMI_CHECK);
       PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       break;
     }
@@ -1807,8 +1814,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       // Store the subexpression value in the array's elements.
       __ mov(FieldOperand(ebx, offset), result_register());
       // Update the write barrier for the array store.
-      __ RecordWriteField(ebx, offset, result_register(), ecx, kDontSaveFPRegs,
-                          EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
+      __ RecordWriteField(ebx, offset, result_register(), ecx,
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          INLINE_SMI_CHECK);
     } else {
       // Store the subexpression value in the array's elements.
       __ mov(ecx, Immediate(Smi::FromInt(array_index)));
@@ -2277,8 +2286,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   // Only the value field needs a write barrier, as the other values are in the
   // root set.
-  __ RecordWriteField(eax, JSGeneratorObject::kResultValuePropertyOffset, ecx,
-                      edx, kDontSaveFPRegs);
+  __ RecordWriteField(eax, JSGeneratorObject::kResultValuePropertyOffset,
+                      ecx, edx, kDontSaveFPRegs);
 }
 
 
@@ -2487,7 +2496,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit,
     __ mov(scratch,
            FieldOperand(eax, JSFunction::kPrototypeOrInitialMapOffset));
     __ push(eax);
-    __ push(scratch);
+    __ Push(scratch);
     // TODO(conradw): It would be more efficient to define the properties with
     // the right attributes the first time round.
     // Freeze the prototype.
@@ -5344,4 +5353,4 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_X87
+#endif  // V8_TARGET_ARCH_IA32

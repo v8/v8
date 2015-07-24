@@ -10,7 +10,7 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/ast-numbering.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/hydrogen-bce.h"
 #include "src/hydrogen-bch.h"
 #include "src/hydrogen-canonicalize.h"

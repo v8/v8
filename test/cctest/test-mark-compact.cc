@@ -39,7 +39,7 @@
 
 #include "src/v8.h"
 
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
 

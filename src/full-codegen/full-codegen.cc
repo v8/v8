@@ -10,7 +10,7 @@
 #include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/debug.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/liveedit.h"
 #include "src/macro-assembler.h"
 #include "src/prettyprinter.h"

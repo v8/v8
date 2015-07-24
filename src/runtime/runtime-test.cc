@@ -6,7 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/natives.h"
 

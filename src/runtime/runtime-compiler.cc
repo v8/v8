@@ -8,7 +8,7 @@
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"

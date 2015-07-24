@@ -9,7 +9,7 @@
 #include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 
 namespace v8 {
 namespace internal {

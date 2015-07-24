@@ -26,7 +26,7 @@
 #include "src/execution.h"
 #include "src/field-index-inl.h"
 #include "src/field-index.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/hydrogen.h"
