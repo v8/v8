@@ -6277,6 +6277,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   }
 
   bool SkipObject(HeapObject* object) {
+    if (object->IsFiller()) return true;
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     return Marking::IsWhite(mark_bit);
   }
