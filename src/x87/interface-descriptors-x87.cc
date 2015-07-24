@@ -32,7 +32,9 @@ const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return edi; }
 const Register VectorStoreICDescriptor::VectorRegister() { return ebx; }
 
 
-const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
+const Register StoreTransitionDescriptor::MapRegister() {
+  return FLAG_vector_stores ? no_reg : ebx;
+}
 
 
 const Register LoadGlobalViaContextDescriptor::DepthRegister() { return edx; }
@@ -67,6 +69,20 @@ const Register MathPowIntegerDescriptor::exponent() {
 
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
+
+
+void StoreTransitionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
+                          MapRegister()};
+
+  // When FLAG_vector_stores is true, we want to pass the map register on the
+  // stack instead of in a register.
+  DCHECK(FLAG_vector_stores || !MapRegister().is(no_reg));
+
+  int register_count = FLAG_vector_stores ? 3 : 4;
+  data->InitializePlatformSpecific(register_count, registers);
+}
 
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
