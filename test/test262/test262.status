@@ -284,6 +284,9 @@
   # ES6 RegExp test calls ToLength, not ToUint32
   'S15.10.6.2_A5_T3': [FAIL],
 
+  # ES6 says for dates to default to the local timezone if none is specified
+  '15.9.1.15-1': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

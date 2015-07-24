@@ -367,13 +367,13 @@ class DateParser : public AllStatic {
     bool is_iso_date_;
   };
 
-  // Tries to parse an ES5 Date Time String. Returns the next token
+  // Tries to parse an ES6 Date Time String. Returns the next token
   // to continue with in the legacy date string parser. If parsing is
   // complete, returns DateToken::EndOfInput(). If terminally unsuccessful,
   // returns DateToken::Invalid(). Otherwise parsing continues in the
   // legacy parser.
   template <typename Char>
-  static DateParser::DateToken ParseES5DateTime(
+  static DateParser::DateToken ParseES6DateTime(
       DateStringTokenizer<Char>* scanner,
       DayComposer* day,
       TimeComposer* time,
