@@ -42,6 +42,12 @@ const int Bytecodes::Size(Bytecode bytecode) {
 }
 
 
+#define CHECK_SIZE(Name, arg_count) \
+  STATIC_ASSERT(arg_count <= Bytecodes::kMaximumNumberOfArguments);
+  BYTECODE_LIST(CHECK_SIZE)
+#undef CHECK_SIZE
+
+
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
   return os << Bytecodes::ToString(bytecode);
 }

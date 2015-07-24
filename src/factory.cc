@@ -873,6 +873,15 @@ Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
 }
 
 
+Handle<BytecodeArray> Factory::NewBytecodeArray(int length,
+                                                const byte* raw_bytecodes) {
+  DCHECK(0 <= length);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBytecodeArray(
+                                    length, raw_bytecodes),
+                     BytecodeArray);
+}
+
+
 Handle<ExternalArray> Factory::NewExternalArray(int length,
                                                 ExternalArrayType array_type,
                                                 void* external_pointer,

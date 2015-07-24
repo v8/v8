@@ -30,6 +30,8 @@ class Interpreter {
 
   void Initialize(bool create_heap_objects);
 
+  static bool MakeBytecode(CompilationInfo* info);
+
  private:
 // Bytecode handler generator functions.
 #define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, _) \

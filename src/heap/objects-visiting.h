@@ -29,6 +29,7 @@ class StaticVisitorBase : public AllStatic {
   V(SeqTwoByteString)      \
   V(ShortcutCandidate)     \
   V(ByteArray)             \
+  V(BytecodeArray)         \
   V(FreeSpace)             \
   V(FixedArray)            \
   V(FixedDoubleArray)      \
@@ -318,6 +319,10 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 
   INLINE(static int VisitByteArray(Map* map, HeapObject* object)) {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
+  }
+
+  INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object)) {
+    return reinterpret_cast<BytecodeArray*>(object)->BytecodeArraySize();
   }
 
   INLINE(static int VisitFixedDoubleArray(Map* map, HeapObject* object)) {

@@ -42,6 +42,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                         int>::Visit);
 
   table_.Register(kVisitByteArray, &VisitByteArray);
+  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
 
   table_.Register(
       kVisitSharedFunctionInfo,
@@ -146,6 +147,8 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitAllocationSite, &VisitAllocationSite);
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitBytecodeArray, &DataObjectVisitor::Visit);
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 

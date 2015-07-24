@@ -73,6 +73,7 @@
 //         - JSFunctionProxy
 //     - FixedArrayBase
 //       - ByteArray
+//       - BytecodeArray
 //       - FixedArray
 //         - DescriptorArray
 //         - HashTable
@@ -389,6 +390,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MUTABLE_HEAP_NUMBER_TYPE)                                   \
   V(FOREIGN_TYPE)                                               \
   V(BYTE_ARRAY_TYPE)                                            \
+  V(BYTECODE_ARRAY_TYPE)                                        \
   V(FREE_SPACE_TYPE)                                            \
   /* Note: the order of these external array */                 \
   /* types is relied upon in */                                 \
@@ -685,6 +687,7 @@ enum InstanceType {
   FLOAT32X4_TYPE,  // FIRST_SIMD_TYPE, LAST_SIMD_TYPE
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
+  BYTECODE_ARRAY_TYPE,
   FREE_SPACE_TYPE,
   EXTERNAL_INT8_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UINT8_ARRAY_TYPE,
@@ -951,6 +954,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedFloat64Array)             \
   V(FixedUint8ClampedArray)        \
   V(ByteArray)                     \
+  V(BytecodeArray)                 \
   V(FreeSpace)                     \
   V(JSReceiver)                    \
   V(JSObject)                      \
@@ -4233,6 +4237,53 @@ class ByteArray: public FixedArrayBase {
 };
 
 
+// BytecodeArray represents a sequence of interpreter bytecodes.
+class BytecodeArray : public FixedArrayBase {
+ public:
+  static int SizeFor(int length) {
+    return OBJECT_POINTER_ALIGN(kHeaderSize + length);
+  }
+
+  // Setter and getter
+  inline byte get(int index);
+  inline void set(int index, byte value);
+
+  // Returns data start address.
+  inline Address GetFirstBytecodeAddress();
+
+  // Accessors for frame size and the number of locals
+  inline int frame_size() const;
+  inline void set_frame_size(int value);
+  inline int number_of_locals() const;
+  inline void set_number_of_locals(int value);
+
+  DECLARE_CAST(BytecodeArray)
+
+  // Dispatched behavior.
+  inline int BytecodeArraySize() { return SizeFor(this->length()); }
+
+  DECLARE_PRINTER(BytecodeArray)
+  DECLARE_VERIFIER(BytecodeArray)
+
+  void Disassemble(std::ostream& os);
+
+  // Layout description.
+  static const int kFrameSizeOffset = FixedArrayBase::kHeaderSize;
+  static const int kNumberOfLocalsOffset = kFrameSizeOffset + kIntSize;
+  static const int kHeaderSize = kNumberOfLocalsOffset + kIntSize;
+
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
+
+  // Maximal memory consumption for a single BytecodeArray.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single BytecodeArray.
+  static const int kMaxLength = kMaxSize - kHeaderSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArray);
+};
+
+
 // FreeSpace are fixed-size free memory blocks used by the heap and GC.
 // They look like heap objects (are heap object tagged and have a map) so that
 // the heap remains iterable.  They have a size and a next pointer.
@@ -6646,8 +6697,10 @@ class SharedFunctionInfo: public HeapObject {
   DECL_ACCESSORS(instance_class_name, Object)
 
   // [function data]: This field holds some additional data for function.
-  // Currently it either has FunctionTemplateInfo to make benefit the API
-  // or Smi identifying a builtin function.
+  // Currently it has one of:
+  //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
+  //  - a Smi identifying a builtin function [HasBuiltinFunctionId()].
+  //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   // In the long run we don't want all functions to have this field but
   // we can fix that when we have a better model for storing hidden data
   // on objects.
@@ -6657,6 +6710,8 @@ class SharedFunctionInfo: public HeapObject {
   inline FunctionTemplateInfo* get_api_func_data();
   inline bool HasBuiltinFunctionId();
   inline BuiltinFunctionId builtin_function_id();
+  inline bool HasBytecodeArray();
+  inline BytecodeArray* bytecode_array();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)

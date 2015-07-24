@@ -70,6 +70,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
+    case BYTECODE_ARRAY_TYPE:
+      BytecodeArray::cast(this)->BytecodeArrayVerify();
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
@@ -219,6 +222,12 @@ void Float32x4::Float32x4Verify() { CHECK(IsFloat32x4()); }
 
 void ByteArray::ByteArrayVerify() {
   CHECK(IsByteArray());
+}
+
+
+void BytecodeArray::BytecodeArrayVerify() {
+  // TODO(oth): Walk bytecodes and immediate values to validate sanity.
+  CHECK(IsBytecodeArray());
 }
 
 
@@ -540,6 +549,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kFeedbackVectorOffset);
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
+  CHECK(function_data()->IsUndefined() || IsApiFunction() ||
+        HasBuiltinFunctionId() || HasBytecodeArray());
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kDebugInfoOffset);

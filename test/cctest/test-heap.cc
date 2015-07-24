@@ -567,6 +567,50 @@ TEST(DeleteWeakGlobalHandle) {
 }
 
 
+TEST(BytecodeArray) {
+  static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
+  static const int kRawBytesSize = sizeof(kRawBytes);
+  static const int kFrameSize = 32;
+  static const int kNumberOfLocals = 20;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  // Allocate and initialize BytecodeArray
+  Handle<BytecodeArray> array =
+      factory->NewBytecodeArray(kRawBytesSize, kRawBytes);
+
+  array->set_frame_size(kFrameSize);
+  array->set_number_of_locals(kNumberOfLocals);
+
+  CHECK(array->IsBytecodeArray());
+  CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
+  CHECK_LE(array->address(), array->GetFirstBytecodeAddress());
+  CHECK_GE(array->address() + array->BytecodeArraySize(),
+           array->GetFirstBytecodeAddress() + array->length());
+  for (int i = 0; i < kRawBytesSize; i++) {
+    CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
+    CHECK_EQ(array->get(i), kRawBytes[i]);
+  }
+
+  // Full garbage collection
+  heap->CollectAllGarbage();
+
+  // BytecodeArray should survive
+  CHECK_EQ(array->length(), kRawBytesSize);
+  CHECK_EQ(array->number_of_locals(), kNumberOfLocals);
+  CHECK_EQ(array->frame_size(), kFrameSize);
+
+  for (int i = 0; i < kRawBytesSize; i++) {
+    CHECK_EQ(array->get(i), kRawBytes[i]);
+    CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
+  }
+}
+
+
 static const char* not_so_random_string_table[] = {
   "abstract",
   "boolean",

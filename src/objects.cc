@@ -31,6 +31,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/hydrogen.h"
 #include "src/ic/ic.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
@@ -1273,6 +1274,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case BYTE_ARRAY_TYPE:
       os << "<ByteArray[" << ByteArray::cast(this)->length() << "]>";
       break;
+    case BYTECODE_ARRAY_TYPE:
+      os << "<BytecodeArray[" << BytecodeArray::cast(this)->length() << "]>";
+      break;
     case FREE_SPACE_TYPE:
       os << "<FreeSpace[" << FreeSpace::cast(this)->Size() << "]>";
       break;
@@ -1499,6 +1503,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case FLOAT32X4_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
+    case BYTECODE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
       break;
 
@@ -11610,6 +11615,29 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   os << "\n";
 }
 #endif  // ENABLE_DISASSEMBLER
+
+
+void BytecodeArray::Disassemble(std::ostream& os) {
+  os << "Frame size " << frame_size()
+     << ", number of locals = " << number_of_locals() << "\n";
+  Vector<char> buf = Vector<char>::New(50);
+  int bytecode_size = 0;
+  for (int i = 0; i < this->length(); i += bytecode_size) {
+    interpreter::Bytecode bytecode = static_cast<interpreter::Bytecode>(get(i));
+    bytecode_size = interpreter::Bytecodes::Size(bytecode);
+
+    SNPrintF(buf, "%p : ", GetFirstBytecodeAddress() + i);
+    os << buf.start();
+    for (int j = 0; j < bytecode_size; j++) {
+      SNPrintF(buf, "%02x ", get(i + j));
+      os << buf.start();
+    }
+    for (int j = bytecode_size; j < interpreter::Bytecodes::kMaximumSize; j++) {
+      os << "   ";
+    }
+    os << bytecode;
+  }
+}
 
 
 // static

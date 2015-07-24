@@ -283,6 +283,8 @@ class Factory final {
   Handle<ByteArray> NewByteArray(int length,
                                  PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes);
+
   Handle<ExternalArray> NewExternalArray(
       int length,
       ExternalArrayType array_type,

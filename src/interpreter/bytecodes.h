@@ -42,10 +42,15 @@ class Bytecodes {
   // Returns the size of the bytecode including its arguments.
   static const int Size(Bytecode bytecode);
 
+  // The maximum number of arguments across all bytecodes.
+  static const int kMaximumNumberOfArguments = 1;
+
+  // Maximum size of a bytecode and its arguments.
+  static const int kMaximumSize = 1 + kMaximumNumberOfArguments;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
 };
-
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);
 

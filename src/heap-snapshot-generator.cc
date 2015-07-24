@@ -1894,18 +1894,17 @@ bool V8HeapExplorer::IterateAndExtractSinglePass() {
 
 
 bool V8HeapExplorer::IsEssentialObject(Object* object) {
-  return object->IsHeapObject()
-      && !object->IsOddball()
-      && object != heap_->empty_byte_array()
-      && object != heap_->empty_fixed_array()
-      && object != heap_->empty_descriptor_array()
-      && object != heap_->fixed_array_map()
-      && object != heap_->cell_map()
-      && object != heap_->global_property_cell_map()
-      && object != heap_->shared_function_info_map()
-      && object != heap_->free_space_map()
-      && object != heap_->one_pointer_filler_map()
-      && object != heap_->two_pointer_filler_map();
+  return object->IsHeapObject() && !object->IsOddball() &&
+         object != heap_->empty_byte_array() &&
+         object != heap_->empty_bytecode_array() &&
+         object != heap_->empty_fixed_array() &&
+         object != heap_->empty_descriptor_array() &&
+         object != heap_->fixed_array_map() && object != heap_->cell_map() &&
+         object != heap_->global_property_cell_map() &&
+         object != heap_->shared_function_info_map() &&
+         object != heap_->free_space_map() &&
+         object != heap_->one_pointer_filler_map() &&
+         object != heap_->two_pointer_filler_map();
 }
 
 

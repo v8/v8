@@ -648,6 +648,7 @@ bool Object::IsNumber() const {
 
 
 TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
+TYPE_CHECKER(BytecodeArray, BYTECODE_ARRAY_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 
 
@@ -2924,6 +2925,7 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeCacheHashTable)
@@ -3625,6 +3627,27 @@ Address ByteArray::GetDataStartAddress() {
 }
 
 
+byte BytecodeArray::get(int index) {
+  DCHECK(index >= 0 && index < this->length());
+  return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
+}
+
+
+void BytecodeArray::set(int index, byte value) {
+  DCHECK(index >= 0 && index < this->length());
+  WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize, value);
+}
+
+
+INT_ACCESSORS(BytecodeArray, frame_size, kFrameSizeOffset)
+INT_ACCESSORS(BytecodeArray, number_of_locals, kNumberOfLocalsOffset)
+
+
+Address BytecodeArray::GetFirstBytecodeAddress() {
+  return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
+}
+
+
 uint8_t* ExternalUint8ClampedArray::external_uint8_clamped_pointer() {
   return reinterpret_cast<uint8_t*>(external_pointer());
 }
@@ -4112,6 +4135,9 @@ int HeapObject::SizeFromMap(Map* map) {
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
+  }
+  if (instance_type == BYTECODE_ARRAY_TYPE) {
+    return reinterpret_cast<BytecodeArray*>(this)->BytecodeArraySize();
   }
   if (instance_type == FREE_SPACE_TYPE) {
     return reinterpret_cast<FreeSpace*>(this)->nobarrier_size();
@@ -5512,6 +5538,17 @@ bool SharedFunctionInfo::HasBuiltinFunctionId() {
 BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
   DCHECK(HasBuiltinFunctionId());
   return static_cast<BuiltinFunctionId>(Smi::cast(function_data())->value());
+}
+
+
+bool SharedFunctionInfo::HasBytecodeArray() {
+  return function_data()->IsBytecodeArray();
+}
+
+
+BytecodeArray* SharedFunctionInfo::bytecode_array() {
+  DCHECK(HasBytecodeArray());
+  return BytecodeArray::cast(function_data());
 }
 
 
