@@ -4778,27 +4778,61 @@ void Heap::MakeHeapIterable() {
 }
 
 
-bool Heap::HasLowYoungGenerationAllocationRate() {
-  const double high_mutator_utilization = 0.993;
+static double ComputeMutatorUtilization(double mutator_speed, double gc_speed) {
+  const double kMinMutatorUtilization = 0.0;
+  if (mutator_speed == 0 || gc_speed == 0) return kMinMutatorUtilization;
+  // Derivation:
+  // mutator_utilization = mutator_time / (mutator_time + gc_time)
+  // mutator_time = 1 / mutator_speed
+  // gc_time = 1 / gc_speed
+  // mutator_utilization = (1 / mutator_speed) /
+  //                       (1 / mutator_speed + 1 / gc_speed)
+  // mutator_utilization = gc_speed / (mutator_speed + gc_speed)
+  return gc_speed / (mutator_speed + gc_speed);
+}
+
+
+double Heap::YoungGenerationMutatorUtilization() {
   double mutator_speed = static_cast<double>(
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
   double gc_speed = static_cast<double>(
       tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects));
-  if (mutator_speed == 0 || gc_speed == 0) return false;
-  double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
-  return mutator_utilization > high_mutator_utilization;
+  double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
+  if (FLAG_trace_mutator_utilization) {
+    PrintIsolate(isolate(),
+                 "Young generation mutator utilization = %.3f ("
+                 "mutator_speed=%.f, gc_speed=%.f)\n",
+                 result, mutator_speed, gc_speed);
+  }
+  return result;
+}
+
+
+double Heap::OldGenerationMutatorUtilization() {
+  double mutator_speed = static_cast<double>(
+      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
+  double gc_speed = static_cast<double>(
+      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
+  double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
+  if (FLAG_trace_mutator_utilization) {
+    PrintIsolate(isolate(),
+                 "Old generation mutator utilization = %.3f ("
+                 "mutator_speed=%.f, gc_speed=%.f)\n",
+                 result, mutator_speed, gc_speed);
+  }
+  return result;
+}
+
+
+bool Heap::HasLowYoungGenerationAllocationRate() {
+  const double high_mutator_utilization = 0.993;
+  return YoungGenerationMutatorUtilization() > high_mutator_utilization;
 }
 
 
 bool Heap::HasLowOldGenerationAllocationRate() {
   const double high_mutator_utilization = 0.993;
-  double mutator_speed = static_cast<double>(
-      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
-  double gc_speed = static_cast<double>(
-      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
-  if (mutator_speed == 0 || gc_speed == 0) return false;
-  double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
-  return mutator_utilization > high_mutator_utilization;
+  return OldGenerationMutatorUtilization() > high_mutator_utilization;
 }
 
 

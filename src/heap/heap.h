@@ -2272,6 +2272,8 @@ class Heap {
 
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
+  double YoungGenerationMutatorUtilization();
+  double OldGenerationMutatorUtilization();
 
   void ReduceNewSpaceSize();
 
