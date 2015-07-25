@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --harmony-computed-property-names
-// Flags: --no-legacy-const --harmony-sloppy
+// Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let
 
 // Test that we throw early syntax errors in harmony mode
 // when using an immutable binding in an assigment or with

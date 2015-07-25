@@ -101,6 +101,7 @@ class ParserBase : public Traits {
         allow_natives_(false),
         allow_harmony_arrow_functions_(false),
         allow_harmony_sloppy_(false),
+        allow_harmony_sloppy_let_(false),
         allow_harmony_computed_property_names_(false),
         allow_harmony_rest_params_(false),
         allow_harmony_spreadcalls_(false),
@@ -118,6 +119,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_arrow_functions);
   ALLOW_ACCESSORS(harmony_sloppy);
+  ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_computed_property_names);
   ALLOW_ACCESSORS(harmony_rest_params);
   ALLOW_ACCESSORS(harmony_spreadcalls);
@@ -504,7 +506,7 @@ class ParserBase : public Traits {
   }
 
   bool allow_let() {
-    return is_strict(language_mode()) || allow_harmony_sloppy();
+    return is_strict(language_mode()) || allow_harmony_sloppy_let();
   }
 
   // Report syntax errors.
@@ -797,6 +799,7 @@ class ParserBase : public Traits {
   bool allow_natives_;
   bool allow_harmony_arrow_functions_;
   bool allow_harmony_sloppy_;
+  bool allow_harmony_sloppy_let_;
   bool allow_harmony_computed_property_names_;
   bool allow_harmony_rest_params_;
   bool allow_harmony_spreadcalls_;

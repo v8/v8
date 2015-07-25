@@ -1431,6 +1431,7 @@ enum ParserFlag {
   kAllowHarmonyArrowFunctions,
   kAllowHarmonyRestParameters,
   kAllowHarmonySloppy,
+  kAllowHarmonySloppyLet,
   kAllowHarmonyUnicode,
   kAllowHarmonyComputedPropertyNames,
   kAllowHarmonySpreadCalls,
@@ -1461,6 +1462,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_spreadcalls(
       flags.Contains(kAllowHarmonySpreadCalls));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
+  parser->set_allow_harmony_sloppy_let(flags.Contains(kAllowHarmonySloppyLet));
   parser->set_allow_harmony_unicode(flags.Contains(kAllowHarmonyUnicode));
   parser->set_allow_harmony_computed_property_names(
       flags.Contains(kAllowHarmonyComputedPropertyNames));
@@ -6841,7 +6843,8 @@ TEST(LetSloppy) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonySloppy};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
