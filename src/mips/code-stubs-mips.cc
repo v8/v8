@@ -5351,8 +5351,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
                       cell_details_reg, kRAHasNotBeenSaved, kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   // RecordWriteField clobbers the value register, so we need to reload.
+  __ Ret(USE_DELAY_SLOT);
   __ lw(value_reg, FieldMemOperand(cell_reg, PropertyCell::kValueOffset));
-  __ Ret();
   __ bind(&not_mutable_data);
 
   // Check if PropertyCell value matches the new value (relevant for Constant,

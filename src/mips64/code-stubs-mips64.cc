@@ -5310,7 +5310,7 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
 
   // Go up context chain to the script context.
   for (int i = 0; i < depth(); ++i) {
-    __ lw(result_reg, ContextOperand(context_reg, Context::PREVIOUS_INDEX));
+    __ ld(result_reg, ContextOperand(context_reg, Context::PREVIOUS_INDEX));
     context_reg = result_reg;
   }
 

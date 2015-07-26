@@ -167,6 +167,9 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
+// Clobbers object, dst, value, and ra, if (ra_status == kRAHasBeenSaved)
+// The register 'object' contains a heap object pointer.  The heap object
+// tag is shifted away.
 void MacroAssembler::RecordWriteField(
     Register object,
     int offset,
@@ -220,8 +223,7 @@ void MacroAssembler::RecordWriteField(
 }
 
 
-// Will clobber 4 registers: object, map, dst, ip.  The
-// register 'object' contains a heap object pointer.
+// Clobbers object, dst, map, and ra, if (ra_status == kRAHasBeenSaved)
 void MacroAssembler::RecordWriteForMap(Register object,
                                        Register map,
                                        Register dst,
@@ -295,8 +297,8 @@ void MacroAssembler::RecordWriteForMap(Register object,
 }
 
 
-// Will clobber 4 registers: object, address, scratch, ip.  The
-// register 'object' contains a heap object pointer.  The heap object
+// Clobbers object, address, value, and ra, if (ra_status == kRAHasBeenSaved)
+// The register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(
     Register object,
