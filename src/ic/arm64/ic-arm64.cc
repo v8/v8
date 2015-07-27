@@ -471,14 +471,25 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
 }
 
 
+static void StoreIC_PushArgs(MacroAssembler* masm) {
+  if (FLAG_vector_stores) {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister(),
+            VectorStoreICDescriptor::SlotRegister(),
+            VectorStoreICDescriptor::VectorRegister());
+  } else {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister());
+  }
+}
+
+
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   ASM_LOCATION("KeyedStoreIC::GenerateMiss");
+  StoreIC_PushArgs(masm);
 
-  // Push receiver, key and value for runtime call.
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
-
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, args, 1);
 }
 
 
@@ -765,11 +776,11 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+  StoreIC_PushArgs(masm);
 
   // Tail call to the entry.
-  __ TailCallRuntime(Runtime::kStoreIC_Miss, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kStoreIC_Miss, args, 1);
 }
 
 

@@ -753,14 +753,21 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
+  Register temp = r11;
+  DCHECK(!temp.is(receiver) && !temp.is(name) && !temp.is(value));
 
-  DCHECK(!rbx.is(receiver) && !rbx.is(name) && !rbx.is(value));
-
-  __ PopReturnAddressTo(rbx);
+  __ PopReturnAddressTo(temp);
   __ Push(receiver);
   __ Push(name);
   __ Push(value);
-  __ PushReturnAddressFrom(rbx);
+  if (FLAG_vector_stores) {
+    Register slot = VectorStoreICDescriptor::SlotRegister();
+    Register vector = VectorStoreICDescriptor::VectorRegister();
+    DCHECK(!temp.is(slot) && !temp.is(vector));
+    __ Push(slot);
+    __ Push(vector);
+  }
+  __ PushReturnAddressFrom(temp);
 }
 
 
@@ -769,7 +776,8 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kStoreIC_Miss, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kStoreIC_Miss, args, 1);
 }
 
 
@@ -798,7 +806,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, args, 1);
 }
 
 

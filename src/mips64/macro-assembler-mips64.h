@@ -699,6 +699,17 @@ class MacroAssembler: public Assembler {
     sd(src4, MemOperand(sp, 0 * kPointerSize));
   }
 
+  // Push five registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4,
+            Register src5) {
+    Dsubu(sp, sp, Operand(5 * kPointerSize));
+    sd(src1, MemOperand(sp, 4 * kPointerSize));
+    sd(src2, MemOperand(sp, 3 * kPointerSize));
+    sd(src3, MemOperand(sp, 2 * kPointerSize));
+    sd(src4, MemOperand(sp, 1 * kPointerSize));
+    sd(src5, MemOperand(sp, 0 * kPointerSize));
+  }
+
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
     // Since we don't have conditional execution we use a Branch.
     Branch(3, cond, tst1, Operand(tst2));

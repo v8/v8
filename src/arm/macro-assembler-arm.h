@@ -325,9 +325,7 @@ class MacroAssembler: public Assembler {
 
   // Push three registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
+    DCHECK(!AreAliased(src1, src2, src3));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
@@ -347,12 +345,7 @@ class MacroAssembler: public Assembler {
             Register src3,
             Register src4,
             Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
-    DCHECK(!src1.is(src4));
-    DCHECK(!src2.is(src4));
-    DCHECK(!src3.is(src4));
+    DCHECK(!AreAliased(src1, src2, src3, src4));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
@@ -374,6 +367,36 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Push five registers.  Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4,
+            Register src5, Condition cond = al) {
+    DCHECK(!AreAliased(src1, src2, src3, src4, src5));
+    if (src1.code() > src2.code()) {
+      if (src2.code() > src3.code()) {
+        if (src3.code() > src4.code()) {
+          if (src4.code() > src5.code()) {
+            stm(db_w, sp,
+                src1.bit() | src2.bit() | src3.bit() | src4.bit() | src5.bit(),
+                cond);
+          } else {
+            stm(db_w, sp, src1.bit() | src2.bit() | src3.bit() | src4.bit(),
+                cond);
+            str(src5, MemOperand(sp, 4, NegPreIndex), cond);
+          }
+        } else {
+          stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+          Push(src4, src5, cond);
+        }
+      } else {
+        stm(db_w, sp, src1.bit() | src2.bit(), cond);
+        Push(src3, src4, src5, cond);
+      }
+    } else {
+      str(src1, MemOperand(sp, 4, NegPreIndex), cond);
+      Push(src2, src3, src4, src5, cond);
+    }
+  }
+
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Condition cond = al) {
     DCHECK(!src1.is(src2));
@@ -387,9 +410,7 @@ class MacroAssembler: public Assembler {
 
   // Pop three registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
+    DCHECK(!AreAliased(src1, src2, src3));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
@@ -409,12 +430,7 @@ class MacroAssembler: public Assembler {
            Register src3,
            Register src4,
            Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
-    DCHECK(!src1.is(src4));
-    DCHECK(!src2.is(src4));
-    DCHECK(!src3.is(src4));
+    DCHECK(!AreAliased(src1, src2, src3, src4));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
