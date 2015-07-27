@@ -5091,18 +5091,14 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Load the PropertyCell at the specified slot.
   __ movp(cell_reg, ContextOperand(context_reg, slot_reg));
 
-  // Check that value is not the_hole.
-  __ movp(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
-  __ CompareRoot(cell_value_reg, Heap::kTheHoleValueRootIndex);
-  __ j(equal, &slow_case, FLAG_debug_code ? Label::kFar : Label::kNear);
-
-  // Load PropertyDetails for the cell (actually only the cell_type and kind).
+  // Load PropertyDetails for the cell (actually only the cell_type, kind and
+  // READ_ONLY bit of attributes).
   __ SmiToInteger32(cell_details_reg,
                     FieldOperand(cell_reg, PropertyCell::kDetailsOffset));
   __ andl(cell_details_reg,
           Immediate(PropertyDetails::PropertyCellTypeField::kMask |
-                    PropertyDetails::KindField::kMask));
-
+                    PropertyDetails::KindField::kMask |
+                    PropertyDetails::kAttributesReadOnlyMask));
 
   // Check if PropertyCell holds mutable data.
   Label not_mutable_data;
@@ -5125,9 +5121,14 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
+  __ movp(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
   __ cmpp(cell_value_reg, value_reg);
   __ j(not_equal, &not_same_value,
        FLAG_debug_code ? Label::kFar : Label::kNear);
+  // Make sure the PropertyCell is not marked READ_ONLY.
+  __ testl(cell_details_reg,
+           Immediate(PropertyDetails::kAttributesReadOnlyMask));
+  __ j(not_zero, &slow_case);
   if (FLAG_debug_code) {
     Label done;
     // This can only be true for Constant, ConstantType and Undefined cells,
@@ -5152,7 +5153,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_same_value);
 
-  // Check if PropertyCell contains data with constant type.
+  // Check if PropertyCell contains data with constant type (and is not
+  // READ_ONLY).
   __ cmpl(cell_details_reg,
           Immediate(PropertyDetails::PropertyCellTypeField::encode(
                         PropertyCellType::kConstantType) |

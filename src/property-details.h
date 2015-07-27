@@ -320,6 +320,8 @@ class PropertyDetails BASE_EMBEDDED {
   class KindField : public BitField<PropertyKind, 0, 1> {};
   class LocationField : public BitField<PropertyLocation, 1, 1> {};
   class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
+  static const int kAttributesReadOnlyMask =
+      (READ_ONLY << AttributesField::kShift);
 
   // Bit fields for normalized objects.
   class PropertyCellTypeField : public BitField<PropertyCellType, 5, 2> {};

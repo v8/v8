@@ -5120,17 +5120,13 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ add(cell, context, Operand(slot, LSL, kPointerSizeLog2));
   __ ldr(cell, ContextOperand(cell));
 
-  // Check that cell value is not the_hole.
-  __ ldr(cell_value, FieldMemOperand(cell, PropertyCell::kValueOffset));
-  __ CompareRoot(cell_value, Heap::kTheHoleValueRootIndex);
-  __ b(eq, &slow_case);
-
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ ldr(cell_details, FieldMemOperand(cell, PropertyCell::kDetailsOffset));
   __ SmiUntag(cell_details);
   __ and_(cell_details, cell_details,
           Operand(PropertyDetails::PropertyCellTypeField::kMask |
-                  PropertyDetails::KindField::kMask));
+                  PropertyDetails::KindField::kMask |
+                  PropertyDetails::kAttributesReadOnlyMask));
 
   // Check if PropertyCell holds mutable data.
   Label not_mutable_data;
@@ -5154,8 +5150,13 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
+  __ ldr(cell_value, FieldMemOperand(cell, PropertyCell::kValueOffset));
   __ cmp(cell_value, value);
   __ b(ne, &not_same_value);
+
+  // Make sure the PropertyCell is not marked READ_ONLY.
+  __ tst(cell_details, Operand(PropertyDetails::kAttributesReadOnlyMask));
+  __ b(ne, &slow_case);
 
   if (FLAG_debug_code) {
     Label done;
@@ -5178,7 +5179,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_same_value);
 
-  // Check if PropertyCell contains data with constant type.
+  // Check if PropertyCell contains data with constant type (and is not
+  // READ_ONLY).
   __ cmp(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
                                    PropertyCellType::kConstantType) |
                                PropertyDetails::KindField::encode(kData)));

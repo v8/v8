@@ -5173,23 +5173,14 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Load the PropertyCell at the specified slot.
   __ mov(cell_reg, ContextOperand(context_reg, slot_reg));
 
-  // Check that cell value is not the_hole.
-  {
-    // TODO(bmeurer): use ecx (name_reg) when name parameter is removed.
-    Register cell_value_reg = cell_details_reg;
-    __ mov(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
-    __ CompareRoot(cell_value_reg, Heap::kTheHoleValueRootIndex);
-    __ j(equal, &slow_case, FLAG_debug_code ? Label::kFar : Label::kNear);
-  }
-
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ mov(cell_details_reg,
          FieldOperand(cell_reg, PropertyCell::kDetailsOffset));
   __ SmiUntag(cell_details_reg);
   __ and_(cell_details_reg,
           Immediate(PropertyDetails::PropertyCellTypeField::kMask |
-                    PropertyDetails::KindField::kMask));
-
+                    PropertyDetails::KindField::kMask |
+                    PropertyDetails::kAttributesReadOnlyMask));
 
   // Check if PropertyCell holds mutable data.
   Label not_mutable_data;
@@ -5215,6 +5206,10 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ cmp(value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
   __ j(not_equal, &not_same_value,
        FLAG_debug_code ? Label::kFar : Label::kNear);
+  // Make sure the PropertyCell is not marked READ_ONLY.
+  __ test(cell_details_reg,
+          Immediate(PropertyDetails::kAttributesReadOnlyMask));
+  __ j(not_zero, &slow_case);
   if (FLAG_debug_code) {
     Label done;
     // This can only be true for Constant, ConstantType and Undefined cells,
@@ -5239,7 +5234,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_same_value);
 
-  // Check if PropertyCell contains data with constant type.
+  // Check if PropertyCell contains data with constant type (and is not
+  // READ_ONLY).
   __ cmp(cell_details_reg,
          Immediate(PropertyDetails::PropertyCellTypeField::encode(
                        PropertyCellType::kConstantType) |

@@ -452,6 +452,8 @@ function testSuite(opt_cfg) {
     assertThrows('StoreVar(113)');
     assertThrows('StoreVar(113)');
     assertEquals(42, LoadVar());
+    assertThrows('StoreVar(42)');
+    assertEquals(42, LoadVar());
     assertThrows('LoadStoreLoop()');
     assertEquals(42, LoadVar());
     TearDown();

@@ -5362,18 +5362,14 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Daddu(at, at, Context::SlotOffset(0));
   __ ld(cell_reg, MemOperand(at));
 
-  // Check that cell value is not the_hole.
-  __ ld(cell_value_reg, FieldMemOperand(cell_reg, PropertyCell::kValueOffset));
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-  __ Branch(&slow_case, eq, cell_value_reg, Operand(at));
-
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ ld(cell_details_reg,
         FieldMemOperand(cell_reg, PropertyCell::kDetailsOffset));
   __ SmiUntag(cell_details_reg);
   __ And(cell_details_reg, cell_details_reg,
          PropertyDetails::PropertyCellTypeField::kMask |
-             PropertyDetails::KindField::kMask);
+             PropertyDetails::KindField::kMask |
+             PropertyDetails::kAttributesReadOnlyMask);
 
   // Check if PropertyCell holds mutable data.
   Label not_mutable_data;
@@ -5395,7 +5391,11 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
+  __ ld(cell_value_reg, FieldMemOperand(cell_reg, PropertyCell::kValueOffset));
   __ Branch(&not_same_value, ne, value_reg, Operand(cell_value_reg));
+  // Make sure the PropertyCell is not marked READ_ONLY.
+  __ And(at, cell_details_reg, PropertyDetails::kAttributesReadOnlyMask);
+  __ Branch(&slow_case, ne, at, Operand(zero_reg));
   if (FLAG_debug_code) {
     Label done;
     // This can only be true for Constant, ConstantType and Undefined cells,
@@ -5417,7 +5417,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_same_value);
 
-  // Check if PropertyCell contains data with constant type.
+  // Check if PropertyCell contains data with constant type (and is not
+  // READ_ONLY).
   __ Branch(&slow_case, ne, cell_details_reg,
             Operand(PropertyDetails::PropertyCellTypeField::encode(
                         PropertyCellType::kConstantType) |
