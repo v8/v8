@@ -5327,8 +5327,8 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   }
 
   // Load the PropertyCell value at the specified slot.
-  __ ShiftLeftImm(result, slot, Operand(kPointerSizeLog2));
-  __ add(result, context, result);
+  __ ShiftLeftImm(r0, slot, Operand(kPointerSizeLog2));
+  __ add(result, context, r0);
   __ LoadP(result, ContextOperand(result));
   __ LoadP(result, FieldMemOperand(result, PropertyCell::kValueOffset));
 
@@ -5373,8 +5373,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   }
 
   // Load the PropertyCell at the specified slot.
-  __ ShiftLeftImm(cell, slot, Operand(kPointerSizeLog2));
-  __ add(cell, context, cell);
+  __ ShiftLeftImm(r0, slot, Operand(kPointerSizeLog2));
+  __ add(cell, context, r0);
   __ LoadP(cell, ContextOperand(cell));
 
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
