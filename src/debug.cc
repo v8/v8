@@ -1457,9 +1457,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
   if (!shared->HasDebugCode()) {
     DCHECK(functions.length() > 0);
-    if (Compiler::GetDebugCode(functions.first()).is_null()) {
-      return false;
-    }
+    if (!Compiler::CompileDebugCode(functions.first())) return false;
   }
 
   for (Handle<JSFunction> const function : functions) {
@@ -1560,7 +1558,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     // If not, compile to reveal inner functions, if possible.
     if (shared->allows_lazy_compilation_without_context()) {
       HandleScope scope(isolate_);
-      if (Compiler::GetDebugCode(handle(shared)).is_null()) break;
+      if (!Compiler::CompileDebugCode(handle(shared))) break;
       continue;
     }
 
@@ -1590,9 +1588,9 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     }
     HandleScope scope(isolate_);
     if (closure == NULL) {
-      if (Compiler::GetDebugCode(handle(shared)).is_null()) break;
+      if (!Compiler::CompileDebugCode(handle(shared))) break;
     } else {
-      if (Compiler::GetDebugCode(handle(closure)).is_null()) break;
+      if (!Compiler::CompileDebugCode(handle(closure))) break;
     }
   }
   return isolate_->factory()->undefined_value();

@@ -624,10 +624,8 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
       Handle<JSFunction> function);
 
-  MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
-      Handle<JSFunction> function);
-  MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
-      Handle<SharedFunctionInfo> shared);
+  static bool CompileDebugCode(Handle<JSFunction> function);
+  static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
 
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* info);

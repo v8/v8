@@ -112,7 +112,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   // with deoptimization support.
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
-  if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
@@ -966,26 +965,68 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 }
 
 
-MaybeHandle<Code> CompileForDebugging(CompilationInfo* info) {
-  info->MarkAsDebug();
-  VMState<COMPILER> state(info->isolate());
-  MaybeHandle<Code> maybe_new_code = GetUnoptimizedCodeCommon(info);
-  Handle<Code> new_code;
-  if (!maybe_new_code.ToHandle(&new_code)) {
-    info->isolate()->clear_pending_exception();
-  }
-  return maybe_new_code;
-}
+bool CompileEvalForDebugging(Handle<JSFunction> function,
+                             Handle<SharedFunctionInfo> shared) {
+  Handle<Script> script(Script::cast(shared->script()));
+  Handle<Context> context(function->context());
 
+  Zone zone;
+  ParseInfo parse_info(&zone, script);
+  CompilationInfo info(&parse_info);
+  Isolate* isolate = info.isolate();
 
-MaybeHandle<Code> Compiler::GetDebugCode(Handle<JSFunction> function) {
-  CompilationInfoWithZone info(function);
+  parse_info.set_eval();
+  parse_info.set_context(context);
+  if (context->IsNativeContext()) parse_info.set_global();
+  parse_info.set_toplevel();
+  parse_info.set_allow_lazy_parsing(false);
+  parse_info.set_language_mode(shared->language_mode());
+  parse_info.set_parse_restriction(NO_PARSE_RESTRICTION);
+  info.MarkAsDebug();
+
   VMState<COMPILER> state(info.isolate());
-  return CompileForDebugging(&info);
+
+  if (!Parser::ParseStatic(&parse_info)) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+
+  FunctionLiteral* lit = info.function();
+  LiveEditFunctionTracker live_edit_tracker(isolate, lit);
+
+  if (!CompileUnoptimizedCode(&info)) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+  shared->ReplaceCode(*info.code());
+  return true;
 }
 
 
-MaybeHandle<Code> Compiler::GetDebugCode(Handle<SharedFunctionInfo> shared) {
+bool CompileForDebugging(CompilationInfo* info) {
+  info->MarkAsDebug();
+  if (GetUnoptimizedCodeCommon(info).is_null()) {
+    info->isolate()->clear_pending_exception();
+    return false;
+  }
+  return true;
+}
+
+
+bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
+  Handle<SharedFunctionInfo> shared(function->shared());
+  if (shared->is_toplevel() && shared->script()->IsScript() &&
+      Script::cast(shared->script())->compilation_type() ==
+          Script::COMPILATION_TYPE_EVAL) {
+    return CompileEvalForDebugging(function, shared);
+  } else {
+    CompilationInfoWithZone info(function);
+    return CompileForDebugging(&info);
+  }
+}
+
+
+bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->allows_lazy_compilation_without_context());
   Zone zone;
   ParseInfo parse_info(&zone, shared);
@@ -1120,8 +1161,6 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
   }
 
-  isolate->debug()->OnAfterCompile(script);
-
   return result;
 }
 
@@ -1142,8 +1181,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
                                     line_offset);
   Handle<SharedFunctionInfo> shared_info;
 
+  Handle<Script> script;
   if (!maybe_shared_info.ToHandle(&shared_info)) {
-    Handle<Script> script = isolate->factory()->NewScript(source);
+    script = isolate->factory()->NewScript(source);
     if (!script_name.is_null()) {
       script->set_name(*script_name);
       script->set_line_offset(Smi::FromInt(line_offset));
@@ -1159,8 +1199,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_parse_restriction(restriction);
     parse_info.set_context(context);
 
-    // If we eval from debug code, compile for debugging as well.
-    if (outer_info->HasDebugCode()) info.MarkAsDebug();
     Debug::RecordEvalCaller(script);
 
     shared_info = CompileToplevel(&info);
@@ -1184,8 +1222,16 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     shared_info->ResetForNewContext(isolate->heap()->global_ic_age());
   }
 
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared_info, context, NOT_TENURED);
+  Handle<JSFunction> result =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared_info, context, NOT_TENURED);
+
+  // OnAfterCompile has to be called after we create the JSFunction, which we
+  // may require to recompile the eval for debugging, if we find a function
+  // that contains break points in the eval script.
+  isolate->debug()->OnAfterCompile(script);
+
+  return result;
 }
 
 
@@ -1307,7 +1353,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
       }
     }
 
-    if (result.is_null()) isolate->ReportPendingMessages();
+    if (result.is_null()) {
+      isolate->ReportPendingMessages();
+    } else {
+      isolate->debug()->OnAfterCompile(script);
+    }
   } else if (result->ic_age() != isolate->heap()->global_ic_age()) {
     result->ResetForNewContext(isolate->heap()->global_ic_age());
   }
@@ -1332,7 +1382,9 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
   // If compiling for debugging, parse eagerly from scratch.
   if (compile_info.is_debug()) parse_info->set_literal(NULL);
 
-  return CompileToplevel(&compile_info);
+  Handle<SharedFunctionInfo> result = CompileToplevel(&compile_info);
+  if (!result.is_null()) isolate->debug()->OnAfterCompile(script);
+  return result;
 }
 
 
