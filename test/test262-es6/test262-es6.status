@@ -418,6 +418,9 @@
   # https://code.google.com/p/v8/issues/detail?id=4003
   'built-ins/RegExp/prototype/15.10.6': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=4244
+  'built-ins/RegExp/prototype/exec/S15.10.6.2_A5_T3': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4006
   'built-ins/String/prototype/S15.5.4_A1': [FAIL],
   'built-ins/String/prototype/S15.5.4_A2': [FAIL],
