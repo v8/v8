@@ -6248,11 +6248,6 @@ class HObjectAccess final {
         JSArrayBuffer::kBitFieldSlot, Representation::Smi());
   }
 
-  static HObjectAccess ForExternalArrayExternalPointer() {
-    return HObjectAccess::ForObservableJSObjectOffset(
-        ExternalArray::kExternalPointerOffset, Representation::External());
-  }
-
   static HObjectAccess ForJSArrayBufferViewBuffer() {
     return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBufferView::kBufferOffset);
@@ -6622,14 +6617,8 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
   DECLARE_INSTRUCTION_FACTORY_P6(HLoadKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, LoadKeyedHoleMode, int);
 
-  bool is_external() const {
-    return IsExternalArrayElementsKind(elements_kind());
-  }
   bool is_fixed_typed_array() const {
     return IsFixedTypedArrayElementsKind(elements_kind());
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
   HValue* elements() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
@@ -6661,8 +6650,8 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
     // kind_fixed_typed_array:    external[int32] (none)
     // kind_external:             external[int32] (none)
     if (index == 0) {
-      return is_typed_elements() ? Representation::External()
-                                 : Representation::Tagged();
+      return is_fixed_typed_array() ? Representation::External()
+                                    : Representation::Tagged();
     }
     if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
@@ -6711,7 +6700,7 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
     SetOperandAt(1, key);
     SetOperandAt(2, dependency != NULL ? dependency : obj);
 
-    if (!is_typed_elements()) {
+    if (!is_fixed_typed_array()) {
       // I can detect the case between storing double (holey and fast) and
       // smi/object by looking at elements_kind_.
       DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
@@ -6737,18 +6726,15 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
         SetDependsOnFlag(kDoubleArrayElements);
       }
     } else {
-      if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-          elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
-          elements_kind == FLOAT32_ELEMENTS ||
+      if (elements_kind == FLOAT32_ELEMENTS ||
           elements_kind == FLOAT64_ELEMENTS) {
         set_representation(Representation::Double());
       } else {
         set_representation(Representation::Integer32());
       }
 
-      if (is_external()) {
+      if (is_fixed_typed_array()) {
         SetDependsOnFlag(kExternalMemory);
-      } else if (is_fixed_typed_array()) {
         SetDependsOnFlag(kTypedArrayElements);
       } else {
         UNREACHABLE();
@@ -7123,8 +7109,8 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
     // kind_fixed_typed_array:  tagged[int32] = (double | int32)
     // kind_external:           external[int32] = (double | int32)
     if (index == 0) {
-      return is_typed_elements() ? Representation::External()
-                                 : Representation::Tagged();
+      return is_fixed_typed_array() ? Representation::External()
+                                    : Representation::Tagged();
     } else if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
           OperandAt(1)->representation());
@@ -7149,22 +7135,14 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
       return Representation::Smi();
     }
 
-    return IsExternalArrayElementsKind(kind) ||
-                   IsFixedTypedArrayElementsKind(kind)
-               ? Representation::Integer32()
-               : Representation::Tagged();
-  }
-
-  bool is_external() const {
-    return IsExternalArrayElementsKind(elements_kind());
+    if (IsFixedTypedArrayElementsKind(kind)) {
+      return Representation::Integer32();
+    }
+    return Representation::Tagged();
   }
 
   bool is_fixed_typed_array() const {
     return IsFixedTypedArrayElementsKind(elements_kind());
-  }
-
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
 
   Representation observed_input_representation(int index) override {
@@ -7256,25 +7234,20 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
       SetFlag(kTrackSideEffectDominators);
       SetDependsOnFlag(kNewSpacePromotion);
     }
-    if (is_external()) {
-      SetChangesFlag(kExternalMemory);
-      SetFlag(kAllowUndefinedAsNaN);
-    } else if (IsFastDoubleElementsKind(elements_kind)) {
+    if (IsFastDoubleElementsKind(elements_kind)) {
       SetChangesFlag(kDoubleArrayElements);
     } else if (IsFastSmiElementsKind(elements_kind)) {
       SetChangesFlag(kArrayElements);
     } else if (is_fixed_typed_array()) {
       SetChangesFlag(kTypedArrayElements);
+      SetChangesFlag(kExternalMemory);
       SetFlag(kAllowUndefinedAsNaN);
     } else {
       SetChangesFlag(kArrayElements);
     }
 
-    // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if ((elements_kind >= EXTERNAL_INT8_ELEMENTS &&
-        elements_kind <= EXTERNAL_UINT32_ELEMENTS) ||
-        (elements_kind >= UINT8_ELEMENTS &&
-        elements_kind <= INT32_ELEMENTS)) {
+    // {UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
+    if (elements_kind >= UINT8_ELEMENTS && elements_kind <= INT32_ELEMENTS) {
       SetFlag(kTruncatingToInt32);
     }
   }

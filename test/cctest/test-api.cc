@@ -14149,58 +14149,58 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
 
 
 THREADED_TEST(Uint8Array) {
-  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::ExternalUint8Array,
+  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::FixedUint8Array,
                        v8::ArrayBuffer>(i::kExternalUint8Array, 0, 0xFF);
 }
 
 
 THREADED_TEST(Int8Array) {
-  TypedArrayTestHelper<int8_t, v8::Int8Array, i::ExternalInt8Array,
+  TypedArrayTestHelper<int8_t, v8::Int8Array, i::FixedInt8Array,
                        v8::ArrayBuffer>(i::kExternalInt8Array, -0x80, 0x7F);
 }
 
 
 THREADED_TEST(Uint16Array) {
-  TypedArrayTestHelper<uint16_t, v8::Uint16Array, i::ExternalUint16Array,
+  TypedArrayTestHelper<uint16_t, v8::Uint16Array, i::FixedUint16Array,
                        v8::ArrayBuffer>(i::kExternalUint16Array, 0, 0xFFFF);
 }
 
 
 THREADED_TEST(Int16Array) {
-  TypedArrayTestHelper<int16_t, v8::Int16Array, i::ExternalInt16Array,
+  TypedArrayTestHelper<int16_t, v8::Int16Array, i::FixedInt16Array,
                        v8::ArrayBuffer>(i::kExternalInt16Array, -0x8000,
                                         0x7FFF);
 }
 
 
 THREADED_TEST(Uint32Array) {
-  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::ExternalUint32Array,
+  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::FixedUint32Array,
                        v8::ArrayBuffer>(i::kExternalUint32Array, 0, UINT_MAX);
 }
 
 
 THREADED_TEST(Int32Array) {
-  TypedArrayTestHelper<int32_t, v8::Int32Array, i::ExternalInt32Array,
+  TypedArrayTestHelper<int32_t, v8::Int32Array, i::FixedInt32Array,
                        v8::ArrayBuffer>(i::kExternalInt32Array, INT_MIN,
                                         INT_MAX);
 }
 
 
 THREADED_TEST(Float32Array) {
-  TypedArrayTestHelper<float, v8::Float32Array, i::ExternalFloat32Array,
+  TypedArrayTestHelper<float, v8::Float32Array, i::FixedFloat32Array,
                        v8::ArrayBuffer>(i::kExternalFloat32Array, -500, 500);
 }
 
 
 THREADED_TEST(Float64Array) {
-  TypedArrayTestHelper<double, v8::Float64Array, i::ExternalFloat64Array,
+  TypedArrayTestHelper<double, v8::Float64Array, i::FixedFloat64Array,
                        v8::ArrayBuffer>(i::kExternalFloat64Array, -500, 500);
 }
 
 
 THREADED_TEST(Uint8ClampedArray) {
   TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray,
-                       i::ExternalUint8ClampedArray, v8::ArrayBuffer>(
+                       i::FixedUint8ClampedArray, v8::ArrayBuffer>(
       i::kExternalUint8ClampedArray, 0, 0xFF);
 }
 
@@ -14226,14 +14226,14 @@ THREADED_TEST(DataView) {
 
 THREADED_TEST(SharedUint8Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::ExternalUint8Array,
+  TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::FixedUint8Array,
                        v8::SharedArrayBuffer>(i::kExternalUint8Array, 0, 0xFF);
 }
 
 
 THREADED_TEST(SharedInt8Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<int8_t, v8::Int8Array, i::ExternalInt8Array,
+  TypedArrayTestHelper<int8_t, v8::Int8Array, i::FixedInt8Array,
                        v8::SharedArrayBuffer>(i::kExternalInt8Array, -0x80,
                                               0x7F);
 }
@@ -14241,7 +14241,7 @@ THREADED_TEST(SharedInt8Array) {
 
 THREADED_TEST(SharedUint16Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<uint16_t, v8::Uint16Array, i::ExternalUint16Array,
+  TypedArrayTestHelper<uint16_t, v8::Uint16Array, i::FixedUint16Array,
                        v8::SharedArrayBuffer>(i::kExternalUint16Array, 0,
                                               0xFFFF);
 }
@@ -14249,7 +14249,7 @@ THREADED_TEST(SharedUint16Array) {
 
 THREADED_TEST(SharedInt16Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<int16_t, v8::Int16Array, i::ExternalInt16Array,
+  TypedArrayTestHelper<int16_t, v8::Int16Array, i::FixedInt16Array,
                        v8::SharedArrayBuffer>(i::kExternalInt16Array, -0x8000,
                                               0x7FFF);
 }
@@ -14257,7 +14257,7 @@ THREADED_TEST(SharedInt16Array) {
 
 THREADED_TEST(SharedUint32Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::ExternalUint32Array,
+  TypedArrayTestHelper<uint32_t, v8::Uint32Array, i::FixedUint32Array,
                        v8::SharedArrayBuffer>(i::kExternalUint32Array, 0,
                                               UINT_MAX);
 }
@@ -14265,7 +14265,7 @@ THREADED_TEST(SharedUint32Array) {
 
 THREADED_TEST(SharedInt32Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<int32_t, v8::Int32Array, i::ExternalInt32Array,
+  TypedArrayTestHelper<int32_t, v8::Int32Array, i::FixedInt32Array,
                        v8::SharedArrayBuffer>(i::kExternalInt32Array, INT_MIN,
                                               INT_MAX);
 }
@@ -14273,7 +14273,7 @@ THREADED_TEST(SharedInt32Array) {
 
 THREADED_TEST(SharedFloat32Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<float, v8::Float32Array, i::ExternalFloat32Array,
+  TypedArrayTestHelper<float, v8::Float32Array, i::FixedFloat32Array,
                        v8::SharedArrayBuffer>(i::kExternalFloat32Array, -500,
                                               500);
 }
@@ -14281,7 +14281,7 @@ THREADED_TEST(SharedFloat32Array) {
 
 THREADED_TEST(SharedFloat64Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  TypedArrayTestHelper<double, v8::Float64Array, i::ExternalFloat64Array,
+  TypedArrayTestHelper<double, v8::Float64Array, i::FixedFloat64Array,
                        v8::SharedArrayBuffer>(i::kExternalFloat64Array, -500,
                                               500);
 }
@@ -14290,7 +14290,7 @@ THREADED_TEST(SharedFloat64Array) {
 THREADED_TEST(SharedUint8ClampedArray) {
   i::FLAG_harmony_sharedarraybuffer = true;
   TypedArrayTestHelper<uint8_t, v8::Uint8ClampedArray,
-                       i::ExternalUint8ClampedArray, v8::SharedArrayBuffer>(
+                       i::FixedUint8ClampedArray, v8::SharedArrayBuffer>(
       i::kExternalUint8ClampedArray, 0, 0xFF);
 }
 

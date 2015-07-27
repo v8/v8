@@ -883,18 +883,14 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(int length,
 }
 
 
-Handle<ExternalArray> Factory::NewExternalArray(int length,
-                                                ExternalArrayType array_type,
-                                                void* external_pointer,
-                                                PretenureFlag pretenure) {
+Handle<FixedTypedArrayBase> Factory::NewFixedTypedArrayWithExternalPointer(
+    int length, ExternalArrayType array_type, void* external_pointer,
+    PretenureFlag pretenure) {
   DCHECK(0 <= length && length <= Smi::kMaxValue);
   CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateExternalArray(length,
-                                               array_type,
-                                               external_pointer,
-                                               pretenure),
-      ExternalArray);
+      isolate(), isolate()->heap()->AllocateFixedTypedArrayWithExternalPointer(
+                     length, array_type, external_pointer, pretenure),
+      FixedTypedArrayBase);
 }
 
 
@@ -1765,11 +1761,11 @@ ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
   switch (type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case kExternal##Type##Array:                          \
-    return EXTERNAL_##TYPE##_ELEMENTS;
+    return TYPE##_ELEMENTS;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
   }
   UNREACHABLE();
-  return FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+  return FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
 #undef TYPED_ARRAY_CASE
 }
 
@@ -1911,7 +1907,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   Handle<Object> length_object = NewNumberFromSize(length);
   obj->set_length(*length_object);
 
-  Handle<ExternalArray> elements = NewExternalArray(
+  Handle<FixedTypedArrayBase> elements = NewFixedTypedArrayWithExternalPointer(
       static_cast<int>(length), type,
       static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);

@@ -139,13 +139,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FLOAT32X4_TYPE:
-#define EXTERNAL_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case EXTERNAL_##TYPE##_ARRAY_TYPE:
-
-      TYPED_ARRAYS(EXTERNAL_ARRAY_CASE)
       return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                  instance_size, has_unboxed_fields);
-#undef EXTERNAL_ARRAY_CASE
 
     case FIXED_UINT8_ARRAY_TYPE:
     case FIXED_INT8_ARRAY_TYPE:

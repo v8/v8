@@ -856,10 +856,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
   } else if (object->IsContext()) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
-  } else if (object->IsFixedArray() ||
-             object->IsFixedDoubleArray() ||
-             object->IsByteArray() ||
-             object->IsExternalArray()) {
+  } else if (object->IsFixedArray() || object->IsFixedDoubleArray() ||
+             object->IsByteArray()) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object->IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");

@@ -3297,10 +3297,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   bool key_is_smi = instr->hydrogen()->key()->representation().IsSmi();
   int base_offset = instr->base_offset();
 
-  if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS ||
-      elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
-      elements_kind == FLOAT64_ELEMENTS) {
+  if (elements_kind == FLOAT32_ELEMENTS || elements_kind == FLOAT64_ELEMENTS) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     if (key_is_constant) {
       __ Add(scratch0(), external_pointer, constant_key << element_size_shift,
@@ -3309,8 +3306,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ IndexToArrayOffset(r0, key, element_size_shift, key_is_smi);
       __ add(scratch0(), external_pointer, r0);
     }
-    if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-        elements_kind == FLOAT32_ELEMENTS) {
+    if (elements_kind == FLOAT32_ELEMENTS) {
       __ lfs(result, MemOperand(scratch0(), base_offset));
     } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
       __ lfd(result, MemOperand(scratch0(), base_offset));
@@ -3321,7 +3317,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         PrepareKeyedOperand(key, external_pointer, key_is_constant, key_is_smi,
                             constant_key, element_size_shift, base_offset);
     switch (elements_kind) {
-      case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
         if (key_is_constant) {
           __ LoadByte(result, mem_operand, r0);
@@ -3330,8 +3325,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         }
         __ extsb(result, result);
         break;
-      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
-      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
         if (key_is_constant) {
@@ -3340,7 +3333,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
           __ lbzx(result, mem_operand);
         }
         break;
-      case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
         if (key_is_constant) {
           __ LoadHalfWordArith(result, mem_operand, r0);
@@ -3348,7 +3340,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
           __ lhax(result, mem_operand);
         }
         break;
-      case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
         if (key_is_constant) {
           __ LoadHalfWord(result, mem_operand, r0);
@@ -3356,7 +3347,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
           __ lhzx(result, mem_operand);
         }
         break;
-      case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
         if (key_is_constant) {
           __ LoadWordArith(result, mem_operand, r0);
@@ -3364,7 +3354,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
           __ lwax(result, mem_operand);
         }
         break;
-      case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
         if (key_is_constant) {
           __ LoadWord(result, mem_operand, r0);
@@ -3379,8 +3368,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT32_ELEMENTS:
-      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
@@ -3517,7 +3504,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  if (instr->is_typed_elements()) {
+  if (instr->is_fixed_typed_array()) {
     DoLoadKeyedExternalArray(instr);
   } else if (instr->hydrogen()->representation().IsDouble()) {
     DoLoadKeyedFixedDoubleArray(instr);
@@ -4571,10 +4558,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   bool key_is_smi = instr->hydrogen()->key()->representation().IsSmi();
   int base_offset = instr->base_offset();
 
-  if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS ||
-      elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
-      elements_kind == FLOAT64_ELEMENTS) {
+  if (elements_kind == FLOAT32_ELEMENTS || elements_kind == FLOAT64_ELEMENTS) {
     Register address = scratch0();
     DoubleRegister value(ToDoubleRegister(instr->value()));
     if (key_is_constant) {
@@ -4588,8 +4572,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       __ IndexToArrayOffset(r0, key, element_size_shift, key_is_smi);
       __ add(address, external_pointer, r0);
     }
-    if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-        elements_kind == FLOAT32_ELEMENTS) {
+    if (elements_kind == FLOAT32_ELEMENTS) {
       __ frsp(double_scratch0(), value);
       __ stfs(double_scratch0(), MemOperand(address, base_offset));
     } else {  // Storing doubles, not floats.
@@ -4601,9 +4584,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
         PrepareKeyedOperand(key, external_pointer, key_is_constant, key_is_smi,
                             constant_key, element_size_shift, base_offset);
     switch (elements_kind) {
-      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
-      case EXTERNAL_INT8_ELEMENTS:
-      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
       case INT8_ELEMENTS:
@@ -4613,8 +4593,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
           __ stbx(value, mem_operand);
         }
         break;
-      case EXTERNAL_INT16_ELEMENTS:
-      case EXTERNAL_UINT16_ELEMENTS:
       case INT16_ELEMENTS:
       case UINT16_ELEMENTS:
         if (key_is_constant) {
@@ -4623,8 +4601,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
           __ sthx(value, mem_operand);
         }
         break;
-      case EXTERNAL_INT32_ELEMENTS:
-      case EXTERNAL_UINT32_ELEMENTS:
       case INT32_ELEMENTS:
       case UINT32_ELEMENTS:
         if (key_is_constant) {
@@ -4635,8 +4611,6 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT32_ELEMENTS:
-      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:
@@ -4754,7 +4728,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
   // By cases: external, fast double
-  if (instr->is_typed_elements()) {
+  if (instr->is_fixed_typed_array()) {
     DoStoreKeyedExternalArray(instr);
   } else if (instr->hydrogen()->value()->representation().IsDouble()) {
     DoStoreKeyedFixedDoubleArray(instr);

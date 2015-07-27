@@ -78,9 +78,6 @@ void HeapObject::HeapObjectVerify() {
       break;
 
 #define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype, size)                      \
-    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                         \
-      External##Type##Array::cast(this)->External##Type##ArrayVerify();        \
-      break;                                                                   \
     case FIXED_##TYPE##_ARRAY_TYPE:                                            \
       Fixed##Type##Array::cast(this)->FixedTypedArrayVerify();                 \
       break;
@@ -236,21 +233,17 @@ void FreeSpace::FreeSpaceVerify() {
 }
 
 
-#define EXTERNAL_ARRAY_VERIFY(Type, type, TYPE, ctype, size)                  \
-  void External##Type##Array::External##Type##ArrayVerify() {                 \
-    CHECK(IsExternal##Type##Array());                                         \
-  }
-
-TYPED_ARRAYS(EXTERNAL_ARRAY_VERIFY)
-#undef EXTERNAL_ARRAY_VERIFY
-
-
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
   CHECK(IsHeapObject() &&
         HeapObject::cast(this)->map()->instance_type() ==
             Traits::kInstanceType);
-  CHECK(base_pointer() == this);
+  if (base_pointer() == this) {
+    CHECK(external_pointer() ==
+          ExternalReference::fixed_typed_array_base_data_offset().address());
+  } else {
+    CHECK(base_pointer() == nullptr);
+  }
 }
 
 
@@ -1096,7 +1089,6 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     }
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
-    case EXTERNAL_##TYPE##_ELEMENTS:                                          \
     case TYPE##_ELEMENTS:
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
