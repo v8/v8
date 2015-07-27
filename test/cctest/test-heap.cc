@@ -6049,3 +6049,49 @@ TEST(AllocationThroughput) {
   throughput = tracer->AllocationThroughputInBytesPerMillisecond(100);
   CHECK_EQ(2 * (counter3 - counter1) / (time3 - time1), throughput);
 }
+
+
+TEST(SlotsBufferObjectSlotsRemoval) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+
+  SlotsBuffer* buffer = new SlotsBuffer(NULL);
+  void* fake_object[1];
+
+  Handle<FixedArray> array = factory->NewFixedArray(2, TENURED);
+  CHECK(heap->old_space()->Contains(*array));
+  array->set(0, reinterpret_cast<Object*>(fake_object), SKIP_WRITE_BARRIER);
+
+  // Firstly, let's test the regular slots buffer entry.
+  buffer->Add(HeapObject::RawField(*array, FixedArray::kHeaderSize));
+  CHECK(reinterpret_cast<void*>(buffer->Get(0)) ==
+        HeapObject::RawField(*array, FixedArray::kHeaderSize));
+  SlotsBuffer::RemoveObjectSlots(CcTest::i_isolate()->heap(), buffer,
+                                 array->address(),
+                                 array->address() + array->Size());
+  CHECK(reinterpret_cast<void*>(buffer->Get(0)) ==
+        HeapObject::RawField(heap->empty_fixed_array(),
+                             FixedArrayBase::kLengthOffset));
+
+  // Secondly, let's test the typed slots buffer entry.
+  SlotsBuffer::AddTo(NULL, &buffer, SlotsBuffer::EMBEDDED_OBJECT_SLOT,
+                     array->address() + FixedArray::kHeaderSize,
+                     SlotsBuffer::FAIL_ON_OVERFLOW);
+  CHECK(reinterpret_cast<void*>(buffer->Get(1)) ==
+        reinterpret_cast<Object**>(SlotsBuffer::EMBEDDED_OBJECT_SLOT));
+  CHECK(reinterpret_cast<void*>(buffer->Get(2)) ==
+        HeapObject::RawField(*array, FixedArray::kHeaderSize));
+  SlotsBuffer::RemoveObjectSlots(CcTest::i_isolate()->heap(), buffer,
+                                 array->address(),
+                                 array->address() + array->Size());
+  CHECK(reinterpret_cast<void*>(buffer->Get(1)) ==
+        HeapObject::RawField(heap->empty_fixed_array(),
+                             FixedArrayBase::kLengthOffset));
+  CHECK(reinterpret_cast<void*>(buffer->Get(2)) ==
+        HeapObject::RawField(heap->empty_fixed_array(),
+                             FixedArrayBase::kLengthOffset));
+  delete buffer;
+}

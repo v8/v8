@@ -292,6 +292,8 @@ void MarkCompactCollector::ClearInvalidSlotsBufferEntries(PagedSpace* space) {
 void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
   heap_->store_buffer()->ClearInvalidStoreBufferEntries();
 
+  RemoveDeoptimizedCodeSlots();
+
   ClearInvalidSlotsBufferEntries(heap_->old_space());
   ClearInvalidSlotsBufferEntries(heap_->code_space());
   ClearInvalidSlotsBufferEntries(heap_->map_space());
@@ -554,34 +556,6 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
   intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
-}
-
-
-void Marking::SetAllMarkBitsInRange(MarkBit start, MarkBit end) {
-  MarkBit::CellType* start_cell = start.cell();
-  MarkBit::CellType* end_cell = end.cell();
-  MarkBit::CellType start_mask = ~(start.mask() - 1);
-  MarkBit::CellType end_mask = (end.mask() << 1) - 1;
-
-  if (start_cell == end_cell) {
-    *start_cell |= start_mask & end_mask;
-  } else {
-    *start_cell |= start_mask;
-    for (MarkBit::CellType* cell = start_cell + 1; cell < end_cell; cell++) {
-      *cell = ~0;
-    }
-    *end_cell |= end_mask;
-  }
-}
-
-
-void Marking::ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
-                                                      MarkBit end) {
-  MarkBit::CellType* start_cell = start.cell();
-  MarkBit::CellType* end_cell = end.cell();
-  for (MarkBit::CellType* cell = start_cell; cell <= end_cell; cell++) {
-    *cell = 0;
-  }
 }
 
 
@@ -3571,38 +3545,6 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
 }
 
 
-static bool SetMarkBitsUnderInvalidatedCode(Code* code, bool value) {
-  Page* p = Page::FromAddress(code->address());
-
-  if (p->IsEvacuationCandidate() || p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-    return false;
-  }
-
-  Address code_start = code->address();
-  Address code_end = code_start + code->Size();
-
-  uint32_t start_index = MemoryChunk::FastAddressToMarkbitIndex(code_start);
-  uint32_t end_index =
-      MemoryChunk::FastAddressToMarkbitIndex(code_end - kPointerSize);
-
-  // TODO(hpayer): Filter out invalidated code in
-  // ClearInvalidSlotsBufferEntries.
-  Bitmap* b = p->markbits();
-
-  MarkBit start_mark_bit = b->MarkBitFromIndex(start_index);
-  MarkBit end_mark_bit = b->MarkBitFromIndex(end_index);
-
-  if (value) {
-    Marking::SetAllMarkBitsInRange(start_mark_bit, end_mark_bit);
-  } else {
-    Marking::ClearAllMarkBitsOfCellsContainedInRange(start_mark_bit,
-                                                     end_mark_bit);
-  }
-
-  return true;
-}
-
-
 static bool IsOnInvalidatedCodeObject(Address addr) {
   // We did not record any slots in large objects thus
   // we can safely go to the page from the slot address.
@@ -3641,19 +3583,19 @@ bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
 }
 
 
-bool MarkCompactCollector::MarkInvalidatedCode() {
-  bool code_marked = false;
-
+void MarkCompactCollector::RemoveDeoptimizedCodeSlots() {
   int length = invalidated_code_.length();
   for (int i = 0; i < length; i++) {
     Code* code = invalidated_code_[i];
-
-    if (SetMarkBitsUnderInvalidatedCode(code, true)) {
-      code_marked = true;
+    Page* p = Page::FromAddress(code->address());
+    if (!p->IsEvacuationCandidate() &&
+        !p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+      // Ignore all slots that might have been recorded in the body of the
+      // deoptimized code object.
+      RemoveObjectSlots(code->instruction_start(),
+                        code->address() + code->Size());
     }
   }
-
-  return code_marked;
 }
 
 
@@ -3671,21 +3613,35 @@ void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
     Code* code = invalidated_code_[i];
     if (code != NULL) {
       code->Iterate(visitor);
-      SetMarkBitsUnderInvalidatedCode(code, false);
     }
   }
   invalidated_code_.Rewind(0);
 }
 
 
+void MarkCompactCollector::RemoveObjectSlots(Address start_slot,
+                                             Address end_slot) {
+  // Remove entries by replacing them with an old-space slot containing a smi
+  // that is located in an unmovable page.
+  int npages = evacuation_candidates_.length();
+  for (int i = 0; i < npages; i++) {
+    Page* p = evacuation_candidates_[i];
+    DCHECK(p->IsEvacuationCandidate() ||
+           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    if (p->IsEvacuationCandidate()) {
+      SlotsBuffer::RemoveObjectSlots(heap_, p->slots_buffer(), start_slot,
+                                     end_slot);
+    }
+  }
+}
+
+
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   Heap::RelocationLock relocation_lock(heap());
 
-  bool code_slots_filtering_required;
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_SWEEP_NEWSPACE);
-    code_slots_filtering_required = MarkInvalidatedCode();
     EvacuationScope evacuation_scope(this);
     EvacuateNewSpace();
   }
@@ -3732,8 +3688,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_UPDATE_POINTERS_TO_EVACUATED);
-    SlotsBuffer::UpdateSlotsRecordedIn(heap_, migration_slots_buffer_,
-                                       code_slots_filtering_required);
+    SlotsBuffer::UpdateSlotsRecordedIn(heap_, migration_slots_buffer_);
     if (FLAG_trace_fragmentation_verbose) {
       PrintF("  migration slots buffer: %d\n",
              SlotsBuffer::SizeOfChain(migration_slots_buffer_));
@@ -3767,8 +3722,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
              p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
 
       if (p->IsEvacuationCandidate()) {
-        SlotsBuffer::UpdateSlotsRecordedIn(heap_, p->slots_buffer(),
-                                           code_slots_filtering_required);
+        SlotsBuffer::UpdateSlotsRecordedIn(heap_, p->slots_buffer());
         if (FLAG_trace_fragmentation_verbose) {
           PrintF("  page %p slots buffer: %d\n", reinterpret_cast<void*>(p),
                  SlotsBuffer::SizeOfChain(p->slots_buffer()));
@@ -4574,6 +4528,41 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
         }
       } else {
         ++slot_idx;
+        DCHECK(slot_idx < slots_count);
+      }
+    }
+    buffer = buffer->next();
+  }
+}
+
+
+void SlotsBuffer::RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
+                                    Address start_slot, Address end_slot) {
+  // Remove entries by replacing them with an old-space slot containing a smi
+  // that is located in an unmovable page.
+  const ObjectSlot kRemovedEntry = HeapObject::RawField(
+      heap->empty_fixed_array(), FixedArrayBase::kLengthOffset);
+  DCHECK(Page::FromAddress(reinterpret_cast<Address>(kRemovedEntry))
+             ->NeverEvacuate());
+
+  while (buffer != NULL) {
+    SlotsBuffer::ObjectSlot* slots = buffer->slots_;
+    intptr_t slots_count = buffer->idx_;
+    bool is_typed_slot = false;
+
+    for (int slot_idx = 0; slot_idx < slots_count; ++slot_idx) {
+      ObjectSlot slot = slots[slot_idx];
+      if (!IsTypedSlot(slot)) {
+        Address slot_address = reinterpret_cast<Address>(slot);
+        if (slot_address >= start_slot && slot_address < end_slot) {
+          slots[slot_idx] = kRemovedEntry;
+          if (is_typed_slot) {
+            slots[slot_idx - 1] = kRemovedEntry;
+          }
+        }
+        is_typed_slot = false;
+      } else {
+        is_typed_slot = true;
         DCHECK(slot_idx < slots_count);
       }
     }

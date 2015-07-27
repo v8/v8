@@ -325,6 +325,12 @@ class SlotsBuffer {
     slots_[idx_++] = slot;
   }
 
+  // Should be used for testing only.
+  ObjectSlot Get(intptr_t i) {
+    DCHECK(i >= 0 && i < kNumberOfElements);
+    return slots_[i];
+  }
+
   enum SlotType {
     EMBEDDED_OBJECT_SLOT,
     OBJECT_SLOT,
@@ -374,14 +380,9 @@ class SlotsBuffer {
 
   inline bool HasSpaceForTypedSlot() { return idx_ < kNumberOfElements - 1; }
 
-  static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer,
-                                    bool code_slots_filtering_required) {
+  static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer) {
     while (buffer != NULL) {
-      if (code_slots_filtering_required) {
-        buffer->UpdateSlotsWithFilter(heap);
-      } else {
         buffer->UpdateSlots(heap);
-      }
       buffer = buffer->next();
     }
   }
@@ -419,6 +420,10 @@ class SlotsBuffer {
   // marking, when the whole transitive closure is known and must be called
   // before sweeping when mark bits are still intact.
   static void RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer);
+
+  // Eliminate all slots that are within the given address range.
+  static void RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
+                                Address start_slot, Address end_slot);
 
   // Ensures that there are no invalid slots in the chain of slots buffers.
   static void VerifySlots(Heap* heap, SlotsBuffer* buffer);
@@ -741,13 +746,17 @@ class MarkCompactCollector {
   bool IsSlotInLiveObject(Address slot);
   void VerifyIsSlotInLiveObject(Address slot, HeapObject* object);
 
+  // Removes all the slots in the slot buffers that are within the given
+  // address range.
+  void RemoveObjectSlots(Address start_slot, Address end_slot);
+
  private:
   class SweeperTask;
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
-  bool MarkInvalidatedCode();
+  void RemoveDeoptimizedCodeSlots();
   bool WillBeDeoptimized(Code* code);
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
