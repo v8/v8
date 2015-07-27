@@ -1378,17 +1378,19 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
     DCHECK(var->index() > 0);
     DCHECK(var->IsStaticGlobalObjectProperty());
     // Each var occupies two slots in the context: for reads and writes.
-    int slot_index = var->index();
-    int depth = scope()->ContextChainLength(var->scope());
-    __ mov(LoadGlobalViaContextDescriptor::DepthRegister(),
-           Operand(Smi::FromInt(depth)));
-    __ mov(LoadGlobalViaContextDescriptor::SlotRegister(),
-           Operand(Smi::FromInt(slot_index)));
-    __ mov(LoadGlobalViaContextDescriptor::NameRegister(),
-           Operand(var->name()));
-    LoadGlobalViaContextStub stub(isolate(), depth);
-    __ CallStub(&stub);
-
+    const int slot = var->index();
+    const int depth = scope()->ContextChainLength(var->scope());
+    if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
+      __ mov(LoadGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
+      __ mov(LoadGlobalViaContextDescriptor::NameRegister(),
+             Operand(var->name()));
+      LoadGlobalViaContextStub stub(isolate(), depth);
+      __ CallStub(&stub);
+    } else {
+      __ Push(Smi::FromInt(slot));
+      __ Push(var->name());
+      __ CallRuntime(Runtime::kLoadGlobalViaContext, 2);
+    }
   } else {
     __ LoadP(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
     __ mov(LoadDescriptor::NameRegister(), Operand(var->name()));
@@ -2714,18 +2716,24 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     DCHECK(var->index() > 0);
     DCHECK(var->IsStaticGlobalObjectProperty());
     // Each var occupies two slots in the context: for reads and writes.
-    int slot_index = var->index() + 1;
-    int depth = scope()->ContextChainLength(var->scope());
-    __ mov(StoreGlobalViaContextDescriptor::DepthRegister(),
-           Operand(Smi::FromInt(depth)));
-    __ mov(StoreGlobalViaContextDescriptor::SlotRegister(),
-           Operand(Smi::FromInt(slot_index)));
-    __ mov(StoreGlobalViaContextDescriptor::NameRegister(),
-           Operand(var->name()));
-    DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(r3));
-    StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
-    __ CallStub(&stub);
-
+    const int slot = var->index() + 1;
+    const int depth = scope()->ContextChainLength(var->scope());
+    if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
+      __ mov(StoreGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
+      __ mov(StoreGlobalViaContextDescriptor::NameRegister(),
+             Operand(var->name()));
+      DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(r3));
+      StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
+      __ CallStub(&stub);
+    } else {
+      __ Push(Smi::FromInt(slot));
+      __ Push(var->name());
+      __ push(r3);
+      __ CallRuntime(is_strict(language_mode())
+                         ? Runtime::kStoreGlobalViaContext_Strict
+                         : Runtime::kStoreGlobalViaContext_Sloppy,
+                     3);
+    }
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     DCHECK(!var->IsLookupSlot());

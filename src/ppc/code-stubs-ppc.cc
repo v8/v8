@@ -4208,7 +4208,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
     __ srwi(scratch2, scratch2, Operand(Name::kHashShift));
     __ and_(scratch2, scratch1, scratch2);
 
-    // Scale the index by multiplying by the element size.
+    // Scale the index by multiplying by the entry size.
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     // scratch2 = scratch2 * 3.
     __ ShiftLeftImm(ip, scratch2, Operand(1));
@@ -5310,6 +5310,162 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ bind(&fast_elements_case);
   GenerateCase(masm, FAST_ELEMENTS);
+}
+
+
+void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
+  Register context = cp;
+  Register result = r3;
+  Register slot = r5;
+  Register name = r6;
+  Label slow_case;
+
+  // Go up the context chain to the script context.
+  for (int i = 0; i < depth(); ++i) {
+    __ LoadP(result, ContextOperand(context, Context::PREVIOUS_INDEX));
+    context = result;
+  }
+
+  // Load the PropertyCell value at the specified slot.
+  __ ShiftLeftImm(result, slot, Operand(kPointerSizeLog2));
+  __ add(result, context, result);
+  __ LoadP(result, ContextOperand(result));
+  __ LoadP(result, FieldMemOperand(result, PropertyCell::kValueOffset));
+
+  // If the result is not the_hole, return. Otherwise, handle in the runtime.
+  __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+  __ Ret(ne);
+
+  // Fallback to runtime.
+  __ bind(&slow_case);
+  __ SmiTag(slot);
+  __ Push(slot, name);
+  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
+}
+
+
+void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
+  Register value = r3;
+  Register slot = r5;
+  Register name = r6;
+
+  Register cell = r4;
+  Register cell_details = r7;
+  Register cell_value = r8;
+  Register cell_value_map = r9;
+  Register scratch = r10;
+
+  Register context = cp;
+  Register context_temp = cell;
+
+  Label fast_heapobject_case, fast_smi_case, slow_case;
+
+  if (FLAG_debug_code) {
+    __ CompareRoot(value, Heap::kTheHoleValueRootIndex);
+    __ Check(ne, kUnexpectedValue);
+    __ AssertName(name);
+  }
+
+  // Go up the context chain to the script context.
+  for (int i = 0; i < depth(); i++) {
+    __ LoadP(context_temp, ContextOperand(context, Context::PREVIOUS_INDEX));
+    context = context_temp;
+  }
+
+  // Load the PropertyCell at the specified slot.
+  __ ShiftLeftImm(cell, slot, Operand(kPointerSizeLog2));
+  __ add(cell, context, cell);
+  __ LoadP(cell, ContextOperand(cell));
+
+  // Load PropertyDetails for the cell (actually only the cell_type and kind).
+  __ LoadP(cell_details, FieldMemOperand(cell, PropertyCell::kDetailsOffset));
+  __ SmiUntag(cell_details);
+  __ andi(cell_details, cell_details,
+          Operand(PropertyDetails::PropertyCellTypeField::kMask |
+                  PropertyDetails::KindField::kMask));
+
+  // Check if PropertyCell holds mutable data.
+  Label not_mutable_data;
+  __ cmpi(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                    PropertyCellType::kMutable) |
+                                PropertyDetails::KindField::encode(kData)));
+  __ bne(&not_mutable_data);
+  __ JumpIfSmi(value, &fast_smi_case);
+
+  __ bind(&fast_heapobject_case);
+  __ StoreP(value, FieldMemOperand(cell, PropertyCell::kValueOffset), r0);
+  // RecordWriteField clobbers the value register, so we copy it before the
+  // call.
+  __ mr(r7, value);
+  __ RecordWriteField(cell, PropertyCell::kValueOffset, r7, scratch,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ Ret();
+
+  __ bind(&not_mutable_data);
+  // Check if PropertyCell value matches the new value (relevant for Constant,
+  // ConstantType and Undefined cells).
+  Label not_same_value;
+  __ LoadP(cell_value, FieldMemOperand(cell, PropertyCell::kValueOffset));
+  __ cmp(cell_value, value);
+  __ bne(&not_same_value);
+
+  if (FLAG_debug_code) {
+    Label done;
+    // This can only be true for Constant, ConstantType and Undefined cells,
+    // because we never store the_hole via this stub.
+    __ cmpi(cell_details,
+            Operand(PropertyDetails::PropertyCellTypeField::encode(
+                        PropertyCellType::kConstant) |
+                    PropertyDetails::KindField::encode(kData)));
+    __ beq(&done);
+    __ cmpi(cell_details,
+            Operand(PropertyDetails::PropertyCellTypeField::encode(
+                        PropertyCellType::kConstantType) |
+                    PropertyDetails::KindField::encode(kData)));
+    __ beq(&done);
+    __ cmpi(cell_details,
+            Operand(PropertyDetails::PropertyCellTypeField::encode(
+                        PropertyCellType::kUndefined) |
+                    PropertyDetails::KindField::encode(kData)));
+    __ Check(eq, kUnexpectedValue);
+    __ bind(&done);
+  }
+  __ Ret();
+  __ bind(&not_same_value);
+
+  // Check if PropertyCell contains data with constant type.
+  __ cmpi(cell_details, Operand(PropertyDetails::PropertyCellTypeField::encode(
+                                    PropertyCellType::kConstantType) |
+                                PropertyDetails::KindField::encode(kData)));
+  __ bne(&slow_case);
+
+  // Now either both old and new values must be smis or both must be heap
+  // objects with same map.
+  Label value_is_heap_object;
+  __ JumpIfNotSmi(value, &value_is_heap_object);
+  __ JumpIfNotSmi(cell_value, &slow_case);
+  // Old and new values are smis, no need for a write barrier here.
+  __ bind(&fast_smi_case);
+  __ StoreP(value, FieldMemOperand(cell, PropertyCell::kValueOffset), r0);
+  __ Ret();
+
+  __ bind(&value_is_heap_object);
+  __ JumpIfSmi(cell_value, &slow_case);
+
+  __ LoadP(cell_value_map, FieldMemOperand(cell_value, HeapObject::kMapOffset));
+  __ LoadP(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ cmp(cell_value_map, scratch);
+  __ beq(&fast_heapobject_case);
+
+  // Fallback to runtime.
+  __ bind(&slow_case);
+  __ SmiTag(slot);
+  __ Push(slot, name, value);
+  __ TailCallRuntime(is_strict(language_mode())
+                         ? Runtime::kStoreGlobalViaContext_Strict
+                         : Runtime::kStoreGlobalViaContext_Sloppy,
+                     3, 1);
 }
 
 
