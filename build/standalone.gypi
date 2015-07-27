@@ -671,7 +671,85 @@
           }],
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
-        'msvs_disabled_warnings': [4355, 4800],
+        'msvs_disabled_warnings': [
+          # C4091: 'typedef ': ignored on left of 'X' when no variable is
+          #                    declared.
+          # This happens in a number of Windows headers. Dumb.
+          4091,
+
+          # C4127: conditional expression is constant
+          # This warning can in theory catch dead code and other problems, but
+          # triggers in far too many desirable cases where the conditional
+          # expression is either set by macros or corresponds some legitimate
+          # compile-time constant expression (due to constant template args,
+          # conditionals comparing the sizes of different types, etc.).  Some of
+          # these can be worked around, but it's not worth it.
+          4127,
+
+          # C4351: new behavior: elements of array 'array' will be default
+          #        initialized
+          # This is a silly "warning" that basically just alerts you that the
+          # compiler is going to actually follow the language spec like it's
+          # supposed to, instead of not following it like old buggy versions
+          # did.  There's absolutely no reason to turn this on.
+          4351,
+
+          # C4355: 'this': used in base member initializer list
+          # It's commonly useful to pass |this| to objects in a class'
+          # initializer list.  While this warning can catch real bugs, most of
+          # the time the constructors in question don't attempt to call methods
+          # on the passed-in pointer (until later), and annotating every legit
+          # usage of this is simply more hassle than the warning is worth.
+          4355,
+
+          # C4503: 'identifier': decorated name length exceeded, name was
+          #        truncated
+          # This only means that some long error messages might have truncated
+          # identifiers in the presence of lots of templates.  It has no effect
+          # on program correctness and there's no real reason to waste time
+          # trying to prevent it.
+          4503,
+
+          # Warning C4589 says: "Constructor of abstract class ignores
+          # initializer for virtual base class." Disable this warning because it
+          # is flaky in VS 2015 RTM. It triggers on compiler generated
+          # copy-constructors in some cases.
+          4589,
+
+          # C4611: interaction between 'function' and C++ object destruction is
+          #        non-portable
+          # This warning is unavoidable when using e.g. setjmp/longjmp.  MSDN
+          # suggests using exceptions instead of setjmp/longjmp for C++, but
+          # Chromium code compiles without exception support.  We therefore have
+          # to use setjmp/longjmp for e.g. JPEG decode error handling, which
+          # means we have to turn off this warning (and be careful about how
+          # object destruction happens in such cases).
+          4611,
+
+          # TODO(jochen): These warnings are level 4. They will be slowly
+          # removed as code is fixed.
+          4100, # Unreferenced formal parameter
+          4121, # Alignment of a member was sensitive to packing
+          4244, # Conversion from 'type1' to 'type2', possible loss of data
+          4302, # Truncation from 'type 1' to 'type 2'
+          4309, # Truncation of constant value
+          4311, # Pointer truncation from 'type' to 'type'
+          4312, # Conversion from 'type1' to 'type2' of greater size
+          4481, # Nonstandard extension used: override specifier 'keyword'
+          4505, # Unreferenced local function has been removed
+          4510, # Default constructor could not be generated
+          4512, # Assignment operator could not be generated
+          4610, # Object can never be instantiated
+          4800, # Forcing value to bool.
+          4838, # Narrowing conversion. Doesn't seem to be very useful.
+          4995, # 'X': name was marked as #pragma deprecated
+          4996, # 'X': was declared deprecated (for GetVersionEx).
+
+          # These are variable shadowing warnings that are new in VS2015. We
+          # should work through these at some point -- they may be removed from
+          # the RTM release in the /W4 set.
+          4456, 4457, 4458, 4459,
+        ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'MinimalRebuild': 'false',
