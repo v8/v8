@@ -5282,6 +5282,31 @@ TEST(Regress357137) {
 }
 
 
+TEST(Regress507979) {
+  const int kFixedArrayLen = 10;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope handle_scope(isolate);
+
+  Handle<FixedArray> o1 = isolate->factory()->NewFixedArray(kFixedArrayLen);
+  Handle<FixedArray> o2 = isolate->factory()->NewFixedArray(kFixedArrayLen);
+  CHECK(heap->InNewSpace(o1->address()));
+  CHECK(heap->InNewSpace(o2->address()));
+
+  HeapIterator it(heap, i::HeapIterator::kFilterUnreachable);
+
+  // Replace parts of an object placed before a live object with a filler. This
+  // way the filler object shares the mark bits with the following live object.
+  o1->Shrink(kFixedArrayLen - 1);
+
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+    // Let's not optimize the loop away.
+    CHECK(obj->address() != nullptr);
+  }
+}
+
+
 TEST(ArrayShiftSweeping) {
   i::FLAG_expose_gc = true;
   CcTest::InitializeVM();
