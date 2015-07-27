@@ -214,13 +214,11 @@ class ScriptCache {
 class DebugInfoListNode {
  public:
   explicit DebugInfoListNode(DebugInfo* debug_info);
-  virtual ~DebugInfoListNode() { ClearInfo(); }
+  ~DebugInfoListNode();
 
   DebugInfoListNode* next() { return next_; }
   void set_next(DebugInfoListNode* next) { next_ = next; }
   Handle<DebugInfo> debug_info() { return Handle<DebugInfo>(debug_info_); }
-
-  void ClearInfo();
 
  private:
   // Global (weak) handle to the debug info object.
@@ -476,10 +474,6 @@ class Debug {
                              LiveEdit::FrameDropMode mode,
                              Object** restarter_frame_function_pointer);
 
-  // Passed to MakeWeak.
-  static void HandlePhantomDebugInfo(
-      const PhantomCallbackData<DebugInfoListNode>& data);
-
   // Threading support.
   char* ArchiveDebug(char* to);
   char* RestoreDebug(char* from);
@@ -600,9 +594,6 @@ class Debug {
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
-  void RemoveDebugInfo(DebugInfo** debug_info);
-  void RemoveDebugInfo(DebugInfoListNode* node);
-  void RemoveDebugInfo(DebugInfoListNode* prev, DebugInfoListNode* node);
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 

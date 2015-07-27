@@ -414,36 +414,15 @@ ScriptCache::~ScriptCache() {
 }
 
 
-void Debug::HandlePhantomDebugInfo(
-    const v8::WeakCallbackInfo<DebugInfoListNode>& data) {
-  DebugInfoListNode* node = data.GetParameter();
-  node->ClearInfo();
-  Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
-  debug->RemoveDebugInfo(node);
-#ifdef DEBUG
-  for (DebugInfoListNode* n = debug->debug_info_list_;
-       n != NULL;
-       n = n->next()) {
-    DCHECK(n != node);
-  }
-#endif
-}
-
-
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   debug_info_ =
       Handle<DebugInfo>::cast(global_handles->Create(debug_info)).location();
-  typedef WeakCallbackInfo<void>::Callback Callback;
-  GlobalHandles::MakeWeak(
-      reinterpret_cast<Object**>(debug_info_), this,
-      reinterpret_cast<Callback>(Debug::HandlePhantomDebugInfo),
-      v8::WeakCallbackType::kParameter);
 }
 
 
-void DebugInfoListNode::ClearInfo() {
+DebugInfoListNode::~DebugInfoListNode() {
   if (debug_info_ == nullptr) return;
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_));
   debug_info_ = nullptr;
@@ -1654,60 +1633,32 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
 }
 
 
-void Debug::RemoveDebugInfo(DebugInfoListNode* prev, DebugInfoListNode* node) {
-  // Unlink from list. If prev is NULL we are looking at the first element.
-  if (prev == NULL) {
-    debug_info_list_ = node->next();
-  } else {
-    prev->set_next(node->next());
-  }
-  delete node;
-}
-
-
-void Debug::RemoveDebugInfo(DebugInfo** debug_info) {
-  DCHECK(debug_info_list_ != NULL);
-  // Run through the debug info objects to find this one and remove it.
-  DebugInfoListNode* prev = NULL;
-  DebugInfoListNode* current = debug_info_list_;
-  while (current != NULL) {
-    if (current->debug_info().location() == debug_info) {
-      RemoveDebugInfo(prev, current);
-      return;
-    }
-    // Move to next in list.
-    prev = current;
-    current = current->next();
-  }
-  UNREACHABLE();
-}
-
-
-void Debug::RemoveDebugInfo(DebugInfoListNode* node) {
-  DCHECK(debug_info_list_ != NULL);
-  // Run through the debug info objects to find this one and remove it.
-  DebugInfoListNode* prev = NULL;
-  DebugInfoListNode* current = debug_info_list_;
-  while (current != NULL) {
-    if (current == node) {
-      RemoveDebugInfo(prev, node);
-      return;
-    }
-    // Move to next in list.
-    prev = current;
-    current = current->next();
-  }
-  UNREACHABLE();
-}
-
-
 void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
   HandleScope scope(isolate_);
   Handle<SharedFunctionInfo> shared(debug_info->shared());
 
-  RemoveDebugInfo(debug_info.location());
+  DCHECK_NOT_NULL(debug_info_list_);
+  // Run through the debug info objects to find this one and remove it.
+  DebugInfoListNode* prev = NULL;
+  DebugInfoListNode* current = debug_info_list_;
+  while (current != NULL) {
+    if (current->debug_info().is_identical_to(debug_info)) {
+      // Unlink from list. If prev is NULL we are looking at the first element.
+      if (prev == NULL) {
+        debug_info_list_ = current->next();
+      } else {
+        prev->set_next(current->next());
+      }
+      delete current;
+      shared->set_debug_info(isolate_->heap()->undefined_value());
+      return;
+    }
+    // Move to next in list.
+    prev = current;
+    current = current->next();
+  }
 
-  shared->set_debug_info(isolate_->heap()->undefined_value());
+  UNREACHABLE();
 }
 
 
