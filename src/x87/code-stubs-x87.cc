@@ -325,8 +325,28 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  // No SSE2 support
-  UNREACHABLE();
+  const Register base = edx;
+  const Register scratch = ecx;
+  Counters* counters = isolate()->counters();
+  Label call_runtime;
+
+  // We will call runtime helper function directly.
+  if (exponent_type() == ON_STACK) {
+    // The arguments are still on the stack.
+    __ bind(&call_runtime);
+    __ TailCallRuntime(Runtime::kMathPowRT, 2, 1);
+
+    // The stub is called from non-optimized code, which expects the result
+    // as heap number in exponent.
+    __ AllocateHeapNumber(eax, scratch, base, &call_runtime);
+    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+    __ IncrementCounter(counters->math_pow(), 1);
+    __ ret(2 * kPointerSize);
+  } else {
+    // Currently it's only called from full-compiler and exponent type is
+    // ON_STACK.
+    UNIMPLEMENTED();
+  }
 }
 
 
