@@ -126,16 +126,16 @@ def LoadAndroidBuildTools(path):  # pragma: no cover
   assert os.path.exists(path)
   sys.path.insert(0, path)
 
-  from pylib.device import device_utils  # pylint: disable=F0401
+  from pylib.device import adb_wrapper  # pylint: disable=F0401
   from pylib.device import device_errors  # pylint: disable=F0401
+  from pylib.device import device_utils  # pylint: disable=F0401
   from pylib.perf import cache_control  # pylint: disable=F0401
   from pylib.perf import perf_control  # pylint: disable=F0401
-  import pylib.android_commands  # pylint: disable=F0401
+  global adb_wrapper
   global cache_control
   global device_errors
   global device_utils
   global perf_control
-  global pylib
 
 
 def GeometricMean(values):
@@ -652,15 +652,13 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
     if not options.device:
       # Detect attached device if not specified.
-      devices = pylib.android_commands.GetAttachedDevices(
-          hardware=True, emulator=False, offline=False)
+      devices = adb_wrapper.AdbWrapper.Devices()
       assert devices and len(devices) == 1, (
           "None or multiple devices detected. Please specify the device on "
           "the command-line with --device")
-      options.device = devices[0]
-    adb_wrapper = pylib.android_commands.AndroidCommands(options.device)
-    self.device = device_utils.DeviceUtils(adb_wrapper)
-    self.adb = adb_wrapper.Adb()
+      options.device = str(devices[0])
+    self.adb_wrapper = adb_wrapper.AdbWrapper(options.device)
+    self.device = device_utils.DeviceUtils(self.adb_wrapper)
 
   def PreExecution(self):
     perf = perf_control.PerfControl(self.device)
@@ -673,10 +671,6 @@ class AndroidPlatform(Platform):  # pragma: no cover
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
     self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
-
-  def _SendCommand(self, cmd):
-    logging.info("adb -s %s %s" % (str(self.device), cmd))
-    return self.adb.SendCommand(cmd, timeout_time=60)
 
   def _PushFile(self, host_dir, file_name, target_rel=".",
                 skip_if_missing=False):
@@ -701,14 +695,13 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
     # Work-around for "text file busy" errors. Push the files to a temporary
     # location and then copy them with a shell command.
-    output = self._SendCommand(
-        "push %s %s" % (file_on_host, file_on_device_tmp))
+    output = self.adb_wrapper.Push(file_on_host, file_on_device_tmp)
     # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)".
     # Errors look like this: "failed to copy  ... ".
     if output and not re.search('^[0-9]', output.splitlines()[-1]):
       logging.critical('PUSH FAILED: ' + output)
-    self._SendCommand("shell mkdir -p %s" % folder_on_device)
-    self._SendCommand("shell cp %s %s" % (file_on_device_tmp, file_on_device))
+    self.adb_wrapper.Shell("mkdir -p %s" % folder_on_device)
+    self.adb_wrapper.Shell("cp %s %s" % (file_on_device_tmp, file_on_device))
 
   def _PushExecutable(self, shell_dir, target_dir, binary):
     self._PushFile(shell_dir, binary, target_dir)
