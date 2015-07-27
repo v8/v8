@@ -2416,7 +2416,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     KeyedAccessStoreMode store_mode) {
   DCHECK(top_info()->IsStub() || checked_object->IsCompareMap() ||
          checked_object->IsCheckMaps());
-  DCHECK(!IsFixedTypedArrayElementsKind(elements_kind) || !is_js_array);
+  DCHECK((!IsExternalArrayElementsKind(elements_kind) &&
+              !IsFixedTypedArrayElementsKind(elements_kind)) ||
+         !is_js_array);
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
   // on a HElementsTransition instruction. The flag can also be removed if the
   // map to check has FAST_HOLEY_ELEMENTS, since there can be no further
@@ -2447,17 +2449,24 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   length->set_type(HType::Smi());
   HValue* checked_key = NULL;
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+  if (IsExternalArrayElementsKind(elements_kind) ||
+      IsFixedTypedArrayElementsKind(elements_kind)) {
     checked_object = Add<HCheckArrayBufferNotNeutered>(checked_object);
 
-    HValue* external_pointer = Add<HLoadNamedField>(
-        elements, nullptr,
-        HObjectAccess::ForFixedTypedArrayBaseExternalPointer());
-    HValue* base_pointer = Add<HLoadNamedField>(
-        elements, nullptr, HObjectAccess::ForFixedTypedArrayBaseBasePointer());
-    HValue* backing_store = AddUncasted<HAdd>(
-        external_pointer, base_pointer, Strength::WEAK, AddOfExternalAndTagged);
-
+    HValue* backing_store;
+    if (IsExternalArrayElementsKind(elements_kind)) {
+      backing_store = Add<HLoadNamedField>(
+          elements, nullptr, HObjectAccess::ForExternalArrayExternalPointer());
+    } else {
+      HValue* external_pointer = Add<HLoadNamedField>(
+          elements, nullptr,
+          HObjectAccess::ForFixedTypedArrayBaseExternalPointer());
+      HValue* base_pointer = Add<HLoadNamedField>(
+          elements, nullptr,
+          HObjectAccess::ForFixedTypedArrayBaseBasePointer());
+      backing_store = AddUncasted<HAdd>(external_pointer, base_pointer,
+                                        Strength::WEAK, AddOfExternalAndTagged);
+    }
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       NoObservableSideEffectsScope no_effects(this);
       IfBuilder length_checker(this);
@@ -2689,7 +2698,8 @@ HInstruction* HGraphBuilder::AddElementAccess(
     LoadKeyedHoleMode load_mode) {
   if (access_type == STORE) {
     DCHECK(val != NULL);
-    if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
+    if (elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
+        elements_kind == UINT8_CLAMPED_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
     return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
@@ -2700,7 +2710,8 @@ HInstruction* HGraphBuilder::AddElementAccess(
   DCHECK(val == NULL);
   HLoadKeyed* load = Add<HLoadKeyed>(
       elements, checked_key, dependency, elements_kind, load_mode);
-  if (elements_kind == UINT32_ELEMENTS) {
+  if (elements_kind == EXTERNAL_UINT32_ELEMENTS ||
+      elements_kind == UINT32_ELEMENTS) {
     graph()->RecordUint32Instruction(load);
   }
   return load;
@@ -7402,6 +7413,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
                                                 val));
     } else {
       DCHECK(IsFastElementsKind(elements_kind) ||
+             IsExternalArrayElementsKind(elements_kind) ||
              IsFixedTypedArrayElementsKind(elements_kind));
       LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
       // Happily, mapcompare is a checked object.
@@ -9936,14 +9948,14 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
     bool is_zero_byte_offset,
     HValue* buffer, HValue* byte_offset, HValue* length) {
   Handle<Map> external_array_map(
-      isolate()->heap()->MapForFixedTypedArray(array_type));
+      isolate()->heap()->MapForExternalArrayType(array_type));
 
   // The HForceRepresentation is to prevent possible deopt on int-smi
   // conversion after allocation but before the new object fields are set.
   length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
-  HValue* elements = Add<HAllocate>(
-      Add<HConstant>(FixedTypedArrayBase::kHeaderSize), HType::HeapObject(),
-      NOT_TENURED, external_array_map->instance_type());
+  HValue* elements =
+      Add<HAllocate>(Add<HConstant>(ExternalArray::kSize), HType::HeapObject(),
+                     NOT_TENURED, external_array_map->instance_type());
 
   AddStoreMapConstant(elements, external_array_map);
   Add<HStoreNamedField>(elements,
@@ -9965,11 +9977,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
   }
 
   Add<HStoreNamedField>(elements,
-                        HObjectAccess::ForFixedTypedArrayBaseBasePointer(),
-                        graph()->GetConstant0());
-  Add<HStoreNamedField>(elements,
-                        HObjectAccess::ForFixedTypedArrayBaseExternalPointer(),
-                        typed_array_start);
+      HObjectAccess::ForExternalArrayExternalPointer(),
+      typed_array_start);
 
   return elements;
 }
@@ -10116,10 +10125,13 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   ExternalArrayType array_type =
       kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
+  ElementsKind external_elements_kind =  // Bogus initialization.
+      EXTERNAL_INT8_ELEMENTS;
   ElementsKind fixed_elements_kind =  // Bogus initialization.
       INT8_ELEMENTS;
   Runtime::ArrayIdToTypeAndSize(array_id,
       &array_type,
+      &external_elements_kind,
       &fixed_elements_kind,
       &element_size);
 
@@ -10144,8 +10156,8 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     if (buffer != NULL) {
       elements = BuildAllocateExternalElements(
           array_type, is_zero_byte_offset, buffer, byte_offset, length);
-      Handle<Map> obj_map =
-          TypedArrayMap(isolate(), array_type, fixed_elements_kind);
+      Handle<Map> obj_map = TypedArrayMap(
+          isolate(), array_type, external_elements_kind);
       AddStoreMapConstant(obj, obj_map);
     } else {
       DCHECK(is_zero_byte_offset);

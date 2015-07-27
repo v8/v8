@@ -235,8 +235,11 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives(ContextType context_type);
 
-  void InstallTypedArray(const char* name, ElementsKind elements_kind,
-                         Handle<JSFunction>* fun);
+  void InstallTypedArray(
+      const char* name,
+      ElementsKind elements_kind,
+      Handle<JSFunction>* fun,
+      Handle<Map>* external_map);
   bool InstallExperimentalNatives();
   bool InstallExtraNatives();
   void InstallBuiltinFunctionIds();
@@ -1281,12 +1284,17 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   }
 
   {  // -- T y p e d A r r a y s
-#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)   \
-  {                                                          \
-    Handle<JSFunction> fun;                                  \
-    InstallTypedArray(#Type "Array", TYPE##_ELEMENTS, &fun); \
-    native_context()->set_##type##_array_fun(*fun);          \
-  }
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)                    \
+    {                                                                         \
+      Handle<JSFunction> fun;                                                 \
+      Handle<Map> external_map;                                               \
+      InstallTypedArray(#Type "Array",                                        \
+          TYPE##_ELEMENTS,                                                    \
+          &fun,                                                               \
+          &external_map);                                                     \
+      native_context()->set_##type##_array_fun(*fun);                         \
+      native_context()->set_##type##_array_external_map(*external_map);       \
+    }
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
 
@@ -1497,8 +1505,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 }
 
 
-void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
-                                Handle<JSFunction>* fun) {
+void Genesis::InstallTypedArray(
+    const char* name,
+    ElementsKind elements_kind,
+    Handle<JSFunction>* fun,
+    Handle<Map>* external_map) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
   Handle<JSFunction> result = InstallFunction(
       global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize,
@@ -1511,6 +1522,9 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
   JSFunction::SetInitialMap(result, initial_map,
                             handle(initial_map->prototype(), isolate()));
   *fun = result;
+
+  ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
+  *external_map = Map::AsElementsKind(initial_map, external_kind);
 }
 
 

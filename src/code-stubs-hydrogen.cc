@@ -1987,6 +1987,13 @@ class CodeStubGraphBuilder<KeyedLoadGenericStub>
                             HValue* bit_field2,
                             ElementsKind kind);
 
+  void BuildExternalElementLoad(HGraphBuilder::IfBuilder* if_builder,
+                                HValue* receiver,
+                                HValue* key,
+                                HValue* instance_type,
+                                HValue* bit_field2,
+                                ElementsKind kind);
+
   KeyedLoadGenericStub* casted_stub() {
     return static_cast<KeyedLoadGenericStub*>(stub());
   }
@@ -2008,6 +2015,8 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildElementsKindLimitCheck(
 void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
     HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
     HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
+  DCHECK(!IsExternalArrayElementsKind(kind));
+
   BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
 
   IfBuilder js_array_check(this);
@@ -2024,6 +2033,20 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
                                               LOAD, NEVER_RETURN_HOLE,
                                               STANDARD_STORE));
   js_array_check.End();
+}
+
+
+void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildExternalElementLoad(
+    HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
+    HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
+  DCHECK(IsExternalArrayElementsKind(kind));
+
+  BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
+
+  Push(BuildUncheckedMonomorphicElementAccess(receiver, key, NULL,
+                                              false, kind,
+                                              LOAD, NEVER_RETURN_HOLE,
+                                              STANDARD_STORE));
 }
 
 
@@ -2087,6 +2110,42 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     Add<HDeoptimize>(Deoptimizer::kNonStrictElementsInKeyedLoadGenericStub,
                      Deoptimizer::EAGER);
     Push(graph()->GetConstant0());
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_INT8_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_UINT8_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_INT16_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_UINT16_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_INT32_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_UINT32_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_FLOAT32_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_FLOAT64_ELEMENTS);
+
+    kind_if.Else();
+    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
+                             EXTERNAL_UINT8_CLAMPED_ELEMENTS);
 
     kind_if.ElseDeopt(
         Deoptimizer::kElementsKindUnhandledInKeyedLoadGenericStub);
@@ -2175,7 +2234,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
             index->ClearFlag(HValue::kCanOverflow);
             HValue* property_index =
                 Add<HLoadKeyed>(cache_field_offsets, index, nullptr,
-                                INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
+                                EXTERNAL_INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
             Push(property_index);
           }
           lookup_if->Else();

@@ -1281,6 +1281,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<FreeSpace[" << FreeSpace::cast(this)->Size() << "]>";
       break;
 #define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype, size)                \
+  case EXTERNAL_##TYPE##_ARRAY_TYPE:                                          \
+    os << "<External" #Type "Array["                                          \
+       << External##Type##Array::cast(this)->length() << "]>";                \
+    break;                                                                    \
   case FIXED_##TYPE##_ARRAY_TYPE:                                             \
     os << "<Fixed" #Type "Array[" << Fixed##Type##Array::cast(this)->length() \
        << "]>";                                                               \
@@ -1504,6 +1508,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case EXTERNAL_##TYPE##_ARRAY_TYPE:                    \
+    break;                                              \
+                                                        \
   case FIXED_##TYPE##_ARRAY_TYPE:                       \
     reinterpret_cast<FixedTypedArrayBase*>(this)        \
         ->FixedTypedArrayBaseIterateBody(v);            \
@@ -3311,7 +3318,8 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
 
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
-  if (it->IsElement() && receiver->HasFixedTypedArrayElements()) {
+  if (it->IsElement() && (receiver->HasExternalArrayElements() ||
+                          receiver->HasFixedTypedArrayElements())) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), to_assign,
                                  Execution::ToNumber(it->isolate(), value),
@@ -3423,11 +3431,13 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
       }
 
       if (FLAG_trace_external_array_abuse &&
-          array->HasFixedTypedArrayElements()) {
+          (array->HasExternalArrayElements() ||
+           array->HasFixedTypedArrayElements())) {
         CheckArrayAbuse(array, "typed elements write", it->index(), true);
       }
 
-      if (FLAG_trace_js_array_abuse && !array->HasFixedTypedArrayElements()) {
+      if (FLAG_trace_js_array_abuse && !array->HasExternalArrayElements() &&
+          !array->HasFixedTypedArrayElements()) {
         CheckArrayAbuse(array, "elements write", it->index(), false);
       }
     }
@@ -4256,7 +4266,8 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 
         // Special case: properties of typed arrays cannot be reconfigured to
         // non-writable nor to non-enumerable.
-        if (it->IsElement() && object->HasFixedTypedArrayElements()) {
+        if (it->IsElement() && (object->HasExternalArrayElements() ||
+                                object->HasFixedTypedArrayElements())) {
           return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
                                                  value, STRICT);
         }
@@ -4839,7 +4850,8 @@ Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
 
 Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     Handle<JSObject> object) {
-  DCHECK(!object->HasFixedTypedArrayElements());
+  DCHECK(!object->HasExternalArrayElements() &&
+         !object->HasFixedTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
 
   // Find the backing store.
@@ -5344,6 +5356,7 @@ bool JSObject::ReferencesObject(Object* obj) {
     // Raw pixels and external arrays do not reference other
     // objects.
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                           \
     case TYPE##_ELEMENTS:                                                      \
       break;
 
@@ -5453,7 +5466,8 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   }
 
   // It's not possible to seal objects with external array elements
-  if (object->HasFixedTypedArrayElements()) {
+  if (object->HasExternalArrayElements() ||
+      object->HasFixedTypedArrayElements()) {
     THROW_NEW_ERROR(
         isolate, NewTypeError(MessageTemplate::kCannotPreventExtExternalArray),
         Object);
@@ -5546,7 +5560,8 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
   }
 
   // It's not possible to seal or freeze objects with external array elements
-  if (object->HasFixedTypedArrayElements()) {
+  if (object->HasExternalArrayElements() ||
+      object->HasFixedTypedArrayElements()) {
     THROW_NEW_ERROR(
         isolate, NewTypeError(MessageTemplate::kCannotPreventExtExternalArray),
         Object);
@@ -5815,7 +5830,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
     // Deep copy own elements.
     // Pixel elements cannot be created using an object literal.
-    DCHECK(!copy->HasFixedTypedArrayElements());
+    DCHECK(!copy->HasExternalArrayElements());
     switch (kind) {
       case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
@@ -5877,6 +5892,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                         \
       case TYPE##_ELEMENTS:                                                    \
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -6279,7 +6295,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   // Ignore accessors on typed arrays.
-  if (it.IsElement() && object->HasFixedTypedArrayElements()) {
+  if (it.IsElement() && (object->HasFixedTypedArrayElements() ||
+                         object->HasExternalArrayElements())) {
     return it.factory()->undefined_value();
   }
 
@@ -6342,7 +6359,8 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   }
 
   // Ignore accessors on typed arrays.
-  if (it.IsElement() && object->HasFixedTypedArrayElements()) {
+  if (it.IsElement() && (object->HasFixedTypedArrayElements() ||
+                         object->HasExternalArrayElements())) {
     return it.factory()->undefined_value();
   }
 
@@ -6759,10 +6777,13 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   Map* maybe_elements_transition_map = NULL;
   if (flag == INSERT_TRANSITION) {
     maybe_elements_transition_map = map->ElementsTransitionMap();
-    DCHECK(maybe_elements_transition_map == NULL ||
-           (maybe_elements_transition_map->elements_kind() ==
-                DICTIONARY_ELEMENTS &&
-            kind == DICTIONARY_ELEMENTS));
+    DCHECK(
+        maybe_elements_transition_map == NULL ||
+        ((maybe_elements_transition_map->elements_kind() ==
+              DICTIONARY_ELEMENTS ||
+          IsExternalArrayElementsKind(
+              maybe_elements_transition_map->elements_kind())) &&
+         (kind == DICTIONARY_ELEMENTS || IsExternalArrayElementsKind(kind))));
     DCHECK(!IsFastElementsKind(kind) ||
            IsMoreGeneralElementsKindTransition(map->elements_kind(), kind));
     DCHECK(kind != map->elements_kind());
@@ -12578,6 +12599,7 @@ int JSObject::GetFastElementsUsage() {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case DICTIONARY_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                         \
     case TYPE##_ELEMENTS:                                                    \
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -13011,6 +13033,7 @@ int JSObject::GetOwnElementKeys(FixedArray* storage,
     }
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
+    case EXTERNAL_##TYPE##_ELEMENTS:                                         \
     case TYPE##_ELEMENTS:                                                    \
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -13832,7 +13855,8 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     JSObject::ValidateElements(object);
 
     JSObject::SetMapAndElements(object, new_map, fast_elements);
-  } else if (object->HasFixedTypedArrayElements()) {
+  } else if (object->HasExternalArrayElements() ||
+             object->HasFixedTypedArrayElements()) {
     // Typed arrays cannot have holes or undefined elements.
     return handle(Smi::FromInt(
         FixedArrayBase::cast(object->elements())->length()), isolate);
@@ -13935,6 +13959,7 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
 ExternalArrayType JSTypedArray::type() {
   switch (elements()->map()->instance_type()) {
 #define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                        \
     case FIXED_##TYPE##_ARRAY_TYPE:                                           \
       return kExternal##Type##Array;
 
@@ -13950,9 +13975,9 @@ ExternalArrayType JSTypedArray::type() {
 
 size_t JSTypedArray::element_size() {
   switch (elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype, size) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                                    \
-    return size;
+#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype, size)          \
+    case EXTERNAL_##TYPE##_ARRAY_TYPE:                                        \
+      return size;
 
     TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENT_SIZE)
 #undef INSTANCE_TYPE_TO_ELEMENT_SIZE
@@ -13970,6 +13995,131 @@ void FixedArray::SetValue(uint32_t index, Object* value) { set(index, value); }
 void FixedDoubleArray::SetValue(uint32_t index, Object* value) {
   set(index, value->Number());
 }
+
+
+void ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
+  uint8_t clamped_value = 0;
+  if (value->IsSmi()) {
+    int int_value = Smi::cast(value)->value();
+    if (int_value < 0) {
+      clamped_value = 0;
+    } else if (int_value > 255) {
+      clamped_value = 255;
+    } else {
+      clamped_value = static_cast<uint8_t>(int_value);
+    }
+  } else if (value->IsHeapNumber()) {
+    double double_value = HeapNumber::cast(value)->value();
+    if (!(double_value > 0)) {
+      // NaN and less than zero clamp to zero.
+      clamped_value = 0;
+    } else if (double_value > 255) {
+      // Greater than 255 clamp to 255.
+      clamped_value = 255;
+    } else {
+      // Other doubles are rounded to the nearest integer.
+      clamped_value = static_cast<uint8_t>(lrint(double_value));
+    }
+  } else {
+    // Clamp undefined to zero (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
+  }
+  set(index, clamped_value);
+}
+
+
+template <typename ExternalArrayClass, typename ValueType>
+static void ExternalArrayIntSetter(ExternalArrayClass* receiver, uint32_t index,
+                                   Object* value) {
+  ValueType cast_value = 0;
+  if (value->IsSmi()) {
+    int int_value = Smi::cast(value)->value();
+    cast_value = static_cast<ValueType>(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = HeapNumber::cast(value)->value();
+    cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
+  } else {
+    // Clamp undefined to zero (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
+  }
+  receiver->set(index, cast_value);
+}
+
+
+void ExternalInt8Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalInt8Array, int8_t>(this, index, value);
+}
+
+
+void ExternalUint8Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(this, index, value);
+}
+
+
+void ExternalInt16Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalInt16Array, int16_t>(this, index, value);
+}
+
+
+void ExternalUint16Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(this, index, value);
+}
+
+
+void ExternalInt32Array::SetValue(uint32_t index, Object* value) {
+  ExternalArrayIntSetter<ExternalInt32Array, int32_t>(this, index, value);
+}
+
+
+void ExternalUint32Array::SetValue(uint32_t index, Object* value) {
+  uint32_t cast_value = 0;
+  if (value->IsSmi()) {
+    int int_value = Smi::cast(value)->value();
+    cast_value = static_cast<uint32_t>(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = HeapNumber::cast(value)->value();
+    cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
+  } else {
+    // Clamp undefined to zero (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
+  }
+  set(index, cast_value);
+}
+
+
+void ExternalFloat32Array::SetValue(uint32_t index, Object* value) {
+  float cast_value = std::numeric_limits<float>::quiet_NaN();
+  if (value->IsSmi()) {
+    int int_value = Smi::cast(value)->value();
+    cast_value = static_cast<float>(int_value);
+  } else if (value->IsHeapNumber()) {
+    double double_value = HeapNumber::cast(value)->value();
+    cast_value = static_cast<float>(double_value);
+  } else {
+    // Clamp undefined to NaN (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
+  }
+  set(index, cast_value);
+}
+
+
+void ExternalFloat64Array::SetValue(uint32_t index, Object* value) {
+  double double_value = std::numeric_limits<double>::quiet_NaN();
+  if (value->IsNumber()) {
+    double_value = value->Number();
+  } else {
+    // Clamp undefined to NaN (default). All other types have been
+    // converted to a number type further up in the call chain.
+    DCHECK(value->IsUndefined());
+  }
+  set(index, double_value);
+}
+
+
 void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
                                           Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
@@ -15581,6 +15731,21 @@ void JSArrayBuffer::Neuter() {
 }
 
 
+static ElementsKind FixedToExternalElementsKind(ElementsKind elements_kind) {
+  switch (elements_kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+    case TYPE##_ELEMENTS: return EXTERNAL_##TYPE##_ELEMENTS;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      UNREACHABLE();
+      return FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+  }
+}
+
+
 Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
     Handle<JSTypedArray> typed_array) {
 
@@ -15588,6 +15753,10 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   Isolate* isolate = typed_array->GetIsolate();
 
   DCHECK(IsFixedTypedArrayElementsKind(map->elements_kind()));
+
+  Handle<Map> new_map = Map::TransitionElementsTo(
+          map,
+          FixedToExternalElementsKind(map->elements_kind()));
 
   Handle<FixedTypedArrayBase> fixed_typed_array(
       FixedTypedArrayBase::cast(typed_array->elements()));
@@ -15605,19 +15774,19 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   memcpy(buffer->backing_store(),
          fixed_typed_array->DataPtr(),
          fixed_typed_array->DataSize());
-  Handle<FixedTypedArrayBase> new_elements =
-      isolate->factory()->NewFixedTypedArrayWithExternalPointer(
+  Handle<ExternalArray> new_elements =
+      isolate->factory()->NewExternalArray(
           fixed_typed_array->length(), typed_array->type(),
           static_cast<uint8_t*>(buffer->backing_store()));
 
-  typed_array->set_elements(*new_elements);
+  JSObject::SetMapAndElements(typed_array, new_map, new_elements);
 
   return buffer;
 }
 
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
-  if (JSArrayBuffer::cast(buffer())->backing_store() != nullptr) {
+  if (IsExternalArrayElementsKind(map()->elements_kind())) {
     Handle<Object> result(buffer(), GetIsolate());
     return Handle<JSArrayBuffer>::cast(result);
   }

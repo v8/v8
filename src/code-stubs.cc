@@ -807,6 +807,7 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+    case EXTERNAL_##TYPE##_ELEMENTS:                    \
     case TYPE##_ELEMENTS:
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)

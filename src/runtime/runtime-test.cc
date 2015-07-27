@@ -480,11 +480,22 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastHoleyElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(SloppyArgumentsElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FixedTypedArrayElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)
 // Properties test sitting with elements tests - not fooling anyone.
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
+
+
+#define TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, size) \
+  RUNTIME_FUNCTION(Runtime_HasExternal##Type##Elements) {                  \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                 \
+    return isolate->heap()->ToBoolean(obj->HasExternal##Type##Elements()); \
+  }
+
+TYPED_ARRAYS(TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
+
+#undef TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
 
 
 #define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, s) \

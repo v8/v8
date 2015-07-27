@@ -1649,8 +1649,14 @@ class LLoadKeyed final : public LTemplateInstruction<1, 2, 0> {
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
+  bool is_external() const {
+    return hydrogen()->is_external();
+  }
   bool is_fixed_typed_array() const {
     return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
@@ -1671,8 +1677,12 @@ inline static bool ExternalArrayOpRequiresTemp(
   // an index cannot fold the scale operation into a load and need an extra
   // temp register to do the work.
   return key_representation.IsSmi() &&
-         (elements_kind == UINT8_ELEMENTS || elements_kind == INT8_ELEMENTS ||
-          elements_kind == UINT8_CLAMPED_ELEMENTS);
+      (elements_kind == EXTERNAL_INT8_ELEMENTS ||
+       elements_kind == EXTERNAL_UINT8_ELEMENTS ||
+       elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
+       elements_kind == UINT8_ELEMENTS ||
+       elements_kind == INT8_ELEMENTS ||
+       elements_kind == UINT8_CLAMPED_ELEMENTS);
 }
 
 
@@ -2253,8 +2263,12 @@ class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
     inputs_[2] = val;
   }
 
+  bool is_external() const { return hydrogen()->is_external(); }
   bool is_fixed_typed_array() const {
     return hydrogen()->is_fixed_typed_array();
+  }
+  bool is_typed_elements() const {
+    return is_external() || is_fixed_typed_array();
   }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }

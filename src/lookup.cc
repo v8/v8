@@ -117,7 +117,8 @@ void LookupIterator::ReloadPropertyInformation() {
 void LookupIterator::ReloadHolderMap() {
   DCHECK_EQ(DATA, state_);
   DCHECK(IsElement());
-  DCHECK(JSObject::cast(*holder_)->HasFixedTypedArrayElements());
+  DCHECK(JSObject::cast(*holder_)->HasExternalArrayElements() ||
+         JSObject::cast(*holder_)->HasFixedTypedArrayElements());
   if (*holder_map_ != holder_->map()) {
     holder_map_ = handle(holder_->map(), isolate_);
   }
@@ -160,6 +161,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
+    DCHECK(!holder->HasExternalArrayElements());
     DCHECK(!holder->HasFixedTypedArrayElements());
     DCHECK(attributes != NONE || !holder->HasFastElements());
     Handle<FixedArrayBase> elements(holder->elements());

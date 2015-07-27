@@ -80,6 +80,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
 
+#define PRINT_EXTERNAL_ARRAY(Type, type, TYPE, ctype, size)            \
+  case EXTERNAL_##TYPE##_ARRAY_TYPE:                                   \
+    External##Type##Array::cast(this)->External##Type##ArrayPrint(os); \
+    break;
+
+     TYPED_ARRAYS(PRINT_EXTERNAL_ARRAY)
+#undef PRINT_EXTERNAL_ARRAY
+
 #define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
   case Fixed##Type##Array::kInstanceType:                      \
     Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(os);  \
@@ -207,6 +215,16 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
 }
 
 
+#define EXTERNAL_ARRAY_PRINTER(Type, type, TYPE, ctype, size)                \
+  void External##Type##Array::External##Type##ArrayPrint(std::ostream& os) { \
+    os << "external " #type " array";                                        \
+  }
+
+TYPED_ARRAYS(EXTERNAL_ARRAY_PRINTER)
+
+#undef EXTERNAL_ARRAY_PRINTER
+
+
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayPrint(
     std::ostream& os) {  // NOLINT
@@ -302,6 +320,19 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     DoPrintElements<Type>(os, elements()); \
     break;                                 \
   }
+
+    PRINT_ELEMENTS(EXTERNAL_UINT8_CLAMPED_ELEMENTS, ExternalUint8ClampedArray)
+    PRINT_ELEMENTS(EXTERNAL_INT8_ELEMENTS, ExternalInt8Array)
+    PRINT_ELEMENTS(EXTERNAL_UINT8_ELEMENTS,
+        ExternalUint8Array)
+    PRINT_ELEMENTS(EXTERNAL_INT16_ELEMENTS, ExternalInt16Array)
+    PRINT_ELEMENTS(EXTERNAL_UINT16_ELEMENTS,
+        ExternalUint16Array)
+    PRINT_ELEMENTS(EXTERNAL_INT32_ELEMENTS, ExternalInt32Array)
+    PRINT_ELEMENTS(EXTERNAL_UINT32_ELEMENTS,
+        ExternalUint32Array)
+    PRINT_ELEMENTS(EXTERNAL_FLOAT32_ELEMENTS, ExternalFloat32Array)
+    PRINT_ELEMENTS(EXTERNAL_FLOAT64_ELEMENTS, ExternalFloat64Array)
 
     PRINT_ELEMENTS(UINT8_ELEMENTS, FixedUint8Array)
     PRINT_ELEMENTS(UINT8_CLAMPED_ELEMENTS, FixedUint8ClampedArray)

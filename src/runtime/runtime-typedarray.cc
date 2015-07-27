@@ -159,12 +159,14 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
 
 
 void Runtime::ArrayIdToTypeAndSize(int arrayId, ExternalArrayType* array_type,
+                                   ElementsKind* external_elements_kind,
                                    ElementsKind* fixed_elements_kind,
                                    size_t* element_size) {
   switch (arrayId) {
 #define ARRAY_ID_CASE(Type, type, TYPE, ctype, size)      \
   case ARRAY_ID_##TYPE:                                   \
     *array_type = kExternal##Type##Array;                 \
+    *external_elements_kind = EXTERNAL_##TYPE##_ELEMENTS; \
     *fixed_elements_kind = TYPE##_ELEMENTS;               \
     *element_size = size;                                 \
     break;
@@ -193,9 +195,11 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;                            // Bogus initialization.
+  ElementsKind external_elements_kind =
+      EXTERNAL_INT8_ELEMENTS;                        // Bogus initialization.
   ElementsKind fixed_elements_kind = INT8_ELEMENTS;  // Bogus initialization.
-  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &fixed_elements_kind,
-                                &element_size);
+  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &external_elements_kind,
+                                &fixed_elements_kind, &element_size);
   RUNTIME_ASSERT(holder->map()->elements_kind() == fixed_elements_kind);
 
   size_t byte_offset = 0;
@@ -237,11 +241,13 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
     holder->set_buffer(*buffer);
 
-    Handle<FixedTypedArrayBase> elements =
-        isolate->factory()->NewFixedTypedArrayWithExternalPointer(
-            static_cast<int>(length), array_type,
-            static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
-    holder->set_elements(*elements);
+    Handle<ExternalArray> elements = isolate->factory()->NewExternalArray(
+        static_cast<int>(length), array_type,
+        static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+    Handle<Map> map =
+        JSObject::GetElementsTransitionMap(holder, external_elements_kind);
+    JSObject::SetMapAndElements(holder, map, elements);
+    DCHECK(IsExternalArrayElementsKind(holder->map()->elements_kind()));
   } else {
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
     Runtime::SetupArrayBuffer(isolate, buffer, true, NULL, byte_length,
@@ -274,9 +280,11 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;                            // Bogus initialization.
+  ElementsKind external_elements_kind =
+      EXTERNAL_INT8_ELEMENTS;                        // Bogus intialization.
   ElementsKind fixed_elements_kind = INT8_ELEMENTS;  // Bogus initialization.
-  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &fixed_elements_kind,
-                                &element_size);
+  Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &external_elements_kind,
+                                &fixed_elements_kind, &element_size);
 
   RUNTIME_ASSERT(holder->map()->elements_kind() == fixed_elements_kind);
 
@@ -332,11 +340,12 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   holder->set_byte_length(*byte_length_obj);
   holder->set_length(*length_obj);
 
-  Handle<FixedTypedArrayBase> elements =
-      isolate->factory()->NewFixedTypedArrayWithExternalPointer(
-          static_cast<int>(length), array_type,
-          static_cast<uint8_t*>(buffer->backing_store()));
-  holder->set_elements(*elements);
+  Handle<ExternalArray> elements = isolate->factory()->NewExternalArray(
+      static_cast<int>(length), array_type,
+      static_cast<uint8_t*>(buffer->backing_store()));
+  Handle<Map> map =
+      JSObject::GetElementsTransitionMap(holder, external_elements_kind);
+  JSObject::SetMapAndElements(holder, map, elements);
 
   if (source->IsJSTypedArray()) {
     Handle<JSTypedArray> typed_array(JSTypedArray::cast(*source));

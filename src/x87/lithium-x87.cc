@@ -2240,7 +2240,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
       : UseRegisterOrConstantAtStart(instr->key());
   LInstruction* result = NULL;
 
-  if (!instr->is_fixed_typed_array()) {
+  if (!instr->is_typed_elements()) {
     LOperand* obj = UseRegisterAtStart(instr->elements());
     result = DefineAsRegister(new(zone()) LLoadKeyed(obj, key));
   } else {
@@ -2254,9 +2254,10 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   }
 
   bool needs_environment;
-  if (instr->is_fixed_typed_array()) {
+  if (instr->is_external() || instr->is_fixed_typed_array()) {
     // see LCodeGen::DoLoadKeyedExternalArray
-    needs_environment = elements_kind == UINT32_ELEMENTS &&
+    needs_environment = (elements_kind == EXTERNAL_UINT32_ELEMENTS ||
+                         elements_kind == UINT32_ELEMENTS) &&
                         !instr->CheckFlag(HInstruction::kUint32);
   } else {
     // see LCodeGen::DoLoadKeyedFixedDoubleArray and
@@ -2293,6 +2294,9 @@ LOperand* LChunkBuilder::GetStoreKeyedValueOperand(HStoreKeyed* instr) {
 
   // Determine if we need a byte register in this case for the value.
   bool val_is_fixed_register =
+      elements_kind == EXTERNAL_INT8_ELEMENTS ||
+      elements_kind == EXTERNAL_UINT8_ELEMENTS ||
+      elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
       elements_kind == UINT8_ELEMENTS ||
       elements_kind == INT8_ELEMENTS ||
       elements_kind == UINT8_CLAMPED_ELEMENTS;
@@ -2309,7 +2313,7 @@ LOperand* LChunkBuilder::GetStoreKeyedValueOperand(HStoreKeyed* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
-  if (!instr->is_fixed_typed_array()) {
+  if (!instr->is_typed_elements()) {
     DCHECK(instr->elements()->representation().IsTagged());
     DCHECK(instr->key()->representation().IsInteger32() ||
            instr->key()->representation().IsSmi());

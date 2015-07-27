@@ -105,6 +105,25 @@ namespace internal {
   V(Map, short_external_one_byte_internalized_string_map,                      \
     ShortExternalOneByteInternalizedStringMap)                                 \
   V(Map, short_external_one_byte_string_map, ShortExternalOneByteStringMap)    \
+  V(Map, external_int8_array_map, ExternalInt8ArrayMap)                        \
+  V(Map, external_uint8_array_map, ExternalUint8ArrayMap)                      \
+  V(Map, external_int16_array_map, ExternalInt16ArrayMap)                      \
+  V(Map, external_uint16_array_map, ExternalUint16ArrayMap)                    \
+  V(Map, external_int32_array_map, ExternalInt32ArrayMap)                      \
+  V(Map, external_uint32_array_map, ExternalUint32ArrayMap)                    \
+  V(Map, external_float32_array_map, ExternalFloat32ArrayMap)                  \
+  V(Map, external_float64_array_map, ExternalFloat64ArrayMap)                  \
+  V(Map, external_uint8_clamped_array_map, ExternalUint8ClampedArrayMap)       \
+  V(ExternalArray, empty_external_int8_array, EmptyExternalInt8Array)          \
+  V(ExternalArray, empty_external_uint8_array, EmptyExternalUint8Array)        \
+  V(ExternalArray, empty_external_int16_array, EmptyExternalInt16Array)        \
+  V(ExternalArray, empty_external_uint16_array, EmptyExternalUint16Array)      \
+  V(ExternalArray, empty_external_int32_array, EmptyExternalInt32Array)        \
+  V(ExternalArray, empty_external_uint32_array, EmptyExternalUint32Array)      \
+  V(ExternalArray, empty_external_float32_array, EmptyExternalFloat32Array)    \
+  V(ExternalArray, empty_external_float64_array, EmptyExternalFloat64Array)    \
+  V(ExternalArray, empty_external_uint8_clamped_array,                         \
+    EmptyExternalUint8ClampedArray)                                            \
   V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
   V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
   V(Map, fixed_uint16_array_map, FixedUint16ArrayMap)                          \
@@ -1250,7 +1269,12 @@ class Heap {
   Map* MapForFixedTypedArray(ExternalArrayType array_type);
   RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
 
+  Map* MapForExternalArrayType(ExternalArrayType array_type);
+  RootListIndex RootIndexForExternalArrayType(ExternalArrayType array_type);
+
+  RootListIndex RootIndexForEmptyExternalArray(ElementsKind kind);
   RootListIndex RootIndexForEmptyFixedTypedArray(ElementsKind kind);
+  ExternalArray* EmptyExternalArrayForMap(Map* map);
   FixedTypedArrayBase* EmptyFixedTypedArrayForMap(Map* map);
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
@@ -2022,9 +2046,9 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateSymbol();
 
   // Allocates an external array of the specified length and type.
-  MUST_USE_RESULT AllocationResult AllocateFixedTypedArrayWithExternalPointer(
-      int length, ExternalArrayType array_type, void* external_pointer,
-      PretenureFlag pretenure);
+  MUST_USE_RESULT AllocationResult
+      AllocateExternalArray(int length, ExternalArrayType array_type,
+                            void* external_pointer, PretenureFlag pretenure);
 
   // Allocates a fixed typed array of the specified length and type.
   MUST_USE_RESULT AllocationResult
@@ -2051,6 +2075,10 @@ class Heap {
 
   // Allocate empty fixed array.
   MUST_USE_RESULT AllocationResult AllocateEmptyFixedArray();
+
+  // Allocate empty external array of given type.
+  MUST_USE_RESULT AllocationResult
+      AllocateEmptyExternalArray(ExternalArrayType array_type);
 
   // Allocate empty fixed typed array of given type.
   MUST_USE_RESULT AllocationResult

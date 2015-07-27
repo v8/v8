@@ -1731,7 +1731,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* elements = UseRegister(instr->elements());
   LOperand* key = UseRegisterOrConstant(instr->key());
 
-  if (!instr->is_fixed_typed_array()) {
+  if (!instr->is_typed_elements()) {
     if (instr->representation().IsDouble()) {
       LOperand* temp = (!instr->key()->IsConstant() ||
                         instr->RequiresHoleCheck())
@@ -1765,7 +1765,8 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
     LOperand* temp = instr->key()->IsConstant() ? NULL : TempRegister();
     LInstruction* result = DefineAsRegister(
         new(zone()) LLoadKeyedExternal(elements, key, temp));
-    if (elements_kind == UINT32_ELEMENTS &&
+    if ((elements_kind == EXTERNAL_UINT32_ELEMENTS ||
+         elements_kind == UINT32_ELEMENTS) &&
         !instr->CheckFlag(HInstruction::kUint32)) {
       result = AssignEnvironment(result);
     }
@@ -2369,7 +2370,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   LOperand* elements = NULL;
   LOperand* val = NULL;
 
-  if (!instr->is_fixed_typed_array() &&
+  if (!instr->is_typed_elements() &&
       instr->value()->representation().IsTagged() &&
       instr->NeedsWriteBarrier()) {
     // RecordWrite() will clobber all registers.
@@ -2382,7 +2383,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     temp = instr->key()->IsConstant() ? NULL : TempRegister();
   }
 
-  if (instr->is_fixed_typed_array()) {
+  if (instr->is_typed_elements()) {
     DCHECK((instr->value()->representation().IsInteger32() &&
             !IsDoubleOrFloatElementsKind(instr->elements_kind())) ||
            (instr->value()->representation().IsDouble() &&

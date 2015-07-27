@@ -832,10 +832,11 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
       size_t const k = ElementSizeLog2Of(access.machine_type());
       double const byte_length = array->byte_length()->Number();
       CHECK_LT(k, arraysize(shifted_int32_ranges_));
-      if (key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
+      if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
+          key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
         // JSLoadProperty(typed-array, int32)
-        Handle<FixedTypedArrayBase> elements =
-            Handle<FixedTypedArrayBase>::cast(handle(array->elements()));
+        Handle<ExternalArray> elements =
+            Handle<ExternalArray>::cast(handle(array->elements()));
         Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
         Node* length = jsgraph()->Constant(byte_length);
         Node* effect = NodeProperties::GetEffectInput(node);
@@ -878,11 +879,12 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       size_t const k = ElementSizeLog2Of(access.machine_type());
       double const byte_length = array->byte_length()->Number();
       CHECK_LT(k, arraysize(shifted_int32_ranges_));
-      if (access.external_array_type() != kExternalUint8ClampedArray &&
+      if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
+          access.external_array_type() != kExternalUint8ClampedArray &&
           key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
         // JSLoadProperty(typed-array, int32)
-        Handle<FixedTypedArrayBase> elements =
-            Handle<FixedTypedArrayBase>::cast(handle(array->elements()));
+        Handle<ExternalArray> elements =
+            Handle<ExternalArray>::cast(handle(array->elements()));
         Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
         Node* length = jsgraph()->Constant(byte_length);
         Node* context = NodeProperties::GetContextInput(node);

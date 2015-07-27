@@ -81,6 +81,14 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
 
 
 // static
+FieldAccess AccessBuilder::ForExternalArrayPointer() {
+  FieldAccess access = {kTaggedBase, ExternalArray::kExternalPointerOffset,
+                        MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
   FieldAccess access = {kTaggedBase, DescriptorArray::kEnumCacheOffset,
                         Handle<Name>(), Type::TaggedPointer(), kMachAnyTagged};

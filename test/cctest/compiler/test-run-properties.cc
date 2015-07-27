@@ -21,15 +21,16 @@ static void TypedArrayLoadHelper(const char* array_type) {
     values_builder.AddFormatted("a[%d] = 0x%08x;", i, kValues[i]);
   }
 
-  // Note that below source creates two different typed arrays with the same
-  // elements kind to get coverage for both (on heap / with external backing
-  // store) access patterns.
+  // Note that below source creates two different typed arrays with distinct
+  // elements kind to get coverage for both access patterns:
+  // - IsFixedTypedArrayElementsKind(x)
+  // - IsExternalArrayElementsKind(y)
   const char* source =
       "(function(a) {"
       "  var x = (a = new %sArray(%d)); %s;"
       "  var y = (a = new %sArray(%d)); %s; %%TypedArrayGetBuffer(y);"
       "  if (!%%HasFixed%sElements(x)) %%AbortJS('x');"
-      "  if (!%%HasFixed%sElements(y)) %%AbortJS('y');"
+      "  if (!%%HasExternal%sElements(y)) %%AbortJS('y');"
       "  function f(a,b) {"
       "    a = a | 0; b = b | 0;"
       "    return x[a] + y[b];"
@@ -83,15 +84,16 @@ static void TypedArrayStoreHelper(const char* array_type) {
     values_builder.AddFormatted("a[%d] = 0x%08x;", i, kValues[i]);
   }
 
-  // Note that below source creates two different typed arrays with the same
-  // elements kind to get coverage for both (on heap/with external backing
-  // store) access patterns.
+  // Note that below source creates two different typed arrays with distinct
+  // elements kind to get coverage for both access patterns:
+  // - IsFixedTypedArrayElementsKind(x)
+  // - IsExternalArrayElementsKind(y)
   const char* source =
       "(function(a) {"
       "  var x = (a = new %sArray(%d)); %s;"
       "  var y = (a = new %sArray(%d)); %s; %%TypedArrayGetBuffer(y);"
       "  if (!%%HasFixed%sElements(x)) %%AbortJS('x');"
-      "  if (!%%HasFixed%sElements(y)) %%AbortJS('y');"
+      "  if (!%%HasExternal%sElements(y)) %%AbortJS('y');"
       "  function f(a,b) {"
       "    a = a | 0; b = b | 0;"
       "    var t = x[a];"

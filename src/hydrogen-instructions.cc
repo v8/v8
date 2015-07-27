@@ -3207,13 +3207,18 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
+    case EXTERNAL_INT8_ELEMENTS:
     case INT8_ELEMENTS:
       return new(zone) Range(kMinInt8, kMaxInt8);
+    case EXTERNAL_UINT8_ELEMENTS:
+    case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
     case UINT8_ELEMENTS:
     case UINT8_CLAMPED_ELEMENTS:
       return new(zone) Range(kMinUInt8, kMaxUInt8);
+    case EXTERNAL_INT16_ELEMENTS:
     case INT16_ELEMENTS:
       return new(zone) Range(kMinInt16, kMaxInt16);
+    case EXTERNAL_UINT16_ELEMENTS:
     case UINT16_ELEMENTS:
       return new(zone) Range(kMinUInt16, kMaxUInt16);
     default:
@@ -3456,11 +3461,11 @@ std::ostream& HLoadNamedGeneric::PrintDataTo(
 
 
 std::ostream& HLoadKeyed::PrintDataTo(std::ostream& os) const {  // NOLINT
-  if (!is_fixed_typed_array()) {
+  if (!is_external()) {
     os << NameOf(elements());
   } else {
-    DCHECK(elements_kind() >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
-           elements_kind() <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    DCHECK(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+           elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
     os << NameOf(elements()) << "." << ElementsKindToString(elements_kind());
   }
 
@@ -3495,7 +3500,7 @@ bool HLoadKeyed::UsesMustHandleHole() const {
     return false;
   }
 
-  if (IsFixedTypedArrayElementsKind(elements_kind())) {
+  if (IsExternalArrayElementsKind(elements_kind())) {
     return false;
   }
 
@@ -3535,7 +3540,7 @@ bool HLoadKeyed::RequiresHoleCheck() const {
     return false;
   }
 
-  if (IsFixedTypedArrayElementsKind(elements_kind())) {
+  if (IsExternalArrayElementsKind(elements_kind())) {
     return false;
   }
 
@@ -3610,11 +3615,11 @@ std::ostream& HStoreNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 std::ostream& HStoreKeyed::PrintDataTo(std::ostream& os) const {  // NOLINT
-  if (!is_fixed_typed_array()) {
+  if (!is_external()) {
     os << NameOf(elements());
   } else {
-    DCHECK(elements_kind() >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
-           elements_kind() <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    DCHECK(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+           elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
     os << NameOf(elements()) << "." << ElementsKindToString(elements_kind());
   }
 
@@ -3978,7 +3983,8 @@ bool HStoreKeyed::NeedsCanonicalization() {
   switch (value()->opcode()) {
     case kLoadKeyed: {
       ElementsKind load_kind = HLoadKeyed::cast(value())->elements_kind();
-      return IsFixedFloatElementsKind(load_kind);
+      return IsExternalFloatOrDoubleElementsKind(load_kind) ||
+             IsFixedFloatElementsKind(load_kind);
     }
     case kChange: {
       Representation from = HChange::cast(value())->from();

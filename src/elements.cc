@@ -27,6 +27,15 @@
 //       - FastPackedDoubleElementsAccessor
 //       - FastHoleyDoubleElementsAccessor
 //   - TypedElementsAccessor: template, with instantiations:
+//     - ExternalInt8ElementsAccessor
+//     - ExternalUint8ElementsAccessor
+//     - ExternalInt16ElementsAccessor
+//     - ExternalUint16ElementsAccessor
+//     - ExternalInt32ElementsAccessor
+//     - ExternalUint32ElementsAccessor
+//     - ExternalFloat32ElementsAccessor
+//     - ExternalFloat64ElementsAccessor
+//     - ExternalUint8ClampedElementsAccessor
 //     - FixedUint8ElementsAccessor
 //     - FixedInt8ElementsAccessor
 //     - FixedUint16ElementsAccessor
@@ -70,6 +79,23 @@ static const int kPackedSizeNotKnown = -1;
     FixedArray)                                                               \
   V(SlowSloppyArgumentsElementsAccessor, SLOW_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
+  V(ExternalInt8ElementsAccessor, EXTERNAL_INT8_ELEMENTS, ExternalInt8Array)  \
+  V(ExternalUint8ElementsAccessor, EXTERNAL_UINT8_ELEMENTS,                   \
+    ExternalUint8Array)                                                       \
+  V(ExternalInt16ElementsAccessor, EXTERNAL_INT16_ELEMENTS,                   \
+    ExternalInt16Array)                                                       \
+  V(ExternalUint16ElementsAccessor, EXTERNAL_UINT16_ELEMENTS,                 \
+    ExternalUint16Array)                                                      \
+  V(ExternalInt32ElementsAccessor, EXTERNAL_INT32_ELEMENTS,                   \
+    ExternalInt32Array)                                                       \
+  V(ExternalUint32ElementsAccessor, EXTERNAL_UINT32_ELEMENTS,                 \
+    ExternalUint32Array)                                                      \
+  V(ExternalFloat32ElementsAccessor, EXTERNAL_FLOAT32_ELEMENTS,               \
+    ExternalFloat32Array)                                                     \
+  V(ExternalFloat64ElementsAccessor, EXTERNAL_FLOAT64_ELEMENTS,               \
+    ExternalFloat64Array)                                                     \
+  V(ExternalUint8ClampedElementsAccessor, EXTERNAL_UINT8_CLAMPED_ELEMENTS,    \
+    ExternalUint8ClampedArray)                                                \
   V(FixedUint8ElementsAccessor, UINT8_ELEMENTS, FixedUint8Array)              \
   V(FixedInt8ElementsAccessor, INT8_ELEMENTS, FixedInt8Array)                 \
   V(FixedUint16ElementsAccessor, UINT16_ELEMENTS, FixedUint16Array)           \
@@ -1192,6 +1218,7 @@ class FastSmiOrObjectElementsAccessor
       case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                        \
       case TYPE##_ELEMENTS:                                                   \
         UNREACHABLE();
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -1288,6 +1315,7 @@ class FastDoubleElementsAccessor
         UNREACHABLE();
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
+      case EXTERNAL_##TYPE##_ELEMENTS:                                        \
       case TYPE##_ELEMENTS:                                                   \
         UNREACHABLE();
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -1377,6 +1405,13 @@ class TypedElementsAccessor
 };
 
 
+
+#define EXTERNAL_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype, size)    \
+  typedef TypedElementsAccessor<EXTERNAL_##TYPE##_ELEMENTS>          \
+      External##Type##ElementsAccessor;
+
+TYPED_ARRAYS(EXTERNAL_ELEMENTS_ACCESSOR)
+#undef EXTERNAL_ELEMENTS_ACCESSOR
 
 #define FIXED_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype, size)       \
   typedef TypedElementsAccessor<TYPE##_ELEMENTS >                    \
