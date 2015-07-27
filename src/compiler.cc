@@ -1379,8 +1379,8 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
 
   CompilationInfo compile_info(parse_info);
 
-  // If compiling for debugging, parse eagerly from scratch.
-  if (compile_info.is_debug()) parse_info->set_literal(NULL);
+  // The source was parsed lazily, so compiling for debugging is not possible.
+  DCHECK(!compile_info.is_debug());
 
   Handle<SharedFunctionInfo> result = CompileToplevel(&compile_info);
   if (!result.is_null()) isolate->debug()->OnAfterCompile(script);
