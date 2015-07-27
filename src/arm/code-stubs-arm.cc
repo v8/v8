@@ -5120,6 +5120,11 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ add(cell, context, Operand(slot, LSL, kPointerSizeLog2));
   __ ldr(cell, ContextOperand(cell));
 
+  // Check that cell value is not the_hole.
+  __ ldr(cell_value, FieldMemOperand(cell, PropertyCell::kValueOffset));
+  __ CompareRoot(cell_value, Heap::kTheHoleValueRootIndex);
+  __ b(eq, &slow_case);
+
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ ldr(cell_details, FieldMemOperand(cell, PropertyCell::kDetailsOffset));
   __ SmiUntag(cell_details);
@@ -5149,7 +5154,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
-  __ ldr(cell_value, FieldMemOperand(cell, PropertyCell::kValueOffset));
   __ cmp(cell_value, value);
   __ b(ne, &not_same_value);
 

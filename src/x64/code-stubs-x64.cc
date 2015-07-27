@@ -5091,6 +5091,11 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Load the PropertyCell at the specified slot.
   __ movp(cell_reg, ContextOperand(context_reg, slot_reg));
 
+  // Check that value is not the_hole.
+  __ movp(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
+  __ CompareRoot(cell_value_reg, Heap::kTheHoleValueRootIndex);
+  __ j(equal, &slow_case, FLAG_debug_code ? Label::kFar : Label::kNear);
+
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ SmiToInteger32(cell_details_reg,
                     FieldOperand(cell_reg, PropertyCell::kDetailsOffset));
@@ -5120,7 +5125,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
-  __ movp(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
   __ cmpp(cell_value_reg, value_reg);
   __ j(not_equal, &not_same_value,
        FLAG_debug_code ? Label::kFar : Label::kNear);

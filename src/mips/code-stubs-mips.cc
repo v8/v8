@@ -5309,7 +5309,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register name_reg = a3;
   Register value_reg = a0;
   Register cell_reg = t0;
-  Register cell_details_reg = t1;
+  Register cell_value_reg = t1;
+  Register cell_details_reg = t2;
   Label fast_heapobject_case, fast_smi_case, slow_case;
 
   if (FLAG_debug_code) {
@@ -5329,6 +5330,11 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Addu(at, at, Operand(context_reg));
   __ Addu(at, at, Context::SlotOffset(0));
   __ lw(cell_reg, MemOperand(at));
+
+  // Check that cell value is not the_hole.
+  __ lw(cell_value_reg, FieldMemOperand(cell_reg, PropertyCell::kValueOffset));
+  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+  __ Branch(&slow_case, eq, cell_value_reg, Operand(at));
 
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ lw(cell_details_reg,
@@ -5358,8 +5364,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
-  __ lw(at, FieldMemOperand(cell_reg, PropertyCell::kValueOffset));
-  __ Branch(&not_same_value, ne, value_reg, Operand(at));
+  __ Branch(&not_same_value, ne, value_reg, Operand(cell_value_reg));
   if (FLAG_debug_code) {
     Label done;
     // This can only be true for Constant, ConstantType and Undefined cells,
@@ -5390,8 +5395,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Now either both old and new values must be SMIs or both must be heap
   // objects with same map.
   Label value_is_heap_object;
-  Register cell_value_reg = cell_details_reg;
-  __ lw(cell_value_reg, FieldMemOperand(cell_reg, PropertyCell::kValueOffset));
   __ JumpIfNotSmi(value_reg, &value_is_heap_object);
   __ JumpIfNotSmi(cell_value_reg, &slow_case);
   // Old and new values are SMIs, no need for a write barrier here.

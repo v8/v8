@@ -467,7 +467,7 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Name> name,
   LookupIterator it(global_object, name, LookupIterator::HIDDEN);
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
-  if (LookupIterator::DATA == it.state() &&
+  if (LookupIterator::DATA == it.state() && !it.IsReadOnly() &&
       it.GetHolder<Object>()->IsJSGlobalObject()) {
     // Now update cell in the script context.
     Handle<PropertyCell> cell = it.GetPropertyCell();

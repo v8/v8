@@ -5173,6 +5173,15 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Load the PropertyCell at the specified slot.
   __ mov(cell_reg, ContextOperand(context_reg, slot_reg));
 
+  // Check that cell value is not the_hole.
+  {
+    // TODO(bmeurer): use ecx (name_reg) when name parameter is removed.
+    Register cell_value_reg = cell_details_reg;
+    __ mov(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
+    __ CompareRoot(cell_value_reg, Heap::kTheHoleValueRootIndex);
+    __ j(equal, &slow_case, FLAG_debug_code ? Label::kFar : Label::kNear);
+  }
+
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ mov(cell_details_reg,
          FieldOperand(cell_reg, PropertyCell::kDetailsOffset));
@@ -5240,6 +5249,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Now either both old and new values must be SMIs or both must be heap
   // objects with same map.
   Label value_is_heap_object;
+  // TODO(bmeurer): use ecx (name_reg) when name parameter is removed.
   Register cell_value_reg = cell_details_reg;
   __ mov(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
   __ JumpIfNotSmi(value_reg, &value_is_heap_object, Label::kNear);

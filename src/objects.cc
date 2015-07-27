@@ -15887,7 +15887,9 @@ void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
   const PropertyDetails original_details = cell->property_details();
   // Data accesses could be cached in ics or optimized code.
   bool invalidate =
-      original_details.kind() == kData && details.kind() == kAccessor;
+      (original_details.kind() == kData && details.kind() == kAccessor) ||
+      ((original_details.attributes() & READ_ONLY) !=
+       (details.attributes() & READ_ONLY));
   int index = original_details.dictionary_index();
   PropertyCellType old_type = original_details.cell_type();
   // Preserve the enumeration index unless the property was deleted or never
