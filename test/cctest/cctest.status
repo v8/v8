@@ -130,6 +130,12 @@
 }],  # ALWAYS
 
 ##############################################################################
+['novfp3 == True', {
+  # TODO(yangguo): Got very slow after 3069c43.
+  'test-debug/DebugBreakLoop': [SKIP],
+}],  # novfp3 == True
+
+##############################################################################
 ['arch == arm64', {
 
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
