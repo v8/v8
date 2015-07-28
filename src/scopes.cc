@@ -692,6 +692,7 @@ bool Scope::HasTrivialContext() const {
     if (scope->is_eval_scope()) return false;
     if (scope->scope_inside_with_) return false;
     if (scope->ContextLocalCount() > 0) return false;
+    if (scope->ContextGlobalCount() > 0) return false;
   }
   return true;
 }
