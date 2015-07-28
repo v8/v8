@@ -5061,8 +5061,6 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context = cp;
   Register result = r0;
   Register slot = r2;
-  Register name = r3;
-  Label slow_case;
 
   // Go up the context chain to the script context.
   for (int i = 0; i < depth(); ++i) {
@@ -5080,18 +5078,15 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Ret(ne);
 
   // Fallback to runtime.
-  __ bind(&slow_case);
   __ SmiTag(slot);
   __ push(slot);
-  __ push(name);
-  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
+  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 1, 1);
 }
 
 
 void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register value = r0;
   Register slot = r2;
-  Register name = r3;
 
   Register cell = r1;
   Register cell_details = r4;
@@ -5107,7 +5102,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ CompareRoot(value, Heap::kTheHoleValueRootIndex);
     __ Check(ne, kUnexpectedValue);
-    __ AssertName(name);
   }
 
   // Go up the context chain to the script context.
@@ -5207,13 +5201,11 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Fallback to runtime.
   __ bind(&slow_case);
   __ SmiTag(slot);
-  __ push(slot);
-  __ push(name);
-  __ push(value);
+  __ Push(slot, value);
   __ TailCallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3, 1);
+                     2, 1);
 }
 
 

@@ -5036,7 +5036,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = rsi;
   Register slot_reg = rbx;
-  Register name_reg = rcx;
   Register result_reg = rax;
   Label slow_case;
 
@@ -5060,16 +5059,14 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Integer32ToSmi(slot_reg, slot_reg);
   __ PopReturnAddressTo(kScratchRegister);
   __ Push(slot_reg);
-  __ Push(name_reg);
   __ Push(kScratchRegister);
-  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
+  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 1, 1);
 }
 
 
 void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = rsi;
   Register slot_reg = rbx;
-  Register name_reg = rcx;
   Register value_reg = rax;
   Register cell_reg = r8;
   Register cell_details_reg = rdx;
@@ -5079,7 +5076,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ CompareRoot(value_reg, Heap::kTheHoleValueRootIndex);
     __ Check(not_equal, kUnexpectedValue);
-    __ AssertName(name_reg);
   }
 
   // Go up context chain to the script context.
@@ -5183,13 +5179,12 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ Integer32ToSmi(slot_reg, slot_reg);
   __ PopReturnAddressTo(kScratchRegister);
   __ Push(slot_reg);
-  __ Push(name_reg);
   __ Push(value_reg);
   __ Push(kScratchRegister);
   __ TailCallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3, 1);
+                     2, 1);
 }
 
 

@@ -5119,7 +5119,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = esi;
   Register slot_reg = ebx;
-  Register name_reg = ecx;
   Register result_reg = eax;
   Label slow_case;
 
@@ -5143,25 +5142,23 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ SmiTag(slot_reg);
   __ Pop(result_reg);  // Pop return address.
   __ Push(slot_reg);
-  __ Push(name_reg);
   __ Push(result_reg);  // Push return address.
-  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
+  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 1, 1);
 }
 
 
 void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = esi;
   Register slot_reg = ebx;
-  Register name_reg = ecx;
   Register value_reg = eax;
   Register cell_reg = edi;
   Register cell_details_reg = edx;
+  Register cell_value_reg = ecx;
   Label fast_heapobject_case, fast_smi_case, slow_case;
 
   if (FLAG_debug_code) {
     __ CompareRoot(value_reg, Heap::kTheHoleValueRootIndex);
     __ Check(not_equal, kUnexpectedValue);
-    __ AssertName(name_reg);
   }
 
   // Go up context chain to the script context.
@@ -5203,7 +5200,8 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Check if PropertyCell value matches the new value (relevant for Constant,
   // ConstantType and Undefined cells).
   Label not_same_value;
-  __ cmp(value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
+  __ mov(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
+  __ cmp(cell_value_reg, value_reg);
   __ j(not_equal, &not_same_value,
        FLAG_debug_code ? Label::kFar : Label::kNear);
   // Make sure the PropertyCell is not marked READ_ONLY.
@@ -5245,9 +5243,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Now either both old and new values must be SMIs or both must be heap
   // objects with same map.
   Label value_is_heap_object;
-  // TODO(bmeurer): use ecx (name_reg) when name parameter is removed.
-  Register cell_value_reg = cell_details_reg;
-  __ mov(cell_value_reg, FieldOperand(cell_reg, PropertyCell::kValueOffset));
   __ JumpIfNotSmi(value_reg, &value_is_heap_object, Label::kNear);
   __ JumpIfNotSmi(cell_value_reg, &slow_case, Label::kNear);
   // Old and new values are SMIs, no need for a write barrier here.
@@ -5267,13 +5262,12 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   __ SmiTag(slot_reg);
   __ Pop(cell_reg);  // Pop return address.
   __ Push(slot_reg);
-  __ Push(name_reg);
   __ Push(value_reg);
   __ Push(cell_reg);  // Push return address.
   __ TailCallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3, 1);
+                     2, 1);
 }
 
 

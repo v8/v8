@@ -424,7 +424,6 @@ class LoadGlobalViaContextDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   static const Register SlotRegister();
-  static const Register NameRegister();
 };
 
 
@@ -434,7 +433,6 @@ class StoreGlobalViaContextDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   static const Register SlotRegister();
-  static const Register NameRegister();
   static const Register ValueRegister();
 };
 

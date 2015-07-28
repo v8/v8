@@ -117,16 +117,15 @@ Type::FunctionType*
 LoadGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Type::FunctionType* function = Type::FunctionType::New(
-      AnyTagged(), Type::Undefined(), 2, isolate->interface_descriptor_zone());
+      AnyTagged(), Type::Undefined(), 1, isolate->interface_descriptor_zone());
   function->InitParameter(0, UntaggedSigned32());
-  function->InitParameter(1, AnyTagged());
   return function;
 }
 
 
 void LoadGlobalViaContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {SlotRegister(), NameRegister()};
+  Register registers[] = {SlotRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -135,17 +134,16 @@ Type::FunctionType*
 StoreGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Type::FunctionType* function = Type::FunctionType::New(
-      AnyTagged(), Type::Undefined(), 3, isolate->interface_descriptor_zone());
+      AnyTagged(), Type::Undefined(), 2, isolate->interface_descriptor_zone());
   function->InitParameter(0, UntaggedSigned32());
   function->InitParameter(1, AnyTagged());
-  function->InitParameter(2, AnyTagged());
   return function;
 }
 
 
 void StoreGlobalViaContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {SlotRegister(), NameRegister(), ValueRegister()};
+  Register registers[] = {SlotRegister(), ValueRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

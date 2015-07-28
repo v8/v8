@@ -3992,6 +3992,9 @@ class ScopeInfo : public FixedArray {
                               InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
+  // Lookup the name of a certain context slot by its index.
+  String* ContextSlotName(int slot_index);
+
   // Lookup support for serialized scope info. Returns the
   // parameter index for a given parameter name if the parameter is present;
   // otherwise returns a value < 0. The name must be an internalized string.

@@ -5496,11 +5496,9 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
 
 class HLoadGlobalViaContext final : public HTemplateInstruction<1> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadGlobalViaContext,
-                                              Handle<String>, int, int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HLoadGlobalViaContext, int, int);
 
   HValue* context() { return OperandAt(0); }
-  Handle<String> name() const { return name_; }
   int depth() const { return depth_; }
   int slot_index() const { return slot_index_; }
 
@@ -5513,17 +5511,15 @@ class HLoadGlobalViaContext final : public HTemplateInstruction<1> {
   DECLARE_CONCRETE_INSTRUCTION(LoadGlobalViaContext)
 
  private:
-  HLoadGlobalViaContext(HValue* context, Handle<String> name, int depth,
-                        int slot_index)
-      : name_(name), depth_(depth), slot_index_(slot_index) {
+  HLoadGlobalViaContext(HValue* context, int depth, int slot_index)
+      : depth_(depth), slot_index_(slot_index) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
-  Handle<String> name_;
-  int depth_;
-  int slot_index_;
+  int const depth_;
+  int const slot_index_;
 };
 
 
@@ -7069,12 +7065,10 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
 
 class HStoreGlobalViaContext final : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(HStoreGlobalViaContext,
-                                              Handle<String>, HValue*, int, int,
-                                              LanguageMode);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreGlobalViaContext, HValue*,
+                                              int, int, LanguageMode);
   HValue* context() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
-  Handle<String> name() const { return name_; }
   int depth() const { return depth_; }
   int slot_index() const { return slot_index_; }
   LanguageMode language_mode() const { return language_mode_; }
@@ -7088,21 +7082,17 @@ class HStoreGlobalViaContext final : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalViaContext)
 
  private:
-  HStoreGlobalViaContext(HValue* context, Handle<String> name, HValue* value,
-                         int depth, int slot_index, LanguageMode language_mode)
-      : name_(name),
-        depth_(depth),
-        slot_index_(slot_index),
-        language_mode_(language_mode) {
+  HStoreGlobalViaContext(HValue* context, HValue* value, int depth,
+                         int slot_index, LanguageMode language_mode)
+      : depth_(depth), slot_index_(slot_index), language_mode_(language_mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, value);
     SetAllSideEffects();
   }
 
-  Handle<String> name_;
-  int depth_;
-  int slot_index_;
-  LanguageMode language_mode_;
+  int const depth_;
+  int const slot_index_;
+  LanguageMode const language_mode_;
 };
 
 

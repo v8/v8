@@ -338,8 +338,7 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 
 void LLoadGlobalViaContext::PrintDataTo(StringStream* stream) {
-  stream->Add(String::cast(*name())->ToCString().get());
-  stream->Add(" depth:%d slot:%d", depth(), slot_index());
+  stream->Add("depth:%d slot:%d", depth(), slot_index());
 }
 
 
@@ -362,10 +361,8 @@ void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
 
 
 void LStoreGlobalViaContext::PrintDataTo(StringStream* stream) {
-  stream->Add(String::cast(*name())->ToCString().get());
-  stream->Add(" <- ");
+  stream->Add("depth:%d slot:%d <- ", depth(), slot_index());
   value()->PrintTo(stream);
-  stream->Add(" depth:%d slot:%d", depth(), slot_index());
 }
 
 

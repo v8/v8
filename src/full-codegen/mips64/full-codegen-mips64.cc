@@ -1407,13 +1407,11 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
     int const depth = scope()->ContextChainLength(var->scope());
     if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
       __ li(LoadGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
-      __ li(LoadGlobalViaContextDescriptor::NameRegister(), var->name());
       LoadGlobalViaContextStub stub(isolate(), depth);
       __ CallStub(&stub);
     } else {
       __ Push(Smi::FromInt(slot));
-      __ Push(var->name());
-      __ CallRuntime(Runtime::kLoadGlobalViaContext, 2);
+      __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
     }
 
   } else {
@@ -2707,17 +2705,15 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     int const depth = scope()->ContextChainLength(var->scope());
     if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
       __ li(StoreGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
-      __ li(StoreGlobalViaContextDescriptor::NameRegister(), var->name());
       StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
       __ CallStub(&stub);
     } else {
       __ Push(Smi::FromInt(slot));
-      __ Push(var->name());
       __ Push(a0);
       __ CallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3);
+                     2);
     }
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {

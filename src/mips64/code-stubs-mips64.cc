@@ -5304,7 +5304,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = cp;
   Register slot_reg = a2;
-  Register name_reg = a3;
   Register result_reg = v0;
   Label slow_case;
 
@@ -5317,8 +5316,7 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Load the PropertyCell value at the specified slot.
   __ dsll(at, slot_reg, kPointerSizeLog2);
   __ Daddu(at, at, Operand(context_reg));
-  __ Daddu(at, at, Context::SlotOffset(0));
-  __ ld(result_reg, MemOperand(at));
+  __ ld(result_reg, ContextOperand(at, 0));
   __ ld(result_reg, FieldMemOperand(result_reg, PropertyCell::kValueOffset));
 
   // Check that value is not the_hole.
@@ -5329,15 +5327,14 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Fallback to the runtime.
   __ bind(&slow_case);
   __ SmiTag(slot_reg);
-  __ Push(slot_reg, name_reg);
-  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 2, 1);
+  __ Push(slot_reg);
+  __ TailCallRuntime(Runtime::kLoadGlobalViaContext, 1, 1);
 }
 
 
 void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = cp;
   Register slot_reg = a2;
-  Register name_reg = a3;
   Register value_reg = a0;
   Register cell_reg = a4;
   Register cell_value_reg = a5;
@@ -5347,7 +5344,6 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Check(ne, kUnexpectedValue, value_reg, Operand(at));
-    __ AssertName(name_reg);
   }
 
   // Go up context chain to the script context.
@@ -5359,8 +5355,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Load the PropertyCell at the specified slot.
   __ dsll(at, slot_reg, kPointerSizeLog2);
   __ Daddu(at, at, Operand(context_reg));
-  __ Daddu(at, at, Context::SlotOffset(0));
-  __ ld(cell_reg, MemOperand(at));
+  __ ld(cell_reg, ContextOperand(at, 0));
 
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ ld(cell_details_reg,
@@ -5444,11 +5439,11 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   // Fallback to the runtime.
   __ bind(&slow_case);
   __ SmiTag(slot_reg);
-  __ Push(slot_reg, name_reg, value_reg);
+  __ Push(slot_reg, value_reg);
   __ TailCallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3, 1);
+                     2, 1);
 }
 
 

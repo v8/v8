@@ -5569,7 +5569,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         int depth = scope()->ContextChainLength(variable->scope());
 
         HLoadGlobalViaContext* instr =
-            New<HLoadGlobalViaContext>(variable->name(), depth, slot_index);
+            New<HLoadGlobalViaContext>(depth, slot_index);
         return ast_context()->ReturnInstruction(instr, expr->id());
 
       } else {
@@ -6801,7 +6801,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     int depth = scope()->ContextChainLength(var->scope());
 
     HStoreGlobalViaContext* instr = Add<HStoreGlobalViaContext>(
-        var->name(), value, depth, slot_index, function_language_mode());
+        value, depth, slot_index, function_language_mode());
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);

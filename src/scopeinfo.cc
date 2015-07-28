@@ -572,6 +572,19 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
 }
 
 
+String* ScopeInfo::ContextSlotName(int slot_index) {
+  // TODO(bmeurer): Simplify this once we have only a single slot for both reads
+  // and writes to context globals;  currently we have 2 slots per context
+  // global, and these are located after the common context slots (of which we
+  // always have Context::MIN_CONTEXT_SLOTS) and the context locals.
+  int const var =
+      slot_index - (Context::MIN_CONTEXT_SLOTS + ContextLocalCount());
+  DCHECK_LE(0, var);
+  DCHECK_LT(var, 2 * ContextGlobalCount());
+  return ContextLocalName(ContextLocalCount() + var / 2);
+}
+
+
 int ScopeInfo::ParameterIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {

@@ -3601,8 +3601,8 @@ std::ostream& HStoreNamedGeneric::PrintDataTo(
 
 std::ostream& HStoreGlobalViaContext::PrintDataTo(
     std::ostream& os) const {  // NOLINT
-  return os << name()->ToCString().get() << " = " << NameOf(value())
-            << " depth:" << depth() << " slot:" << slot_index();
+  return os << " depth:" << depth() << " slot:" << slot_index() << " = "
+            << NameOf(value());
 }
 
 
@@ -3658,8 +3658,7 @@ std::ostream& HLoadGlobalGeneric::PrintDataTo(
 
 std::ostream& HLoadGlobalViaContext::PrintDataTo(
     std::ostream& os) const {  // NOLINT
-  return os << name()->ToCString().get() << " "
-            << "depth:" << depth() << " slot:" << slot_index();
+  return os << "depth:" << depth() << " slot:" << slot_index();
 }
 
 

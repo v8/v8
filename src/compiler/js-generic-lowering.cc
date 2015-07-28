@@ -339,9 +339,9 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
     Callable callable = CodeFactory::LoadGlobalViaContext(isolate(), 0);
     Node* script_context = node->InputAt(0);
     node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
-    node->ReplaceInput(1, jsgraph()->HeapConstant(p.name()));
-    node->ReplaceInput(2, script_context);  // Set new context...
-    node->RemoveInput(3);                   // ...instead of old one.
+    node->ReplaceInput(1, script_context);  // Set new context...
+    node->RemoveInput(2);
+    node->RemoveInput(2);  // ...instead of old one.
     ReplaceWithStubCall(node, callable, flags);
 
   } else {
@@ -402,10 +402,10 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
     Node* script_context = node->InputAt(0);
     Node* value = node->InputAt(2);
     node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
-    node->ReplaceInput(1, jsgraph()->HeapConstant(p.name()));
-    node->ReplaceInput(2, value);
-    node->ReplaceInput(3, script_context);  // Set new context...
-    node->RemoveInput(4);                   // ...instead of old one.
+    node->ReplaceInput(1, value);
+    node->ReplaceInput(2, script_context);  // Set new context...
+    node->RemoveInput(3);
+    node->RemoveInput(3);  // ...instead of old one.
     ReplaceWithStubCall(node, callable, flags);
 
   } else {

@@ -1369,18 +1369,15 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   if (var->IsGlobalSlot()) {
     DCHECK(var->index() > 0);
     DCHECK(var->IsStaticGlobalObjectProperty());
-    // Each var occupies two slots in the context: for reads and writes.
     int const slot = var->index();
     int const depth = scope()->ContextChainLength(var->scope());
     if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
       __ Set(LoadGlobalViaContextDescriptor::SlotRegister(), slot);
-      __ Move(LoadGlobalViaContextDescriptor::NameRegister(), var->name());
       LoadGlobalViaContextStub stub(isolate(), depth);
       __ CallStub(&stub);
     } else {
       __ Push(Smi::FromInt(slot));
-      __ Push(var->name());
-      __ CallRuntime(Runtime::kLoadGlobalViaContext, 2);
+      __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
     }
 
   } else {
@@ -2622,18 +2619,16 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     int const depth = scope()->ContextChainLength(var->scope());
     if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
       __ Set(StoreGlobalViaContextDescriptor::SlotRegister(), slot);
-      __ Move(StoreGlobalViaContextDescriptor::NameRegister(), var->name());
       DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(rax));
       StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
       __ CallStub(&stub);
     } else {
       __ Push(Smi::FromInt(slot));
-      __ Push(var->name());
       __ Push(rax);
       __ CallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3);
+                     2);
     }
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {

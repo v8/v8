@@ -1707,7 +1707,6 @@ class LLoadGlobalViaContext final : public LTemplateInstruction<1, 1, 1> {
 
   LOperand* context() { return inputs_[0]; }
 
-  Handle<Object> name() const { return hydrogen()->name(); }
   int depth() const { return hydrogen()->depth(); }
   int slot_index() const { return hydrogen()->slot_index(); }
 };
@@ -2220,7 +2219,6 @@ class LStoreGlobalViaContext final : public LTemplateInstruction<0, 2, 0> {
 
   void PrintDataTo(StringStream* stream) override;
 
-  Handle<Object> name() const { return hydrogen()->name(); }
   int depth() { return hydrogen()->depth(); }
   int slot_index() { return hydrogen()->slot_index(); }
   LanguageMode language_mode() { return hydrogen()->language_mode(); }
