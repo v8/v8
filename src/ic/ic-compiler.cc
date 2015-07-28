@@ -109,7 +109,6 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   } else if (receiver_map->has_sloppy_arguments_elements()) {
     stub = KeyedLoadSloppyArgumentsStub(isolate).GetCode();
   } else if (receiver_map->has_fast_elements() ||
-             receiver_map->has_external_array_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     stub = LoadFastElementStub(isolate, is_js_array, elements_kind,
                                convert_hole_to_undefined).GetCode();
@@ -369,7 +368,6 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
       if (IsSloppyArgumentsElements(elements_kind)) {
         cached_stub = KeyedStoreSloppyArgumentsStub(isolate()).GetCode();
       } else if (receiver_map->has_fast_elements() ||
-                 receiver_map->has_external_array_elements() ||
                  receiver_map->has_fixed_typed_array_elements()) {
         cached_stub = StoreFastElementStub(isolate(), is_js_array,
                                            elements_kind, store_mode).GetCode();
@@ -401,7 +399,6 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
   if (receiver_map->has_sloppy_arguments_elements()) {
     stub = KeyedStoreSloppyArgumentsStub(isolate()).GetCode();
   } else if (receiver_map->has_fast_elements() ||
-             receiver_map->has_external_array_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     stub = StoreFastElementStub(isolate(), is_jsarray, elements_kind,
                                 store_mode).GetCode();

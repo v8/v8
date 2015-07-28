@@ -141,8 +141,7 @@ int PropertyDetails::field_width_in_words() const {
 
 
 bool Object::IsFixedArrayBase() const {
-  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase() ||
-         IsExternalArray();
+  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
 }
 
 
@@ -270,8 +269,7 @@ bool Object::IsExternalTwoByteString() const {
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
-  return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray() ||
-         IsFixedTypedArrayBase();
+  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
 }
 
 
@@ -659,18 +657,8 @@ bool Object::IsFiller() const {
 }
 
 
-bool Object::IsExternalArray() const {
-  if (!Object::IsHeapObject())
-    return false;
-  InstanceType instance_type =
-      HeapObject::cast(this)->map()->instance_type();
-  return (instance_type >= FIRST_EXTERNAL_ARRAY_TYPE &&
-          instance_type <= LAST_EXTERNAL_ARRAY_TYPE);
-}
-
 
 #define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size)               \
-  TYPE_CHECKER(External##Type##Array, EXTERNAL_##TYPE##_ARRAY_TYPE)           \
   TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
 
 TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
@@ -2643,10 +2631,6 @@ FixedArrayBase* Map::GetInitialElements() {
       has_fast_double_elements()) {
     DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
     return GetHeap()->empty_fixed_array();
-  } else if (has_external_array_elements()) {
-    ExternalArray* empty_array = GetHeap()->EmptyExternalArrayForMap(this);
-    DCHECK(!GetHeap()->InNewSpace(empty_array));
-    return empty_array;
   } else if (has_fixed_typed_array_elements()) {
     FixedTypedArrayBase* empty_array =
         GetHeap()->EmptyFixedTypedArrayForMap(this);
@@ -2935,19 +2919,9 @@ CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DescriptorArray)
-CAST_ACCESSOR(ExternalArray)
 CAST_ACCESSOR(ExternalOneByteString)
-CAST_ACCESSOR(ExternalFloat32Array)
-CAST_ACCESSOR(ExternalFloat64Array)
-CAST_ACCESSOR(ExternalInt16Array)
-CAST_ACCESSOR(ExternalInt32Array)
-CAST_ACCESSOR(ExternalInt8Array)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalTwoByteString)
-CAST_ACCESSOR(ExternalUint16Array)
-CAST_ACCESSOR(ExternalUint32Array)
-CAST_ACCESSOR(ExternalUint8Array)
-CAST_ACCESSOR(ExternalUint8ClampedArray)
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
@@ -3657,211 +3631,6 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 }
 
 
-uint8_t* ExternalUint8ClampedArray::external_uint8_clamped_pointer() {
-  return reinterpret_cast<uint8_t*>(external_pointer());
-}
-
-
-uint8_t ExternalUint8ClampedArray::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint8_t* ptr = external_uint8_clamped_pointer();
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalUint8ClampedArray::get(
-    Handle<ExternalUint8ClampedArray> array,
-    int index) {
-  return Handle<Smi>(Smi::FromInt(array->get_scalar(index)),
-                     array->GetIsolate());
-}
-
-
-void ExternalUint8ClampedArray::set(int index, uint8_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint8_t* ptr = external_uint8_clamped_pointer();
-  ptr[index] = value;
-}
-
-
-void* ExternalArray::external_pointer() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
-  return reinterpret_cast<void*>(ptr);
-}
-
-
-void ExternalArray::set_external_pointer(void* value, WriteBarrierMode mode) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kExternalPointerOffset, ptr);
-}
-
-
-int8_t ExternalInt8Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  int8_t* ptr = static_cast<int8_t*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalInt8Array::get(Handle<ExternalInt8Array> array,
-                                      int index) {
-  return Handle<Smi>(Smi::FromInt(array->get_scalar(index)),
-                     array->GetIsolate());
-}
-
-
-void ExternalInt8Array::set(int index, int8_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  int8_t* ptr = static_cast<int8_t*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-uint8_t ExternalUint8Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalUint8Array::get(Handle<ExternalUint8Array> array,
-                                       int index) {
-  return Handle<Smi>(Smi::FromInt(array->get_scalar(index)),
-                     array->GetIsolate());
-}
-
-
-void ExternalUint8Array::set(int index, uint8_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-int16_t ExternalInt16Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  int16_t* ptr = static_cast<int16_t*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalInt16Array::get(Handle<ExternalInt16Array> array,
-                                       int index) {
-  return Handle<Smi>(Smi::FromInt(array->get_scalar(index)),
-                     array->GetIsolate());
-}
-
-
-void ExternalInt16Array::set(int index, int16_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  int16_t* ptr = static_cast<int16_t*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-uint16_t ExternalUint16Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalUint16Array::get(Handle<ExternalUint16Array> array,
-                                        int index) {
-  return Handle<Smi>(Smi::FromInt(array->get_scalar(index)),
-                     array->GetIsolate());
-}
-
-
-void ExternalUint16Array::set(int index, uint16_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-int32_t ExternalInt32Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  int32_t* ptr = static_cast<int32_t*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalInt32Array::get(Handle<ExternalInt32Array> array,
-                                       int index) {
-  return array->GetIsolate()->factory()->
-      NewNumberFromInt(array->get_scalar(index));
-}
-
-
-void ExternalInt32Array::set(int index, int32_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  int32_t* ptr = static_cast<int32_t*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-uint32_t ExternalUint32Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalUint32Array::get(Handle<ExternalUint32Array> array,
-                                        int index) {
-  return array->GetIsolate()->factory()->
-      NewNumberFromUint(array->get_scalar(index));
-}
-
-
-void ExternalUint32Array::set(int index, uint32_t value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-float ExternalFloat32Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  float* ptr = static_cast<float*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalFloat32Array::get(Handle<ExternalFloat32Array> array,
-                                         int index) {
-  return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
-}
-
-
-void ExternalFloat32Array::set(int index, float value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  float* ptr = static_cast<float*>(external_pointer());
-  ptr[index] = value;
-}
-
-
-double ExternalFloat64Array::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  double* ptr = static_cast<double*>(external_pointer());
-  return ptr[index];
-}
-
-
-Handle<Object> ExternalFloat64Array::get(Handle<ExternalFloat64Array> array,
-                                         int index) {
-  return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
-}
-
-
-void ExternalFloat64Array::set(int index, double value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  double* ptr = static_cast<double*>(external_pointer());
-  ptr[index] = value;
-}
-
-
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
 
@@ -3904,6 +3673,7 @@ int FixedTypedArrayBase::ElementSize(InstanceType type) {
 
 
 int FixedTypedArrayBase::DataSize(InstanceType type) {
+  if (base_pointer() == Smi::FromInt(0)) return 0;
   return length() * ElementSize(type);
 }
 
@@ -6311,27 +6081,6 @@ bool JSObject::HasSloppyArgumentsElements() {
 }
 
 
-bool JSObject::HasExternalArrayElements() {
-  HeapObject* array = elements();
-  DCHECK(array != NULL);
-  return array->IsExternalArray();
-}
-
-
-#define EXTERNAL_ELEMENTS_CHECK(Type, type, TYPE, ctype, size)          \
-bool JSObject::HasExternal##Type##Elements() {                          \
-  HeapObject* array = elements();                                       \
-  DCHECK(array != NULL);                                                \
-  if (!array->IsHeapObject())                                           \
-    return false;                                                       \
-  return array->map()->instance_type() == EXTERNAL_##TYPE##_ARRAY_TYPE; \
-}
-
-TYPED_ARRAYS(EXTERNAL_ELEMENTS_CHECK)
-
-#undef EXTERNAL_ELEMENTS_CHECK
-
-
 bool JSObject::HasFixedTypedArrayElements() {
   HeapObject* array = elements();
   DCHECK(array != NULL);
@@ -7003,7 +6752,7 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
 
 bool JSArray::AllowsSetLength() {
   bool result = elements()->IsFixedArray() || elements()->IsFixedDoubleArray();
-  DCHECK(result == !HasExternalArrayElements());
+  DCHECK(result == !HasFixedTypedArrayElements());
   return result;
 }
 

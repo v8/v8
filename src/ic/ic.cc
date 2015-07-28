@@ -1953,8 +1953,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (store_mode != STANDARD_STORE) {
     int external_arrays = 0;
     for (int i = 0; i < target_receiver_maps.length(); ++i) {
-      if (target_receiver_maps[i]->has_external_array_elements() ||
-          target_receiver_maps[i]->has_fixed_typed_array_elements()) {
+      if (target_receiver_maps[i]->has_fixed_typed_array_elements()) {
         external_arrays++;
       }
     }
@@ -1991,7 +1990,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
     case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
       return Map::TransitionElementsTo(map, FAST_HOLEY_DOUBLE_ELEMENTS);
     case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
-      DCHECK(map->has_external_array_elements());
+      DCHECK(map->has_fixed_typed_array_elements());
     // Fall through
     case STORE_NO_TRANSITION_HANDLE_COW:
     case STANDARD_STORE:
@@ -2074,7 +2073,7 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
       }
     }
     if (!FLAG_trace_external_array_abuse &&
-        receiver->map()->has_external_array_elements() && oob_access) {
+        receiver->map()->has_fixed_typed_array_elements() && oob_access) {
       return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
     }
     Heap* heap = receiver->GetHeap();

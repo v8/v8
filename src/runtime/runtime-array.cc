@@ -298,7 +298,6 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case EXTERNAL_##TYPE##_ELEMENTS:                      \
   case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -418,7 +417,6 @@ static void CollectElementIndices(Handle<JSObject> object, uint32_t range,
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case TYPE##_ELEMENTS:                                 \
-  case EXTERNAL_##TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -610,15 +608,6 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       }
       break;
     }
-    case EXTERNAL_UINT8_CLAMPED_ELEMENTS: {
-      Handle<ExternalUint8ClampedArray> pixels(
-          ExternalUint8ClampedArray::cast(receiver->elements()));
-      for (uint32_t j = 0; j < length; j++) {
-        Handle<Smi> e(Smi::FromInt(pixels->get_scalar(j)), isolate);
-        visitor->visit(j, e);
-      }
-      break;
-    }
     case UINT8_CLAMPED_ELEMENTS: {
       Handle<FixedUint8ClampedArray> pixels(
       FixedUint8ClampedArray::cast(receiver->elements()));
@@ -628,19 +617,9 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       }
       break;
     }
-    case EXTERNAL_INT8_ELEMENTS: {
-      IterateTypedArrayElements<ExternalInt8Array, int8_t>(
-          isolate, receiver, true, true, visitor);
-      break;
-    }
     case INT8_ELEMENTS: {
       IterateTypedArrayElements<FixedInt8Array, int8_t>(
       isolate, receiver, true, true, visitor);
-      break;
-    }
-    case EXTERNAL_UINT8_ELEMENTS: {
-      IterateTypedArrayElements<ExternalUint8Array, uint8_t>(
-          isolate, receiver, true, true, visitor);
       break;
     }
     case UINT8_ELEMENTS: {
@@ -648,19 +627,9 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       isolate, receiver, true, true, visitor);
       break;
     }
-    case EXTERNAL_INT16_ELEMENTS: {
-      IterateTypedArrayElements<ExternalInt16Array, int16_t>(
-          isolate, receiver, true, true, visitor);
-      break;
-    }
     case INT16_ELEMENTS: {
       IterateTypedArrayElements<FixedInt16Array, int16_t>(
       isolate, receiver, true, true, visitor);
-      break;
-    }
-    case EXTERNAL_UINT16_ELEMENTS: {
-      IterateTypedArrayElements<ExternalUint16Array, uint16_t>(
-          isolate, receiver, true, true, visitor);
       break;
     }
     case UINT16_ELEMENTS: {
@@ -668,19 +637,9 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       isolate, receiver, true, true, visitor);
       break;
     }
-    case EXTERNAL_INT32_ELEMENTS: {
-      IterateTypedArrayElements<ExternalInt32Array, int32_t>(
-          isolate, receiver, true, false, visitor);
-      break;
-    }
     case INT32_ELEMENTS: {
       IterateTypedArrayElements<FixedInt32Array, int32_t>(
       isolate, receiver, true, false, visitor);
-      break;
-    }
-    case EXTERNAL_UINT32_ELEMENTS: {
-      IterateTypedArrayElements<ExternalUint32Array, uint32_t>(
-          isolate, receiver, true, false, visitor);
       break;
     }
     case UINT32_ELEMENTS: {
@@ -688,19 +647,9 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       isolate, receiver, true, false, visitor);
       break;
     }
-    case EXTERNAL_FLOAT32_ELEMENTS: {
-      IterateTypedArrayElements<ExternalFloat32Array, float>(
-          isolate, receiver, false, false, visitor);
-      break;
-    }
     case FLOAT32_ELEMENTS: {
       IterateTypedArrayElements<FixedFloat32Array, float>(
       isolate, receiver, false, false, visitor);
-      break;
-    }
-    case EXTERNAL_FLOAT64_ELEMENTS: {
-      IterateTypedArrayElements<ExternalFloat64Array, double>(
-          isolate, receiver, false, false, visitor);
       break;
     }
     case FLOAT64_ELEMENTS: {
@@ -1233,8 +1182,7 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
-  RUNTIME_ASSERT(!array->HasExternalArrayElements() &&
-                 !array->HasFixedTypedArrayElements() &&
+  RUNTIME_ASSERT(!array->HasFixedTypedArrayElements() &&
                  !array->IsJSGlobalProxy());
   JSObject::NormalizeElements(array);
   return *array;

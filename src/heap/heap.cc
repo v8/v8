@@ -2500,7 +2500,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     DCHECK(map_word.IsForwardingAddress());
     FixedTypedArrayBase* target =
         reinterpret_cast<FixedTypedArrayBase*>(map_word.ToForwardingAddress());
-    target->set_base_pointer(target, SKIP_WRITE_BARRIER);
+    if (target->base_pointer() != Smi::FromInt(0))
+      target->set_base_pointer(target, SKIP_WRITE_BARRIER);
   }
 
 
@@ -2513,7 +2514,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     DCHECK(map_word.IsForwardingAddress());
     FixedTypedArrayBase* target =
         reinterpret_cast<FixedTypedArrayBase*>(map_word.ToForwardingAddress());
-    target->set_base_pointer(target, SKIP_WRITE_BARRIER);
+    if (target->base_pointer() != Smi::FromInt(0))
+      target->set_base_pointer(target, SKIP_WRITE_BARRIER);
   }
 
 
@@ -3004,13 +3006,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
 
-#define ALLOCATE_EXTERNAL_ARRAY_MAP(Type, type, TYPE, ctype, size) \
-  ALLOCATE_MAP(EXTERNAL_##TYPE##_ARRAY_TYPE, ExternalArray::kSize, \
-               external_##type##_array)
-
-    TYPED_ARRAYS(ALLOCATE_EXTERNAL_ARRAY_MAP)
-#undef ALLOCATE_EXTERNAL_ARRAY_MAP
-
 #define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype, size) \
   ALLOCATE_VARSIZE_MAP(FIXED_##TYPE##_ARRAY_TYPE, fixed_##type##_array)
 
@@ -3075,17 +3070,6 @@ bool Heap::CreateInitialMaps() {
       }
       set_empty_bytecode_array(bytecode_array);
     }
-
-#define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type, TYPE, ctype, size)  \
-  {                                                                   \
-    ExternalArray* obj;                                               \
-    if (!AllocateEmptyExternalArray(kExternal##Type##Array).To(&obj)) \
-      return false;                                                   \
-    set_empty_external_##type##_array(obj);                           \
-  }
-
-    TYPED_ARRAYS(ALLOCATE_EMPTY_EXTERNAL_ARRAY)
-#undef ALLOCATE_EMPTY_EXTERNAL_ARRAY
 
 #define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
   {                                                                     \
@@ -3702,27 +3686,6 @@ void Heap::AddAllocationSiteToScratchpad(AllocationSite* site,
 }
 
 
-Map* Heap::MapForExternalArrayType(ExternalArrayType array_type) {
-  return Map::cast(roots_[RootIndexForExternalArrayType(array_type)]);
-}
-
-
-Heap::RootListIndex Heap::RootIndexForExternalArrayType(
-    ExternalArrayType array_type) {
-  switch (array_type) {
-#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                                  \
-    return kExternal##Type##ArrayMapRootIndex;
-
-    TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
-#undef ARRAY_TYPE_TO_ROOT_INDEX
-
-    default:
-      UNREACHABLE();
-      return kUndefinedValueRootIndex;
-  }
-}
-
 
 Map* Heap::MapForFixedTypedArray(ExternalArrayType array_type) {
   return Map::cast(roots_[RootIndexForFixedTypedArray(array_type)]);
@@ -3746,23 +3709,6 @@ Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
 }
 
 
-Heap::RootListIndex Heap::RootIndexForEmptyExternalArray(
-    ElementsKind elementsKind) {
-  switch (elementsKind) {
-#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype, size) \
-  case EXTERNAL_##TYPE##_ELEMENTS:                                \
-    return kEmptyExternal##Type##ArrayRootIndex;
-
-    TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
-#undef ELEMENT_KIND_TO_ROOT_INDEX
-
-    default:
-      UNREACHABLE();
-      return kUndefinedValueRootIndex;
-  }
-}
-
-
 Heap::RootListIndex Heap::RootIndexForEmptyFixedTypedArray(
     ElementsKind elementsKind) {
   switch (elementsKind) {
@@ -3776,12 +3722,6 @@ Heap::RootListIndex Heap::RootIndexForEmptyFixedTypedArray(
       UNREACHABLE();
       return kUndefinedValueRootIndex;
   }
-}
-
-
-ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
-  return ExternalArray::cast(
-      roots_[RootIndexForEmptyExternalArray(map->elements_kind())]);
 }
 
 
@@ -4005,11 +3945,10 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
 }
 
 
-AllocationResult Heap::AllocateExternalArray(int length,
-                                             ExternalArrayType array_type,
-                                             void* external_pointer,
-                                             PretenureFlag pretenure) {
-  int size = ExternalArray::kSize;
+AllocationResult Heap::AllocateFixedTypedArrayWithExternalPointer(
+    int length, ExternalArrayType array_type, void* external_pointer,
+    PretenureFlag pretenure) {
+  int size = FixedTypedArrayBase::kHeaderSize;
   AllocationSpace space = SelectSpace(size, pretenure);
   HeapObject* result;
   {
@@ -4017,10 +3956,12 @@ AllocationResult Heap::AllocateExternalArray(int length,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(MapForExternalArrayType(array_type));
-  ExternalArray::cast(result)->set_length(length);
-  ExternalArray::cast(result)->set_external_pointer(external_pointer);
-  return result;
+  result->set_map_no_write_barrier(MapForFixedTypedArray(array_type));
+  FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(result);
+  elements->set_base_pointer(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+  elements->set_external_pointer(external_pointer, SKIP_WRITE_BARRIER);
+  elements->set_length(length);
+  return elements;
 }
 
 static void ForFixedTypedArray(ExternalArrayType array_type, int* element_size,
@@ -4060,7 +4001,7 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
   if (!allocation.To(&object)) return allocation;
 
-  object->set_map(MapForFixedTypedArray(array_type));
+  object->set_map_no_write_barrier(MapForFixedTypedArray(array_type));
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
@@ -4275,8 +4216,7 @@ AllocationResult Heap::AllocateJSObjectFromMap(
 
   // Initialize the JSObject.
   InitializeJSObjectFromMap(js_obj, properties, map);
-  DCHECK(js_obj->HasFastElements() || js_obj->HasExternalArrayElements() ||
-         js_obj->HasFixedTypedArrayElements());
+  DCHECK(js_obj->HasFastElements() || js_obj->HasFixedTypedArrayElements());
   return js_obj;
 }
 
@@ -4565,12 +4505,6 @@ AllocationResult Heap::AllocateEmptyFixedArray() {
   result->set_map_no_write_barrier(fixed_array_map());
   FixedArray::cast(result)->set_length(0);
   return result;
-}
-
-
-AllocationResult Heap::AllocateEmptyExternalArray(
-    ExternalArrayType array_type) {
-  return AllocateExternalArray(0, array_type, NULL, TENURED);
 }
 
 

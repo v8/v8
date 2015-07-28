@@ -286,10 +286,8 @@ class Factory final {
   Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
                                          int frame_size);
 
-  Handle<ExternalArray> NewExternalArray(
-      int length,
-      ExternalArrayType array_type,
-      void* external_pointer,
+  Handle<FixedTypedArrayBase> NewFixedTypedArrayWithExternalPointer(
+      int length, ExternalArrayType array_type, void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedTypedArrayBase> NewFixedTypedArray(

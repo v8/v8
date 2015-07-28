@@ -93,15 +93,6 @@
 //         - ScriptContextTable
 //         - WeakFixedArray
 //       - FixedDoubleArray
-//       - ExternalArray
-//         - ExternalUint8ClampedArray
-//         - ExternalInt8Array
-//         - ExternalUint8Array
-//         - ExternalInt16Array
-//         - ExternalUint16Array
-//         - ExternalInt32Array
-//         - ExternalUint32Array
-//         - ExternalFloat32Array
 //     - Name
 //       - String
 //         - SeqString
@@ -392,18 +383,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(BYTE_ARRAY_TYPE)                                            \
   V(BYTECODE_ARRAY_TYPE)                                        \
   V(FREE_SPACE_TYPE)                                            \
-  /* Note: the order of these external array */                 \
-  /* types is relied upon in */                                 \
-  /* Object::IsExternalArray(). */                              \
-  V(EXTERNAL_INT8_ARRAY_TYPE)                                   \
-  V(EXTERNAL_UINT8_ARRAY_TYPE)                                  \
-  V(EXTERNAL_INT16_ARRAY_TYPE)                                  \
-  V(EXTERNAL_UINT16_ARRAY_TYPE)                                 \
-  V(EXTERNAL_INT32_ARRAY_TYPE)                                  \
-  V(EXTERNAL_UINT32_ARRAY_TYPE)                                 \
-  V(EXTERNAL_FLOAT32_ARRAY_TYPE)                                \
-  V(EXTERNAL_FLOAT64_ARRAY_TYPE)                                \
-  V(EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE)                          \
                                                                 \
   V(FIXED_INT8_ARRAY_TYPE)                                      \
   V(FIXED_UINT8_ARRAY_TYPE)                                     \
@@ -689,15 +668,6 @@ enum InstanceType {
   BYTE_ARRAY_TYPE,
   BYTECODE_ARRAY_TYPE,
   FREE_SPACE_TYPE,
-  EXTERNAL_INT8_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
-  EXTERNAL_UINT8_ARRAY_TYPE,
-  EXTERNAL_INT16_ARRAY_TYPE,
-  EXTERNAL_UINT16_ARRAY_TYPE,
-  EXTERNAL_INT32_ARRAY_TYPE,
-  EXTERNAL_UINT32_ARRAY_TYPE,
-  EXTERNAL_FLOAT32_ARRAY_TYPE,
-  EXTERNAL_FLOAT64_ARRAY_TYPE,
-  EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
   FIXED_INT8_ARRAY_TYPE,              // FIRST_FIXED_TYPED_ARRAY_TYPE
   FIXED_UINT8_ARRAY_TYPE,
   FIXED_INT16_ARRAY_TYPE,
@@ -780,9 +750,6 @@ enum InstanceType {
   // Boundaries for testing for a SIMD type.
   FIRST_SIMD_TYPE = FLOAT32X4_TYPE,
   LAST_SIMD_TYPE = FLOAT32X4_TYPE,
-  // Boundaries for testing for an external array.
-  FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_INT8_ARRAY_TYPE,
-  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_UINT8_CLAMPED_ARRAY_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -811,9 +778,6 @@ enum InstanceType {
   // Define this so that we can put assertions on discrete checks.
   NUM_OF_CALLABLE_SPEC_OBJECT_TYPES = 2
 };
-
-const int kExternalArrayTypeCount =
-    LAST_EXTERNAL_ARRAY_TYPE - FIRST_EXTERNAL_ARRAY_TYPE + 1;
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
@@ -933,16 +897,6 @@ template <class C> inline bool Is(Object* obj);
   V(InternalizedString)            \
   V(Symbol)                        \
                                    \
-  V(ExternalArray)                 \
-  V(ExternalInt8Array)             \
-  V(ExternalUint8Array)            \
-  V(ExternalInt16Array)            \
-  V(ExternalUint16Array)           \
-  V(ExternalInt32Array)            \
-  V(ExternalUint32Array)           \
-  V(ExternalFloat32Array)          \
-  V(ExternalFloat64Array)          \
-  V(ExternalUint8ClampedArray)     \
   V(FixedTypedArrayBase)           \
   V(FixedUint8Array)               \
   V(FixedInt8Array)                \
@@ -1772,9 +1726,8 @@ class JSObject: public JSReceiver {
   // writing to any element the array must be copied. Use
   // EnsureWritableFastElements in this case.
   //
-  // In the slow mode the elements is either a NumberDictionary, an
-  // ExternalArray, or a FixedArray parameter map for a (sloppy)
-  // arguments object.
+  // In the slow mode the elements is either a NumberDictionary, a
+  // FixedArray parameter map for a (sloppy) arguments object.
   DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
   static void ResetElements(Handle<JSObject> object);
@@ -1800,17 +1753,6 @@ class JSObject: public JSReceiver {
   inline bool HasFastHoleyElements();
   inline bool HasSloppyArgumentsElements();
   inline bool HasDictionaryElements();
-
-  inline bool HasExternalUint8ClampedElements();
-  inline bool HasExternalArrayElements();
-  inline bool HasExternalInt8Elements();
-  inline bool HasExternalUint8Elements();
-  inline bool HasExternalInt16Elements();
-  inline bool HasExternalUint16Elements();
-  inline bool HasExternalInt32Elements();
-  inline bool HasExternalUint32Elements();
-  inline bool HasExternalFloat32Elements();
-  inline bool HasExternalFloat64Elements();
 
   inline bool HasFixedTypedArrayElements();
 
@@ -4334,261 +4276,14 @@ class FreeSpace: public HeapObject {
   V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1)
 
 
-
-// An ExternalArray represents a fixed-size array of primitive values
-// which live outside the JavaScript heap. Its subclasses are used to
-// implement the CanvasArray types being defined in the WebGL
-// specification. As of this writing the first public draft is not yet
-// available, but Khronos members can access the draft at:
-//   https://cvs.khronos.org/svn/repos/3dweb/trunk/doc/spec/WebGL-spec.html
-//
-// The semantics of these arrays differ from CanvasPixelArray.
-// Out-of-range values passed to the setter are converted via a C
-// cast, not clamping. Out-of-range indices cause exceptions to be
-// raised rather than being silently ignored.
-class ExternalArray: public FixedArrayBase {
- public:
-  inline bool is_the_hole(int index) { return false; }
-
-  // [external_pointer]: The pointer to the external memory area backing this
-  // external array.
-  DECL_ACCESSORS(external_pointer, void)  // Pointer to the data store.
-
-  DECLARE_CAST(ExternalArray)
-
-  // Maximal acceptable length for an external array.
-  static const int kMaxLength = 0x3fffffff;
-
-  // ExternalArray headers are not quadword aligned.
-  static const int kExternalPointerOffset =
-      POINTER_SIZE_ALIGN(FixedArrayBase::kLengthOffset + kPointerSize);
-  static const int kSize = kExternalPointerOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalArray);
-};
-
-
-// A ExternalUint8ClampedArray represents a fixed-size byte array with special
-// semantics used for implementing the CanvasPixelArray object. Please see the
-// specification at:
-
-// http://www.whatwg.org/specs/web-apps/current-work/
-//                      multipage/the-canvas-element.html#canvaspixelarray
-// In particular, write access clamps the value written to 0 or 255 if the
-// value written is outside this range.
-class ExternalUint8ClampedArray: public ExternalArray {
- public:
-  inline uint8_t* external_uint8_clamped_pointer();
-
-  // Setter and getter.
-  inline uint8_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalUint8ClampedArray> array,
-                                   int index);
-  inline void set(int index, uint8_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined and clamps the converted value between 0 and 255.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalUint8ClampedArray)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUint8ClampedArray)
-  DECLARE_VERIFIER(ExternalUint8ClampedArray)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint8ClampedArray);
-};
-
-
-class ExternalInt8Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline int8_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalInt8Array> array, int index);
-  inline void set(int index, int8_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalInt8Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalInt8Array)
-  DECLARE_VERIFIER(ExternalInt8Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalInt8Array);
-};
-
-
-class ExternalUint8Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline uint8_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalUint8Array> array, int index);
-  inline void set(int index, uint8_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalUint8Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUint8Array)
-  DECLARE_VERIFIER(ExternalUint8Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint8Array);
-};
-
-
-class ExternalInt16Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline int16_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalInt16Array> array, int index);
-  inline void set(int index, int16_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalInt16Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalInt16Array)
-  DECLARE_VERIFIER(ExternalInt16Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalInt16Array);
-};
-
-
-class ExternalUint16Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline uint16_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalUint16Array> array,
-                                   int index);
-  inline void set(int index, uint16_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalUint16Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUint16Array)
-  DECLARE_VERIFIER(ExternalUint16Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint16Array);
-};
-
-
-class ExternalInt32Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline int32_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalInt32Array> array, int index);
-  inline void set(int index, int32_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalInt32Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalInt32Array)
-  DECLARE_VERIFIER(ExternalInt32Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalInt32Array);
-};
-
-
-class ExternalUint32Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline uint32_t get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalUint32Array> array,
-                                   int index);
-  inline void set(int index, uint32_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalUint32Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalUint32Array)
-  DECLARE_VERIFIER(ExternalUint32Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUint32Array);
-};
-
-
-class ExternalFloat32Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline float get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalFloat32Array> array,
-                                   int index);
-  inline void set(int index, float value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalFloat32Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalFloat32Array)
-  DECLARE_VERIFIER(ExternalFloat32Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloat32Array);
-};
-
-
-class ExternalFloat64Array: public ExternalArray {
- public:
-  // Setter and getter.
-  inline double get_scalar(int index);
-  static inline Handle<Object> get(Handle<ExternalFloat64Array> array,
-                                   int index);
-  inline void set(int index, double value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  void SetValue(uint32_t index, Object* value);
-
-  DECLARE_CAST(ExternalFloat64Array)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExternalFloat64Array)
-  DECLARE_VERIFIER(ExternalFloat64Array)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloat64Array);
-};
-
-
 class FixedTypedArrayBase: public FixedArrayBase {
  public:
-  // [base_pointer]: For now, points to the FixedTypedArrayBase itself.
+  // [base_pointer]: Either points to the FixedTypedArrayBase itself or nullptr.
   DECL_ACCESSORS(base_pointer, Object)
 
-  // [external_pointer]: For now, contains the offset between base_pointer and
-  // the start of the data.
+  // [external_pointer]: Contains the offset between base_pointer and the start
+  // of the data. If the base_pointer is a nullptr, the external_pointer
+  // therefore points to the actual backing store.
   DECL_ACCESSORS(external_pointer, void)
 
   // Dispatched behavior.
@@ -5737,10 +5432,6 @@ class Map: public HeapObject {
 
   inline bool has_sloppy_arguments_elements() {
     return IsSloppyArgumentsElements(elements_kind());
-  }
-
-  inline bool has_external_array_elements() {
-    return IsExternalArrayElementsKind(elements_kind());
   }
 
   inline bool has_fixed_typed_array_elements() {

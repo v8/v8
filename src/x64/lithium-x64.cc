@@ -2238,7 +2238,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
     FindDehoistedKeyDefinitions(instr->key());
   }
 
-  if (!instr->is_typed_elements()) {
+  if (!instr->is_fixed_typed_array()) {
     LOperand* obj = UseRegisterAtStart(instr->elements());
     result = DefineAsRegister(new(zone()) LLoadKeyed(obj, key));
   } else {
@@ -2252,10 +2252,9 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   }
 
   bool needs_environment;
-  if (instr->is_external() || instr->is_fixed_typed_array()) {
+  if (instr->is_fixed_typed_array()) {
     // see LCodeGen::DoLoadKeyedExternalArray
-    needs_environment = (elements_kind == EXTERNAL_UINT32_ELEMENTS ||
-                         elements_kind == UINT32_ELEMENTS) &&
+    needs_environment = elements_kind == UINT32_ELEMENTS &&
                         !instr->CheckFlag(HInstruction::kUint32);
   } else {
     // see LCodeGen::DoLoadKeyedFixedDoubleArray and
@@ -2295,7 +2294,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     FindDehoistedKeyDefinitions(instr->key());
   }
 
-  if (!instr->is_typed_elements()) {
+  if (!instr->is_fixed_typed_array()) {
     DCHECK(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
     LOperand* object = NULL;
@@ -2330,10 +2329,8 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
        (instr->value()->representation().IsDouble() &&
        IsDoubleOrFloatElementsKind(elements_kind)));
   DCHECK(instr->elements()->representation().IsExternal());
-  bool val_is_temp_register =
-      elements_kind == EXTERNAL_UINT8_CLAMPED_ELEMENTS ||
-      elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS;
+  bool val_is_temp_register = elements_kind == UINT8_CLAMPED_ELEMENTS ||
+                              elements_kind == FLOAT32_ELEMENTS;
   LOperand* val = val_is_temp_register ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
   LOperand* key = NULL;

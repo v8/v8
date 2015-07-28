@@ -2187,7 +2187,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LInstruction* result = NULL;
 
-  if (!instr->is_typed_elements()) {
+  if (!instr->is_fixed_typed_array()) {
     LOperand* obj = NULL;
     if (instr->representation().IsDouble()) {
       obj = UseRegister(instr->elements());
@@ -2208,10 +2208,9 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   }
 
   bool needs_environment;
-  if (instr->is_external() || instr->is_fixed_typed_array()) {
+  if (instr->is_fixed_typed_array()) {
     // see LCodeGen::DoLoadKeyedExternalArray
-    needs_environment = (elements_kind == EXTERNAL_UINT32_ELEMENTS ||
-                         elements_kind == UINT32_ELEMENTS) &&
+    needs_environment = elements_kind == UINT32_ELEMENTS &&
                         !instr->CheckFlag(HInstruction::kUint32);
   } else {
     // see LCodeGen::DoLoadKeyedFixedDoubleArray and
@@ -2246,7 +2245,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
-  if (!instr->is_typed_elements()) {
+  if (!instr->is_fixed_typed_array()) {
     DCHECK(instr->elements()->representation().IsTagged());
     bool needs_write_barrier = instr->NeedsWriteBarrier();
     LOperand* object = NULL;

@@ -577,7 +577,6 @@ void ElementHandlerCompiler::CompileElementHandlers(
       } else if (IsSloppyArgumentsElements(elements_kind)) {
         cached_stub = KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
       } else if (IsFastElementsKind(elements_kind) ||
-                 IsExternalArrayElementsKind(elements_kind) ||
                  IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind,
                                           convert_hole_to_undefined).GetCode();

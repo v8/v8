@@ -658,17 +658,8 @@ namespace internal {
   F(HasFastHoleyElements, 1, 1)               \
   F(HasDictionaryElements, 1, 1)              \
   F(HasSloppyArgumentsElements, 1, 1)         \
-  F(HasExternalArrayElements, 1, 1)           \
+  F(HasFixedTypedArrayElements, 1, 1)         \
   F(HasFastProperties, 1, 1)                  \
-  F(HasExternalUint8Elements, 1, 1)           \
-  F(HasExternalInt8Elements, 1, 1)            \
-  F(HasExternalUint16Elements, 1, 1)          \
-  F(HasExternalInt16Elements, 1, 1)           \
-  F(HasExternalUint32Elements, 1, 1)          \
-  F(HasExternalInt32Elements, 1, 1)           \
-  F(HasExternalFloat32Elements, 1, 1)         \
-  F(HasExternalFloat64Elements, 1, 1)         \
-  F(HasExternalUint8ClampedElements, 1, 1)    \
   F(HasFixedUint8Elements, 1, 1)              \
   F(HasFixedInt8Elements, 1, 1)               \
   F(HasFixedUint16Elements, 1, 1)             \
@@ -927,7 +918,6 @@ class Runtime : public AllStatic {
   };
 
   static void ArrayIdToTypeAndSize(int array_id, ExternalArrayType* type,
-                                   ElementsKind* external_elements_kind,
                                    ElementsKind* fixed_elements_kind,
                                    size_t* element_size);
 

@@ -1587,12 +1587,8 @@ class LLoadKeyed final : public LTemplateInstruction<1, 2, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   ElementsKind elements_kind() const { return hydrogen()->elements_kind(); }
-  bool is_external() const { return hydrogen()->is_external(); }
   bool is_fixed_typed_array() const {
     return hydrogen()->is_fixed_typed_array();
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
@@ -2168,12 +2164,8 @@ class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
     inputs_[2] = value;
   }
 
-  bool is_external() const { return hydrogen()->is_external(); }
   bool is_fixed_typed_array() const {
     return hydrogen()->is_fixed_typed_array();
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
