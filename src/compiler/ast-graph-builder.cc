@@ -3334,7 +3334,6 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       int slot_index = -1;
       if (variable->index() > 0) {
         DCHECK(variable->IsStaticGlobalObjectProperty());
-        // Each var occupies two slots in the context: for reads and writes.
         slot_index = variable->index();
         int depth = current_scope()->ContextChainLength(variable->scope());
         if (depth > 0) {
@@ -3485,7 +3484,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       int slot_index = -1;
       if (variable->index() > 0) {
         DCHECK(variable->IsStaticGlobalObjectProperty());
-        // Each var occupies two slots in the context: for reads and writes.
         slot_index = variable->index();
         int depth = current_scope()->ContextChainLength(variable->scope());
         if (depth > 0) {

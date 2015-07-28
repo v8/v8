@@ -5564,7 +5564,6 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       } else if (variable->IsGlobalSlot()) {
         DCHECK(variable->index() > 0);
         DCHECK(variable->IsStaticGlobalObjectProperty());
-        // Each var occupies two slots in the context: for reads and writes.
         int slot_index = variable->index();
         int depth = scope()->ContextChainLength(variable->scope());
 
@@ -6796,8 +6795,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
   } else if (var->IsGlobalSlot()) {
     DCHECK(var->index() > 0);
     DCHECK(var->IsStaticGlobalObjectProperty());
-    // Each var occupies two slots in the context: for reads and writes.
-    int slot_index = var->index() + 1;
+    int slot_index = var->index();
     int depth = scope()->ContextChainLength(var->scope());
 
     HStoreGlobalViaContext* instr = Add<HStoreGlobalViaContext>(

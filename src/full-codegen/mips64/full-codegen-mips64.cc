@@ -1402,7 +1402,6 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   if (var->IsGlobalSlot()) {
     DCHECK(var->index() > 0);
     DCHECK(var->IsStaticGlobalObjectProperty());
-    // Each var occupies two slots in the context: for reads and writes.
     int const slot = var->index();
     int const depth = scope()->ContextChainLength(var->scope());
     if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
@@ -2700,8 +2699,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     DCHECK(var->IsStaticGlobalObjectProperty());
     DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(a0));
     __ mov(StoreGlobalViaContextDescriptor::ValueRegister(), result_register());
-    // Each var occupies two slots in the context: for reads and writes.
-    int const slot = var->index() + 1;
+    int const slot = var->index();
     int const depth = scope()->ContextChainLength(var->scope());
     if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
       __ li(StoreGlobalViaContextDescriptor::SlotRegister(), Operand(slot));

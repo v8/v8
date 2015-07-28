@@ -365,8 +365,6 @@ void Context::InitializeGlobalSlots() {
     int context_locals = scope_info->ContextLocalCount();
     int index = Context::MIN_CONTEXT_SLOTS + context_locals;
     for (int i = 0; i < context_globals; i++) {
-      // Clear both read and write slots.
-      set(index++, empty_cell);
       set(index++, empty_cell);
     }
   }

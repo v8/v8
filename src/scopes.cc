@@ -1470,11 +1470,8 @@ void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
     if (var->IsStaticGlobalObjectProperty()) {
       DCHECK_EQ(-1, var->index());
       DCHECK(var->name()->IsString());
-      var->AllocateTo(VariableLocation::GLOBAL, num_heap_slots_);
+      var->AllocateTo(VariableLocation::GLOBAL, num_heap_slots_++);
       num_global_slots_++;
-      // Each global variable occupies two slots in the context: for reads
-      // and writes.
-      num_heap_slots_ += 2;
     } else {
       // There must be only DYNAMIC_GLOBAL in the script scope.
       DCHECK(!is_script_scope() || DYNAMIC_GLOBAL == var->mode());
@@ -1600,11 +1597,12 @@ int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;
   bool is_function_var_in_context =
       function_ != NULL && function_->proxy()->var()->IsContextSlot();
-  return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
-         2 * num_global_slots() - (is_function_var_in_context ? 1 : 0);
+  return num_heap_slots() - Context::MIN_CONTEXT_SLOTS - num_global_slots() -
+         (is_function_var_in_context ? 1 : 0);
 }
 
 
 int Scope::ContextGlobalCount() const { return num_global_slots(); }
+
 }  // namespace internal
 }  // namespace v8
