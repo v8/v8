@@ -437,8 +437,8 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
-  if (LookupIterator::DATA == it.state() &&
-      it.GetHolder<Object>()->IsJSGlobalObject()) {
+  if (it.state() == LookupIterator::DATA &&
+      it.GetHolder<Object>().is_identical_to(global_object)) {
     // Now update the cell in the script context.
     Handle<PropertyCell> cell = it.GetPropertyCell();
     script_context->set(slot, *cell);
@@ -469,10 +469,11 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<GlobalObject> global_object(script_context->global_object(), isolate);
   LookupIterator it(global_object, name, LookupIterator::HIDDEN);
+
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
-  if (LookupIterator::DATA == it.state() &&
-      it.GetHolder<Object>()->IsJSGlobalObject()) {
+  if (it.state() == LookupIterator::DATA &&
+      it.GetHolder<Object>().is_identical_to(global_object)) {
     // Now update cell in the script context.
     Handle<PropertyCell> cell = it.GetPropertyCell();
     script_context->set(slot, *cell);

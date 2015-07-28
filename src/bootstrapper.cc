@@ -1819,7 +1819,8 @@ Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
   // Reset property cell type before (re)initializing.
   JSBuiltinsObject::InvalidatePropertyCell(builtins, name_string);
   JSObject::SetOwnPropertyIgnoreAttributes(builtins, name_string, typed_array,
-                                           DONT_DELETE).Assert();
+                                           FROZEN)
+      .Assert();
   return data;
 }
 
