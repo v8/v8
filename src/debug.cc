@@ -1311,6 +1311,16 @@ void Debug::ClearStepNext() {
 }
 
 
+// We start counting call sites from the stack check because the declaration
+// code at the start of the function may have changed on recompile.
+static void SkipToStackCheck(Isolate* isolate, RelocIterator* it) {
+  while (Code::GetCodeFromTargetAddress(it->rinfo()->target_address()) !=
+         *isolate->builtins()->StackCheck()) {
+    it->next();
+  }
+}
+
+
 // Count the number of calls before the current frame PC to find the
 // corresponding PC in the newly recompiled code.
 static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
@@ -1321,8 +1331,10 @@ static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
   int mask = RelocInfo::kCodeTargetMask;
   int index = 0;
   intptr_t delta = 0;
-  for (RelocIterator it(old_code, mask); !it.done(); it.next()) {
-    RelocInfo* rinfo = it.rinfo();
+  Isolate* isolate = new_code->GetIsolate();
+  RelocIterator old_it(old_code, mask);
+  for (SkipToStackCheck(isolate, &old_it); !old_it.done(); old_it.next()) {
+    RelocInfo* rinfo = old_it.rinfo();
     Address current_pc = rinfo->pc();
     // The frame PC is behind the call instruction by the call instruction size.
     if (current_pc > old_pc) break;
@@ -1330,9 +1342,10 @@ static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
     delta = old_pc - current_pc;
   }
 
-  RelocIterator it(new_code, mask);
-  for (int i = 1; i < index; i++) it.next();
-  return it.rinfo()->pc() + delta;
+  RelocIterator new_it(new_code, mask);
+  SkipToStackCheck(isolate, &new_it);
+  for (int i = 1; i < index; i++) new_it.next();
+  return new_it.rinfo()->pc() + delta;
 }
 
 
