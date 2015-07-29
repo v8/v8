@@ -44,7 +44,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
-from testrunner.local.testsuite import VARIANT_FLAGS
+from testrunner.local.testsuite import ALL_VARIANTS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -332,7 +332,7 @@ def BuildbotToV8Mode(config):
   return mode.lower()
 
 def ProcessOptions(options):
-  global VARIANT_FLAGS
+  global ALL_VARIANTS
   global VARIANTS
 
   # Architecture and mode related stuff.
@@ -423,8 +423,8 @@ def ProcessOptions(options):
     VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
-    if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
-      print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
+    if not set(VARIANTS).issubset(ALL_VARIANTS.keys()):
+      print "All variants must be in %s" % str(ALL_VARIANTS.keys())
       return False
   if options.predictable:
     VARIANTS = ["default"]
@@ -621,10 +621,11 @@ def Execute(arch, mode, args, options, suites, workspace):
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
-    variant_flags = [VARIANT_FLAGS[var] for var in VARIANTS]
-    variant_tests = [ t.CopyAddingFlags(v)
+    variant_gen = s.CreateVariantGenerator(VARIANTS)
+    variant_tests = [ t.CopyAddingFlags(flags)
                       for t in s.tests
-                      for v in s.VariantFlags(t, variant_flags) ]
+                      for v in variant_gen.FilterVariantsByTest(t)
+                      for flags in variant_gen.GetFlagSets(t, v) ]
 
     if options.random_seed_stress_count > 1:
       # Duplicate test for random seed stress mode.
@@ -637,9 +638,9 @@ def Execute(arch, mode, args, options, suites, workspace):
           else:
             yield ["--random-seed=%d" % RandomSeed()]
       s.tests = [
-        t.CopyAddingFlags(v)
+        t.CopyAddingFlags(flags)
         for t in variant_tests
-        for v in iter_seed_flags()
+        for flags in iter_seed_flags()
       ]
     else:
       s.tests = variant_tests
