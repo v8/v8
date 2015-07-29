@@ -423,8 +423,8 @@ def ProcessOptions(options):
     VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
-    if not set(VARIANTS).issubset(ALL_VARIANTS.keys()):
-      print "All variants must be in %s" % str(ALL_VARIANTS.keys())
+    if not set(VARIANTS).issubset(ALL_VARIANTS):
+      print "All variants must be in %s" % str(ALL_VARIANTS)
       return False
   if options.predictable:
     VARIANTS = ["default"]
