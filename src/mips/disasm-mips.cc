@@ -352,8 +352,10 @@ void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
 
 // Print 26-bit hex immediate value.
 void Decoder::PrintXImm26(Instruction* instr) {
-  uint32_t imm = instr->Imm26Value() << kImmFieldShift;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  uint32_t target = static_cast<uint32_t>(instr->Imm26Value())
+                    << kImmFieldShift;
+  target = (reinterpret_cast<uint32_t>(instr) & ~0xfffffff) | target;
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", target);
 }
 
 
