@@ -4581,9 +4581,10 @@ void SlotsBuffer::VerifySlots(Heap* heap, SlotsBuffer* buffer) {
       if (!IsTypedSlot(slot)) {
         Object* object = *slot;
         if (object->IsHeapObject()) {
+          HeapObject* heap_object = HeapObject::cast(object);
           CHECK(!heap->InNewSpace(object));
-          CHECK(heap->mark_compact_collector()->IsSlotInLiveObject(
-              reinterpret_cast<Address>(slot)));
+          heap->mark_compact_collector()->VerifyIsSlotInLiveObject(
+              reinterpret_cast<Address>(slot), heap_object);
         }
       } else {
         ++slot_idx;
