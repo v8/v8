@@ -37,11 +37,9 @@ const Register StoreTransitionDescriptor::MapRegister() { return r6; }
 
 
 const Register LoadGlobalViaContextDescriptor::SlotRegister() { return r5; }
-const Register LoadGlobalViaContextDescriptor::NameRegister() { return r6; }
 
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r5; }
-const Register StoreGlobalViaContextDescriptor::NameRegister() { return r6; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r3; }
 
 

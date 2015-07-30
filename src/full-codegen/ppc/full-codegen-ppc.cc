@@ -1381,14 +1381,11 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
     const int depth = scope()->ContextChainLength(var->scope());
     if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
       __ mov(LoadGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
-      __ mov(LoadGlobalViaContextDescriptor::NameRegister(),
-             Operand(var->name()));
       LoadGlobalViaContextStub stub(isolate(), depth);
       __ CallStub(&stub);
     } else {
       __ Push(Smi::FromInt(slot));
-      __ Push(var->name());
-      __ CallRuntime(Runtime::kLoadGlobalViaContext, 2);
+      __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
     }
   } else {
     __ LoadP(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
@@ -2718,19 +2715,16 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     const int depth = scope()->ContextChainLength(var->scope());
     if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
       __ mov(StoreGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
-      __ mov(StoreGlobalViaContextDescriptor::NameRegister(),
-             Operand(var->name()));
       DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(r3));
       StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
       __ CallStub(&stub);
     } else {
       __ Push(Smi::FromInt(slot));
-      __ Push(var->name());
       __ push(r3);
       __ CallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreGlobalViaContext_Strict
                          : Runtime::kStoreGlobalViaContext_Sloppy,
-                     3);
+                     2);
     }
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
