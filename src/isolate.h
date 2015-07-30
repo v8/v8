@@ -1139,8 +1139,8 @@ class Isolate {
 
   FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
 
-  void RegisterCancelableTask(CancelableTask* task);
-  void RemoveCancelableTask(CancelableTask* task);
+  void RegisterCancelableTask(Cancelable* task);
+  void RemoveCancelableTask(Cancelable* task);
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1379,7 +1379,7 @@ class Isolate {
 
   FutexWaitListNode futex_wait_list_node_;
 
-  std::set<CancelableTask*> cancelable_tasks_;
+  std::set<Cancelable*> cancelable_tasks_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

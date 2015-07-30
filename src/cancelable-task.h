@@ -13,13 +13,29 @@ namespace internal {
 
 class Isolate;
 
-class CancelableTask : public Task {
+
+class Cancelable {
  public:
-  explicit CancelableTask(Isolate* isolate);
-  ~CancelableTask() override;
+  explicit Cancelable(Isolate* isolate);
+  virtual ~Cancelable();
 
-  void Cancel() { is_cancelled_ = true; }
+  virtual void Cancel() { is_cancelled_ = true; }
 
+ protected:
+  Isolate* isolate_;
+  bool is_cancelled_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Cancelable);
+};
+
+
+// Multiple inheritance can be used because Task is a pure interface.
+class CancelableTask : public Cancelable, public Task {
+ public:
+  explicit CancelableTask(Isolate* isolate) : Cancelable(isolate) {}
+
+  // Task overrides.
   void Run() final {
     if (!is_cancelled_) {
       RunInternal();
@@ -28,14 +44,29 @@ class CancelableTask : public Task {
 
   virtual void RunInternal() = 0;
 
- protected:
-  Isolate* isolate_;
-
  private:
-  bool is_cancelled_;
-
   DISALLOW_COPY_AND_ASSIGN(CancelableTask);
 };
+
+
+// Multiple inheritance can be used because IdleTask is a pure interface.
+class CancelableIdleTask : public Cancelable, public IdleTask {
+ public:
+  explicit CancelableIdleTask(Isolate* isolate) : Cancelable(isolate) {}
+
+  // IdleTask overrides.
+  void Run(double deadline_in_seconds) final {
+    if (!is_cancelled_) {
+      RunInternal(deadline_in_seconds);
+    }
+  }
+
+  virtual void RunInternal(double deadline_in_seconds) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CancelableIdleTask);
+};
+
 
 }  // namespace internal
 }  // namespace v8

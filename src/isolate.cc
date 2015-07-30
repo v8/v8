@@ -1908,7 +1908,7 @@ void Isolate::Deinit() {
   delete basic_block_profiler_;
   basic_block_profiler_ = NULL;
 
-  for (CancelableTask* task : cancelable_tasks_) {
+  for (Cancelable* task : cancelable_tasks_) {
     task->Cancel();
   }
   cancelable_tasks_.clear();
@@ -2790,12 +2790,12 @@ void Isolate::CheckDetachedContextsAfterGC() {
 }
 
 
-void Isolate::RegisterCancelableTask(CancelableTask* task) {
+void Isolate::RegisterCancelableTask(Cancelable* task) {
   cancelable_tasks_.insert(task);
 }
 
 
-void Isolate::RemoveCancelableTask(CancelableTask* task) {
+void Isolate::RemoveCancelableTask(Cancelable* task) {
   auto removed = cancelable_tasks_.erase(task);
   USE(removed);
   DCHECK(removed == 1);
