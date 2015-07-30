@@ -1215,7 +1215,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // On MIPS div is asynchronous - it will run in the background while we
   // check for special cases.
-  __ Ddiv(result, dividend, divisor);
+  __ Div(result, dividend, divisor);
 
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
