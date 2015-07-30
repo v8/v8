@@ -119,6 +119,7 @@ class SourceGroup {
 #ifndef V8_SHARED
   void StartExecuteInThread();
   void WaitForThread();
+  void JoinThread();
 
  private:
   class IsolateThread : public base::Thread {
@@ -273,12 +274,12 @@ class ShellOptions {
  public:
   ShellOptions()
       : script_executed(false),
-        last_run(true),
         send_idle_notification(false),
         invoke_weak_callbacks(false),
         omit_quit(false),
         stress_opt(false),
         stress_deopt(false),
+        stress_runs(1),
         interactive_shell(false),
         test_shell(false),
         dump_heap_constants(false),
@@ -300,12 +301,12 @@ class ShellOptions {
   }
 
   bool script_executed;
-  bool last_run;
   bool send_idle_notification;
   bool invoke_weak_callbacks;
   bool omit_quit;
   bool stress_opt;
   bool stress_deopt;
+  int stress_runs;
   bool interactive_shell;
   bool test_shell;
   bool dump_heap_constants;
@@ -340,7 +341,7 @@ class Shell : public i::AllStatic {
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
-  static int RunMain(Isolate* isolate, int argc, char* argv[]);
+  static int RunMain(Isolate* isolate, int argc, char* argv[], bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);

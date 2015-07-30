@@ -312,7 +312,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           bool report_exceptions, SourceType source_type) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
-  options.script_executed = true;
 
   MaybeLocal<Value> maybe_result;
   {
@@ -1499,7 +1498,7 @@ void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  do {
+  for (int i = 0; i < Shell::options.stress_runs; ++i) {
     next_semaphore_.Wait();
     {
       Isolate::Scope iscope(isolate);
@@ -1516,7 +1515,7 @@ void SourceGroup::ExecuteInThread() {
       Shell::CollectGarbage(isolate);
     }
     done_semaphore_.Signal();
-  } while (!Shell::options.last_run);
+  }
 
   isolate->Dispose();
 }
@@ -1533,11 +1532,13 @@ void SourceGroup::StartExecuteInThread() {
 
 void SourceGroup::WaitForThread() {
   if (thread_ == NULL) return;
-  if (Shell::options.last_run) {
-    thread_->Join();
-  } else {
-    done_semaphore_.Wait();
-  }
+  done_semaphore_.Wait();
+}
+
+
+void SourceGroup::JoinThread() {
+  if (thread_ == NULL) return;
+  thread_->Join();
 }
 
 
@@ -1931,6 +1932,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       enable_harmony_modules = true;
     } else if (strncmp(argv[i], "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
+    } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
+      options.script_executed = true;
+    } else if (strncmp(str, "-", 1) != 0) {
+      // Not a flag, so it must be a script to execute.
+      options.script_executed = true;
     }
   }
   current->End(argc);
@@ -1947,7 +1953,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 }
 
 
-int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
+int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
 #ifndef V8_SHARED
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
@@ -1956,7 +1962,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   {
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
-    if (options.last_run && options.use_interactive_shell()) {
+    if (last_run && options.use_interactive_shell()) {
       // Keep using the same context in the interactive shell.
       evaluation_context_.Reset(isolate, context);
     }
@@ -1969,7 +1975,11 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   CollectGarbage(isolate);
 #ifndef V8_SHARED
   for (int i = 1; i < options.num_isolates; ++i) {
-    options.isolate_sources[i].WaitForThread();
+    if (last_run) {
+      options.isolate_sources[i].JoinThread();
+    } else {
+      options.isolate_sources[i].WaitForThread();
+    }
   }
   CleanupWorkers();
 #endif  // !V8_SHARED
@@ -2095,6 +2105,7 @@ bool Shell::SerializeValue(Isolate* isolate, Local<Value> value,
       contents = sab->GetContents();
     } else {
       contents = sab->Externalize();
+      base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
       externalized_shared_contents_.Add(contents);
     }
     out_data->WriteSharedArrayBufferContents(contents);
@@ -2250,10 +2261,8 @@ void Shell::CleanupWorkers() {
   }
 
   // Now that all workers are terminated, we can re-enable Worker creation.
-  {
-    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    allow_new_workers_ = true;
-  }
+  base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+  allow_new_workers_ = true;
 
   for (int i = 0; i < externalized_shared_contents_.length(); ++i) {
     const SharedArrayBuffer::Contents& contents =
@@ -2395,26 +2404,29 @@ int Shell::Main(int argc, char* argv[]) {
       Testing::SetStressRunType(options.stress_opt
                                 ? Testing::kStressTypeOpt
                                 : Testing::kStressTypeDeopt);
-      int stress_runs = Testing::GetStressRuns();
-      for (int i = 0; i < stress_runs && result == 0; i++) {
-        printf("============ Stress %d/%d ============\n", i + 1, stress_runs);
+      options.stress_runs = Testing::GetStressRuns();
+      for (int i = 0; i < options.stress_runs && result == 0; i++) {
+        printf("============ Stress %d/%d ============\n", i + 1,
+               options.stress_runs);
         Testing::PrepareStressRun(i);
-        options.last_run = (i == stress_runs - 1);
-        result = RunMain(isolate, argc, argv);
+        bool last_run = i == options.stress_runs - 1;
+        result = RunMain(isolate, argc, argv, last_run);
       }
       printf("======== Full Deoptimization =======\n");
       Testing::DeoptimizeAll();
 #if !defined(V8_SHARED)
     } else if (i::FLAG_stress_runs > 0) {
-      int stress_runs = i::FLAG_stress_runs;
-      for (int i = 0; i < stress_runs && result == 0; i++) {
-        printf("============ Run %d/%d ============\n", i + 1, stress_runs);
-        options.last_run = (i == stress_runs - 1);
-        result = RunMain(isolate, argc, argv);
+      options.stress_runs = i::FLAG_stress_runs;
+      for (int i = 0; i < options.stress_runs && result == 0; i++) {
+        printf("============ Run %d/%d ============\n", i + 1,
+               options.stress_runs);
+        bool last_run = i == options.stress_runs - 1;
+        result = RunMain(isolate, argc, argv, last_run);
       }
 #endif
     } else {
-      result = RunMain(isolate, argc, argv);
+      bool last_run = true;
+      result = RunMain(isolate, argc, argv, last_run);
     }
 
     // Run interactive shell if explicitly requested or if no script has been
