@@ -221,19 +221,25 @@ class Worker {
   Worker();
   ~Worker();
 
-  void StartExecuteInThread(Isolate* isolate, const char* script);
+  // Run the given script on this Worker. This function should only be called
+  // once, and should only be called by the thread that created the Worker.
+  void StartExecuteInThread(const char* script);
   // Post a message to the worker's incoming message queue. The worker will
   // take ownership of the SerializationData.
+  // This function should only be called by the thread that created the Worker.
   void PostMessage(SerializationData* data);
   // Synchronously retrieve messages from the worker's outgoing message queue.
   // If there is no message in the queue, block until a message is available.
   // If there are no messages in the queue and the worker is no longer running,
   // return nullptr.
+  // This function should only be called by the thread that created the Worker.
   SerializationData* GetMessage();
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
+  // This function can be called by any thread.
   void Terminate();
   // Terminate and join the thread.
+  // This function can be called by any thread.
   void WaitForThread();
 
  private:
@@ -249,12 +255,6 @@ class Worker {
     Worker* worker_;
   };
 
-  enum State {
-    IDLE,       // The worker thread hasn't been started yet
-    RUNNING,    // The worker thread is running and hasn't been terminated
-    TERMINATED  // The worker thread has been terminated and will soon finish
-  };
-
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -264,8 +264,7 @@ class Worker {
   SerializationDataQueue out_queue_;
   base::Thread* thread_;
   char* script_;
-  base::Atomic32 state_;
-  base::Atomic32 join_called_;
+  base::Atomic32 running_;
 };
 #endif  // !V8_SHARED
 

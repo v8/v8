@@ -105,6 +105,13 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 v8::Platform* g_platform = NULL;
 
 
+static Local<Value> Throw(Isolate* isolate, const char* message) {
+  return isolate->ThrowException(
+      String::NewFromUtf8(isolate, message, NewStringType::kNormal)
+          .ToLocalChecked());
+}
+
+
 #ifndef V8_SHARED
 bool FindInObjectList(Local<Object> object, const Shell::ObjectList& list) {
   for (int i = 0; i < list.length(); ++i) {
@@ -114,18 +121,27 @@ bool FindInObjectList(Local<Object> object, const Shell::ObjectList& list) {
   }
   return false;
 }
+
+
+Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
+  if (object->InternalFieldCount() != 1) {
+    Throw(isolate, "this is not a Worker");
+    return NULL;
+  }
+
+  Worker* worker =
+      static_cast<Worker*>(object->GetAlignedPointerFromInternalField(0));
+  if (worker == NULL) {
+    Throw(isolate, "Worker is defunct because main thread is terminating");
+    return NULL;
+  }
+
+  return worker;
+}
 #endif  // !V8_SHARED
 
 
 }  // namespace
-
-
-static Local<Value> Throw(Isolate* isolate, const char* message) {
-  return isolate->ThrowException(
-      String::NewFromUtf8(isolate, message, NewStringType::kNormal)
-          .ToLocalChecked());
-}
-
 
 
 class PerIsolateData {
@@ -686,10 +702,15 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+    // Initialize the internal field to NULL; if we return early without
+    // creating a new Worker (because the main thread is terminating) we can
+    // early-out from the instance calls.
+    args.Holder()->SetAlignedPointerInInternalField(0, NULL);
+
     if (!allow_new_workers_) return;
 
     Worker* worker = new Worker;
-    args.This()->SetInternalField(0, External::New(isolate, worker));
+    args.Holder()->SetAlignedPointerInInternalField(0, worker);
     workers_.Add(worker);
 
     String::Utf8Value script(args[0]);
@@ -697,7 +718,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Throw(args.GetIsolate(), "Can't get worker script");
       return;
     }
-    worker->StartExecuteInThread(isolate, *script);
+    worker->StartExecuteInThread(*script);
   }
 }
 
@@ -706,23 +727,16 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  Local<Value> this_value;
 
   if (args.Length() < 1) {
     Throw(isolate, "Invalid argument");
     return;
   }
 
-  if (args.This()->InternalFieldCount() > 0) {
-    this_value = args.This()->GetInternalField(0);
-  }
-  if (this_value.IsEmpty()) {
-    Throw(isolate, "this is not a Worker");
+  Worker* worker = GetWorkerFromInternalField(isolate, args.Holder());
+  if (!worker) {
     return;
   }
-
-  Worker* worker =
-      static_cast<Worker*>(Local<External>::Cast(this_value)->Value());
 
   Local<Value> message = args[0];
   ObjectList to_transfer;
@@ -762,17 +776,10 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
-  Local<Value> this_value;
-  if (args.This()->InternalFieldCount() > 0) {
-    this_value = args.This()->GetInternalField(0);
-  }
-  if (this_value.IsEmpty()) {
-    Throw(isolate, "this is not a Worker");
+  Worker* worker = GetWorkerFromInternalField(isolate, args.Holder());
+  if (!worker) {
     return;
   }
-
-  Worker* worker =
-      static_cast<Worker*>(Local<External>::Cast(this_value)->Value());
 
   SerializationData* data = worker->GetMessage();
   if (data) {
@@ -789,17 +796,11 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
-  Local<Value> this_value;
-  if (args.This()->InternalFieldCount() > 0) {
-    this_value = args.This()->GetInternalField(0);
-  }
-  if (this_value.IsEmpty()) {
-    Throw(isolate, "this is not a Worker");
+  Worker* worker = GetWorkerFromInternalField(isolate, args.Holder());
+  if (!worker) {
     return;
   }
 
-  Worker* worker =
-      static_cast<Worker*>(Local<External>::Cast(this_value)->Value());
   worker->Terminate();
 }
 #endif  // !V8_SHARED
@@ -1134,18 +1135,26 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 
   Local<FunctionTemplate> worker_fun_template =
       FunctionTemplate::New(isolate, WorkerNew);
+  Local<Signature> worker_signature =
+      Signature::New(isolate, worker_fun_template);
+  worker_fun_template->SetClassName(
+      String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
+          .ToLocalChecked());
   worker_fun_template->PrototypeTemplate()->Set(
       String::NewFromUtf8(isolate, "terminate", NewStringType::kNormal)
           .ToLocalChecked(),
-      FunctionTemplate::New(isolate, WorkerTerminate));
+      FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
+                            worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
       String::NewFromUtf8(isolate, "postMessage", NewStringType::kNormal)
           .ToLocalChecked(),
-      FunctionTemplate::New(isolate, WorkerPostMessage));
+      FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
+                            worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
       String::NewFromUtf8(isolate, "getMessage", NewStringType::kNormal)
           .ToLocalChecked(),
-      FunctionTemplate::New(isolate, WorkerGetMessage));
+      FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
+                            worker_signature));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
   global_template->Set(
       String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
@@ -1644,8 +1653,7 @@ Worker::Worker()
       out_semaphore_(0),
       thread_(NULL),
       script_(NULL),
-      state_(IDLE),
-      join_called_(false) {}
+      running_(false) {}
 
 
 Worker::~Worker() {
@@ -1658,15 +1666,11 @@ Worker::~Worker() {
 }
 
 
-void Worker::StartExecuteInThread(Isolate* isolate, const char* script) {
-  if (base::NoBarrier_CompareAndSwap(&state_, IDLE, RUNNING) == IDLE) {
-    script_ = i::StrDup(script);
-    thread_ = new WorkerThread(this);
-    thread_->Start();
-  } else {
-    // Somehow the Worker was started twice.
-    UNREACHABLE();
-  }
+void Worker::StartExecuteInThread(const char* script) {
+  running_ = true;
+  script_ = i::StrDup(script);
+  thread_ = new WorkerThread(this);
+  thread_->Start();
 }
 
 
@@ -1681,7 +1685,7 @@ SerializationData* Worker::GetMessage() {
   while (!out_queue_.Dequeue(&data)) {
     // If the worker is no longer running, and there are no messages in the
     // queue, don't expect any more messages from it.
-    if (base::NoBarrier_Load(&state_) != RUNNING) break;
+    if (!base::NoBarrier_Load(&running_)) break;
     out_semaphore_.Wait();
   }
   return data;
@@ -1689,23 +1693,16 @@ SerializationData* Worker::GetMessage() {
 
 
 void Worker::Terminate() {
-  if (base::NoBarrier_CompareAndSwap(&state_, RUNNING, TERMINATED) == RUNNING) {
-    // Post NULL to wake the Worker thread message loop, and tell it to stop
-    // running.
-    PostMessage(NULL);
-  }
+  base::NoBarrier_Store(&running_, false);
+  // Post NULL to wake the Worker thread message loop, and tell it to stop
+  // running.
+  PostMessage(NULL);
 }
 
 
 void Worker::WaitForThread() {
   Terminate();
-
-  if (base::NoBarrier_CompareAndSwap(&join_called_, false, true) == false) {
-    thread_->Join();
-  } else {
-    // Tried to call join twice.
-    UNREACHABLE();
-  }
+  thread_->Join();
 }
 
 
