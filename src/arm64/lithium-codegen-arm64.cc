@@ -5035,8 +5035,8 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   // here.
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
   __ Mov(scratch2, Smi::FromInt(instr->hydrogen()->flags()));
-  __ Push(cp, scratch1, scratch2);  // The context is the first argument.
-  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+  __ Push(scratch1, scratch2);
+  CallRuntime(Runtime::kDeclareGlobals, 2, instr);
 }
 
 

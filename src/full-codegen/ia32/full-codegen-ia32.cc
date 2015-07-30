@@ -809,13 +809,9 @@ void FullCodeGenerator::VisitVariableDeclaration(
 
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ VariableDeclaration");
-      __ push(esi);
       __ push(Immediate(variable->name()));
       // VariableDeclaration nodes are always introduced in one of four modes.
       DCHECK(IsDeclaredVariableMode(mode));
-      PropertyAttributes attr =
-          IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
-      __ push(Immediate(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
@@ -825,7 +821,10 @@ void FullCodeGenerator::VisitVariableDeclaration(
       } else {
         __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
       }
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
+      __ CallRuntime(IsImmutableVariableMode(mode)
+                         ? Runtime::kDeclareReadOnlyLookupSlot
+                         : Runtime::kDeclareLookupSlot,
+                     2);
       break;
     }
   }
@@ -875,11 +874,9 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ FunctionDeclaration");
-      __ push(esi);
       __ push(Immediate(variable->name()));
-      __ push(Immediate(Smi::FromInt(NONE)));
       VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 2);
       break;
     }
   }
@@ -888,10 +885,9 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
 void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
-  __ push(esi);  // The context is the first argument.
   __ Push(pairs);
   __ Push(Smi::FromInt(DeclareGlobalsFlags()));
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  __ CallRuntime(Runtime::kDeclareGlobals, 2);
   // Return value is ignored.
 }
 

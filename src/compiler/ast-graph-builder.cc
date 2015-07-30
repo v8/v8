@@ -2917,8 +2917,8 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
                       DeclareGlobalsLanguageMode::encode(language_mode());
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
-  const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 3);
-  Node* call = NewNode(op, current_context(), pairs, flags);
+  const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 2);
+  Node* call = NewNode(op, pairs, flags);
   PrepareFrameState(call, BailoutId::Declarations());
   globals()->clear();
 }

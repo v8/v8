@@ -860,21 +860,20 @@ void FullCodeGenerator::VisitVariableDeclaration(
       __ mov(r2, Operand(variable->name()));
       // Declaration nodes are always introduced in one of four modes.
       DCHECK(IsDeclaredVariableMode(mode));
-      PropertyAttributes attr =
-          IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
-      __ mov(r1, Operand(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
       if (hole_init) {
         __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
-        __ Push(cp, r2, r1, r0);
       } else {
         __ mov(r0, Operand(Smi::FromInt(0)));  // Indicates no initial value.
-        __ Push(cp, r2, r1, r0);
       }
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
+      __ Push(r2, r0);
+      __ CallRuntime(IsImmutableVariableMode(mode)
+                         ? Runtime::kDeclareReadOnlyLookupSlot
+                         : Runtime::kDeclareLookupSlot,
+                     2);
       break;
     }
   }
@@ -927,11 +926,10 @@ void FullCodeGenerator::VisitFunctionDeclaration(
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ FunctionDeclaration");
       __ mov(r2, Operand(variable->name()));
-      __ mov(r1, Operand(Smi::FromInt(NONE)));
-      __ Push(cp, r2, r1);
+      __ Push(r2);
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 2);
       break;
     }
   }
@@ -940,11 +938,10 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
 void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
-  // The context is the first argument.
   __ mov(r1, Operand(pairs));
   __ mov(r0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
-  __ Push(cp, r1, r0);
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  __ Push(r1, r0);
+  __ CallRuntime(Runtime::kDeclareGlobals, 2);
   // Return value is ignored.
 }
 

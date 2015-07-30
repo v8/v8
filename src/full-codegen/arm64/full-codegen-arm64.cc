@@ -861,21 +861,21 @@ void FullCodeGenerator::VisitVariableDeclaration(
       __ Mov(x2, Operand(variable->name()));
       // Declaration nodes are always introduced in one of four modes.
       DCHECK(IsDeclaredVariableMode(mode));
-      PropertyAttributes attr = IsImmutableVariableMode(mode) ? READ_ONLY
-                                                              : NONE;
-      __ Mov(x1, Smi::FromInt(attr));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
       if (hole_init) {
         __ LoadRoot(x0, Heap::kTheHoleValueRootIndex);
-        __ Push(cp, x2, x1, x0);
+        __ Push(x2, x0);
       } else {
         // Pushing 0 (xzr) indicates no initial value.
-        __ Push(cp, x2, x1, xzr);
+        __ Push(x2, xzr);
       }
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
+      __ CallRuntime(IsImmutableVariableMode(mode)
+                         ? Runtime::kDeclareReadOnlyLookupSlot
+                         : Runtime::kDeclareLookupSlot,
+                     2);
       break;
     }
   }
@@ -928,11 +928,10 @@ void FullCodeGenerator::VisitFunctionDeclaration(
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ Function Declaration");
       __ Mov(x2, Operand(variable->name()));
-      __ Mov(x1, Smi::FromInt(NONE));
-      __ Push(cp, x2, x1);
+      __ Push(x2);
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 2);
       break;
     }
   }
@@ -947,8 +946,8 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
     flags = x10;
   __ Mov(flags, Smi::FromInt(DeclareGlobalsFlags()));
   }
-  __ Push(cp, x11, flags);
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  __ Push(x11, flags);
+  __ CallRuntime(Runtime::kDeclareGlobals, 2);
   // Return value is ignored.
 }
 
