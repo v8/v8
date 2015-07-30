@@ -6885,7 +6885,7 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 
 void Isolate::CollectAllGarbage(const char* gc_reason) {
   reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
-      i::Heap::kNoGCFlags, gc_reason);
+      i::Heap::kNoGCFlags, gc_reason, v8::kGCCallbackFlagForced);
 }
 
 
