@@ -2573,6 +2573,12 @@ void Assembler::vmov(const DwVfpRegister dst,
                      double imm,
                      const Register scratch) {
   uint32_t enc;
+  // If the embedded constant pool is disabled, we can use the normal, inline
+  // constant pool. If the embedded constant pool is enabled (via
+  // FLAG_enable_embedded_constant_pool), we can only use it where the pool
+  // pointer (pp) is valid.
+  bool can_use_pool =
+      !FLAG_enable_embedded_constant_pool || is_constant_pool_available();
   if (CpuFeatures::IsSupported(VFP3) && FitsVMOVDoubleImmediate(imm, &enc)) {
     // The double can be encoded in the instruction.
     //
@@ -2583,7 +2589,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     int vd, d;
     dst.split_code(&vd, &d);
     emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
-  } else if (FLAG_enable_vldr_imm && is_constant_pool_available()) {
+  } else if (FLAG_enable_vldr_imm && can_use_pool) {
     // TODO(jfb) Temporarily turned off until we have constant blinding or
     //           some equivalent mitigation: an attacker can otherwise control
     //           generated data which also happens to be executable, a Very Bad
@@ -3588,11 +3594,10 @@ void Assembler::GrowBuffer() {
 
 
 void Assembler::db(uint8_t data) {
-  // No relocation info should be pending while using db. db is used
-  // to write pure data with no pointers and the constant pool should
-  // be emitted before using db.
-  DCHECK(num_pending_32_bit_constants_ == 0);
-  DCHECK(num_pending_64_bit_constants_ == 0);
+  // db is used to write raw data. The constant pool should be emitted or
+  // blocked before using db.
+  DCHECK(is_const_pool_blocked() || (num_pending_32_bit_constants_ == 0));
+  DCHECK(is_const_pool_blocked() || (num_pending_64_bit_constants_ == 0));
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -3600,11 +3605,10 @@ void Assembler::db(uint8_t data) {
 
 
 void Assembler::dd(uint32_t data) {
-  // No relocation info should be pending while using dd. dd is used
-  // to write pure data with no pointers and the constant pool should
-  // be emitted before using dd.
-  DCHECK(num_pending_32_bit_constants_ == 0);
-  DCHECK(num_pending_64_bit_constants_ == 0);
+  // dd is used to write raw data. The constant pool should be emitted or
+  // blocked before using dd.
+  DCHECK(is_const_pool_blocked() || (num_pending_32_bit_constants_ == 0));
+  DCHECK(is_const_pool_blocked() || (num_pending_64_bit_constants_ == 0));
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
@@ -3612,11 +3616,10 @@ void Assembler::dd(uint32_t data) {
 
 
 void Assembler::dq(uint64_t value) {
-  // No relocation info should be pending while using dq. dq is used
-  // to write pure data with no pointers and the constant pool should
-  // be emitted before using dd.
-  DCHECK(num_pending_32_bit_constants_ == 0);
-  DCHECK(num_pending_64_bit_constants_ == 0);
+  // dq is used to write raw data. The constant pool should be emitted or
+  // blocked before using dq.
+  DCHECK(is_const_pool_blocked() || (num_pending_32_bit_constants_ == 0));
+  DCHECK(is_const_pool_blocked() || (num_pending_64_bit_constants_ == 0));
   CheckBuffer();
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
@@ -3755,11 +3758,13 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   int size_up_to_marker = jump_instr + kInstrSize;
   int estimated_size_after_marker =
       num_pending_32_bit_constants_ * kPointerSize;
+  bool has_int_values = (num_pending_32_bit_constants_ > 0);
   bool has_fp_values = (num_pending_64_bit_constants_ > 0);
   bool require_64_bit_align = false;
   if (has_fp_values) {
-    require_64_bit_align = IsAligned(
-        reinterpret_cast<intptr_t>(pc_ + size_up_to_marker), kDoubleAlignment);
+    require_64_bit_align =
+        !IsAligned(reinterpret_cast<intptr_t>(pc_ + size_up_to_marker),
+                   kDoubleAlignment);
     if (require_64_bit_align) {
       estimated_size_after_marker += kInstrSize;
     }
@@ -3776,9 +3781,11 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   //  * the instruction doesn't require a jump after itself to jump over the
   //    constant pool, and we're getting close to running out of range.
   if (!force_emit) {
-    DCHECK((first_const_pool_32_use_ >= 0) || (first_const_pool_64_use_ >= 0));
+    DCHECK(has_fp_values || has_int_values);
     bool need_emit = false;
     if (has_fp_values) {
+      // The 64-bit constants are always emitted before the 32-bit constants, so
+      // we can ignore the effect of the 32-bit constants on estimated_size.
       int dist64 = pc_offset() + estimated_size -
                    num_pending_32_bit_constants_ * kPointerSize -
                    first_const_pool_64_use_;
@@ -3787,10 +3794,12 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
         need_emit = true;
       }
     }
-    int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
-    if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
-        (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
-      need_emit = true;
+    if (has_int_values) {
+      int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
+      if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
+          (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
+        need_emit = true;
+      }
     }
     if (!need_emit) return;
   }
