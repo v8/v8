@@ -11,6 +11,7 @@
 #include "src/base/smart-pointers.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
@@ -40,6 +41,7 @@ class InterpreterAssembler {
   // Constants.
   Node* Int32Constant(int value);
   Node* NumberConstant(double value);
+  Node* HeapConstant(Unique<HeapObject> object);
 
   // Returns the bytecode argument |index| for the current bytecode.
   Node* BytecodeArg(int index);
@@ -49,6 +51,9 @@ class InterpreterAssembler {
   Node* LoadRegister(Node* index);
   Node* StoreRegister(Node* value, int index);
   Node* StoreRegister(Node* value, Node* index);
+
+  // Returns from the function.
+  void Return();
 
   // Dispatch to the bytecode.
   void Dispatch();

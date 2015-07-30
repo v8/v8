@@ -332,6 +332,9 @@ const FPURegister f31 = { 31 };
 #define cp s7
 #define kLithiumScratchReg s3
 #define kLithiumScratchReg2 s4
+#define kInterpreterBytecodeOffsetRegister t4
+#define kInterpreterBytecodeArrayRegister t5
+#define kInterpreterDispatchTableRegister t6
 #define kLithiumScratchDouble f30
 #define kDoubleRegZero f28
 // Used on mips32r6 for compare operations.

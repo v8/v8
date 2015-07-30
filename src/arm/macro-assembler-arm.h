@@ -26,6 +26,15 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 const Register cp = { kRegister_r7_Code };  // JavaScript context pointer.
 const Register pp = { kRegister_r8_Code };  // Constant pool pointer.
 const Register kRootRegister = { kRegister_r10_Code };  // Roots array pointer.
+const Register kInterpreterBytecodeOffsetRegister = {
+    kRegister_r5_Code  // Interpreter bytecode offset.
+};
+const Register kInterpreterBytecodeArrayRegister = {
+    kRegister_r6_Code  // Interpreter bytecode array pointer.
+};
+const Register kInterpreterDispatchTableRegister = {
+    kRegister_r8_Code  // Interpreter dispatch table.
+};
 
 // Flags used for AllocateHeapNumber
 enum TaggingMode {

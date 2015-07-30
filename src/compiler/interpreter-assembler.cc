@@ -89,9 +89,9 @@ Node* InterpreterAssembler::RegisterFrameOffset(int index) {
 
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return raw_assembler_->Int32Sub(
+  return raw_assembler_->IntPtrSub(
       Int32Constant(kFirstRegisterOffsetFromFp),
-      raw_assembler_->Word32Shl(index, Int32Constant(kPointerSizeLog2)));
+      raw_assembler_->WordShl(index, Int32Constant(kPointerSizeLog2)));
 }
 
 
@@ -127,6 +127,24 @@ Node* InterpreterAssembler::StoreRegister(Node* value, Node* index) {
 }
 
 
+void InterpreterAssembler::Return() {
+  Node* exit_trampoline_code_object =
+      HeapConstant(Unique<HeapObject>::CreateImmovable(
+          isolate()->builtins()->InterpreterExitTrampoline()));
+  // If the order of the parameters you need to change the call signature below.
+  STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeOffsetParameter);
+  STATIC_ASSERT(1 == Linkage::kInterpreterBytecodeArrayParameter);
+  STATIC_ASSERT(2 == Linkage::kInterpreterDispatchTableParameter);
+  Node* tail_call = graph()->NewNode(
+      common()->TailCall(call_descriptor()), exit_trampoline_code_object,
+      BytecodeOffset(), BytecodeArrayPointer(), DispatchTablePointer(),
+      graph()->start(), graph()->start());
+  schedule()->AddTailCall(raw_assembler_->CurrentBlock(), tail_call);
+  // This should always be the end node.
+  SetEndInput(tail_call);
+}
+
+
 Node* InterpreterAssembler::Advance(int delta) {
   return raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(delta));
 }
@@ -153,7 +171,6 @@ void InterpreterAssembler::Dispatch() {
       new_bytecode_offset, BytecodeArrayPointer(), DispatchTablePointer(),
       graph()->start(), graph()->start());
   schedule()->AddTailCall(raw_assembler_->CurrentBlock(), tail_call);
-
   // This should always be the end node.
   SetEndInput(tail_call);
 }
@@ -207,6 +224,11 @@ Node* InterpreterAssembler::Int32Constant(int value) {
 
 Node* InterpreterAssembler::NumberConstant(double value) {
   return raw_assembler_->NumberConstant(value);
+}
+
+
+Node* InterpreterAssembler::HeapConstant(Unique<HeapObject> object) {
+  return raw_assembler_->HeapConstant(object);
 }
 
 

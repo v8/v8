@@ -87,6 +87,8 @@ namespace internal {
   V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
   V(kFunctionWithIllegalRedeclaration, "Function with illegal redeclaration")  \
+  V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
+    "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \
   V(kGeneratorFailedToResume, "Generator failed to resume")                    \
   V(kGenerator, "Generator")                                                   \

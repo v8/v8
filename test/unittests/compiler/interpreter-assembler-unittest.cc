@@ -6,6 +6,7 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/unique.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
@@ -52,6 +53,20 @@ Matcher<Node*> IsIntPtrAdd(const Matcher<Node*>& lhs_matcher,
 }
 
 
+Matcher<Node*> IsIntPtrSub(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsInt64Sub(lhs_matcher, rhs_matcher)
+                           : IsInt32Sub(lhs_matcher, rhs_matcher);
+}
+
+
+Matcher<Node*> IsWordShl(const Matcher<Node*>& lhs_matcher,
+                         const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsWord64Shl(lhs_matcher, rhs_matcher)
+                           : IsWord32Shl(lhs_matcher, rhs_matcher);
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
@@ -79,6 +94,32 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
         tail_call_node,
         IsTailCall(m.call_descriptor(), code_target_matcher,
                    next_bytecode_offset_matcher,
+                   IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+                   IsParameter(Linkage::kInterpreterDispatchTableParameter),
+                   graph->start(), graph->start()));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, Return) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    m.Return();
+    Graph* graph = m.GetCompletedGraph();
+
+    Node* end = graph->end();
+    EXPECT_EQ(1, end->InputCount());
+    Node* tail_call_node = end->InputAt(0);
+
+    EXPECT_EQ(CallDescriptor::kInterpreterDispatch,
+              m.call_descriptor()->kind());
+    Matcher<Unique<HeapObject>> exit_trampoline(
+        Unique<HeapObject>::CreateImmovable(
+            isolate()->builtins()->InterpreterExitTrampoline()));
+    EXPECT_THAT(
+        tail_call_node,
+        IsTailCall(m.call_descriptor(), IsHeapConstant(exit_trampoline),
+                   IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
                    IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                    IsParameter(Linkage::kInterpreterDispatchTableParameter),
                    graph->start(), graph->start()));
@@ -127,9 +168,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadRegister) {
     EXPECT_THAT(
         load_reg_node,
         m.IsLoad(kMachPtr, IsLoadFramePointer(),
-                 IsInt32Sub(IsInt32Constant(m.kFirstRegisterOffsetFromFp),
-                            IsWord32Shl(reg_index_node,
-                                        IsInt32Constant(kPointerSizeLog2)))));
+                 IsIntPtrSub(IsInt32Constant(m.kFirstRegisterOffsetFromFp),
+                             IsWordShl(reg_index_node,
+                                       IsInt32Constant(kPointerSizeLog2)))));
   }
 }
 
@@ -161,9 +202,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
         store_reg_node,
         m.IsStore(StoreRepresentation(kMachPtr, kNoWriteBarrier),
                   IsLoadFramePointer(),
-                  IsInt32Sub(IsInt32Constant(m.kFirstRegisterOffsetFromFp),
-                             IsWord32Shl(reg_index_node,
-                                         IsInt32Constant(kPointerSizeLog2))),
+                  IsIntPtrSub(IsInt32Constant(m.kFirstRegisterOffsetFromFp),
+                              IsWordShl(reg_index_node,
+                                        IsInt32Constant(kPointerSizeLog2))),
                   store_value));
   }
 }

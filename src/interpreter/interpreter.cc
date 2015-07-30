@@ -59,7 +59,7 @@ void Interpreter::DoLoadLiteral0(compiler::InterpreterAssembler* assembler) {
 
 // Return the value in register 0.
 void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Jump to exit trampoline.
+  __ Return();
 }
 
 

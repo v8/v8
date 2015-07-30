@@ -400,6 +400,9 @@ ALIAS_REGISTER(Register, fp, x29);
 ALIAS_REGISTER(Register, lr, x30);
 ALIAS_REGISTER(Register, xzr, x31);
 ALIAS_REGISTER(Register, wzr, w31);
+ALIAS_REGISTER(Register, kInterpreterBytecodeOffsetRegister, x19);
+ALIAS_REGISTER(Register, kInterpreterBytecodeArrayRegister, x20);
+ALIAS_REGISTER(Register, kInterpreterDispatchTableRegister, x21);
 
 // Keeps the 0 double value.
 ALIAS_REGISTER(FPRegister, fp_zero, d15);

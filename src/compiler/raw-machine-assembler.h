@@ -105,6 +105,9 @@ class RawMachineAssembler {
     Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
     return NewNode(common()->HeapConstant(val));
   }
+  Node* HeapConstant(Unique<HeapObject> object) {
+    return NewNode(common()->HeapConstant(object));
+  }
   Node* ExternalConstant(ExternalReference address) {
     return NewNode(common()->ExternalConstant(address));
   }

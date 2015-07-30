@@ -17,9 +17,15 @@ struct MipsLinkageHelperTraits {
   static Register ReturnValue2Reg() { return v1; }
   static Register JSCallFunctionReg() { return a1; }
   static Register ContextReg() { return cp; }
-  static Register InterpreterBytecodeOffsetReg() { return t4; }
-  static Register InterpreterBytecodeArrayReg() { return t5; }
-  static Register InterpreterDispatchTableReg() { return t6; }
+  static Register InterpreterBytecodeOffsetReg() {
+    return kInterpreterBytecodeOffsetRegister;
+  }
+  static Register InterpreterBytecodeArrayReg() {
+    return kInterpreterBytecodeArrayRegister;
+  }
+  static Register InterpreterDispatchTableReg() {
+    return kInterpreterDispatchTableRegister;
+  }
   static Register RuntimeCallFunctionReg() { return a1; }
   static Register RuntimeCallArgCountReg() { return a0; }
   static RegList CCalleeSaveRegisters() {
