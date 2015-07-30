@@ -17,8 +17,9 @@ struct Arm64LinkageHelperTraits {
   static Register ReturnValue2Reg() { return x1; }
   static Register JSCallFunctionReg() { return x1; }
   static Register ContextReg() { return cp; }
-  static Register InterpreterBytecodePointerReg() { return x19; }
-  static Register InterpreterDispatchTableReg() { return x20; }
+  static Register InterpreterBytecodeOffsetReg() { return x19; }
+  static Register InterpreterBytecodeArrayReg() { return x20; }
+  static Register InterpreterDispatchTableReg() { return x21; }
   static Register RuntimeCallFunctionReg() { return x1; }
   static Register RuntimeCallArgCountReg() { return x0; }
   static RegList CCalleeSaveRegisters() {

@@ -52,15 +52,6 @@ Matcher<Node*> IsIntPtrAdd(const Matcher<Node*>& lhs_matcher,
 }
 
 
-Matcher<Node*> IsIntPtrConstant(intptr_t value) {
-#ifdef V8_TARGET_ARCH_64_BIT
-  return IsInt64Constant(value);
-#else
-  return IsInt32Constant(value);
-#endif
-}
-
-
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
@@ -71,11 +62,12 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
     EXPECT_EQ(1, end->InputCount());
     Node* tail_call_node = end->InputAt(0);
 
-    Matcher<Node*> next_bytecode_matcher =
-        IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeParameter),
+    Matcher<Node*> next_bytecode_offset_matcher =
+        IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
                     IsInt32Constant(interpreter::Bytecodes::Size(bytecode)));
-    Matcher<Node*> target_bytecode_matcher =
-        m.IsLoad(kMachUint8, next_bytecode_matcher, IsIntPtrConstant(0));
+    Matcher<Node*> target_bytecode_matcher = m.IsLoad(
+        kMachUint8, IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+        next_bytecode_offset_matcher);
     Matcher<Node*> code_target_matcher = m.IsLoad(
         kMachPtr, IsParameter(Linkage::kInterpreterDispatchTableParameter),
         IsWord32Shl(target_bytecode_matcher,
@@ -86,7 +78,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
     EXPECT_THAT(
         tail_call_node,
         IsTailCall(m.call_descriptor(), code_target_matcher,
-                   next_bytecode_matcher,
+                   next_bytecode_offset_matcher,
+                   IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                    IsParameter(Linkage::kInterpreterDispatchTableParameter),
                    graph->start(), graph->start()));
   }
@@ -99,10 +92,14 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeArg) {
     int number_of_args = interpreter::Bytecodes::NumberOfArguments(bytecode);
     for (int i = 0; i < number_of_args; i++) {
       Node* load_arg_node = m.BytecodeArg(i);
-      EXPECT_THAT(load_arg_node,
-                  m.IsLoad(kMachUint8,
-                           IsParameter(Linkage::kInterpreterBytecodeParameter),
-                           IsInt32Constant(1 + i)));
+      EXPECT_THAT(
+          load_arg_node,
+          m.IsLoad(
+              kMachUint8,
+              IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+              IsIntPtrAdd(
+                  IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                  IsInt32Constant(1 + i))));
     }
   }
 }

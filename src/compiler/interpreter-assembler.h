@@ -68,9 +68,11 @@ class InterpreterAssembler {
   Graph* graph();
 
  private:
-  // Returns the pointer to the current bytecode.
-  Node* BytecodePointer();
-  // Returns the pointer to first entry in the interpreter dispatch table.
+  // Returns a tagged pointer to the current function's BytecodeArray object.
+  Node* BytecodeArrayPointer();
+  // Returns the offset from the BytecodeArrayPointer of the current bytecode.
+  Node* BytecodeOffset();
+  // Returns a pointer to first entry in the interpreter dispatch table.
   Node* DispatchTablePointer();
   // Returns the frame pointer for the current function.
   Node* FramePointer();
@@ -79,8 +81,8 @@ class InterpreterAssembler {
   Node* RegisterFrameOffset(int index);
   Node* RegisterFrameOffset(Node* index);
 
-  // Returns BytecodePointer() advanced by delta bytecodes. Note: this does not
-  // update BytecodePointer() itself.
+  // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
+  // update BytecodeOffset() itself.
   Node* Advance(int delta);
 
   // Sets the end node of the graph.

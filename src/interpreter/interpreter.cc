@@ -28,6 +28,10 @@ void Interpreter::Initialize(bool create_heap_objects) {
     HandleScope scope(isolate_);
     Handle<FixedArray> handler_table = isolate_->factory()->NewFixedArray(
         static_cast<int>(Bytecode::kLast) + 1, TENURED);
+    // We rely on the interpreter handler table being immovable, so check that
+    // it was allocated on the first page (which is always immovable).
+    DCHECK(isolate_->heap()->old_space()->FirstPage()->Contains(
+        handler_table->address()));
     isolate_->heap()->public_set_interpreter_table(*handler_table);
 
 #define GENERATE_CODE(Name, _)                                         \

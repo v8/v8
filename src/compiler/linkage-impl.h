@@ -234,15 +234,19 @@ class LinkageHelper {
   }
 
   static CallDescriptor* GetInterpreterDispatchDescriptor(Zone* zone) {
-    MachineSignature::Builder types(zone, 0, 2);
-    LocationSignature::Builder locations(zone, 0, 2);
+    MachineSignature::Builder types(zone, 0, 3);
+    LocationSignature::Builder locations(zone, 0, 3);
 
     // Add registers for fixed parameters passed via interpreter dispatch.
-    STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeParameter);
-    types.AddParam(kMachPtr);
-    locations.AddParam(regloc(LinkageTraits::InterpreterBytecodePointerReg()));
+    STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeOffsetParameter);
+    types.AddParam(kMachIntPtr);
+    locations.AddParam(regloc(LinkageTraits::InterpreterBytecodeOffsetReg()));
 
-    STATIC_ASSERT(1 == Linkage::kInterpreterDispatchTableParameter);
+    STATIC_ASSERT(1 == Linkage::kInterpreterBytecodeArrayParameter);
+    types.AddParam(kMachAnyTagged);
+    locations.AddParam(regloc(LinkageTraits::InterpreterBytecodeArrayReg()));
+
+    STATIC_ASSERT(2 == Linkage::kInterpreterDispatchTableParameter);
     types.AddParam(kMachPtr);
     locations.AddParam(regloc(LinkageTraits::InterpreterDispatchTableReg()));
 

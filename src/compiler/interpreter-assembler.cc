@@ -60,8 +60,14 @@ Handle<Code> InterpreterAssembler::GenerateCode() {
 }
 
 
-Node* InterpreterAssembler::BytecodePointer() {
-  return raw_assembler_->Parameter(Linkage::kInterpreterBytecodeParameter);
+Node* InterpreterAssembler::BytecodeArrayPointer() {
+  return raw_assembler_->Parameter(Linkage::kInterpreterBytecodeArrayParameter);
+}
+
+
+Node* InterpreterAssembler::BytecodeOffset() {
+  return raw_assembler_->Parameter(
+      Linkage::kInterpreterBytecodeOffsetParameter);
 }
 
 
@@ -91,8 +97,9 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 
 Node* InterpreterAssembler::BytecodeArg(int delta) {
   DCHECK_LT(delta, interpreter::Bytecodes::NumberOfArguments(bytecode_));
-  return raw_assembler_->Load(kMachUint8, BytecodePointer(),
-                              Int32Constant(1 + delta));
+  return raw_assembler_->Load(
+      kMachUint8, BytecodeArrayPointer(),
+      raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(1 + delta)));
 }
 
 
@@ -121,14 +128,14 @@ Node* InterpreterAssembler::StoreRegister(Node* value, Node* index) {
 
 
 Node* InterpreterAssembler::Advance(int delta) {
-  return raw_assembler_->IntPtrAdd(BytecodePointer(), Int32Constant(delta));
+  return raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(delta));
 }
 
 
 void InterpreterAssembler::Dispatch() {
-  Node* new_bytecode_pointer = Advance(interpreter::Bytecodes::Size(bytecode_));
-  Node* target_bytecode =
-      raw_assembler_->Load(kMachUint8, new_bytecode_pointer);
+  Node* new_bytecode_offset = Advance(interpreter::Bytecodes::Size(bytecode_));
+  Node* target_bytecode = raw_assembler_->Load(
+      kMachUint8, BytecodeArrayPointer(), new_bytecode_offset);
 
   // TODO(rmcilroy): Create a code target dispatch table to avoid conversion
   // from code object on every dispatch.
@@ -138,12 +145,13 @@ void InterpreterAssembler::Dispatch() {
                                 Int32Constant(kPointerSizeLog2)));
 
   // If the order of the parameters you need to change the call signature below.
-  STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeParameter);
-  STATIC_ASSERT(1 == Linkage::kInterpreterDispatchTableParameter);
-  Node* tail_call = graph()->NewNode(common()->TailCall(call_descriptor()),
-                                     target_code_object, new_bytecode_pointer,
-                                     DispatchTablePointer(), graph()->start(),
-                                     graph()->start());
+  STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeOffsetParameter);
+  STATIC_ASSERT(1 == Linkage::kInterpreterBytecodeArrayParameter);
+  STATIC_ASSERT(2 == Linkage::kInterpreterDispatchTableParameter);
+  Node* tail_call = graph()->NewNode(
+      common()->TailCall(call_descriptor()), target_code_object,
+      new_bytecode_offset, BytecodeArrayPointer(), DispatchTablePointer(),
+      graph()->start(), graph()->start());
   schedule()->AddTailCall(raw_assembler_->CurrentBlock(), tail_call);
 
   // This should always be the end node.

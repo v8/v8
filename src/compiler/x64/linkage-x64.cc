@@ -23,7 +23,8 @@ struct X64LinkageHelperTraits {
   static Register ReturnValue2Reg() { return rdx; }
   static Register JSCallFunctionReg() { return rdi; }
   static Register ContextReg() { return rsi; }
-  static Register InterpreterBytecodePointerReg() { return rbx; }
+  static Register InterpreterBytecodeOffsetReg() { return r12; }
+  static Register InterpreterBytecodeArrayReg() { return rbx; }
   static Register InterpreterDispatchTableReg() { return rdi; }
   static Register RuntimeCallFunctionReg() { return rbx; }
   static Register RuntimeCallArgCountReg() { return rax; }

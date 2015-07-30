@@ -139,6 +139,12 @@ Matcher<Node*> IsTailCall(
     const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
     const Matcher<Node*>& value2_matcher, const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& value3_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
