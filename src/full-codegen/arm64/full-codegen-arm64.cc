@@ -403,10 +403,6 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 
 void FullCodeGenerator::EmitProfilingCounterReset() {
   int reset_value = FLAG_interrupt_budget;
-  if (info_->is_debug()) {
-    // Detect debug break requests as soon as possible.
-    reset_value = FLAG_interrupt_budget >> 4;
-  }
   __ Mov(x2, Operand(profiling_counter_));
   __ Mov(x3, Smi::FromInt(reset_value));
   __ Str(x3, FieldMemOperand(x2, Cell::kValueOffset));

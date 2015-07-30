@@ -108,7 +108,6 @@
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
@@ -132,12 +131,6 @@
   # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
   'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
 }],  # ALWAYS
-
-##############################################################################
-['novfp3 == True', {
-  # TODO(yangguo): Got very slow after 3069c43.
-  'test-debug/DebugBreakLoop': [SKIP],
-}],  # novfp3 == True
 
 ##############################################################################
 ['arch == arm64', {
@@ -183,7 +176,6 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
-  'test-debug/DebugBreakLoop': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################

@@ -409,10 +409,6 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
   Label start;
   __ bind(&start);
   int reset_value = FLAG_interrupt_budget;
-  if (info_->is_debug()) {
-    // Detect debug break requests as soon as possible.
-    reset_value = FLAG_interrupt_budget >> 4;
-  }
   __ mov(r2, Operand(profiling_counter_));
   // The mov instruction above can be either 1 to 3 (for ARMv7) or 1 to 5
   // instructions (for ARMv6) depending upon whether it is an extended constant
