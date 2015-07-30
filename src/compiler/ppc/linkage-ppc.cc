@@ -17,9 +17,15 @@ struct PPCLinkageHelperTraits {
   static Register ReturnValue2Reg() { return r4; }
   static Register JSCallFunctionReg() { return r4; }
   static Register ContextReg() { return cp; }
-  static Register InterpreterBytecodeOffsetReg() { return r14; }
-  static Register InterpreterBytecodeArrayReg() { return r15; }
-  static Register InterpreterDispatchTableReg() { return r16; }
+  static Register InterpreterBytecodeOffsetReg() {
+    return kInterpreterBytecodeOffsetRegister;
+  }
+  static Register InterpreterBytecodeArrayReg() {
+    return kInterpreterBytecodeArrayRegister;
+  }
+  static Register InterpreterDispatchTableReg() {
+    return kInterpreterDispatchTableRegister;
+  }
   static Register RuntimeCallFunctionReg() { return r4; }
   static Register RuntimeCallArgCountReg() { return r3; }
 };

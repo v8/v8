@@ -327,7 +327,7 @@ void FullCodeGenerator::Generate() {
 
     // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
-    // The stub will rewrite receiever and parameter count if the previous
+    // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub::Type type;
     if (is_strict(language_mode()) || !is_simple_parameter_list()) {
