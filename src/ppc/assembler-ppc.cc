@@ -684,27 +684,27 @@ int Assembler::link(Label* L) {
 // Branch instructions.
 
 
-void Assembler::bclr(BOfield bo, LKBit lk) {
+void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
   positions_recorder()->WriteRecordedPositions();
-  emit(EXT1 | bo | BCLRX | lk);
+  emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
 }
 
 
-void Assembler::bcctr(BOfield bo, LKBit lk) {
+void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
   positions_recorder()->WriteRecordedPositions();
-  emit(EXT1 | bo | BCCTRX | lk);
+  emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
 }
 
 
 // Pseudo op - branch to link register
-void Assembler::blr() { bclr(BA, LeaveLK); }
+void Assembler::blr() { bclr(BA, 0, LeaveLK); }
 
 
 // Pseudo op - branch to count register -- used for "jump"
-void Assembler::bctr() { bcctr(BA, LeaveLK); }
+void Assembler::bctr() { bcctr(BA, 0, LeaveLK); }
 
 
-void Assembler::bctrl() { bcctr(BA, SetLK); }
+void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 
 
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {

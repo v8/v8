@@ -361,11 +361,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
         __ li(r4, Operand((cond == le) ? GREATER : LESS));
         __ isel(eq, r3, r3, r4);
       } else {
-        Label not_equal;
-        __ bne(&not_equal);
         // All-zero means Infinity means equal.
-        __ Ret();
-        __ bind(&not_equal);
+        __ Ret(eq);
         if (cond == le) {
           __ li(r3, Operand(GREATER));  // NaN <= NaN should fail.
         } else {
@@ -396,13 +393,15 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm, Register lhs,
     // If rhs is not a number and lhs is a Smi then strict equality cannot
     // succeed.  Return non-equal
     // If rhs is r3 then there is already a non zero value in it.
-    Label skip;
-    __ beq(&skip);
     if (!rhs.is(r3)) {
+      Label skip;
+      __ beq(&skip);
       __ mov(r3, Operand(NOT_EQUAL));
+      __ Ret();
+      __ bind(&skip);
+    } else {
+      __ Ret(ne);
     }
-    __ Ret();
-    __ bind(&skip);
   } else {
     // Smi compared non-strictly with a non-Smi non-heap-number.  Call
     // the runtime.
@@ -426,13 +425,15 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm, Register lhs,
     // If lhs is not a number and rhs is a smi then strict equality cannot
     // succeed.  Return non-equal.
     // If lhs is r3 then there is already a non zero value in it.
-    Label skip;
-    __ beq(&skip);
     if (!lhs.is(r3)) {
+      Label skip;
+      __ beq(&skip);
       __ mov(r3, Operand(NOT_EQUAL));
+      __ Ret();
+      __ bind(&skip);
+    } else {
+      __ Ret(ne);
     }
-    __ Ret();
-    __ bind(&skip);
   } else {
     // Smi compared non-strictly with a non-smi non-heap-number.  Call
     // the runtime.
@@ -3966,12 +3967,10 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
     STATIC_ASSERT(kInternalizedTag == 0);
     __ orx(tmp3, tmp1, tmp2);
     __ andi(r0, tmp3, Operand(kIsNotInternalizedMask));
-    __ bne(&is_symbol, cr0);
     // Make sure r3 is non-zero. At this point input operands are
     // guaranteed to be non-zero.
     DCHECK(right.is(r3));
-    __ Ret();
-    __ bind(&is_symbol);
+    __ Ret(eq, cr0);
   }
 
   // Check that both strings are sequential one-byte.

@@ -127,13 +127,17 @@ class MacroAssembler : public Assembler {
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             TypeFeedbackId ast_id = TypeFeedbackId::None(),
             Condition cond = al);
-  void Ret(Condition cond = al);
+  void Ret() { blr(); }
+  void Ret(Condition cond, CRegister cr = cr7) { bclr(cond, cr); }
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
-  void Drop(int count, Condition cond = al);
+  void Drop(int count);
 
-  void Ret(int drop, Condition cond = al);
+  void Ret(int drop) {
+    Drop(drop);
+    blr();
+  }
 
   void Call(Label* target);
 

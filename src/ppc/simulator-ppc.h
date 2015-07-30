@@ -253,6 +253,8 @@ class Simulator {
     end_sim_pc = -2
   };
 
+  enum BCType { BC_OFFSET, BC_LINK_REG, BC_CTR_REG };
+
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
@@ -302,7 +304,7 @@ class Simulator {
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);
-  void ExecuteBranchConditional(Instruction* instr);
+  void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteExt1(Instruction* instr);
   bool ExecuteExt2_10bit(Instruction* instr);
   bool ExecuteExt2_9bit_part1(Instruction* instr);

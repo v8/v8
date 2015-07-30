@@ -176,23 +176,10 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Ret(Condition cond) {
-  DCHECK(cond == al);
-  blr();
-}
-
-
-void MacroAssembler::Drop(int count, Condition cond) {
-  DCHECK(cond == al);
+void MacroAssembler::Drop(int count) {
   if (count > 0) {
     Add(sp, sp, count * kPointerSize, r0);
   }
-}
-
-
-void MacroAssembler::Ret(int drop, Condition cond) {
-  Drop(drop, cond);
-  Ret(cond);
 }
 
 
@@ -497,7 +484,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
     beq(&done, cr0);
   } else {
     DCHECK(and_then == kReturnAtEnd);
-    beq(&done, cr0);
+    Ret(eq, cr0);
   }
   mflr(r0);
   push(r0);

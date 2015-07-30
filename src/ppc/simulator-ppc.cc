@@ -1562,9 +1562,8 @@ void Simulator::SetCR0(intptr_t result, bool setSO) {
 }
 
 
-void Simulator::ExecuteBranchConditional(Instruction* instr) {
+void Simulator::ExecuteBranchConditional(Instruction* instr, BCType type) {
   int bo = instr->Bits(25, 21) << 21;
-  int offset = (instr->Bits(15, 2) << 18) >> 16;
   int condition_bit = instr->Bits(20, 16);
   int condition_mask = 0x80000000 >> condition_bit;
   switch (bo) {
@@ -1572,45 +1571,46 @@ void Simulator::ExecuteBranchConditional(Instruction* instr) {
     case DCBEZF:  // Decrement CTR; branch if CTR == 0 and condition false
       UNIMPLEMENTED();
     case BF: {  // Branch if condition false
-      if (!(condition_reg_ & condition_mask)) {
-        if (instr->Bit(0) == 1) {  // LK flag set
-          special_reg_lr_ = get_pc() + 4;
-        }
-        set_pc(get_pc() + offset);
-      }
+      if (condition_reg_ & condition_mask) return;
       break;
     }
     case DCBNZT:  // Decrement CTR; branch if CTR != 0 and condition true
     case DCBEZT:  // Decrement CTR; branch if CTR == 0 and condition true
       UNIMPLEMENTED();
     case BT: {  // Branch if condition true
-      if (condition_reg_ & condition_mask) {
-        if (instr->Bit(0) == 1) {  // LK flag set
-          special_reg_lr_ = get_pc() + 4;
-        }
-        set_pc(get_pc() + offset);
-      }
+      if (!(condition_reg_ & condition_mask)) return;
       break;
     }
     case DCBNZ:  // Decrement CTR; branch if CTR != 0
     case DCBEZ:  // Decrement CTR; branch if CTR == 0
       special_reg_ctr_ -= 1;
-      if ((special_reg_ctr_ == 0) == (bo == DCBEZ)) {
-        if (instr->Bit(0) == 1) {  // LK flag set
-          special_reg_lr_ = get_pc() + 4;
-        }
-        set_pc(get_pc() + offset);
-      }
+      if ((special_reg_ctr_ == 0) != (bo == DCBEZ)) return;
       break;
     case BA: {                   // Branch always
-      if (instr->Bit(0) == 1) {  // LK flag set
-        special_reg_lr_ = get_pc() + 4;
-      }
-      set_pc(get_pc() + offset);
       break;
     }
     default:
       UNIMPLEMENTED();  // Invalid encoding
+  }
+
+  intptr_t old_pc = get_pc();
+
+  switch (type) {
+    case BC_OFFSET: {
+      int offset = (instr->Bits(15, 2) << 18) >> 16;
+      set_pc(old_pc + offset);
+      break;
+    }
+    case BC_LINK_REG:
+      set_pc(special_reg_lr_);
+      break;
+    case BC_CTR_REG:
+      set_pc(special_reg_ctr_);
+      break;
+  }
+
+  if (instr->Bit(0) == 1) {  // LK flag set
+    special_reg_lr_ = old_pc + 4;
   }
 }
 
@@ -1620,24 +1620,12 @@ void Simulator::ExecuteExt1(Instruction* instr) {
   switch (instr->Bits(10, 1) << 1) {
     case MCRF:
       UNIMPLEMENTED();  // Not used by V8.
-    case BCLRX: {
-      // need to check BO flag
-      intptr_t old_pc = get_pc();
-      set_pc(special_reg_lr_);
-      if (instr->Bit(0) == 1) {  // LK flag set
-        special_reg_lr_ = old_pc + 4;
-      }
+    case BCLRX:
+      ExecuteBranchConditional(instr, BC_LINK_REG);
       break;
-    }
-    case BCCTRX: {
-      // need to check BO flag
-      intptr_t old_pc = get_pc();
-      set_pc(special_reg_ctr_);
-      if (instr->Bit(0) == 1) {  // LK flag set
-        special_reg_lr_ = old_pc + 4;
-      }
+    case BCCTRX:
+      ExecuteBranchConditional(instr, BC_CTR_REG);
       break;
-    }
     case CRNOR:
     case RFI:
     case CRANDC:
@@ -3262,7 +3250,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case BCX: {
-      ExecuteBranchConditional(instr);
+      ExecuteBranchConditional(instr, BC_OFFSET);
       break;
     }
     case BX: {
