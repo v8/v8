@@ -122,7 +122,7 @@ class LinkageHelper {
 
     // The target for runtime calls is a code object.
     MachineType target_type = kMachAnyTagged;
-    LinkageLocation target_loc = LinkageLocation::AnyRegister();
+    LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
     return new (zone) CallDescriptor(     // --
         CallDescriptor::kCallCodeObject,  // kind
         target_type,                      // target MachineType
@@ -182,7 +182,7 @@ class LinkageHelper {
 
     // The target for stub calls is a code object.
     MachineType target_type = kMachAnyTagged;
-    LinkageLocation target_loc = LinkageLocation::AnyRegister();
+    LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
     return new (zone) CallDescriptor(     // --
         CallDescriptor::kCallCodeObject,  // kind
         target_type,                      // target MachineType
@@ -214,7 +214,7 @@ class LinkageHelper {
     types.AddParam(kMachPtr);
     locations.AddParam(regloc(LinkageTraits::InterpreterDispatchTableReg()));
 
-    LinkageLocation target_loc = LinkageLocation::AnyRegister();
+    LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
     return new (zone) CallDescriptor(          // --
         CallDescriptor::kInterpreterDispatch,  // kind
         kMachNone,                             // target MachineType
@@ -230,12 +230,11 @@ class LinkageHelper {
   }
 
   static LinkageLocation regloc(Register reg) {
-    return LinkageLocation(Register::ToAllocationIndex(reg));
+    return LinkageLocation::ForRegister(Register::ToAllocationIndex(reg));
   }
 
   static LinkageLocation stackloc(int i) {
-    DCHECK_LT(i, 0);
-    return LinkageLocation(i);
+    return LinkageLocation::ForCallerFrameSlot(i);
   }
 
   static MachineType reptyp(Representation representation) {
@@ -280,11 +279,8 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
     return incoming_->GetInputLocation(context_index);
   } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.
-    int spill_index =
-        LinkageLocation::ANY_REGISTER + 1 + index - first_stack_slot;
-    // TODO(titzer): bailout instead of crashing here.
-    CHECK(spill_index <= LinkageLocation::MAX_STACK_SLOT);
-    return LinkageLocation(spill_index);
+    int spill_index = index - first_stack_slot;
+    return LinkageLocation::ForCalleeFrameSlot(spill_index);
   } else {
     // Parameter. Use the assigned location from the incoming call descriptor.
     int parameter_index = 1 + index;  // skip index 0, which is the target.

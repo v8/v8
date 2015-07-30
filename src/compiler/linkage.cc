@@ -56,17 +56,17 @@ bool CallDescriptor::CanTailCall(const Node* node) const {
   // Determine the number of stack parameters passed in
   size_t stack_params = 0;
   for (size_t i = 0; i < InputCount(); ++i) {
-    if (!GetInputLocation(i).is_register()) {
+    if (!GetInputLocation(i).IsRegister()) {
       ++stack_params;
     }
   }
   // Ensure the input linkage contains the stack parameters in the right order
   size_t current_stack_param = 0;
   for (size_t i = 0; i < InputCount(); ++i) {
-    if (!GetInputLocation(i).is_register()) {
-      if (GetInputLocation(i) !=
-          LinkageLocation(static_cast<int>(current_stack_param) -
-                          static_cast<int>(stack_params))) {
+    if (!GetInputLocation(i).IsRegister()) {
+      if (GetInputLocation(i) != LinkageLocation::ForCallerFrameSlot(
+                                     static_cast<int>(current_stack_param) -
+                                     static_cast<int>(stack_params))) {
         return false;
       }
       ++current_stack_param;
@@ -82,7 +82,7 @@ bool CallDescriptor::CanTailCall(const Node* node) const {
   while (true) {
     if (other_input >= other->InputCount()) {
       while (current_input < InputCount()) {
-        if (!GetInputLocation(current_input).is_register()) {
+        if (!GetInputLocation(current_input).IsRegister()) {
           return false;
         }
         ++current_input;
@@ -91,18 +91,18 @@ bool CallDescriptor::CanTailCall(const Node* node) const {
     }
     if (current_input >= InputCount()) {
       while (other_input < other->InputCount()) {
-        if (!other->GetInputLocation(other_input).is_register()) {
+        if (!other->GetInputLocation(other_input).IsRegister()) {
           return false;
         }
         ++other_input;
       }
       return true;
     }
-    if (GetInputLocation(current_input).is_register()) {
+    if (GetInputLocation(current_input).IsRegister()) {
       ++current_input;
       continue;
     }
-    if (other->GetInputLocation(other_input).is_register()) {
+    if (other->GetInputLocation(other_input).IsRegister()) {
       ++other_input;
       continue;
     }
@@ -238,10 +238,10 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
 
 bool CallDescriptor::UsesOnlyRegisters() const {
   for (size_t i = 0; i < InputCount(); ++i) {
-    if (!GetInputLocation(i).is_register()) return false;
+    if (!GetInputLocation(i).IsRegister()) return false;
   }
   for (size_t i = 0; i < ReturnCount(); ++i) {
-    if (!GetReturnLocation(i).is_register()) return false;
+    if (!GetReturnLocation(i).IsRegister()) return false;
   }
   return true;
 }

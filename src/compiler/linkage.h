@@ -26,33 +26,77 @@ class OsrHelper;
 // Describes the location for a parameter or a return value to a call.
 class LinkageLocation {
  public:
-  explicit LinkageLocation(int location) : location_(location) {}
-
-  bool is_register() const {
-    return 0 <= location_ && location_ <= ANY_REGISTER;
-  }
-
-  static const int16_t ANY_REGISTER = 1023;
-  static const int16_t MAX_STACK_SLOT = 32767;
-
-  static LinkageLocation AnyRegister() { return LinkageLocation(ANY_REGISTER); }
-
   bool operator==(const LinkageLocation& other) const {
-    return location_ == other.location_;
+    return bit_field_ == other.bit_field_;
   }
 
   bool operator!=(const LinkageLocation& other) const {
     return !(*this == other);
   }
 
+  static LinkageLocation ForAnyRegister() {
+    return LinkageLocation(REGISTER, ANY_REGISTER);
+  }
+
+  static LinkageLocation ForRegister(int32_t reg) {
+    DCHECK(reg >= 0);
+    return LinkageLocation(REGISTER, reg);
+  }
+
+  static LinkageLocation ForCallerFrameSlot(int32_t slot) {
+    DCHECK(slot < 0);
+    return LinkageLocation(STACK_SLOT, slot);
+  }
+
+  static LinkageLocation ForCalleeFrameSlot(int32_t slot) {
+    // TODO(titzer): bailout instead of crashing here.
+    DCHECK(slot >= 0 && slot < LinkageLocation::MAX_STACK_SLOT);
+    return LinkageLocation(STACK_SLOT, slot);
+  }
+
  private:
   friend class CallDescriptor;
   friend class OperandGenerator;
-  //         location < 0     -> a stack slot on the caller frame
-  // 0    <= location < 1023  -> a specific machine register
-  // 1023 <= location < 1024  -> any machine register
-  // 1024 <= location         -> a stack slot in the callee frame
-  int16_t location_;
+
+  enum LocationType { REGISTER, STACK_SLOT };
+
+  class TypeField : public BitField<LocationType, 0, 1> {};
+  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
+
+  static const int32_t ANY_REGISTER = -1;
+  static const int32_t MAX_STACK_SLOT = 32767;
+
+  LinkageLocation(LocationType type, int32_t location) {
+    bit_field_ = TypeField::encode(type) |
+                 ((location << LocationField::kShift) & LocationField::kMask);
+  }
+
+  int32_t GetLocation() const {
+    return static_cast<int32_t>(bit_field_ & LocationField::kMask) >>
+           LocationField::kShift;
+  }
+
+  bool IsRegister() const { return TypeField::decode(bit_field_) == REGISTER; }
+  bool IsAnyRegister() const {
+    return IsRegister() && GetLocation() == ANY_REGISTER;
+  }
+  bool IsCallerFrameSlot() const { return !IsRegister() && GetLocation() < 0; }
+  bool IsCalleeFrameSlot() const { return !IsRegister() && GetLocation() >= 0; }
+
+  int32_t AsRegister() const {
+    DCHECK(IsRegister());
+    return GetLocation();
+  }
+  int32_t AsCallerFrameSlot() const {
+    DCHECK(IsCallerFrameSlot());
+    return GetLocation();
+  }
+  int32_t AsCalleeFrameSlot() const {
+    DCHECK(IsCalleeFrameSlot());
+    return GetLocation();
+  }
+
+  int32_t bit_field_;
 };
 
 typedef Signature<LinkageLocation> LocationSignature;

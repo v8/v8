@@ -28,7 +28,7 @@ class LinkageTailCall : public TestWithZone {
         locations->return_count(), locations->parameter_count(), kMachineTypes);
     return new (zone())
         CallDescriptor(CallDescriptor::kCallCodeObject, kMachAnyTagged,
-                       LinkageLocation::AnyRegister(),
+                       LinkageLocation::ForAnyRegister(),
                        types,                     // machine_sig
                        locations,                 // location_sig
                        0,                         // js_parameter_count
@@ -39,9 +39,13 @@ class LinkageTailCall : public TestWithZone {
                        "");
   }
 
-  LinkageLocation StackLocation(int loc) { return LinkageLocation(-loc); }
+  LinkageLocation StackLocation(int loc) {
+    return LinkageLocation::ForCallerFrameSlot(-loc);
+  }
 
-  LinkageLocation RegisterLocation(int loc) { return LinkageLocation(loc); }
+  LinkageLocation RegisterLocation(int loc) {
+    return LinkageLocation::ForRegister(loc);
+  }
 };
 
 
