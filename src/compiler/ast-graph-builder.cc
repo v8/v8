@@ -1639,24 +1639,15 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     }
   }
 
-  // Transform both the class literal and the prototype to fast properties.
-  const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties, 1);
-  NewNode(op, environment()->Pop());  // prototype
-  NewNode(op, environment()->Pop());  // literal
-  if (is_strong(language_mode())) {
-    // TODO(conradw): It would be more efficient to define the properties with
-    // the right attributes the first time round.
-    // Freeze the prototype.
-    proto =
-        NewNode(javascript()->CallRuntime(Runtime::kObjectFreeze, 1), proto);
-    // Freezing the prototype should never deopt.
-    PrepareFrameState(proto, BailoutId::None());
-    // Freeze the constructor.
-    literal =
-        NewNode(javascript()->CallRuntime(Runtime::kObjectFreeze, 1), literal);
-    // Freezing the constructor should never deopt.
-    PrepareFrameState(literal, BailoutId::None());
-  }
+  // Set both the prototype and constructor to have fast properties, and also
+  // freeze them in strong mode.
+  environment()->Pop();  // proto
+  environment()->Pop();  // literal
+  const Operator* op = javascript()->CallRuntime(
+      is_strong(language_mode()) ? Runtime::kFinalizeClassDefinitionStrong
+                                 : Runtime::kFinalizeClassDefinition,
+      2);
+  literal = NewNode(op, literal, proto);
 
   // Assign to class variable.
   if (expr->scope() != NULL) {

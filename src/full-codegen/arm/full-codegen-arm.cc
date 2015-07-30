@@ -2567,24 +2567,12 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit,
     }
   }
 
-  // prototype
-  __ CallRuntime(Runtime::kToFastProperties, 1);
-
-  // constructor
-  __ CallRuntime(Runtime::kToFastProperties, 1);
-
-  if (is_strong(language_mode())) {
-    __ ldr(scratch,
-           FieldMemOperand(r0, JSFunction::kPrototypeOrInitialMapOffset));
-    __ push(r0);
-    __ push(scratch);
-    // TODO(conradw): It would be more efficient to define the properties with
-    // the right attributes the first time round.
-    // Freeze the prototype.
-    __ CallRuntime(Runtime::kObjectFreeze, 1);
-    // Freeze the constructor.
-    __ CallRuntime(Runtime::kObjectFreeze, 1);
-  }
+  // Set both the prototype and constructor to have fast properties, and also
+  // freeze them in strong mode.
+  __ CallRuntime(is_strong(language_mode())
+                     ? Runtime::kFinalizeClassDefinitionStrong
+                     : Runtime::kFinalizeClassDefinition,
+                 2);
 }
 
 
