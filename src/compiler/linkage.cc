@@ -282,11 +282,6 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 }
 
 
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
-                                                  const MachineSignature* sig) {
-  UNIMPLEMENTED();
-  return NULL;
-}
 #endif  // !V8_TURBOFAN_BACKEND
 }  // namespace compiler
 }  // namespace internal

@@ -459,6 +459,7 @@
         '../../src/compiler/basic-block-instrumentor.h',
         '../../src/compiler/change-lowering.cc',
         '../../src/compiler/change-lowering.h',
+        '../../src/compiler/c-linkage.cc',
         '../../src/compiler/coalesced-live-ranges.cc',
         '../../src/compiler/coalesced-live-ranges.h',
         '../../src/compiler/code-generator-impl.h',

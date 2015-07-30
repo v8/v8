@@ -197,42 +197,6 @@ class LinkageHelper {
         descriptor.DebugName(isolate));
   }
 
-  static CallDescriptor* GetSimplifiedCDescriptor(
-      Zone* zone, const MachineSignature* msig) {
-    LocationSignature::Builder locations(zone, msig->return_count(),
-                                         msig->parameter_count());
-    // Add return location(s).
-    AddReturnLocations(&locations);
-
-    // Add register and/or stack parameter(s).
-    const int parameter_count = static_cast<int>(msig->parameter_count());
-    int stack_offset = LinkageTraits::CStackBackingStoreLength();
-    for (int i = 0; i < parameter_count; i++) {
-      if (i < LinkageTraits::CRegisterParametersLength()) {
-        locations.AddParam(regloc(LinkageTraits::CRegisterParameter(i)));
-      } else {
-        locations.AddParam(stackloc(-1 - stack_offset));
-        stack_offset++;
-      }
-    }
-
-    // The target for C calls is always an address (i.e. machine pointer).
-    MachineType target_type = kMachPtr;
-    LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone) CallDescriptor(             // --
-        CallDescriptor::kCallAddress,             // kind
-        target_type,                              // target MachineType
-        target_loc,                               // target location
-        msig,                                     // machine_sig
-        locations.Build(),                        // location_sig
-        0,                                        // js_parameter_count
-        Operator::kNoProperties,                  // properties
-        LinkageTraits::CCalleeSaveRegisters(),    // callee-saved registers
-        LinkageTraits::CCalleeSaveFPRegisters(),  // callee-saved fp regs
-        CallDescriptor::kNoFlags,                 // flags
-        "c-call");
-  }
-
   static CallDescriptor* GetInterpreterDispatchDescriptor(Zone* zone) {
     MachineSignature::Builder types(zone, 0, 3);
     LocationSignature::Builder locations(zone, 0, 3);
