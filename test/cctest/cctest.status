@@ -71,10 +71,6 @@
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, NO_VARIANTS],
 
-  # Parser fixes break the function name inference in the constructor.
-  # BUG(4331)
-  'test-func-name-inference/InConstructor': [SKIP],
-
   # The cpu profiler tests are notoriously flaky.
   # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)

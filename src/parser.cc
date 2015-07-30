@@ -2199,6 +2199,11 @@ Statement* Parser::ParseFunctionDeclaration(
   bool is_strict_reserved = false;
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
+
+  if (fni_ != NULL) {
+    fni_->Enter();
+    fni_->PushEnclosingName(name);
+  }
   FunctionLiteral* fun = ParseFunctionLiteral(
       name, scanner()->location(),
       is_strict_reserved ? kFunctionNameIsStrictReserved
@@ -2207,6 +2212,8 @@ Statement* Parser::ParseFunctionDeclaration(
                    : FunctionKind::kNormalFunction,
       pos, FunctionLiteral::DECLARATION, FunctionLiteral::NORMAL_ARITY,
       language_mode(), CHECK_OK);
+  if (fni_ != NULL) fni_->Leave();
+
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
   // initial value upon entering the corresponding scope.
