@@ -15,38 +15,70 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V) \
-  V(LoadLiteral0, 1)     \
-  V(Return, 0)
+// The list of operand types used by bytecodes.
+#define OPERAND_TYPE_LIST(V) \
+  V(None)                    \
+  V(Imm8)                    \
+  V(Reg)
 
+// The list of bytecodes which are interpreted by the interpreter.
+#define BYTECODE_LIST(V)                             \
+  V(LoadLiteral0, OperandType::kReg)                 \
+  V(LoadSmi8, OperandType::kReg, OperandType::kImm8) \
+  V(Return, OperandType::kNone)
+
+
+// Enumeration of operand types used by bytecodes.
+enum class OperandType : uint8_t {
+#define DECLARE_OPERAND_TYPE(Name) k##Name,
+  OPERAND_TYPE_LIST(DECLARE_OPERAND_TYPE)
+#undef DECLARE_OPERAND_TYPE
+#define COUNT_OPERAND_TYPES(x) +1
+  // The COUNT_OPERAND macro will turn this into kLast = -1 +1 +1... which will
+  // evaluate to the same value as the last operand.
+  kLast = -1 OPERAND_TYPE_LIST(COUNT_OPERAND_TYPES)
+#undef COUNT_OPERAND_TYPES
+};
+
+
+// Enumeration of interpreter bytecodes.
 enum class Bytecode : uint8_t {
-#define DECLARE_BYTECODE(Name, _) k##Name,
+#define DECLARE_BYTECODE(Name, ...) k##Name,
   BYTECODE_LIST(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
-#define COUNT_BYTECODE(x, _) +1
+#define COUNT_BYTECODE(x, ...) +1
   // The COUNT_BYTECODE macro will turn this into kLast = -1 +1 +1... which will
   // evaluate to the same value as the last real bytecode.
   kLast = -1 BYTECODE_LIST(COUNT_BYTECODE)
 #undef COUNT_BYTECODE
 };
 
+
 class Bytecodes {
  public:
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
 
-  // Returns the number of arguments expected by |bytecode|.
-  static const int NumberOfArguments(Bytecode bytecode);
+  // Returns byte value of bytecode.
+  static uint8_t ToByte(Bytecode bytecode);
+
+  // Returns bytecode for |value|.
+  static Bytecode FromByte(uint8_t value);
+
+  // Returns the number of operands expected by |bytecode|.
+  static const int NumberOfOperands(Bytecode bytecode);
+
+  // Return the i-th operand of |bytecode|.
+  static const OperandType GetOperandType(Bytecode bytecode, int i);
 
   // Returns the size of the bytecode including its arguments.
   static const int Size(Bytecode bytecode);
 
-  // The maximum number of arguments across all bytecodes.
-  static const int kMaximumNumberOfArguments = 1;
+  // The maximum number of operands across all bytecodes.
+  static const int MaximumNumberOfOperands();
 
   // Maximum size of a bytecode and its arguments.
-  static const int kMaximumSize = 1 + kMaximumNumberOfArguments;
+  static const int MaximumSize();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);

@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 const interpreter::Bytecode kBytecodes[] = {
-#define DEFINE_BYTECODE(Name, _) interpreter::Bytecode::k##Name,
+#define DEFINE_BYTECODE(Name, ...) interpreter::Bytecode::k##Name,
     BYTECODE_LIST(DEFINE_BYTECODE)
 #undef DEFINE_BYTECODE
 };
@@ -127,12 +127,12 @@ TARGET_TEST_F(InterpreterAssemblerTest, Return) {
 }
 
 
-TARGET_TEST_F(InterpreterAssemblerTest, BytecodeArg) {
+TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    int number_of_args = interpreter::Bytecodes::NumberOfArguments(bytecode);
-    for (int i = 0; i < number_of_args; i++) {
-      Node* load_arg_node = m.BytecodeArg(i);
+    int number_of_operands = interpreter::Bytecodes::NumberOfOperands(bytecode);
+    for (int i = 0; i < number_of_operands; i++) {
+      Node* load_arg_node = m.BytecodeOperand(i);
       EXPECT_THAT(
           load_arg_node,
           m.IsLoad(

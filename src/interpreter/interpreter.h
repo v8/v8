@@ -32,7 +32,7 @@ class Interpreter {
 
  private:
 // Bytecode handler generator functions.
-#define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, _) \
+#define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, ...) \
   void Do##Name(compiler::InterpreterAssembler* assembler);
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR

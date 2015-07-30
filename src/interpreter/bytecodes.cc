@@ -8,12 +8,27 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+// Maximum number of operands a bytecode may have.
+static const int kMaxOperands = 3;
+
+// kBytecodeTable relies on kNone being the same as zero to detect length.
+STATIC_ASSERT(static_cast<int>(OperandType::kNone) == 0);
+
+static const OperandType kBytecodeTable[][kMaxOperands] = {
+#define DECLARE_OPERAND(_, ...) \
+  { __VA_ARGS__ }               \
+  ,
+    BYTECODE_LIST(DECLARE_OPERAND)
+#undef DECLARE_OPERAND
+};
+
+
 // static
 const char* Bytecodes::ToString(Bytecode bytecode) {
   switch (bytecode) {
-#define CASE(Name, _)       \
-    case Bytecode::k##Name: \
-      return #Name;
+#define CASE(Name, ...)   \
+  case Bytecode::k##Name: \
+    return #Name;
     BYTECODE_LIST(CASE)
 #undef CASE
   }
@@ -23,29 +38,52 @@ const char* Bytecodes::ToString(Bytecode bytecode) {
 
 
 // static
-const int Bytecodes::NumberOfArguments(Bytecode bytecode) {
-  switch (bytecode) {
-#define CASE(Name, arg_count)   \
-    case Bytecode::k##Name:     \
-      return arg_count;
-    BYTECODE_LIST(CASE)
-#undef CASE
+uint8_t Bytecodes::ToByte(Bytecode bytecode) {
+  return static_cast<uint8_t>(bytecode);
+}
+
+
+// static
+Bytecode Bytecodes::FromByte(uint8_t value) {
+  Bytecode bytecode = static_cast<Bytecode>(value);
+  DCHECK(bytecode <= Bytecode::kLast);
+  return bytecode;
+}
+
+
+// static
+const int Bytecodes::NumberOfOperands(Bytecode bytecode) {
+  DCHECK(bytecode <= Bytecode::kLast);
+  int count;
+  uint8_t row = ToByte(bytecode);
+  for (count = 0; count < kMaxOperands; count++) {
+    if (kBytecodeTable[row][count] == OperandType::kNone) {
+      break;
+    }
   }
-  UNREACHABLE();
-  return 0;
+  return count;
+}
+
+
+// static
+const OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
+  DCHECK(bytecode <= Bytecode::kLast && i < NumberOfOperands(bytecode));
+  return kBytecodeTable[ToByte(bytecode)][i];
 }
 
 
 // static
 const int Bytecodes::Size(Bytecode bytecode) {
-  return NumberOfArguments(bytecode) + 1;
+  return 1 + NumberOfOperands(bytecode);
 }
 
 
-#define CHECK_SIZE(Name, arg_count) \
-  STATIC_ASSERT(arg_count <= Bytecodes::kMaximumNumberOfArguments);
-  BYTECODE_LIST(CHECK_SIZE)
-#undef CHECK_SIZE
+// static
+const int Bytecodes::MaximumNumberOfOperands() { return kMaxOperands; }
+
+
+// static
+const int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
 
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {

@@ -43,8 +43,8 @@ class InterpreterAssembler {
   Node* NumberConstant(double value);
   Node* HeapConstant(Unique<HeapObject> object);
 
-  // Returns the bytecode argument |index| for the current bytecode.
-  Node* BytecodeArg(int index);
+  // Returns the bytecode operand |index| for the current bytecode.
+  Node* BytecodeOperand(int index);
 
   // Loads from and stores to the interpreter register file.
   Node* LoadRegister(int index);

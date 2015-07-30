@@ -95,8 +95,8 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 }
 
 
-Node* InterpreterAssembler::BytecodeArg(int delta) {
-  DCHECK_LT(delta, interpreter::Bytecodes::NumberOfArguments(bytecode_));
+Node* InterpreterAssembler::BytecodeOperand(int delta) {
+  DCHECK_LT(delta, interpreter::Bytecodes::NumberOfOperands(bytecode_));
   return raw_assembler_->Load(
       kMachUint8, BytecodeArrayPointer(),
       raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(1 + delta)));

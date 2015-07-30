@@ -11611,18 +11611,18 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
   Vector<char> buf = Vector<char>::New(50);
-  int bytecode_size = 0;
-  for (int i = 0; i < this->length(); i += bytecode_size) {
-    interpreter::Bytecode bytecode = static_cast<interpreter::Bytecode>(get(i));
-    bytecode_size = interpreter::Bytecodes::Size(bytecode);
+  int bytes = 0;
+  for (int i = 0; i < this->length(); i += bytes) {
+    interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(get(i));
+    bytes = interpreter::Bytecodes::Size(bytecode);
 
     SNPrintF(buf, "%p : ", GetFirstBytecodeAddress() + i);
     os << buf.start();
-    for (int j = 0; j < bytecode_size; j++) {
+    for (int j = 0; j < bytes; j++) {
       SNPrintF(buf, "%02x ", get(i + j));
       os << buf.start();
     }
-    for (int j = bytecode_size; j < interpreter::Bytecodes::kMaximumSize; j++) {
+    for (int j = bytes; j < interpreter::Bytecodes::MaximumSize(); j++) {
       os << "   ";
     }
     os << bytecode << "\n";
