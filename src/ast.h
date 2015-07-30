@@ -1684,7 +1684,6 @@ class VariableProxy final : public Expression {
                               ICSlotCache* cache) override;
   Code::Kind FeedbackICSlotKind(int index) override { return Code::LOAD_IC; }
   FeedbackVectorICSlot VariableFeedbackSlot() {
-    DCHECK(!UsesVariableFeedbackSlot() || !variable_feedback_slot_.IsInvalid());
     return variable_feedback_slot_;
   }
 
@@ -1792,7 +1791,6 @@ class Property final : public Expression {
   }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
-    DCHECK(!property_feedback_slot_.IsInvalid());
     return property_feedback_slot_;
   }
 
