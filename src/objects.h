@@ -5092,7 +5092,7 @@ class Code: public HeapObject {
 
   // KindSpecificFlags2 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kSafepointTableOffsetFirstBit = kIsCrankshaftedBit + 1;
-  static const int kSafepointTableOffsetBitCount = 24;
+  static const int kSafepointTableOffsetBitCount = 30;
 
   STATIC_ASSERT(kSafepointTableOffsetFirstBit +
                 kSafepointTableOffsetBitCount <= 32);
