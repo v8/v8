@@ -240,8 +240,6 @@ class CallSite {
   T(StrongSetProto,                                                            \
     "On strong object %, redefining the internal prototype is deprecated")     \
   T(SymbolKeyFor, "% is not a symbol")                                         \
-  T(SymbolToPrimitive,                                                         \
-    "Cannot convert a Symbol wrapper object to a primitive value")             \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \
   T(SimdToNumber, "Cannot convert a SIMD value to a number")                   \
