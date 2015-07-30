@@ -360,6 +360,12 @@ void FullCodeGenerator::Generate() {
     { Comment cmnt(masm_, "[ Declarations");
       VisitDeclarations(scope()->declarations());
     }
+
+    // Assert that the declarations do not use ICs. Otherwise the debugger
+    // won't be able to redirect a PC at an IC to the correct IC in newly
+    // recompiled code.
+    DCHECK_EQ(0, ic_total_count_);
+
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
       Label ok;
