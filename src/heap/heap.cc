@@ -3413,25 +3413,17 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   {
-    FeedbackVectorSpec spec(0, Code::KEYED_LOAD_IC);
+    Code::Kind kinds[] = {Code::LOAD_IC, Code::KEYED_LOAD_IC, Code::STORE_IC,
+                          Code::KEYED_STORE_IC};
+    FeedbackVectorSpec spec(0, 4, kinds);
     Handle<TypeFeedbackVector> dummy_vector =
         factory->NewTypeFeedbackVector(&spec);
-    dummy_vector->Set(FeedbackVectorICSlot(0),
-                      *TypeFeedbackVector::MegamorphicSentinel(isolate()),
-                      SKIP_WRITE_BARRIER);
-    set_keyed_load_dummy_vector(*dummy_vector);
-  }
-
-  if (FLAG_vector_stores) {
-    FeedbackVectorSpec spec(0, Code::KEYED_STORE_IC);
-    Handle<TypeFeedbackVector> dummy_vector =
-        factory->NewTypeFeedbackVector(&spec);
-    dummy_vector->Set(FeedbackVectorICSlot(0),
-                      *TypeFeedbackVector::MegamorphicSentinel(isolate()),
-                      SKIP_WRITE_BARRIER);
-    set_keyed_store_dummy_vector(*dummy_vector);
-  } else {
-    set_keyed_store_dummy_vector(empty_fixed_array());
+    for (int i = 0; i < 4; i++) {
+      dummy_vector->Set(FeedbackVectorICSlot(0),
+                        *TypeFeedbackVector::MegamorphicSentinel(isolate()),
+                        SKIP_WRITE_BARRIER);
+    }
+    set_dummy_vector(*dummy_vector);
   }
 
   set_detached_contexts(empty_fixed_array());

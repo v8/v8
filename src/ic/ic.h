@@ -26,8 +26,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL,
-     bool for_queries_only = false);
+  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -317,15 +316,6 @@ class LoadIC : public IC {
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
     DCHECK(nexus != NULL);
-    DCHECK(IsLoadStub());
-  }
-
-  // TODO(mvstanton): The for_queries_only is because we have a case where we
-  // construct an IC only to gather the contextual mode, and we don't have
-  // vector/slot information. for_queries_only is a temporary hack to enable the
-  // strong DCHECK protection around vector/slot.
-  LoadIC(FrameDepth depth, Isolate* isolate, bool for_queries_only)
-      : IC(depth, isolate, NULL, for_queries_only) {
     DCHECK(IsLoadStub());
   }
 

@@ -40,7 +40,8 @@ TEST(VectorStructure) {
   CHECK_EQ(1, vector->Slots());
   CHECK_EQ(0, vector->ICSlots());
 
-  FeedbackVectorSpec one_icslot(0, Code::CALL_IC);
+  ZoneFeedbackVectorSpec one_icslot(zone, 0, 1);
+  one_icslot.SetKind(0, Code::CALL_IC);
   vector = factory->NewTypeFeedbackVector(&one_icslot);
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(1, vector->ICSlots());

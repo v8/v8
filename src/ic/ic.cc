@@ -140,8 +140,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 #define TRACE_IC(type, name) TraceIC(type, name)
 
 
-IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus,
-       bool for_queries_only)
+IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
     : isolate_(isolate),
       target_set_(false),
       vector_set_(false),
@@ -184,8 +183,7 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus,
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   kind_ = target_->kind();
-  state_ = (!for_queries_only && UseVector()) ? nexus->StateFromFeedback()
-                                              : target_->ic_state();
+  state_ = UseVector() ? nexus->StateFromFeedback() : target_->ic_state();
   old_state_ = state_;
   extra_ic_state_ = target_->extra_ic_state();
 }
@@ -3002,7 +3000,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   // Return the undefined result if the reference error should not be thrown.
   // Note that both keyed and non-keyed loads may end up here.
-  LoadIC ic(IC::NO_EXTRA_FRAME, isolate, true);
+  LoadICNexus nexus(isolate);
+  LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   if (!ic.ShouldThrowReferenceError(it.GetReceiver())) {
     return isolate->heap()->undefined_value();
   }
@@ -3016,7 +3015,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  StoreICNexus nexus(isolate);
+  StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
