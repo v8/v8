@@ -14,6 +14,7 @@ namespace internal {
 
 const int MemoryReducer::kLongDelayMs = 5000;
 const int MemoryReducer::kShortDelayMs = 500;
+const int MemoryReducer::kWatchdogDelayMs = 100000;
 const int MemoryReducer::kMaxNumberOfGCs = 3;
 
 MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
@@ -106,11 +107,17 @@ void MemoryReducer::NotifyBackgroundIdleNotification(const Event& event) {
 }
 
 
+bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
+  return state.last_gc_time_ms != 0 &&
+         event.time_ms > state.last_gc_time_ms + kWatchdogDelayMs;
+}
+
+
 // For specification of this function see the comment for MemoryReducer class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
   if (!FLAG_incremental_marking) {
-    return State(kDone, 0, 0);
+    return State(kDone, 0, 0, state.last_gc_time_ms);
   }
   switch (state.action) {
     case kDone:
@@ -118,7 +125,9 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
         return state;
       } else {
         DCHECK(event.type == kContextDisposed || event.type == kMarkCompact);
-        return State(kWait, 0, event.time_ms + kLongDelayMs);
+        return State(
+            kWait, 0, event.time_ms + kLongDelayMs,
+            event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms);
       }
     case kWait:
       switch (event.type) {
@@ -126,28 +135,30 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
           return state;
         case kTimer:
           if (state.started_gcs >= kMaxNumberOfGCs) {
-            return State(kDone, 0, 0.0);
+            return State(kDone, 0, 0.0, state.last_gc_time_ms);
           } else if (event.can_start_incremental_gc &&
-                     event.low_allocation_rate) {
+                     (event.low_allocation_rate || WatchdogGC(state, event))) {
             if (state.next_gc_start_ms <= event.time_ms) {
-              return State(kRun, state.started_gcs + 1, 0.0);
+              return State(kRun, state.started_gcs + 1, 0.0,
+                           state.last_gc_time_ms);
             } else {
               return state;
             }
           } else {
-            return State(kWait, state.started_gcs,
-                         event.time_ms + kLongDelayMs);
+            return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs,
+                         state.last_gc_time_ms);
           }
         case kBackgroundIdleNotification:
           if (event.can_start_incremental_gc &&
               state.started_gcs < kMaxNumberOfGCs) {
             return State(kWait, state.started_gcs + 1,
-                         event.time_ms + kLongDelayMs);
+                         event.time_ms + kLongDelayMs, state.last_gc_time_ms);
           } else {
             return state;
           }
         case kMarkCompact:
-          return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs);
+          return State(kWait, state.started_gcs, event.time_ms + kLongDelayMs,
+                       event.time_ms);
       }
     case kRun:
       if (event.type != kMarkCompact) {
@@ -155,14 +166,15 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
       } else {
         if (state.started_gcs < kMaxNumberOfGCs &&
             (event.next_gc_likely_to_collect_more || state.started_gcs == 1)) {
-          return State(kWait, state.started_gcs, event.time_ms + kShortDelayMs);
+          return State(kWait, state.started_gcs, event.time_ms + kShortDelayMs,
+                       event.time_ms);
         } else {
-          return State(kDone, 0, 0.0);
+          return State(kDone, 0, 0.0, event.time_ms);
         }
       }
   }
   UNREACHABLE();
-  return State(kDone, 0, 0);  // Make the compiler happy.
+  return State(kDone, 0, 0, 0.0);  // Make the compiler happy.
 }
 
 
@@ -177,9 +189,7 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
 }
 
 
-void MemoryReducer::TearDown() {
-  state_ = State(kDone, 0, 0);
-}
+void MemoryReducer::TearDown() { state_ = State(kDone, 0, 0, 0.0); }
 
 }  // internal
 }  // v8
