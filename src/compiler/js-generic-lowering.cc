@@ -409,7 +409,8 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
     ReplaceWithStubCall(node, callable, flags);
 
   } else {
-    Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
+    Callable callable = CodeFactory::StoreICInOptimizedCode(
+        isolate(), p.language_mode(), UNINITIALIZED);
     node->RemoveInput(0);  // script context
     node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
     if (FLAG_vector_stores) {
