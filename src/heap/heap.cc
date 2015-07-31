@@ -1327,7 +1327,8 @@ bool Heap::PerformGarbageCollection(
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
-    SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
+    SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed,
+                                    freed_global_handles);
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
     DampenOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
@@ -5655,7 +5656,11 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
 
 void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                                            double gc_speed,
-                                           double mutator_speed) {
+                                           double mutator_speed,
+                                           int freed_global_handles) {
+  const int kFreedGlobalHandlesThreshold = 700;
+  const double kMaxHeapGrowingFactorForManyFreedGlobalHandles = 1.3;
+
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
 
   if (FLAG_trace_gc_verbose) {
@@ -5671,6 +5676,10 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice ||
       FLAG_optimize_for_size) {
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
+  }
+
+  if (freed_global_handles >= kFreedGlobalHandlesThreshold) {
+    factor = Min(factor, kMaxHeapGrowingFactorForManyFreedGlobalHandles);
   }
 
   if (FLAG_stress_compaction ||
