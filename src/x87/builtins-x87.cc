@@ -605,6 +605,139 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
+// Generate code for entering a JS function with the interpreter.
+// On entry to the function the receiver and arguments have been pushed on the
+// stack left to right.  The actual argument count matches the formal parameter
+// count expected by the function.
+//
+// The live registers are:
+//   o edi: the JS function object being called
+//   o esi: our context
+//   o ebp: the caller's frame pointer
+//   o esp: stack pointer (pointing to return address)
+//
+// The function builds a JS frame.  Please see JavaScriptFrameConstants in
+// frames-ia32.h for its layout.
+// TODO(rmcilroy): We will need to include the current bytecode pointer in the
+// frame.
+void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ push(ebp);  // Caller's frame pointer.
+  __ mov(ebp, esp);
+  __ push(esi);  // Callee's context.
+  __ push(edi);  // Callee's JS function.
+
+  // Get the bytecode array from the function object and load the pointer to the
+  // first entry into edi (InterpreterBytecodeRegister).
+  __ mov(edi, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(edi, FieldOperand(edi, SharedFunctionInfo::kFunctionDataOffset));
+
+  if (FLAG_debug_code) {
+    // Check function data field is actually a BytecodeArray object.
+    __ AssertNotSmi(edi);
+    __ CmpObjectType(edi, BYTECODE_ARRAY_TYPE, eax);
+    __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+  }
+
+  // Allocate the local and temporary register file on the stack.
+  {
+    // Load frame size from the BytecodeArray object.
+    __ mov(ebx, FieldOperand(edi, BytecodeArray::kFrameSizeOffset));
+
+    // Do a stack check to ensure we don't go over the limit.
+    Label ok;
+    __ mov(ecx, esp);
+    __ sub(ecx, ebx);
+    ExternalReference stack_limit =
+        ExternalReference::address_of_real_stack_limit(masm->isolate());
+    __ cmp(ecx, Operand::StaticVariable(stack_limit));
+    __ j(above_equal, &ok, Label::kNear);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ bind(&ok);
+
+    // If ok, push undefined as the initial value for all register file entries.
+    // Note: there should always be at least one stack slot for the return
+    // register in the register file.
+    Label loop_header;
+    __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
+    __ bind(&loop_header);
+    // TODO(rmcilroy): Consider doing more than one push per loop iteration.
+    __ push(eax);
+    // Continue loop if not done.
+    __ sub(ebx, Immediate(kPointerSize));
+    __ j(not_equal, &loop_header, Label::kNear);
+  }
+
+  // TODO(rmcilroy): List of things not currently dealt with here but done in
+  // fullcodegen's prologue:
+  //  - Support profiler (specifically profiling_counter).
+  //  - Call ProfileEntryHookStub when isolate has a function_entry_hook.
+  //  - Allow simulator stop operations if FLAG_stop_at is set.
+  //  - Deal with sloppy mode functions which need to replace the
+  //    receiver with the global proxy when called as functions (without an
+  //    explicit receiver object).
+  //  - Code aging of the BytecodeArray object.
+  //  - Supporting FLAG_trace.
+  //
+  // The following items are also not done here, and will probably be done using
+  // explicit bytecodes instead:
+  //  - Allocating a new local context if applicable.
+  //  - Setting up a local binding to the this function, which is used in
+  //    derived constructors with super calls.
+  //  - Setting new.target if required.
+  //  - Dealing with REST parameters (only if
+  //    https://codereview.chromium.org/1235153006 doesn't land by then).
+  //  - Dealing with argument objects.
+
+  // Perform stack guard check.
+  {
+    Label ok;
+    ExternalReference stack_limit =
+        ExternalReference::address_of_stack_limit(masm->isolate());
+    __ cmp(esp, Operand::StaticVariable(stack_limit));
+    __ j(above_equal, &ok, Label::kNear);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+    __ bind(&ok);
+  }
+
+  // Load bytecode offset and dispatch table into registers.
+  __ mov(ecx, Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  // Since the dispatch table root might be set after builtins are generated,
+  // load directly from the roots table.
+  __ LoadRoot(ebx, Heap::kInterpreterTableRootIndex);
+  __ add(ebx, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+
+  // Dispatch to the first bytecode handler for the function.
+  __ movzx_b(eax, Operand(edi, ecx, times_1, 0));
+  __ mov(eax, Operand(ebx, eax, times_pointer_size, 0));
+  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
+  // and header removal.
+  __ add(eax, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jmp(eax);
+}
+
+
+void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
+  // TODO(rmcilroy): List of things not currently dealt with here but done in
+  // fullcodegen's EmitReturnSequence.
+  //  - Supporting FLAG_trace for Runtime::TraceExit.
+  //  - Support profiler (specifically decrementing profiling_counter
+  //    appropriately and calling out to HandleInterrupts if necessary).
+
+  // Load return value into r0.
+  __ mov(eax, Operand(ebp, -kPointerSize -
+                               StandardFrameConstants::kFixedFrameSizeFromFp));
+  // Leave the frame (also dropping the register file).
+  __ leave();
+  // Return droping receiver + arguments.
+  // TODO(rmcilroy): Get number of arguments from BytecodeArray.
+  __ Ret(1 * kPointerSize, ecx);
+}
+
+
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
