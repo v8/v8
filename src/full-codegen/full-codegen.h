@@ -531,6 +531,7 @@ class FullCodeGenerator: public AstVisitor {
   F(RegExpConstructResult)                \
   F(GetFromCache)                         \
   F(NumberToString)                       \
+  F(ToObject)                             \
   F(DebugIsActive)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);

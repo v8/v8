@@ -51,14 +51,6 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewSymbolWrapper) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
-  return *Object::ToObject(isolate, symbol).ToHandleChecked();
-}
-
-
 RUNTIME_FUNCTION(Runtime_SymbolDescription) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

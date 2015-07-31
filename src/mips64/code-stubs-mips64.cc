@@ -2714,8 +2714,10 @@ static void EmitSlowCase(MacroAssembler* masm,
 static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
   // Wrap the receiver and patch it back onto the stack.
   { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-    __ Push(a1, a3);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ Push(a1);
+    __ mov(a0, a3);
+    ToObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ pop(a1);
   }
   __ Branch(USE_DELAY_SLOT, cont);

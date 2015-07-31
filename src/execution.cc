@@ -548,14 +548,6 @@ MaybeHandle<Object> Execution::ToDetailString(
 }
 
 
-MaybeHandle<Object> Execution::ToObject(
-    Isolate* isolate, Handle<Object> obj) {
-  if (obj->IsSpecObject()) return obj;
-  // TODO(verwaest): Use Object::ToObject but throw an exception on failure.
-  RETURN_NATIVE_CALL(to_object, { obj });
-}
-
-
 MaybeHandle<Object> Execution::ToInteger(
     Isolate* isolate, Handle<Object> obj) {
   RETURN_NATIVE_CALL(to_integer, { obj });
@@ -587,6 +579,16 @@ MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
 
 
 #undef RETURN_NATIVE_CALL
+
+
+MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
+  Handle<JSReceiver> receiver;
+  if (JSReceiver::ToObject(isolate, obj).ToHandle(&receiver)) {
+    return receiver;
+  }
+  THROW_NEW_ERROR(
+      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject), Object);
+}
 
 
 MaybeHandle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,

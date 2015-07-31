@@ -104,6 +104,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
 }
 
 
+// static
+const Register ToObjectDescriptor::ReceiverRegister() { return x0; }
+
+
 void NumberToStringDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // x0: value

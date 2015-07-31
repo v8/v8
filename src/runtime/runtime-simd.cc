@@ -33,14 +33,6 @@
         NumberTo##type##Component(*y), NumberTo##type##Component(*z)); \
   }
 
-#define SIMD_CREATE_WRAPPER_FUNCTION(type)                      \
-  RUNTIME_FUNCTION(Runtime_New##type##Wrapper) {                \
-    HandleScope scope(isolate);                                 \
-    DCHECK(args.length() == 1);                                 \
-    CONVERT_ARG_HANDLE_CHECKED(type, value, 0);                 \
-    return *Object::ToObject(isolate, value).ToHandleChecked(); \
-  }
-
 #define SIMD_CHECK_FUNCTION(type)           \
   RUNTIME_FUNCTION(Runtime_##type##Check) { \
     HandleScope scope(isolate);             \
@@ -101,7 +93,6 @@
 
 #define SIMD4_FUNCTIONS(type)        \
   SIMD4_CREATE_FUNCTION(type)        \
-  SIMD_CREATE_WRAPPER_FUNCTION(type) \
   SIMD_CHECK_FUNCTION(type)          \
   SIMD4_EXTRACT_LANE_FUNCTION(type)  \
   SIMD4_EQUALS_FUNCTION(type)        \
@@ -125,5 +116,6 @@ inline bool Equals(float x, float y) { return x == y; }
 }  // namespace
 
 SIMD4_FUNCTIONS(Float32x4)
-}
-}  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8

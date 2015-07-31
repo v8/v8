@@ -1319,8 +1319,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
       __ SmiTag(r0);
       __ push(r0);
 
-      __ push(r2);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ mov(r0, r2);
+      ToObjectStub stub(masm->isolate());
+      __ CallStub(&stub);
       __ mov(r2, r0);
 
       __ pop(r0);
@@ -1556,8 +1557,8 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     // Convert the receiver to a regular object.
     // r0: receiver
     __ bind(&call_to_object);
-    __ push(r0);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    ToObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ b(&push_receiver);
 
     __ bind(&use_global_proxy);

@@ -775,7 +775,7 @@ function DateToISOString() {
 
 
 function DateToJSON(key) {
-  var o = $toObject(this);
+  var o = TO_OBJECT(this);
   var tv = $defaultNumber(o);
   if (IS_NUMBER(tv) && !NUMBER_IS_FINITE(tv)) {
     return null;

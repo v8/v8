@@ -307,7 +307,9 @@ void JSGenericLowering::LowerJSToName(Node* node) {
 
 
 void JSGenericLowering::LowerJSToObject(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::TO_OBJECT, 1);
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::ToObject(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 

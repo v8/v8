@@ -497,7 +497,8 @@ namespace internal {
   F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
-  F(DefineSetterPropertyUnchecked, 4, 1)
+  F(DefineSetterPropertyUnchecked, 4, 1)             \
+  F(ToObject, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \
@@ -570,7 +571,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_SIMD(F) \
   F(CreateFloat32x4, 4, 1)         \
-  F(NewFloat32x4Wrapper, 1, 1)     \
   F(Float32x4Check, 1, 1)          \
   F(Float32x4ExtractLane, 2, 1)    \
   F(Float32x4Equals, 2, 1)         \
@@ -620,7 +620,6 @@ namespace internal {
   F(CreateSymbol, 1, 1)              \
   F(CreatePrivateSymbol, 1, 1)       \
   F(CreateGlobalPrivateSymbol, 1, 1) \
-  F(NewSymbolWrapper, 1, 1)          \
   F(SymbolDescription, 1, 1)         \
   F(SymbolRegistry, 0, 1)            \
   F(SymbolIsPrivate, 1, 1)

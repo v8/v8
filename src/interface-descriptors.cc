@@ -155,6 +155,13 @@ void InstanceofDescriptor::InitializePlatformSpecific(
 }
 
 
+void ToObjectDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void MathPowTaggedDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {exponent()};

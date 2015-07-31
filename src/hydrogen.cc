@@ -2032,6 +2032,165 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
 }
 
 
+HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
+  NoObservableSideEffectsScope scope(this);
+
+  // Create a joinable continuation.
+  HIfContinuation wrap(graph()->CreateBasicBlock(),
+                       graph()->CreateBasicBlock());
+
+  // Determine the proper global constructor function required to wrap
+  // {receiver} into a JSValue, unless {receiver} is already a {JSReceiver}, in
+  // which case we just return it.  Deopts to Runtime::kToObject if {receiver}
+  // is undefined or null.
+  IfBuilder receiver_is_smi(this);
+  receiver_is_smi.If<HIsSmiAndBranch>(receiver);
+  receiver_is_smi.Then();
+  {
+    // Load native context.
+    HValue* native_context = BuildGetNativeContext();
+
+    // Load global Number function.
+    HValue* constructor = Add<HLoadNamedField>(
+        native_context, nullptr,
+        HObjectAccess::ForContextSlot(Context::NUMBER_FUNCTION_INDEX));
+    Push(constructor);
+  }
+  receiver_is_smi.Else();
+  {
+    // Determine {receiver} map and instance type.
+    HValue* receiver_map =
+        Add<HLoadNamedField>(receiver, nullptr, HObjectAccess::ForMap());
+    HValue* receiver_instance_type = Add<HLoadNamedField>(
+        receiver_map, nullptr, HObjectAccess::ForMapInstanceType());
+
+    // First check whether {receiver} is already a spec object (fast case).
+    IfBuilder receiver_is_not_spec_object(this);
+    receiver_is_not_spec_object.If<HCompareNumericAndBranch>(
+        receiver_instance_type, Add<HConstant>(FIRST_SPEC_OBJECT_TYPE),
+        Token::LT);
+    receiver_is_not_spec_object.Then();
+    {
+      // Load native context.
+      HValue* native_context = BuildGetNativeContext();
+
+      IfBuilder receiver_is_heap_number(this);
+      receiver_is_heap_number.If<HCompareNumericAndBranch>(
+          receiver_instance_type, Add<HConstant>(HEAP_NUMBER_TYPE), Token::EQ);
+      receiver_is_heap_number.Then();
+      {
+        // Load global Number function.
+        HValue* constructor = Add<HLoadNamedField>(
+            native_context, nullptr,
+            HObjectAccess::ForContextSlot(Context::NUMBER_FUNCTION_INDEX));
+        Push(constructor);
+      }
+      receiver_is_heap_number.Else();
+      {
+        // Load boolean map (we cannot decide based on instance type, because
+        // it's ODDBALL_TYPE, which would also include null and undefined).
+        HValue* boolean_map = Add<HLoadRoot>(Heap::kBooleanMapRootIndex);
+
+        IfBuilder receiver_is_boolean(this);
+        receiver_is_boolean.If<HCompareObjectEqAndBranch>(receiver_map,
+                                                          boolean_map);
+        receiver_is_boolean.Then();
+        {
+          // Load global Boolean function.
+          HValue* constructor = Add<HLoadNamedField>(
+              native_context, nullptr,
+              HObjectAccess::ForContextSlot(Context::BOOLEAN_FUNCTION_INDEX));
+          Push(constructor);
+        }
+        receiver_is_boolean.Else();
+        {
+          IfBuilder receiver_is_string(this);
+          receiver_is_string.If<HCompareNumericAndBranch>(
+              receiver_instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE),
+              Token::LT);
+          receiver_is_string.Then();
+          {
+            // Load global String function.
+            HValue* constructor = Add<HLoadNamedField>(
+                native_context, nullptr,
+                HObjectAccess::ForContextSlot(Context::STRING_FUNCTION_INDEX));
+            Push(constructor);
+          }
+          receiver_is_string.Else();
+          {
+            IfBuilder receiver_is_symbol(this);
+            receiver_is_symbol.If<HCompareNumericAndBranch>(
+                receiver_instance_type, Add<HConstant>(SYMBOL_TYPE), Token::EQ);
+            receiver_is_symbol.Then();
+            {
+              // Load global Symbol function.
+              HValue* constructor = Add<HLoadNamedField>(
+                  native_context, nullptr, HObjectAccess::ForContextSlot(
+                                               Context::SYMBOL_FUNCTION_INDEX));
+              Push(constructor);
+            }
+            receiver_is_symbol.Else();
+            {
+              IfBuilder receiver_is_float32x4(this);
+              receiver_is_float32x4.If<HCompareNumericAndBranch>(
+                  receiver_instance_type, Add<HConstant>(FLOAT32X4_TYPE),
+                  Token::EQ);
+              receiver_is_float32x4.Then();
+              {
+                // Load global Float32x4 function.
+                HValue* constructor = Add<HLoadNamedField>(
+                    native_context, nullptr,
+                    HObjectAccess::ForContextSlot(
+                        Context::FLOAT32X4_FUNCTION_INDEX));
+                Push(constructor);
+              }
+              receiver_is_float32x4.ElseDeopt(
+                  Deoptimizer::kUndefinedOrNullInToObject);
+              receiver_is_float32x4.JoinContinuation(&wrap);
+            }
+            receiver_is_symbol.JoinContinuation(&wrap);
+          }
+          receiver_is_string.JoinContinuation(&wrap);
+        }
+        receiver_is_boolean.JoinContinuation(&wrap);
+      }
+      receiver_is_heap_number.JoinContinuation(&wrap);
+    }
+    receiver_is_not_spec_object.JoinContinuation(&wrap);
+  }
+  receiver_is_smi.JoinContinuation(&wrap);
+
+  // Wrap the receiver if necessary.
+  IfBuilder if_wrap(this, &wrap);
+  if_wrap.Then();
+  {
+    // Determine the initial map for the global constructor.
+    HValue* constructor = Pop();
+    HValue* constructor_initial_map = Add<HLoadNamedField>(
+        constructor, nullptr, HObjectAccess::ForPrototypeOrInitialMap());
+    // Allocate and initialize a JSValue wrapper.
+    HValue* value =
+        BuildAllocate(Add<HConstant>(JSValue::kSize), HType::JSObject(),
+                      JS_VALUE_TYPE, HAllocationMode());
+    Add<HStoreNamedField>(value, HObjectAccess::ForMap(),
+                          constructor_initial_map);
+    HValue* empty_fixed_array = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
+    Add<HStoreNamedField>(value, HObjectAccess::ForPropertiesPointer(),
+                          empty_fixed_array);
+    Add<HStoreNamedField>(value, HObjectAccess::ForElementsPointer(),
+                          empty_fixed_array);
+    Add<HStoreNamedField>(value, HObjectAccess::ForObservableJSObjectOffset(
+                                     JSValue::kValueOffset),
+                          receiver);
+    Push(value);
+  }
+  if_wrap.Else();
+  { Push(receiver); }
+  if_wrap.End();
+  return Pop();
+}
+
+
 HAllocate* HGraphBuilder::BuildAllocate(
     HValue* object_size,
     HType type,

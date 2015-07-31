@@ -672,6 +672,11 @@ void ElementsTransitionAndStoreStub::InitializeDescriptor(
 }
 
 
+void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kToObject)->entry);
+}
+
+
 CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor()
     const {
   return StoreTransitionDescriptor(isolate());

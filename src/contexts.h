@@ -97,7 +97,6 @@ enum BindingFlags {
   V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                            \
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)                            \
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)              \
-  V(TO_OBJECT_FUN_INDEX, JSFunction, to_object_fun)                            \
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                          \
   V(TO_UINT32_FUN_INDEX, JSFunction, to_uint32_fun)                            \
   V(TO_INT32_FUN_INDEX, JSFunction, to_int32_fun)                              \
@@ -363,7 +362,6 @@ class Context: public FixedArray {
     TO_NUMBER_FUN_INDEX,
     TO_STRING_FUN_INDEX,
     TO_DETAIL_STRING_FUN_INDEX,
-    TO_OBJECT_FUN_INDEX,
     TO_INTEGER_FUN_INDEX,
     TO_UINT32_FUN_INDEX,
     TO_INT32_FUN_INDEX,

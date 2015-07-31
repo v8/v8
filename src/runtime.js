@@ -58,7 +58,6 @@ var APPLY_PREPARE;
 var REFLECT_APPLY_PREPARE;
 var REFLECT_CONSTRUCT_PREPARE;
 var STACK_OVERFLOW;
-var TO_OBJECT;
 var TO_NUMBER;
 var TO_STRING;
 var TO_NAME;
@@ -76,7 +75,6 @@ var $toInteger;
 var $toLength;
 var $toName;
 var $toNumber;
-var $toObject;
 var $toPositiveInteger;
 var $toPrimitive;
 var $toString;
@@ -512,7 +510,7 @@ SHR_STRONG = function SHR_STRONG(y) {
 
 // ECMA-262, section 11.4.1, page 46.
 DELETE = function DELETE(key, language_mode) {
-  return %DeleteProperty(%$toObject(this), key, language_mode);
+  return %DeleteProperty(TO_OBJECT(this), key, language_mode);
 }
 
 
@@ -730,12 +728,6 @@ STACK_OVERFLOW = function STACK_OVERFLOW(length) {
 }
 
 
-// Convert the receiver to an object - forward to ToObject.
-TO_OBJECT = function TO_OBJECT() {
-  return %$toObject(this);
-}
-
-
 // Convert the receiver to a number - forward to ToNumber.
 TO_NUMBER = function TO_NUMBER() {
   return %$toNumber(this);
@@ -829,20 +821,6 @@ function NonStringToString(x) {
 // ES6 symbols
 function ToName(x) {
   return IS_SYMBOL(x) ? x : ToString(x);
-}
-
-
-// ECMA-262, section 9.9, page 36.
-function ToObject(x) {
-  if (IS_STRING(x)) return new GlobalString(x);
-  if (IS_NUMBER(x)) return new GlobalNumber(x);
-  if (IS_BOOLEAN(x)) return new GlobalBoolean(x);
-  if (IS_SYMBOL(x)) return %NewSymbolWrapper(x);
-  if (IS_FLOAT32X4(x)) return %NewFloat32x4Wrapper(x);
-  if (IS_NULL_OR_UNDEFINED(x) && !IS_UNDETECTABLE(x)) {
-    throw MakeTypeError(kUndefinedOrNullToObject);
-  }
-  return x;
 }
 
 
@@ -1006,7 +984,6 @@ $toInteger = ToInteger;
 $toLength = ToLength;
 $toName = ToName;
 $toNumber = ToNumber;
-$toObject = ToObject;
 $toPositiveInteger = ToPositiveInteger;
 $toPrimitive = ToPrimitive;
 $toString = ToString;

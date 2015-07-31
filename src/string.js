@@ -1112,8 +1112,8 @@ function StringFromCodePoint(_) {  // length = 1
 function StringRaw(callSite) {
   // TODO(caitp): Use rest parameters when implemented
   var numberOfSubstitutions = %_ArgumentsLength();
-  var cooked = $toObject(callSite);
-  var raw = $toObject(cooked.raw);
+  var cooked = TO_OBJECT(callSite);
+  var raw = TO_OBJECT(cooked.raw);
   var literalSegments = $toLength(raw.length);
   if (literalSegments <= 0) return "";
 

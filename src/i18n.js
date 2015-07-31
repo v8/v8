@@ -251,7 +251,7 @@ function supportedLocalesOf(service, locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {};
   } else {
-    options = $toObject(options);
+    options = TO_OBJECT(options);
   }
 
   var matcher = options.localeMatcher;
@@ -717,7 +717,7 @@ function initializeLocaleList(locales) {
       return freezeArray(seen);
     }
 
-    var o = $toObject(locales);
+    var o = TO_OBJECT(locales);
     var len = TO_UINT32(o.length);
 
     for (var k = 0; k < len; k++) {
@@ -951,7 +951,7 @@ function initializeCollator(collator, locales, options) {
       return new Intl.Collator(locales, options);
     }
 
-    return initializeCollator($toObject(this), locales, options);
+    return initializeCollator(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1192,7 +1192,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       return new Intl.NumberFormat(locales, options);
     }
 
-    return initializeNumberFormat($toObject(this), locales, options);
+    return initializeNumberFormat(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1444,7 +1444,7 @@ function toDateTimeOptions(options, required, defaults) {
   if (IS_UNDEFINED(options)) {
     options = {};
   } else {
-    options = TO_OBJECT_INLINE(options);
+    options = TO_OBJECT(options);
   }
 
   var needsDefault = true;
@@ -1594,7 +1594,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       return new Intl.DateTimeFormat(locales, options);
     }
 
-    return initializeDateTimeFormat($toObject(this), locales, options);
+    return initializeDateTimeFormat(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1814,7 +1814,7 @@ function initializeBreakIterator(iterator, locales, options) {
       return new Intl.v8BreakIterator(locales, options);
     }
 
-    return initializeBreakIterator($toObject(this), locales, options);
+    return initializeBreakIterator(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );

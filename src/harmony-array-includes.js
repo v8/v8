@@ -16,7 +16,7 @@ var GlobalArray = global.Array;
 // https://github.com/tc39/Array.prototype.includes
 // 6e3b78c927aeda20b9d40e81303f9d44596cd904
 function ArrayIncludes(searchElement, fromIndex) {
-  var array = $toObject(this);
+  var array = TO_OBJECT(this);
   var len = $toLength(array.length);
 
   if (len === 0) {

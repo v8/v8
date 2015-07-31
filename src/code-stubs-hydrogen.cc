@@ -1657,6 +1657,16 @@ Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
 }
 
 
+template <>
+HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(ToObjectDescriptor::kReceiverIndex);
+  return BuildToObject(receiver);
+}
+
+
+Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
+
+
 void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
     HValue* js_function,
     HValue* native_context,

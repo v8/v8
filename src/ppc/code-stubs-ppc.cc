@@ -2726,8 +2726,10 @@ static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
   // Wrap the receiver and patch it back onto the stack.
   {
     FrameAndConstantPoolScope frame_scope(masm, StackFrame::INTERNAL);
-    __ Push(r4, r6);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ push(r4);
+    __ mr(r3, r6);
+    ToObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ pop(r4);
   }
   __ StoreP(r3, MemOperand(sp, argc * kPointerSize), r0);

@@ -78,7 +78,7 @@ function SymbolKeyFor(symbol) {
 
 // ES6 19.1.2.8
 function ObjectGetOwnPropertySymbols(obj) {
-  obj = $toObject(obj);
+  obj = TO_OBJECT(obj);
 
   // TODO(arv): Proxies use a shared trap for String and Symbol keys.
 

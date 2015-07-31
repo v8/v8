@@ -1724,7 +1724,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "$toNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "$toString", to_string_fun);
   INSTALL_NATIVE(JSFunction, "$toDetailString", to_detail_string_fun);
-  INSTALL_NATIVE(JSFunction, "$toObject", to_object_fun);
   INSTALL_NATIVE(JSFunction, "$toInteger", to_integer_fun);
   INSTALL_NATIVE(JSFunction, "$toUint32", to_uint32_fun);
   INSTALL_NATIVE(JSFunction, "$toInt32", to_int32_fun);

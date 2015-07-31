@@ -1559,6 +1559,8 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return Bounds(Type::None(), Type::Range(0, 32, zone()));
     case Runtime::kInlineStringGetLength:
       return Bounds(Type::None(), Type::Range(0, String::kMaxLength, zone()));
+    case Runtime::kInlineToObject:
+      return Bounds(Type::None(), Type::Receiver());
     default:
       break;
   }

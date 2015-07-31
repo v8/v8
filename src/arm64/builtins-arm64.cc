@@ -1355,8 +1355,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ SmiTag(argc);
 
-      __ Push(argc, receiver);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ Push(argc);
+      __ Mov(x0, receiver);
+      ToObjectStub stub(masm->isolate());
+      __ CallStub(&stub);
       __ Mov(receiver, x0);
 
       __ Pop(argc);
@@ -1582,8 +1584,9 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
 
     // Call a builtin to convert the receiver to a regular object.
     __ Bind(&convert_receiver_to_object);
-    __ Push(receiver);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ Mov(x0, receiver);
+    ToObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ Mov(receiver, x0);
     __ B(&push_receiver);
 

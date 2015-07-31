@@ -141,7 +141,7 @@ utils.InstallFunctions(global, DONT_ENUM, [
 function ObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
-  var O = TO_OBJECT_INLINE(this);
+  var O = TO_OBJECT(this);
   var builtinTag = %_ClassOf(O);
   var tag;
 
@@ -168,14 +168,14 @@ function ObjectToLocaleString() {
 
 // ECMA-262 - 15.2.4.4
 function ObjectValueOf() {
-  return TO_OBJECT_INLINE(this);
+  return TO_OBJECT(this);
 }
 
 
 // ECMA-262 - 15.2.4.5
 function ObjectHasOwnProperty(value) {
   var name = $toName(value);
-  var object = TO_OBJECT_INLINE(this);
+  var object = TO_OBJECT(this);
 
   if (%_IsJSProxy(object)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
@@ -206,7 +206,7 @@ function ObjectPropertyIsEnumerable(V) {
     var desc = GetOwnPropertyJS(this, P);
     return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
   }
-  return %IsPropertyEnumerable(TO_OBJECT_INLINE(this), P);
+  return %IsPropertyEnumerable(TO_OBJECT(this), P);
 }
 
 
@@ -223,7 +223,7 @@ function ObjectDefineGetter(name, fun) {
   desc.setGet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(TO_OBJECT_INLINE(receiver), $toName(name), desc, false);
+  DefineOwnProperty(TO_OBJECT(receiver), $toName(name), desc, false);
 }
 
 
@@ -232,7 +232,7 @@ function ObjectLookupGetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalProxy(ObjectLookupGetter);
   }
-  return %LookupAccessor(TO_OBJECT_INLINE(receiver), $toName(name), GETTER);
+  return %LookupAccessor(TO_OBJECT(receiver), $toName(name), GETTER);
 }
 
 
@@ -248,7 +248,7 @@ function ObjectDefineSetter(name, fun) {
   desc.setSet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(TO_OBJECT_INLINE(receiver), $toName(name), desc, false);
+  DefineOwnProperty(TO_OBJECT(receiver), $toName(name), desc, false);
 }
 
 
@@ -257,12 +257,12 @@ function ObjectLookupSetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalProxy(ObjectLookupSetter);
   }
-  return %LookupAccessor(TO_OBJECT_INLINE(receiver), $toName(name), SETTER);
+  return %LookupAccessor(TO_OBJECT(receiver), $toName(name), SETTER);
 }
 
 
 function ObjectKeys(obj) {
-  obj = TO_OBJECT_INLINE(obj);
+  obj = TO_OBJECT(obj);
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", ProxyDerivedKeysTrap);
@@ -579,7 +579,7 @@ function GetOwnPropertyJS(obj, v) {
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
-  var props = %GetOwnProperty(TO_OBJECT_INLINE(obj), p);
+  var props = %GetOwnProperty(TO_OBJECT(obj), p);
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -868,7 +868,7 @@ function DefineOwnPropertyFromAPI(obj, p, value, desc) {
 
 // ES6 section 19.1.2.9
 function ObjectGetPrototypeOf(obj) {
-  return %_GetPrototype(TO_OBJECT_INLINE(obj));
+  return %_GetPrototype(TO_OBJECT(obj));
 }
 
 // ES6 section 19.1.2.19.
@@ -889,7 +889,7 @@ function ObjectSetPrototypeOf(obj, proto) {
 
 // ES6 section 19.1.2.6
 function ObjectGetOwnPropertyDescriptor(obj, p) {
-  var desc = GetOwnPropertyJS(TO_OBJECT_INLINE(obj), p);
+  var desc = GetOwnPropertyJS(TO_OBJECT(obj), p);
   return FromPropertyDescriptor(desc);
 }
 
@@ -1001,7 +1001,7 @@ function OwnPropertyKeys(obj) {
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
-  obj = TO_OBJECT_INLINE(obj);
+  obj = TO_OBJECT(obj);
   // Special handling for proxies.
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
@@ -1093,7 +1093,7 @@ function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError(kCalledOnNonObject, "Object.defineProperties");
   }
-  var props = TO_OBJECT_INLINE(properties);
+  var props = TO_OBJECT(properties);
   var names = GetOwnEnumerablePropertyNames(props);
   var descriptors = new InternalArray();
   for (var i = 0; i < names.length; i++) {
@@ -1263,7 +1263,7 @@ function ObjectIs(obj1, obj2) {
 
 // ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
-  return %_GetPrototype(TO_OBJECT_INLINE(this));
+  return %_GetPrototype(TO_OBJECT(this));
 }
 
 
@@ -1280,10 +1280,10 @@ function ObjectSetProto(proto) {
 function ObjectConstructor(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
-    return TO_OBJECT_INLINE(x);
+    return TO_OBJECT(x);
   } else {
     if (x == null) return { };
-    return TO_OBJECT_INLINE(x);
+    return TO_OBJECT(x);
   }
 }
 

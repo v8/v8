@@ -94,6 +94,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGetTypeFeedbackVector(node);
     case Runtime::kInlineGetCallerJSFunction:
       return ReduceGetCallerJSFunction(node);
+    case Runtime::kInlineToObject:
+      return ReduceToObject(node);
     case Runtime::kInlineThrowNotDateError:
       return ReduceThrowNotDateError(node);
     case Runtime::kInlineCallFunction:
@@ -524,6 +526,12 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
 
   node->set_op(common()->Dead());
   node->TrimInputCount(0);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
+  node->set_op(javascript()->ToObject());
   return Changed(node);
 }
 

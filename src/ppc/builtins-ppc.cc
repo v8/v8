@@ -1338,8 +1338,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
       // Enter an internal frame in order to preserve argument count.
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ SmiTag(r3);
-      __ Push(r3, r5);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ Push(r3);
+      __ mr(r3, r5);
+      ToObjectStub stub(masm->isolate());
+      __ CallStub(&stub);
       __ mr(r5, r3);
 
       __ pop(r3);
@@ -1592,8 +1594,8 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     // Convert the receiver to a regular object.
     // r3: receiver
     __ bind(&call_to_object);
-    __ push(r3);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    ToObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ b(&push_receiver);
 
     __ bind(&use_global_proxy);

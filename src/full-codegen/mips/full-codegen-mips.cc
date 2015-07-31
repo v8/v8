@@ -1085,8 +1085,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ GetObjectType(a0, a1, a1);
   __ Branch(&done_convert, ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
   __ bind(&convert);
-  __ push(a0);
-  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+  ToObjectStub stub(isolate());
+  __ CallStub(&stub);
   __ mov(a0, v0);
   __ bind(&done_convert);
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
@@ -4023,6 +4023,20 @@ void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   __ mov(a0, result_register());
 
   NumberToStringStub stub(isolate());
+  __ CallStub(&stub);
+  context()->Plug(v0);
+}
+
+
+void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into a0 and convert it.
+  VisitForAccumulatorValue(args->at(0));
+  __ mov(a0, result_register());
+
+  ToObjectStub stub(isolate());
   __ CallStub(&stub);
   context()->Plug(v0);
 }
