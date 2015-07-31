@@ -224,7 +224,8 @@ class OperandGenerator {
                                 location.AsCalleeFrameSlot(), virtual_register);
     }
     // a fixed register.
-    if (RepresentationOf(type) == kRepFloat64) {
+    MachineType rep = RepresentationOf(type);
+    if (rep == kRepFloat64 || rep == kRepFloat32) {
       return UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
                                 location.AsRegister(), virtual_register);
     }
