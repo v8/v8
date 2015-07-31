@@ -17,7 +17,8 @@ struct X87LinkageHelperTraits {
   static Register ReturnValue2Reg() { return edx; }
   static Register JSCallFunctionReg() { return edi; }
   static Register ContextReg() { return esi; }
-  static Register InterpreterBytecodePointerReg() { return edi; }
+  static Register InterpreterBytecodeOffsetReg() { return ecx; }
+  static Register InterpreterBytecodeArrayReg() { return edi; }
   static Register InterpreterDispatchTableReg() { return ebx; }
   static Register RuntimeCallFunctionReg() { return ebx; }
   static Register RuntimeCallArgCountReg() { return eax; }
