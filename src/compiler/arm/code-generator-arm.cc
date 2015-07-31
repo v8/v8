@@ -1049,11 +1049,7 @@ void CodeGenerator::AssembleReturn() {
     } else {
       __ bind(&return_label_);
       __ LeaveFrame(StackFrame::MANUAL);
-      int pop_count = descriptor->IsJSFunctionCall()
-                          ? static_cast<int>(descriptor->JSParameterCount())
-                          : (info()->IsStub()
-                                 ? info()->code_stub()->GetStackParameterCount()
-                                 : 0);
+      int pop_count = static_cast<int>(descriptor->StackParameterCount());
       if (pop_count != 0) {
         __ Drop(pop_count);
       }

@@ -233,7 +233,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       target_loc,                    // target location
       msig,                          // machine_sig
       locations.Build(),             // location_sig
-      0,                             // js_parameter_count
+      0,                             // stack_parameter_count
       Operator::kNoProperties,       // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs

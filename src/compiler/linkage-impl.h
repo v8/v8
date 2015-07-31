@@ -67,7 +67,7 @@ class LinkageHelper {
         target_loc,                       // target location
         types.Build(),                    // machine_sig
         locations.Build(),                // location_sig
-        js_parameter_count,               // js_parameter_count
+        js_parameter_count,               // stack_parameter_count
         Operator::kNoProperties,          // properties
         kNoCalleeSaved,                   // callee-saved
         kNoCalleeSaved,                   // callee-saved fp
@@ -129,7 +129,7 @@ class LinkageHelper {
         target_loc,                       // target location
         types.Build(),                    // machine_sig
         locations.Build(),                // location_sig
-        js_parameter_count,               // js_parameter_count
+        js_parameter_count,               // stack_parameter_count
         properties,                       // properties
         kNoCalleeSaved,                   // callee-saved
         kNoCalleeSaved,                   // callee-saved fp
@@ -189,7 +189,7 @@ class LinkageHelper {
         target_loc,                       // target location
         types.Build(),                    // machine_sig
         locations.Build(),                // location_sig
-        js_parameter_count,               // js_parameter_count
+        stack_parameter_count,            // stack_parameter_count
         properties,                       // properties
         kNoCalleeSaved,                   // callee-saved registers
         kNoCalleeSaved,                   // callee-saved fp
@@ -221,7 +221,7 @@ class LinkageHelper {
         target_loc,                            // target location
         types.Build(),                         // machine_sig
         locations.Build(),                     // location_sig
-        0,                                     // js_parameter_count
+        0,                                     // stack_parameter_count
         Operator::kNoProperties,               // properties
         kNoCalleeSaved,                        // callee-saved registers
         kNoCalleeSaved,                        // callee-saved fp regs

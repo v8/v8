@@ -127,7 +127,7 @@ class CallDescriptor final : public ZoneObject {
 
   CallDescriptor(Kind kind, MachineType target_type, LinkageLocation target_loc,
                  const MachineSignature* machine_sig,
-                 LocationSignature* location_sig, size_t js_param_count,
+                 LocationSignature* location_sig, size_t stack_param_count,
                  Operator::Properties properties,
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
@@ -137,7 +137,7 @@ class CallDescriptor final : public ZoneObject {
         target_loc_(target_loc),
         machine_sig_(machine_sig),
         location_sig_(location_sig),
-        js_param_count_(js_param_count),
+        stack_param_count_(stack_param_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
@@ -164,9 +164,14 @@ class CallDescriptor final : public ZoneObject {
   // The number of C parameters to this call.
   size_t CParameterCount() const { return machine_sig_->parameter_count(); }
 
-  // The number of JavaScript parameters to this call, including the receiver
-  // object.
-  size_t JSParameterCount() const { return js_param_count_; }
+  // The number of stack parameters to the call.
+  size_t StackParameterCount() const { return stack_param_count_; }
+
+  // The number of parameters to the JS function call.
+  size_t JSParameterCount() const {
+    DCHECK(IsJSFunctionCall());
+    return stack_param_count_;
+  }
 
   // The total number of inputs to this call, which includes the target,
   // receiver, context, etc.
@@ -225,7 +230,7 @@ class CallDescriptor final : public ZoneObject {
   const LinkageLocation target_loc_;
   const MachineSignature* const machine_sig_;
   const LocationSignature* const location_sig_;
-  const size_t js_param_count_;
+  const size_t stack_param_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const RegList callee_saved_fp_registers_;

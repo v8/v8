@@ -1569,11 +1569,7 @@ void CodeGenerator::AssembleReturn() {
       __ bind(&return_label_);
       __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
       __ popq(rbp);       // Pop caller's frame pointer.
-      int pop_count = descriptor->IsJSFunctionCall()
-                          ? static_cast<int>(descriptor->JSParameterCount())
-                          : (info()->IsStub()
-                                 ? info()->code_stub()->GetStackParameterCount()
-                                 : 0);
+      int pop_count = static_cast<int>(descriptor->StackParameterCount());
       if (pop_count == 0) {
         __ Ret();
       } else {
