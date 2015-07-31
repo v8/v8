@@ -6,16 +6,15 @@
 
 #include "src/v8.h"
 
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS64
 
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
-
 
 void EmitDebugBreakSlot(MacroAssembler* masm) {
   Label check_size;
@@ -52,11 +51,14 @@ void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
   //   nop(DEBUG_BREAK_NOP)
   //   nop(DEBUG_BREAK_NOP)
   //   nop(DEBUG_BREAK_NOP)
+  //   nop(DEBUG_BREAK_NOP)
+  //   nop(DEBUG_BREAK_NOP)
   // to a call to the debug break slot code.
-  //   li t9, address   (lui t9 / ori t9 instruction pair)
+  //   li t9, address   (4-instruction sequence on mips64)
   //   call t9          (jalr t9 / nop instruction pair)
   patcher.masm()->li(v8::internal::t9,
-                     Operand(reinterpret_cast<int32_t>(code->entry())));
+                     Operand(reinterpret_cast<int64_t>(code->entry())),
+                     ADDRESS_LOAD);
   patcher.masm()->Call(v8::internal::t9);
 }
 
@@ -69,10 +71,10 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
     // Load padding words on stack.
     __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingValue)));
-    __ Subu(sp, sp,
+    __ Dsubu(sp, sp,
             Operand(kPointerSize * LiveEdit::kFramePaddingInitialSize));
     for (int i = LiveEdit::kFramePaddingInitialSize - 1; i >= 0; i--) {
-      __ sw(at, MemOperand(sp, kPointerSize * i));
+      __ sd(at, MemOperand(sp, kPointerSize * i));
     }
     __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
     __ push(at);
@@ -107,7 +109,7 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference::debug_after_break_target_address(masm->isolate());
   __ li(t9, Operand(after_break_target));
-  __ lw(t9, MemOperand(t9));
+  __ ld(t9, MemOperand(t9));
   __ Jump(t9);
 }
 
@@ -125,17 +127,17 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ sw(zero_reg, MemOperand(at, 0));
 
   // We do not know our frame height, but set sp based on fp.
-  __ Subu(sp, fp, Operand(kPointerSize));
+  __ Dsubu(sp, fp, Operand(kPointerSize));
 
   __ Pop(ra, fp, a1);  // Return address, Frame, Function.
 
   // Load context from the function.
-  __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+  __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // Get function code.
-  __ lw(at, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(at, FieldMemOperand(at, SharedFunctionInfo::kCodeOffset));
-  __ Addu(t9, at, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ ld(at, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ ld(at, FieldMemOperand(at, SharedFunctionInfo::kCodeOffset));
+  __ Daddu(t9, at, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // Re-run JSFunction, a1 is function, cp is context.
   __ Jump(t9);
@@ -149,4 +151,4 @@ const bool LiveEdit::kFrameDropperSupported = true;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_MIPS
+#endif  // V8_TARGET_ARCH_MIPS64

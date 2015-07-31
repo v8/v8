@@ -33,7 +33,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/allocation-tracker.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
 #include "test/cctest/cctest.h"

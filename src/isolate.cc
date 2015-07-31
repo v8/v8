@@ -19,7 +19,7 @@
 #include "src/compilation-cache.h"
 #include "src/compilation-statistics.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/heap/spaces.h"
 #include "src/heap-profiler.h"

@@ -7,7 +7,7 @@
 #if V8_TARGET_ARCH_X87
 
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 
 namespace v8 {

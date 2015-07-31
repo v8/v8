@@ -20,7 +20,7 @@
 #include "src/compiler.h"
 #include "src/cpu-profiler.h"
 #include "src/date.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/execution.h"

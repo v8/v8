@@ -40,7 +40,7 @@
 #include "src/mips64/assembler-mips64.h"
 
 #include "src/assembler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 
 namespace v8 {

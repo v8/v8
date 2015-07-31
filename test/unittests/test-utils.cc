@@ -6,7 +6,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/base/platform/time.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/flags.h"
 #include "src/isolate.h"
 #include "src/v8.h"

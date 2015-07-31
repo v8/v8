@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/background-parsing-task.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 namespace v8 {
 namespace internal {

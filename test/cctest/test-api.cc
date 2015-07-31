@@ -42,7 +42,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/smart-pointers.h"
 #include "src/compilation-cache.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/futex-emulation.h"
 #include "src/objects.h"

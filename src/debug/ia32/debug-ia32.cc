@@ -4,11 +4,10 @@
 
 #include "src/v8.h"
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_IA32
 
-#include "src/assembler.h"
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 
 namespace v8 {
@@ -44,11 +43,11 @@ void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
   DCHECK_EQ(Code::BUILTIN, code->kind());
   static const int kSize = Assembler::kDebugBreakSlotLength;
   CodePatcher patcher(pc, kSize);
+
+  // Add a label for checking the size of the code used for returning.
   Label check_codesize;
   patcher.masm()->bind(&check_codesize);
-  patcher.masm()->movp(kScratchRegister, reinterpret_cast<void*>(code->entry()),
-                       Assembler::RelocInfoNone());
-  patcher.masm()->call(kScratchRegister);
+  patcher.masm()->call(code->entry(), RelocInfo::NONE32);
   // Check that the size of the code generated is as expected.
   DCHECK_EQ(kSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 }
@@ -64,15 +63,16 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
     // Load padding words on stack.
     for (int i = 0; i < LiveEdit::kFramePaddingInitialSize; i++) {
-      __ Push(Smi::FromInt(LiveEdit::kFramePaddingValue));
+      __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingValue)));
     }
-    __ Push(Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
+    __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
 
-    if (mode == SAVE_RESULT_REGISTER) __ Push(rax);
+    if (mode == SAVE_RESULT_REGISTER) __ push(eax);
 
-    __ Set(rax, 0);  // No arguments (argc == 0).
-    __ Move(rbx, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
-                                   masm->isolate()));
+    __ Move(eax, Immediate(0));  // No arguments.
+    __ mov(ebx,
+           Immediate(ExternalReference(
+               Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate())));
 
     CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);
@@ -80,31 +80,30 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        __ Set(reg, kDebugZapValue);
+        __ Move(reg, Immediate(kDebugZapValue));
       }
     }
 
-    if (mode == SAVE_RESULT_REGISTER) __ Pop(rax);
+    if (mode == SAVE_RESULT_REGISTER) __ pop(eax);
 
-    // Read current padding counter and skip corresponding number of words.
-    __ Pop(kScratchRegister);
-    __ SmiToInteger32(kScratchRegister, kScratchRegister);
-    __ leap(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
+    __ pop(ebx);
+    // We divide stored value by 2 (untagging) and multiply it by word's size.
+    STATIC_ASSERT(kSmiTagSize == 1 && kSmiShiftSize == 0);
+    __ lea(esp, Operand(esp, ebx, times_half_pointer_size, 0));
 
     // Get rid of the internal frame.
   }
 
   // This call did not replace a call , so there will be an unwanted
   // return address left on the stack. Here we get rid of that.
-  __ addp(rsp, Immediate(kPCOnStackSize));
+  __ add(esp, Immediate(kPointerSize));
 
   // Now that the break point has been handled, resume normal execution by
   // jumping to the target address intended by the caller and that was
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target =
       ExternalReference::debug_after_break_target_address(masm->isolate());
-  __ Move(kScratchRegister, after_break_target);
-  __ Jump(Operand(kScratchRegister, 0));
+  __ jmp(Operand::StaticVariable(after_break_target));
 }
 
 
@@ -117,26 +116,26 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
       ExternalReference::debug_restarter_frame_function_pointer_address(
           masm->isolate());
-  __ Move(rax, restarter_frame_function_slot);
-  __ movp(Operand(rax, 0), Immediate(0));
+  __ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
 
-  // We do not know our frame height, but set rsp based on rbp.
-  __ leap(rsp, Operand(rbp, -1 * kPointerSize));
+  // We do not know our frame height, but set esp based on ebp.
+  __ lea(esp, Operand(ebp, -1 * kPointerSize));
 
-  __ Pop(rdi);  // Function.
-  __ popq(rbp);
+  __ pop(edi);  // Function.
+  __ pop(ebp);
 
   // Load context from the function.
-  __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Get function code.
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ leap(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
 
-  // Re-run JSFunction, rdi is function, rsi is context.
-  __ jmp(rdx);
+  // Re-run JSFunction, edi is function, esi is context.
+  __ jmp(edx);
 }
+
 
 const bool LiveEdit::kFrameDropperSupported = true;
 
@@ -145,4 +144,4 @@ const bool LiveEdit::kFrameDropperSupported = true;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_IA32

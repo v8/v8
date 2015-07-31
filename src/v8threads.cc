@@ -6,7 +6,7 @@
 
 #include "src/api.h"
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/regexp-stack.h"
 #include "src/v8threads.h"

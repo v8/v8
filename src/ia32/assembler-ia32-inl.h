@@ -40,7 +40,7 @@
 #include "src/ia32/assembler-ia32.h"
 
 #include "src/assembler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 namespace v8 {
 namespace internal {

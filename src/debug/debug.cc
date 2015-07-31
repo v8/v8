@@ -4,6 +4,8 @@
 
 #include "src/v8.h"
 
+#include "src/debug/debug.h"
+
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
@@ -11,7 +13,6 @@
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
-#include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/full-codegen/full-codegen.h"
@@ -525,7 +526,7 @@ bool Debug::Load() {
 
   // Compile the JavaScript for the debugger in the debugger context.
   bool caught_exception =
-      !CompileDebuggerScript(isolate_, Natives::GetIndex("mirror")) ||
+      !CompileDebuggerScript(isolate_, Natives::GetIndex("mirrors")) ||
       !CompileDebuggerScript(isolate_, Natives::GetIndex("debug"));
 
   if (FLAG_enable_liveedit) {
@@ -718,7 +719,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   // Ignore check if break point object is not a JSObject.
   if (!break_point_object->IsJSObject()) return true;
 
-  // Get the function IsBreakPointTriggered (defined in debug-debugger.js).
+  // Get the function IsBreakPointTriggered (defined in debug.js).
   Handle<String> is_break_point_triggered_string =
       factory->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("IsBreakPointTriggered"));
@@ -2059,7 +2060,7 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
 
-  // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
+  // Get the function UpdateScriptBreakPoints (defined in debug.js).
   Handle<String> update_script_break_points_string =
       isolate_->factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("UpdateScriptBreakPoints"));

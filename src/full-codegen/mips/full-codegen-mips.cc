@@ -18,7 +18,7 @@
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
 #include "src/parser.h"

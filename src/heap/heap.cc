@@ -14,7 +14,7 @@
 #include "src/compilation-cache.h"
 #include "src/conversions.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-idle-time-handler.h"

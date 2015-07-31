@@ -4,7 +4,7 @@
 
 #include "src/pending-compilation-error-handler.h"
 
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/messages.h"

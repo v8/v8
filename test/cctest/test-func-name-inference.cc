@@ -29,7 +29,7 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/string-search.h"
 #include "test/cctest/cctest.h"
 

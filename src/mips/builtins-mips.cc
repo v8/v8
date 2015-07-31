@@ -9,7 +9,7 @@
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/interpreter/bytecodes.h"

@@ -8,7 +8,7 @@
 #include "src/x64/assembler-x64.h"
 
 #include "src/base/cpu.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/v8memory.h"
 
 namespace v8 {

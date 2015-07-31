@@ -11,7 +11,7 @@
 #include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
 #include "src/rewriter.h"

@@ -33,7 +33,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/heap/spaces.h"
 #include "src/objects.h"
 #include "src/parser.h"

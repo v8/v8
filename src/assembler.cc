@@ -45,7 +45,7 @@
 #include "src/codegen.h"
 #include "src/counters.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"

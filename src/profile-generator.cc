@@ -7,7 +7,7 @@
 #include "src/profile-generator-inl.h"
 
 #include "src/compiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/sampler.h"

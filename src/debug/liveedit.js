@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // LiveEdit feature implementation. The script should be executed after
-// debug-debugger.js.
+// debug.js.
 
 // A LiveEdit namespace. It contains functions that modifies JavaScript code
 // according to changes of script source (if possible).

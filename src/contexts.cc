@@ -5,7 +5,7 @@
 #include "src/v8.h"
 
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {

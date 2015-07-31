@@ -5,12 +5,12 @@
 
 #include "src/v8.h"
 
-#include "src/liveedit.h"
+#include "src/debug/liveedit.h"
 
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/messages.h"

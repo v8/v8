@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LIVEEDIT_H_
-#define V8_LIVEEDIT_H_
-
+#ifndef V8_DEBUG_LIVEEDIT_H_
+#define V8_DEBUG_LIVEEDIT_H_
 
 
 // Live Edit feature implementation.
@@ -126,7 +125,7 @@ class LiveEdit : AllStatic {
   // Return error message or NULL.
   static const char* RestartFrame(JavaScriptFrame* frame);
 
-  // A copy of this is in liveedit-debugger.js.
+  // A copy of this is in liveedit.js.
   enum FunctionPatchabilityStatus {
     FUNCTION_AVAILABLE_FOR_PATCH = 1,
     FUNCTION_BLOCKED_ON_ACTIVE_STACK = 2,
@@ -369,4 +368,4 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
 
 } }  // namespace v8::internal
 
-#endif /* V*_LIVEEDIT_H_ */
+#endif /* V8_DEBUG_LIVEEDIT_H_ */

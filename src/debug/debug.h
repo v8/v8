@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DEBUG_H_
-#define V8_DEBUG_H_
+#ifndef V8_DEBUG_DEBUG_H_
+#define V8_DEBUG_DEBUG_H_
 
 #include "src/allocation.h"
 #include "src/arguments.h"
 #include "src/assembler.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
+#include "src/debug/liveedit.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
 #include "src/frames-inl.h"
 #include "src/hashmap.h"
-#include "src/liveedit.h"
 #include "src/runtime/runtime.h"
 #include "src/string-stream.h"
 #include "src/v8threads.h"
@@ -56,7 +56,7 @@ enum BreakLocatorType { ALL_BREAK_LOCATIONS, CALLS_AND_RETURNS };
 
 
 // The different types of breakpoint position alignments.
-// Must match Debug.BreakPositionAlignment in debug-debugger.js
+// Must match Debug.BreakPositionAlignment in debug.js
 enum BreakPositionAlignment {
   STATEMENT_ALIGNED = 0,
   BREAK_POSITION_ALIGNED = 1
@@ -792,4 +792,4 @@ class DebugCodegen : public AllStatic {
 
 } }  // namespace v8::internal
 
-#endif  // V8_DEBUG_H_
+#endif  // V8_DEBUG_DEBUG_H_

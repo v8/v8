@@ -6,7 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"

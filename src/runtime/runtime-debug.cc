@@ -7,7 +7,7 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/compiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/parser.h"
 #include "src/runtime/runtime.h"

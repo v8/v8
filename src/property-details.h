@@ -53,7 +53,7 @@ enum PropertyLocation { kField = 0, kDescriptor = 1 };
 
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in mirror-debugger.js.
+// A copy of this is in debug/mirrors.js.
 enum PropertyType {
   DATA = (kField << 1) | kData,
   DATA_CONSTANT = (kDescriptor << 1) | kData,

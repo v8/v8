@@ -7,7 +7,7 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 namespace v8 {
 namespace internal {

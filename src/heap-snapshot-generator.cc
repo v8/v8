@@ -9,7 +9,7 @@
 #include "src/allocation-tracker.h"
 #include "src/code-stubs.h"
 #include "src/conversions.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/heap-profiler.h"
 #include "src/types.h"
 

@@ -33,7 +33,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/utils.h"
