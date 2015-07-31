@@ -60,6 +60,9 @@ class ElementsAccessor {
   // destination array with the hole.
   static const int kCopyToEndAndInitializeToHole = -2;
 
+  static const int kDirectionForward = 1;
+  static const int kDirectionReverse = -1;
+
   // Copy elements from one backing store to another. Typically, callers specify
   // the source JSObject or JSArray in source_holder. If the holder's backing
   // store is available, it can be passed in source and source_holder is
@@ -112,13 +115,21 @@ class ElementsAccessor {
 
   virtual void Set(FixedArrayBase* backing_store, uint32_t entry,
                    Object* value) = 0;
+
   virtual void Reconfigure(Handle<JSObject> object,
                            Handle<FixedArrayBase> backing_store, uint32_t entry,
                            Handle<Object> value,
                            PropertyAttributes attributes) = 0;
+
   virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
+
+  // TODO(cbruni): Consider passing Arguments* instead of Object** depending on
+  // the requirements of future callers.
+  virtual uint32_t Push(Handle<JSArray> receiver,
+                        Handle<FixedArrayBase> backing_store, Object** objects,
+                        uint32_t start, int direction) = 0;
 
  protected:
   friend class LookupIterator;

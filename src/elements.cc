@@ -245,6 +245,7 @@ static void CopyDoubleToObjectElements(FixedArrayBase* from_base,
       }
     }
   }
+
   DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
@@ -569,6 +570,20 @@ class ElementsAccessorBase : public ElementsAccessor {
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
     UNREACHABLE();
+  }
+
+  virtual uint32_t Push(Handle<JSArray> receiver,
+                        Handle<FixedArrayBase> backing_store, Object** objects,
+                        uint32_t push_size, int direction) {
+    return ElementsAccessorSubclass::PushImpl(receiver, backing_store, objects,
+                                              push_size, direction);
+  }
+
+  static uint32_t PushImpl(Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> elms_obj, Object** objects,
+                           uint32_t push_size, int direction) {
+    UNREACHABLE();
+    return 0;
   }
 
   virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
@@ -1139,6 +1154,53 @@ class FastElementsAccessor
       }
     }
 #endif
+  }
+
+  static uint32_t PushImpl(Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store,
+                           Object** objects, uint32_t push_size,
+                           int direction) {
+    uint32_t len = Smi::cast(receiver->length())->value();
+    if (push_size == 0) {
+      return len;
+    }
+    uint32_t elms_len = backing_store->length();
+    // Currently fixed arrays cannot grow too big, so
+    // we should never hit this case.
+    DCHECK(push_size <= static_cast<uint32_t>(Smi::kMaxValue - len));
+    uint32_t new_length = len + push_size;
+    Handle<FixedArrayBase> new_elms;
+
+    if (new_length > elms_len) {
+      // New backing storage is needed.
+      uint32_t capacity = new_length + (new_length >> 1) + 16;
+      new_elms = FastElementsAccessorSubclass::ConvertElementsWithCapacity(
+          receiver, backing_store, KindTraits::Kind, capacity);
+    } else {
+      // push_size is > 0 and new_length <= elms_len, so backing_store cannot be
+      // the
+      // empty_fixed_array.
+      new_elms = backing_store;
+    }
+
+    // Add the provided values.
+    DisallowHeapAllocation no_gc;
+    DCHECK(direction == ElementsAccessor::kDirectionForward ||
+           direction == ElementsAccessor::kDirectionReverse);
+    STATIC_ASSERT(ElementsAccessor::kDirectionForward == 1);
+    STATIC_ASSERT(ElementsAccessor::kDirectionReverse == -1);
+    for (uint32_t index = 0; index < push_size; index++) {
+      int offset = direction * index;
+      Object* object = objects[offset];
+      FastElementsAccessorSubclass::SetImpl(*new_elms, index + len, object);
+    }
+    if (!new_elms.is_identical_to(backing_store)) {
+      receiver->set_elements(*new_elms);
+    }
+    DCHECK(*new_elms == receiver->elements());
+    // Set the length.
+    receiver->set_length(Smi::FromInt(new_length));
+    return new_length;
   }
 };
 
