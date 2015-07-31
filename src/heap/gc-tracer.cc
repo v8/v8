@@ -426,6 +426,8 @@ void GCTracer::PrintNVP() const {
       PrintF("sweepcode=%.2f ", current_.scopes[Scope::MC_SWEEP_CODE]);
       PrintF("sweepcell=%.2f ", current_.scopes[Scope::MC_SWEEP_CELL]);
       PrintF("sweepmap=%.2f ", current_.scopes[Scope::MC_SWEEP_MAP]);
+      PrintF("rescan_lo=%.2f ",
+             current_.scopes[Scope::MC_RESCAN_LARGE_OBJECTS]);
       PrintF("evacuate=%.1f ", current_.scopes[Scope::MC_EVACUATE_PAGES]);
       PrintF("new_new=%.1f ",
              current_.scopes[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);

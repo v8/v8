@@ -3695,6 +3695,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     }
 
     if (compacting_ && was_marked_incrementally_) {
+      GCTracer::Scope gc_scope(heap()->tracer(),
+                               GCTracer::Scope::MC_RESCAN_LARGE_OBJECTS);
       // It's difficult to filter out slots recorded for large objects.
       LargeObjectIterator it(heap_->lo_space());
       for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
