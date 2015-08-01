@@ -484,6 +484,7 @@ class Assembler : public AssemblerBase {
     return o >> 2;
   }
   uint64_t jump_address(Label* L);
+  uint64_t jump_offset(Label* L);
 
   // Puts a labels target address at the given position.
   // The high 8 bits are set to zero.
@@ -736,6 +737,8 @@ class Assembler : public AssemblerBase {
   // Jump targets must be in the current 256 MB-aligned region. i.e. 28 bits.
   void j(int64_t target);
   void jal(int64_t target);
+  void j(Label* target);
+  void jal(Label* target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
   void jic(Register rt, int16_t offset);

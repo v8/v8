@@ -665,7 +665,7 @@ int Assembler::target_at(int pos, bool is_internal) {
   // Check we have a branch or jump instruction.
   DCHECK(IsBranch(instr) || IsLui(instr));
   // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
-  // the compiler uses arithmectic shifts for signed integers.
+  // the compiler uses arithmetic shifts for signed integers.
   if (IsBranch(instr)) {
     int32_t imm18 = ((instr & static_cast<int32_t>(kImm16Mask)) << 16) >> 14;
 
