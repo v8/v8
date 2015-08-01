@@ -52,7 +52,7 @@ Bytecode Bytecodes::FromByte(uint8_t value) {
 
 
 // static
-const int Bytecodes::NumberOfOperands(Bytecode bytecode) {
+int Bytecodes::NumberOfOperands(Bytecode bytecode) {
   DCHECK(bytecode <= Bytecode::kLast);
   int count;
   uint8_t row = ToByte(bytecode);
@@ -66,24 +66,24 @@ const int Bytecodes::NumberOfOperands(Bytecode bytecode) {
 
 
 // static
-const OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
+OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
   DCHECK(bytecode <= Bytecode::kLast && i < NumberOfOperands(bytecode));
   return kBytecodeTable[ToByte(bytecode)][i];
 }
 
 
 // static
-const int Bytecodes::Size(Bytecode bytecode) {
+int Bytecodes::Size(Bytecode bytecode) {
   return 1 + NumberOfOperands(bytecode);
 }
 
 
 // static
-const int Bytecodes::MaximumNumberOfOperands() { return kMaxOperands; }
+int Bytecodes::MaximumNumberOfOperands() { return kMaxOperands; }
 
 
 // static
-const int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
+int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
 
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {

@@ -66,19 +66,19 @@ class Bytecodes {
   static Bytecode FromByte(uint8_t value);
 
   // Returns the number of operands expected by |bytecode|.
-  static const int NumberOfOperands(Bytecode bytecode);
+  static int NumberOfOperands(Bytecode bytecode);
 
   // Return the i-th operand of |bytecode|.
-  static const OperandType GetOperandType(Bytecode bytecode, int i);
+  static OperandType GetOperandType(Bytecode bytecode, int i);
 
   // Returns the size of the bytecode including its arguments.
-  static const int Size(Bytecode bytecode);
+  static int Size(Bytecode bytecode);
 
   // The maximum number of operands across all bytecodes.
-  static const int MaximumNumberOfOperands();
+  static int MaximumNumberOfOperands();
 
   // Maximum size of a bytecode and its arguments.
-  static const int MaximumSize();
+  static int MaximumSize();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
