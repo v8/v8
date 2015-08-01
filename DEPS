@@ -14,9 +14,9 @@ deps = {
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "f0b8022601cf9c3c1a2f7efcea48e2fe81d3b143",
   "v8/testing/gtest":
-    Var("git_url") + "/external/googletest.git" + "@" + "00a70a9667d92a4695d84e4fa36b64f611f147da",
+    Var("git_url") + "/external/googletest.git" + "@" + "9855a87157778d39b95eccfb201a9dc90f6d61c6",
   "v8/testing/gmock":
-    Var("git_url") + "/external/googlemock.git" + "@" + "29763965ab52f24565299976b936d1265cb6a271",  # from svn revision 501
+    Var("git_url") + "/external/googlemock.git" + "@" + "0421b6f358139f02e102c9c332ce19a33faf75be",
   "v8/tools/clang":
     Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "86b91f8203d8b6cb2dabb8a9c5f2dd95135b4307",
 }
