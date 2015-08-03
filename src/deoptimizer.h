@@ -616,7 +616,7 @@ class Deoptimizer : public Malloced {
   unsigned ComputeFixedSize(JSFunction* function) const;
 
   unsigned ComputeIncomingArgumentSize(JSFunction* function) const;
-  unsigned ComputeOutgoingArgumentSize() const;
+  static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
 
   Object* ComputeLiteral(int index) const;
 
