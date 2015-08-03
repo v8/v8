@@ -19,10 +19,11 @@
 
 #define SIMD_CREATE_NUMERIC_FUNCTION(type, lane_type, lane_count) \
   RUNTIME_FUNCTION(Runtime_Create##type) {                        \
+    static const int kLaneCount = lane_count;                     \
     HandleScope scope(isolate);                                   \
-    DCHECK(args.length() == lane_count);                          \
-    lane_type lanes[lane_count];                                  \
-    for (int i = 0; i < lane_count; i++) {                        \
+    DCHECK(args.length() == kLaneCount);                          \
+    lane_type lanes[kLaneCount];                                  \
+    for (int i = 0; i < kLaneCount; i++) {                        \
       CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, i);               \
       lanes[i] = ConvertNumber<lane_type>(number->Number());      \
     }                                                             \
@@ -31,10 +32,11 @@
 
 #define SIMD_CREATE_BOOLEAN_FUNCTION(type, lane_count) \
   RUNTIME_FUNCTION(Runtime_Create##type) {             \
+    static const int kLaneCount = lane_count;          \
     HandleScope scope(isolate);                        \
-    DCHECK(args.length() == lane_count);               \
-    bool lanes[lane_count];                            \
-    for (int i = 0; i < lane_count; i++) {             \
+    DCHECK(args.length() == kLaneCount);               \
+    bool lanes[kLaneCount];                            \
+    for (int i = 0; i < kLaneCount; i++) {             \
       lanes[i] = args[i]->BooleanValue();              \
     }                                                  \
     return *isolate->factory()->New##type(lanes);      \
@@ -58,13 +60,14 @@
 
 #define SIMD_REPLACE_NUMERIC_LANE_FUNCTION(type, lane_type, lane_count) \
   RUNTIME_FUNCTION(Runtime_##type##ReplaceLane) {                       \
+    static const int kLaneCount = lane_count;                           \
     HandleScope scope(isolate);                                         \
     DCHECK(args.length() == 3);                                         \
     CONVERT_ARG_HANDLE_CHECKED(type, simd, 0);                          \
-    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lane_count);                 \
+    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, kLaneCount);                 \
     CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 2);                       \
-    lane_type lanes[lane_count];                                        \
-    for (int i = 0; i < lane_count; i++) {                              \
+    lane_type lanes[kLaneCount];                                        \
+    for (int i = 0; i < kLaneCount; i++) {                              \
       lanes[i] = simd->get_lane(i);                                     \
     }                                                                   \
     lanes[lane] = ConvertNumber<lane_type>(number->Number());           \
@@ -74,12 +77,13 @@
 
 #define SIMD_REPLACE_BOOLEAN_LANE_FUNCTION(type, lane_count)    \
   RUNTIME_FUNCTION(Runtime_##type##ReplaceLane) {               \
+    static const int kLaneCount = lane_count;                   \
     HandleScope scope(isolate);                                 \
     DCHECK(args.length() == 3);                                 \
     CONVERT_ARG_HANDLE_CHECKED(type, simd, 0);                  \
-    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lane_count);         \
-    bool lanes[lane_count];                                     \
-    for (int i = 0; i < lane_count; i++) {                      \
+    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, kLaneCount);         \
+    bool lanes[kLaneCount];                                     \
+    for (int i = 0; i < kLaneCount; i++) {                      \
       lanes[i] = simd->get_lane(i);                             \
     }                                                           \
     lanes[lane] = args[2]->BooleanValue();                      \
