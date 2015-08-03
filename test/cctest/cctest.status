@@ -130,6 +130,9 @@
 
   # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
   'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
+
+  # BUG(4141).
+  'test-alloc/CodeRange': [PASS, FLAKY],
 }],  # ALWAYS
 
 ##############################################################################
