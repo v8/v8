@@ -802,8 +802,8 @@ class ParserTraits {
       Scanner::BookmarkScope* bookmark = nullptr);
   V8_INLINE ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* name, int pos,
-      const ParserFormalParameters& parameters,
-      Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok);
+      const ParserFormalParameters& parameters, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type, bool* ok);
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
@@ -1160,8 +1160,8 @@ class Parser : public ParserBase<ParserTraits> {
   // Consumes the ending }.
   ZoneList<Statement*>* ParseEagerFunctionBody(
       const AstRawString* function_name, int pos,
-      const ParserFormalParameters& parameters,
-      Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok);
+      const ParserFormalParameters& parameters, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -1225,11 +1225,10 @@ void ParserTraits::SkipLazyFunctionBody(int* materialized_literal_count,
 
 
 ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
-    const AstRawString* name, int pos,
-    const ParserFormalParameters& parameters, Variable* fvar,
-    Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
-  return parser_->ParseEagerFunctionBody(name, pos, parameters, fvar,
-                                         fvar_init_op, kind, ok);
+    const AstRawString* name, int pos, const ParserFormalParameters& parameters,
+    FunctionKind kind, FunctionLiteral::FunctionType function_type, bool* ok) {
+  return parser_->ParseEagerFunctionBody(name, pos, parameters, kind,
+                                         function_type, ok);
 }
 
 void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,

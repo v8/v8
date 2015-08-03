@@ -5228,7 +5228,10 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
     flusher->EvictCandidate(this);
   }
 
+#ifdef DEBUG
   DCHECK(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
+  Code::VerifyRecompiledCode(code(), value);
+#endif  // DEBUG
 
   set_code(value);
 

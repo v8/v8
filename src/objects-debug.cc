@@ -1277,6 +1277,57 @@ void Code::VerifyEmbeddedObjects(VerifyMode mode) {
 }
 
 
+// Verify that the debugger can redirect old code to the new code.
+void Code::VerifyRecompiledCode(Code* old_code, Code* new_code) {
+  if (old_code->kind() != FUNCTION) return;
+  if (new_code->kind() != FUNCTION) return;
+  static const int mask = RelocInfo::kCodeTargetMask;
+
+  Isolate* isolate = old_code->GetIsolate();
+  RelocIterator old_it(old_code, mask);
+  RelocIterator new_it(new_code, mask);
+  Code* stack_check = isolate->builtins()->builtin(Builtins::kStackCheck);
+
+  while (!old_it.done()) {
+    RelocInfo* rinfo = old_it.rinfo();
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    CHECK(!target->is_handler() && !target->is_inline_cache_stub());
+    if (target == stack_check) break;
+    old_it.next();
+  }
+
+  while (!new_it.done()) {
+    RelocInfo* rinfo = new_it.rinfo();
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    CHECK(!target->is_handler() && !target->is_inline_cache_stub());
+    if (target == stack_check) break;
+    new_it.next();
+  }
+
+  // Either both are done because there is no stack check.
+  // Or we are past the prologue for both.
+  CHECK_EQ(new_it.done(), old_it.done());
+
+  // After the prologue, each call in the old code has a corresponding call
+  // in the new code.
+  while (!old_it.done() && !new_it.done()) {
+    Code* old_target =
+        Code::GetCodeFromTargetAddress(old_it.rinfo()->target_address());
+    Code* new_target =
+        Code::GetCodeFromTargetAddress(new_it.rinfo()->target_address());
+    CHECK_EQ(old_target->kind(), new_target->kind());
+    if (!old_target->is_handler() && !old_target->is_inline_cache_stub()) {
+      CHECK_EQ(old_target, new_target);
+    }
+    old_it.next();
+    new_it.next();
+  }
+
+  // Both are done at the same time.
+  CHECK_EQ(new_it.done(), old_it.done());
+}
+
+
 #endif  // DEBUG
 
 }  // namespace internal

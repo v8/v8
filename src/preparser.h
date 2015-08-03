@@ -1601,8 +1601,8 @@ class PreParserTraits {
 
   V8_INLINE PreParserStatementList ParseEagerFunctionBody(
       PreParserIdentifier function_name, int pos,
-      const PreParserFormalParameters& parameters,
-      Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok);
+      const PreParserFormalParameters& parameters, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type, bool* ok);
 
   V8_INLINE void ParseArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters,
@@ -1786,11 +1786,10 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   V8_INLINE void SkipLazyFunctionBody(int* materialized_literal_count,
                                       int* expected_property_count, bool* ok);
-  V8_INLINE PreParserStatementList
-  ParseEagerFunctionBody(PreParserIdentifier function_name, int pos,
-                         const PreParserFormalParameters& parameters,
-                         Variable* fvar, Token::Value fvar_init_op,
-                         FunctionKind kind, bool* ok);
+  V8_INLINE PreParserStatementList ParseEagerFunctionBody(
+      PreParserIdentifier function_name, int pos,
+      const PreParserFormalParameters& parameters, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type, bool* ok);
 
   Expression ParseFunctionLiteral(
       Identifier name, Scanner::Location function_name_location,
@@ -1845,8 +1844,8 @@ void PreParserTraits::ParseArrowFunctionFormalParameters(
 
 PreParserStatementList PreParser::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos,
-    const PreParserFormalParameters& parameters,
-    Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
+    const PreParserFormalParameters& parameters, FunctionKind kind,
+    FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
   ParseStatementList(Token::RBRACE, ok);
@@ -1859,10 +1858,10 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
 
 PreParserStatementList PreParserTraits::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos,
-    const PreParserFormalParameters& parameters,
-    Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
-  return pre_parser_->ParseEagerFunctionBody(
-      function_name, pos, parameters, fvar, fvar_init_op, kind, ok);
+    const PreParserFormalParameters& parameters, FunctionKind kind,
+    FunctionLiteral::FunctionType function_type, bool* ok) {
+  return pre_parser_->ParseEagerFunctionBody(function_name, pos, parameters,
+                                             kind, function_type, ok);
 }
 
 
@@ -3768,7 +3767,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       } else {
         body = this->ParseEagerFunctionBody(
             this->EmptyIdentifier(), RelocInfo::kNoPosition, formal_parameters,
-            NULL, Token::INIT_VAR, kArrowFunction, CHECK_OK);
+            kArrowFunction, FunctionLiteral::ANONYMOUS_EXPRESSION, CHECK_OK);
         materialized_literal_count =
             function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
