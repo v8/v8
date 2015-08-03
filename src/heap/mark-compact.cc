@@ -3078,11 +3078,18 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
 bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
                                                HeapObject** out_object) {
-  // This function does not support large objects right now.
   Space* owner = p->owner();
   if (owner == heap_->lo_space() || owner == NULL) {
-    *out_object = NULL;
-    return true;
+    Object* large_object = heap_->lo_space()->FindObject(slot);
+    // This object has to exist, otherwise we would not have recorded a slot
+    // for it.
+    CHECK(large_object->IsHeapObject());
+    HeapObject* large_heap_object = HeapObject::cast(large_object);
+    if (IsMarked(large_heap_object)) {
+      *out_object = large_heap_object;
+      return true;
+    }
+    return false;
   }
 
   uint32_t mark_bit_index = p->AddressToMarkbitIndex(slot);
@@ -3199,13 +3206,8 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
     return false;
   }
 
-  // |object| is NULL only when the slot belongs to large object space.
-  DCHECK(object != NULL ||
-         Page::FromAnyPointerAddress(heap_, slot)->owner() ==
-             heap_->lo_space());
-  // We don't need to check large objects' layout descriptor since it can't
-  // contain in-object fields anyway.
-  if (object != NULL) {
+  DCHECK(object != NULL);
+
     switch (object->ContentType()) {
       case HeapObjectContents::kTaggedValues:
         return true;
@@ -3234,9 +3236,7 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
       }
     }
     UNREACHABLE();
-  }
-
-  return true;
+    return true;
 }
 
 
