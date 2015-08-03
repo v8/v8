@@ -699,6 +699,8 @@ class MarkCompactCollector {
 
   void EnsureSweepingCompleted();
 
+  void SweepOrWaitUntilSweepingCompleted(Page* page);
+
   // If sweeper threads are not active this method will return true. If
   // this is a latency issue we should be smarter here. Otherwise, it will
   // return true if the sweeper threads are done processing the pages.
@@ -979,6 +981,7 @@ class MarkCompactCollector {
   List<Code*> invalidated_code_;
 
   base::SmartPointer<FreeList> free_list_old_space_;
+  base::SmartPointer<FreeList> free_list_code_space_;
 
   friend class Heap;
 };

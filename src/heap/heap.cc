@@ -509,6 +509,7 @@ const char* Heap::GetSpaceName(int idx) {
 
 
 void Heap::ClearAllICsByKind(Code::Kind kind) {
+  // TODO(mvstanton): Do not iterate the heap.
   HeapObjectIterator it(code_space());
 
   for (Object* object = it.Next(); object != NULL; object = it.Next()) {
@@ -5195,6 +5196,11 @@ void Heap::Verify() {
   code_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
+
+  mark_compact_collector_.VerifyWeakEmbeddedObjectsInCode();
+  if (FLAG_omit_map_checks_for_leaf_maps) {
+    mark_compact_collector_.VerifyOmittedMapChecks();
+  }
 }
 #endif
 
