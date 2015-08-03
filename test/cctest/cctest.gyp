@@ -85,6 +85,7 @@
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
+        'interpreter/test-bytecode-array-builder.cc',
         'print-extension.cc',
         'profiler-extension.cc',
         'test-accessors.cc',

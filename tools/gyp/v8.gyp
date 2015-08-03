@@ -794,6 +794,8 @@
         '../../src/interpreter-irregexp.h',
         '../../src/interpreter/bytecodes.cc',
         '../../src/interpreter/bytecodes.h',
+        '../../src/interpreter/bytecode-array-builder.cc',
+        '../../src/interpreter/bytecode-array-builder.h',
         '../../src/interpreter/interpreter.cc',
         '../../src/interpreter/interpreter.h',
         '../../src/isolate.cc',

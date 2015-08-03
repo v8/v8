@@ -48,21 +48,107 @@ void Interpreter::Initialize(bool create_heap_objects) {
 }
 
 
-// LoadLiteral0 <dst>
+// LdaZero
 //
-// Load literal '0' into the destination register.
-void Interpreter::DoLoadLiteral0(compiler::InterpreterAssembler* assembler) {
-  Node* register_index = __ BytecodeOperand(0);
-  __ StoreRegister(__ NumberConstant(0), register_index);
-  __ Dispatch();
+// Load literal '0' into the accumulator.
+void Interpreter::DoLdaZero(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
 }
 
 
-// LoadSmi8 <dst>, <imm8>
+// LdaSmi8 <imm8>
 //
-// Load an 8-bit integer literal into destination register as a Smi.
-void Interpreter::DoLoadSmi8(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Convert an 8-bit integer to a Smi.
+// Load an 8-bit integer literal into the accumulator as a Smi.
+void Interpreter::DoLdaSmi8(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement 8-bit integer to SMI promotion.
+}
+
+
+// LdaUndefined
+//
+// Load Undefined into the accumulator.
+void Interpreter::DoLdaUndefined(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// LdaNull
+//
+// Load Null into the accumulator.
+void Interpreter::DoLdaNull(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// LdaTheHole
+//
+// Load TheHole into the accumulator.
+void Interpreter::DoLdaTheHole(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// LdaTrue
+//
+// Load True into the accumulator.
+void Interpreter::DoLdaTrue(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// LdaFalse
+//
+// Load False into the accumulator.
+void Interpreter::DoLdaFalse(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// Ldar <src>
+//
+// Load accumulator with value from register <src>.
+void Interpreter::DoLdar(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// Star <dst>
+//
+// Store accumulator to register <dst>.
+void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// Add <src>
+//
+// Add register <src> to accumulator.
+void Interpreter::DoAdd(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// Sub <src>
+//
+// Subtract register <src> from accumulator.
+void Interpreter::DoSub(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
+}
+
+
+// Mul <src>
+//
+// Multiply accumulator by register <src>.
+void Interpreter::DoMul(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement add register to accumulator.
+}
+
+
+// Div <src>
+//
+// Divide register <src> by accumulator.
+void Interpreter::DoDiv(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy) Implement.
 }
 
 

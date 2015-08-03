@@ -11615,7 +11615,6 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   for (int i = 0; i < this->length(); i += bytes) {
     interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(get(i));
     bytes = interpreter::Bytecodes::Size(bytecode);
-
     SNPrintF(buf, "%p : ", GetFirstBytecodeAddress() + i);
     os << buf.start();
     for (int j = 0; j < bytes; j++) {
@@ -11625,7 +11624,27 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     for (int j = bytes; j < interpreter::Bytecodes::MaximumSize(); j++) {
       os << "   ";
     }
-    os << bytecode << "\n";
+    os << bytecode << " ";
+    for (int j = 1; j < bytes; j++) {
+      interpreter::OperandType op_type =
+          interpreter::Bytecodes::GetOperandType(bytecode, j - 1);
+      uint8_t operand = get(i + j);
+      switch (op_type) {
+        case interpreter::OperandType::kImm8:
+          os << "#" << static_cast<int>(operand);
+          break;
+        case interpreter::OperandType::kReg:
+          os << "r" << static_cast<int>(operand);
+          break;
+        case interpreter::OperandType::kNone:
+          UNREACHABLE();
+          break;
+      }
+      if (j + 1 < bytes) {
+        os << ", ";
+      }
+    }
+    os << "\n";
   }
 }
 

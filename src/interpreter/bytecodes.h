@@ -22,9 +22,28 @@ namespace interpreter {
   V(Reg)
 
 // The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V)                             \
-  V(LoadLiteral0, OperandType::kReg)                 \
-  V(LoadSmi8, OperandType::kReg, OperandType::kImm8) \
+#define BYTECODE_LIST(V)               \
+                                       \
+  /* Loading the accumulator */        \
+  V(LdaZero, OperandType::kNone)       \
+  V(LdaSmi8, OperandType::kImm8)       \
+  V(LdaUndefined, OperandType::kNone)  \
+  V(LdaNull, OperandType::kNone)       \
+  V(LdaTheHole, OperandType::kNone)    \
+  V(LdaTrue, OperandType::kNone)       \
+  V(LdaFalse, OperandType::kNone)      \
+                                       \
+  /* Register-accumulator transfers */ \
+  V(Ldar, OperandType::kReg)           \
+  V(Star, OperandType::kReg)           \
+                                       \
+  /* Binary Operators */               \
+  V(Add, OperandType::kReg)            \
+  V(Sub, OperandType::kReg)            \
+  V(Mul, OperandType::kReg)            \
+  V(Div, OperandType::kReg)            \
+                                       \
+  /* Control Flow */                   \
   V(Return, OperandType::kNone)
 
 
