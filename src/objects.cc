@@ -3426,6 +3426,12 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
       // have been invalidated since typed array elements cannot be reconfigured
       // in any way.
       it->ReloadHolderMap();
+
+      // We have to recheck the length. However, it can only change if the
+      // underlying buffer was neutered, so just check that.
+      if (Handle<JSArrayBufferView>::cast(receiver)->WasNeutered()) {
+        return value;
+      }
     }
   }
 
