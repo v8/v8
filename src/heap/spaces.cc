@@ -75,8 +75,6 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   }
   cur_page = cur_page->next_page();
   if (cur_page == space_->anchor()) return false;
-  cur_page->heap()->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
-      cur_page);
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
   DCHECK(cur_page->WasSwept() || cur_page->SweepingCompleted());

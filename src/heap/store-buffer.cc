@@ -468,8 +468,16 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               }
             }
           } else {
-            heap_->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
-                page);
+            if (!page->SweepingCompleted()) {
+              heap_->mark_compact_collector()->SweepInParallel(page, owner);
+              if (!page->SweepingCompleted()) {
+                // We were not able to sweep that page, i.e., a concurrent
+                // sweeper thread currently owns this page. Wait for the sweeper
+                // thread to be done with this page.
+                page->WaitUntilSweepingCompleted();
+              }
+            }
+            CHECK(page->owner() == heap_->old_space());
             HeapObjectIterator iterator(page, NULL);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
