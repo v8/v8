@@ -649,9 +649,13 @@ class ELF BASE_EMBEDDED {
      (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
+#elif(V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT) || \
+    (V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#elif V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && V8_OS_LINUX
+    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 0,
+                               0,    0,   0,   0,   0, 0, 0, 0};
 #else
 #error Unsupported target architecture.
 #endif
@@ -668,6 +672,14 @@ class ELF BASE_EMBEDDED {
     // Set to EM_ARM, defined as 40, in "ARM ELF File Format" at
     // infocenter.arm.com/help/topic/com.arm.doc.dui0101a/DUI0101A_Elf.pdf
     header->machine = 40;
+#elif V8_TARGET_ARCH_PPC64 && V8_OS_LINUX
+    // Set to EM_PPC64, defined as 21, in Power ABI,
+    // Join the next 4 lines, omitting the spaces and double-slashes.
+    // https://www-03.ibm.com/technologyconnect/tgcm/TGCMFileServlet.wss/
+    // ABI64BitOpenPOWERv1.1_16July2015_pub.pdf?
+    // id=B81AEC1A37F5DAF185257C3E004E8845&linkid=1n0000&c_t=
+    // c9xw7v5dzsj7gt1ifgf4cjbcnskqptmr
+    header->machine = 21;
 #else
 #error Unsupported target architecture.
 #endif
@@ -783,7 +795,8 @@ class ELFSymbol BASE_EMBEDDED {
     uint8_t other;
     uint16_t section;
   };
-#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
+#elif(V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT) || \
+    (V8_TARGET_ARCH_PPC64 && V8_OS_LINUX)
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,
@@ -1061,6 +1074,30 @@ class DebugInfoSection : public DebugSection {
     DW_OP_reg5 = 0x55,
     DW_OP_reg6 = 0x56,
     DW_OP_reg7 = 0x57,
+    DW_OP_reg8 = 0x58,
+    DW_OP_reg9 = 0x59,
+    DW_OP_reg10 = 0x5a,
+    DW_OP_reg11 = 0x5b,
+    DW_OP_reg12 = 0x5c,
+    DW_OP_reg13 = 0x5d,
+    DW_OP_reg14 = 0x5e,
+    DW_OP_reg15 = 0x5f,
+    DW_OP_reg16 = 0x60,
+    DW_OP_reg17 = 0x61,
+    DW_OP_reg18 = 0x62,
+    DW_OP_reg19 = 0x63,
+    DW_OP_reg20 = 0x64,
+    DW_OP_reg21 = 0x65,
+    DW_OP_reg22 = 0x66,
+    DW_OP_reg23 = 0x67,
+    DW_OP_reg24 = 0x68,
+    DW_OP_reg25 = 0x69,
+    DW_OP_reg26 = 0x6a,
+    DW_OP_reg27 = 0x6b,
+    DW_OP_reg28 = 0x6c,
+    DW_OP_reg29 = 0x6d,
+    DW_OP_reg30 = 0x6e,
+    DW_OP_reg31 = 0x6f,
     DW_OP_fbreg = 0x91  // 1 param: SLEB128 offset
   };
 
@@ -1106,6 +1143,8 @@ class DebugInfoSection : public DebugSection {
       UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_MIPS64
       UNIMPLEMENTED();
+#elif V8_TARGET_ARCH_PPC64 && V8_OS_LINUX
+      w->Write<uint8_t>(DW_OP_reg31);  // The frame pointer is here on PPC64.
 #else
 #error Unsupported target architecture.
 #endif

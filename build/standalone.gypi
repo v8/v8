@@ -179,8 +179,8 @@
           }],
         ],
       }],
-      ['(v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
-        (OS=="linux" or OS=="mac")', {
+      ['((v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
+        (OS=="linux" or OS=="mac")) or (v8_target_arch=="ppc64" and OS=="linux")', {
         'v8_enable_gdbjit%': 1,
       }, {
         'v8_enable_gdbjit%': 0,
