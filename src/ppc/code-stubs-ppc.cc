@@ -749,7 +749,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ mflr(r0);
   __ MultiPush(kJSCallerSaved | r0.bit());
   if (save_doubles()) {
-    __ SaveFPRegs(sp, 0, DoubleRegister::kNumVolatileRegisters);
+    __ MultiPushDoubles(kCallerSavedDoubles);
   }
   const int argument_count = 1;
   const int fp_argument_count = 0;
@@ -761,7 +761,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ CallCFunction(ExternalReference::store_buffer_overflow_function(isolate()),
                    argument_count);
   if (save_doubles()) {
-    __ RestoreFPRegs(sp, 0, DoubleRegister::kNumVolatileRegisters);
+    __ MultiPopDoubles(kCallerSavedDoubles);
   }
   __ MultiPop(kJSCallerSaved | r0.bit());
   __ mtlr(r0);
@@ -1234,11 +1234,10 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved);
 
-  // Floating point regs FPR0 - FRP13 are volatile
-  // FPR14-FPR31 are non-volatile, but sub-calls will save them for us
-
-  //  int offset_to_argv = kPointerSize * 22; // matches (22*4) above
-  //  __ lwz(r7, MemOperand(sp, offset_to_argv));
+  // Save callee-saved double registers.
+  __ MultiPushDoubles(kCalleeSavedDoubles);
+  // Set up the reserved register for 0.0.
+  __ LoadDoubleLiteral(kDoubleRegZero, 0.0, r0);
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r3: code entry
@@ -1360,20 +1359,16 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Reset the stack to the callee saved registers.
   __ addi(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
 
-// Restore callee-saved registers and return.
-#ifdef DEBUG
-  if (FLAG_debug_code) {
-    Label here;
-    __ b(&here, SetLK);
-    __ bind(&here);
-  }
-#endif
+  // Restore callee-saved double registers.
+  __ MultiPopDoubles(kCalleeSavedDoubles);
 
+  // Restore callee-saved registers.
   __ MultiPop(kCalleeSaved);
 
+  // Return
   __ LoadP(r0, MemOperand(sp, kStackFrameLRSlot * kPointerSize));
-  __ mtctr(r0);
-  __ bctr();
+  __ mtlr(r0);
+  __ blr();
 }
 
 

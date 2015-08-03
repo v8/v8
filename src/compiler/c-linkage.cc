@@ -138,7 +138,11 @@ LinkageLocation stackloc(int i) {
 #define CALLEE_SAVE_REGISTERS                                                 \
   r14.bit() | r15.bit() | r16.bit() | r17.bit() | r18.bit() | r19.bit() |     \
       r20.bit() | r21.bit() | r22.bit() | r23.bit() | r24.bit() | r25.bit() | \
-      r26.bit() | r27.bit() | r28.bit() | r29.bit() | r30.bit() | fp.bit()
+      r26.bit() | r27.bit() | r28.bit() | r29.bit() | r30.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                              \
+  d14.bit() | d15.bit() | d16.bit() | d17.bit() | d18.bit() | d19.bit() |     \
+      d20.bit() | d21.bit() | d22.bit() | d23.bit() | d24.bit() | d25.bit() | \
+      d26.bit() | d27.bit() | d28.bit() | d29.bit() | d30.bit() | d31.bit()
 
 #else
 // ===========================================================================

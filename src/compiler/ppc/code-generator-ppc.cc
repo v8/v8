@@ -1296,27 +1296,34 @@ void CodeGenerator::AssemblePrologue() {
   int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     __ function_descriptor();
-    int register_save_area_size = 0;
-    RegList frame_saves = fp.bit();
+    RegList frame_saves = 0;
     __ mflr(r0);
     if (FLAG_enable_embedded_constant_pool) {
       __ Push(r0, fp, kConstantPoolRegister);
       // Adjust FP to point to saved FP.
       __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
-      register_save_area_size += kPointerSize;
       frame_saves |= kConstantPoolRegister.bit();
     } else {
       __ Push(r0, fp);
       __ mr(fp, sp);
     }
+
     // Save callee-saved registers.
     const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
-    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (!((1 << i) & saves)) continue;
-      register_save_area_size += kPointerSize;
-    }
-    frame()->SetRegisterSaveAreaSize(register_save_area_size);
     __ MultiPush(saves);
+    // register save area does not include the fp.
+    DCHECK(kNumCalleeSaved - 1 ==
+           base::bits::CountPopulation32(saves | frame_saves));
+    int register_save_area_size = (kNumCalleeSaved - 1) * kPointerSize;
+
+    // Save callee-saved Double registers.
+    const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+    __ MultiPushDoubles(double_saves);
+    DCHECK(kNumCalleeSavedDoubles ==
+           base::bits::CountPopulation32(double_saves));
+    register_save_area_size += kNumCalleeSavedDoubles * kDoubleSize;
+
+    frame()->SetRegisterSaveAreaSize(register_save_area_size);
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
@@ -1359,15 +1366,17 @@ void CodeGenerator::AssembleReturn() {
       if (stack_slots > 0) {
         __ Add(sp, sp, stack_slots * kPointerSize, r0);
       }
+      // Restore double registers.
+      const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+      __ MultiPopDoubles(double_saves);
+
       // Restore registers.
-      RegList frame_saves = fp.bit();
+      RegList frame_saves = 0;
       if (FLAG_enable_embedded_constant_pool) {
         frame_saves |= kConstantPoolRegister.bit();
       }
       const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
-      if (saves != 0) {
-        __ MultiPop(saves);
-      }
+      __ MultiPop(saves);
     }
     __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
