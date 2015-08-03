@@ -5581,7 +5581,7 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                                            double mutator_speed,
                                            int freed_global_handles) {
   const int kFreedGlobalHandlesThreshold = 700;
-  const double kMaxHeapGrowingFactorForManyFreedGlobalHandles = 1.3;
+  const double kConservativeHeapGrowingFactor = 1.3;
 
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
 
@@ -5600,8 +5600,9 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
-  if (freed_global_handles >= kFreedGlobalHandlesThreshold) {
-    factor = Min(factor, kMaxHeapGrowingFactorForManyFreedGlobalHandles);
+  if (freed_global_handles >= kFreedGlobalHandlesThreshold ||
+      memory_reducer_.ShouldGrowHeapSlowly()) {
+    factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
   if (FLAG_stress_compaction ||

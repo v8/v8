@@ -135,7 +135,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
           return state;
         case kTimer:
           if (state.started_gcs >= kMaxNumberOfGCs) {
-            return State(kDone, 0, 0.0, state.last_gc_time_ms);
+            return State(kDone, kMaxNumberOfGCs, 0.0, state.last_gc_time_ms);
           } else if (event.can_start_incremental_gc &&
                      (event.low_allocation_rate || WatchdogGC(state, event))) {
             if (state.next_gc_start_ms <= event.time_ms) {
@@ -169,7 +169,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
           return State(kWait, state.started_gcs, event.time_ms + kShortDelayMs,
                        event.time_ms);
         } else {
-          return State(kDone, 0, 0.0, event.time_ms);
+          return State(kDone, kMaxNumberOfGCs, 0.0, event.time_ms);
         }
       }
   }

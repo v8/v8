@@ -130,6 +130,10 @@ class MemoryReducer {
 
   Heap* heap() { return heap_; }
 
+  bool ShouldGrowHeapSlowly() {
+    return state_.action == kDone && state_.started_gcs > 0;
+  }
+
  private:
   class TimerTask : public v8::internal::CancelableTask {
    public:
