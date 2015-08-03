@@ -340,9 +340,10 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-      isolate->factory()->keyed_load_dummy_vector());
-  int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+  Handle<TypeFeedbackVector> dummy_vector =
+      TypeFeedbackVector::DummyVector(isolate);
+  int slot = dummy_vector->GetIndex(
+      FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
   __ push(Immediate(Smi::FromInt(slot)));
   __ push(Immediate(dummy_vector));
 
@@ -567,9 +568,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   if (FLAG_vector_stores) {
     // The handlers in the stub cache expect a vector and slot. Since we won't
     // change the IC from any downstream misses, a dummy vector can be used.
-    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-        masm->isolate()->factory()->keyed_store_dummy_vector());
-    int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    Handle<TypeFeedbackVector> dummy_vector =
+        TypeFeedbackVector::DummyVector(masm->isolate());
+    int slot = dummy_vector->GetIndex(
+        FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
     __ push(Immediate(Smi::FromInt(slot)));
     __ push(Immediate(dummy_vector));
   }
