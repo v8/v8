@@ -2266,7 +2266,12 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
   source_position_ = code->SourcePosition(pc);
 
   for (int i = 0; i < expression_count_; i++) {
-    SetExpression(i, output_frame->GetExpression(i));
+    Object* value = output_frame->GetExpression(i);
+    // Replace materialization markers with the undefined value.
+    if (value == deoptimizer->isolate()->heap()->arguments_marker()) {
+      value = deoptimizer->isolate()->heap()->undefined_value();
+    }
+    SetExpression(i, value);
   }
 
   if (has_arguments_adaptor) {
@@ -2277,7 +2282,12 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
   parameters_count_ = output_frame->ComputeParametersCount();
   parameters_ = new Object* [parameters_count_];
   for (int i = 0; i < parameters_count_; i++) {
-    SetParameter(i, output_frame->GetParameter(i));
+    Object* value = output_frame->GetParameter(i);
+    // Replace materialization markers with the undefined value.
+    if (value == deoptimizer->isolate()->heap()->arguments_marker()) {
+      value = deoptimizer->isolate()->heap()->undefined_value();
+    }
+    SetParameter(i, value);
   }
 }
 
