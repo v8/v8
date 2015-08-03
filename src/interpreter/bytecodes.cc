@@ -86,6 +86,48 @@ int Bytecodes::MaximumNumberOfOperands() { return kMaxOperands; }
 int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
 
 
+// static
+std::ostream& Bytecodes::Decode(std::ostream& os,
+                                const uint8_t* bytecode_start) {
+  Vector<char> buf = Vector<char>::New(50);
+
+  Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
+  int bytecode_size = Bytecodes::Size(bytecode);
+
+  for (int i = 0; i < bytecode_size; i++) {
+    SNPrintF(buf, "%02x ", bytecode_start[i]);
+    os << buf.start();
+  }
+  for (int i = bytecode_size; i < Bytecodes::MaximumSize(); i++) {
+    os << "   ";
+  }
+
+  os << bytecode << " ";
+
+  const uint8_t* operands_start = bytecode_start + 1;
+  int operands_size = bytecode_size - 1;
+  for (int i = 0; i < operands_size; i++) {
+    OperandType op_type = GetOperandType(bytecode, i);
+    uint8_t operand = operands_start[i];
+    switch (op_type) {
+      case interpreter::OperandType::kImm8:
+        os << "#" << static_cast<int>(operand);
+        break;
+      case interpreter::OperandType::kReg:
+        os << "r" << static_cast<int>(operand);
+        break;
+      case interpreter::OperandType::kNone:
+        UNREACHABLE();
+        break;
+    }
+    if (i != operands_size - 1) {
+      os << ", ";
+    }
+  }
+  return os;
+}
+
+
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
   return os << Bytecodes::ToString(bytecode);
 }

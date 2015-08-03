@@ -24,6 +24,7 @@ void BytecodeArrayBuilder::set_locals_count(int number_of_locals) {
 
 int BytecodeArrayBuilder::locals_count() const { return local_register_count_; }
 
+
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   DCHECK_EQ(bytecode_generated_, false);
   DCHECK_GE(local_register_count_, 0);
@@ -157,7 +158,7 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0,
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0,
                                   uint8_t operand1) {
-  DCHECK(Bytecodes::NumberOfOperands(bytecode) == 2);
+  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 2);
   DCHECK(OperandIsValid(bytecode, 0, operand0) &&
          OperandIsValid(bytecode, 1, operand1));
   bytecodes_.push_back(Bytecodes::ToByte(bytecode));
@@ -167,7 +168,7 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0,
 
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0) {
-  DCHECK(Bytecodes::NumberOfOperands(bytecode) == 1);
+  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
   DCHECK(OperandIsValid(bytecode, 0, operand0));
   bytecodes_.push_back(Bytecodes::ToByte(bytecode));
   bytecodes_.push_back(operand0);
@@ -175,7 +176,7 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0) {
 
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode) {
-  DCHECK(Bytecodes::NumberOfOperands(bytecode) == 0);
+  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   bytecodes_.push_back(Bytecodes::ToByte(bytecode));
 }
 

@@ -90,14 +90,17 @@ class Bytecodes {
   // Return the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
 
-  // Returns the size of the bytecode including its arguments.
+  // Returns the size of the bytecode including its operands.
   static int Size(Bytecode bytecode);
 
   // The maximum number of operands across all bytecodes.
   static int MaximumNumberOfOperands();
 
-  // Maximum size of a bytecode and its arguments.
+  // Maximum size of a bytecode and its operands.
   static int MaximumSize();
+
+  // Decode a single bytecode and operands to |os|.
+  static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);

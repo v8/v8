@@ -67,7 +67,7 @@ TEST(AllBytecodesGenerated) {
 
 
 TEST(FrameSizesLookGood) {
-  for (int locals = 1; locals < 5; locals++) {
+  for (int locals = 0; locals < 5; locals++) {
     for (int temps = 0; temps < 3; temps++) {
       InitializedHandleScope handle_scope;
       BytecodeArrayBuilder builder(handle_scope.main_isolate());

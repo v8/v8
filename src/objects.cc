@@ -11721,39 +11721,18 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
   Vector<char> buf = Vector<char>::New(50);
-  int bytes = 0;
-  for (int i = 0; i < this->length(); i += bytes) {
-    interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(get(i));
-    bytes = interpreter::Bytecodes::Size(bytecode);
-    SNPrintF(buf, "%p : ", GetFirstBytecodeAddress() + i);
-    os << buf.start();
-    for (int j = 0; j < bytes; j++) {
-      SNPrintF(buf, "%02x ", get(i + j));
-      os << buf.start();
-    }
-    for (int j = bytes; j < interpreter::Bytecodes::MaximumSize(); j++) {
-      os << "   ";
-    }
-    os << bytecode << " ";
-    for (int j = 1; j < bytes; j++) {
-      interpreter::OperandType op_type =
-          interpreter::Bytecodes::GetOperandType(bytecode, j - 1);
-      uint8_t operand = get(i + j);
-      switch (op_type) {
-        case interpreter::OperandType::kImm8:
-          os << "#" << static_cast<int>(operand);
-          break;
-        case interpreter::OperandType::kReg:
-          os << "r" << static_cast<int>(operand);
-          break;
-        case interpreter::OperandType::kNone:
-          UNREACHABLE();
-          break;
-      }
-      if (j + 1 < bytes) {
-        os << ", ";
-      }
-    }
+
+  const uint8_t* first_bytecode_address = GetFirstBytecodeAddress();
+  int bytecode_size = 0;
+  for (int i = 0; i < this->length(); i += bytecode_size) {
+    const uint8_t* bytecode_start = &first_bytecode_address[i];
+    interpreter::Bytecode bytecode =
+        interpreter::Bytecodes::FromByte(bytecode_start[0]);
+    bytecode_size = interpreter::Bytecodes::Size(bytecode);
+
+    SNPrintF(buf, "%p", bytecode_start);
+    os << buf.start() << " : ";
+    interpreter::Bytecodes::Decode(os, bytecode_start);
     os << "\n";
   }
 }

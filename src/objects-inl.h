@@ -3740,8 +3740,7 @@ void BytecodeArray::set(int index, byte value) {
 
 
 void BytecodeArray::set_frame_size(int frame_size) {
-  // We need at least one stack slot for the return register.
-  DCHECK_GE(frame_size, kPointerSize);
+  DCHECK_GE(frame_size, 0);
   DCHECK(IsAligned(frame_size, static_cast<unsigned>(kPointerSize)));
   WRITE_INT_FIELD(this, kFrameSizeOffset, frame_size);
 }
