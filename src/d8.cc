@@ -2077,16 +2077,15 @@ bool Shell::SerializeValue(Isolate* isolate, Local<Value> value,
     } else {
       ArrayBuffer::Contents contents = array_buffer->GetContents();
       // Clone ArrayBuffer
-      if (contents.ByteLength() > i::kMaxUInt32) {
+      if (contents.ByteLength() > i::kMaxInt) {
         Throw(isolate, "ArrayBuffer is too big to clone");
         return false;
       }
 
-      int byte_length = static_cast<int>(contents.ByteLength());
+      int32_t byte_length = static_cast<int32_t>(contents.ByteLength());
       out_data->WriteTag(kSerializationTagArrayBuffer);
       out_data->Write(byte_length);
-      out_data->WriteMemory(contents.Data(),
-                            static_cast<int>(contents.ByteLength()));
+      out_data->WriteMemory(contents.Data(), byte_length);
     }
   } else if (value->IsSharedArrayBuffer()) {
     Local<SharedArrayBuffer> sab = Local<SharedArrayBuffer>::Cast(value);
@@ -2212,7 +2211,7 @@ MaybeLocal<Value> Shell::DeserializeValue(Isolate* isolate,
       break;
     }
     case kSerializationTagArrayBuffer: {
-      int byte_length = data.Read<int>(offset);
+      int32_t byte_length = data.Read<int32_t>(offset);
       Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
       ArrayBuffer::Contents contents = array_buffer->GetContents();
       DCHECK(static_cast<size_t>(byte_length) == contents.ByteLength());
