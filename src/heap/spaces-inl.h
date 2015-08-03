@@ -345,23 +345,29 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
 
 AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                                               AllocationAlignment alignment) {
-  Address old_top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(old_top, alignment);
+  Address top = allocation_info_.top();
+  int filler_size = Heap::GetFillToAlign(top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (allocation_info_.limit() - old_top < aligned_size_in_bytes) {
-    return SlowAllocateRaw(size_in_bytes, alignment);
+  if (allocation_info_.limit() - top < aligned_size_in_bytes) {
+    // See if we can create room.
+    if (!EnsureAllocation(size_in_bytes, alignment)) {
+      return AllocationResult::Retry();
+    }
+
+    top = allocation_info_.top();
+    filler_size = Heap::GetFillToAlign(top, alignment);
+    aligned_size_in_bytes = size_in_bytes + filler_size;
   }
 
-  HeapObject* obj = HeapObject::FromAddress(old_top);
-  allocation_info_.set_top(allocation_info_.top() + aligned_size_in_bytes);
+  HeapObject* obj = HeapObject::FromAddress(top);
+  allocation_info_.set_top(top + aligned_size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   if (filler_size > 0) {
     obj = heap()->PrecedeWithFiller(obj, filler_size);
   }
 
-  // The slow path above ultimately goes through AllocateRaw, so this suffices.
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
 
   return obj;
@@ -369,17 +375,20 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
 
 
 AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes) {
-  Address old_top = allocation_info_.top();
+  Address top = allocation_info_.top();
+  if (allocation_info_.limit() - top < size_in_bytes) {
+    // See if we can create room.
+    if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
+      return AllocationResult::Retry();
+    }
 
-  if (allocation_info_.limit() - old_top < size_in_bytes) {
-    return SlowAllocateRaw(size_in_bytes, kWordAligned);
+    top = allocation_info_.top();
   }
 
-  HeapObject* obj = HeapObject::FromAddress(old_top);
-  allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
+  HeapObject* obj = HeapObject::FromAddress(top);
+  allocation_info_.set_top(top + size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  // The slow path above ultimately goes through AllocateRaw, so this suffices.
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
 
   return obj;

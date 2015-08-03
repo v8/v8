@@ -1469,14 +1469,34 @@ bool NewSpace::AddFreshPage() {
 }
 
 
-AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes,
-                                           AllocationAlignment alignment) {
+bool NewSpace::EnsureAllocation(int size_in_bytes,
+                                AllocationAlignment alignment) {
   Address old_top = allocation_info_.top();
   Address high = to_space_.page_high();
-  if (allocation_info_.limit() < high) {
-    int alignment_size = Heap::GetFillToAlign(old_top, alignment);
-    int aligned_size_in_bytes = size_in_bytes + alignment_size;
+  int filler_size = Heap::GetFillToAlign(old_top, alignment);
+  int aligned_size_in_bytes = size_in_bytes + filler_size;
 
+  if (old_top + aligned_size_in_bytes >= high) {
+    // Not enough room in the page, try to allocate a new one.
+    if (!AddFreshPage()) {
+      return false;
+    }
+
+    // Do a step for the bytes allocated on the last page.
+    int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
+    heap()->incremental_marking()->Step(bytes_allocated,
+                                        IncrementalMarking::GC_VIA_STACK_GUARD);
+    old_top = allocation_info_.top();
+    top_on_previous_step_ = old_top;
+
+    high = to_space_.page_high();
+    filler_size = Heap::GetFillToAlign(old_top, alignment);
+    aligned_size_in_bytes = size_in_bytes + filler_size;
+  }
+
+  DCHECK(old_top + aligned_size_in_bytes < high);
+
+  if (allocation_info_.limit() < high) {
     // Either the limit has been lowered because linear allocation was disabled
     // or because incremental marking wants to get a chance to do a step. Set
     // the new limit accordingly.
@@ -1486,19 +1506,8 @@ AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes,
                                         IncrementalMarking::GC_VIA_STACK_GUARD);
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
     top_on_previous_step_ = new_top;
-    if (alignment == kWordAligned) return AllocateRawUnaligned(size_in_bytes);
-    return AllocateRawAligned(size_in_bytes, alignment);
-  } else if (AddFreshPage()) {
-    // Switched to new page. Try allocating again.
-    int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated,
-                                        IncrementalMarking::GC_VIA_STACK_GUARD);
-    top_on_previous_step_ = to_space_.page_low();
-    if (alignment == kWordAligned) return AllocateRawUnaligned(size_in_bytes);
-    return AllocateRawAligned(size_in_bytes, alignment);
-  } else {
-    return AllocationResult::Retry();
   }
+  return true;
 }
 
 

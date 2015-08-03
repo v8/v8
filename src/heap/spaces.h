@@ -2658,8 +2658,7 @@ class NewSpace : public Space {
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 
-  MUST_USE_RESULT AllocationResult
-  SlowAllocateRaw(int size_in_bytes, AllocationAlignment alignment);
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
 
   friend class SemiSpaceIterator;
 };
