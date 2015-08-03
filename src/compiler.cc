@@ -211,11 +211,14 @@ bool CompilationInfo::ShouldSelfOptimize() {
 
 
 void CompilationInfo::EnsureFeedbackVector() {
-  if (feedback_vector_.is_null() ||
-      feedback_vector_->SpecDiffersFrom(function()->feedback_vector_spec())) {
+  if (feedback_vector_.is_null()) {
     feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
         function()->feedback_vector_spec());
   }
+
+  // It's very important that recompiles do not alter the structure of the
+  // type feedback vector.
+  CHECK(!feedback_vector_->SpecDiffersFrom(function()->feedback_vector_spec()));
 }
 
 
