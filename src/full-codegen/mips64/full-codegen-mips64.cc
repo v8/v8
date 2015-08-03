@@ -4310,60 +4310,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-
-  DCHECK_NOT_NULL(args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
-
-  Handle<FixedArray> jsfunction_result_caches(
-      isolate()->native_context()->jsfunction_result_caches());
-  if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort(kAttemptToUseUndefinedCache);
-    __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
-    context()->Plug(v0);
-    return;
-  }
-
-  VisitForAccumulatorValue(args->at(1));
-
-  Register key = v0;
-  Register cache = a1;
-  __ ld(cache, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ ld(cache, FieldMemOperand(cache, GlobalObject::kNativeContextOffset));
-  __ ld(cache,
-         ContextOperand(
-             cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ ld(cache,
-         FieldMemOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
-
-
-  Label done, not_found;
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ ld(a2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
-  // a2 now holds finger offset as a smi.
-  __ Daddu(a3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // a3 now points to the start of fixed array elements.
-  __ SmiScale(at, a2, kPointerSizeLog2);
-  __ daddu(a3, a3, at);
-  // a3 now points to key of indexed element of cache.
-  __ ld(a2, MemOperand(a3));
-  __ Branch(&not_found, ne, key, Operand(a2));
-
-  __ ld(v0, MemOperand(a3, kPointerSize));
-  __ Branch(&done);
-
-  __ bind(&not_found);
-  // Call runtime to perform the lookup.
-  __ Push(cache, key);
-  __ CallRuntime(Runtime::kGetFromCacheRT, 2);
-
-  __ bind(&done);
-  context()->Plug(v0);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));

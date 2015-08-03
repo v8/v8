@@ -101,8 +101,6 @@ namespace internal {
   V(kIndexIsTooLarge, "Index is too large")                                    \
   V(kInlinedRuntimeFunctionFastOneByteArrayJoin,                               \
     "Inlined runtime function: FastOneByteArrayJoin")                          \
-  V(kInlinedRuntimeFunctionGetFromCache,                                       \
-    "Inlined runtime function: GetFromCache")                                  \
   V(kInliningBailedOut, "Inlining bailed out")                                 \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                   \
     "Input GPR is expected to have upper32 cleared")                           \

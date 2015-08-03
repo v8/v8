@@ -4286,55 +4286,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-  DCHECK_NOT_NULL(args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
-
-  Handle<FixedArray> jsfunction_result_caches(
-      isolate()->native_context()->jsfunction_result_caches());
-  if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort(kAttemptToUseUndefinedCache);
-    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-    context()->Plug(r0);
-    return;
-  }
-
-  VisitForAccumulatorValue(args->at(1));
-
-  Register key = r0;
-  Register cache = r1;
-  __ ldr(cache, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(cache, FieldMemOperand(cache, GlobalObject::kNativeContextOffset));
-  __ ldr(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ ldr(cache,
-         FieldMemOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
-
-
-  Label done, not_found;
-  __ ldr(r2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
-  // r2 now holds finger offset as a smi.
-  __ add(r3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // r3 now points to the start of fixed array elements.
-  __ ldr(r2, MemOperand::PointerAddressFromSmiKey(r3, r2, PreIndex));
-  // Note side effect of PreIndex: r3 now points to the key of the pair.
-  __ cmp(key, r2);
-  __ b(ne, &not_found);
-
-  __ ldr(r0, MemOperand(r3, kPointerSize));
-  __ b(&done);
-
-  __ bind(&not_found);
-  // Call runtime to perform the lookup.
-  __ Push(cache, key);
-  __ CallRuntime(Runtime::kGetFromCacheRT, 2);
-
-  __ bind(&done);
-  context()->Plug(r0);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));

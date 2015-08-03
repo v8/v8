@@ -546,9 +546,7 @@ function StringSearch(re) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.search");
 
   var regexp;
-  if (IS_STRING(re)) {
-    regexp = %_GetFromCache(STRING_TO_REGEXP_CACHE_ID, re);
-  } else if (IS_REGEXP(re)) {
+  if (IS_REGEXP(re)) {
     regexp = re;
   } else {
     regexp = new GlobalRegExp(re);

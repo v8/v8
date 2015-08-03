@@ -142,7 +142,6 @@ enum BindingFlags {
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)          \
   V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun)                  \
   V(FUNCTION_CACHE_INDEX, ObjectHashTable, function_cache)                     \
-  V(JSFUNCTION_RESULT_CACHES_INDEX, FixedArray, jsfunction_result_caches)      \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context)                           \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
@@ -406,7 +405,6 @@ class Context: public FixedArray {
     GET_STACK_TRACE_LINE_INDEX,
     CONFIGURE_GLOBAL_INDEX,
     FUNCTION_CACHE_INDEX,
-    JSFUNCTION_RESULT_CACHES_INDEX,
     NORMALIZED_MAP_CACHE_INDEX,
     RUNTIME_CONTEXT_INDEX,
     CALL_AS_FUNCTION_DELEGATE_INDEX,

@@ -424,7 +424,6 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
 void Heap::GarbageCollectionPrologue() {
   {
     AllowHeapAllocation for_the_first_part_of_prologue;
-    ClearJSFunctionResultCaches();
     gc_count_++;
     unflattened_strings_length_ = 0;
 
@@ -1126,29 +1125,6 @@ void Heap::EnsureFromSpaceIsCommitted() {
   // Committing memory to from space failed.
   // Memory is exhausted and we will die.
   V8::FatalProcessOutOfMemory("Committing semi space failed.");
-}
-
-
-void Heap::ClearJSFunctionResultCaches() {
-  if (isolate_->bootstrapper()->IsActive()) return;
-
-  Object* context = native_contexts_list();
-  while (!context->IsUndefined()) {
-    // Get the caches for this context. GC can happen when the context
-    // is not fully initialized, so the caches can be undefined.
-    Object* caches_or_undefined =
-        Context::cast(context)->get(Context::JSFUNCTION_RESULT_CACHES_INDEX);
-    if (!caches_or_undefined->IsUndefined()) {
-      FixedArray* caches = FixedArray::cast(caches_or_undefined);
-      // Clear the caches:
-      int length = caches->length();
-      for (int i = 0; i < length; i++) {
-        JSFunctionResultCache::cast(caches->get(i))->Clear();
-      }
-    }
-    // Get the next context:
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
-  }
 }
 
 

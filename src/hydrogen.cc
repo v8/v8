@@ -12500,12 +12500,6 @@ void HOptimizedGraphBuilder::GenerateRegExpConstructResult(CallRuntime* call) {
 }
 
 
-// Support for fast native caches.
-void HOptimizedGraphBuilder::GenerateGetFromCache(CallRuntime* call) {
-  return Bailout(kInlinedRuntimeFunctionGetFromCache);
-}
-
-
 // Fast support for number to string.
 void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());

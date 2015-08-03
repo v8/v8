@@ -4179,55 +4179,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-
-  DCHECK_NOT_NULL(args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
-
-  Handle<FixedArray> jsfunction_result_caches(
-      isolate()->native_context()->jsfunction_result_caches());
-  if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort(kAttemptToUseUndefinedCache);
-    __ mov(eax, isolate()->factory()->undefined_value());
-    context()->Plug(eax);
-    return;
-  }
-
-  VisitForAccumulatorValue(args->at(1));
-
-  Register key = eax;
-  Register cache = ebx;
-  Register tmp = ecx;
-  __ mov(cache, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
-  __ mov(cache,
-         FieldOperand(cache, GlobalObject::kNativeContextOffset));
-  __ mov(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ mov(cache,
-         FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
-
-  Label done, not_found;
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ mov(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
-  // tmp now holds finger offset as a smi.
-  __ cmp(key, FixedArrayElementOperand(cache, tmp));
-  __ j(not_equal, &not_found);
-
-  __ mov(eax, FixedArrayElementOperand(cache, tmp, 1));
-  __ jmp(&done);
-
-  __ bind(&not_found);
-  // Call runtime to perform the lookup.
-  __ push(cache);
-  __ push(key);
-  __ CallRuntime(Runtime::kGetFromCacheRT, 2);
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

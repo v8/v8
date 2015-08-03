@@ -241,7 +241,6 @@ class Genesis BASE_EMBEDDED {
   bool InstallExtraNatives();
   void InstallBuiltinFunctionIds();
   void InstallExperimentalBuiltinFunctionIds();
-  void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
 
   enum ExtensionTraversalState {
@@ -2698,50 +2697,6 @@ void Genesis::InstallExperimentalBuiltinFunctionIds() {
 #undef INSTALL_BUILTIN_ID
 
 
-// Do not forget to update macros.py with named constant
-// of cache id.
-#define JSFUNCTION_RESULT_CACHE_LIST(F) \
-  F(16, native_context()->regexp_function())
-
-
-static FixedArray* CreateCache(int size, Handle<JSFunction> factory_function) {
-  Factory* factory = factory_function->GetIsolate()->factory();
-  // Caches are supposed to live for a long time, allocate in old space.
-  int array_size = JSFunctionResultCache::kEntriesIndex + 2 * size;
-  // Cannot use cast as object is not fully initialized yet.
-  JSFunctionResultCache* cache = reinterpret_cast<JSFunctionResultCache*>(
-      *factory->NewFixedArrayWithHoles(array_size, TENURED));
-  cache->set(JSFunctionResultCache::kFactoryIndex, *factory_function);
-  cache->MakeZeroSize();
-  return cache;
-}
-
-
-void Genesis::InstallJSFunctionResultCaches() {
-  const int kNumberOfCaches = 0 +
-#define F(size, func) + 1
-    JSFUNCTION_RESULT_CACHE_LIST(F)
-#undef F
-  ;
-
-  Handle<FixedArray> caches =
-      factory()->NewFixedArray(kNumberOfCaches, TENURED);
-
-  int index = 0;
-
-#define F(size, func) do {                                              \
-    FixedArray* cache = CreateCache((size), Handle<JSFunction>(func));  \
-    caches->set(index++, cache);                                        \
-  } while (false)
-
-  JSFUNCTION_RESULT_CACHE_LIST(F);
-
-#undef F
-
-  native_context()->set_jsfunction_result_caches(*caches);
-}
-
-
 void Genesis::InitializeNormalizedMapCaches() {
   Handle<NormalizedMapCache> cache = NormalizedMapCache::New(isolate());
   native_context()->set_normalized_map_cache(*cache);
@@ -3252,7 +3207,6 @@ Genesis::Genesis(Isolate* isolate,
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);
     InitializeGlobal(global_object, empty_function, context_type);
-    InstallJSFunctionResultCaches();
     InitializeNormalizedMapCaches();
 
     if (!InstallNatives(context_type)) return;

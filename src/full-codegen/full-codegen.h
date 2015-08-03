@@ -530,7 +530,6 @@ class FullCodeGenerator: public AstVisitor {
   F(StringCompare)                        \
   F(RegExpExec)                           \
   F(RegExpConstructResult)                \
-  F(GetFromCache)                         \
   F(NumberToString)                       \
   F(ToObject)                             \
   F(DebugIsActive)

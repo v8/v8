@@ -321,7 +321,6 @@ namespace internal {
   F(AllocateInTargetSpace, 2, 1)              \
   F(CollectStackTrace, 2, 1)                  \
   F(RenderCallSite, 0, 1)                     \
-  F(GetFromCacheRT, 2, 1)                     \
   F(MessageGetStartPosition, 1, 1)            \
   F(MessageGetScript, 1, 1)                   \
   F(FormatMessageString, 4, 1)                \
@@ -336,7 +335,6 @@ namespace internal {
   F(CallSiteIsEvalRT, 3, 1)                   \
   F(CallSiteIsConstructorRT, 3, 1)            \
   F(IS_VAR, 1, 1)                             \
-  F(GetFromCache, 2, 1)                       \
   F(IncrementStatsCounter, 1, 1)              \
   F(Likely, 1, 1)                             \
   F(Unlikely, 1, 1)                           \

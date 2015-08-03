@@ -4178,63 +4178,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-
-  DCHECK_NOT_NULL(args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->value()))->value();
-
-  Handle<FixedArray> jsfunction_result_caches(
-      isolate()->native_context()->jsfunction_result_caches());
-  if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort(kAttemptToUseUndefinedCache);
-    __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-    context()->Plug(rax);
-    return;
-  }
-
-  VisitForAccumulatorValue(args->at(1));
-
-  Register key = rax;
-  Register cache = rbx;
-  Register tmp = rcx;
-  __ movp(cache, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
-  __ movp(cache,
-          FieldOperand(cache, GlobalObject::kNativeContextOffset));
-  __ movp(cache,
-          ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ movp(cache,
-          FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
-
-  Label done, not_found;
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ movp(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
-  // tmp now holds finger offset as a smi.
-  SmiIndex index =
-      __ SmiToIndex(kScratchRegister, tmp, kPointerSizeLog2);
-  __ cmpp(key, FieldOperand(cache,
-                            index.reg,
-                            index.scale,
-                            FixedArray::kHeaderSize));
-  __ j(not_equal, &not_found, Label::kNear);
-  __ movp(rax, FieldOperand(cache,
-                            index.reg,
-                            index.scale,
-                            FixedArray::kHeaderSize + kPointerSize));
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&not_found);
-  // Call runtime to perform the lookup.
-  __ Push(cache);
-  __ Push(key);
-  __ CallRuntime(Runtime::kGetFromCacheRT, 2);
-
-  __ bind(&done);
-  context()->Plug(rax);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

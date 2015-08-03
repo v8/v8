@@ -1341,8 +1341,6 @@ class Heap {
   // scavenge operation.
   inline bool ShouldBePromoted(Address old_address, int object_size);
 
-  void ClearJSFunctionResultCaches();
-
   void ClearNormalizedMapCaches();
 
   GCTracer* tracer() { return &tracer_; }

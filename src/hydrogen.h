@@ -2212,7 +2212,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(StringCompare)                     \
   F(RegExpExec)                        \
   F(RegExpConstructResult)             \
-  F(GetFromCache)                      \
   F(NumberToString)                    \
   F(DebugIsActive)                     \
   F(Likely)                            \

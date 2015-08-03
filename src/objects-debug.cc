@@ -1025,32 +1025,6 @@ void Script::ScriptVerify() {
 }
 
 
-void JSFunctionResultCache::JSFunctionResultCacheVerify() {
-  JSFunction::cast(get(kFactoryIndex))->ObjectVerify();
-
-  int size = Smi::cast(get(kCacheSizeIndex))->value();
-  CHECK(kEntriesIndex <= size);
-  CHECK(size <= length());
-  CHECK_EQ(0, size % kEntrySize);
-
-  int finger = Smi::cast(get(kFingerIndex))->value();
-  CHECK(kEntriesIndex <= finger);
-  CHECK((finger < size) || (finger == kEntriesIndex && finger == size));
-  CHECK_EQ(0, finger % kEntrySize);
-
-  if (FLAG_enable_slow_asserts) {
-    for (int i = kEntriesIndex; i < size; i++) {
-      CHECK(!get(i)->IsTheHole());
-      get(i)->ObjectVerify();
-    }
-    for (int i = size; i < length(); i++) {
-      CHECK(get(i)->IsTheHole());
-      get(i)->ObjectVerify();
-    }
-  }
-}
-
-
 void NormalizedMapCache::NormalizedMapCacheVerify() {
   FixedArray::cast(this)->FixedArrayVerify();
   if (FLAG_enable_slow_asserts) {

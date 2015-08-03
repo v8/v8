@@ -87,7 +87,6 @@
 //           - OrderedHashMap
 //         - Context
 //         - TypeFeedbackVector
-//         - JSFunctionResultCache
 //         - ScopeInfo
 //         - TransitionArray
 //         - ScriptContextTable
@@ -986,7 +985,6 @@ template <class C> inline bool Is(Object* obj);
   V(HashTable)                     \
   V(Dictionary)                    \
   V(StringTable)                   \
-  V(JSFunctionResultCache)         \
   V(NormalizedMapCache)            \
   V(CompilationCacheTable)         \
   V(CodeCacheHashTable)            \
@@ -3827,41 +3825,6 @@ class WeakValueHashTable : public ObjectHashTable {
       Handle<HeapObject> value);
 
   static Handle<FixedArray> GetWeakValues(Handle<WeakValueHashTable> table);
-};
-
-
-// JSFunctionResultCache caches results of some JSFunction invocation.
-// It is a fixed array with fixed structure:
-//   [0]: factory function
-//   [1]: finger index
-//   [2]: current cache size
-//   [3]: dummy field.
-// The rest of array are key/value pairs.
-class JSFunctionResultCache : public FixedArray {
- public:
-  static const int kFactoryIndex = 0;
-  static const int kFingerIndex = kFactoryIndex + 1;
-  static const int kCacheSizeIndex = kFingerIndex + 1;
-  static const int kDummyIndex = kCacheSizeIndex + 1;
-  static const int kEntriesIndex = kDummyIndex + 1;
-
-  static const int kEntrySize = 2;  // key + value
-
-  static const int kFactoryOffset = kHeaderSize;
-  static const int kFingerOffset = kFactoryOffset + kPointerSize;
-  static const int kCacheSizeOffset = kFingerOffset + kPointerSize;
-
-  inline void MakeZeroSize();
-  inline void Clear();
-
-  inline int size();
-  inline void set_size(int size);
-  inline int finger_index();
-  inline void set_finger_index(int finger_index);
-
-  DECLARE_CAST(JSFunctionResultCache)
-
-  DECLARE_VERIFIER(JSFunctionResultCache)
 };
 
 

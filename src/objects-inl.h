@@ -926,28 +926,6 @@ bool Object::IsStringTable() const {
 }
 
 
-bool Object::IsJSFunctionResultCache() const {
-  if (!IsFixedArray()) return false;
-  const FixedArray* self = FixedArray::cast(this);
-  int length = self->length();
-  if (length < JSFunctionResultCache::kEntriesIndex) return false;
-  if ((length - JSFunctionResultCache::kEntriesIndex)
-      % JSFunctionResultCache::kEntrySize != 0) {
-    return false;
-  }
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    // TODO(svenpanne) We use const_cast here and below to break our dependency
-    // cycle between the predicates and the verifiers. This can be removed when
-    // the verifiers are const-correct, too.
-    reinterpret_cast<JSFunctionResultCache*>(const_cast<Object*>(this))->
-        JSFunctionResultCacheVerify();
-  }
-#endif
-  return true;
-}
-
-
 bool Object::IsNormalizedMapCache() const {
   return NormalizedMapCache::IsNormalizedMapCache(this);
 }
@@ -3124,7 +3102,6 @@ CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSFunctionProxy)
-CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(JSGeneratorObject)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
@@ -3718,42 +3695,6 @@ void StringCharacterStream::VisitTwoByteString(
   is_one_byte_ = false;
   buffer16_ = chars;
   end_ = reinterpret_cast<const uint8_t*>(chars + length);
-}
-
-
-void JSFunctionResultCache::MakeZeroSize() {
-  set_finger_index(kEntriesIndex);
-  set_size(kEntriesIndex);
-}
-
-
-void JSFunctionResultCache::Clear() {
-  int cache_size = size();
-  Object** entries_start = RawFieldOfElementAt(kEntriesIndex);
-  MemsetPointer(entries_start,
-                GetHeap()->the_hole_value(),
-                cache_size - kEntriesIndex);
-  MakeZeroSize();
-}
-
-
-int JSFunctionResultCache::size() {
-  return Smi::cast(get(kCacheSizeIndex))->value();
-}
-
-
-void JSFunctionResultCache::set_size(int size) {
-  set(kCacheSizeIndex, Smi::FromInt(size));
-}
-
-
-int JSFunctionResultCache::finger_index() {
-  return Smi::cast(get(kFingerIndex))->value();
-}
-
-
-void JSFunctionResultCache::set_finger_index(int finger_index) {
-  set(kFingerIndex, Smi::FromInt(finger_index));
 }
 
 

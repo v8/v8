@@ -97,7 +97,12 @@ void CcTest::Run() {
   }
   callback_();
   if (initialize_) {
-    EmptyMessageQueues(isolate_);
+    if (v8::Locker::IsActive()) {
+      v8::Locker locker(isolate_);
+      EmptyMessageQueues(isolate_);
+    } else {
+      EmptyMessageQueues(isolate_);
+    }
     isolate_->Exit();
   }
 }

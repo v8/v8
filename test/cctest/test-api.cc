@@ -6787,6 +6787,7 @@ static void ForceMarkSweep1(
 
 THREADED_TEST(GCFromWeakCallbacks) {
   v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
   v8::HandleScope scope(isolate);
   v8::Handle<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
@@ -11923,6 +11924,7 @@ void HandleCreatingCallback1(
 
 
 THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
+  v8::Locker locker(CcTest::isolate());
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
 
@@ -16562,118 +16564,6 @@ TEST(GCCallbacks) {
   CHECK_EQ(1, epilogue_call_count_alloc);
   isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);
   isolate->RemoveGCEpilogueCallback(EpilogueCallbackAlloc);
-}
-
-
-THREADED_TEST(AddToJSFunctionResultCache) {
-  i::FLAG_stress_compaction = false;
-  i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope scope(CcTest::isolate());
-
-  LocalContext context;
-
-  const char* code =
-      "(function() {"
-      "  var key0 = 'a';"
-      "  var key1 = 'b';"
-      "  var r0 = %_GetFromCache(0, key0);"
-      "  var r1 = %_GetFromCache(0, key1);"
-      "  var r0_ = %_GetFromCache(0, key0);"
-      "  if (r0 !== r0_)"
-      "    return 'Different results for ' + key0 + ': ' + r0 + ' vs. ' + r0_;"
-      "  var r1_ = %_GetFromCache(0, key1);"
-      "  if (r1 !== r1_)"
-      "    return 'Different results for ' + key1 + ': ' + r1 + ' vs. ' + r1_;"
-      "  return 'PASSED';"
-      "})()";
-  CcTest::heap()->ClearJSFunctionResultCaches();
-  ExpectString(code, "PASSED");
-}
-
-
-THREADED_TEST(FillJSFunctionResultCache) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  const char* code =
-      "(function() {"
-      "  var k = 'a';"
-      "  var r = %_GetFromCache(0, k);"
-      "  for (var i = 0; i < 16; i++) {"
-      "    %_GetFromCache(0, 'a' + i);"
-      "  };"
-      "  if (r === %_GetFromCache(0, k))"
-      "    return 'FAILED: k0CacheSize is too small';"
-      "  return 'PASSED';"
-      "})()";
-  CcTest::heap()->ClearJSFunctionResultCaches();
-  ExpectString(code, "PASSED");
-}
-
-
-THREADED_TEST(RoundRobinGetFromCache) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  const char* code =
-      "(function() {"
-      "  var keys = [];"
-      "  for (var i = 0; i < 16; i++) keys.push(i);"
-      "  var values = [];"
-      "  for (var i = 0; i < 16; i++) values[i] = %_GetFromCache(0, keys[i]);"
-      "  for (var i = 0; i < 16; i++) {"
-      "    var v = %_GetFromCache(0, keys[i]);"
-      "    if (v.toString() !== values[i].toString())"
-      "      return 'Wrong value for ' + "
-      "          keys[i] + ': ' + v + ' vs. ' + values[i];"
-      "  };"
-      "  return 'PASSED';"
-      "})()";
-  CcTest::heap()->ClearJSFunctionResultCaches();
-  ExpectString(code, "PASSED");
-}
-
-
-THREADED_TEST(ReverseGetFromCache) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  const char* code =
-      "(function() {"
-      "  var keys = [];"
-      "  for (var i = 0; i < 16; i++) keys.push(i);"
-      "  var values = [];"
-      "  for (var i = 0; i < 16; i++) values[i] = %_GetFromCache(0, keys[i]);"
-      "  for (var i = 15; i >= 16; i--) {"
-      "    var v = %_GetFromCache(0, keys[i]);"
-      "    if (v !== values[i])"
-      "      return 'Wrong value for ' + "
-      "          keys[i] + ': ' + v + ' vs. ' + values[i];"
-      "  };"
-      "  return 'PASSED';"
-      "})()";
-  CcTest::heap()->ClearJSFunctionResultCaches();
-  ExpectString(code, "PASSED");
-}
-
-
-THREADED_TEST(TestEviction) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  const char* code =
-      "(function() {"
-      "  for (var i = 0; i < 2*16; i++) {"
-      "    %_GetFromCache(0, 'a' + i);"
-      "  };"
-      "  return 'PASSED';"
-      "})()";
-  CcTest::heap()->ClearJSFunctionResultCaches();
-  ExpectString(code, "PASSED");
 }
 
 
